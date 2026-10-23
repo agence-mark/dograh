@@ -718,14 +718,22 @@ def brancher_confier_le_travail(
     async def gestionnaire(params) -> None:
         # fiabilite-orchestration, lot 2 (C3) : la liste des champs de l'étape garde « confier »
         # comme les outils de l'étape (run 1468 : action lancée avec des champs encore « à venir »).
-        from api.services.workflow.enveloppe_des_actions import garde_de_l_etape
+        from api.services.workflow.enveloppe_des_actions import garde_de_l_etape_apres_les_notes
 
-        refus = garde_de_l_etape(moteur, agent)
+        refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
         if refus is not None:
             await params.result_callback(refus)
             return
         arguments = getattr(params, "arguments", None) or {}
-        resultat = await travail.confier(arguments.get("demande"), arguments.get("annonce"))
+        # Lot 6 (K8) : « confier » est appelé par le modèle pour cette demande : aucune position ne se réarme.
+        from api.services.workflow.declenchement_de_l_action import noter_l_appel
+
+        noter_l_appel(moteur, agent, NOM_OUTIL)
+        # Lot 5 (K11) : les valeurs de la fiche sont jointes par le code, le modèle n'a plus à les recopier.
+        from api.services.travail.demande import demande_avec_la_fiche
+
+        demande = demande_avec_la_fiche(moteur, arguments.get("demande"))
+        resultat = await travail.confier(demande, arguments.get("annonce"))
         await params.result_callback(resultat, properties=proprietes(params))
 
     agent.llm.register_function(NOM_OUTIL, agent.bind_tool(moteur, gestionnaire))

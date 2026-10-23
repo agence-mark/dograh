@@ -2076,6 +2076,12 @@ export type ChampFiche = {
      */
     rempli_par_outil?: string | null;
     /**
+     * Annule Par Outil
+     *
+     * Undone by a tool: the name of the tool that cancels what the filling tool did. Its successful result writes this field (the value of the same key in its answer, else its status); a failure writes nothing, and the agent is told the real outcome. It is never held back by the booking guard. Empty: off.
+     */
+    annule_par_outil?: string | null;
+    /**
      * Obligatoire Sans Exception
      *
      * Required without exception: a refusal by the caller does not count as an answer, the field stays missing for the step's guard. Off: a refused field counts as handled.
@@ -3416,6 +3422,26 @@ export type DemandeApplication = {
 };
 
 /**
+ * DemandeAppliquerATous
+ *
+ * Quel réglage de l'établissement source est recopié dans tous les autres.
+ */
+export type DemandeAppliquerATous = {
+    /**
+     * Reglage
+     *
+     * The family of the setting (see the table of the module).
+     */
+    reglage: 'planificateur' | 'type' | 'module' | 'fiche' | 'phrase';
+    /**
+     * Cle
+     *
+     * Which setting of the family: a planner field, a type's code, « module.key », a field of the fiche (hours, address, announcements) or a sentence's variable.
+     */
+    cle: string;
+};
+
+/**
  * DemandeControleHoraires
  */
 export type DemandeControleHoraires = {
@@ -4505,6 +4531,20 @@ export type EtablissementServi = {
     annonce_fermeture: ValeurHeritee;
     annonce_pause: ValeurHeritee;
     numero_transfert: ValeurHeritee;
+};
+
+/**
+ * EtablissementTouche
+ */
+export type EtablissementTouche = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -9728,6 +9768,34 @@ export type ResultatApplication = {
 };
 
 /**
+ * ResultatAppliquerATous
+ *
+ * What the gesture did: the source, and every other establishment that now carries its value.
+ */
+export type ResultatAppliquerATous = {
+    /**
+     * Source
+     *
+     * Identifier of the establishment whose value was copied.
+     */
+    source: string;
+    /**
+     * Reglage
+     */
+    reglage: 'planificateur' | 'type' | 'module' | 'fiche' | 'phrase';
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Etablissements
+     *
+     * The other establishments of the organization, all written.
+     */
+    etablissements?: Array<EtablissementTouche>;
+};
+
+/**
  * ResultatControleHoraires
  */
 export type ResultatControleHoraires = {
@@ -13526,6 +13594,12 @@ export type WorkflowConfigurationDefaults = {
      * When the agent arrives in a step that carries a call transfer tool and the business is OPEN, the code launches the transfer itself once the step's first reply has been said, instead of waiting for the model to call it. Every note-taking mode. Off (default): the model decides, as before.
      */
     transfert_garanti?: boolean;
+    /**
+     * Verite Formulations D Action
+     *
+     * Past participles that say an action is done (booked, confirmed, cancelled...), checked by the « Truth of actions » box of the steps: a reply that says one of them with no tool result behind it is held back and the model asked again once. Empty (default): the built-in list. Needs the call record.
+     */
+    verite_formulations_d_action?: Array<string>;
     /**
      * Trace Requetes Modele
      *
@@ -18301,6 +18375,54 @@ export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifi
 };
 
 export type FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponse = FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses[keyof FermerOuRouvrirEtablissementApiV1OrganizationsEtablissementsIdentifiantEtatPostResponses];
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostData = {
+    body: DemandeAppliquerATous;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/organizations/etablissements/{identifiant}/appliquer-a-tous';
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostError = AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors[keyof AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostErrors];
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatAppliquerATous;
+};
+
+export type AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponse = AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses[keyof AppliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPostResponses];
 
 export type PostEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPostData = {
     body: DemandeEtablissementsDeLagent;

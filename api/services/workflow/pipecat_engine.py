@@ -43,7 +43,9 @@ from api.services.groupe.passations import (
     est_un_groupe,
     fins_du_noeud,
     plafond_atteint,
+    porte_ecrite_est_une_fin,
     porte_reecrite_vers_le_retour,
+    sortie_de_fin_de_l_etape,
 )
 from api.services.groupe.filet_de_fin import (
     TRACE_FILET,
@@ -56,6 +58,7 @@ from api.services.groupe.notes import (
     note_d_aller,
     note_de_retour,
     noter_les_champs_de_l_agent,
+    demande_de_passation_vers,
     outil_de_passation_vers,
 )
 from api.services.groupe.parcours import rendre_le_parcours
@@ -106,6 +109,7 @@ from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
+from api.services.workflow.champs_conditionnels import champs_actifs  # [.mark] lot 7 de correctifs-apres-banc-commun
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
     CALL_DISPOSITION_CONTEXT_KEY,
@@ -773,6 +777,23 @@ class PipecatEngine:
         except Exception:  # noqa: BLE001
             return False
 
+    def porte_vers_le_retour_sur_demande_nouvelle(self, nom: str) -> bool:
+        """[.mark] Lot 1 (K14, D-2) : la porte écrite ``nom`` rend-elle la main à l'accueil pour une
+        demande nouvelle ? Le collègue a deux sorties : clore (``fin``) ou rendre la main ; rendre la main,
+        c'est que l'appelant a une autre demande. Alors la suite de la réponse se tait (la phrase du
+        collègue n'est pas dite) et l'accueil joue son tour tout de suite. Une porte ``fin`` réécrite en
+        ``retour`` garde sa phrase d'au revoir (K4). ⛔ Ne lève jamais."""
+        try:
+            agent = self.active_agent
+            arete = self._porte_de_l_etape(nom)
+            if arete is None:
+                return False
+            if arete.get_function_name() != nom and porte_ecrite_est_une_fin(agent.workflow, nom):
+                return False
+            return self._principal_du_retour(agent, arete.target) is not None
+        except Exception:  # noqa: BLE001
+            return False
+
     def est_une_porte_de_l_etape(self, nom: str) -> bool:
         """[.mark] Revue du 11/10 (Q4) : ``nom`` désigne-t-il une porte de l'étape en cours ?
         ⛔ Ne lève jamais."""
@@ -797,6 +818,7 @@ class PipecatEngine:
         transition_dite: bool = False,
         reponse: Optional[str] = None,
         relancer: bool = False,
+        fin_demandee: bool = False,
     ) -> str:
         """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
         (interruption comprise), comme ``_create_transition_func`` mais sans
@@ -807,6 +829,9 @@ class PipecatEngine:
         étape de fin, c'est elle la phrase de fin (D7) : on attend qu'elle soit
         jouée, puis on raccroche. ``relancer`` : la réponse n'a rien dit ; le
         modèle reparle dans la nouvelle étape (comme une porte appelée en fonction).
+
+        ``fin_demandee`` (lot 1, K4) : cette porte est prise pour finir l'appel (le filet de fin) ; une
+        porte ``fin`` réécrite en ``retour`` l'est aussi, d'elle-même.
 
         Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
@@ -892,8 +917,15 @@ class PipecatEngine:
             # [.mark] Chantier agents-specialises (lot 2) : retour au principal (A1),
             # ou fin figée (A17) dite après la réplique en cours, sans relance du modèle.
             principal = self._principal_du_retour(agent, arete.target)
-            if principal is not None and self._rendre_au_principal(agent, principal):
-                return "prise"
+            if principal is not None:
+                # Lot 1 (K4) : le collègue a voulu finir l'appel (filet, ou ``fin`` réécrite en
+                # ``retour``) : l'accueil prendra sa sortie ``fin`` sans tour de modèle.
+                fin_voulue = fin_demandee or (
+                    arete.get_function_name() != nom
+                    and porte_ecrite_est_une_fin(agent.workflow, nom)
+                )
+                if self._rendre_au_principal(agent, principal, fin_demandee=fin_voulue):
+                    return "prise"
             if phrase_figee is not None:
                 self._mute_pipeline = True
                 self._tache_du_groupe(
@@ -1212,7 +1244,12 @@ class PipecatEngine:
             return None
 
     def _rendre_au_principal(
-        self, agent: AgentRuntime, principal: int, *, context_ready=None
+        self,
+        agent: AgentRuntime,
+        principal: int,
+        *,
+        context_ready=None,
+        fin_demandee: bool = False,
     ) -> bool:
         """Le code passe la main au principal : ni annonce, ni musique, historique sans
         résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
@@ -1232,6 +1269,7 @@ class PipecatEngine:
                 raison=RAISON_RETOUR,
                 depuis=self._debut_de_la_derniere_etape(agent),
                 etape_de_retour=True,
+                fin_demandee=fin_demandee,
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -1280,9 +1318,42 @@ class PipecatEngine:
                     "tour": self._gathered_context.get(CLE_TOUR),
                 }
             )
-            return await self.prendre_porte_ecrite(arete.get_function_name()) == "prise"
+            return (
+                await self.prendre_porte_ecrite(arete.get_function_name(), fin_demandee=True)
+                == "prise"
+            )
         except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
             logger.error(f"[filet] fin d'appel en échec : {e!r}")
+            return False
+
+    async def fin_directe_de_l_accueil(self, agent: AgentRuntime, noeud_id: str) -> bool:
+        """[.mark] Lot 1 (K4) : le collègue a demandé la fin de l'appel ; l'accueil, arrivé sur son
+        étape de retour, prend sa sortie ``fin`` SANS tour de modèle : la phrase de fin figée si le nœud
+        en a une, sinon il raccroche (le collègue a déjà dit au revoir). Rend ``False`` (le tour de
+        l'accueil se joue comme avant) si l'étape n'a pas de sortie de fin offerte. ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(noeud_id)
+            arete = sortie_de_fin_de_l_etape(noeud, agent.workflow)
+            if arete is None or not self.agent_can_act(agent):
+                return False
+            logger.info("[groupe] fin demandée par le collègue : l'accueil prend sa sortie fin")
+            await self.set_node(arete.target, origin_visit_id=agent.visit_id)
+            phrase = self._phrase_de_fin_figee(agent, arete.target)
+            self._mute_pipeline = True
+            if phrase is not None:
+                self._tache_du_groupe(self._dire_la_fin_figee(agent, phrase))
+            else:
+
+                async def raccrocher() -> None:
+                    if self.agent_can_act(agent):
+                        await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+
+                tache = asyncio.get_running_loop().create_task(raccrocher())
+                self._taches_de_porte.add(tache)
+                tache.add_done_callback(self._taches_de_porte.discard)
+            return True
+        except Exception as e:  # noqa: BLE001 -- une fin ne coûte jamais l'appel
+            logger.error(f"[groupe] fin directe de l'accueil en échec : {e!r}")
             return False
 
     async def _dire_la_fin_figee(self, agent: AgentRuntime, phrase: str, avant=None) -> None:
@@ -1631,10 +1702,10 @@ class PipecatEngine:
                 lambda: self._gathered_context,
                 self._notices_fiche,
                 # Lot E d'agent-leger-greffier (P1) : les étiquettes de l'étape en cours.
-                lambda: getattr(
+                # Lot 7 de correctifs-apres-banc-commun : un champ dont la condition n'est pas tenue n'est pas attendu.
+                lambda: champs_actifs(
                     getattr(self.active_agent, "current_node", None),
-                    "champs_etape",
-                    (),
+                    self._gathered_context,
                 ),
                 # Revue du 13/10 (lot C de greffier-conversation) : l'étape a-t-elle des portes ?
                 lambda: bool(
@@ -1925,6 +1996,10 @@ class PipecatEngine:
                     edge.data.transition_speech_recording_id,
                     agent=agent,
                 )
+        # [.mark] Lot 6 de correctifs-apres-banc-commun : les actions que cette étape offre (l'enveloppe les note).
+        from api.services.workflow.declenchement_de_l_action import commencer_la_liste_des_actions
+
+        commencer_la_liste_des_actions(self)
         if node.tool_uuids and manager:
             await manager.register_handlers(
                 node.tool_uuids,
@@ -1993,6 +2068,30 @@ class PipecatEngine:
             from api.services.travail.agent import brancher_annuler_le_travail
 
             functions.append(brancher_annuler_le_travail(self, travail, agent))
+        # [.mark] Lot 5 de correctifs-apres-banc-commun (K7) : le contrôle des répliques de l'étape. Lot 11 (F-2,
+        # revue 1) : allumé par défaut seulement sur une étape qui ÉCRIT (« confier », une action d'écriture ou
+        # d'annulation) ; les passations, transferts et fins ne comptent pas ; la case de l'étape décide.
+        from api.services.workflow.declenchement_de_l_action import (
+            action_de_l_etape,
+            actions_offertes,
+            brancher_le_declenchement,
+        )
+        from api.services.workflow.verite_des_actions import brancher_la_verite_des_actions, etape_qui_ecrit
+
+        brancher_la_verite_des_actions(
+            self,
+            agent,
+            node,
+            offre_une_action=not node.is_end and etape_qui_ecrit(self, actions_offertes(self), etape_du_fond),
+        )
+        # [.mark] Lot 6 de correctifs-apres-banc-commun (K8) : le déclenchement de l'outil d'action de l'étape
+        # (libre = rien n'est branché).
+        brancher_le_declenchement(
+            self,
+            agent,
+            node,
+            action_de_l_etape(actions_offertes(self), etape_du_fond, self) if not node.is_end else None,
+        )
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
         # le code à la fin du prompt, là où l'outil serait proposé (mêmes
@@ -2089,6 +2188,7 @@ class PipecatEngine:
                 and node.id == agent.workflow.start_node_id
             ):
                 outil = None
+                demande_appelant = None
                 demande = getattr(self.__dict__.get("_transfer_coordinator"), "_request", None)
                 if (
                     getattr(demande, "destination_workflow_id", None) == agent.workflow_id
@@ -2096,12 +2196,18 @@ class PipecatEngine:
                     and isinstance(getattr(demande, "raison", None), str)
                 ):
                     outil = demande.raison
+                    demande_appelant = getattr(demande, "demande", None)
                 if outil is None:
                     outil = outil_de_passation_vers(gathered, agent.workflow_id)
+                    demande_appelant = demande_de_passation_vers(gathered, agent.workflow_id)
                 if outil is None:
                     return None
                 return note_d_aller(
-                    self._fiche, gathered, outil=outil, champ_motif=self._champ_motif()
+                    self._fiche,
+                    gathered,
+                    outil=outil,
+                    champ_motif=self._champ_motif(),
+                    demande=demande_appelant,
                 )
             return None
         except Exception as e:  # noqa: BLE001

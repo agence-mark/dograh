@@ -128,8 +128,37 @@ def valeur_pour_le_champ(champ: Any, resultat: Any) -> Any:
     return "oui"
 
 
+def valeur_d_annulation(champ: Any, resultat: Any) -> Any:
+    """Lot 8 (K16) : la valeur qu'un résultat d'outil d'annulation réussi écrit dans ``champ`` : ce que la
+    réponse du service dit (la clé du champ, sinon son statut), JAMAIS une valeur par défaut (la première valeur
+    permise est celle de la réservation). ``None`` : rien à écrire."""
+    lu = _reponse(_lire(resultat))
+    if isinstance(lu, dict):
+        if lu.get(champ.nom) not in (None, ""):
+            return lu[champ.nom]
+        for cle in ("statut", "status"):
+            if isinstance(lu.get(cle), str) and lu[cle].strip():
+                return lu[cle].strip()
+    return None
+
+
+def champs_annules_par(moteur: Any, nom_outil: str) -> list[Any]:
+    """Les champs de la fiche que ``nom_outil`` défait (``annule_par_outil``). ⛔ Ne lève jamais."""
+    try:
+        reglages = getattr(moteur, "_fiche", None)
+        cible = _normaliser(nom_outil)
+        return [
+            c
+            for c in tuple(getattr(reglages, "champs", None) or ())
+            if getattr(c, "annule_par_outil", None) and _normaliser(c.annule_par_outil) == cible
+        ]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str]:
-    """Écrit les champs que ``nom_outil`` remplit. Rend les noms des champs écrits. ⛔ Ne lève jamais."""
+    """Écrit les champs que ``nom_outil`` remplit (``rempli_par_outil``) ou défait (``annule_par_outil``, lot 8).
+    Rend les noms des champs écrits. ⛔ Ne lève jamais."""
     ecrits: list[str] = []
     try:
         reglages = getattr(moteur, "_fiche", None)
@@ -142,18 +171,23 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
             for c in reglages.champs
             if c.rempli_par_outil and _normaliser(c.rempli_par_outil) == cible
         ]
-        if not champs:
+        annules = champs_annules_par(moteur, nom_outil)
+        if not champs and not annules:
             return ecrits
         if est_un_echec(resultat):
-            logger.info(f"[fiche] {nom_outil} en échec : {', '.join(c.nom for c in champs)} non écrits")
+            logger.info(f"[fiche] {nom_outil} en échec : {', '.join(c.nom for c in champs + annules)} non écrits")
             return ecrits
         from api.services.workflow.fiche_au_fil_de_leau import (
             SOURCE_ACTION,
             ecrire_dans_la_fiche,
         )
 
-        for champ in champs:
-            valeur = valeur_pour_le_champ(champ, resultat)
+        for champ in champs + [c for c in annules if c not in champs]:
+            valeur = (
+                valeur_pour_le_champ(champ, resultat)
+                if champ in champs
+                else valeur_d_annulation(champ, resultat)
+            )
             if valeur is None:
                 logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
                 continue
@@ -168,6 +202,40 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
     return ecrits
 
 
+# Lot 8 (K16, D-1) : l'issue réelle d'une annulation, dite au modèle. Génériques, aucun mot de métier.
+ISSUE_ANNULE = "annule"
+ISSUE_ECHEC = "echec"
+ISSUE_NON_CONFIRME = "non_confirme"
+CONSIGNE_ANNULATION = {
+    ISSUE_ANNULE: "L'annulation est faite : dis-le à l'appelant, sans rien ajouter qui n'est pas dans le résultat.",
+    ISSUE_ECHEC: (
+        "L'annulation a échoué : elle n'a PAS eu lieu. Dis-le franchement à l'appelant (ne dis jamais que c'est "
+        "annulé ou noté) et propose de prendre sa demande pour un rappel."
+    ),
+    ISSUE_NON_CONFIRME: (
+        "Le service n'a pas confirmé l'annulation : ne dis pas que c'est annulé, dis que tu n'as pas la "
+        "confirmation et propose de prendre sa demande pour un rappel."
+    ),
+}
+
+
+def avec_l_issue_d_annulation(resultat: Any, ecrits: list[str]) -> Any:
+    """Le résultat d'un outil d'annulation, avec son issue réelle (``issue``) et la consigne qui la dit au modèle.
+    ``annule`` : le service l'a confirmée (un champ de la fiche écrit) ; ``echec`` : elle a échoué ; sinon
+    ``non_confirme``. Un résultat qui n'est pas un dictionnaire est emballé dans ``resultat``. ⛔ Ne lève jamais."""
+    try:
+        issue = ISSUE_ECHEC if est_un_echec(resultat) else (ISSUE_ANNULE if ecrits else ISSUE_NON_CONFIRME)
+        lu = _lire(resultat)
+        en_texte = isinstance(resultat, str) and isinstance(lu, dict)
+        if not isinstance(lu, dict):
+            lu = {"resultat": resultat}
+        ajoute = {**lu, "issue": issue, "consigne": CONSIGNE_ANNULATION[issue]}
+        return json.dumps(ajoute, ensure_ascii=False, default=str) if en_texte else ajoute
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] issue d'annulation non écrite : {erreur!r}")
+        return resultat
+
+
 STATUT_INCOMPLET = "incomplet"
 
 
@@ -177,13 +245,21 @@ def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
     champs manquent encore : l'outil ne s'exécute pas, il rend ``{"statut": "incomplet", "manque":
     [...]}`` (le modèle le lit et demande). Sans liste, sans fiche, case éteinte, ou rien ne
     manque : ``None`` (l'outil s'exécute comme avant). ⛔ Ne lève jamais."""
+    return garde_du_noeud(moteur, getattr(agent, "current_node", None))
+
+
+def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
+    """La garde de l'étape ``noeud`` (voir ``garde_de_l_etape``). Lot 7 de correctifs-apres-banc-commun : un
+    champ dont la condition sur la fiche n'est pas tenue n'est pas attendu. Lot 6 : le déclenchement de l'outil
+    d'action lit la même garde. ⛔ Ne lève jamais."""
     try:
         reglages = getattr(moteur, "_fiche", None)
         fiche = getattr(moteur, "_gathered_context", None)
-        noeud = getattr(agent, "current_node", None)
-        champs_etape = tuple(getattr(noeud, "champs_etape", None) or ())
-        if reglages is None or not isinstance(fiche, dict) or not champs_etape:
+        if reglages is None or not isinstance(fiche, dict) or not tuple(getattr(noeud, "champs_etape", None) or ()):
             return None
+        from api.services.workflow.champs_conditionnels import champs_actifs
+
+        champs_etape = champs_actifs(noeud, fiche)
         if not getattr(reglages, "etiquettes", False):
             return None
         from api.services.fiche.traces import valeurs_des_traces
@@ -196,6 +272,41 @@ def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, l'outil s'exécute comme avant
         logger.warning(f"[fiche] garde de l'étape illisible : {erreur!r}")
         return None
+
+
+# K2 (run 1492 et 1510 : « manque nom, prénom, adresse » juste après les avoir dits) : la garde lisait la
+# fiche pendant que la passe du greffier du même tour tournait encore. Au plus ce délai.
+DELAI_DES_NOTES_DE_LA_GARDE = 1.5
+
+
+async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | None:
+    """K2 : comme ``garde_de_l_etape``, mais avant de rendre « incomplet » elle laisse finir les passes
+    en cours (greffier, post-scriptum : ``moteur.notes_en_cours``, 1,5 s au plus) puis relit la fiche.
+    Aucun coût quand rien ne manque, ni quand aucune passe ne tourne. ⛔ Ne lève jamais."""
+    return await garde_du_noeud_apres_les_notes(moteur, getattr(agent, "current_node", None))
+
+
+async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seulement: bool = False) -> dict | None:
+    """``garde_de_l_etape_apres_les_notes`` pour l'étape ``noeud`` (lot 6 : le déclenchement de l'outil d'action
+    lit la même garde). Lot 11 (F-14, revue 9) : ``dernier_seulement`` (le déclenchement) n'attend les passes que
+    s'il ne manque plus qu'un champ ; plus de champs manquent : la passe en cours ne peut pas tous les écrire, le
+    refus est rendu tout de suite. ⛔ Ne lève jamais."""
+    refus = garde_du_noeud(moteur, noeud)
+    if refus is None:
+        return None
+    if dernier_seulement and len(refus.get("manque") or ()) > 1:
+        return refus
+    try:
+        from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
+
+        en_cours = getattr(moteur, "notes_en_cours", None)
+        if not en_cours or all(t.done() for t in en_cours):
+            return refus
+        await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+    except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
+        logger.warning(f"[fiche] passes en cours non attendues par la garde : {erreur!r}")
+        return refus
+    return garde_du_noeud(moteur, noeud)
 
 
 Gestionnaire = Callable[[Any], Awaitable[None]]
@@ -213,12 +324,45 @@ def envelopper_l_action(
     résultat lu avant de partir au modèle (lot 1). ``garde=False`` : une action qui agit sur
     l'appel (une action interne qui peut transférer), jamais gardée."""
 
+    if garde and agent is not None:
+        # Lot 6 de correctifs-apres-banc-commun : le moteur sait quelles actions l'étape en préparation offre.
+        from api.services.workflow.declenchement_de_l_action import (
+            noter_une_action_offerte,
+        )
+
+        noter_une_action_offerte(moteur, nom_outil)
+
     async def enveloppe(params: Any) -> None:
         if garde and agent is not None:
-            refus = garde_de_l_etape(moteur, agent)
+            # Lot 6 : l'outil de l'étape est appelé (par le modèle) pour cette demande : aucune position ne se réarme.
+            # Lot 11 (F-1, revue 3) : noté AVANT les gardes, refus compris ; sinon un appel forcé que la garde de
+            # réservation refuse (ou que V4 sert) était reforcé sans fin dans le même tour.
+            from api.services.workflow.declenchement_de_l_action import noter_l_appel
+
+            noter_l_appel(moteur, agent, nom_outil)
+        # Lot 11 (F-1, revue 5) : une annulation passe TOUJOURS, sans attendre les champs de l'étape (l'appelant qui
+        # rappelle pour annuler n'a pas à redonner son adresse).
+        from api.services.workflow.verite_des_actions import outils_d_annulation
+
+        annulation = _normaliser(nom_outil) in outils_d_annulation(moteur)
+        if garde and agent is not None and not annulation:
+            refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
             if refus is not None:
                 logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
                 await params.result_callback(refus)
+                return
+        # Lot 5 de correctifs-apres-banc-commun (K7, V4) : la vérité des actions.
+        arguments = getattr(params, "arguments", None)
+        if garde and agent is not None:
+            from api.services.workflow import verite_des_actions as verite
+
+            refus = verite.garde_de_reservation(moteur, agent, nom_outil, arguments)
+            if refus is not None:
+                await params.result_callback(refus)
+                return
+            connu = verite.resultat_deja_confirme(moteur, agent, nom_outil, arguments)
+            if connu is not None:
+                await params.result_callback(connu)
                 return
         rendre = params.result_callback
         fini = asyncio.Event()
@@ -229,10 +373,26 @@ def envelopper_l_action(
             # Un résultat intermédiaire (``is_final=False``) n'est pas encore la réponse de l'outil.
             if getattr(proprietes, "is_final", True) is not False:
                 fini.set()
-                remplir_par_l_action(moteur, nom_outil, resultat)
+                ecrits = remplir_par_l_action(moteur, nom_outil, resultat)
+                try:
+                    from api.services.workflow.verite_des_actions import noter_l_action
+
+                    fiche = getattr(moteur, "_gathered_context", None)
+                    noter_l_action(
+                        moteur,
+                        nom_outil,
+                        arguments,
+                        resultat,
+                        {n: fiche.get(n) for n in ecrits} if isinstance(fiche, dict) else {},
+                    )
+                except Exception as erreur:  # noqa: BLE001 -- le journal ne coûte jamais l'action
+                    logger.debug(f"[verite] journal des actions : {erreur!r}")
                 resultat, kwargs, issue = await _signaler_la_panne(
                     moteur, nom_outil, agent, params, resultat, kwargs
                 )
+                if champs_annules_par(moteur, nom_outil):
+                    # Lot 8 (K16) : une annulation dit son issue réelle au modèle (faite, échouée, non confirmée).
+                    resultat = avec_l_issue_d_annulation(resultat, ecrits)
                 await rendre(resultat, *args, **kwargs)
                 if issue is not None:
                     # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.

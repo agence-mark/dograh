@@ -56,11 +56,16 @@ DONNEES = Path(__file__).parent / "donnees"
 # JUSTE lu, sûr ou recommandé. Mesuré le 28/09 : production (c9d22a18) 189, 159,
 # 188, 157 ; cette branche 188, 156, 187, 154 (amorces de métier retirées, seuil
 # des mots courants de l'organisation à 10 000). Fausses sûres : 2 → 1.
+# K3 (correctifs-apres-banc-commun, 23/10, runs 1498 et 1502 : « devis » lu Deville) : UN mot courant
+# n'est proposé que s'il est écrit exactement comme le nom. Coût mesuré sur ce banc de voix de synthèse :
+# 15 lectures « à confirmer » justes perdues (des noms propres qui figurent dans la liste des mots
+# courants : « Gaudin » pour Godin, « Dietrich », « Amber »…), aucune lecture sûre, fausses sûres
+# inchangées. Nouveaux seuils = les mesures du 23/10 : 175, 151, 175, 149 (décision D-15 du chantier).
 SEUILS = {
-    ("large-v3", True): 188,
-    ("small", True): 156,
-    ("large-v3", False): 187,
-    ("small", False): 154,
+    ("large-v3", True): 175,
+    ("small", True): 151,
+    ("large-v3", False): 175,
+    ("small", False): 149,
 }
 
 
@@ -204,8 +209,9 @@ CAS_REELS = {
     "edilcamin": ("c'est un Edilcamin", [("Edilkamin", SURE)]),
     "edil-camin": ("un Edil camin à granulés", [("Edilkamin", SURE)]),
     "edile-camembert": ("C'est un poêle édile camembert", [("Edilkamin", A_CONFIRMER)]),
-    # Limite connue du seuil des mots courants (28/09) : recommandé, jamais sûr.
-    "devis": ("c'est pour un devis, une sortie de toit", [("Deville", A_CONFIRMER)]),
+    # K3 (correctifs-apres-banc-commun, 23/10) : un mot courant n'est proposé que s'il est écrit
+    # exactement comme le nom (avant : « devis » → Deville recommandé, la limite connue du 28/09).
+    "devis": ("c'est pour un devis, une sortie de toit", []),
     "royal": ("c'est royal, merci beaucoup", []),
     "philippe": ("je suis Philippe Martin", []),
     "scandinave": ("un poêle scandinave", []),

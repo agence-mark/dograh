@@ -1014,6 +1014,18 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Every note-taking mode. Off (default): the model decides, as before."
         ),
     )
+    # [.mark] Lot 11 de correctifs-apres-banc-commun (F-3) : les participes qui disent « c'est fait », pour la case
+    # « Vérité des actions » des étapes ; vide = la liste par défaut du code (``verite_des_actions.PARTICIPES_D_ACTION``).
+    verite_formulations_d_action: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description=(
+            "Past participles that say an action is done (booked, confirmed, cancelled...), "
+            "checked by the « Truth of actions » box of the steps: a reply that says one of them "
+            "with no tool result behind it is held back and the model asked again once. Empty "
+            "(default): the built-in list. Needs the call record."
+        ),
+    )
     # [.mark] Chantier repliques-coupees, D1 : la trace du cerveau, à l'écran depuis le lot 6 bis (agents d'essai).
     trace_requetes_modele: bool = Field(
         default=False,

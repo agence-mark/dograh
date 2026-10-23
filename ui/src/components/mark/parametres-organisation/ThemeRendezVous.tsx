@@ -44,6 +44,7 @@ import {
     OUI_NON,
     texteValeur,
 } from "./reglages-rendez-vous";
+import { BoutonAppliquerATous } from "./BoutonAppliquerATous";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_RENDEZ_VOUS: Texte = { en: "Appointments", fr: "Rendez-vous" };
@@ -207,6 +208,14 @@ export const ThemeRendezVous = ({
             setBrouillon(p.data);
         })();
     }, [authLoading, user, baseRattachee]);
+    // [.mark] correctifs-apres-banc-commun, lot 11 (F-12): after « Apply to all establishments », read the planner again.
+    const relire = async () => {
+        const p = await getPlanificateurApiV1OrganizationsPlanificateurGet();
+        if (p && !p.error && p.data) {
+            setEnregistre(p.data);
+            setBrouillon(p.data);
+        }
+    };
 
     const modifie = useMemo(
         () => brouillon !== null && JSON.stringify(charge_utile_planificateur(brouillon)) !== JSON.stringify(charge_utile_planificateur(enregistre ?? {})),
@@ -386,6 +395,28 @@ export const ThemeRendezVous = ({
                                 </Button>
                                 <span className="text-xs text-muted-foreground">{typesIci.map((x) => `${x.libelle} (${x.duree_min} min)`).join(" · ") || t({ en: "None at this level", fr: "Aucun à ce niveau" })}</span>
                             </div>
+                            {/* Lot 11 (F-12, D152): a SAVED type of this establishment, copied into all the others. */}
+                            {niveau && (
+                                <div className="mt-2 flex flex-col gap-1" data-testid="types-appliquer-a-tous">
+                                    {(enregistre?.types ?? [])
+                                        .filter((x) => (x.etablissement ?? "") === niveau)
+                                        .map((x) => (
+                                            <div key={x.code} className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                <span>{x.libelle}</span>
+                                                <BoutonAppliquerATous
+                                                    source={{ id: niveau, nom: etablissements.find((e) => e.id === niveau)?.nom ?? niveau }}
+                                                    etablissements={etablissements.map((e) => ({ id: e.id, nom: e.nom }))}
+                                                    reglage="type"
+                                                    cle={x.code}
+                                                    libelle={{ en: x.libelle, fr: x.libelle }}
+                                                    valeur={`${x.libelle} (${x.duree_min} min)`}
+                                                    enAttente={modifie}
+                                                    onApplique={relire}
+                                                />
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
                         </ChampReglage>
                     </Intertitre>
 

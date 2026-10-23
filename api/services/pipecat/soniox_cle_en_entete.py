@@ -18,6 +18,7 @@ Les deux classes partagent UNE mécanique (``CleSonioxEnEnteteMixin``) : un
 connecteur Soniox de plus en hérite sans la réécrire.
 """
 
+from api.services.pipecat.soniox_voix_correctifs import CorrectifsVoixSonioxMixin
 from pipecat.services.soniox.stt import SonioxSTTService
 from pipecat.services.soniox.tts import SonioxTTSService
 
@@ -39,5 +40,9 @@ class MarkSonioxSTTService(CleSonioxEnEnteteMixin, SonioxSTTService):
     """Transcription Soniox, clé dans l'en-tête (construite par la fabrique)."""
 
 
-class MarkSonioxTTSService(CleSonioxEnEnteteMixin, SonioxTTSService):
-    """Voix Soniox, clé dans l'en-tête (branchée par la fabrique au lot 3)."""
+class MarkSonioxTTSService(CorrectifsVoixSonioxMixin, CleSonioxEnEnteteMixin, SonioxTTSService):
+    """Voix Soniox, clé dans l'en-tête (branchée par la fabrique au lot 3).
+
+    Lot V de correctifs-apres-banc-commun : y ajoute les correctifs officiels de Pipecat 1.13
+    (keepalive, flux configuré avant son texte, contextes fermés à une reconnexion, erreurs classées
+    par code) et la connexion empruntée par la fabrique des sons. Voir ``soniox_voix_correctifs.py``."""

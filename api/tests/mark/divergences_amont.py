@@ -93,9 +93,18 @@ _ECHEANCE_DES_ESSAIS = (
 )
 
 
+# [.mark] correctifs-apres-banc-commun, lot 2 (K15).
+_ECHEC_DE_TRANSFERT_NEUTRE = (
+    "[.mark] Plan correctifs-apres-banc-commun (GO d'Evan du 23/10/2026, K15) : un renvoi vers un humain "
+    "qui n'a pas abouti rend au modele un statut neutre et une consigne (« prends la demande pour un "
+    "rappel »), jamais le message du fournisseur de telephonie, qui est une phrase destinee a l'appelant "
+    "(« veuillez rappeler plus tard ») que l'agent traduisait et disait. L'amont propage ce message tel quel."
+)
+
 DIVERGENCES_ASSUMEES = {
     "tests/test_custom_tools.py": {
         "test_register_handlers_creates_working_handler": _ECHEANCE_DES_ESSAIS,
+        "test_transfer_call_propagates_provider_destination_error": _ECHEC_DE_TRANSFERT_NEUTRE,
     },
     "tests/test_call_monitor.py": {
         "test_failed_idle_reminder_also_has_a_deadline": _RELANCE_PAR_LA_VOIX,

@@ -1226,6 +1226,22 @@
         }
       ]
     },
+    "formulations-d-action": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "verite_formulations_d_action": [
+              "enregistré"
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
     "phrase-sans-redemande": {
       "carte": "ajout-mark",
       "theme": "donnees",

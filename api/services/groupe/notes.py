@@ -41,6 +41,7 @@ TITRE_RETOUR = "# Retour du collègue « {nom} »"
 TITRE_RETOUR_SANS_NOM = "# Retour du collègue"
 TITRE_ALLER = "# Passation depuis l'accueil"
 LIBELLE_MOTIF = "Motif de départ : "
+LIBELLE_DEMANDE = "Demande de l'appelant : "
 LIBELLE_FAIT = "Fait : "
 LIBELLE_ATTENTE = "En attente : "
 LIBELLE_CONNU = "Déjà connu : "
@@ -300,9 +301,11 @@ def note_d_aller(
     *,
     outil: str | None,
     champ_motif: str | None = None,
+    demande: str | None = None,
 ) -> str | None:
     """La note de la première étape du collègue appelé (§ 2.1). ``outil`` : le nom de l'outil de
-    passation appelé. ⛔ Ne lève jamais."""
+    passation appelé. ``demande`` (lot 1, K1) : la demande de l'appelant en une phrase, donnée à
+    l'outil ; une ligne de plus, rien sans elle. ⛔ Ne lève jamais."""
     try:
         gathered = gathered or {}
         valeur = texte_court(gathered.get(champ_motif)) if champ_motif else None
@@ -312,10 +315,16 @@ def note_d_aller(
         else:
             motif = valeur or nom_outil or MOTIF_NON_NOTE
         connus = noms_des_champs_remplis(reglages, gathered)
+        ligne_demande = (
+            [f"{LIBELLE_DEMANDE}{nom_lisible(demande)}"]
+            if isinstance(demande, str) and nom_lisible(demande)
+            else []
+        )
         return "\n".join(
             [
                 TITRE_ALLER,
                 f"{LIBELLE_MOTIF}{motif}",
+                *ligne_demande,
                 f"{LIBELLE_CONNU}{_liste(connus) if connus else RIEN}",
                 CONSIGNE_ALLER,
             ]
@@ -331,5 +340,16 @@ def outil_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -
     try:
         faites = _passations_du_collegue(gathered or {}, agent_id)
         return str(faites[-1].get("raison")) if faites and faites[-1].get("raison") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def demande_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -> str | None:
+    """La demande de l'appelant donnée à l'outil de la dernière passation aboutie vers cet agent (au
+    clavier, la note d'aller se recalcule depuis la fiche). ⛔ Ne lève jamais."""
+    try:
+        faites = _passations_du_collegue(gathered or {}, agent_id)
+        demande = faites[-1].get("demande") if faites else None
+        return demande if isinstance(demande, str) and demande.strip() else None
     except Exception:  # noqa: BLE001
         return None

@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -30,12 +30,18 @@ const LU = {
     defauts: DEFAUTS,
 };
 
-const m = vi.hoisted(() => ({ lire: vi.fn(), enregistrer: vi.fn() }));
+const m = vi.hoisted(() => ({
+    lire: vi.fn(),
+    enregistrer: vi.fn(),
+    appliquer: vi.fn(),
+    sites: [{ id: "nord", nom: "Site Nord", numeros: [] }] as Array<{ id: string; nom: string; numeros: string[] }>,
+}));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPlanificateurApiV1OrganizationsPlanificateurGet: m.lire,
     putPlanificateurApiV1OrganizationsPlanificateurPut: m.enregistrer,
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
-        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [{ id: "nord", nom: "Site Nord", numeros: [] }] } }),
+        Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: m.sites } }),
+    appliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPost: m.appliquer,
     getEquipeApiV1OrganizationsEquipeGet: () =>
         Promise.resolve({ data: { personnes: [], sujets: [{ code: "visite", libelle: "Visites", destinataires: [] }] } }),
 }));
@@ -53,6 +59,7 @@ vi.mock("@/components/ui/dialog", () => ({
 afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    m.sites = [{ id: "nord", nom: "Site Nord", numeros: [] }];
 });
 
 const rendre = (baseRattachee: boolean | null, adresseConnue: boolean | null = null) =>
@@ -200,5 +207,58 @@ describe("[.mark] l-agent-collegue L5: the theme « Appointments »", () => {
             nombre_creneaux: null,
             plages: null,
         });
+    });
+});
+
+describe("[.mark] correctifs-apres-banc-commun, lot 11 (F-12): « Apply to all establishments » for an appointment type", () => {
+    const AVEC_TYPE_DU_NORD = {
+        ...structuredClone(LU),
+        types: [
+            ...LU.types,
+            { code: "type_1", etablissement: "nord", libelle: "Visite longue", duree_min: 90, sujet: null, marge_avant_min: 0, marge_apres_min: 0, actif: true },
+        ],
+    };
+
+    it("offers, at an establishment's level, one button per SAVED type, and copies it on the server", async () => {
+        m.sites = [
+            { id: "nord", nom: "Site Nord", numeros: [] },
+            { id: "sud", nom: "Site Sud", numeros: [] },
+        ];
+        m.lire.mockResolvedValue({ data: structuredClone(AVEC_TYPE_DU_NORD) });
+        m.appliquer.mockResolvedValue({ data: { source: "nord", reglage: "type", cle: "type_1", etablissements: [{ id: "sud", nom: "Site Sud" }] } });
+        rendre(true);
+        await waitFor(() => expect(document.getElementById("rdv-niveau-choix")).not.toBeNull());
+        expect(screen.queryByTestId("types-appliquer-a-tous")).toBeNull(); // the organization's level: nothing
+        fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
+        const bouton = await screen.findByTestId("appliquer-a-tous-type-type_1");
+        expect(within(screen.getByTestId("types-appliquer-a-tous")).getByText("Visite longue")).toBeTruthy();
+        fireEvent.click(bouton);
+        fireEvent.click(await screen.findByTestId("confirmer-appliquer-a-tous"));
+        await waitFor(() => expect(m.appliquer).toHaveBeenCalledTimes(1));
+        expect(m.appliquer.mock.calls[0][0]).toMatchObject({ path: { identifiant: "nord" }, body: { reglage: "type", cle: "type_1" } });
+        await waitFor(() => expect(m.lire).toHaveBeenCalledTimes(2)); // the planner is read again
+    });
+
+    it("is off while a change waits to be saved, and absent with a single establishment", async () => {
+        m.sites = [
+            { id: "nord", nom: "Site Nord", numeros: [] },
+            { id: "sud", nom: "Site Sud", numeros: [] },
+        ];
+        m.lire.mockResolvedValue({ data: structuredClone(AVEC_TYPE_DU_NORD) });
+        rendre(true);
+        await waitFor(() => expect(document.getElementById("rdv-niveau-choix")).not.toBeNull());
+        fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
+        const bouton = (await screen.findByTestId("appliquer-a-tous-type-type_1")) as HTMLButtonElement;
+        expect(bouton.disabled).toBe(false);
+        fireEvent.change(document.getElementById("rdv-fenetre_equite_jours")!, { target: { value: "45" } });
+        await waitFor(() => expect(bouton.disabled).toBe(true));
+        cleanup();
+        m.sites = [{ id: "nord", nom: "Site Nord", numeros: [] }];
+        m.lire.mockResolvedValue({ data: structuredClone(AVEC_TYPE_DU_NORD) });
+        rendre(true);
+        await waitFor(() => expect(document.getElementById("rdv-niveau-choix")).not.toBeNull());
+        fireEvent.change(document.getElementById("rdv-niveau-choix")!, { target: { value: "nord" } });
+        await waitFor(() => expect(screen.getByTestId("types-appliquer-a-tous")).toBeTruthy());
+        expect(screen.queryByTestId("appliquer-a-tous-type-type_1")).toBeNull();
     });
 });

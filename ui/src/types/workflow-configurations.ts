@@ -256,6 +256,9 @@ export interface ChampFiche {
     // [.mark] fiabilite-orchestration, lot 1 (G2): the tool whose result writes this field; never
     // the model, the clerk or the end-of-call pass. Empty (null or absent): off.
     rempli_par_outil?: string | null;
+    // [.mark] correctifs-apres-banc-commun, lot 8 (K16): the tool that undoes what the filling tool
+    // did (cancel); its result writes the field, a failure writes nothing. Empty: off.
+    annule_par_outil?: string | null;
     // [.mark] correctifs-apres-banc-v4, lot 2 (6.3): a refusal by the caller does not count as an
     // answer, the field stays missing for the step's guard. Absent: false. The screen box comes at lot 5.
     obligatoire_sans_exception?: boolean;

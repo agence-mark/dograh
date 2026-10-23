@@ -195,6 +195,106 @@ class _TravailDeFondNodeDataMixin(BaseModel):
     )
 
 
+class _VeriteDesActionsNodeDataMixin(BaseModel):
+    # [.mark] Lot 5 de correctifs-apres-banc-commun (K7, V4, D-3) : la case « vérité des actions » de l'étape.
+    # Une réservation avec une date que la recherche n'a pas donnée est refusée, une réplique qui dit une date, un
+    # jour faux ou une action sans outil est retenue puis relancée une fois, une réservation identique déjà
+    # confirmée rend son résultat sans rappeler l'outil. Lot 11 (F-2) : vide = allumée seulement sur une étape qui
+    # ÉCRIT (elle confie au fond, ou porte une action d'écriture ou d'annulation) ; ``true`` l'allume ailleurs,
+    # ``false`` l'éteint. Hors du formulaire généré : la case vit dans le panneau de l'étape.
+    verite_des_actions: Optional[bool] = spec_field(
+        default=None,
+        spec_exclude=True,
+        description=(
+            "Empty: on only when this step writes (background work, a booking or a cancelling "
+            "tool). True turns it on, false turns it off. On: a booking with a date the search "
+            "never gave is refused, a reply that states a date, a wrong weekday or a done action "
+            "with no tool result is held back and retried once, and an identical confirmed "
+            "booking returns its known result."
+        ),
+    )
+
+
+# [.mark] Lot 6 de correctifs-apres-banc-commun (K8, D-4) : les quatre façons de déclencher l'outil d'action d'une étape.
+POSITIONS_DE_DECLENCHEMENT = ("libre", "relance", "obligatoire", "automatique")
+
+
+class _DeclenchementNodeDataMixin(BaseModel):
+    # Menu « Déclenchement de l'action » de l'étape. Vide ou « libre » = comportement d'avant (le modèle appelle
+    # l'outil quand il veut). « relance » : une réplique sans question ni appel, alors que tout est prêt, est
+    # retenue et le modèle est relancé une fois avec l'appel obligatoire. « obligatoire » : le tour part avec
+    # l'appel obligatoire. « automatique » : le code lance lui-même le travail de fond, avec ``demande_type``.
+    # Hors du formulaire généré : le menu vit dans le panneau de l'étape.
+    declenchement_de_l_action: Optional[str] = spec_field(
+        default=None,
+        spec_exclude=True,
+        description=(
+            "How this step's action tool is triggered: free (default, the model decides), "
+            "retry (a reply with no question and no call, once everything is ready, is held back "
+            "and the model is asked again once with the call forced), forced (the turn is sent "
+            "with the call forced), automatic (the code starts the background work itself)."
+        ),
+    )
+    demande_type: Optional[str] = spec_field(
+        default=None,
+        spec_exclude=True,
+        max_length=4000,
+        description=(
+            "Automatic trigger only: the request handed to the background work, with "
+            "{{field}} replaced by the value of that field of the call record."
+        ),
+    )
+
+    @field_validator("declenchement_de_l_action")
+    @classmethod
+    def _declenchement_connu(cls, valeur: Optional[str]) -> Optional[str]:
+        if valeur is None or valeur in POSITIONS_DE_DECLENCHEMENT:
+            return valeur
+        raise ValueError(f"declenchement_de_l_action must be one of {POSITIONS_DE_DECLENCHEMENT}")
+
+
+class ConditionDeChampDTO(BaseModel):
+    """[.mark] Lot 7 de correctifs-apres-banc-commun (D-8) : « ce champ de l'étape n'est attendu que si… ». La
+    condition a la forme de celles des fins figées : un champ de la fiche, rempli, ou qui vaut une valeur."""
+
+    champ: str = spec_field(
+        ...,
+        min_length=1,
+        ui_type=PropertyType.string,
+        display_name="Step field",
+        description="The field of the step's list this condition applies to.",
+        required=True,
+    )
+    si: str = spec_field(
+        ...,
+        min_length=1,
+        ui_type=PropertyType.string,
+        display_name="Record field",
+        description="Name of the field of the call record the condition reads.",
+        required=True,
+    )
+    vaut: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.string,
+        display_name="Equals",
+        description="The value that field must hold. Empty: it only has to be filled.",
+    )
+
+
+class _ConditionsDeChampsNodeDataMixin(BaseModel):
+    # Les conditions des champs de l'étape (``champs_etape``). Un champ sans condition est toujours attendu.
+    # Hors du formulaire généré : elles se posent dans la liste des champs de l'étape.
+    conditions_de_champs: Optional[List[ConditionDeChampDTO]] = spec_field(
+        default=None,
+        spec_exclude=True,
+        display_name="Step field conditions",
+        description=(
+            "Conditions on the call record under which a field of the step's list is expected. "
+            "A field with no line here is always expected."
+        ),
+    )
+
+
 class FinFigeeDTO(BaseModel):
     """[.mark] Une ligne des phrases de fin figées (A17) : si le champ de la fiche est
     rempli (ou vaut ``vaut``), cette phrase ; sans champ, la phrase par défaut."""
@@ -471,6 +571,8 @@ class StartCallNodeData(
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
     _TravailDeFondNodeDataMixin,
+    _VeriteDesActionsNodeDataMixin,
+    _DeclenchementNodeDataMixin,
 ):
     is_start: bool = spec_field(default=True, spec_exclude=True)
     greeting: Optional[str] = spec_field(default=None, ui_type=PropertyType.string)
@@ -611,6 +713,9 @@ class AgentNodeData(
     _RetourAuPrincipalNodeDataMixin,
     _EtapeDeRetourNodeDataMixin,
     _TravailDeFondNodeDataMixin,
+    _VeriteDesActionsNodeDataMixin,
+    _DeclenchementNodeDataMixin,
+    _ConditionsDeChampsNodeDataMixin,
 ):
     pass
 
@@ -1318,6 +1423,17 @@ def _sanitize_node(node):
     # [.mark] Lot E d'agent-leger-greffier : même règle pour les étiquettes de l'étape.
     if not str(data.get("champs_etape") or "").strip():
         data.pop("champs_etape", None)
+    # [.mark] Lot 5 de correctifs-apres-banc-commun : vide = le défaut (lot 11 : allumée sur une étape qui écrit), le
+    # JSON d'un agent qui n'y touche pas ne change pas.
+    if data.get("verite_des_actions") is None:
+        data.pop("verite_des_actions", None)
+    # [.mark] Lots 6 et 7 : vide ou « libre » = comportement d'avant, rien n'est écrit dans le JSON de l'agent.
+    if data.get("declenchement_de_l_action") in (None, "", "libre"):
+        data.pop("declenchement_de_l_action", None)
+    if not str(data.get("demande_type") or "").strip():
+        data.pop("demande_type", None)
+    if not data.get("conditions_de_champs"):
+        data.pop("conditions_de_champs", None)
     return {**node, "data": data}
 
 

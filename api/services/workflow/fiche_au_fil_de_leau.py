@@ -119,6 +119,13 @@ NOTE_DESCRIPTIONS = (
     "elles sont à lire uniquement, ce ne sont jamais des questions à poser. Ce que "
     "tu demandes à la personne, c'est le prompt de l'étape qui le dit."
 )
+# Lot 11 de correctifs-apres-banc-commun (F-9, K6b étendu) : la règle que le greffier a depuis le lot 3, pour
+# l'outil de notes et le post-scriptum aussi (« aucune idée » noté « refusé » au run 1496). Aucun mot de métier.
+REGLE_REFUS_ET_IGNORANCE = (
+    "Quand la personne refuse de donner une information, écris « refusé » dans le champ, jamais une valeur. "
+    "Ne pas savoir n'est pas refuser : quand elle dit qu'elle ne sait pas ou ne se souvient plus (« aucune "
+    "idée », « je ne sais plus »), n'écris rien dans ce champ, ou « inconnu » s'il l'accepte ; jamais « refusé »."
+)
 
 # A5 (runs 831, 837) : un refus rendu sans consigne a poussé le modèle à faire
 # confirmer SA version (« c'est bien en 2025 ? ») jusqu'à l'entendre dite : quatre
@@ -134,6 +141,16 @@ CONSIGNE_NON_DIT = (
 CONSIGNE_NOMBRE_DE_CHIFFRES = (
     "Pas noté : il manque ou il y a trop de chiffres dans {champs}. Fais redonner "
     "le numéro en entier ; ne relis pas ta version."
+)
+
+# K10 (run 1507, lot 3 de correctifs-apres-banc-commun) : le greffier avait écrit un numéro de dix
+# chiffres alors que la personne n'en avait dit que huit (« noté sûr »). Un numéro n'est écrit que si
+# ses chiffres sont dans les paroles ; sinon le champ reste vide et on fait redonner le numéro.
+RAISON_CHIFFRES_NON_DITS = "chiffres_non_dits"
+_NOMBRE_DE_CHIFFRES = "nombre_de_chiffres"
+CONSIGNE_CHIFFRES_MANQUANTS = (
+    "Pas noté : il manque des chiffres dans {champs} (la personne n'en a pas dit assez). Fais "
+    "redonner le numéro en entier ; ne le complète pas et ne relis pas ta version."
 )
 
 # C3 (PB6, run 845) : le module avait Senlis, Chamant, Avilly pour « soixante
@@ -160,7 +177,7 @@ DESCRIPTION_OUTIL = (
     "« non pardon, c'est au 14 rue de la République, pas au 12 » → "
     "adresse_intervention = « 14 rue de la République ». La personne dit « je suis Mme "
     "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
-    "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS
+    "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS + " " + REGLE_REFUS_ET_IGNORANCE
 )
 
 
@@ -191,6 +208,7 @@ CLE_DEJA_CONNU = "fiche_deja_connu"
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
 # Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
 CLE_TRANSFERT_GARANTI = "transfert_garanti"
+CLE_FORMULATIONS_D_ACTION = "verite_formulations_d_action"
 # Chantier schema-parcours-unique (C1) : la case « Generate the flow map » pilote aussi le
 # bloc de fin d'étape unique et le retrait du bloc de prise de notes (greffier, portes dans
 # la réponse). Elle remplace la case ``parcours_lisible`` du lot 4 ter de repliques-coupees.
@@ -245,6 +263,9 @@ class ReglagesFiche:
     # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
     # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
     transfert_garanti: bool = False
+    # Lot 11 de correctifs-apres-banc-commun (F-3) : les participes qui disent « c'est fait », réglés à l'écran par
+    # agent (``verite_formulations_d_action``) ; vide = la liste par défaut du code (``verite_des_actions``).
+    formulations_d_action: tuple[str, ...] = ()
     # Le parcours lisible (greffier, portes dans la réponse), piloté par la case du schéma.
     parcours_lisible: bool = False
 
@@ -315,6 +336,11 @@ class ReglagesFiche:
             etiquettes=_connu_et_attendu(run_configs),
             deja_connu=_connu_et_attendu(run_configs),
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
+            formulations_d_action=tuple(
+                str(p).strip()
+                for p in (run_configs.get(CLE_FORMULATIONS_D_ACTION) or ())
+                if isinstance(p, str) and p.strip()
+            ),
             parcours_lisible=(
                 run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
                 and mode == MODE_GREFFIER
@@ -1982,6 +2008,56 @@ def _nombre_de_chiffres(valeur: Any) -> int:
     return sum(1 for c in str(valeur) if c.isdigit())
 
 
+CHIFFRES_D_UN_NUMERO_NATIONAL = 10
+
+
+def numero_en_forme_nationale(valeur: str, chiffres: int) -> str:
+    """F-11 : la forme nationale d'un numéro à ``chiffres`` chiffres (zéro de tête) quand il arrive avec
+    l'indicatif (« +33 6 12… », « 0033 6… », « 33 6… » : un chiffre de trop après le retrait de l'indicatif)
+    ou sans son zéro de tête (un chiffre de moins, premier chiffre non nul). Seulement un champ à dix chiffres
+    (la numérotation nationale à zéro de tête) : un code postal à quatre chiffres ne reçoit jamais de zéro.
+    Toute autre valeur : inchangée."""
+    try:
+        if chiffres != CHIFFRES_D_UN_NUMERO_NATIONAL:
+            return valeur
+        brut = re.sub(r"\D", "", valeur)
+        if not brut:
+            return valeur
+        if brut.startswith("0033") and len(brut) == chiffres + 3:
+            return "0" + brut[4:]
+        if brut.startswith("33") and len(brut) == chiffres + 1 and brut[2] != "0":
+            return "0" + brut[2:]
+        if len(brut) == chiffres - 1 and brut[0] != "0":
+            return "0" + brut
+        return valeur
+    except Exception:  # noqa: BLE001
+        return valeur
+
+
+def chiffres_dits(valeur: Any, paroles: Iterable[str]) -> bool:
+    """K10 : les chiffres de ``valeur`` se suivent-ils dans ce que la personne a dit ?
+
+    Les chiffres de ses paroles (écrits tels quels ou lus par le module des nombres) sont mis bout à
+    bout, d'une réplique à l'autre (un numéro se dicte souvent en plusieurs fois) ; ceux de la valeur
+    doivent y former une suite. Le zéro de tête peut manquer (« 6 12 34… ») et « plus trente-trois »
+    vaut le zéro. ⛔ Ne lève jamais : au moindre doute, ``True`` (le contrôle ne coûte jamais un
+    numéro juste)."""
+    try:
+        voulus = re.sub(r"\D", "", str(valeur))
+        if not voulus:
+            return True
+        flux = ""
+        for parole in paroles:
+            flux += "".join(re.findall(r"\d+", _chiffres_comme_lus(str(parole))))
+        formes = {voulus}
+        if voulus.startswith("0"):
+            formes.update((voulus[1:], "33" + voulus[1:]))
+        return any(forme and forme in flux for forme in formes)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] chiffres dits non comparés : {erreur!r}")
+        return True
+
+
 # [.mark] fiabilite-orchestration, lot 6 (R8, R9, G1 à G3 ; runs 1466 et 1468).
 # Un champ qui a un lecteur (courriel, numéro, commune, rue, lexique) ne reçoit jamais ce que son
 # lecteur ne sait pas lire : le « non » répondu à « avez-vous une adresse mail ? » était écrit
@@ -2049,6 +2125,95 @@ def est_tire_d_un_champ_courriel(
     return False
 
 
+# --- V3 et K6c : les lettres épelées d'un nom ---------------------------------------------------------
+# V3 (run 1515, Pierre a raccroché) : « Marc Henry » transcrit « Henri » ; le prénom recopiait le nom,
+# l'épellation H-E-N-R-Y n'y changeait rien et la garde redemandait le nom à chaque essai. À la question
+# d'un champ de nom, les lettres épelées remplissent CE champ ; un autre champ de nom qui recopiait ces
+# mots est corrigé. Le champ interrogé se reconnaît aux mots de son propre nom (``nom``, ``prenom``…)
+# dans la dernière question de l'agent : aucun mot de métier.
+
+
+def _mots_du_nom_du_champ(nom: str) -> set[str]:
+    return {m for m in _mots(nom.replace("_", " ")) if len(m) >= 3}
+
+
+def champ_de_nom_interroge(
+    reglages: ReglagesFiche, question: str | None
+) -> ChampFiche | None:
+    """Le seul champ de nom dont le nom figure dans la dernière question de l'agent, sinon ``None``."""
+    if not question:
+        return None
+    mots = set(_mots(question))
+    trouves = [
+        c
+        for c in reglages.champs
+        if est_un_champ_de_nom(c) and _mots_du_nom_du_champ(c.nom) & mots
+    ]
+    return trouves[0] if len(trouves) == 1 else None
+
+
+def epellation_sure_du_tour(fiche: dict) -> str | None:
+    """Le mot (un seul) que le module a lu épelé au dernier tour de l'appelant, sûr, hors adresse mail."""
+    tour = fiche.get(CLE_TOUR)
+    if not tour:
+        return None
+    for trace in _entrees(fiche, TRACE_EPELLATIONS):
+        epele = trace.get("epele")
+        if (
+            epele
+            and trace.get("tour") == tour
+            and not trace.get("courriel")
+            and not trace.get("doutes")
+            and len(_mots(str(epele))) == 1
+        ):
+            return str(epele)
+    return None
+
+
+def _ressemble_a_l_epele(valeur: Any, epele: str) -> bool:
+    compacte = "".join(_mots(str(valeur)))
+    return bool(compacte) and fuzz.ratio(compacte, "".join(_mots(epele))) >= SEUIL_EPELLATION
+
+
+def champ_ou_aller_l_epele(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    definition: ChampFiche,
+    valeur: Any,
+    question: str | None,
+) -> tuple[str, ChampFiche] | None:
+    """V3 : ``(epele, champ interrogé)`` quand ``valeur``, destinée à ``definition`` (un champ de nom),
+    est une lecture du mot épelé à ce tour alors que la question portait sur un AUTRE champ de nom.
+    ``None`` : rien à rediriger."""
+    if not est_un_champ_de_nom(definition) or _est_vide(valeur):
+        return None
+    interroge = champ_de_nom_interroge(reglages, question)
+    if interroge is None or interroge.nom == definition.nom:
+        return None
+    epele = epellation_sure_du_tour(fiche)
+    if epele is None or not _ressemble_a_l_epele(valeur, epele):
+        return None
+    return epele, interroge
+
+
+def forme_accentuee_dite(epele: str, paroles: Iterable[str]) -> str | None:
+    """K6c (run 1496, « Lefevre » pour Lefèvre) : le nom épelé sans type d'accent a les mêmes lettres
+    qu'une forme ACCENTUÉE dite dans l'appel : celle-ci, avec la casse de l'épellation. Sinon ``None``."""
+    sans = "".join(_mots(epele))
+    if not sans.isalpha():
+        return None
+    for parole in paroles:
+        for mot in re.findall(r"[^\W\d_]+", str(parole)):
+            if mot.isascii():
+                continue
+            if "".join(_mots(mot)) != sans:
+                continue
+            if epele.isupper():
+                return mot.upper()
+            return mot[:1].upper() + mot[1:].lower() if epele[:1].isupper() else mot.lower()
+    return None
+
+
 def ecrire_dans_la_fiche(
     fiche: dict,
     reglages: ReglagesFiche,
@@ -2080,6 +2245,44 @@ def ecrire_dans_la_fiche(
     paroles = list(paroles)
     if (
         definition is not None
+        and source != SOURCE_ACTION
+        and (cible := champ_ou_aller_l_epele(reglages, fiche, definition, valeur, question)) is not None
+    ):
+        # V3 : les lettres épelées à la question d'un champ de nom vont dans CE champ ; l'autre champ
+        # de nom qui recopiait les mêmes mots est corrigé (vidé : la passe suivante le réécrit).
+        epele, interroge = cible
+        if not _est_vide(fiche.get(champ)) and _ressemble_a_l_epele(fiche[champ], epele):
+            fiche.pop(champ, None)
+            (fiche.get(CLE_ETAT) or {}).pop(champ, None)
+            (fiche.get("extracted_variables") or {}).pop(champ, None)
+        ecrire_dans_la_fiche(
+            fiche,
+            reglages,
+            interroge.nom,
+            epele,
+            sure=sure,
+            source=source,
+            paroles=paroles,
+            seulement_si_vide=seulement_si_vide,
+            jour=jour,
+            question=question,
+        )
+        raison = f"epele_pour_{interroge.nom}"
+        fiche.setdefault(CLE_JOURNAL, []).append(
+            {
+                "champ": champ,
+                "valeur": valeur,
+                "statut": "refuse",
+                "raison": raison,
+                "source": source,
+                "sure": sure,
+            }
+        )
+        logger.info(f"[fiche] {source} {champ} -> refuse ({raison})")
+        return Verdict(champ, "refuse", raison, valeur)
+    paroles = list(paroles)
+    if (
+        definition is not None
         and not _est_vide(fiche.get(champ))
         and illisible_pour_son_champ(reglages, definition, fiche[champ])
     ):
@@ -2100,6 +2303,11 @@ def ecrire_dans_la_fiche(
     )
     if courriel is not None:
         valeur = courriel.valeur
+    # [.mark] Lot 11 de correctifs-apres-banc-commun (F-11) : un numéro dit sans son zéro de tête ou avec
+    # l'indicatif (« plus trente-trois six… ») reprend sa forme nationale avant tout contrôle ; ses chiffres
+    # doivent toujours avoir été dits (K10 lit déjà ces deux formes de la parole).
+    if definition is not None and definition.chiffres and isinstance(valeur, str):
+        valeur = numero_en_forme_nationale(valeur, definition.chiffres)
     # [.mark] Lot 7 (A8, K9) : un champ cumulatif à liste fermée reçoit une ou plusieurs valeurs de
     # la liste (« a ; b ») ; chacune est contrôlée contre la liste, un doublon est ignoré.
     liste_lue = False
@@ -2168,6 +2376,9 @@ def ecrire_dans_la_fiche(
             epele = epellation_du_tour(valeur, fiche, paroles)
         if epele:
             valeur = epele
+            # K6c : épelé sans type d'accent, mêmes lettres qu'une forme accentuée dite dans l'appel.
+            if (accentuee := forme_accentuee_dite(epele, paroles_sans_notes(paroles, fiche))) is not None:
+                valeur = accentuee
         # Q6 (plan « le lexique », 26/09) : des lettres épelées qui SONT un terme
         # du lexique désignent ce terme -- une marque, jamais un nom (run 803 :
         # « c'est un M C Z » écrivait `nom = Mcz` à la place de Caron).
@@ -2229,6 +2440,18 @@ def ecrire_dans_la_fiche(
             # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.
             verdict = Verdict(champ, "refuse", "pas_une_date", valeur)
         elif (
+            # K10 : un numéro à chiffres fixes dont les chiffres ne sont pas dans la parole de
+            # l'appelant (huit chiffres dits, dix écrits) : champ vide, on fait redonner le numéro.
+            lecture is None
+            and definition.chiffres
+            and definition.origine == OrigineChamp.dicte
+            and source != SOURCE_ACTION
+            and (dites := paroles_sans_notes(paroles, fiche))
+            and not chiffres_dits(valeur, dites)
+            and not corrige_par_paires(definition, fiche.get(champ), valeur, dites[-1:])
+        ):
+            verdict = Verdict(champ, "refuse", RAISON_CHIFFRES_NON_DITS, valeur)
+        elif (
             lecture is not None
             and not lecture.trouvee
             and not est_cite(valeur, paroles)
@@ -2253,6 +2476,9 @@ def ecrire_dans_la_fiche(
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
             # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
             and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
+            # Lot 11 (F-11) : un numéro à chiffres fixes se juge sur ses CHIFFRES dits (K10 : zéro de tête absent,
+            # « plus trente-trois »), pas sur sa forme écrite, remise en forme nationale plus haut.
+            and not (definition.chiffres and chiffres_dits(valeur, paroles_sans_notes(paroles, fiche)))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         elif (
@@ -2705,6 +2931,12 @@ def _recopie_d_un_autre_champ(
     `symptome`, `degre_urgence`, `projet` perdus sur 6 des 8 runs allumés."""
     mots = _mots(str(valeur))
     if not mots:
+        return None
+    # V3 : un nom épelé n'est jamais la recopie d'un autre champ (« Henry » épelé, « Henri » dans le prénom).
+    if any(
+        trace.get("epele") and not trace.get("courriel") and _ressemble_a_l_epele(valeur, str(trace["epele"]))
+        for trace in _entrees(fiche, TRACE_EPELLATIONS)
+    ):
         return None
     # B2 (run 1049, lot D d'agent-leger-greffier) : une valeur de la liste fermée du
     # champ n'est jamais une recopie (`degre_urgence` = « panne » refusé parce que le
@@ -3375,7 +3607,7 @@ async def noter(
         elif verdict.statut == "refuse":
             refuses.append(
                 {"champ": champ, "raison": verdict.raison}
-                if verdict.raison != "nombre_de_chiffres"
+                if verdict.raison not in (_NOMBRE_DE_CHIFFRES, RAISON_CHIFFRES_NON_DITS)
                 else {
                     "champ": champ,
                     "raison": verdict.raison,
@@ -3492,7 +3724,10 @@ def reponse_de_l_outil(note: Note) -> dict:
     ]
     if non_dits:
         consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
-    mal_comptes = [r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"]
+    sans_chiffres = [r["champ"] for r in refuses if r["raison"] == RAISON_CHIFFRES_NON_DITS]
+    if sans_chiffres:
+        consignes.append(CONSIGNE_CHIFFRES_MANQUANTS.format(champs=", ".join(sans_chiffres)))
+    mal_comptes = [r["champ"] for r in refuses if r["raison"] == _NOMBRE_DE_CHIFFRES]
     if mal_comptes:
         consignes.append(
             CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))
@@ -3668,7 +3903,8 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
             consigne.format(
                 separateur=SEPARATEUR,
                 champs=champs,
-                note_descriptions=NOTE_DESCRIPTIONS,
+                # Lot 11 (F-9) : la règle du refus et de l'ignorance, comme le greffier et l'outil.
+                note_descriptions=NOTE_DESCRIPTIONS + "\n" + REGLE_REFUS_ET_IGNORANCE,
             ),
             FIN_PRISE_DE_NOTES,
         ]

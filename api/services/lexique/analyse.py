@@ -356,6 +356,10 @@ def _passages(mots: list[str], mots_max: int) -> list[tuple[int, int, str]]:
                 continue
             if dernier in MOTS_OUTILS:
                 continue
+            # K3 (run 1498) : un passage qui contient un chiffre n'est jamais un nom (« Moreau, 07 55… »
+            # lu Morso) ; les chiffres sont le travail du module des nombres.
+            if any(c.isdigit() for mot in mots[i : i + n] for c in mot):
+                continue
             passages.append((i, n, " ".join(mots[i : i + n])))
     return passages
 
@@ -440,6 +444,13 @@ def analyser(texte: str, index: Index, avec_sons: bool = True) -> list[Detection
             continue
         # Comparable length: no 3-sound name in a 12-sound reading.
         if abs(len(cle) - len(forme.cle_sonore)) > max(3, len(forme.cle_sonore) // 2):
+            continue
+        # K3 (runs 1498, 1502 : « devis » lu Deville) : un mot courant n'est proposé que s'il est écrit
+        # exactement comme le nom ou se prononce exactement comme lui (run 871 : « Rica » pour Rika,
+        # décision d'Evan du 23/10, zéro perte) ; sinon il reste ce qu'il est. Plusieurs mots courants recollés
+        # (« Solar Focus » pour Solarfocus) restent recommandés, jamais sûrs, tant qu'aucun n'est un mot
+        # fréquent de la langue (« Rica fait » : « fait » en est un).
+        if banal and not exact and cle != forme.cle_sonore and (n == 1 or any(m in frequents for m in passage.split())):
             continue
         # A word of the list, or a brand made of its words: recommended, never sure.
         if not (banal or forme.banale) and (exact or (score >= SEUIL_SURE and (second is None or score - second >= MARGE_SURE))):

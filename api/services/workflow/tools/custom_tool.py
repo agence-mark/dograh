@@ -154,6 +154,19 @@ def tool_to_function_schema(tool: Any) -> dict[str, Any]:
         }
         required.append("reason")
 
+    # [.mark] Lot 1 (K1) : un outil de passation porte toujours le paramètre obligatoire ``demande``
+    # (la demande de l'appelant en une phrase). Sans paramètre, le cerveau y recopiait la fiche ou la
+    # définition de l'outil. Un paramètre du même nom écrit par l'organisation est gardé tel quel.
+    from api.services.groupe.passations import (
+        DESCRIPTION_DEMANDE,
+        PARAMETRE_DEMANDE,
+        est_un_outil_de_passation,
+    )
+
+    if est_un_outil_de_passation(tool) and PARAMETRE_DEMANDE not in properties:
+        properties[PARAMETRE_DEMANDE] = {"type": "string", "description": DESCRIPTION_DEMANDE}
+        required.append(PARAMETRE_DEMANDE)
+
     function_name = custom_tool_function_name(tool.name)
 
     return {

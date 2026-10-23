@@ -33,6 +33,8 @@ import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester
 import { WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
 import { WorkflowTesterPanel } from './components/WorkflowTesterPanel';
 import { WorkflowVersionDiffDialog } from './components/WorkflowVersionDiffDialog';
+import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
+
 import { WorkflowProvider } from "./contexts/WorkflowContext";
 import { useWorkflowState } from "./hooks/useWorkflowState";
 import { layoutNodes } from './utils/layoutNodes';
@@ -578,6 +580,16 @@ function RenderWorkflow({
                 .filter((n): n is string => typeof n === "string" && n !== ""),
         [workflowConfigurations?.fiche_champs],
     );
+    // [.mark] Lot 11 de correctifs-apres-banc-commun (F-2): the tools that write a record field (booking) or undo it
+    // (cancelling), as function names: a step that carries one has « Truth of actions » on by default.
+    const outilsQuiEcrivent = useMemo(
+        () =>
+            ((workflowConfigurations?.fiche_champs ?? []) as Array<{ rempli_par_outil?: string | null; annule_par_outil?: string | null }>)
+                .flatMap((c) => [c?.rempli_par_outil, c?.annule_par_outil])
+                .filter((n): n is string => typeof n === "string" && n.trim() !== "")
+                .map(nomDeFonction),
+        [workflowConfigurations?.fiche_champs],
+    );
     const ajouterOutil = useCallback((tool: ToolResponse) => {
         setTools((prev) => (prev?.some((t) => t.tool_uuid === tool.tool_uuid) ? prev : [...(prev ?? []), tool]));
     }, []);
@@ -612,6 +624,7 @@ function RenderWorkflow({
         recordings,
         readOnly: isViewingHistoricalVersion,
         champsFiche,
+        outilsQuiEcrivent,
         workflowId,
         agentPrincipalId,
         estPrincipal,
@@ -619,6 +632,7 @@ function RenderWorkflow({
         ajouterOutil,
         phrasesDeLEtape,
     }), [
+        outilsQuiEcrivent,
         guardedSaveWorkflow,
         documents,
         tools,

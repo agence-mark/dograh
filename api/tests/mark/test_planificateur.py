@@ -159,8 +159,10 @@ def test_cas_rouge_connu_pas_le_lundi_n_est_jamais_lundi():
     assert not s.accepte(datetime(2026, 10, 13, 10, 0, tzinfo=PARIS))
 
 
-# sha256 of ``dates_relatives.py`` as of 03adc42a (line ends normalised); works without git history.
-EMPREINTE_DATES_RELATIVES = "9d6d9558ec3df156ddf92f78c32279bd203cf1a1286da1f5efc0aee12e7ca642"
+# sha256 of ``dates_relatives.py`` as of da977daf (line ends normalised); works without git history.
+# [.mark] correctifs-apres-banc-commun, lot 11 (F-1): updated on purpose after K6a (lot 3, « l'année dernière,
+# en octobre »), a reviewed change of the reader, not a planner change.
+EMPREINTE_DATES_RELATIVES = "2ea97108e76f2ebd2a0f2f76d0b8f559b0acb11da7433b768d316905729666f4"
 
 
 def _empreinte(octets: bytes) -> str:

@@ -40,6 +40,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CONSIGNE_NON_DIT,
     NOM_OUTIL,
     NOTE_DESCRIPTIONS,
+    REGLE_REFUS_ET_IGNORANCE,
     ReglagesFiche,
     SuiviDesTours,
     creer_gestionnaire,
@@ -133,7 +134,8 @@ def test_schema_un_parametre_facultatif_par_champ():
     assert schema.required == []
     assert schema.properties["nom"]["description"] == "Nom de famille"
     # A3 : la description de l'outil dit que celles des champs sont à lire.
-    assert schema.description.endswith(NOTE_DESCRIPTIONS)
+    # Lot 11 (F-9) : puis la règle du refus et de l'ignorance, comme le greffier.
+    assert schema.description.endswith(NOTE_DESCRIPTIONS + " " + REGLE_REFUS_ET_IGNORANCE)
     assert "jamais des questions à poser" in NOTE_DESCRIPTIONS
 
 

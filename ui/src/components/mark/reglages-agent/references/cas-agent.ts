@@ -224,6 +224,10 @@ export const CAS_AGENT: CasAgent[] = [
     c("fiche-deja-connu", "ajout-mark", "donnees", ["etiquettes_des_etapes", "fiche_deja_connu"], [inter("fiche_deja_connu")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
+    // Lot 11 de correctifs-apres-banc-commun (F-3).
+    c("formulations-d-action", "ajout-mark", "donnees", ["verite_formulations_d_action"], [
+        { type: "etiquette", id: "verite_formulations_d_action", valeur: "enregistré" },
+    ]),
     // Chantier postscriptum-et-communes, B5: only shown in Postscript, « Transition, note, reply ».
     c("phrase-sans-redemande", "ajout-mark", "donnees", ["fiche_mode_de_note", "ordre_de_la_reponse", "phrase_sans_redemande"], [
         choisir("fiche_mode_de_note", "post_scriptum"),
