@@ -531,7 +531,8 @@ class RepriseSansFluxMixin:
                     convert_developer_to_user=not self.supports_developer_role,  # type: ignore[attr-defined]
                 )
             finally:
-                if outil and hasattr(context, "set_tool_choice") and avant_choix is not None:
+                # Lot 11 (revue 10) : le choix d'avant, quel qu'il soit.
+                if outil and hasattr(context, "set_tool_choice"):
                     context.set_tool_choice(avant_choix)
             # Par l'attribut de l'instance : les enveloppes posées par le moteur (l'état de
             # la fiche) s'appliquent à la relance comme à la requête d'origine.
@@ -567,6 +568,10 @@ class RepriseSansFluxMixin:
             relanceur = None
         if verificateur is not None or relanceur is not None:
             messages = [m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)]
+            # Lot 11 (F-1, revue 4) : le prompt de l'étape vit hors des messages ; ses dates sont connues aussi.
+            systeme = getattr(getattr(self, "_settings", None), "system_instruction", None)
+            if isinstance(systeme, str) and systeme:
+                messages = [{"role": "system", "content": systeme}, *messages]
             if relanceur is None:
                 controle = lambda texte: verificateur.controler(texte, messages)  # noqa: E731
             else:

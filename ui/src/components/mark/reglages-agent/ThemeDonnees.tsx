@@ -43,6 +43,7 @@ import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
+import { Reglage } from "./catalogue";
 import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
 import { useEnregistrementTheme } from "./enregistrement";
 import { champsInvalides, lireApresAppel, pourEnvoyer, SectionApresAppelAgent, smsInvalides } from "./SectionApresAppelAgent";
@@ -189,6 +190,14 @@ export const ThemeDonnees = ({
     const [transfert, setTransfert] = useState(transfertEnregistre);
     useEffect(() => setTransfert(transfertEnregistre), [transfertEnregistre]);
     const transfertModifie = transfert !== transfertEnregistre;
+    // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done » (empty = the built-in list).
+    const formulationsEnregistrees = useMemo(
+        () => (resolue.verite_formulations_d_action ?? []) as string[],
+        [resolue.verite_formulations_d_action],
+    );
+    const [formulations, setFormulations] = useState<string[]>(formulationsEnregistrees);
+    useEffect(() => setFormulations(formulationsEnregistrees), [formulationsEnregistrees]);
+    const formulationsModifiees = JSON.stringify(formulations) !== JSON.stringify(formulationsEnregistrees);
     // Chantier postscriptum-et-communes, B5: a sentence that asks again for a field the turn's
     // note just wrote is held back. Only in « Transition, note, reply » order, like the server.
     const redemandeEnregistree = resolue.phrase_sans_redemande ?? false;
@@ -336,6 +345,7 @@ export const ThemeDonnees = ({
         || apresAppelModifie
         || connuEtAttenduModifie
         || transfertModifie
+        || formulationsModifiees
         || redemandeModifiee;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
@@ -387,6 +397,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
                 modifie: transfertModifie,
                 config: () => ({ transfert_garanti: transfert }),
+            },
+            {
+                // Lot 11 (F-3): its own part, sent only when changed (E6).
+                nom: { en: "Words that say « done »", fr: "Mots qui disent « c'est fait »" },
+                modifie: formulationsModifiees,
+                config: () => ({ verite_formulations_d_action: formulations }),
             },
             {
                 // Chantier postscriptum-et-communes, B5: its own part, sent only when changed (E6).
@@ -604,6 +620,14 @@ export const ThemeDonnees = ({
                     >
                         <Switch id="transfert_garanti" checked={transfert} onCheckedChange={setTransfert} />
                     </ChampReglage>
+                )}
+                {/* Lot 11 de correctifs-apres-banc-commun (F-3): read by the steps' « Truth of actions » box. */}
+                {ficheActive && (
+                    <Reglage
+                        cle="verite_formulations_d_action"
+                        valeur={formulations}
+                        onChange={(v) => setFormulations(Array.isArray(v) ? (v as string[]) : [])}
+                    />
                 )}
                 {/* Chantier postscriptum-et-communes, B5: « Transition, note, reply » order only. */}
                 {ficheActive && modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && (

@@ -17,6 +17,8 @@ interface WorkflowContextType {
     readOnly?: boolean;
     /** [.mark] Lot E d'agent-leger-greffier: the agent's record fields (step labels). */
     champsFiche?: string[];
+    /** [.mark] Lot 11 (F-2): function names of the tools that write or undo a record field. */
+    outilsQuiEcrivent?: string[];
     /** [.mark] Lot 12 (agents-specialises): the id of this agent. */
     workflowId?: number;
     /** [.mark] Lot 12: the main agent of this agent when it is a specialised one (« Back to the main agent »). */

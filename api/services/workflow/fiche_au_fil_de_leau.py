@@ -119,6 +119,13 @@ NOTE_DESCRIPTIONS = (
     "elles sont à lire uniquement, ce ne sont jamais des questions à poser. Ce que "
     "tu demandes à la personne, c'est le prompt de l'étape qui le dit."
 )
+# Lot 11 de correctifs-apres-banc-commun (F-9, K6b étendu) : la règle que le greffier a depuis le lot 3, pour
+# l'outil de notes et le post-scriptum aussi (« aucune idée » noté « refusé » au run 1496). Aucun mot de métier.
+REGLE_REFUS_ET_IGNORANCE = (
+    "Quand la personne refuse de donner une information, écris « refusé » dans le champ, jamais une valeur. "
+    "Ne pas savoir n'est pas refuser : quand elle dit qu'elle ne sait pas ou ne se souvient plus (« aucune "
+    "idée », « je ne sais plus »), n'écris rien dans ce champ, ou « inconnu » s'il l'accepte ; jamais « refusé »."
+)
 
 # A5 (runs 831, 837) : un refus rendu sans consigne a poussé le modèle à faire
 # confirmer SA version (« c'est bien en 2025 ? ») jusqu'à l'entendre dite : quatre
@@ -170,7 +177,7 @@ DESCRIPTION_OUTIL = (
     "« non pardon, c'est au 14 rue de la République, pas au 12 » → "
     "adresse_intervention = « 14 rue de la République ». La personne dit « je suis Mme "
     "Lefèvre, L E F E V R E » → nom = « LEFEVRE ». Après l'appel de l'outil, "
-    "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS
+    "poursuis la conversation normalement. " + NOTE_DESCRIPTIONS + " " + REGLE_REFUS_ET_IGNORANCE
 )
 
 
@@ -201,6 +208,7 @@ CLE_DEJA_CONNU = "fiche_deja_connu"
 CLE_PHRASE_SANS_REDEMANDE = "phrase_sans_redemande"
 # Chantier greffier-conversation, lot E (C4, D6) : le code lance le transfert à l'arrivée.
 CLE_TRANSFERT_GARANTI = "transfert_garanti"
+CLE_FORMULATIONS_D_ACTION = "verite_formulations_d_action"
 # Chantier schema-parcours-unique (C1) : la case « Generate the flow map » pilote aussi le
 # bloc de fin d'étape unique et le retrait du bloc de prise de notes (greffier, portes dans
 # la réponse). Elle remplace la case ``parcours_lisible`` du lot 4 ter de repliques-coupees.
@@ -255,6 +263,9 @@ class ReglagesFiche:
     # Lot E de greffier-conversation (C4, D6) : à l'arrivée dans une étape qui porte un
     # outil de transfert, entreprise ouverte (OUVERT), le code lance le transfert. Tous modes.
     transfert_garanti: bool = False
+    # Lot 11 de correctifs-apres-banc-commun (F-3) : les participes qui disent « c'est fait », réglés à l'écran par
+    # agent (``verite_formulations_d_action``) ; vide = la liste par défaut du code (``verite_des_actions``).
+    formulations_d_action: tuple[str, ...] = ()
     # Le parcours lisible (greffier, portes dans la réponse), piloté par la case du schéma.
     parcours_lisible: bool = False
 
@@ -325,6 +336,11 @@ class ReglagesFiche:
             etiquettes=_connu_et_attendu(run_configs),
             deja_connu=_connu_et_attendu(run_configs),
             transfert_garanti=run_configs.get(CLE_TRANSFERT_GARANTI) is True,
+            formulations_d_action=tuple(
+                str(p).strip()
+                for p in (run_configs.get(CLE_FORMULATIONS_D_ACTION) or ())
+                if isinstance(p, str) and p.strip()
+            ),
             parcours_lisible=(
                 run_configs.get(CLE_SCHEMA_DU_PARCOURS) is True
                 and mode == MODE_GREFFIER
@@ -1992,6 +2008,32 @@ def _nombre_de_chiffres(valeur: Any) -> int:
     return sum(1 for c in str(valeur) if c.isdigit())
 
 
+CHIFFRES_D_UN_NUMERO_NATIONAL = 10
+
+
+def numero_en_forme_nationale(valeur: str, chiffres: int) -> str:
+    """F-11 : la forme nationale d'un numéro à ``chiffres`` chiffres (zéro de tête) quand il arrive avec
+    l'indicatif (« +33 6 12… », « 0033 6… », « 33 6… » : un chiffre de trop après le retrait de l'indicatif)
+    ou sans son zéro de tête (un chiffre de moins, premier chiffre non nul). Seulement un champ à dix chiffres
+    (la numérotation nationale à zéro de tête) : un code postal à quatre chiffres ne reçoit jamais de zéro.
+    Toute autre valeur : inchangée."""
+    try:
+        if chiffres != CHIFFRES_D_UN_NUMERO_NATIONAL:
+            return valeur
+        brut = re.sub(r"\D", "", valeur)
+        if not brut:
+            return valeur
+        if brut.startswith("0033") and len(brut) == chiffres + 3:
+            return "0" + brut[4:]
+        if brut.startswith("33") and len(brut) == chiffres + 1 and brut[2] != "0":
+            return "0" + brut[2:]
+        if len(brut) == chiffres - 1 and brut[0] != "0":
+            return "0" + brut
+        return valeur
+    except Exception:  # noqa: BLE001
+        return valeur
+
+
 def chiffres_dits(valeur: Any, paroles: Iterable[str]) -> bool:
     """K10 : les chiffres de ``valeur`` se suivent-ils dans ce que la personne a dit ?
 
@@ -2261,6 +2303,11 @@ def ecrire_dans_la_fiche(
     )
     if courriel is not None:
         valeur = courriel.valeur
+    # [.mark] Lot 11 de correctifs-apres-banc-commun (F-11) : un numéro dit sans son zéro de tête ou avec
+    # l'indicatif (« plus trente-trois six… ») reprend sa forme nationale avant tout contrôle ; ses chiffres
+    # doivent toujours avoir été dits (K10 lit déjà ces deux formes de la parole).
+    if definition is not None and definition.chiffres and isinstance(valeur, str):
+        valeur = numero_en_forme_nationale(valeur, definition.chiffres)
     # [.mark] Lot 7 (A8, K9) : un champ cumulatif à liste fermée reçoit une ou plusieurs valeurs de
     # la liste (« a ; b ») ; chacune est contrôlée contre la liste, un doublon est ignoré.
     liste_lue = False
@@ -2429,6 +2476,9 @@ def ecrire_dans_la_fiche(
             and not est_dit_tel_quel(valeur, paroles_sans_notes(paroles, fiche))
             # Lot C : la correction d'une ou plusieurs paires d'un numéro déjà noté.
             and not corrige_par_paires(definition, fiche.get(champ), valeur, paroles_sans_notes(paroles[-1:], fiche))
+            # Lot 11 (F-11) : un numéro à chiffres fixes se juge sur ses CHIFFRES dits (K10 : zéro de tête absent,
+            # « plus trente-trois »), pas sur sa forme écrite, remise en forme nationale plus haut.
+            and not (definition.chiffres and chiffres_dits(valeur, paroles_sans_notes(paroles, fiche)))
         ):
             verdict = Verdict(champ, "refuse", "non_dit", valeur)
         elif (
@@ -3853,7 +3903,8 @@ def consigne_du_mode(reglages: ReglagesFiche | None) -> str | None:
             consigne.format(
                 separateur=SEPARATEUR,
                 champs=champs,
-                note_descriptions=NOTE_DESCRIPTIONS,
+                # Lot 11 (F-9) : la règle du refus et de l'ignorance, comme le greffier et l'outil.
+                note_descriptions=NOTE_DESCRIPTIONS + "\n" + REGLE_REFUS_ET_IGNORANCE,
             ),
             FIN_PRISE_DE_NOTES,
         ]

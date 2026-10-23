@@ -333,6 +333,25 @@ async def test_les_messages_reviennent_a_la_voix_qui_a_ouvert_le_flux():
 
 
 @pytest.mark.asyncio
+async def test_f6_une_erreur_d_un_flux_des_sons_ne_va_jamais_a_la_voix_de_l_appel():
+    """Lot 11 (F-6, revue 8). Doc Soniox (api-reference/errors) : une erreur qui porte son ``stream_id`` ne ferme
+    pas la connexion, les autres flux continuent ; seule une erreur de connexion (``stream_id`` vide) la ferme.
+    L'erreur d'un flux de la fabrique revient donc à la fabrique : la phrase de l'appel n'est jamais touchée."""
+    appel, sons = _paire()
+    sons.partager_la_connexion_de(appel)
+    await sons._connect_websocket()
+    await sons._send_config("flux-sons")
+    appel._websocket.a_lire = [
+        json.dumps({"stream_id": "flux-sons", "error_code": 400, "error_message": "Stream not found"}),
+        json.dumps({"stream_id": "flux-appel", "audio": "AAAA"}),
+    ]
+    lus_par_l_appel = [json.loads(m) async for m in appel._get_websocket()]
+    assert lus_par_l_appel == [{"stream_id": "flux-appel", "audio": "AAAA"}]
+    assert "_mark_code_d_erreur" not in appel.__dict__  # l'appel ne pousse aucune erreur pour ce flux
+    assert json.loads(sons._websocket.messages.file.get_nowait())["error_code"] == 400
+
+
+@pytest.mark.asyncio
 async def test_sans_emprunt_la_connexion_de_l_appel_lit_tout_comme_avant():
     appel, _ = _paire()
     appel._websocket.a_lire = [json.dumps({"stream_id": "a", "audio": "AA"}), "pas du json"]

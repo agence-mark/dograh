@@ -53,7 +53,9 @@ NOMS_DES_MOIS = {
     8: "août", 9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre",
 }
 _ISO = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
-_BARRE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})(?:/\d{2,4})?(?![\d/])")
+# Lot 11 (F-1, revue 4) : « 1/2 » est une fraction, pas le 1er février. Une date à barre a son année, ou son mois
+# sur deux chiffres (« 3/11 », « 03/02 »).
+_BARRE = re.compile(r"(?<![\d/])(?:(\d{1,2})/(\d{1,2})/\d{2,4}|(\d{1,2})/(\d{2}))(?![\d/])")
 _MOIS_DIT = re.compile(r"\b(" + "|".join(MOIS) + r")\b", re.IGNORECASE)
 # Les jours qui précèdent un mois : « le 3 », « 3 et 7 », « du 3 au 7 », « le 3 et le 7 », « 1er ».
 _JOURS_AVANT = re.compile(
@@ -79,8 +81,9 @@ def dates_dans(texte: Any) -> set[Date]:
             if _valide(int(m.group(2)), int(m.group(3))):
                 trouvees.add((int(m.group(2)), int(m.group(3))))
         for m in _BARRE.finditer(texte):
-            if _valide(int(m.group(2)), int(m.group(1))):
-                trouvees.add((int(m.group(2)), int(m.group(1))))
+            jour, mois = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+            if _valide(int(mois), int(jour)):
+                trouvees.add((int(mois), int(jour)))
         for m in _MOIS_DIT.finditer(texte):
             mois = MOIS[m.group(1).casefold()]
             avant = texte[max(0, m.start() - 60) : m.start()]
@@ -98,6 +101,80 @@ def dates_dans(texte: Any) -> set[Date]:
 
 def libelle_de_la_date(date: Date) -> str:
     return f"{date[1]} {NOMS_DES_MOIS.get(date[0], date[0])}"
+
+
+# Lot 11 (F-1, revue 4 ; F-8) : les jours de la semaine, de la langue (pas du métier).
+JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+_JOUR_DIT = re.compile(r"\b(" + "|".join(JOURS) + r")\b", re.IGNORECASE)
+_JOUR_ET_DATE = re.compile(
+    r"\b(" + "|".join(JOURS) + r")\s+(\d{1,2})(?:er)?\s+(" + "|".join(MOIS) + r")\b", re.IGNORECASE
+)
+_RELATIFS = {"aujourd'hui": 0, "aujourd’hui": 0, "demain": 1, "après-demain": 2, "apres-demain": 2}
+# Assez loin pour « jeudi en huit » ou « la semaine d'après » : trois semaines.
+_JOURS_DE_SEMAINE_VUS = 3
+
+
+def _date_reelle(date: Date, maintenant: datetime) -> datetime | None:
+    """La date (mois, jour) la plus proche à venir (cette année, ou l'an prochain si elle est passée)."""
+    for annee in (maintenant.year, maintenant.year + 1):
+        try:
+            reelle = datetime(annee, date[0], date[1], tzinfo=maintenant.tzinfo)
+        except ValueError:
+            continue
+        if reelle.date() >= maintenant.date() or annee > maintenant.year:
+            return reelle
+    return None
+
+
+def dates_relatives_dites(texte: Any, maintenant: datetime | None = None) -> set[Date]:
+    """Les dates que la personne désigne sans les écrire : « demain », « après-demain », un jour de la semaine
+    (ses prochaines occurrences, sur trois semaines : « mardi », « mardi prochain »). ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(texte, str) or not texte:
+            return set()
+        from datetime import timedelta
+
+        maintenant = maintenant or datetime.now(FUSEAU)
+        trouvees: set[Date] = set()
+        bas = texte.casefold()
+        for mot, ecart in _RELATIFS.items():
+            if re.search(rf"(?<![\w-]){re.escape(mot)}(?![\w-])", bas):
+                d = maintenant + timedelta(days=ecart)
+                trouvees.add((d.month, d.day))
+        for m in _JOUR_DIT.finditer(bas):
+            cible = JOURS.index(m.group(1).casefold())
+            ecart = (cible - maintenant.weekday()) % 7
+            for semaine in range(_JOURS_DE_SEMAINE_VUS):
+                d = maintenant + timedelta(days=ecart + 7 * semaine)
+                trouvees.add((d.month, d.day))
+        return trouvees
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] dates relatives illisibles : {erreur!r}")
+        return set()
+
+
+def jours_faux(texte: Any, maintenant: datetime | None = None) -> list[tuple[str, str]]:
+    """F-8 : les « lundi 27 octobre » dont le jour ne colle pas à la date : ``[(dit, juste)]`` (« lundi 27 octobre »,
+    « mardi 27 octobre »). ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(texte, str):
+            return []
+        maintenant = maintenant or datetime.now(FUSEAU)
+        faux: list[tuple[str, str]] = []
+        for m in _JOUR_ET_DATE.finditer(texte):
+            date = (MOIS[m.group(3).casefold()], int(m.group(2)))
+            if not _valide(*date):
+                continue
+            reelle = _date_reelle(date, maintenant)
+            if reelle is None:
+                continue
+            juste = JOURS[reelle.weekday()]
+            if juste != m.group(1).casefold():
+                faux.append((m.group(0), f"{juste} {date[1]} {NOMS_DES_MOIS[date[0]]}"))
+        return faux
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] jours illisibles : {erreur!r}")
+        return []
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -345,32 +422,68 @@ def resultat_deja_confirme(moteur: Any, agent: Any, nom_outil: str, arguments: A
 # K7 étendu : la réplique retenue
 # ---------------------------------------------------------------------------------------------------------
 
-# Les participes passés qui disent « c'est fait » (la LISTE DE FORMULATIONS de D-23 : une donnée, un seul endroit).
+# Les participes passés qui disent « c'est fait » : la liste PAR DÉFAUT (D-23, F-3). Elle se règle à l'écran, par
+# agent (``verite_formulations_d_action``, lue par ``ReglagesFiche.formulations_d_action``) ; vide = cette liste.
 # Aucun nom de chose : « est pris/réservé/confirmé… » vaut pour tout ce qu'une action peut faire. Volontairement
 # absents : « noté », « enregistré », « transmis » (la fiche s'en charge, sans outil d'action).
 PARTICIPES_D_ACTION = (
     "pris", "réservé", "confirmé", "programmé", "planifié", "fixé", "validé", "annulé", "déplacé",
     "modifié", "envoyé",
 )
-_PARTICIPES = "|".join(re.escape(p) for p in PARTICIPES_D_ACTION)
-_ACTION_FAITE = re.compile(
-    r"(?:\b(?:est|sont|c['’]est|a\s+été|ont\s+été|était)\s+(?:bien\s+|déjà\s+|maintenant\s+|donc\s+|à\s+présent\s+)?"
-    rf"(?:{_PARTICIPES})(?:e|es|s)?\b"
-    r"|\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?"
-    rf"(?:{_PARTICIPES.replace('pris|', '')})\b)",
-    re.IGNORECASE,
-)
+# Lot 11 (F-3, revue 2) : un participe suivi de ce qui décrit un ÉTAT, pas une action qui vient d'être faite :
+# « pris en charge / en compte », « fixé à 240 », « validé depuis 2019 », « prévu pour 3 personnes ».
+_ETAT_ET_NON_ACTION = r"(?!\s+(?:en\s+(?:charge|compte)|à\s+\d|depuis\b|pour\s+\d|par\s+(?:an|mois|semaine)\b))"
+
+
+def _regle_de_l_action_faite(participes: tuple[str, ...]) -> re.Pattern:
+    tous = "|".join(re.escape(p) for p in participes if p)
+    sans_pris = "|".join(re.escape(p) for p in participes if p and p.casefold() != "pris")
+    morceaux = [
+        (
+            r"\b(?:est|sont|c['’]est|a\s+été|ont\s+été|était)\s+(?:bien\s+|déjà\s+|maintenant\s+|donc\s+|à\s+présent\s+)?"
+            rf"(?:{tous})(?:e|es|s)?\b{_ETAT_ET_NON_ACTION}"
+        )
+    ]
+    if sans_pris:
+        morceaux.append(rf"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:{sans_pris})\b{_ETAT_ET_NON_ACTION}")
+    return re.compile("(?:" + "|".join(morceaux) + ")", re.IGNORECASE)
+
+
+_REGLES: dict[tuple[str, ...], re.Pattern] = {}
+
+
+def regle_de_l_action_faite(participes: Any = None) -> re.Pattern | None:
+    """La règle de « c'est fait » pour cette liste de participes (défaut : ``PARTICIPES_D_ACTION``). ``None`` : liste
+    illisible (rien n'est contrôlé)."""
+    try:
+        liste = tuple(
+            " ".join(str(p).split()).casefold() for p in (participes or PARTICIPES_D_ACTION) if str(p).strip()
+        ) or PARTICIPES_D_ACTION
+        regle = _REGLES.get(liste)
+        if regle is None:
+            regle = _regle_de_l_action_faite(liste)
+            _REGLES[liste] = regle
+        return regle
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] formulations illisibles : {erreur!r}")
+        return None
+
+
+_ACTION_FAITE = regle_de_l_action_faite()
 
 CONSIGNE_DATE = (
     "Ta réponse a été retenue : elle donnait une date qu'aucun résultat d'outil, aucune parole de la personne ne "
     "donne. Ne donne aucune date que tu n'as pas reçue : appelle l'outil qui la cherche, ou dis que tu vérifies."
 )
+# Lot 11 (F-3) : sans ordre d'appeler un outil (une passation ou une fin ne doit pas être appelée pour « obéir »).
 CONSIGNE_ACTION = (
-    "Ta réponse a été retenue : elle annonçait une action faite alors qu'aucun outil ne l'a faite. Appelle l'outil "
-    "qui la fait, ou ne dis pas qu'elle est faite."
+    "Ta réponse a été retenue : elle disait qu'une action est faite alors qu'aucun outil ne l'a faite. Ne dis pas "
+    "que c'est fait : dis ce que tu fais ou ce qui reste à faire."
 )
+CONSIGNE_JOUR = "Ta réponse a été retenue : le jour ne correspond pas à la date. Le bon jour est : {justes}."
 RAISON_DATE = "date_non_trouvee"
 RAISON_ACTION = "action_sans_resultat"
+RAISON_JOUR = "jour_faux"
 
 
 @dataclass(frozen=True)
@@ -404,7 +517,12 @@ def dates_connues(moteur: Any, messages: Any) -> set[Date]:
         connues |= set(vue.dates)
     for message in messages or []:
         if isinstance(message, Mapping) and message.get("role") != "assistant":
-            connues |= dates_dans(_contenu(message))
+            contenu = _contenu(message)
+            connues |= dates_dans(contenu)
+            # Lot 11 (F-1, revue 4) : « mardi prochain », « demain » dits par la PERSONNE seulement (un prompt cite des
+            # jours d'ouverture : les compter rendrait connues toutes les dates de trois semaines).
+            if message.get("role") == "user":
+                connues |= dates_relatives_dites(contenu, maintenant)
     fiche = getattr(moteur, "_gathered_context", None)
     if isinstance(fiche, dict):
         connues |= dates_dans({k: v for k, v in fiche.items() if isinstance(v, (str, int, float))})
@@ -439,6 +557,28 @@ def annulation_reussie(moteur: Any) -> bool:
         return True
 
 
+def ecriture_en_vigueur(moteur: Any) -> ActionVue | None:
+    """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel, si aucune annulation réussie ne l'a défaite
+    depuis. ``None`` : rien n'est écrit (ou tout a été défait). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        ecritures = outils_d_ecriture(moteur)
+        annulations = outils_d_annulation(moteur)
+        en_vigueur = None
+        for vue in journal_de(moteur):
+            if not vue.reussie:
+                continue
+            nom = _normaliser(vue.nom)
+            if nom in ecritures:
+                en_vigueur = vue
+            elif nom in annulations:
+                en_vigueur = None
+        return en_vigueur
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _dit_annule(formulation: str) -> bool:
     return "annul" in (formulation or "").casefold()
 
@@ -466,16 +606,30 @@ class VerificateurDeReplique:
                     return Retenue(
                         RAISON_DATE, ", ".join(libelle_de_la_date(d) for d in inconnues), CONSIGNE_DATE
                     )
+            # Lot 11 (F-8) : « lundi 27 octobre » quand le 27 octobre est un mardi.
+            faux = jours_faux(texte)
+            if faux:
+                return Retenue(
+                    RAISON_JOUR,
+                    ", ".join(dit for dit, _ in faux),
+                    CONSIGNE_JOUR.format(justes=", ".join(juste for _, juste in faux)),
+                )
+            regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+            if regle is None:
+                return None
             for phrase in _phrases(texte):
                 if phrase.rstrip().endswith("?"):
                     continue
-                m = _ACTION_FAITE.search(phrase)
+                m = regle.search(phrase)
                 if m and not self.moteur_a_agi():
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
                 # Lot 8 (K16) : « c'est annulé » n'est dit que si l'outil d'annulation l'a fait (l'agenda peut
                 # avoir réservé, l'annulation avoir échoué ou n'avoir jamais été appelée).
                 if m and _dit_annule(m.group(0)) and outils_d_annulation(self.moteur) and not annulation_reussie(self.moteur):
-                    from api.services.workflow.enveloppe_des_actions import CONSIGNE_ANNULATION, ISSUE_ECHEC
+                    from api.services.workflow.enveloppe_des_actions import (
+                        CONSIGNE_ANNULATION,
+                        ISSUE_ECHEC,
+                    )
 
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ANNULATION[ISSUE_ECHEC])
             return None
@@ -487,16 +641,40 @@ class VerificateurDeReplique:
         return une_action_a_reussi(self.moteur)
 
 
+def etape_qui_ecrit(moteur: Any, actions: Any, etape_du_fond: bool) -> bool:
+    """Lot 11 (F-2, revue 1) : l'étape écrit-elle quelque chose ? Elle confie le travail au fond, ou elle porte une
+    action d'écriture (``rempli_par_outil``) ou d'annulation (``annule_par_outil``). Les passations, transferts et
+    fins ne comptent pas."""
+    try:
+        if etape_du_fond:
+            return True
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        qui_ecrivent = outils_d_ecriture(moteur) | outils_d_annulation(moteur)
+        return any(_normaliser(a) in qui_ecrivent for a in (actions or ()))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def case_de_l_etape(noeud: Any, ecrit: bool) -> bool:
+    """F-2 : la case de l'étape. Cochée à l'écran (``True``) ou décochée (``False``) : c'est elle qui décide. Jamais
+    touchée (vide) : allumée seulement sur une étape qui écrit."""
+    valeur = getattr(noeud, "verite_des_actions", None)
+    if valeur is True or valeur is False:
+        return valeur
+    return bool(ecrit)
+
+
 def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_une_action: bool) -> bool:
-    """Pose (ou retire) le contrôle des répliques sur le cerveau de ``agent`` pour son étape. Actif seulement si
-    l'étape offre un outil d'action et que sa case n'est pas éteinte. ⛔ Ne lève jamais."""
+    """Pose (ou retire) le contrôle des répliques sur le cerveau de ``agent`` pour son étape. ``offre_une_action`` :
+    l'étape écrit (``etape_qui_ecrit``) ; la case de l'étape décide (``case_de_l_etape``). ⛔ Ne lève jamais."""
     try:
         from api.services.pipecat.reponse_avalee import ATTRIBUT_VERITE
 
         llm = getattr(agent, "llm", None)
         if llm is None:
             return False
-        actif = bool(offre_une_action) and getattr(noeud, "verite_des_actions", None) is not False
+        actif = not getattr(noeud, "is_end", False) and case_de_l_etape(noeud, bool(offre_une_action))
         setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent) if actif else None)
         return actif
     except Exception as erreur:  # noqa: BLE001

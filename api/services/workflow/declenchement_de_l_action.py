@@ -54,6 +54,11 @@ _MARQUE_TOURS = "_mark_declenchement_des_tours"
 # Générique, aucun métier : la demande du mode automatique quand l'étape n'a pas écrit de demande type. Les valeurs
 # de la fiche sont jointes derrière (K11).
 DEMANDE_PAR_DEFAUT = "Fais l'action de cette étape avec les valeurs de la fiche de l'appel."
+# Lot 11 (F-4) : générique, aucun métier. Une action d'écriture a déjà réussi, puis une donnée a changé.
+CONSIGNE_REFAIRE = (
+    "Une action a déjà été faite pour cette demande avec des valeurs qui ont changé depuis ({action}, {arguments}). "
+    "Défais-la d'abord avec l'outil d'annulation, puis refais-la avec les valeurs ci-dessous."
+)
 _CHAMP_DANS_LA_DEMANDE = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
 
 # Les marques de porte écrites DANS la réplique (porte parlée) : une réplique qui prend sa porte n'est pas relancée.
@@ -96,13 +101,26 @@ def actions_offertes(moteur: Any) -> frozenset:
         return frozenset()
 
 
-def action_de_l_etape(actions: frozenset, etape_du_fond: bool) -> str | None:
+def action_de_l_etape(actions: frozenset, etape_du_fond: bool, moteur: Any = None) -> str | None:
     """L'outil que la position déclenche : le travail de fond de l'étape (``confier``), sinon l'unique action
-    de l'étape. Plusieurs actions sans travail de fond : ``None`` (on ne choisit pas pour l'étape)."""
+    d'ÉCRITURE de l'étape (lot 11, F-1 et revue 7 : une recherche ou une annulation à côté ne l'éteignent plus),
+    sinon l'unique action de l'étape. Ambigu : ``None`` (on ne choisit pas pour l'étape)."""
     if etape_du_fond:
         from api.services.travail.reglages import NOM_OUTIL
 
         return NOM_OUTIL
+    if moteur is not None:
+        try:
+            from api.services.workflow.verite_des_actions import outils_d_ecriture
+
+            ecritures = outils_d_ecriture(moteur)
+            qui_ecrivent = sorted(a for a in actions if _normaliser(a) in ecritures)
+            if len(qui_ecrivent) == 1:
+                return qui_ecrivent[0]
+            if len(qui_ecrivent) > 1:
+                return None
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[declenchement] actions d'écriture illisibles : {erreur!r}")
     if len(actions) == 1:
         return next(iter(actions))
     return None
@@ -235,9 +253,12 @@ class Declencheur:
                 return False
             if self._deja_fait():
                 return False
-            from api.services.workflow.enveloppe_des_actions import garde_du_noeud_apres_les_notes
+            from api.services.workflow.enveloppe_des_actions import (
+                garde_du_noeud_apres_les_notes,
+            )
 
-            return await garde_du_noeud_apres_les_notes(self.moteur, self.noeud) is None
+            # Lot 11 (F-14) : l'attente du greffier, seulement quand il ne manque plus qu'un champ.
+            return await garde_du_noeud_apres_les_notes(self.moteur, self.noeud, dernier_seulement=True) is None
         except Exception as erreur:  # noqa: BLE001 -- dans le doute, rien n'est armé
             logger.warning(f"[declenchement] conditions illisibles : {erreur!r}")
             return False
@@ -265,15 +286,26 @@ class Declencheur:
         """Appelé avant chaque requête de conversation. Obligatoire : pose l'appel obligatoire pour ce tour et rend
         de quoi le remettre ; automatique : lance le travail. ``None`` : rien n'a changé."""
         if self.position == OBLIGATOIRE:
-            if not hasattr(context, "set_tool_choice") or not await self.armer():
+            if not hasattr(context, "set_tool_choice"):
+                return None
+            paroles = paroles_de_l_appelant(context)
+            # Lot 11 (F-7) : une question de la personne a sa réponse ; le forçage reprend au tour suivant.
+            if paroles and "?" in paroles[-1]:
+                logger.info("[declenchement] la personne pose une question : tour libre")
+                return None
+            # Lot 11 (F-1, revue 3) : jamais deux forçages pour la même parole de la personne.
+            if getattr(self, "_parole_forcee", None) == len(paroles):
+                return None
+            if not await self.armer():
                 return None
             avant = getattr(context, "tool_choice", None)
             context.set_tool_choice(choix_de_l_outil(self.outil))
+            self._parole_forcee = len(paroles)
             logger.info(f"[declenchement] tour avec {self.outil} obligatoire")
 
             def remettre() -> None:
-                if avant is not None:
-                    context.set_tool_choice(avant)
+                # Lot 11 (revue 10) : le choix d'avant, quel qu'il soit.
+                context.set_tool_choice(avant)
 
             return remettre
         if self.position == AUTOMATIQUE:
@@ -294,13 +326,27 @@ class Declencheur:
             if not await self.armer():
                 return False
             from api.services.travail.demande import joindre_la_fiche
+            from api.services.workflow.verite_des_actions import (
+                ecriture_en_vigueur,
+                outils_d_annulation,
+            )
 
             reglages = getattr(self.moteur, "_fiche", None)
             fiche = getattr(self.moteur, "_gathered_context", None)
             fiche = fiche if isinstance(fiche, dict) else {}
-            demande = joindre_la_fiche(
-                demande_type_remplie(getattr(self.noeud, "demande_type", None), fiche), reglages, fiche
-            )
+            demande = demande_type_remplie(getattr(self.noeud, "demande_type", None), fiche)
+            # Lot 11 (F-4, revue 6) : une donnée corrigée APRÈS une écriture réussie. Avec un outil d'annulation :
+            # le fond défait l'ancienne puis refait ; sans : rien ne repart (le modèle gère la correction).
+            deja = ecriture_en_vigueur(self.moteur)
+            if deja is not None:
+                if not outils_d_annulation(self.moteur):
+                    noter_le_declenchement(self.moteur, self.noeud, self.outil)
+                    logger.info("[declenchement] donnée corrigée après une écriture réussie, sans annulation : rien ne repart")
+                    return False
+                demande = CONSIGNE_REFAIRE.format(
+                    action=deja.nom, arguments=json.dumps(deja.arguments, ensure_ascii=False, default=str)
+                ) + "\n" + demande
+            demande = joindre_la_fiche(demande, reglages, fiche)
             noter_le_declenchement(self.moteur, self.noeud, self.outil)
             resultat = await travail.confier(demande)
             entree = getattr(travail, "_entree_courante", None)
@@ -311,6 +357,20 @@ class Declencheur:
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[declenchement] lancement automatique en échec : {erreur!r}")
             return False
+
+
+def paroles_de_l_appelant(context: Any) -> list[str]:
+    """Les paroles de la personne dans la conversation, dans l'ordre (texte seul). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.verite_des_actions import _contenu
+
+        return [
+            _contenu(m)
+            for m in (getattr(context, "messages", None) or [])
+            if isinstance(m, Mapping) and m.get("role") == "user"
+        ]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def choix_de_l_outil(nom: str) -> dict:

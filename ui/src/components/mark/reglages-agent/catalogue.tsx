@@ -527,6 +527,20 @@ export const CATALOGUE = {
         ],
     }),
 
+    // ---- Données de l'appel ------------------------------------------------------
+    // [.mark] Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », per agent.
+    verite_formulations_d_action: d({
+        type: "etiquettes",
+        indication: "réservé",
+        libelle: { en: "Words that say « done »", fr: "Mots qui disent « c'est fait »" },
+        aides: [
+            {
+                en: "Under « Truth of actions » (a step's box), a reply that says one of these words (« it is booked ») with no tool result behind it is held back and the model is asked again once, without being told to call a tool. Empty: the built-in list (taken, booked, confirmed, scheduled, planned, set, validated, cancelled, moved, changed, sent). « Taken into account », « set at 240 » or « validated since 2019 » describe a state and are never held back.",
+                fr: "Sous « Vérité des actions » (case d'une étape), une réplique qui dit l'un de ces mots (« c'est réservé ») sans résultat d'outil derrière est retenue et le modèle relancé une fois, sans lui ordonner d'appeler un outil. Vide : la liste par défaut (pris, réservé, confirmé, programmé, planifié, fixé, validé, annulé, déplacé, modifié, envoyé). « Pris en compte », « fixé à 240 » ou « validé depuis 2019 » décrivent un état et ne sont jamais retenus.",
+            },
+        ],
+    }),
+
     // ---- Rythme de l'appel -------------------------------------------------------
     user_idle_prompt: d({
         type: "zone",

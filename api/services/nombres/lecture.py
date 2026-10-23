@@ -102,6 +102,13 @@ _FIGEES = (
     # K9 (run 1505, « un neuf » pour un appareil neuf lu « 1 9 ») : comme « à neuf ».
     ("un", "neuf"),
     ("une", "neuf"),
+    # Lot 11 de correctifs-apres-banc-commun (F-10) : « le neuf et l'ancien » ; « le neuf novembre » reste une date.
+    ("le", "neuf"),
+)
+# F-10 : après « le neuf », un mois en fait une date (« le neuf novembre ») : en chiffres.
+_MOIS_APRES_LE_NEUF = frozenset(
+    """janvier fevrier février mars avril mai juin juillet aout août septembre octobre novembre
+    decembre décembre""".split()
 )
 # "à neuf heures" IS a number: "a neuf" is fixed unless a unit or a number follows.
 _UNITES_APRES_A_NEUF = frozenset(
@@ -265,13 +272,16 @@ def _positions_figees(mots: list[str]) -> set[int]:
                 suivant in _UNITES_APRES_A_NEUF or suivant in MOTS_NOMBRE or suivant.isdigit()
             ):
                 continue
-            if expression in (("un", "neuf"), ("une", "neuf")):
+            if expression in (("un", "neuf"), ("une", "neuf"), ("le", "neuf")):
                 # K9 : « un neuf » reste en lettres, sauf dans une suite de nombres (« zéro six un neuf
                 # quatre… », « douze un neuf »), ou si une unité ou un nombre suit (« un neuf heures »).
                 avant = mots[i - 1] if i > 0 else None
                 if (
                     suivant is not None and (
-                        suivant in _UNITES_APRES_A_NEUF or suivant in MOTS_NOMBRE or suivant.isdigit()
+                        suivant in _UNITES_APRES_A_NEUF
+                        or suivant in MOTS_NOMBRE
+                        or suivant.isdigit()
+                        or (expression == ("le", "neuf") and suivant in _MOIS_APRES_LE_NEUF)
                     )
                 ) or (avant is not None and (avant in MOTS_NOMBRE or avant.isdigit())):
                     continue

@@ -161,6 +161,22 @@ def test_k9_une_suite_de_nombres_et_les_figees_d_avant_sont_inchangees(base, tex
     assert _ecrit(texte, base) == attendu
 
 
+@pytest.mark.parametrize(
+    "texte, attendu",
+    [
+        # Lot 11 (F-10) : « le neuf » (le poêle neuf) reste en lettres…
+        ("je compare le neuf et l'ancien", "je compare le neuf et l'ancien"),
+        ("je préfère le neuf", "je préfère le neuf"),
+        # … sauf une date, une heure, une suite de nombres
+        ("le neuf novembre", "le 9 novembre"),
+        ("venez le neuf à dix heures", "venez le neuf à 10 heures"),
+        ("venez le neuf heures", "venez le 9 heures"),
+    ],
+)
+def test_f10_le_neuf_reste_en_lettres_sauf_une_date_ou_un_nombre(base, texte, attendu):
+    assert _ecrit(texte, base) == attendu
+
+
 def _phrases_du_corpus():
     phrases: set[str] = set()
 

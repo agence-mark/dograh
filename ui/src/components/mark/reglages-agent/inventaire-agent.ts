@@ -124,6 +124,8 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     etiquettes_des_etapes: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
+    // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », read by the steps' « Truth of actions ».
+    verite_formulations_d_action: { theme: "donnees", cas: ["formulations-d-action"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },
     // Chantier repliques-coupees, lot 6 bis (D16): on screen, no longer « hors écran ».
     trace_requetes_modele: { theme: "agent", cas: ["trace-requetes-modele"] },

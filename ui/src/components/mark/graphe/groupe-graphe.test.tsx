@@ -74,6 +74,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
 const { GenericNode } = await import("@/components/flow/nodes/GenericNode");
 const { WorkflowProvider } = await import("@/app/workflow/[workflowId]/contexts/WorkflowContext");
 const { useWorkflowStore } = await import("@/app/workflow/[workflowId]/stores/workflowStore");
+const { caseCochee, nomDeFonction, valeurAEcrire } = await import("@/components/mark/graphe/VeriteDesActions");
 
 const OUTIL_EXISTANT = {
     tool_uuid: "outil-existant",
@@ -88,6 +89,7 @@ interface Contexte {
     estPrincipal?: boolean;
     tools?: ToolResponse[];
     travailActif?: boolean;
+    outilsQuiEcrivent?: string[];
 }
 
 const monter = async (type: "agentNode" | "endCall", data: Record<string, unknown>, contexte: Contexte = {}) => {
@@ -104,6 +106,7 @@ const monter = async (type: "agentNode" | "endCall", data: Record<string, unknow
                     tools: contexte.tools ?? [],
                     recordings: [],
                     champsFiche: ["degre_urgence", "numero_rappel"],
+                    outilsQuiEcrivent: contexte.outilsQuiEcrivent ?? [],
                     workflowId: 12,
                     agentPrincipalId: contexte.agentPrincipalId ?? null,
                     estPrincipal: contexte.estPrincipal ?? false,
@@ -247,33 +250,52 @@ describe("[.mark] case « Vérité des actions » d'une étape (correctifs-apres
         expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
     });
 
-    it("existe sur une étape qui porte un outil, allumée par défaut, et ne change pas l'étape tant qu'on n'y touche pas", async () => {
+    // Lot 11 (F-2) : vide = allumée seulement quand l'étape écrit ; une passation seule n'écrit pas.
+    const ECRIT = { tools: [OUTIL_EXISTANT], outilsQuiEcrivent: [nomDeFonction(OUTIL_EXISTANT.name)] };
+
+    it("existe sur une étape qui porte un outil, éteinte par défaut si l'outil n'écrit pas, et ne change pas l'étape", async () => {
         const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, { tools: [OUTIL_EXISTANT] });
         const champ = dialogue.querySelector('[data-reglage="verite_des_actions"]');
         expect(champ).not.toBeNull();
         expect(champ?.textContent).toContain("Truth of actions");
-        expect(document.getElementById("verite_des_actions")?.getAttribute("aria-checked")).toBe("true");
+        expect(document.getElementById("verite_des_actions")?.getAttribute("aria-checked")).toBe("false");
+        await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().verite_des_actions).toBeUndefined();
     });
 
-    it("s'éteint en écrivant false dans l'étape, et se rallume en effaçant le marqueur", async () => {
-        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, { tools: [OUTIL_EXISTANT] });
-        fireEvent.click(document.getElementById("verite_des_actions") as HTMLElement);
+    it("est allumée par défaut sur une étape dont l'outil écrit, et s'éteint en écrivant false", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, ECRIT);
+        const interrupteur = document.getElementById("verite_des_actions") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(interrupteur);
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().verite_des_actions).toBe(false);
     });
 
-    it("se lit éteinte quand l'étape porte false, et se rallume", async () => {
-        const dialogue = await monter(
-            "agentNode",
-            { tool_uuids: ["outil-existant"], verite_des_actions: false },
-            { tools: [OUTIL_EXISTANT] },
-        );
+    it("s'allume à la main sur une étape qui n'écrit pas en écrivant true, et revient au défaut en l'effaçant", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"] }, { tools: [OUTIL_EXISTANT] });
+        fireEvent.click(document.getElementById("verite_des_actions") as HTMLElement);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().verite_des_actions).toBe(true);
+    });
+
+    it("se lit éteinte quand l'étape porte false, et se rallume en revenant au défaut", async () => {
+        const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"], verite_des_actions: false }, ECRIT);
         const interrupteur = document.getElementById("verite_des_actions") as HTMLElement;
         expect(interrupteur.getAttribute("aria-checked")).toBe("false");
         fireEvent.click(interrupteur);
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().verite_des_actions).toBeUndefined();
+    });
+
+    it("suit la règle du serveur pour le nom de fonction d'un outil", () => {
+        expect(nomDeFonction("Réserver l'entretien")).toBe("r_server_l_entretien");
+        expect(nomDeFonction("annuler_entretien")).toBe("annuler_entretien");
+        expect(caseCochee(undefined, true)).toBe(true);
+        expect(caseCochee(true, false)).toBe(true);
+        expect(caseCochee(false, true)).toBe(false);
+        expect(valeurAEcrire(true, true)).toBeUndefined();
+        expect(valeurAEcrire(true, false)).toBe(true);
     });
 
     it("existe aussi sur une étape cochée « Travail en arrière-plan » quand le travail est allumé", async () => {

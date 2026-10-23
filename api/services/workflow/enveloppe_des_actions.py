@@ -286,12 +286,16 @@ async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | No
     return await garde_du_noeud_apres_les_notes(moteur, getattr(agent, "current_node", None))
 
 
-async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any) -> dict | None:
+async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seulement: bool = False) -> dict | None:
     """``garde_de_l_etape_apres_les_notes`` pour l'étape ``noeud`` (lot 6 : le déclenchement de l'outil d'action
-    lit la même garde, avec la même attente). ⛔ Ne lève jamais."""
+    lit la même garde). Lot 11 (F-14, revue 9) : ``dernier_seulement`` (le déclenchement) n'attend les passes que
+    s'il ne manque plus qu'un champ ; plus de champs manquent : la passe en cours ne peut pas tous les écrire, le
+    refus est rendu tout de suite. ⛔ Ne lève jamais."""
     refus = garde_du_noeud(moteur, noeud)
     if refus is None:
         return None
+    if dernier_seulement and len(refus.get("manque") or ()) > 1:
+        return refus
     try:
         from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
 
@@ -322,12 +326,26 @@ def envelopper_l_action(
 
     if garde and agent is not None:
         # Lot 6 de correctifs-apres-banc-commun : le moteur sait quelles actions l'étape en préparation offre.
-        from api.services.workflow.declenchement_de_l_action import noter_une_action_offerte
+        from api.services.workflow.declenchement_de_l_action import (
+            noter_une_action_offerte,
+        )
 
         noter_une_action_offerte(moteur, nom_outil)
 
     async def enveloppe(params: Any) -> None:
         if garde and agent is not None:
+            # Lot 6 : l'outil de l'étape est appelé (par le modèle) pour cette demande : aucune position ne se réarme.
+            # Lot 11 (F-1, revue 3) : noté AVANT les gardes, refus compris ; sinon un appel forcé que la garde de
+            # réservation refuse (ou que V4 sert) était reforcé sans fin dans le même tour.
+            from api.services.workflow.declenchement_de_l_action import noter_l_appel
+
+            noter_l_appel(moteur, agent, nom_outil)
+        # Lot 11 (F-1, revue 5) : une annulation passe TOUJOURS, sans attendre les champs de l'étape (l'appelant qui
+        # rappelle pour annuler n'a pas à redonner son adresse).
+        from api.services.workflow.verite_des_actions import outils_d_annulation
+
+        annulation = _normaliser(nom_outil) in outils_d_annulation(moteur)
+        if garde and agent is not None and not annulation:
             refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
             if refus is not None:
                 logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
@@ -346,11 +364,6 @@ def envelopper_l_action(
             if connu is not None:
                 await params.result_callback(connu)
                 return
-        if garde and agent is not None:
-            # Lot 6 : l'outil de l'étape est appelé (par le modèle) pour cette demande : aucune position ne se réarme.
-            from api.services.workflow.declenchement_de_l_action import noter_l_appel
-
-            noter_l_appel(moteur, agent, nom_outil)
         rendre = params.result_callback
         fini = asyncio.Event()
         veille = _veiller_l_outil(moteur, nom_outil, agent, params, fini)

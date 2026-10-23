@@ -30,6 +30,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     MODE_OUTIL,
     MODE_POST_SCRIPTUM,
     NOTE_DESCRIPTIONS,
+    REGLE_REFUS_ET_IGNORANCE,
     SEPARATEUR,
     ReglagesFiche,
     consigne_du_mode,
@@ -113,7 +114,7 @@ def test_le_bloc_ne_porte_que_les_champs_de_l_agent():
     fixe = CONSIGNE_POST_SCRIPTUM.format(
         separateur=SEPARATEUR,
         champs="- x : Un champ",
-        note_descriptions=NOTE_DESCRIPTIONS,
+        note_descriptions=NOTE_DESCRIPTIONS + "\n" + REGLE_REFUS_ET_IGNORANCE,  # lot 11 (F-9)
     )
     assert bloc == f"{DEBUT_PRISE_DE_NOTES}\n{fixe}\n{FIN_PRISE_DE_NOTES}"
     assert consigne_du_mode(_reglages(MODE_OUTIL)) is None

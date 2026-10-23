@@ -2068,29 +2068,29 @@ class PipecatEngine:
             from api.services.travail.agent import brancher_annuler_le_travail
 
             functions.append(brancher_annuler_le_travail(self, travail, agent))
-        # [.mark] Lot 5 de correctifs-apres-banc-commun (K7) : le contrôle des répliques de l'étape, seulement si
-        # elle offre un outil d'action (un outil de l'étape, ou « confier ») et que sa case n'est pas éteinte.
-        from api.services.workflow.verite_des_actions import brancher_la_verite_des_actions
-
-        brancher_la_verite_des_actions(
-            self,
-            agent,
-            node,
-            offre_une_action=not node.is_end and (bool(node.tool_uuids) or etape_du_fond),
-        )
-        # [.mark] Lot 6 de correctifs-apres-banc-commun (K8) : le déclenchement de l'outil d'action de l'étape
-        # (libre = rien n'est branché).
+        # [.mark] Lot 5 de correctifs-apres-banc-commun (K7) : le contrôle des répliques de l'étape. Lot 11 (F-2,
+        # revue 1) : allumé par défaut seulement sur une étape qui ÉCRIT (« confier », une action d'écriture ou
+        # d'annulation) ; les passations, transferts et fins ne comptent pas ; la case de l'étape décide.
         from api.services.workflow.declenchement_de_l_action import (
             action_de_l_etape,
             actions_offertes,
             brancher_le_declenchement,
         )
+        from api.services.workflow.verite_des_actions import brancher_la_verite_des_actions, etape_qui_ecrit
 
+        brancher_la_verite_des_actions(
+            self,
+            agent,
+            node,
+            offre_une_action=not node.is_end and etape_qui_ecrit(self, actions_offertes(self), etape_du_fond),
+        )
+        # [.mark] Lot 6 de correctifs-apres-banc-commun (K8) : le déclenchement de l'outil d'action de l'étape
+        # (libre = rien n'est branché).
         brancher_le_declenchement(
             self,
             agent,
             node,
-            action_de_l_etape(actions_offertes(self), etape_du_fond) if not node.is_end else None,
+            action_de_l_etape(actions_offertes(self), etape_du_fond, self) if not node.is_end else None,
         )
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par

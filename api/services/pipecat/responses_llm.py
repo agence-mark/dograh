@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import inspect
 import time
 from typing import Any
 from urllib.parse import urlparse
@@ -78,7 +79,7 @@ from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
-from api.services.pipecat.reponse_avalee import phrase_de_repli
+from api.services.pipecat.reponse_avalee import ATTRIBUT_DECLENCHEUR, ATTRIBUT_VERITE, phrase_de_repli
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.texte_du_cerveau import FluxNettoye, _noms_des_outils
 from api.services.pipecat.trace_modele import TraceModeleMixin
@@ -187,6 +188,90 @@ def jetons_generes(evenement: Any) -> int:
         return int(getattr(usage, "output_tokens", 0) or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def choix_d_outil_responses(choix: Any) -> Any | None:
+    """Lot 11 de correctifs-apres-banc-commun (F-13) : l'appel obligatoire d'une fonction au format Responses
+    (``{"type": "function", "name": …}``), depuis celui de ``LLMContext.set_tool_choice`` (format chat
+    completions). L'adaptateur Responses de Pipecat 1.12 ne le transmet pas. ``None`` : rien à poser."""
+    if isinstance(choix, dict) and choix.get("type") == "function":
+        nom = (choix.get("function") or {}).get("name") or choix.get("name")
+        if nom:
+            return {"type": "function", "name": nom}
+    if choix in ("required", "none"):
+        return choix
+    return None
+
+
+def avec_le_choix_d_outil(params: dict, context: Any) -> dict:
+    """F-13 : la position « obligatoire » et la relance du déclenchement au format Responses."""
+    try:
+        choix = choix_d_outil_responses(getattr(context, "tool_choice", None))
+        if choix is not None and isinstance(params, dict):
+            params["tool_choice"] = choix
+    except Exception as erreur:  # noqa: BLE001 -- jamais à la place de la requête
+        logger.warning(f"[cerveau] choix d'outil non posé : {erreur!r}")
+    return params
+
+
+class RepliqueVerifieeResponses:
+    """F-13 : pendant Responses de ``reponse_avalee.RepliqueVerifiee`` (case « Vérité des actions », position
+    « relance »). Le flux est tenu jusqu'à sa fin ; une réplique de texte seul est contrôlée ; retenue : le modèle
+    est relancé UNE fois, sans flux, et sa réponse est rendue telle quelle. ⛔ Ne lève jamais à la place du
+    service."""
+
+    def __init__(self, flux: Any, controler, relancer):
+        self._flux = flux
+        self._controler = controler
+        self._relancer = relancer
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        tenus: list[Any] = []
+        texte: list[str] = []
+        appel = False
+        async for evenement in self._flux:
+            tenus.append(evenement)
+            type_ = getattr(evenement, "type", None)
+            if type_ == TYPE_TEXTE:
+                texte.append(getattr(evenement, "delta", "") or "")
+            elif type_ == TYPE_ITEM_AJOUTE and getattr(getattr(evenement, "item", None), "type", None) == "function_call":
+                appel = True
+        retenue = None
+        if not appel and "".join(texte).strip():
+            try:
+                retenue = self._controler("".join(texte))
+                if inspect.isawaitable(retenue):
+                    retenue = await retenue
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] réplique non contrôlée : {erreur!r}")
+        if retenue is not None:
+            reprise = None
+            try:
+                reprise = await self._relancer(retenue)
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
+            if reprise is not None:
+                evenements = evenements_de_reponse(reprise)
+                if any(porte_quelque_chose(e) for e in evenements):
+                    logger.warning(
+                        f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
+                    )
+                    for tenu in tenus:
+                        if getattr(tenu, "type", None) == TYPE_FIN:
+                            yield tenu
+                    for evenement in evenements:
+                        yield evenement
+                    return
+        for tenu in tenus:
+            yield tenu
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
 
 
 # --- Main passée ------------------------------------------------------------------------------
@@ -456,7 +541,7 @@ class RepriseSansFluxResponsesMixin:
                 return await asyncio.wait_for(requeter(), delai)
             return await requeter()
 
-        async def requeter():
+        async def requeter(consigne=None, outil=None):
             adapter = self.get_llm_adapter()  # type: ignore[attr-defined]
             invocation = adapter.get_llm_invocation_params(
                 context,
@@ -469,7 +554,22 @@ class RepriseSansFluxResponsesMixin:
             finally:
                 self._mark_secours_en_cours = avant
             requete["stream"] = False
+            # F-13 : la relance d'une réplique retenue, comme au format chat completions : la consigne de ce qui a
+            # été retenu, et l'appel obligatoire de l'outil pour CETTE requête seulement (position « relance »).
+            if outil:
+                requete["tool_choice"] = {"type": "function", "name": outil}
+            if consigne and isinstance(requete.get("input"), list):
+                from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
+
+                requete["input"] = inserer_l_etat(list(requete["input"]), consigne)
             return await self._client.responses.create(**requete)  # type: ignore[attr-defined]
+
+        async def relancer_la_replique(retenue):
+            if isinstance(entree, dict):
+                entree["replique_retenue"] = getattr(retenue, "raison", True)
+            delai = getattr(self, "mark_delai_modele_s", None)
+            appel = requeter(getattr(retenue, "consigne", None), getattr(retenue, "outil", None))
+            return await (asyncio.wait_for(appel, delai) if delai else appel)
 
         def l_appelant_attend() -> bool:
             messages = [
@@ -477,9 +577,30 @@ class RepriseSansFluxResponsesMixin:
             ]
             return bool(messages) and messages[-1].get("role") == "user"
 
-        return FluxReprisResponses(
+        repris = FluxReprisResponses(
             flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self)
         )
+        # F-13 : la case « Vérité des actions » et la position « relance », comme ``RepriseSansFluxMixin``.
+        verificateur = getattr(self, ATTRIBUT_VERITE, None)
+        if verificateur is not None and not hasattr(verificateur, "controler"):
+            verificateur = None
+        relanceur = getattr(self, ATTRIBUT_DECLENCHEUR, None)
+        if relanceur is not None and getattr(relanceur, "position", None) != "relance":
+            relanceur = None
+        if verificateur is None and relanceur is None:
+            return repris
+        messages = [m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)]
+        systeme = getattr(getattr(self, "_settings", None), "system_instruction", None)
+        if isinstance(systeme, str) and systeme:
+            messages = [{"role": "system", "content": systeme}, *messages]
+
+        async def controle(texte):
+            retenue = verificateur.controler(texte, messages) if verificateur is not None else None
+            if retenue is None and relanceur is not None:
+                retenue = await relanceur.controler_la_replique(texte)
+            return retenue
+
+        return RepliqueVerifieeResponses(repris, controle, relancer_la_replique)
 
 
 # --- Le service -------------------------------------------------------------------------------
@@ -548,7 +669,7 @@ class _MarkResponsesBase(OpenAIResponsesHttpLLMService):
         invocation = self.get_llm_adapter().get_llm_invocation_params(
             context, system_instruction=assert_given(self._settings.system_instruction)
         )
-        params = self.build_chat_completion_params(invocation)
+        params = avec_le_choix_d_outil(self.build_chat_completion_params(invocation), context)
         return await super()._create_stream(params)
 
     async def _create_stream(self, params):  # type: ignore[override]

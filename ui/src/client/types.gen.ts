@@ -13595,6 +13595,12 @@ export type WorkflowConfigurationDefaults = {
      */
     transfert_garanti?: boolean;
     /**
+     * Verite Formulations D Action
+     *
+     * Past participles that say an action is done (booked, confirmed, cancelled...), checked by the « Truth of actions » box of the steps: a reply that says one of them with no tool result behind it is held back and the model asked again once. Empty (default): the built-in list. Needs the call record.
+     */
+    verite_formulations_d_action?: Array<string>;
+    /**
      * Trace Requetes Modele
      *
      * Test agents only (Agent theme, Diagnostic). About 20 KB per answer. Each answer the conversation model is asked for is recorded in the run (requetes_modele): the exact request (messages, tools, settings, never a key), every piece of the stream with its finish reason and arrival time, the token count, how the stream ended, and what was spoken. Off (default): nothing is recorded and nothing changes.
