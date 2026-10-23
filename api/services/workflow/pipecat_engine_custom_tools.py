@@ -32,10 +32,13 @@ from api.services.groupe.reglages_passation import (
 )
 from api.services.groupe.passations import (
     MESSAGE_REFUS,
+    demande_de,
+    est_un_outil_de_passation,
     refus_de_passation,
     tracer_passation,
 )
 from api.services.pipecat.audio_playback import play_audio_loop
+from api.services.pipecat.reponse_avalee import noter_un_outil_de_passation
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
 from api.services.equipe.transferts_humains import (
@@ -122,6 +125,12 @@ def get_function_schema(
         required=required or [],
     )
 
+
+# [.mark] Lot 2 (K15) : ce que le modèle lit quand un renvoi vers un humain n'a pas abouti. Une consigne
+# pour lui, jamais une phrase destinée à l'appelant ; aucun mot de métier.
+CONSIGNE_ECHEC_TRANSFERT = (
+    "Le transfert n'a pas abouti. Prends la demande de l'appelant pour un rappel."
+)
 
 # Marge (s) au-dessus de la durée maximale des essais d'un outil, pour l'échéance de l'appel de fonction.
 MARGE_ECHEANCE_S = 5.0
@@ -251,6 +260,9 @@ class CustomToolManager:
 
                 raw_schema = tool_to_function_schema(tool)
                 function_name = raw_schema["function"]["name"]
+                if est_un_outil_de_passation(tool):
+                    # [.mark] Lot 1 (K1) : le cerveau sait quels outils sont des passations.
+                    noter_un_outil_de_passation(getattr(self._agent, "llm", None), function_name)
 
                 # Convert to FunctionSchema object for compatibility with update_llm_context
                 func_schema = get_function_schema(
@@ -748,6 +760,8 @@ class CustomToolManager:
                 announcement=announcement,
                 play_greeting=config.get("play_greeting", True),
                 raison=tool.name,
+                # [.mark] Lot 1 (K1) : la demande de l'appelant, donnée à l'outil, voyage dans la note.
+                demande=demande_de(getattr(function_call_params, "arguments", None)),
             )
 
             if not engine.transfer_coordinator.accept(request):
@@ -1470,10 +1484,15 @@ class CustomToolManager:
             # Transfer failed - let LLM inform user with error details
             reason = result.get("reason", "unknown")
             logger.info(f"Transfer failed ({reason}), informing user via LLM")
+            # [.mark] Lot 2 (K15) : le message du fournisseur de téléphonie (« veuillez rappeler plus
+            # tard »…) était une phrase destinée à l'appelant : traduit, il était dit. Le résultat porte
+            # un statut neutre et une consigne ; le message d'origine reste dans le journal.
+            if result.get("message"):
+                logger.info(f"Transfer failed, provider message kept out of the result: {result['message']!r}")
             echec = {
                 "status": "transfer_failed",
                 "reason": reason,
-                "message": result.get("message") or "Transfer failed",
+                "message": CONSIGNE_ECHEC_TRANSFERT,
             }
             # [.mark] Fiabilite-orchestration, lot 4 bis : la règle « le transfert d'appel
             # échoue » (éteinte par défaut : le modèle le dit lui-même, comme avant).
@@ -1503,11 +1522,18 @@ class CustomToolManager:
                 )
                 if issue is not None and issue.prise_en_main:
                     propriete = FunctionCallResultProperties(run_llm=False)
+                elif probleme.dit and issue is None:
+                    # [.mark] Lot 2 (P12, D-6) : la phrase du code a été dite et aucune sortie réglée ne
+                    # donne la main au modèle : elle parle seule, le modèle ne la redit pas. L'appelant
+                    # répond, le tour suivant se joue comme d'habitude. Une sortie réglée « le modèle
+                    # reprend » à l'écran garde son comportement.
+                    propriete = FunctionCallResultProperties(run_llm=False)
             if propriete is not None:
                 await function_call_params.result_callback(echec, properties=propriete)
-                from api.services.phrases.sorties import lancer_apres
+                if probleme is not None and probleme.issue is not None:
+                    from api.services.phrases.sorties import lancer_apres
 
-                lancer_apres(self._engine, probleme.issue)
+                    lancer_apres(self._engine, probleme.issue)
             else:
                 await function_call_params.result_callback(echec)
         else:

@@ -84,6 +84,12 @@ class TransferRequest:
     # Lot 2 d'orchestrateur-trois-cerveaux (D1) : l'appel revient sur l'étape de retour de l'accueil
     # (si son graphe en a une), au lieu de l'étape de départ. ``False`` : comme avant.
     etape_de_retour: bool = False
+    # Correctifs après le banc commun, lot 1 (K1) : la demande de l'appelant en une phrase, donnée à
+    # l'outil de passation ; reprise dans la note remise au collègue. ``None`` : comme avant.
+    demande: str | None = None
+    # Lot 1 (K4) : le retour a été demandé pour finir l'appel (filet de fin, ou porte ``fin`` réécrite
+    # en ``retour``) : l'accueil prend sa sortie ``fin`` sans tour de modèle. ``False`` : comme avant.
+    fin_demandee: bool = False
 
     @property
     def cancelled(self) -> bool:
@@ -318,6 +324,15 @@ class AgentTransferCoordinator:
             # [.mark] Lot 2 d'orchestrateur-trois-cerveaux : l'étape où l'agent appelé a été préparé
             # (l'étape de départ, ou l'étape de retour de l'accueil), jamais refaite ici.
             start_node_id = _noeud_d_ouverture(destination)
+            # [.mark] Lot 1 (K4) : un retour demandé pour finir l'appel : l'accueil prend sa sortie
+            # ``fin`` sans tour de modèle. Au clavier (pas de voix à dire), le tour se joue comme avant.
+            if (
+                request.fin_demandee
+                and not self._sans_sortie_audio()
+                and await engine.fin_directe_de_l_accueil(destination, start_node_id)
+            ):
+                outcome = "completed"
+                return
             # [.mark] « si_l_appelant_attend » : l'agent appelé ne parle que si le
             # dernier mot de la conversation est à l'appelant (sinon il attend sa réponse).
             parler = request.ouverture != "si_l_appelant_attend" or (
@@ -613,5 +628,6 @@ class AgentTransferCoordinator:
             raison=request.raison or request.destination_label,
             refusee=False,
             issue=outcome,
+            demande=request.demande,
         )
         logger.info(f"[transfer] {request.request_id} {outcome}")

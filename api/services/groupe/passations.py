@@ -401,3 +401,69 @@ def porte_reecrite_vers_le_retour(graphe: Any, node: Any, nom: str) -> Any:
     except Exception as e:  # noqa: BLE001
         logger.error(f"[porte] réécriture vers le retour illisible : {e!r}")
         return None
+
+
+# --- [.mark] Correctifs après le banc commun, lot 1 (K1, K4) ---------------------------------------
+
+# K1 : le paramètre obligatoire de chaque outil de passation, repris dans la note remise au collègue.
+PARAMETRE_DEMANDE = "demande"
+DESCRIPTION_DEMANDE = "La demande de l'appelant, en une phrase."
+LONGUEUR_MAX_DEMANDE = 300
+
+
+def est_un_outil_de_passation(outil: Any) -> bool:
+    """L'outil mène-t-il la main à un autre agent (``transfer_agent``) ? Lu sur la définition, puis
+    sur la catégorie. ⛔ Ne lève jamais."""
+    try:
+        definition = getattr(outil, "definition", None) or {}
+        if isinstance(definition, Mapping) and definition.get("type") == "transfer_agent":
+            return True
+        return getattr(outil, "category", None) == "transfer_agent"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def demande_de(arguments: Any) -> str | None:
+    """La demande de l'appelant donnée à l'outil de passation : une ligne, sans crochets (la note
+    n'est jamais lue comme une parole de l'appelant), bornée. ``None`` si absente ou illisible
+    (la passation part quand même). ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(arguments, Mapping):
+            return None
+        brute = arguments.get(PARAMETRE_DEMANDE)
+        if not isinstance(brute, str):
+            return None
+        texte = " ".join(brute.replace("[", "(").replace("]", ")").split())
+        return texte[:LONGUEUR_MAX_DEMANDE] or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def porte_ecrite_est_une_fin(graphe: Any, nom: str) -> bool:
+    """K4 : la porte écrite ``nom`` est-elle le nom d'un nœud de fin du graphe ? (Le collègue a écrit
+    ``fin`` alors que son étape n'a pas cette porte : le code la réécrit en ``retour``.) ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.workflow_graph import transition_tool_name
+
+        return any(n.is_end and transition_tool_name(n.name) == nom for n in graphe.nodes.values())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def sortie_de_fin_de_l_etape(noeud: Any, graphe: Any) -> Any:
+    """K4 : l'arête de l'étape qui mène à un nœud de fin et qui est offerte (ni « à rédiger »). ``None``
+    sinon. ⛔ Ne lève jamais."""
+    try:
+        if noeud is None or getattr(noeud, "is_end", False):
+            return None
+        return next(
+            (
+                e
+                for e in noeud.out_edges
+                if graphe.nodes[e.target].is_end
+                and not sortie_en_attente(getattr(e, "condition", None), graphe.nodes[e.target])
+            ),
+            None,
+        )
+    except Exception:  # noqa: BLE001
+        return None

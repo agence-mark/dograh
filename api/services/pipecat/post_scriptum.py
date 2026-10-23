@@ -742,6 +742,12 @@ class PostScriptumProcessor(FrameProcessor):
             if nom and verifier is not None and verifier(nom):
                 self._taire_vers_la_fin = True
                 logger.info(f"[porte] « {nom} » mène à une fin figée : la suite de la réponse se tait")
+            # Lot 1 (K14, D-2) : la porte mène à l'accueil pour une demande nouvelle : la phrase du
+            # collègue n'est pas dite, l'accueil joue son tour tout de suite.
+            retour = getattr(self._portes, "porte_vers_le_retour_sur_demande_nouvelle", None)
+            if not self._taire_vers_la_fin and nom and retour is not None and retour(nom):
+                self._taire_vers_la_fin = True
+                logger.info(f"[porte] « {nom} » rend la main à l'accueil : la suite de la réponse se tait")
             return self._taire_vers_la_fin
         except Exception:  # noqa: BLE001
             return False

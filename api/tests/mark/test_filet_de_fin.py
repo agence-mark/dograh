@@ -9,13 +9,14 @@ conclut. Ces tests passent par le VRAI moteur et le VRAI coordinateur de passati
 | Test | Ce qu'il prouve |
 |---|---|
 | formules | casse, accents et ponctuation ignorés ; mots entiers ; liste de l'organisation ou, à défaut, celle par défaut |
-| la route (R1) | formule + aucune porte + case allumée : l'accueil reçoit l'appel sur son étape de retour, avec sa note ; trace ``porte_reecrite`` = ``filet_de_fin`` |
+| la route (R1) | formule + aucune porte + case allumée : l'appel revient à l'accueil, qui prend sa sortie ``fin`` sans tour de modèle (correctifs-apres-banc-commun, K4 ; le détail dans `test_correctifs_passations.py`) ; trace ``porte_reecrite`` = ``filet_de_fin`` |
 | rien à faire | pas de formule ; une porte déjà prise ; case éteinte ; agent non collègue ; étape sans sortie retour |
 | formules de l'organisation | la phrase ``formules_de_fin`` du catalogue remplace la liste par défaut |
 | branchement | l'agrégateur de l'assistant appelle le filet à la fin d'une réplique, avec l'état du début |
 """
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -158,17 +159,20 @@ async def _attendre_la_passation(harness):
 
 
 @pytest.mark.asyncio
-async def test_une_formule_de_fin_sans_porte_ramene_l_appel_sur_l_etape_de_retour_de_l_accueil():
+async def test_une_formule_de_fin_sans_porte_ramene_l_appel_a_l_accueil_qui_prend_sa_sortie_fin():
     harness = await _monter()
     try:
         engine = harness.engine
+        # K4 : la sortie fin se prend sans tour de modèle (ni voix, ni téléphonie ici : on observe).
+        engine.end_call_with_reason = AsyncMock()
+        engine.queue_node_opening = AsyncMock()
         depart = engine.etat_pour_le_filet()
         assert await engine.filet_de_fin("Très bien, je vous souhaite une bonne journée.", depart) is True
         resultat = await _attendre_la_passation(harness)
         assert resultat["outcome"] == "completed" and resultat["destination_workflow_id"] == PRINCIPAL
         accueil = engine.active_agent
-        assert accueil.workflow_id == PRINCIPAL and accueil.current_node.id == "retour"
-        assert "# Retour du collègue « Support »" in accueil.system_prompt
+        assert accueil.workflow_id == PRINCIPAL and accueil.current_node.id == "fin"
+        engine.queue_node_opening.assert_not_called()
         # La trace dit pourquoi, et la passation est celle du retour (silencieuse, du code).
         trace = engine._gathered_context["porte_reecrite"]
         assert [t["ecrite"] for t in trace] == [TRACE_FILET]
@@ -183,6 +187,8 @@ async def test_les_formules_de_l_organisation_remplacent_celles_par_defaut():
     harness = await _monter(contexte={"formules_de_fin": "à la prochaine"})
     try:
         engine = harness.engine
+        engine.end_call_with_reason = AsyncMock()
+        engine.queue_node_opening = AsyncMock()
         depart = engine.etat_pour_le_filet()
         # « au revoir » n'est plus une formule reconnue chez cette organisation.
         assert await engine.filet_de_fin("Alors au revoir.", depart) is False

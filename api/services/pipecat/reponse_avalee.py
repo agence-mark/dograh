@@ -202,24 +202,34 @@ class FluxRepris:
         quelque_chose = False
         jetons = 0
         usage_d_avant = None
-        async for morceau in self._flux:
+        # Lot 1 (K1) : une erreur du flux AVANT le premier morceau utile (le fournisseur coupe le flux
+        # sur une réponse qu'il a pourtant générée) est traitée comme un flux vide : même relance sans
+        # flux. Une erreur après un morceau utile remonte comme avant (rien n'est dit deux fois).
+        erreur_du_flux = None
+        try:
+            async for morceau in self._flux:
+                if quelque_chose:
+                    yield morceau
+                    continue
+                jetons = max(jetons, jetons_generes(morceau))
+                if getattr(morceau, "usage", None) is not None:
+                    usage_d_avant = morceau.usage
+                if porte_quelque_chose(morceau):
+                    quelque_chose = True
+                    for tenu in tenus:
+                        yield tenu
+                    tenus = []
+                    yield morceau
+                else:
+                    tenus.append(morceau)
+        except Exception as erreur:  # noqa: BLE001
             if quelque_chose:
-                yield morceau
-                continue
-            jetons = max(jetons, jetons_generes(morceau))
-            if getattr(morceau, "usage", None) is not None:
-                usage_d_avant = morceau.usage
-            if porte_quelque_chose(morceau):
-                quelque_chose = True
-                for tenu in tenus:
-                    yield tenu
-                tenus = []
-                yield morceau
-            else:
-                tenus.append(morceau)
+                raise
+            erreur_du_flux = erreur
+            logger.warning(f"[cerveau] flux en erreur avant le premier morceau : {erreur!r}")
         if quelque_chose:
             return
-        if jetons <= 0 and not self._attend():
+        if erreur_du_flux is None and jetons <= 0 and not self._attend():
             for tenu in tenus:
                 yield tenu
             return
@@ -246,6 +256,9 @@ class FluxRepris:
             for morceau in morceaux_de_texte(texte):
                 yield morceau
             return
+        if erreur_du_flux is not None:
+            # La relance n'a rien rendu non plus : l'erreur d'origine remonte, comme avant.
+            raise erreur_du_flux
         logger.warning(f"[cerveau] flux vide ({jetons} jetons comptés), relance vide")
         for tenu in tenus:
             yield tenu
@@ -255,6 +268,138 @@ class FluxRepris:
             return bool(self._l_appelant_attend is not None and self._l_appelant_attend())
         except Exception:  # noqa: BLE001
             return False
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
+# --- Lot 1 (K1) : l'outil de passation aux arguments illisibles est exécuté comme ``{}`` ------------
+
+# L'attribut du service où le moteur range les noms de ses outils de passation.
+ATTRIBUT_NOMS_DE_PASSATION = "mark_noms_de_passation"
+
+
+def noter_un_outil_de_passation(service: Any, nom: str) -> None:
+    """Le moteur dit au cerveau que ``nom`` est un outil de passation. ⛔ Ne lève jamais."""
+    try:
+        if service is None or not nom:
+            return
+        noms = getattr(service, ATTRIBUT_NOMS_DE_PASSATION, None)
+        if not isinstance(noms, set):
+            noms = set()
+            setattr(service, ATTRIBUT_NOMS_DE_PASSATION, noms)
+        noms.add(nom)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _appel_du_morceau(morceau: Any) -> Any:
+    delta = _delta(morceau)
+    appels = getattr(delta, "tool_calls", None) if delta is not None else None
+    return appels[0] if appels else None
+
+
+def _est_lisible(arguments: str) -> bool:
+    import json
+
+    try:
+        return isinstance(json.loads(arguments or "{}"), dict)
+    except (TypeError, ValueError):
+        return False
+
+
+class ArgumentsLisibles:
+    """Pipecat jette un appel d'outil dont les arguments ne se lisent pas (``services/openai/base_llm.py``,
+    « Failed to parse function call arguments »). Pour un OUTIL DE PASSATION, l'appelant a bien demandé la
+    passation : l'appel est exécuté avec ``{}``.
+
+    Dès le premier morceau d'appel d'outil, la suite du flux est tenue jusqu'à la fin (Pipecat n'agit
+    qu'à la fin de toute façon) ; le texte d'avant passe sans attente. Si aucun appel de passation n'est
+    illisible, les morceaux repartent tels quels, dans leur ordre. Un morceau qui porte plusieurs appels à la fois (que Pipecat
+    ne lit pas) désactive la correction : le flux passe sans changement. Sans outil de passation connu,
+    le flux passe tel quel."""
+
+    def __init__(self, flux: Any, noms):
+        self._flux = flux
+        self._noms = noms
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        noms = set(self._noms() if callable(self._noms) else (self._noms or ()))
+        if not noms:
+            async for morceau in self._flux:
+                yield morceau
+            return
+        tenus: list[Any] = []
+        passer_tel_quel = False
+        async for morceau in self._flux:
+            delta = _delta(morceau)
+            appels = getattr(delta, "tool_calls", None) if delta is not None else None
+            if passer_tel_quel or (not appels and not tenus):
+                yield morceau
+                continue
+            if not appels:
+                tenus.append(morceau)
+                continue
+            if len(appels) > 1:
+                passer_tel_quel = True
+                for tenu in tenus:
+                    yield tenu
+                tenus = []
+                yield morceau
+                continue
+            tenus.append(morceau)
+        if not tenus:
+            return
+        try:
+            tenus = self._corriger(tenus, noms)
+        except Exception as erreur:  # noqa: BLE001 -- jamais à la place du flux
+            logger.warning(f"[cerveau] arguments d'appel non corrigés : {erreur!r}")
+        for tenu in tenus:
+            yield tenu
+
+    @staticmethod
+    def _corriger(tenus: list[Any], noms: set) -> list[Any]:
+        par_index: dict[int, dict] = {}
+        for morceau in tenus:
+            appel = _appel_du_morceau(morceau)
+            if appel is None:
+                continue
+            index = getattr(appel, "index", 0) or 0
+            entree = par_index.setdefault(index, {"nom": "", "arguments": ""})
+            fonction = getattr(appel, "function", None)
+            if fonction is not None:
+                entree["nom"] += getattr(fonction, "name", None) or ""
+                entree["arguments"] += getattr(fonction, "arguments", None) or ""
+        a_vider = {
+            i
+            for i, e in par_index.items()
+            if e["nom"] in noms and e["arguments"].strip() and not _est_lisible(e["arguments"])
+        }
+        if not a_vider:
+            return tenus
+        logger.warning(
+            "[cerveau] arguments d'appel illisibles pour un outil de passation : exécuté comme {}"
+        )
+        vus: set[int] = set()
+        corriges = []
+        for morceau in tenus:
+            appel = _appel_du_morceau(morceau)
+            index = getattr(appel, "index", 0) or 0
+            if appel is None or index not in a_vider:
+                corriges.append(morceau)
+                continue
+            copie = morceau.model_copy(deep=True)
+            fonction = _appel_du_morceau(copie).function
+            if fonction is not None:
+                fonction.arguments = "{}" if index not in vus else ""
+            vus.add(index)
+            corriges.append(copie)
+        return corriges
 
     async def close(self):
         fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
@@ -310,4 +455,7 @@ class RepriseSansFluxMixin:
             ]
             return bool(messages) and messages[-1].get("role") == "user"
 
-        return FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self))
+        return ArgumentsLisibles(
+            FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self)),
+            lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
+        )
