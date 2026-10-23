@@ -118,7 +118,7 @@ export function BoutonAppliquerATous({
                     </DialogHeader>
                     <div className="space-y-3">
                         {valeur !== undefined && (
-                            <p className="rounded border border-border bg-muted/40 p-2 text-sm" data-testid="valeur-appliquee">
+                            <p className="whitespace-pre-line rounded border border-border bg-muted/40 p-2 text-sm" data-testid="valeur-appliquee">
                                 {valeur && valeur.trim() ? valeur : t({ en: "Empty: nothing for this setting.", fr: "Vide : rien pour ce réglage." })}
                             </p>
                         )}
