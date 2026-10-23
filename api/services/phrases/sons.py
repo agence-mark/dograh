@@ -189,6 +189,14 @@ class FabriqueDesSons:
             if voix is None or voix is self._voix_de_l_appel or _deja_dans_un_circuit(voix):
                 logger.warning("[phrases] pas de voix à part pour la fabrique : sons non fabriqués")
                 return
+            # Correctifs-apres-banc-commun, lot V : une voix Soniox emprunte la connexion de la voix de
+            # l'appel (limite de 3 flux du projet Soniox, D22). Autre voix : rien ne change.
+            emprunter = getattr(voix, "partager_la_connexion_de", None)
+            if callable(emprunter) and self._voix_de_l_appel is not None:
+                try:
+                    emprunter(self._voix_de_l_appel)
+                except Exception as erreur:  # noqa: BLE001 -- la voix ouvre alors la sienne
+                    logger.warning(f"[phrases] connexion de l'appel non empruntée : {erreur!r}")
             collecteur = nouveau_collecteur()
             params = PipelineParams(enable_metrics=False, enable_heartbeats=False)
             params.audio_out_sample_rate = self._taux
