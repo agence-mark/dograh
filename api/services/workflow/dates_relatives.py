@@ -69,6 +69,13 @@ _NOMS_DES_MOIS = (
 _MOIS_DE_L_ANNEE = re.compile(
     rf"\b({'|'.join(_NOMS_DES_MOIS)}) (?:de )?(?:(l'(?:annee|an) (?:derniere|dernier|passee|passe))|(cette annee))\b"
 )
+# K6a (run 1497, correctifs-apres-banc-commun) : « l'année dernière, en octobre » perdait le mois (lu
+# « 2025 ») : le mois qui SUIT l'année relative compte comme celui qui la précède (« octobre l'an
+# dernier »). « en », « au mois de », « d' » entre les deux sont permis.
+_ANNEE_PUIS_MOIS = re.compile(
+    rf"\b(?:(l'(?:annee|an) (?:derniere|dernier|passee|passe))|(cette annee)),? "
+    rf"(?:(?:en|au mois de|au mois d'|de|d') ?)?({'|'.join(_NOMS_DES_MOIS)})\b"
+)
 # K3 (chantier correctifs-apres-figeage, run 910) : « janvier dernier » restait en mots,
 # sans date. Un mois nommé suivi de « dernier » ou « passé » est le dernier mois de ce
 # nom AVANT le mois de l'appel (le 30/09/2026 : janvier → 01/2026, septembre → 09/2025).
@@ -122,6 +129,12 @@ def _calculer(expression: str, jour: datetime) -> str | None:
     return None if date is None else _format(expression, date)
 
 
+def _annee_puis_mois(m: re.Match[str], jour: datetime) -> str:
+    """K6a : le mois nommé après l'année relative, dans cette année-là."""
+    annee = jour.year - 1 if m[1] else jour.year
+    return f"{_NOMS_DES_MOIS.index(m[3]) + 1:02d}/{annee}"
+
+
 def _mois_de_l_annee(m: re.Match[str], jour: datetime) -> str:
     """C4 : le mois nommé, dans l'année dite (dernière ou celle-ci)."""
     annee = jour.year - 1 if m[2] else jour.year
@@ -155,6 +168,10 @@ def lire_expression(texte: str, jour: datetime) -> tuple[str, str] | None:
         [
             (m.start(), -m.end(), m.end(), lambda m=m: _mois_de_l_annee(m, jour))
             for m in _MOIS_DE_L_ANNEE.finditer(simple)
+        ]
+        + [
+            (m.start(), -m.end(), m.end(), lambda m=m: _annee_puis_mois(m, jour))
+            for m in _ANNEE_PUIS_MOIS.finditer(simple)
         ]
         + [
             (m.start(), -m.end(), m.end(), lambda m=m: _mois_dernier(m, jour))

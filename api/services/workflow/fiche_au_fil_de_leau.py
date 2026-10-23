@@ -136,6 +136,16 @@ CONSIGNE_NOMBRE_DE_CHIFFRES = (
     "le numéro en entier ; ne relis pas ta version."
 )
 
+# K10 (run 1507, lot 3 de correctifs-apres-banc-commun) : le greffier avait écrit un numéro de dix
+# chiffres alors que la personne n'en avait dit que huit (« noté sûr »). Un numéro n'est écrit que si
+# ses chiffres sont dans les paroles ; sinon le champ reste vide et on fait redonner le numéro.
+RAISON_CHIFFRES_NON_DITS = "chiffres_non_dits"
+_NOMBRE_DE_CHIFFRES = "nombre_de_chiffres"
+CONSIGNE_CHIFFRES_MANQUANTS = (
+    "Pas noté : il manque des chiffres dans {champs} (la personne n'en a pas dit assez). Fais "
+    "redonner le numéro en entier ; ne le complète pas et ne relis pas ta version."
+)
+
 # C3 (PB6, run 845) : le module avait Senlis, Chamant, Avilly pour « soixante
 # trois cents » ; rien n'était proposé, l'agent faisait confirmer la commune
 # fausse. L'agent éteint, qui les avait, a trouvé Senlis en un tour (run 846).
@@ -1982,6 +1992,30 @@ def _nombre_de_chiffres(valeur: Any) -> int:
     return sum(1 for c in str(valeur) if c.isdigit())
 
 
+def chiffres_dits(valeur: Any, paroles: Iterable[str]) -> bool:
+    """K10 : les chiffres de ``valeur`` se suivent-ils dans ce que la personne a dit ?
+
+    Les chiffres de ses paroles (écrits tels quels ou lus par le module des nombres) sont mis bout à
+    bout, d'une réplique à l'autre (un numéro se dicte souvent en plusieurs fois) ; ceux de la valeur
+    doivent y former une suite. Le zéro de tête peut manquer (« 6 12 34… ») et « plus trente-trois »
+    vaut le zéro. ⛔ Ne lève jamais : au moindre doute, ``True`` (le contrôle ne coûte jamais un
+    numéro juste)."""
+    try:
+        voulus = re.sub(r"\D", "", str(valeur))
+        if not voulus:
+            return True
+        flux = ""
+        for parole in paroles:
+            flux += "".join(re.findall(r"\d+", _chiffres_comme_lus(str(parole))))
+        formes = {voulus}
+        if voulus.startswith("0"):
+            formes.update((voulus[1:], "33" + voulus[1:]))
+        return any(forme and forme in flux for forme in formes)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] chiffres dits non comparés : {erreur!r}")
+        return True
+
+
 # [.mark] fiabilite-orchestration, lot 6 (R8, R9, G1 à G3 ; runs 1466 et 1468).
 # Un champ qui a un lecteur (courriel, numéro, commune, rue, lexique) ne reçoit jamais ce que son
 # lecteur ne sait pas lire : le « non » répondu à « avez-vous une adresse mail ? » était écrit
@@ -2049,6 +2083,95 @@ def est_tire_d_un_champ_courriel(
     return False
 
 
+# --- V3 et K6c : les lettres épelées d'un nom ---------------------------------------------------------
+# V3 (run 1515, Pierre a raccroché) : « Marc Henry » transcrit « Henri » ; le prénom recopiait le nom,
+# l'épellation H-E-N-R-Y n'y changeait rien et la garde redemandait le nom à chaque essai. À la question
+# d'un champ de nom, les lettres épelées remplissent CE champ ; un autre champ de nom qui recopiait ces
+# mots est corrigé. Le champ interrogé se reconnaît aux mots de son propre nom (``nom``, ``prenom``…)
+# dans la dernière question de l'agent : aucun mot de métier.
+
+
+def _mots_du_nom_du_champ(nom: str) -> set[str]:
+    return {m for m in _mots(nom.replace("_", " ")) if len(m) >= 3}
+
+
+def champ_de_nom_interroge(
+    reglages: ReglagesFiche, question: str | None
+) -> ChampFiche | None:
+    """Le seul champ de nom dont le nom figure dans la dernière question de l'agent, sinon ``None``."""
+    if not question:
+        return None
+    mots = set(_mots(question))
+    trouves = [
+        c
+        for c in reglages.champs
+        if est_un_champ_de_nom(c) and _mots_du_nom_du_champ(c.nom) & mots
+    ]
+    return trouves[0] if len(trouves) == 1 else None
+
+
+def epellation_sure_du_tour(fiche: dict) -> str | None:
+    """Le mot (un seul) que le module a lu épelé au dernier tour de l'appelant, sûr, hors adresse mail."""
+    tour = fiche.get(CLE_TOUR)
+    if not tour:
+        return None
+    for trace in _entrees(fiche, TRACE_EPELLATIONS):
+        epele = trace.get("epele")
+        if (
+            epele
+            and trace.get("tour") == tour
+            and not trace.get("courriel")
+            and not trace.get("doutes")
+            and len(_mots(str(epele))) == 1
+        ):
+            return str(epele)
+    return None
+
+
+def _ressemble_a_l_epele(valeur: Any, epele: str) -> bool:
+    compacte = "".join(_mots(str(valeur)))
+    return bool(compacte) and fuzz.ratio(compacte, "".join(_mots(epele))) >= SEUIL_EPELLATION
+
+
+def champ_ou_aller_l_epele(
+    reglages: ReglagesFiche,
+    fiche: dict,
+    definition: ChampFiche,
+    valeur: Any,
+    question: str | None,
+) -> tuple[str, ChampFiche] | None:
+    """V3 : ``(epele, champ interrogé)`` quand ``valeur``, destinée à ``definition`` (un champ de nom),
+    est une lecture du mot épelé à ce tour alors que la question portait sur un AUTRE champ de nom.
+    ``None`` : rien à rediriger."""
+    if not est_un_champ_de_nom(definition) or _est_vide(valeur):
+        return None
+    interroge = champ_de_nom_interroge(reglages, question)
+    if interroge is None or interroge.nom == definition.nom:
+        return None
+    epele = epellation_sure_du_tour(fiche)
+    if epele is None or not _ressemble_a_l_epele(valeur, epele):
+        return None
+    return epele, interroge
+
+
+def forme_accentuee_dite(epele: str, paroles: Iterable[str]) -> str | None:
+    """K6c (run 1496, « Lefevre » pour Lefèvre) : le nom épelé sans type d'accent a les mêmes lettres
+    qu'une forme ACCENTUÉE dite dans l'appel : celle-ci, avec la casse de l'épellation. Sinon ``None``."""
+    sans = "".join(_mots(epele))
+    if not sans.isalpha():
+        return None
+    for parole in paroles:
+        for mot in re.findall(r"[^\W\d_]+", str(parole)):
+            if mot.isascii():
+                continue
+            if "".join(_mots(mot)) != sans:
+                continue
+            if epele.isupper():
+                return mot.upper()
+            return mot[:1].upper() + mot[1:].lower() if epele[:1].isupper() else mot.lower()
+    return None
+
+
 def ecrire_dans_la_fiche(
     fiche: dict,
     reglages: ReglagesFiche,
@@ -2077,6 +2200,44 @@ def ecrire_dans_la_fiche(
     definition = reglages.par_nom.get(champ)
     if isinstance(valeur, str):
         valeur = valeur.strip()
+    paroles = list(paroles)
+    if (
+        definition is not None
+        and source != SOURCE_ACTION
+        and (cible := champ_ou_aller_l_epele(reglages, fiche, definition, valeur, question)) is not None
+    ):
+        # V3 : les lettres épelées à la question d'un champ de nom vont dans CE champ ; l'autre champ
+        # de nom qui recopiait les mêmes mots est corrigé (vidé : la passe suivante le réécrit).
+        epele, interroge = cible
+        if not _est_vide(fiche.get(champ)) and _ressemble_a_l_epele(fiche[champ], epele):
+            fiche.pop(champ, None)
+            (fiche.get(CLE_ETAT) or {}).pop(champ, None)
+            (fiche.get("extracted_variables") or {}).pop(champ, None)
+        ecrire_dans_la_fiche(
+            fiche,
+            reglages,
+            interroge.nom,
+            epele,
+            sure=sure,
+            source=source,
+            paroles=paroles,
+            seulement_si_vide=seulement_si_vide,
+            jour=jour,
+            question=question,
+        )
+        raison = f"epele_pour_{interroge.nom}"
+        fiche.setdefault(CLE_JOURNAL, []).append(
+            {
+                "champ": champ,
+                "valeur": valeur,
+                "statut": "refuse",
+                "raison": raison,
+                "source": source,
+                "sure": sure,
+            }
+        )
+        logger.info(f"[fiche] {source} {champ} -> refuse ({raison})")
+        return Verdict(champ, "refuse", raison, valeur)
     paroles = list(paroles)
     if (
         definition is not None
@@ -2168,6 +2329,9 @@ def ecrire_dans_la_fiche(
             epele = epellation_du_tour(valeur, fiche, paroles)
         if epele:
             valeur = epele
+            # K6c : épelé sans type d'accent, mêmes lettres qu'une forme accentuée dite dans l'appel.
+            if (accentuee := forme_accentuee_dite(epele, paroles_sans_notes(paroles, fiche))) is not None:
+                valeur = accentuee
         # Q6 (plan « le lexique », 26/09) : des lettres épelées qui SONT un terme
         # du lexique désignent ce terme -- une marque, jamais un nom (run 803 :
         # « c'est un M C Z » écrivait `nom = Mcz` à la place de Caron).
@@ -2228,6 +2392,18 @@ def ecrire_dans_la_fiche(
         elif pas_une_date:
             # C8 (PB11, run 852) : « annuel » dans `dernier_entretien`.
             verdict = Verdict(champ, "refuse", "pas_une_date", valeur)
+        elif (
+            # K10 : un numéro à chiffres fixes dont les chiffres ne sont pas dans la parole de
+            # l'appelant (huit chiffres dits, dix écrits) : champ vide, on fait redonner le numéro.
+            lecture is None
+            and definition.chiffres
+            and definition.origine == OrigineChamp.dicte
+            and source != SOURCE_ACTION
+            and (dites := paroles_sans_notes(paroles, fiche))
+            and not chiffres_dits(valeur, dites)
+            and not corrige_par_paires(definition, fiche.get(champ), valeur, dites[-1:])
+        ):
+            verdict = Verdict(champ, "refuse", RAISON_CHIFFRES_NON_DITS, valeur)
         elif (
             lecture is not None
             and not lecture.trouvee
@@ -2705,6 +2881,12 @@ def _recopie_d_un_autre_champ(
     `symptome`, `degre_urgence`, `projet` perdus sur 6 des 8 runs allumés."""
     mots = _mots(str(valeur))
     if not mots:
+        return None
+    # V3 : un nom épelé n'est jamais la recopie d'un autre champ (« Henry » épelé, « Henri » dans le prénom).
+    if any(
+        trace.get("epele") and not trace.get("courriel") and _ressemble_a_l_epele(valeur, str(trace["epele"]))
+        for trace in _entrees(fiche, TRACE_EPELLATIONS)
+    ):
         return None
     # B2 (run 1049, lot D d'agent-leger-greffier) : une valeur de la liste fermée du
     # champ n'est jamais une recopie (`degre_urgence` = « panne » refusé parce que le
@@ -3375,7 +3557,7 @@ async def noter(
         elif verdict.statut == "refuse":
             refuses.append(
                 {"champ": champ, "raison": verdict.raison}
-                if verdict.raison != "nombre_de_chiffres"
+                if verdict.raison not in (_NOMBRE_DE_CHIFFRES, RAISON_CHIFFRES_NON_DITS)
                 else {
                     "champ": champ,
                     "raison": verdict.raison,
@@ -3492,7 +3674,10 @@ def reponse_de_l_outil(note: Note) -> dict:
     ]
     if non_dits:
         consignes.append(CONSIGNE_NON_DIT.format(champs=", ".join(non_dits)))
-    mal_comptes = [r["champ"] for r in refuses if r["raison"] == "nombre_de_chiffres"]
+    sans_chiffres = [r["champ"] for r in refuses if r["raison"] == RAISON_CHIFFRES_NON_DITS]
+    if sans_chiffres:
+        consignes.append(CONSIGNE_CHIFFRES_MANQUANTS.format(champs=", ".join(sans_chiffres)))
+    mal_comptes = [r["champ"] for r in refuses if r["raison"] == _NOMBRE_DE_CHIFFRES]
     if mal_comptes:
         consignes.append(
             CONSIGNE_NOMBRE_DE_CHIFFRES.format(champs=", ".join(mal_comptes))

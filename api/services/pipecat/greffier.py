@@ -163,6 +163,9 @@ REGLES_D_ECRITURE = (
     "# Règles d'écriture\n"
     "- Quand la personne refuse de donner une information, tu écris « refusé » dans le champ, "
     "jamais une valeur.\n"
+    "- Ne pas savoir n'est pas refuser : quand la personne dit qu'elle ne sait pas ou ne se souvient "
+    "plus (« aucune idée », « je ne sais plus »), le champ reste absent, ou prend « inconnu » s'il "
+    "l'accepte ; jamais « refusé ».\n"
     "- Une adresse e-mail s'écrit entière, recopiée comme elle a été dite ou épelée : tout ce qui "
     "précède l'arobase compte, points, tirets et chiffres compris ; jamais raccourcie à sa fin, "
     "jamais complétée.\n"
@@ -314,6 +317,7 @@ def message_du_greffier(
 RAISONS_DU_REFUS = {
     "non_dit": "pas dit tel quel par la personne : écris ses mots exacts",
     "nombre_de_chiffres": "il manque ou il y a trop de chiffres",
+    "chiffres_non_dits": "des chiffres que la personne n'a pas dits : n'écris que ceux qu'elle a dits",
 }
 
 

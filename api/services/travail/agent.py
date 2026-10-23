@@ -718,9 +718,9 @@ def brancher_confier_le_travail(
     async def gestionnaire(params) -> None:
         # fiabilite-orchestration, lot 2 (C3) : la liste des champs de l'étape garde « confier »
         # comme les outils de l'étape (run 1468 : action lancée avec des champs encore « à venir »).
-        from api.services.workflow.enveloppe_des_actions import garde_de_l_etape
+        from api.services.workflow.enveloppe_des_actions import garde_de_l_etape_apres_les_notes
 
-        refus = garde_de_l_etape(moteur, agent)
+        refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
         if refus is not None:
             await params.result_callback(refus)
             return

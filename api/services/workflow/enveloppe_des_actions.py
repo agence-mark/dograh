@@ -198,6 +198,31 @@ def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
         return None
 
 
+# K2 (run 1492 et 1510 : « manque nom, prénom, adresse » juste après les avoir dits) : la garde lisait la
+# fiche pendant que la passe du greffier du même tour tournait encore. Au plus ce délai.
+DELAI_DES_NOTES_DE_LA_GARDE = 1.5
+
+
+async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | None:
+    """K2 : comme ``garde_de_l_etape``, mais avant de rendre « incomplet » elle laisse finir les passes
+    en cours (greffier, post-scriptum : ``moteur.notes_en_cours``, 1,5 s au plus) puis relit la fiche.
+    Aucun coût quand rien ne manque, ni quand aucune passe ne tourne. ⛔ Ne lève jamais."""
+    refus = garde_de_l_etape(moteur, agent)
+    if refus is None:
+        return None
+    try:
+        from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
+
+        en_cours = getattr(moteur, "notes_en_cours", None)
+        if not en_cours or all(t.done() for t in en_cours):
+            return refus
+        await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+    except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
+        logger.warning(f"[fiche] passes en cours non attendues par la garde : {erreur!r}")
+        return refus
+    return garde_de_l_etape(moteur, agent)
+
+
 Gestionnaire = Callable[[Any], Awaitable[None]]
 
 
@@ -215,7 +240,7 @@ def envelopper_l_action(
 
     async def enveloppe(params: Any) -> None:
         if garde and agent is not None:
-            refus = garde_de_l_etape(moteur, agent)
+            refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
             if refus is not None:
                 logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
                 await params.result_callback(refus)
