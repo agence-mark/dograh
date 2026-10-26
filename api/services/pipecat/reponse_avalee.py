@@ -28,6 +28,7 @@ d'avant. Un flux qui a déjà porté du texte n'est jamais relancé (rien n'est 
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 import time
 from typing import Any
@@ -509,6 +510,9 @@ class RepriseSansFluxMixin:
         # l'avait (l'armement est consommé par la requête d'origine), et se dit dans la trace.
         secours = bool(getattr(self, "_mark_relance_armee", False))
         entree = getattr(self, "_mark_entree_en_cours", None)
+        # Revue du 26/10 (R-1) : les enveloppes de l'instance (état de la fiche, notices) ne s'ajoutent qu'« en
+        # conversation », le temps de cet appel ; la relance, construite pendant la lecture du flux, part dans ce contexte.
+        contexte_de_l_appel = contextvars.copy_context()
         try:
             flux = await super().get_chat_completions(context)  # type: ignore[misc]
         except Exception as erreur:
@@ -568,7 +572,7 @@ class RepriseSansFluxMixin:
             avant = getattr(self, "_mark_secours_en_cours", False)
             self._mark_secours_en_cours = secours
             try:
-                requete = dict(self.build_chat_completion_params(params))  # type: ignore[attr-defined]
+                requete = dict(contexte_de_l_appel.run(self.build_chat_completion_params, params))  # type: ignore[attr-defined]
             finally:
                 self._mark_secours_en_cours = avant
             requete["stream"] = False

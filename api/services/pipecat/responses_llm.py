@@ -548,6 +548,8 @@ class RepriseSansFluxResponsesMixin:
     async def get_chat_completions(self, context):  # type: ignore[override]
         secours = bool(getattr(self, "_mark_relance_armee", False))
         entree = getattr(self, "_mark_entree_en_cours", None)
+        # Revue du 26/10 (R-1) : la relance part dans le contexte de l'appel (état de la fiche, notices).
+        contexte_de_l_appel = contextvars.copy_context()
         try:
             flux = await super().get_chat_completions(context)  # type: ignore[misc]
         except Exception as erreur:
@@ -574,7 +576,7 @@ class RepriseSansFluxResponsesMixin:
             avant = getattr(self, "_mark_secours_en_cours", False)
             self._mark_secours_en_cours = secours
             try:
-                requete = dict(self.build_chat_completion_params(invocation))  # type: ignore[attr-defined]
+                requete = dict(contexte_de_l_appel.run(self.build_chat_completion_params, invocation))  # type: ignore[attr-defined]
             finally:
                 self._mark_secours_en_cours = avant
             requete["stream"] = False

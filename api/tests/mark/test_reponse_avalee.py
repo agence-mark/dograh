@@ -272,3 +272,33 @@ async def test_le_delai_de_garde_depasse_a_l_ouverture_passe_tel_quel_a_la_garde
     with pytest.raises(DelaiModeleDepasse):
         await service.get_chat_completions(contexte)
     assert service.requetes == []
+
+
+async def test_la_relance_sans_flux_garde_les_enveloppes_de_la_conversation():
+    # Revue du 26/10 (R-1) : l'état de la fiche et les notices ne s'ajoutent qu'« en conversation » (une variable de
+    # contexte posée le temps de ``get_chat_completions``) ; la relance, construite pendant la lecture du flux, ne les gardait pas.
+    from contextvars import ContextVar
+
+    service = _Service(FLUX_AVALE, reprise=_reponse(texte="Oui"))
+    en_conversation: ContextVar[bool] = ContextVar("en_conversation_test", default=False)
+    obtenir, construire = service.get_chat_completions, service.build_chat_completion_params
+
+    async def get_chat_completions(context):
+        jeton = en_conversation.set(True)
+        try:
+            return await obtenir(context)
+        finally:
+            en_conversation.reset(jeton)
+
+    def build_chat_completion_params(params):
+        params = construire(params)
+        if en_conversation.get():
+            params["messages"] = [*params["messages"], "état de la fiche"]
+        return params
+
+    service.get_chat_completions = get_chat_completions
+    service.build_chat_completion_params = build_chat_completion_params
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    [m async for m in await service.get_chat_completions(contexte)]
+    [requete] = service.requetes
+    assert requete["messages"][-1] == "état de la fiche"
