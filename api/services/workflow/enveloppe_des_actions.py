@@ -315,8 +315,11 @@ async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seu
     # Lot C (C3, point 3 ; run 1522, revue D10) : la garde s'apprête à répondre « incomplet ». La passe du greffier
     # qui lit le DERNIER tour (adresse dite au tour même) part en même temps que la requête : elle est attendue (ou
     # demandée si elle n'est pas partie), puis la garde recalcule. L'attente n'existe que dans ce cas.
+    # Revue du 26/10 (R-3, décision d'Evan) : seulement pour la garde de l'action elle-même. Le déclenchement
+    # (``dernier_seulement``) lit cette garde avant CHAQUE requête : il n'attend pas la passe, le tour ordinaire garde
+    # 1,5 s au plus d'attente.
     greffier = getattr(moteur, "greffier", None)
-    if greffier is None:
+    if greffier is None or dernier_seulement:
         return refus
     try:
         await greffier.rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)
@@ -401,7 +404,7 @@ def envelopper_l_action(
                 fini.set()
                 ecrits = remplir_par_l_action(moteur, nom_outil, resultat)
                 try:
-                    from api.services.workflow.verite_des_actions import noter_l_action
+                    from api.services.workflow.verite_des_actions import etape_de_l_action, noter_l_action
 
                     fiche = getattr(moteur, "_gathered_context", None)
                     noter_l_action(
@@ -410,6 +413,7 @@ def envelopper_l_action(
                         arguments,
                         resultat,
                         {n: fiche.get(n) for n in ecrits} if isinstance(fiche, dict) else {},
+                        etape=etape_de_l_action(agent),
                     )
                 except Exception as erreur:  # noqa: BLE001 -- le journal ne coûte jamais l'action
                     logger.debug(f"[verite] journal des actions : {erreur!r}")

@@ -291,6 +291,16 @@ async def test_c3_rien_ne_manque_aucune_attente():
     assert greffier.delais == []
 
 
+async def test_c3_le_declenchement_avant_le_tour_n_attend_pas_la_passe_du_dernier_tour():
+    # Revue du 26/10 (R-3, décision d'Evan) : avant chaque requête, le déclenchement lit la garde ; la passe du dernier
+    # tour n'est attendue que par la garde de l'action elle-même. Le tour ordinaire ne prend plus de silence en plus.
+    fiche = {"nom": "Durand"}
+    greffier = _Greffier(fiche, {"adresse": "8 rue Pasteur"})
+    refus = await garde_du_noeud_apres_les_notes(_moteur_gardien(fiche, greffier), _etape("nom", "adresse"), dernier_seulement=True)
+    assert refus["manque"] == ["adresse"]
+    assert greffier.delais == []
+
+
 async def test_c3_sans_greffier_la_garde_est_celle_d_avant():
     fiche = {"nom": "Durand"}
     refus = await garde_du_noeud_apres_les_notes(_moteur_gardien(fiche, None), _etape("nom", "adresse"))
