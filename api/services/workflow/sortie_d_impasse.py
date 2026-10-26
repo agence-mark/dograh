@@ -342,6 +342,16 @@ async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None) -> b
 # ---------------------------------------------------------------------------------------------------------
 
 
+def _etape_choisie(phrase: Any) -> bool:
+    """La règle de la phrase envoie-t-elle vers une étape choisie (« aller à une étape », destination posée) ?"""
+    from api.schemas.phrases_du_code import ACTION_ALLER_A_UNE_ETAPE
+
+    ensuite = getattr(phrase, "ensuite", None)
+    return getattr(ensuite, "action", None) == ACTION_ALLER_A_UNE_ETAPE and bool(
+        str(getattr(ensuite, "destination", None) or "").strip()
+    )
+
+
 async def sortir(moteur: Any) -> bool:
     """Le temps 3 : la phrase du motif « impasse » (« impasse répétée » à la deuxième impasse de l'appel), puis la suite
     réglée dans « Ensuite » (par défaut : la main revient à l'accueil, fiche gardée). Un motif éteint ne dit rien et laisse
@@ -356,6 +366,12 @@ async def sortir(moteur: Any) -> bool:
         agent = moteur.active_agent
         motif = IMPASSE_REPETEE if etat["impasses"] >= 1 else IMPASSE
         phrase = moteur.phrases.phrase(motif, agent)
+        if motif == IMPASSE_REPETEE and phrase is not None and phrase.active and not _etape_choisie(phrase):
+            # Revue du 26/10 (R-5, décision d'Evan) : sans étape choisie dans « Ensuite », la phrase de l'impasse
+            # répétée (une promesse de rappel) ne serait tenue nulle part : la première impasse est rejouée, sa phrase
+            # et sa suite comprises.
+            motif = IMPASSE
+            phrase = moteur.phrases.phrase(motif, agent)
         _remettre_a_zero(etat)
         if phrase is None or not phrase.active:
             _journaliser(etat, moteur, motif=motif, eteint=True)

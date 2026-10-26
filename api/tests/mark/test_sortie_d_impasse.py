@@ -401,7 +401,10 @@ async def test_impasse_repetee_sans_etape_choisie_se_comporte_comme_impasse():
         _aller(banc, "n9")
         _aller(banc, "n1")
     assert banc.mains == [None, None]
-    assert banc.dit()[-1] == MOTIFS[IMPASSE_REPETEE].variantes_defaut[0]
+    # Revue du 26/10 (R-5, décision d'Evan) : sans étape choisie, la promesse du rappel n'est tenue nulle part ; le code
+    # dit la phrase de la première impasse.
+    assert banc.dit()[-1] == MOTIFS[IMPASSE].variantes_defaut[0]
+    assert MOTIFS[IMPASSE_REPETEE].variantes_defaut[0] not in banc.dit()
 
 
 @pytest.mark.asyncio
