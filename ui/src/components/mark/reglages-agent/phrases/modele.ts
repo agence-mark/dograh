@@ -270,6 +270,8 @@ export interface ContextePhrases {
     rythme: { delaiS: number; relances: number };
     /** Les noms de l'équipe par clé, pour « transférer à ». */
     destinations: Record<string, string>;
+    /** Les noms des étapes du graphe par identifiant, pour « aller à une étape » (revue du 26/10). */
+    nomsDesEtapes?: Record<string, string>;
 }
 
 export const REPOS_DEFAUT_S = BORNES_PHRASES.repos_defaut_s;
@@ -310,7 +312,7 @@ export const texteEnsuite = (r: ReglePhrase, motif: MotifDePhrase, c: ContextePh
             e.action === "transferer"
                 ? `${nom} ${c.destinations[e.destination ?? ""] ?? e.destination ?? ""}`
                 : e.action === "aller_a_une_etape" && e.destination
-                  ? `${nom} : ${e.destination}`
+                  ? `${nom} : ${c.nomsDesEtapes?.[e.destination] ?? e.destination}`
                   : nom,
         );
     }
@@ -354,7 +356,9 @@ const texteDeSortie = (r: ReglePhrase, motif: MotifDePhrase, c: ContextePhrases)
     else if (action === "rendre_la_main" || (action === "aller_a_une_etape" && !e.destination))
         parts.push(c.t({ en: "the call goes back to the front desk", fr: "la main revient à l'accueil" }));
     else if (action === "aller_a_une_etape")
-        parts.push(`${c.t({ en: "the code moves to the step", fr: "le code passe à l'étape" })} ${e.destination}`);
+        parts.push(
+            `${c.t({ en: "the code moves to the step", fr: "le code passe à l'étape" })} ${c.nomsDesEtapes?.[e.destination ?? ""] ?? e.destination}`,
+        );
     return parts.join(" · ");
 };
 

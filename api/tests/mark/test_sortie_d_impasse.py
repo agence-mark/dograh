@@ -261,6 +261,17 @@ async def test_signe_3_trois_tours_sans_champ_nouveau_un_signe_une_fois():
 
 
 @pytest.mark.asyncio
+async def test_signe_3_la_premiere_replique_a_l_arrivee_dans_l_etape_ne_compte_pas_un_tour_sans_champ():
+    # Revue du 26/10 (R-1) : à l'arrivée chez un collègue, son ouverture tombe au tour de la passation ; l'appelant
+    # n'a pas encore répondu dans cette étape.
+    banc = _banc_a_champs()
+    banc.un_tour()
+    _entrer(banc)
+    await fin_de_la_replique(banc, "Bonjour, je reprends votre demande. Quel est votre nom ?", None)
+    assert banc.etat()["tours_sans_champ"] == 0
+
+
+@pytest.mark.asyncio
 async def test_signe_3_un_champ_note_remet_le_compteur_a_zero_et_six_questions_de_suite_ne_declenchent_rien():
     banc = Banc(noeud=_noeud(champs=("nom", "adresse", "mail")), fiche=_reglages())
     banc._gathered_context.update({"contrat_entretien": "souscrit"})

@@ -22,7 +22,7 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ContexteGroupe } from "../groupe/contexte-groupe";
 import { lirePhrasesDites,PhrasesDuCode } from "../groupe/PhrasesDuCode";
-import { apercuDeLaRegle, type ContextePhrases, normaliserRegle } from "./phrases/modele";
+import { apercuDeLaRegle, type ContextePhrases, normaliserRegle, texteEnsuite } from "./phrases/modele";
 import { chargePhrases, erreursDesPhrases, extrairePhrases, MOTIFS_DE_PHRASES, ThemePhrases } from "./ThemePhrases";
 import { ThemeRythme } from "./ThemeRythme";
 
@@ -306,6 +306,14 @@ describe("[.mark] theme Phrases : l'écran", () => {
         const [seule] = chargePhrases([{ motif: "impasse", portee: "agent", variantes: ["Reprenons."], ensuite: { action: "rendre_la_main", destination: "n2" } }]);
         expect(seule.ensuite).toMatchObject({ action: "rendre_la_main", destination: null });
         expect(MOTIFS_DE_PHRASES.find((m) => m.id === "impasse")).toMatchObject({ moment: "probleme", sortie_defaut: "rendre_la_main", actif_par_defaut: true });
+    });
+
+    it("names the chosen step of « go to a step », never its raw id (review of 26/10)", () => {
+        const motif = MOTIFS_DE_PHRASES.find((m) => m.id === "impasse_repetee")!;
+        const [regle] = chargePhrases([{ motif: "impasse_repetee", portee: "agent", variantes: ["Je prends."], ensuite: { action: "aller_a_une_etape", destination: "n2" } }]);
+        const texte = texteEnsuite(regle, motif, { ...CONTEXTE, nomsDesEtapes: { n2: "Rappel" } }) ?? "";
+        expect(texte).toContain("Rappel");
+        expect(texte).not.toMatch(/n2/);
     });
 
     it("offers the text written by the agent only at After = 0 s, and drops it when the delay moves", async () => {

@@ -606,8 +606,9 @@ class DiseurDePhrases:
         règle part : dire, noter dans la fiche, puis l'action finale. Éteinte : rien de dit, le modèle
         lit l'échec. ``seulement_si_posee`` : une règle du défaut du catalogue ne parle pas (un outil
         HTTP qui échoue ne disait rien avant). ``texte`` : la phrase propre de l'action, dite à la place
-        des variantes. ``differer`` faux : appelé hors d'un appel de fonction (le garde-fou de sortie d'impasse),
-        l'action finale est lancée par l'appelant. ⛔ Ne lève jamais."""
+        des variantes. ``differer`` vrai (le défaut) : l'action finale est rangée dans ``issue.apres`` et lancée par
+        l'appelant (``lancer_apres``), comme le fait le garde-fou de sortie d'impasse ; faux : elle est jouée ici même.
+        ⛔ Ne lève jamais."""
         probleme = Probleme()
         try:
             agent = self._agent(agent)

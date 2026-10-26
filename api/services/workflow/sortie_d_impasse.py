@@ -180,6 +180,9 @@ def entrer_dans_l_etape(moteur: Any, agent: Any, noeud: Any) -> None:
         _remettre_a_zero(etat)
         etat["etape"] = cle
         etat["signature"] = _signature_des_champs(moteur, noeud)
+        # Revue du 26/10 (R-1) : le tour de l'arrivée n'est pas un tour sans champ (l'ouverture d'un collègue tombe au
+        # tour de la passation, avant que l'appelant ait répondu dans l'étape).
+        etat["tour_evalue"] = _tour(moteur)
         visites = etat["visites"]
         visites[cle] = int(visites.get(cle) or 0) + 1
         if not getattr(noeud, "is_end", False) and visites[cle] >= ENTREES_POUR_LE_SIGNE_4:

@@ -60,8 +60,9 @@ export const useEnvironnementPhrases = ({
             abandonS: { outil: maxOutil, travail, garde },
             rythme: { delaiS: delaiSilence, relances },
             destinations,
+            nomsDesEtapes: Object.fromEntries(etapes.map((e) => [e.id, e.nom])),
         }),
-        [langue, t, reposS, maxOutil, travail, garde, delaiSilence, relances, destinations],
+        [langue, t, reposS, maxOutil, travail, garde, delaiSilence, relances, destinations, etapes],
     );
     const champs = configuration?.fiche_champs;
     const env: EnvironnementPhrases = useMemo(
