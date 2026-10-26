@@ -11,6 +11,7 @@ main rendue ; les tests ``moteur_*`` jouent la vraie méthode du moteur de l'app
 | signe 3 | trois tours sans champ nouveau dans une étape qui attend des champs : un signe, une fois ; un champ noté ou lu au tour même remet à zéro ; une étape sans champs attendus : jamais (D11) |
 | signe 4 | la troisième entrée dans une même étape compte (D15) ; la rejouer au clavier ne compte pas ; un seul changement d'avis ne déclenche rien |
 | attente | trois tours d'attente du fond (« j'attends ») ne comptent pas (D2), ni le tour qui suit un appel d'outil |
+| modèle non touché | un modèle n.est enveloppé qu.à la première notice (R1) ; la notice part juste avant la dernière parole de l.appelant, jamais hors conversation |
 | riposte | 2e signe : notice 1 ; 3e : notice 2 ; 4e : la phrase du motif « impasse » dite, puis la main rendue, fiche intacte ; la notice n'est montrée qu'au tour qui la suit |
 | impasse répétée | la deuxième impasse de l'appel dit « impasse répétée » puis passe à l'étape choisie ; sans étape choisie, comme « impasse » |
 | temps 3 et travail en cours | le temps 3 attend la fin du travail de fond (compté sans attendre, dit après le résultat) |
@@ -552,3 +553,34 @@ async def test_le_temps_3_attend_la_fin_du_travail_de_fond_en_cours():
     banc.travaux = []
     await _repliques(banc, "Voici le résultat de ma recherche pour vous.")
     assert banc.mains == [None] and banc.dit() == [MOTIFS[IMPASSE].variantes_defaut[0]]
+
+
+@pytest.mark.asyncio
+async def test_le_modele_n_est_enveloppe_qu_a_la_premiere_notice_et_la_notice_part_dans_la_requete():
+    """R1 : un agent qui ne tourne jamais en rond garde son service tel quel (test_D12 de la fiche)."""
+
+    class Llm:
+        def __init__(self):
+            self.vue = None
+
+        async def get_chat_completions(self, context):
+            return self.build_chat_completion_params({"messages": list(context)})
+
+        def build_chat_completion_params(self, params):
+            return dict(params)
+
+    llm = Llm()
+    banc = Banc()
+    banc.active_agent.llm = llm
+    _entrer(banc)
+    await _repliques(banc, REPLIQUE, AUTRE, REPLIQUE)  # un seul signe
+    assert "get_chat_completions" not in vars(llm) and "build_chat_completion_params" not in vars(llm)
+    await _repliques(banc, REPLIQUE)  # 2e signe : la notice naît
+    assert "get_chat_completions" in vars(llm)
+    banc.un_tour()
+    contexte = [{"role": "assistant", "content": "Bonjour."}, {"role": "user", "content": "Oui."}]
+    requete = await llm.get_chat_completions(contexte)
+    textes = [m["content"] for m in requete["messages"]]
+    assert textes == ["Bonjour.", NOTICE_TEMPS_1, "Oui."]  # juste avant la dernière parole de l'appelant
+    # hors conversation (une relecture, le balayage), rien n'est ajouté
+    assert llm.build_chat_completion_params({"messages": contexte})["messages"] == contexte

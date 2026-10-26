@@ -150,10 +150,11 @@ def noter_un_signe(moteur: Any, nature: str) -> int:
         if cible > etat["temps"]:
             etat["temps"] = cible
             etat["notice_tour"] = _tour(moteur)
-            if cible == 1:
-                etat["notice"] = NOTICE_TEMPS_1
-            elif cible == 2:
-                etat["notice"] = NOTICE_TEMPS_2
+            if cible in (1, 2):
+                etat["notice"] = NOTICE_TEMPS_1 if cible == 1 else NOTICE_TEMPS_2
+                # Le modèle n'est enveloppé qu'à la première notice : un agent qui ne tourne jamais en rond garde son
+                # service tel quel (R1, test_D12).
+                montrer_l_impasse(moteur, getattr(getattr(moteur, "active_agent", None), "llm", None))
             else:
                 etat["notice"] = None
                 etat["a_declencher"] = True
@@ -397,9 +398,10 @@ def notice_a_montrer(moteur: Any) -> str | None:
 def montrer_l_impasse(moteur: Any, llm: Any) -> bool:
     """Chaque requête de CONVERSATION de ``llm`` reçoit la notice du garde-fou, juste avant la dernière parole de
     l'appelant (``inserer_l_etat``, comme la ligne du travail en cours). Rien n'entre dans l'historique ni dans le prompt
-    système ; sans notice, la requête est inchangée. Une fois par service. ⛔ Ne lève jamais."""
+    système ; sans notice, la requête est inchangée. Une fois par service, et seulement quand une notice est née
+    (``noter_un_signe``) : un modèle dont l'agent ne tourne jamais en rond n'est pas touché. ⛔ Ne lève jamais."""
     try:
-        if getattr(llm, _MARQUE, False):
+        if llm is None or getattr(llm, _MARQUE, False):
             return True
         if not (hasattr(llm, "get_chat_completions") and hasattr(llm, "build_chat_completion_params")):
             return False

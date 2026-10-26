@@ -295,8 +295,6 @@ class PipecatEngine:
         # de la fiche.
         if fiche is not None and llm is not None:
             self._porter_la_fiche(llm, suivi=self._tours_fiche)
-        if llm is not None:
-            self._porter_l_impasse(llm)
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -1763,16 +1761,6 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001
             logger.error(f"[fiche] fiche non branchée sur l'agent : {e!r}")
 
-    def _porter_l_impasse(self, llm) -> None:
-        """[.mark] fiabilite-de-la-conversation, lot A : le modèle de chaque agent reçoit, quand le garde-fou d'impasse
-        l'a décidé, sa notice (hors historique, jamais dite). Une fois par modèle. ⛔ Ne lève jamais."""
-        try:
-            from api.services.workflow.sortie_d_impasse import montrer_l_impasse
-
-            montrer_l_impasse(self, llm)
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"[impasse] notice non branchée : {e!r}")
-
     def _porte_la_fiche(self, agent: AgentRuntime) -> bool:
         """[.mark] Lot 3 (2A) : le modèle de ``agent`` porte-t-il la fiche de l'appel ?"""
         if self._fiche is None or agent is None:
@@ -3219,7 +3207,6 @@ class PipecatEngine:
         if self._fiche is not None:
             self._fusionner_la_fiche(runtime)
             self._porter_la_fiche(runtime.llm)
-        self._porter_l_impasse(runtime.llm)
         self.mesure_passation.installee(
             time.monotonic() - debut,
             origine,
