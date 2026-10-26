@@ -115,13 +115,33 @@ def test_b1_un_autre_jour_dans_le_texte_est_une_autre_demande():
 @pytest.mark.asyncio
 async def test_b1_la_meme_demande_dans_une_autre_etape_est_une_autre_demande(appel):
     travail, recues = await _fond_scenarise(appel, [DATES])
+    from api.services.travail.demande_identique import identifiant_de_l_etape
+
     travail._etape = lambda: SimpleNamespace(id="etape-1", name="Une")
     await _confier(travail, RECHERCHE)
-    assert len(demandes_deja_faites(appel.engine, RECHERCHE, "etape-1")) == 1
-    assert demandes_deja_faites(appel.engine, RECHERCHE, "etape-2") == []
+    une = identifiant_de_l_etape(SimpleNamespace(id="etape-1"), travail.agent)
+    deux = identifiant_de_l_etape(SimpleNamespace(id="etape-2"), travail.agent)
+    assert len(demandes_deja_faites(appel.engine, RECHERCHE, une)) == 1
+    assert demandes_deja_faites(appel.engine, RECHERCHE, deux) == []
     travail._etape = lambda: SimpleNamespace(id="etape-2", name="Deux")
     retour = await _confier(travail, RECHERCHE)
     assert retour == {"statut": "lancé"} and len(recues) == 2
+
+
+@pytest.mark.asyncio
+async def test_b1_la_meme_etape_chez_un_autre_agent_du_groupe_est_une_autre_etape(appel):
+    # Revue du 26/10 (R-1) : les agents d'un groupe, copiés du même squelette, ont les mêmes numéros d'étape.
+    from api.services.travail.demande_identique import identifiant_de_l_etape
+
+    travail, recues = await _fond_scenarise(appel, [DATES])
+    etape = SimpleNamespace(id="2", name="Rendez-vous")
+    travail.agent = SimpleNamespace(workflow_id=20, current_node=etape)
+    await _confier(travail, RECHERCHE)
+    travail.agent = SimpleNamespace(workflow_id=21, current_node=etape)
+    retour = await _confier(travail, RECHERCHE)
+    assert retour == {"statut": "lancé"} and len(recues) == 2
+    assert identifiant_de_l_etape(etape, travail.agent) == "21:2"
+    assert len(demandes_deja_faites(appel.engine, RECHERCHE, "20:2")) == 1
 
 
 # --------------------------------------------------------------------------- #

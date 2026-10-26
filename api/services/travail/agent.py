@@ -302,7 +302,7 @@ class TravailDeLAgent:
             )
 
             verdict = verdict_avant_de_confier(
-                self.moteur, texte[:LONGUEUR_MAX_DEMANDE], identifiant_de_l_etape(self._etape())
+                self.moteur, texte[:LONGUEUR_MAX_DEMANDE], identifiant_de_l_etape(self._etape(), self.agent)
             )
             if verdict.action != LANCER:
                 logger.info(f"[travail] demande identique non relancée : {verdict.action}")
@@ -579,7 +579,7 @@ class TravailDeLAgent:
         # Lot B (B1) : la règle « demande identique » compare des demandes de la même étape.
         from api.services.travail.demande_identique import CLE_ETAPE, identifiant_de_l_etape
 
-        entree[CLE_ETAPE] = identifiant_de_l_etape(self._etape())
+        entree[CLE_ETAPE] = identifiant_de_l_etape(self._etape(), self.agent)
         fiche = self._fiche()
         if fiche is not None:
             entree["tour"] = fiche.get(CLE_TOUR)

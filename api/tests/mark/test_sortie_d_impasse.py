@@ -183,7 +183,8 @@ async def test_signe_1_une_replique_finie_apres_un_changement_d_etape_ne_compte_
 # --------------------------------------------------------------------------- #
 
 
-def _trace(demande, etape="n1", statut="fait"):
+def _trace(demande, etape="1:n1", statut="fait"):
+    # L'étape d'une trace : agent puis nœud (revue du 26/10, R-1).
     return {"demande": demande, "etape": etape, "statut": statut, "resultat": "Résultat : x"}
 
 
@@ -196,7 +197,7 @@ def test_signe_2_une_demande_identique_dans_l_etape_compte_une_autre_non():
     compter_la_demande(banc, banc.active_agent, "  cherche DEUX dates de passage pour un entretien,\nsur deux jours différents ")
     assert _signes(banc) == 1
     # l'étape compte : la même demande dans une autre étape est nouvelle
-    banc._gathered_context["travaux"] = [_trace(RECHERCHE, etape="ailleurs")]
+    banc._gathered_context["travaux"] = [_trace(RECHERCHE, etape="1:ailleurs")]
     compter_la_demande(banc, banc.active_agent, RECHERCHE)
     assert _signes(banc) == 1
 

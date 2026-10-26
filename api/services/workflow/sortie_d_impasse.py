@@ -196,7 +196,7 @@ def compter_la_demande(moteur: Any, agent: Any, demande: Any) -> None:
 
         if _etat(moteur) is None:
             return
-        if demandes_deja_faites(moteur, demande, identifiant_de_l_etape(getattr(agent, "current_node", None))):
+        if demandes_deja_faites(moteur, demande, identifiant_de_l_etape(getattr(agent, "current_node", None), agent)):
             noter_un_signe(moteur, SIGNE_DEMANDE)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[impasse] demande identique non comptée : {erreur!r}")

@@ -97,12 +97,15 @@ def cle_de_la_demande(demande: Any) -> str:
     return " ".join(_MOTS.findall(texte_de_la_demande(demande).casefold()))
 
 
-def identifiant_de_l_etape(noeud: Any) -> str | None:
-    """Ce qui désigne une étape dans les traces : son identifiant, sinon son nom."""
+def identifiant_de_l_etape(noeud: Any, agent: Any = None) -> str | None:
+    """Ce qui désigne une étape dans les traces : son identifiant, sinon son nom, précédé de l'agent quand il est
+    connu (revue du 26/10, R-1 : les agents d'un groupe, copiés du même squelette, ont les mêmes numéros d'étape ;
+    même clé que le garde-fou d'impasse, ``agent:étape``)."""
     for attribut in ("id", "name"):
         valeur = getattr(noeud, attribut, None)
         if isinstance(valeur, (str, int)) and str(valeur):
-            return str(valeur)
+            agent_id = getattr(agent, "workflow_id", None)
+            return f"{agent_id}:{valeur}" if agent_id is not None else str(valeur)
     return None
 
 
