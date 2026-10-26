@@ -41,7 +41,17 @@ ACTION_CONTINUER = "continuer"
 ACTION_MODELE = "modele"
 ACTION_TRANSFERER = "transferer"
 ACTION_RACCROCHER = "raccrocher"
-ACTIONS = (ACTION_CONTINUER, ACTION_MODELE, ACTION_TRANSFERER, ACTION_RACCROCHER)
+# fiabilite-de-la-conversation, lot A : les deux suites du garde-fou de sortie d'impasse.
+ACTION_RENDRE_LA_MAIN = "rendre_la_main"
+ACTION_ALLER_A_UNE_ETAPE = "aller_a_une_etape"
+ACTIONS = (
+    ACTION_CONTINUER,
+    ACTION_MODELE,
+    ACTION_TRANSFERER,
+    ACTION_RACCROCHER,
+    ACTION_RENDRE_LA_MAIN,
+    ACTION_ALLER_A_UNE_ETAPE,
+)
 
 # Les anciens identifiants de motif, lus comme les nouveaux (le motif « un connecteur échoue » est
 # devenu « un outil échoue » : les règles d'avant se lisent telles quelles).
@@ -89,14 +99,19 @@ class Sortie(BaseModel):
     noter: NoteDeSortie | None = Field(
         default=None, description="A field of the call record and one of its values to write."
     )
-    action: Literal["continuer", "modele", "transferer", "raccrocher"] | None = Field(
+    action: (
+        Literal["continuer", "modele", "transferer", "raccrocher", "rendre_la_main", "aller_a_une_etape"] | None
+    ) = Field(
         default=None,
         description="The final action. Empty: the default of the cause (the behavior before).",
     )
     destination: str | None = Field(
         default=None,
         max_length=200,
-        description="For a transfer: the key of a member of the team (set in Team).",
+        description=(
+            "For a transfer: the key of a member of the team (set in Team). For \"go to a step\": the "
+            "identifier of a step of the main agent."
+        ),
     )
 
     @field_validator("phrases")
@@ -110,6 +125,9 @@ class Sortie(BaseModel):
             if not (self.destination or "").strip():
                 raise ValueError("a transfer exit needs its destination")
             self.destination = self.destination.strip()
+        elif self.action == ACTION_ALLER_A_UNE_ETAPE:
+            # Sans étape choisie, la sortie est « rendre la main » (le garde-fou de sortie d'impasse).
+            self.destination = (self.destination or "").strip() or None
         else:
             self.destination = None
         return self

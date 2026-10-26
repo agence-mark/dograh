@@ -177,6 +177,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
 )
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
+from api.services.workflow.sortie_d_impasse import brancher_la_sortie_d_impasse
 from api.services.workflow.workflow_graph import WorkflowGraph
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
@@ -2038,6 +2039,8 @@ async def _run_pipeline_impl(
     )
     # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
     brancher_le_filet_de_fin(engine, assistant_context_aggregator)
+    # fiabilite-de-la-conversation, lot A : le garde-fou de sortie d'impasse lit chaque réplique de l'agent.
+    brancher_la_sortie_d_impasse(engine, assistant_context_aggregator)
 
     # Register event handlers — resolve provider_id for PostHog tracking
     if not user_provider_id:

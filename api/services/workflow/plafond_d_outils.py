@@ -59,3 +59,17 @@ def compter_un_appel(moteur: Any, agent: Any) -> dict | None:
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[plafond] appels d'outil non comptés : {erreur!r}")
         return None
+
+
+def appels_du_tour(moteur: Any) -> int:
+    """Combien d'appels d'outil l'agent qui parle a faits dans le tour de l'appelant en cours (0 sans compteur). Lu par
+    le garde-fou d'impasse : un tour avec un résultat d'outil est une attente du système. ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+        etat = getattr(moteur, _ATTRIBUT, None)
+        if isinstance(tour, int) and isinstance(etat, dict) and etat.get("tour") == tour:
+            return int(etat.get("appels") or 0)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[plafond] appels du tour illisibles : {erreur!r}")
+    return 0

@@ -84,9 +84,9 @@ def test_la_copie_du_catalogue_a_l_ecran_est_celle_du_code():
     assert copie["bornes"]["regles_max"] == MAX_REGLES
     assert copie["bornes"]["delai_min_s"] == DELAI_MIN_S
     assert copie["bornes"]["delai_max_s"] == DELAI_MAX_S
-    # Les dix motifs du tableau 4.4, chacun avec les cases qu'il permet.
+    # Les douze motifs (les dix du tableau 4.4 et les deux du garde-fou d impasse), chacun avec les cases qu'il permet.
     assert [m["id"] for m in copie["motifs"]] == list(MOTIFS)
-    assert len(copie["motifs"]) == 10
+    assert len(copie["motifs"]) == 12
 
 
 def test_les_niveaux_etape_agent_principal_defaut():

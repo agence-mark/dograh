@@ -221,6 +221,8 @@ describe("[.mark] theme Phrases : le modèle", () => {
             "reponse_perdue",
             "outil_echoue",
             "travail_echoue",
+            "impasse",
+            "impasse_repetee",
             "transfert_echoue",
             "mise_en_relation",
         ]);
@@ -231,19 +233,19 @@ describe("[.mark] theme Phrases : l'écran", () => {
     it("draws the notice, the filters with their counters, the pause and a card per cause", async () => {
         await monter();
         expect(document.querySelector("[data-notice-phrases]")).not.toBeNull();
-        expect(screen.getByRole("tab", { name: "All (10)" })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: "All (12)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Waits (5)" })).toBeTruthy();
-        expect(screen.getByRole("tab", { name: "Problems (4)" })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: "Problems (6)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Actions (1)" })).toBeTruthy();
         expect(document.getElementById("phrases_repos_s")).not.toBeNull();
-        expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(10);
+        expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(12);
         expect(carte("modele_tarde").getAttribute("data-origine")).toBe("defaut");
         // Une règle éteinte est grisée et dit ce qui se passe à la place.
         expect(carte("outil_tarde").getAttribute("data-active")).toBe("non");
         expect(carte("outil_tarde").textContent).toContain("Nothing is said: the caller waits for the tool's result.");
-        fireEvent.mouseDown(screen.getByRole("tab", { name: "Problems (4)" }));
-        fireEvent.click(screen.getByRole("tab", { name: "Problems (4)" }));
-        await waitFor(() => expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(4));
+        fireEvent.mouseDown(screen.getByRole("tab", { name: "Problems (6)" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Problems (6)" }));
+        await waitFor(() => expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(6));
     });
 
     it("switches a card on without opening its dialog, and the card opens the dialog", async () => {
@@ -290,6 +292,22 @@ describe("[.mark] theme Phrases : l'écran", () => {
         expect(options).toContain("raccrocher");
     });
 
+    it("offers the two exits of the dead-end guard (lot A), with the steps menu, and keeps the chosen step", async () => {
+        await monter();
+        fireEvent.click(carte("impasse_repetee"));
+        const dialogue = await screen.findByRole("dialog");
+        const options = [...(dialogue.querySelector("#phrase_sortie_action") as HTMLSelectElement).options].map((o) => o.value);
+        expect(options).toEqual(expect.arrayContaining(["rendre_la_main", "aller_a_une_etape"]));
+        // Les autres causes n'offrent pas ces deux suites.
+        expect(MOTIFS_DE_PHRASES.find((m) => m.id === "outil_echoue")?.sorties_permises).not.toContain("rendre_la_main");
+        // L'étape choisie est gardée par l'enregistrement ; sans l'action, elle ne l'est pas.
+        const [garde] = chargePhrases([{ motif: "impasse_repetee", portee: "agent", variantes: ["Je prends."], ensuite: { action: "aller_a_une_etape", destination: "n2" } }]);
+        expect(garde.ensuite).toMatchObject({ action: "aller_a_une_etape", destination: "n2" });
+        const [seule] = chargePhrases([{ motif: "impasse", portee: "agent", variantes: ["Reprenons."], ensuite: { action: "rendre_la_main", destination: "n2" } }]);
+        expect(seule.ensuite).toMatchObject({ action: "rendre_la_main", destination: null });
+        expect(MOTIFS_DE_PHRASES.find((m) => m.id === "impasse")).toMatchObject({ moment: "probleme", sortie_defaut: "rendre_la_main", actif_par_defaut: true });
+    });
+
     it("offers the text written by the agent only at After = 0 s, and drops it when the delay moves", async () => {
         const { onSave } = await monter();
         fireEvent.click(carte("travail_dure"));
@@ -320,7 +338,7 @@ describe("[.mark] theme Phrases : l'écran", () => {
         fireEvent.click(screen.getByRole("button", { name: "Add a sentence" }));
         const etape1 = await screen.findByRole("dialog");
         expect(within(etape1).getByText("Step 1 of 2", { selector: "span" })).toBeTruthy();
-        expect(within(etape1).getAllByRole("button").filter((b) => b.hasAttribute("data-motif-ajout"))).toHaveLength(10);
+        expect(within(etape1).getAllByRole("button").filter((b) => b.hasAttribute("data-motif-ajout"))).toHaveLength(12);
         fireEvent.click(within(etape1).getByRole("button", { name: "A tool fails" }));
         const etape2 = await screen.findByText(/Step 2 of 2/);
         expect(etape2).toBeTruthy();
@@ -425,7 +443,7 @@ describe("[.mark] theme Phrases : l'écran", () => {
             expect(v?.querySelector("table")).not.toBeNull();
             return v as HTMLElement;
         });
-        expect(vue.querySelectorAll("[data-ligne-groupe]")).toHaveLength(10);
+        expect(vue.querySelectorAll("[data-ligne-groupe]")).toHaveLength(12);
         expect(vue.querySelector('[data-case-groupe="appelant_se_tait-7"]')?.getAttribute("data-niveau")).toBe("agent");
         const cellule = vue.querySelector('[data-case-groupe="appelant_se_tait-8"]') as HTMLElement;
         expect(cellule.getAttribute("data-niveau")).toBe("groupe");

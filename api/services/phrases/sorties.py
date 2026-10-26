@@ -25,7 +25,9 @@ from loguru import logger
 from api.schemas.phrases_du_code import (
     ACTION_CONTINUER,
     ACTION_MODELE,
+    ACTION_ALLER_A_UNE_ETAPE,
     ACTION_RACCROCHER,
+    ACTION_RENDRE_LA_MAIN,
     ACTION_TRANSFERER,
 )
 from api.services.phrases.regles import PhraseResolue
@@ -252,6 +254,22 @@ async def executer(
                         issue.action = ACTION_MODELE
                         issue.erreurs.append(raison or "transfert non lancé")
                         issue.interdit.append("transférer")
+        elif action in (ACTION_RENDRE_LA_MAIN, ACTION_ALLER_A_UNE_ETAPE):
+            # fiabilite-de-la-conversation, lot A : la sortie du garde-fou d'impasse. Le code change l'étape de
+            # lui-même une fois la phrase dite ; sans étape choisie (ou introuvable), la main revient à l'accueil.
+            cible = sortie.destination if action == ACTION_ALLER_A_UNE_ETAPE else None
+
+            async def rendre_la_main() -> None:
+                await _attendre_la_phrase(moteur, parole)
+                if not await moteur.sortir_de_l_impasse(agent, etape_cible=cible):
+                    logger.info("[sortie] la main n'a pas pu être rendue : le modèle reprend")
+                    await _reprendre_la_parole(moteur)
+
+            issue.prise_en_main = True
+            if differer:
+                issue.apres = rendre_la_main
+            else:
+                await rendre_la_main()
         elif action == ACTION_RACCROCHER:
             from pipecat.utils.enums import EndTaskReason
 

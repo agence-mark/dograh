@@ -598,6 +598,7 @@ class DiseurDePhrases:
         texte: str | None = None,
         historique: bool = True,
         seulement_si_posee: bool = False,
+        differer: bool = True,
     ) -> Probleme:
         """Un fait (l'échec d'un outil, du travail de fond, d'un transfert) : le n-ième incident de
         l'appel pour cette règle. La phrase est dite tant que l'incident est sous le plafond « au plus M
@@ -605,7 +606,8 @@ class DiseurDePhrases:
         règle part : dire, noter dans la fiche, puis l'action finale. Éteinte : rien de dit, le modèle
         lit l'échec. ``seulement_si_posee`` : une règle du défaut du catalogue ne parle pas (un outil
         HTTP qui échoue ne disait rien avant). ``texte`` : la phrase propre de l'action, dite à la place
-        des variantes. ⛔ Ne lève jamais."""
+        des variantes. ``differer`` faux : appelé hors d'un appel de fonction (le garde-fou de sortie d'impasse),
+        l'action finale est lancée par l'appelant. ⛔ Ne lève jamais."""
         probleme = Probleme()
         try:
             agent = self._agent(agent)
@@ -636,13 +638,13 @@ class DiseurDePhrases:
                     if parole is not None:
                         probleme.dit = getattr(parole, "text", None)
                         self.coupures.marquer_compte_rendu(parole)
-            if phrase.sortie_posee and n >= (plafond or 1):
+            if (phrase.sortie_posee or phrase.motif.sortie_par_le_code) and n >= (plafond or 1):
                 from api.services.phrases.sorties import executer
 
                 # Appelé pendant un appel de fonction : l'action finale (transférer, raccrocher) part
                 # après la remise du résultat, jamais attendue dans l'échéance de l'appel.
                 probleme.issue = await executer(
-                    self._moteur, self, phrase, agent=agent, etape=etape, rang=n - 1, differer=True
+                    self._moteur, self, phrase, agent=agent, etape=etape, rang=n - 1, differer=differer
                 )
                 probleme.notes = list(probleme.issue.notes)
         except asyncio.CancelledError:

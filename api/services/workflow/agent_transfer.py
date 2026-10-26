@@ -90,6 +90,9 @@ class TransferRequest:
     # Lot 1 (K4) : le retour a été demandé pour finir l'appel (filet de fin, ou porte ``fin`` réécrite
     # en ``retour``) : l'accueil prend sa sortie ``fin`` sans tour de modèle. ``False`` : comme avant.
     fin_demandee: bool = False
+    # fiabilite-de-la-conversation, lot A : le retour tombe sur CETTE étape de l'accueil (identifiant du nœud), choisie à
+    # l'écran pour la deuxième impasse. ``None`` : l'étape de retour, ou celle de départ, comme avant.
+    etape_cible: str | None = None
 
     @property
     def cancelled(self) -> bool:

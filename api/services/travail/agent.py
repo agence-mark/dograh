@@ -774,6 +774,11 @@ def brancher_confier_le_travail(
         from api.services.travail.demande import demande_avec_la_fiche
 
         demande = demande_avec_la_fiche(moteur, arguments.get("demande"))
+        # fiabilite-de-la-conversation, lot A (signe 2) : la demande PART, identique à une demande déjà faite dans
+        # l'étape ? Compté ici, avant la décision de B2 (qui la bloque le plus souvent : la tentative est le signe).
+        from api.services.workflow.sortie_d_impasse import compter_la_demande
+
+        compter_la_demande(moteur, agent, demande)
         resultat = await travail.confier(demande, arguments.get("annonce"))
         await params.result_callback(resultat, properties=proprietes(params))
 
