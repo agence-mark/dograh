@@ -4339,6 +4339,8 @@ def etat_avec_les_indices(
     Lot E d'agent-leger-greffier : plus, case allumée, le souffle de l'étape."""
     from api.services.workflow.indices_des_modules import indices_des_modules
 
+    champs_etape = tuple(champs_etape or ())
+
     parole = next(
         (
             m.get("content")
@@ -4378,7 +4380,7 @@ def etat_avec_les_indices(
     from api.services.workflow.indices_des_modules import consigne_chiffres_manquants
 
     chiffres = consigne_chiffres_manquants(
-        reglages, fiche, fiche.get(CLE_TOUR), (notices.derniere if notices is not None else None)
+        reglages, fiche, fiche.get(CLE_TOUR), (notices.derniere if notices is not None else None), champs_etape
     )
     if chiffres:
         texte = f"{texte or entete_etat(reglages)}\n{chiffres}"

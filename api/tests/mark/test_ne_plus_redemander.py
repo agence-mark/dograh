@@ -313,6 +313,9 @@ def _reglages_numero():
     )
 
 
+ETAPE_NUMERO = ("nom", "numero_dicte")
+
+
 def _fiche_avec_numero(tour, *chiffres_par_tour):
     return {
         CLE_TOUR: tour,
@@ -323,32 +326,50 @@ def _fiche_avec_numero(tour, *chiffres_par_tour):
 def test_c4_huit_chiffres_lus_au_tour_meme_la_consigne_est_dans_la_requete_de_ce_tour():
     fiche = _fiche_avec_numero(4, (4, "06 22 33 44"))
     messages = [{"role": "user", "content": "zéro six vingt-deux trente-trois quarante-quatre"}]
-    texte = etat_avec_les_indices(_reglages_numero(), fiche, None, messages)
+    texte = etat_avec_les_indices(_reglages_numero(), fiche, None, messages, ETAPE_NUMERO)
     assert CONSIGNE_CHIFFRES_MANQUANTS.format(champs="numero_dicte") in texte
 
 
 def test_c4_numero_complet_ou_dit_en_deux_fois_rien():
     complet = _fiche_avec_numero(4, (4, "06 22 33 44 55"))
     messages = [{"role": "user", "content": "x"}]
-    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), complet, None, messages) or "")
+    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), complet, None, messages, ETAPE_NUMERO) or "")
     en_deux_fois = _fiche_avec_numero(5, (4, "06 22 33"), (5, "44 55 66 7"))
-    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), en_deux_fois, None, messages) or "")
+    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), en_deux_fois, None, messages, ETAPE_NUMERO) or "")
 
 
 def test_c4_rien_de_lu_a_ce_tour_ou_champ_deja_rempli_ou_case_eteinte_rien():
     messages = [{"role": "user", "content": "x"}]
     ancien = _fiche_avec_numero(6, (4, "06 22 33 44"))
-    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), ancien, None, messages) or "")
+    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), ancien, None, messages, ETAPE_NUMERO) or "")
     rempli = {**_fiche_avec_numero(4, (4, "06 22 33 44")), "numero_dicte": "0622334455"}
-    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), rempli, None, messages) or "")
+    assert "il manque des chiffres" not in (etat_avec_les_indices(_reglages_numero(), rempli, None, messages, ETAPE_NUMERO) or "")
     eteinte = ReglagesFiche(champs=_reglages_numero().champs, etiquettes=True, indices_des_modules=False)
     assert "il manque des chiffres" not in (
-        etat_avec_les_indices(eteinte, _fiche_avec_numero(4, (4, "06 22 33 44")), None, messages) or ""
+        etat_avec_les_indices(eteinte, _fiche_avec_numero(4, (4, "06 22 33 44")), None, messages, ETAPE_NUMERO) or ""
     )
 
 
 def test_c4_une_notice_deja_montree_n_est_pas_redite():
     fiche = _fiche_avec_numero(4, (4, "06 22 33 44"))
     notices = Notices(derniere={"consigne": CONSIGNE_CHIFFRES_MANQUANTS.format(champs="numero_dicte")})
-    texte = etat_avec_les_indices(_reglages_numero(), fiche, notices, [{"role": "user", "content": "x"}])
+    texte = etat_avec_les_indices(_reglages_numero(), fiche, notices, [{"role": "user", "content": "x"}], ETAPE_NUMERO)
     assert texte.count("il manque des chiffres") == 1  # celle de la note, pas une seconde
+
+
+def test_c4_seuls_les_champs_de_l_etape_un_numero_juste_ne_fait_rien_redemander_ailleurs():
+    # Revue du 26/10 (R-1) : dix chiffres justes lus, un champ vide de quatorze chiffres d'une autre étape.
+    reglages = ReglagesFiche(
+        champs=(
+            ChampFiche(nom="numero_dicte", origine="dicte", chiffres=10),
+            ChampFiche(nom="identifiant_entreprise", origine="dicte", chiffres=14),
+        ),
+        etiquettes=True,
+        indices_des_modules=True,
+    )
+    fiche = {**_fiche_avec_numero(4, (4, "06 22 33 44 55")), "numero_dicte": ""}
+    messages = [{"role": "user", "content": "zéro six vingt-deux trente-trois quarante-quatre cinquante-cinq"}]
+    assert "il manque des chiffres" not in (etat_avec_les_indices(reglages, fiche, None, messages, ("numero_dicte",)) or "")
+    assert "il manque des chiffres" in (
+        etat_avec_les_indices(reglages, fiche, None, messages, ("identifiant_entreprise",)) or ""
+    ), "le champ de l'étape reste candidat"

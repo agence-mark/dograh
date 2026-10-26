@@ -182,13 +182,15 @@ def indices_des_modules(
 
 
 def consigne_chiffres_manquants(
-    reglages: Any, fiche: dict, tour: Any, deja_dite: Any = None
+    reglages: Any, fiche: dict, tour: Any, deja_dite: Any = None, champs_etape: Any = ()
 ) -> str | None:
     """La consigne « Pas noté : il manque des chiffres dans … » (``CONSIGNE_CHIFFRES_MANQUANTS``), calculée à la
     construction de la requête à partir des traces des nombres du tour, et non plus seulement au tour suivant, après la
     passe du greffier (``Notices``). Un champ dicté qui déclare un nombre de chiffres (``chiffres``), encore vide, dont
     le numéro lu à ce tour (et au tour d'avant : un numéro se dicte en deux fois) a moins de chiffres. ``deja_dite`` :
-    les notices déjà montrées (même consigne : pas de redite). Même case que les indices. ⛔ Ne lève jamais."""
+    les notices déjà montrées (même consigne : pas de redite). Même case que les indices. Revue du 26/10 (R-1) : seuls
+    les champs de l'étape (``champs_etape``) sont candidats ; un numéro juste ne fait jamais redemander le champ d'une
+    autre étape qui attend un autre nombre de chiffres. ⛔ Ne lève jamais."""
     try:
         if not getattr(reglages, "indices_des_modules", False) or tour is None or not isinstance(tour, int):
             return None
@@ -207,10 +209,12 @@ def consigne_chiffres_manquants(
         from api.services.workflow.fiche_au_fil_de_leau import CONSIGNE_CHIFFRES_MANQUANTS, OrigineChamp
 
         motifs = getattr(reglages, "motifs_des_types", None) or {}
+        de_l_etape = set(champs_etape or ())
         champs = [
             c
             for c in reglages.champs
-            if getattr(c, "chiffres", None)
+            if c.nom in de_l_etape
+            and getattr(c, "chiffres", None)
             and c.origine == OrigineChamp.dicte
             and c.chiffres > len(chiffres_lus)
             and not str(fiche.get(c.nom) or "").strip()
