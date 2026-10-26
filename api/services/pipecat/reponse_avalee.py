@@ -184,6 +184,23 @@ def morceaux_de_texte(texte: str) -> list[Any]:
     ]
 
 
+class FluxEnErreur:
+    """Un flux qui lève, à sa première lecture, l'erreur de la requête refusée à son ouverture."""
+
+    def __init__(self, erreur: Exception):
+        self._erreur = erreur
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        raise self._erreur
+        yield  # pragma: no cover -- fait de cette méthode un générateur
+
+    async def close(self):
+        return None
+
+
 class FluxRepris:
     """Le flux du cerveau, relancé une fois sans flux s'il finit vide alors que des jetons
     ont été générés."""
@@ -492,7 +509,19 @@ class RepriseSansFluxMixin:
         # l'avait (l'armement est consommé par la requête d'origine), et se dit dans la trace.
         secours = bool(getattr(self, "_mark_relance_armee", False))
         entree = getattr(self, "_mark_entree_en_cours", None)
-        flux = await super().get_chat_completions(context)  # type: ignore[misc]
+        try:
+            flux = await super().get_chat_completions(context)  # type: ignore[misc]
+        except Exception as erreur:
+            # fiabilite-de-la-conversation (26/10, runs 2019 et 2026) : une requête refusée dès l'ouverture du
+            # flux (``APIError``, aucun morceau) suit le chemin d'une erreur avant le premier morceau (K1) : même
+            # relance sans flux, puis la phrase de repli ; l'agent ne se tait plus. Le délai de garde dépassé
+            # garde sa propre riposte (``garde_modele``) : il passe tel quel.
+            from api.services.panne.delai_modele import DelaiModeleDepasse
+
+            if isinstance(erreur, DelaiModeleDepasse):
+                raise
+            logger.warning(f"[cerveau] requête refusée à l'ouverture du flux : {erreur!r}")
+            flux = FluxEnErreur(erreur)
 
         async def relancer():
             if isinstance(entree, dict):
