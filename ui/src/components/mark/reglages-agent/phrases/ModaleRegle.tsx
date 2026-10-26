@@ -103,6 +103,8 @@ const TEXTES = {
     aucune: { en: "—", fr: "—" },
     destination: { en: "Transfer to", fr: "Transférer à" },
     cleDeLEquipe: { en: "Team member key", fr: "Clé de la personne de l'équipe" },
+    etapeDArrivee: { en: "Step of the main agent", fr: "Étape de l'agent principal" },
+    etapeDeRetour: { en: "The return step (front desk)", fr: "L'étape de retour (accueil)" },
 } satisfies Record<string, Texte>;
 
 const lire = (texte: string): number | null => {
@@ -523,7 +525,7 @@ export const FormulaireRegle = ({
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm">{t(TEXTES.puis)}</span>
-                            <Select value={sortieAction || "_defaut"} onValueChange={(v: string) => majSortie({ action: v === "_defaut" ? null : (v as Action), destination: v === "transferer" ? regle.ensuite?.destination : null })}>
+                            <Select value={sortieAction || "_defaut"} onValueChange={(v: string) => majSortie({ action: v === "_defaut" ? null : (v as Action), destination: v === "transferer" || v === "aller_a_une_etape" ? regle.ensuite?.destination : null })}>
                                 <SelectTrigger id="phrase_sortie_action" aria-label={t(TEXTES.puis)} className="w-56">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -561,6 +563,21 @@ export const FormulaireRegle = ({
                                         onChange={(e) => majSortie({ destination: e.target.value })}
                                     />
                                 ))}
+                            {sortieAction === "aller_a_une_etape" && (
+                                <Select value={regle.ensuite?.destination || "_aucune"} onValueChange={(v: string) => majSortie({ destination: v === "_aucune" ? null : v })}>
+                                    <SelectTrigger id="phrase_sortie_etape" aria-label={t(TEXTES.etapeDArrivee)} className="w-56">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="_aucune">{t(TEXTES.etapeDeRetour)}</SelectItem>
+                                        {env.etapes.map((e) => (
+                                            <SelectItem key={e.id} value={e.id}>
+                                                {e.nom}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                     </div>
                 </L>

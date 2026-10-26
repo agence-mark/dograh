@@ -110,6 +110,7 @@ from loguru import logger
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.champs_conditionnels import champs_actifs  # [.mark] lot 7 de correctifs-apres-banc-commun
+from api.services.workflow.sorties_de_l_etape import sorties_de  # [.mark] fiabilite-de-la-conversation, lot C (C2)
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
     CALL_DISPOSITION_CONTEXT_KEY,
@@ -1250,6 +1251,7 @@ class PipecatEngine:
         *,
         context_ready=None,
         fin_demandee: bool = False,
+        etape_cible: Optional[str] = None,
     ) -> bool:
         """Le code passe la main au principal : ni annonce, ni musique, historique sans
         résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
@@ -1270,6 +1272,7 @@ class PipecatEngine:
                 depuis=self._debut_de_la_derniere_etape(agent),
                 etape_de_retour=True,
                 fin_demandee=fin_demandee,
+                etape_cible=etape_cible,
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -1279,6 +1282,45 @@ class PipecatEngine:
             return True
         except Exception as e:  # noqa: BLE001 -- un retour ne coûte jamais l'appel
             logger.error(f"[groupe] retour au principal en échec : {e!r}")
+            return False
+
+    async def sortir_de_l_impasse(self, agent: AgentRuntime, *, etape_cible: Optional[str] = None) -> bool:
+        """[.mark] fiabilite-de-la-conversation, lot A (temps 3 du garde-fou d'impasse) : le code change l'étape,
+        la fiche gardée, une fois la phrase du code dite. Un collègue rend la main à l'accueil (``etape_cible`` : son
+        étape choisie, sinon l'étape de retour) ; l'accueil lui-même, ou un agent seul, passe de force à ``etape_cible``
+        ou à son étape de retour (``set_node``, comme une porte écrite). ``False`` : rien n'a pu partir, le modèle garde
+        la main (pas d'étape de retour, passation en cours, appel fini). ⛔ Ne lève jamais."""
+        try:
+            diseur = self.__dict__.get("phrases")
+            if diseur is not None:
+                await asyncio.wait_for(diseur.attendre_la_fin(), timeout=20.0)
+            drain = getattr(self, "drain_call_pipeline", None)
+            if drain is not None and getattr(self, "sans_sortie_audio", False) is not True:
+                await asyncio.wait_for(drain(), timeout=20.0)
+            agent = agent if agent is not None else self.active_agent
+            if self.is_call_disposed() or agent is not self.active_agent or not self.agent_can_act(agent):
+                return False
+            if self.transfer_coordinator.in_progress:
+                return False
+            principal = agent_principal_de(agent.reglages)
+            if principal is not None and principal != agent.workflow_id:
+                if not self.agent_transfer_enabled:
+                    return False
+                return self._rendre_au_principal(agent, principal, etape_cible=etape_cible)
+            choisie = agent.workflow.nodes.get(etape_cible) if etape_cible else None
+            if choisie is None or choisie.is_end:
+                choisie = etape_de_retour_du_graphe(agent.workflow)
+            if choisie is None or choisie is agent.current_node:
+                return False
+            logger.info(f"[impasse] le code passe à l'étape « {choisie.name} »")
+            # Revue du 26/10 (R-2) : muet depuis la décision du temps 3, l'agent reparle pour ouvrir la nouvelle étape.
+            from api.services.pipecat.main_passee import rendre_la_parole
+
+            rendre_la_parole(getattr(agent, "llm", None))
+            await self.set_node(choisie.id, origin_visit_id=agent.visit_id)
+            return True
+        except Exception as e:  # noqa: BLE001 -- une sortie d'impasse ne coûte jamais l'appel
+            logger.error(f"[impasse] sortie en échec : {e!r}")
             return False
 
     def etat_pour_le_filet(self) -> tuple:
@@ -1712,6 +1754,12 @@ class PipecatEngine:
                     getattr(
                         getattr(self.active_agent, "current_node", None), "out_edges", None
                     )
+                ),
+                # fiabilite-de-la-conversation, lot C (C2) : les sorties de l'étape en cours vers une étape du
+                # même agent (leur première chose qui manque est écrite dans le bloc d'état).
+                lambda: sorties_de(
+                    getattr(self.active_agent, "current_node", None),
+                    getattr(self.active_agent, "workflow", None),
                 ),
             )
         except Exception as e:  # noqa: BLE001
@@ -2275,6 +2323,7 @@ class PipecatEngine:
         if node.name not in nodes_visited:
             nodes_visited.append(node.name)
         self._noter_le_parcours(agent, node)
+        self._noter_l_entree_dans_l_etape(agent, node)
 
         # Send node transition event if callback is provided
         if emit_transition_event and self._node_transition_callback:
@@ -3198,8 +3247,23 @@ class PipecatEngine:
             retour = etape_de_retour_du_graphe(runtime.workflow)
             if retour is not None:
                 node = retour
+        # fiabilite-de-la-conversation, lot A : la deuxième impasse choisit l'étape d'arrivée à l'écran.
+        cible = self._etape_cible_demandee()
+        if cible is not None:
+            choisie = runtime.workflow.nodes.get(cible)
+            if choisie is not None and not choisie.is_end:
+                node = choisie
         await self._prepare_node(runtime, node)
         runtime.current_node = node
+
+    def _etape_cible_demandee(self) -> Optional[str]:
+        """L'étape que la passation en cours impose à l'agent appelé (sortie « aller à une étape » du garde-fou
+        d'impasse), ou ``None``. ⛔ Ne lève jamais."""
+        try:
+            cible = getattr(getattr(self.transfer_coordinator, "_request", None), "etape_cible", None)
+            return cible if isinstance(cible, str) and cible else None
+        except Exception:  # noqa: BLE001
+            return None
 
     def _retour_demande(self) -> bool:
         """La passation en cours est un retour au principal qui demande l'étape de retour de
@@ -3228,6 +3292,7 @@ class PipecatEngine:
         if runtime.current_node.name not in nodes:
             nodes.append(runtime.current_node.name)
         self._noter_le_parcours(runtime, runtime.current_node)
+        self._noter_l_entree_dans_l_etape(runtime, runtime.current_node)
         logger.info(
             f"[transfer] installed {runtime.visit_id}: "
             f"{len(snapshot.messages)} handoff messages (summarized={snapshot.summarized}) "
@@ -3436,6 +3501,13 @@ class PipecatEngine:
                 await agent.abort(reason)
 
     # --- [.mark] Chantier agents-specialises (lot 7, D91) : le parcours (agent, étape) ---
+
+    def _noter_l_entree_dans_l_etape(self, agent: AgentRuntime, node: Node) -> None:
+        """[.mark] fiabilite-de-la-conversation, lot A : le garde-fou d'impasse compte les entrées dans une étape
+        (signe 4) et repart de zéro à chaque changement d'étape. ⛔ Ne lève jamais."""
+        from api.services.workflow.sortie_d_impasse import entrer_dans_l_etape
+
+        entrer_dans_l_etape(self, agent, node)
 
     def _noter_le_parcours(self, agent: AgentRuntime, node: Node) -> None:
         """Une entrée par (agent, étape), dans l'ordre : ``nodes_visited`` dédoublonne par nom

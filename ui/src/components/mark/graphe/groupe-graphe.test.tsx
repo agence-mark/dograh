@@ -92,9 +92,17 @@ interface Contexte {
     outilsQuiEcrivent?: string[];
 }
 
-const monter = async (type: "agentNode" | "endCall", data: Record<string, unknown>, contexte: Contexte = {}) => {
+const monter = async (
+    type: "agentNode" | "endCall" | "startCall",
+    data: Record<string, unknown>,
+    contexte: Contexte = {},
+    autresEtapes: Record<string, unknown>[] = [],
+) => {
     useWorkflowStore.setState({
-        nodes: [{ id: "n1", type, position: { x: 0, y: 0 }, data: { name: "Étape", prompt: "Consigne.", ...data } as never }],
+        nodes: [
+            { id: "n1", type, position: { x: 0, y: 0 }, data: { name: "Étape", prompt: "Consigne.", ...data } as never },
+            ...autresEtapes.map((d, i) => ({ id: `autre-${i}`, type: "agentNode", position: { x: 0, y: 0 }, data: d as never })),
+        ],
         edges: [],
     });
     render(
@@ -308,6 +316,32 @@ describe("[.mark] case « Vérité des actions » d'une étape (correctifs-apres
 
     it("n'existe pas sur un nœud de fin", async () => {
         const dialogue = await monter("endCall", {}, { travailActif: true });
+        expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
+    });
+
+    // fiabilite-de-la-conversation (26/10) : l'étape de départ montre la case dès que l'agent agit quelque part.
+    it("existe sur l'étape de départ sans outil quand une autre étape de l'agent porte un outil, et s'y enregistre", async () => {
+        const dialogue = await monter("startCall", {}, { tools: [OUTIL_EXISTANT] }, [
+            { name: "Réservation", prompt: "Réserve.", tool_uuids: ["outil-existant"] },
+        ]);
+        const interrupteur = document.getElementById("verite_des_actions") as HTMLElement;
+        expect(interrupteur.getAttribute("aria-checked")).toBe("false");
+        fireEvent.click(interrupteur);
+        await enregistrerEtape(dialogue);
+        expect(donneesDeLEtape().verite_des_actions).toBe(true);
+    });
+
+    it("n'existe pas sur l'étape de départ d'un agent qui n'agit nulle part", async () => {
+        const dialogue = await monter("startCall", {}, { travailActif: false }, [
+            { name: "Accueil", prompt: "Accueille.", travail_de_fond: true },
+        ]);
+        expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
+    });
+
+    it("n'apparaît pas sur une étape ordinaire sans outil pour autant", async () => {
+        const dialogue = await monter("agentNode", {}, { tools: [OUTIL_EXISTANT] }, [
+            { name: "Réservation", prompt: "Réserve.", tool_uuids: ["outil-existant"] },
+        ]);
         expect(dialogue.querySelector('[data-reglage="verite_des_actions"]')).toBeNull();
     });
 });

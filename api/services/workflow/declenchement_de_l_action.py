@@ -18,7 +18,8 @@ pour octet (rien n'est branché) :
 
 Règle de l'humain : aucune position ne s'arme pendant un travail en cours, ni après un appel de l'outil pour la
 même demande (l'**empreinte** : les valeurs des champs attendus de l'étape, hors champs que l'action écrit) ;
-une donnée corrigée change l'empreinte et rouvre la garde ; « Automatique » laisse toujours la conversation
+une donnée corrigée change l'empreinte et rouvre la garde, **sauf quand une écriture est en vigueur dans l'appel**
+(lot B, B3 : plus rien ne s'arme, le modèle gère le changement avec ses outils) ; « Automatique » laisse toujours la conversation
 reprendre après le résultat (autre date, annulation : le modèle garde tous ses outils, et ses propres appels ne
 sont jamais interceptés). ``tool_choice`` n'est posé que pour un tour, puis remis comme avant.
 
@@ -33,6 +34,7 @@ from __future__ import annotations
 
 import json
 import re
+from contextvars import ContextVar
 from typing import Any, Mapping
 
 from loguru import logger
@@ -54,11 +56,6 @@ _MARQUE_TOURS = "_mark_declenchement_des_tours"
 # Générique, aucun métier : la demande du mode automatique quand l'étape n'a pas écrit de demande type. Les valeurs
 # de la fiche sont jointes derrière (K11).
 DEMANDE_PAR_DEFAUT = "Fais l'action de cette étape avec les valeurs de la fiche de l'appel."
-# Lot 11 (F-4) : générique, aucun métier. Une action d'écriture a déjà réussi, puis une donnée a changé.
-CONSIGNE_REFAIRE = (
-    "Une action a déjà été faite pour cette demande avec des valeurs qui ont changé depuis ({action}, {arguments}). "
-    "Défais-la d'abord avec l'outil d'annulation, puis refais-la avec les valeurs ci-dessous."
-)
 _CHAMP_DANS_LA_DEMANDE = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
 
 # Les marques de porte écrites DANS la réplique (porte parlée) : une réplique qui prend sa porte n'est pas relancée.
@@ -220,6 +217,9 @@ class Declencheur:
         self.noeud = noeud
         self.position = position
         self.outil = outil
+        # Décision d'Evan (26/10) : ce que la requête de CE tour dit au modèle quand B2 n'a pas relancé la demande
+        # confiée par le code (position Automatique) ; lue puis effacée par l'enveloppe des tours.
+        self.notice_du_tour: str | None = None
 
     # -- les conditions ------------------------------------------------------------------------
 
@@ -252,6 +252,16 @@ class Declencheur:
             if ligne_du_travail(self.moteur) is not None:
                 return False
             if self._deja_fait():
+                return False
+            # Lot B (B3) : une écriture est en vigueur (une réservation faite, pas défaite) : rien ne s'arme, quoi que
+            # le greffier note ensuite (run 1950 : « Oui, j'attends » noté changeait l'empreinte et relançait la recherche). Après une annulation réussie, l'écriture n'est plus en vigueur : un
+            # changement de date repart. Le modèle garde tous ses outils.
+            # Revue du 26/10 (R-4, décision d'Evan) : seulement une écriture partie de CETTE étape (de cet agent) ; une
+            # autre étape ou un autre collègue peut encore déclencher sa propre action.
+            from api.services.travail.demande_identique import identifiant_de_l_etape
+            from api.services.workflow.verite_des_actions import ecriture_en_vigueur
+
+            if ecriture_en_vigueur(self.moteur, identifiant_de_l_etape(self.noeud, self.agent)) is not None:
                 return False
             from api.services.workflow.enveloppe_des_actions import (
                 garde_du_noeud_apres_les_notes,
@@ -326,32 +336,22 @@ class Declencheur:
             if not await self.armer():
                 return False
             from api.services.travail.demande import joindre_la_fiche
-            from api.services.workflow.verite_des_actions import (
-                ecriture_en_vigueur,
-                outils_d_annulation,
-            )
 
             reglages = getattr(self.moteur, "_fiche", None)
             fiche = getattr(self.moteur, "_gathered_context", None)
             fiche = fiche if isinstance(fiche, dict) else {}
             demande = demande_type_remplie(getattr(self.noeud, "demande_type", None), fiche)
-            # Lot 11 (F-4, revue 6) : une donnée corrigée APRÈS une écriture réussie. Avec un outil d'annulation :
-            # le fond défait l'ancienne puis refait ; sans : rien ne repart (le modèle gère la correction).
-            deja = ecriture_en_vigueur(self.moteur)
-            if deja is not None:
-                if not outils_d_annulation(self.moteur):
-                    noter_le_declenchement(self.moteur, self.noeud, self.outil)
-                    logger.info("[declenchement] donnée corrigée après une écriture réussie, sans annulation : rien ne repart")
-                    return False
-                demande = CONSIGNE_REFAIRE.format(
-                    action=deja.nom, arguments=json.dumps(deja.arguments, ensure_ascii=False, default=str)
-                ) + "\n" + demande
             demande = joindre_la_fiche(demande, reglages, fiche)
             noter_le_declenchement(self.moteur, self.noeud, self.outil)
             resultat = await travail.confier(demande)
+            from api.services.travail.demande_identique import notice_du_retour
+
+            self.notice_du_tour = notice_du_retour(resultat)
             entree = getattr(travail, "_entree_courante", None)
-            if isinstance(entree, dict):
-                entree["declenche_par"] = AUTOMATIQUE
+            # Lot B (B2) : une demande identique non relancée ne marque pas la trace d'avant.
+            if isinstance(entree, dict) and isinstance(resultat, dict) and resultat.get("statut") == "lancé":
+                if not resultat.get("deja_en_cours"):
+                    entree["declenche_par"] = AUTOMATIQUE
             logger.info(f"[declenchement] travail lancé par le code : {resultat}")
             return True
         except Exception as erreur:  # noqa: BLE001
@@ -410,24 +410,47 @@ def _brancher_les_tours(llm: Any) -> bool:
     if not hasattr(llm, "get_chat_completions"):
         return False
     obtenir = llm.get_chat_completions
+    # La notice de B2 en Automatique, pour la requête de ce tour seulement (comme la notice du garde-fou d'impasse).
+    notice_en_cours: ContextVar[str | None] = ContextVar("notice_du_declenchement", default=None)
 
     async def get_chat_completions(context):
         declencheur = getattr(llm, ATTRIBUT_DECLENCHEUR, None)
         remettre = None
+        notice = None
         if declencheur is not None:
             try:
                 remettre = await declencheur.avant_le_tour(context)
+                notice, declencheur.notice_du_tour = getattr(declencheur, "notice_du_tour", None), None
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
                 logger.warning(f"[declenchement] tour non préparé : {erreur!r}")
+        jeton = notice_en_cours.set(notice)
         try:
             return await obtenir(context)
         finally:
+            notice_en_cours.reset(jeton)
             if remettre is not None:
                 try:
                     remettre()
                 except Exception as erreur:  # noqa: BLE001
                     logger.warning(f"[declenchement] choix d'outil non remis : {erreur!r}")
 
+    construire = getattr(llm, "build_chat_completion_params", None)
+    if construire is not None:
+
+        def build_chat_completion_params(params_from_context):
+            params = construire(params_from_context)
+            notice = notice_en_cours.get()
+            if notice:
+                try:
+                    from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
+
+                    cle = "messages" if "messages" in params else "input"
+                    params[cle] = inserer_l_etat(list(params[cle]), notice)
+                except Exception as erreur:  # noqa: BLE001
+                    logger.error(f"[declenchement] notice non montrée : {erreur!r}")
+            return params
+
+        llm.build_chat_completion_params = build_chat_completion_params
     llm.get_chat_completions = get_chat_completions
     setattr(llm, _MARQUE_TOURS, True)
     return True

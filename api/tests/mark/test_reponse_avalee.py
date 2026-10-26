@@ -9,6 +9,7 @@
 | relance en erreur ou vide, l'appelant n'attend pas | le flux d'origine est rendu, l'erreur ne remonte pas |
 | requête de la relance | la même que l'originale (enveloppes de l'instance comprises), ``stream`` à faux |
 | branchement | le cerveau compatible OpenAI porte la relance, sous la trace |
+| requête refusée à l'ouverture du flux (fiabilite-de-la-conversation, runs 2019 et 2026) | même relance sans flux, puis la phrase de repli ; l'appelant n'attend pas : l'erreur remonte ; le délai de garde passe tel quel |
 """
 
 from __future__ import annotations
@@ -71,8 +72,9 @@ class _Flux:
 
 
 class _Base:
-    def __init__(self, morceaux, reprise=None, erreur=None):
+    def __init__(self, morceaux, reprise=None, erreur=None, refus=None):
         self._morceaux = morceaux
+        self._refus = refus
         self.requetes = []
 
         async def create(**requete):
@@ -86,6 +88,8 @@ class _Base:
         self.supports_developer_role = True
 
     async def get_chat_completions(self, context):
+        if self._refus is not None:
+            raise self._refus
         return _Flux(self._morceaux)
 
     def get_llm_adapter(self):
@@ -218,3 +222,83 @@ def test_le_cerveau_compatible_openai_porte_la_relance_sous_la_trace():
 
     ordre = DograhOpenAILLMService.__mro__
     assert ordre.index(TraceModeleMixin) < ordre.index(RepriseSansFluxMixin)
+
+
+# --- fiabilite-de-la-conversation (26/10) : la requête refusée dès l'ouverture du flux --------------------------
+# Banc de référence, runs 2019 et 2026 : le fournisseur refuse la requête de l'agent qui parle (``APIError``, aucun
+# morceau) ; ni relance ni phrase de repli, l'agent se tait (« undefined » au clavier, un silence au téléphone).
+
+
+def _refus():
+    import httpx
+    from openai import APIError
+
+    return APIError("refusé", httpx.Request("POST", "https://exemple.test"), body=None)
+
+
+async def test_une_requete_refusee_a_l_ouverture_est_relancee_sans_flux_quand_l_appelant_attend():
+    service = _Service([], reprise=_reponse(texte="Oui, je vous entends."), refus=_refus())
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    morceaux = [m async for m in await service.get_chat_completions(contexte)]
+    assert "".join(m.choices[0].delta.content or "" for m in morceaux if m.choices) == "Oui, je vous entends."
+    assert len(service.requetes) == 1 and service.requetes[0]["stream"] is False
+
+
+async def test_une_requete_refusee_puis_une_relance_en_erreur_tombent_sur_la_phrase_de_repli():
+    from api.services.pipecat.reponse_avalee import phrase_de_repli
+
+    service = _Service([], erreur=RuntimeError("encore"), refus=_refus())
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    morceaux = [m async for m in await service.get_chat_completions(contexte)]
+    assert "".join(m.choices[0].delta.content or "" for m in morceaux if m.choices) == phrase_de_repli(None)
+
+
+async def test_une_requete_refusee_sans_appelant_qui_attend_remonte_l_erreur_comme_avant():
+    import pytest
+    from openai import APIError
+
+    service = _Service([], erreur=RuntimeError("encore"), refus=_refus())
+    with pytest.raises(APIError):
+        await _lire(service)
+
+
+async def test_le_delai_de_garde_depasse_a_l_ouverture_passe_tel_quel_a_la_garde():
+    import pytest
+
+    from api.services.panne.delai_modele import DelaiModeleDepasse
+
+    service = _Service([], reprise=_reponse(texte="jamais"), refus=DelaiModeleDepasse("premier_morceau", 4.0))
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    with pytest.raises(DelaiModeleDepasse):
+        await service.get_chat_completions(contexte)
+    assert service.requetes == []
+
+
+async def test_la_relance_sans_flux_garde_les_enveloppes_de_la_conversation():
+    # Revue du 26/10 (R-1) : l'état de la fiche et les notices ne s'ajoutent qu'« en conversation » (une variable de
+    # contexte posée le temps de ``get_chat_completions``) ; la relance, construite pendant la lecture du flux, ne les gardait pas.
+    from contextvars import ContextVar
+
+    service = _Service(FLUX_AVALE, reprise=_reponse(texte="Oui"))
+    en_conversation: ContextVar[bool] = ContextVar("en_conversation_test", default=False)
+    obtenir, construire = service.get_chat_completions, service.build_chat_completion_params
+
+    async def get_chat_completions(context):
+        jeton = en_conversation.set(True)
+        try:
+            return await obtenir(context)
+        finally:
+            en_conversation.reset(jeton)
+
+    def build_chat_completion_params(params):
+        params = construire(params)
+        if en_conversation.get():
+            params["messages"] = [*params["messages"], "état de la fiche"]
+        return params
+
+    service.get_chat_completions = get_chat_completions
+    service.build_chat_completion_params = build_chat_completion_params
+    contexte = _Contexte([{"role": "user", "content": "Allô ?"}])
+    [m async for m in await service.get_chat_completions(contexte)]
+    [requete] = service.requetes
+    assert requete["messages"][-1] == "état de la fiche"

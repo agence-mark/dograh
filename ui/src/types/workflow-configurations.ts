@@ -320,7 +320,7 @@ export interface NoteDeSortie {
 export interface SortiePhrase {
     phrases?: string[];
     noter?: NoteDeSortie | null;
-    action?: "continuer" | "modele" | "transferer" | "raccrocher" | null;
+    action?: "continuer" | "modele" | "transferer" | "raccrocher" | "rendre_la_main" | "aller_a_une_etape" | null;
     destination?: string | null;
 }
 

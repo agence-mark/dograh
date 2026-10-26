@@ -38,6 +38,9 @@ SORTIE_CONTINUER = "continuer"
 SORTIE_MODELE = "modele"
 SORTIE_TRANSFERER = "transferer"
 SORTIE_RACCROCHER = "raccrocher"
+# fiabilite-de-la-conversation, lot A : les deux suites du garde-fou de sortie d'impasse.
+SORTIE_RENDRE_LA_MAIN = "rendre_la_main"
+SORTIE_ALLER_A_UNE_ETAPE = "aller_a_une_etape"
 
 
 @dataclass(frozen=True)
@@ -73,6 +76,9 @@ class Motif:
     # Le fait, dit au modèle dans le compte rendu qui suit une phrase du code (4.10) : une phrase du
     # catalogue, jamais un mot de métier.
     fait_fr: str = ""
+    # Le code prend sa sortie par défaut même quand la règle n'en pose aucune (lot A : le garde-fou de sortie
+    # d'impasse rend la main de lui-même, c'est son rôle). ``False`` : une sortie ne part que si la règle la pose.
+    sortie_par_le_code: bool = False
 
 
 PASSATION_TARDE = "passation_tarde"
@@ -88,11 +94,22 @@ TRAVAIL_ECHOUE = "travail_echoue"
 # Ancien identifiant du motif « un outil échoue » : les règles d'avant se lisent comme les nouvelles
 # (``schemas.phrases_du_code.ALIAS_DE_MOTIFS``).
 CONNECTEUR_ECHOUE = "connecteur_echoue"
+# fiabilite-de-la-conversation, lot A : le garde-fou de sortie d'impasse. Les deux premiers temps de la riposte
+# sont des notices au modèle (jamais dites) ; le troisième dit la phrase de ce motif, puis change l'étape.
+IMPASSE = "impasse"
+IMPASSE_REPETEE = "impasse_repetee"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
 _TOUTES_LES_SORTIES = (SORTIE_CONTINUER, SORTIE_MODELE, SORTIE_TRANSFERER, SORTIE_RACCROCHER)
 _SORTIES_DES_ECHECS = _TOUTES_LES_SORTIES
+_SORTIES_DE_L_IMPASSE = (
+    SORTIE_RENDRE_LA_MAIN,
+    SORTIE_ALLER_A_UNE_ETAPE,
+    SORTIE_MODELE,
+    SORTIE_TRANSFERER,
+    SORTIE_RACCROCHER,
+)
 
 MOTIFS: dict[str, Motif] = {
     m.id: m
@@ -292,6 +309,67 @@ MOTIFS: dict[str, Motif] = {
             sortie_defaut=SORTIE_MODELE,
         ),
         Motif(
+            id=IMPASSE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="La conversation tourne en rond",
+            libelle_en="The conversation goes in circles",
+            quand_fr=(
+                "Le code compte des signes d'impasse (l'agent redit la même réplique, renvoie la même "
+                "demande au travail de fond, ne sort de rien en trois tours, revient une troisième fois "
+                "dans une étape). Au deuxième signe le modèle reçoit une consigne, au suivant une "
+                "seconde ; au quatrième le code dit cette phrase et reprend la main."
+            ),
+            quand_en=(
+                "The code counts signs of a dead end (the agent repeats the same reply, sends the same "
+                "request to the background work, gets nowhere in three turns, enters a step a third "
+                "time). At the second sign the model gets a note, at the next another one; at the "
+                "fourth the code says this sentence and takes the call back."
+            ),
+            a_un_delai=False,
+            variantes_defaut=("Reprenons, je n'ai pas bien compris. En quoi puis-je vous aider ?",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr=(
+                "Le code ne dit rien et ne change pas d'étape : le modèle garde la main (les deux "
+                "consignes qui lui sont destinées restent)."
+            ),
+            eteinte_en=(
+                "The code says nothing and keeps the step: the model keeps the call (the two notes "
+                "meant for it stay)."
+            ),
+            fait_fr="la conversation tournait en rond",
+            moment=MOMENT_PROBLEME,
+            sorties_permises=_SORTIES_DE_L_IMPASSE,
+            sortie_defaut=SORTIE_RENDRE_LA_MAIN,
+            sortie_par_le_code=True,
+        ),
+        Motif(
+            id=IMPASSE_REPETEE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="La conversation tourne en rond une deuxième fois",
+            libelle_en="The conversation goes in circles a second time",
+            quand_fr=(
+                "Une deuxième impasse dans le même appel : le code dit cette phrase, puis change l'étape "
+                "de lui-même vers l'étape de l'agent principal choisie dans « Ensuite » (sans étape "
+                "choisie : comme la première impasse)."
+            ),
+            quand_en=(
+                "A second dead end in the same call: the code says this sentence, then moves to the step "
+                "of the main agent chosen under \"Then\" (no step chosen: as for the first dead end)."
+            ),
+            a_un_delai=False,
+            variantes_defaut=("Je prends votre demande pour qu'on vous rappelle.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Le code ne dit rien et ne change pas d'étape : le modèle garde la main.",
+            eteinte_en="The code says nothing and keeps the step: the model keeps the call.",
+            fait_fr="la conversation tournait en rond une deuxième fois",
+            moment=MOMENT_PROBLEME,
+            sorties_permises=_SORTIES_DE_L_IMPASSE,
+            sortie_defaut=SORTIE_ALLER_A_UNE_ETAPE,
+            sortie_par_le_code=True,
+        ),
+        Motif(
             id=TRANSFERT_ECHOUE,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Le transfert d'appel échoue",
@@ -392,6 +470,7 @@ def catalogue_pour_l_ecran() -> dict[str, Any]:
                 "actif_par_defaut": m.actif_par_defaut,
                 "eteinte": {"en": m.eteinte_en, "fr": m.eteinte_fr},
                 "silence_de_l_appelant": m.silence_de_l_appelant,
+                "sortie_par_le_code": m.sortie_par_le_code,
             }
             for m in MOTIFS.values()
         ],

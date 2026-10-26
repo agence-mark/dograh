@@ -190,6 +190,8 @@ class ActionVue:
     reussie: bool
     dates: frozenset = frozenset()
     ecrits: dict = field(default_factory=dict)
+    # Revue du 26/10 (R-4) : l'étape (agent:nœud) d'où l'action est partie ; ``None`` : inconnue.
+    etape: str | None = None
 
 
 def journal_de(moteur: Any) -> list:
@@ -234,7 +236,23 @@ def resultat_reussi(resultat: Any) -> bool:
         return False
 
 
-def noter_l_action(moteur: Any, nom: str, arguments: Any, resultat: Any, ecrits: Mapping[str, Any]) -> None:
+def etape_de_l_action(agent: Any) -> str | None:
+    """L'étape d'où part une action : celle de ``agent``, ou, pour le fond, celle de l'agent qui lui a confié le
+    travail (même clé que la demande identique, ``agent:nœud``). ⛔ Ne lève jamais."""
+    try:
+        from api.services.travail.demande_identique import identifiant_de_l_etape
+
+        if getattr(agent, "current_node", None) is None and getattr(agent, "agent_qui_confie", None) is not None:
+            agent = agent.agent_qui_confie
+        noeud = getattr(agent, "current_node", None)
+        return identifiant_de_l_etape(noeud, agent) if noeud is not None else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def noter_l_action(
+    moteur: Any, nom: str, arguments: Any, resultat: Any, ecrits: Mapping[str, Any], etape: str | None = None
+) -> None:
     """L'enveloppe note le résultat final d'une action. ⛔ Ne lève jamais."""
     try:
         journal = journal_de(moteur)
@@ -246,6 +264,7 @@ def noter_l_action(moteur: Any, nom: str, arguments: Any, resultat: Any, ecrits:
                 reussie=resultat_reussi(resultat),
                 dates=frozenset(dates_dans(resultat)),
                 ecrits=dict(ecrits),
+                etape=etape,
             )
         )
         del journal[:-MAX_JOURNAL]
@@ -557,9 +576,10 @@ def annulation_reussie(moteur: Any) -> bool:
         return True
 
 
-def ecriture_en_vigueur(moteur: Any) -> ActionVue | None:
+def ecriture_en_vigueur(moteur: Any, etape: str | None = None) -> ActionVue | None:
     """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel, si aucune annulation réussie ne l'a défaite
-    depuis. ``None`` : rien n'est écrit (ou tout a été défait). ⛔ Ne lève jamais."""
+    depuis. ``None`` : rien n'est écrit (ou tout a été défait). Revue du 26/10 (R-4) : ``etape`` donnée, seules
+    comptent les écritures parties de cette étape (ou d'une étape inconnue, par prudence). ⛔ Ne lève jamais."""
     try:
         from api.services.workflow.enveloppe_des_actions import _normaliser
 
@@ -571,12 +591,25 @@ def ecriture_en_vigueur(moteur: Any) -> ActionVue | None:
                 continue
             nom = _normaliser(vue.nom)
             if nom in ecritures:
-                en_vigueur = vue
+                if etape is None or vue.etape is None or vue.etape == etape:
+                    en_vigueur = vue
             elif nom in annulations:
                 en_vigueur = None
         return en_vigueur
     except Exception:  # noqa: BLE001
         return None
+
+
+def ecriture_ou_annulation_depuis(moteur: Any, rang: int) -> bool:
+    """Lot B (B2) : une action d'écriture ou d'annulation a-t-elle réussi dans l'appel depuis le rang ``rang`` du
+    journal ? Périme le résultat connu d'une demande au fond. ⛔ Ne lève jamais (``False`` dans le doute)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        changent = outils_d_ecriture(moteur) | outils_d_annulation(moteur)
+        return any(v.reussie and _normaliser(v.nom) in changent for v in journal_de(moteur)[max(rang, 0) :])
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _dit_annule(formulation: str) -> bool:

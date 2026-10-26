@@ -43,6 +43,17 @@ export const etapeQuiEcrit = (
         return outil !== undefined && outilsQuiEcrivent.includes(nomDeFonction(outil.name));
     });
 
+/**
+ * fiabilite-de-la-conversation (decision of 26/10): does the agent act anywhere? One of its steps carries a tool, or
+ * hands work to the background while the background work is on. The start step then shows the box too, even without
+ * a tool of its own: it is where the agent first answers, and may claim an action it has not done.
+ */
+export const agentQuiAgit = (nodes: Array<{ data?: unknown }>, travailActif: boolean): boolean =>
+    nodes.some((n) => {
+        const d = (n.data ?? {}) as { tool_uuids?: unknown; travail_de_fond?: unknown };
+        return (Array.isArray(d.tool_uuids) && d.tool_uuids.length > 0) || (travailActif && d.travail_de_fond === true);
+    });
+
 /** F-2: empty follows the step (on when it writes); a stored true or false decides. */
 export const caseCochee = (valeur: unknown, ecrit: boolean): boolean =>
     valeur === true ? true : valeur === false ? false : ecrit;

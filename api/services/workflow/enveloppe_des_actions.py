@@ -277,6 +277,10 @@ def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
 # K2 (run 1492 et 1510 : « manque nom, prénom, adresse » juste après les avoir dits) : la garde lisait la
 # fiche pendant que la passe du greffier du même tour tournait encore. Au plus ce délai.
 DELAI_DES_NOTES_DE_LA_GARDE = 1.5
+# Lot C (C3, décision D-8) : le délai borné de l'attente de la passe du greffier qui lit le dernier tour. Aucun réglage
+# existant ne le dit pour la garde (``attente_max_s`` est celui d'un connecteur) : une constante nommée, la même durée
+# que l'attente des passes en vol ci-dessus. Atteint seulement quand la garde répond « incomplet ».
+DELAI_DE_LA_PASSE_DU_DERNIER_TOUR = 1.5
 
 
 async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | None:
@@ -300,11 +304,27 @@ async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seu
         from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
 
         en_cours = getattr(moteur, "notes_en_cours", None)
-        if not en_cours or all(t.done() for t in en_cours):
-            return refus
-        await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+        if en_cours and not all(t.done() for t in en_cours):
+            await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+            refus = garde_du_noeud(moteur, noeud)
+            if refus is None:
+                return None
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
         logger.warning(f"[fiche] passes en cours non attendues par la garde : {erreur!r}")
+        return refus
+    # Lot C (C3, point 3 ; run 1522, revue D10) : la garde s'apprête à répondre « incomplet ». La passe du greffier
+    # qui lit le DERNIER tour (adresse dite au tour même) part en même temps que la requête : elle est attendue (ou
+    # demandée si elle n'est pas partie), puis la garde recalcule. L'attente n'existe que dans ce cas.
+    # Revue du 26/10 (R-3, décision d'Evan) : seulement pour la garde de l'action elle-même. Le déclenchement
+    # (``dernier_seulement``) lit cette garde avant CHAQUE requête : il n'attend pas la passe, le tour ordinaire garde
+    # 1,5 s au plus d'attente.
+    greffier = getattr(moteur, "greffier", None)
+    if greffier is None or dernier_seulement:
+        return refus
+    try:
+        await greffier.rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] passe du dernier tour non attendue par la garde : {erreur!r}")
         return refus
     return garde_du_noeud(moteur, noeud)
 
@@ -345,6 +365,15 @@ def envelopper_l_action(
         from api.services.workflow.verite_des_actions import outils_d_annulation
 
         annulation = _normaliser(nom_outil) in outils_d_annulation(moteur)
+        # Lot B (B4) : au plus trois appels d'outil par tour de l'appelant pour l'agent qui parle. Une annulation
+        # passe toujours et ne compte pas (l'appelant peut toujours changer d'avis) ; le fond n'est pas compté.
+        if agent is not None and not annulation:
+            from api.services.workflow.plafond_d_outils import compter_un_appel
+
+            plafond = compter_un_appel(moteur, agent)
+            if plafond is not None:
+                await params.result_callback(plafond)
+                return
         if garde and agent is not None and not annulation:
             refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
             if refus is not None:
@@ -375,7 +404,7 @@ def envelopper_l_action(
                 fini.set()
                 ecrits = remplir_par_l_action(moteur, nom_outil, resultat)
                 try:
-                    from api.services.workflow.verite_des_actions import noter_l_action
+                    from api.services.workflow.verite_des_actions import etape_de_l_action, noter_l_action
 
                     fiche = getattr(moteur, "_gathered_context", None)
                     noter_l_action(
@@ -384,6 +413,7 @@ def envelopper_l_action(
                         arguments,
                         resultat,
                         {n: fiche.get(n) for n in ecrits} if isinstance(fiche, dict) else {},
+                        etape=etape_de_l_action(agent),
                     )
                 except Exception as erreur:  # noqa: BLE001 -- le journal ne coûte jamais l'action
                     logger.debug(f"[verite] journal des actions : {erreur!r}")

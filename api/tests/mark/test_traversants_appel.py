@@ -1148,3 +1148,57 @@ async def test_F8_un_module_coupe_ne_laisse_rien_dans_l_appel(db_session, async_
     run = await db_session.get_workflow_run_by_id(montage[0].id)
     vu = trace(llm, run, _derniere_parole_recue(llm))
     assert vu is allume, (code, "allumé" if allume else "coupé", _derniere_parole_recue(llm), llm.outils_vus)
+
+
+class _LLMQuiGardeLaRequete(ContextCapturingMockLLM):
+    """Le modèle factice qui garde la requête TELLE QU'ELLE PART : après les enveloppes .mark de ``build_chat_completion_params``
+    (le mock de l'amont construit la requête puis la jette)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.requetes_vues: list[str] = []
+
+    async def get_chat_completions(self, context):  # type: ignore[override]
+        from pipecat.utils.types import assert_given
+
+        params = self.get_llm_adapter().get_llm_invocation_params(
+            context,
+            system_instruction=assert_given(self._settings.system_instruction),
+            convert_developer_to_user=not self.supports_developer_role,
+        )
+        self.requetes_vues.append(str(self.build_chat_completion_params(params)["messages"]))
+        return await super().get_chat_completions(context)
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_garde_fou_d_impasse_un_agent_qui_tourne_en_rond_recoit_ses_notices_puis_la_phrase_du_code(
+    db_session, async_session
+):
+    """fiabilite-de-la-conversation, lot A (R1) : le garde-fou de sortie d'impasse est branché sur le VRAI appel (agrégateur
+    de l'assistant, requête du modèle, voix). Un agent qui redit la même réplique à chaque tour : le 2e signe donne la
+    première notice au modèle (requête du tour suivant seulement), le 3e la seconde, le 4e fait dire la phrase du motif
+    « impasse » par la voix. Débranché (ni l'écoute des répliques, ni la notice), ce test rougit."""
+    from api.services.workflow.sortie_d_impasse import NOTICE_TEMPS_1, NOTICE_TEMPS_2
+
+    montage = await _monter(db_session, async_session, {})
+    redite = "Pouvez-vous me redonner votre adresse complète, s'il vous plaît ?"
+    llm = _LLMQuiGardeLaRequete(mock_steps=[_texte(redite)] * 12, chunk_delay=0.001)
+
+    async def jusqu_a_la_reprise(_tache, _agregateur, _voix):
+        # La phrase du code part d'un son fabriqué au décroché : on la lit dans la trace de l'appel, juste après.
+        await asyncio.sleep(1.5)
+
+    await _appeler(montage, llm, ["bonjour"] * 5, apres=jusqu_a_la_reprise)
+    run = await db_session.get_workflow_run_by_id(montage[0].id)
+    dites = [e["texte"] for e in run.gathered_context.get("phrases_du_code", [])]
+    assert any(t.startswith("Reprenons") for t in dites), dites
+
+    def notices(i: int) -> str:
+        return llm.requetes_vues[i]
+
+    # tour 1 : réplique neuve ; 2 : 1er signe ; 3 : 2e signe (notice 1 écrite APRÈS cette réplique) ; 4 : notice 1 vue ;
+    # 4e réplique : 3e signe (notice 2 écrite) ; 5 : notice 2 vue ; 5e réplique : 4e signe, la voix dit la phrase.
+    assert all(NOTICE_TEMPS_1 not in notices(i) and NOTICE_TEMPS_2 not in notices(i) for i in range(3))
+    assert NOTICE_TEMPS_1 in notices(3) and NOTICE_TEMPS_2 not in notices(3)
+    assert NOTICE_TEMPS_2 in notices(4)

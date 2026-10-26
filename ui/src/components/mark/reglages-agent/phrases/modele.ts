@@ -14,7 +14,7 @@ import type { Langue, Texte } from "../../langue/langue";
 import CATALOGUE from "./catalogue-des-phrases.json";
 
 export type Moment = "attente" | "probleme" | "action";
-export type Action = "continuer" | "modele" | "transferer" | "raccrocher";
+export type Action = "continuer" | "modele" | "transferer" | "raccrocher" | "rendre_la_main" | "aller_a_une_etape";
 
 export interface MotifDePhrase {
     id: string;
@@ -36,6 +36,7 @@ export interface MotifDePhrase {
     actif_par_defaut: boolean;
     eteinte: Texte;
     silence_de_l_appelant: boolean;
+    sortie_par_le_code: boolean;
 }
 
 export const MOTIFS_DE_PHRASES = CATALOGUE.motifs as unknown as MotifDePhrase[];
@@ -137,7 +138,7 @@ export const chargeRegle = (brute: ReglePhrase, etapes: EtapeGraphe[] = []): Reg
             phrases: phrasesDeSortie,
             noter: noter && (noter.champ || noter.valeur) ? noter : null,
             action: actionPermise,
-            destination: actionPermise === "transferer" ? (PROPRE(r.ensuite?.destination ?? "") || null) : null,
+            destination: actionPermise === "transferer" || actionPermise === "aller_a_une_etape" ? (PROPRE(r.ensuite?.destination ?? "") || null) : null,
         },
         texte_de_l_agent: !motif || motif.texte_de_l_agent ? r.texte_de_l_agent === true : false,
         active: r.active !== false,
@@ -269,6 +270,8 @@ export interface ContextePhrases {
     rythme: { delaiS: number; relances: number };
     /** Les noms de l'équipe par clé, pour « transférer à ». */
     destinations: Record<string, string>;
+    /** Les noms des étapes du graphe par identifiant, pour « aller à une étape » (revue du 26/10). */
+    nomsDesEtapes?: Record<string, string>;
 }
 
 export const REPOS_DEFAUT_S = BORNES_PHRASES.repos_defaut_s;
@@ -289,6 +292,8 @@ const NOMS_ACTIONS: Record<Action, Texte> = {
     modele: { en: "The model takes over", fr: "Le modèle reprend" },
     transferer: { en: "Transfer to", fr: "Transférer à" },
     raccrocher: { en: "Hang up", fr: "Raccrocher" },
+    rendre_la_main: { en: "Give the call back to the front desk", fr: "Rendre la main à l'accueil" },
+    aller_a_une_etape: { en: "Go to a step of the main agent", fr: "Aller à une étape de l'agent principal" },
 };
 export const nomDeLAction = (a: Action): Texte => NOMS_ACTIONS[a];
 
@@ -303,7 +308,13 @@ export const texteEnsuite = (r: ReglePhrase, motif: MotifDePhrase, c: ContextePh
     if (e.noter) parts.push(`${c.t({ en: "note", fr: "noter" })} ${e.noter.champ} = ${e.noter.valeur}`);
     if (e.action) {
         const nom = c.t(NOMS_ACTIONS[e.action]).toLowerCase();
-        parts.push(e.action === "transferer" ? `${nom} ${c.destinations[e.destination ?? ""] ?? e.destination ?? ""}` : nom);
+        parts.push(
+            e.action === "transferer"
+                ? `${nom} ${c.destinations[e.destination ?? ""] ?? e.destination ?? ""}`
+                : e.action === "aller_a_une_etape" && e.destination
+                  ? `${nom} : ${c.nomsDesEtapes?.[e.destination] ?? e.destination}`
+                  : nom,
+        );
     }
     if (parts.length === 0) return null;
     void motif;
@@ -342,6 +353,12 @@ const texteDeSortie = (r: ReglePhrase, motif: MotifDePhrase, c: ContextePhrases)
     if (action === "raccrocher") parts.push(c.t({ en: "the call hangs up", fr: "l'appel raccroche" }));
     else if (action === "transferer") parts.push(`${c.t({ en: "transfer to", fr: "transfert vers" })} ${c.destinations[e.destination ?? ""] ?? e.destination ?? "?"}`);
     else if (action === "modele") parts.push(c.t({ en: "the model takes over", fr: "le modèle reprend" }));
+    else if (action === "rendre_la_main" || (action === "aller_a_une_etape" && !e.destination))
+        parts.push(c.t({ en: "the call goes back to the front desk", fr: "la main revient à l'accueil" }));
+    else if (action === "aller_a_une_etape")
+        parts.push(
+            `${c.t({ en: "the code moves to the step", fr: "le code passe à l'étape" })} ${c.nomsDesEtapes?.[e.destination ?? ""] ?? e.destination}`,
+        );
     return parts.join(" · ");
 };
 

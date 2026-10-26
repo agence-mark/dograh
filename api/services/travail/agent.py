@@ -293,6 +293,20 @@ class TravailDeLAgent:
                 return {"statut": "demande vide"}
             if self.moteur.is_call_disposed():
                 return dict(RETOUR_INDISPONIBLE)
+            # Lot B (B2) : une demande identique à une demande déjà faite dans cette étape n'est pas relancée.
+            from api.services.travail.demande_identique import (
+                LANCER,
+                identifiant_de_l_etape,
+                retour_du_verdict,
+                verdict_avant_de_confier,
+            )
+
+            verdict = verdict_avant_de_confier(
+                self.moteur, texte[:LONGUEUR_MAX_DEMANDE], identifiant_de_l_etape(self._etape(), self.agent)
+            )
+            if verdict.action != LANCER:
+                logger.info(f"[travail] demande identique non relancée : {verdict.action}")
+                return retour_du_verdict(verdict)
             # F2 : modifier = annuler la demande en cours, puis lancer la nouvelle.
             remplace = False
             if self.occupe:
@@ -319,6 +333,10 @@ class TravailDeLAgent:
         except Exception as erreur:  # noqa: BLE001 -- l'outil ne casse jamais l'appel
             logger.error(f"[travail] travail non lancé : {type(erreur).__name__}")
             return dict(RETOUR_INDISPONIBLE)
+
+    def _etape(self) -> Any:
+        """L'étape de l'agent à cet instant (désigne la demande dans les traces)."""
+        return getattr(self.agent, "current_node", None)
 
     async def annuler(self) -> dict:
         """F2 : l'appelant ne veut plus de sa demande. ⛔ Ne lève jamais."""
@@ -558,6 +576,10 @@ class TravailDeLAgent:
             "resultat": None,
             "remis": False,
         }
+        # Lot B (B1) : la règle « demande identique » compare des demandes de la même étape.
+        from api.services.travail.demande_identique import CLE_ETAPE, identifiant_de_l_etape
+
+        entree[CLE_ETAPE] = identifiant_de_l_etape(self._etape(), self.agent)
         fiche = self._fiche()
         if fiche is not None:
             entree["tour"] = fiche.get(CLE_TOUR)
@@ -575,6 +597,15 @@ class TravailDeLAgent:
             jetons_sortie=self._jetons[1],
             resultat=(resultat or "")[:LONGUEUR_MAX_RESULTAT] or None,
         )
+        # Lot B (B2) : où en était le journal des actions à la fin du travail (un résultat connu périmé
+        # quand une écriture ou une annulation réussie l'a suivi).
+        try:
+            from api.services.travail.demande_identique import CLE_JOURNAL_A_LA_FIN
+            from api.services.workflow.verite_des_actions import journal_de
+
+            entree[CLE_JOURNAL_A_LA_FIN] = len(journal_de(self.moteur))
+        except Exception as erreur:  # noqa: BLE001 -- une trace sans rang n'est jamais périmée
+            logger.debug(f"[travail] rang du journal non noté : {erreur!r}")
         if self._muet.non_dites:
             entree["phrases_non_dites"] = list(self._muet.non_dites)
             self._muet.non_dites.clear()
@@ -716,6 +747,16 @@ def brancher_confier_le_travail(
     proprietes = _proprietes_du_resultat(agent.llm)
 
     async def gestionnaire(params) -> None:
+        # Lot B (B4) : « confier » compte dans le plafond d'appels d'outil du tour de l'appelant.
+        from api.services.workflow.plafond_d_outils import compter_un_appel
+
+        plafond = compter_un_appel(moteur, agent)
+        if plafond is not None:
+            from api.services.workflow.declenchement_de_l_action import noter_l_appel as noter
+
+            noter(moteur, agent, NOM_OUTIL)
+            await params.result_callback(plafond)
+            return
         # fiabilite-orchestration, lot 2 (C3) : la liste des champs de l'étape garde « confier »
         # comme les outils de l'étape (run 1468 : action lancée avec des champs encore « à venir »).
         from api.services.workflow.enveloppe_des_actions import garde_de_l_etape_apres_les_notes
@@ -733,6 +774,11 @@ def brancher_confier_le_travail(
         from api.services.travail.demande import demande_avec_la_fiche
 
         demande = demande_avec_la_fiche(moteur, arguments.get("demande"))
+        # fiabilite-de-la-conversation, lot A (signe 2) : la demande PART, identique à une demande déjà faite dans
+        # l'étape ? Compté ici, avant la décision de B2 (qui la bloque le plus souvent : la tentative est le signe).
+        from api.services.workflow.sortie_d_impasse import compter_la_demande
+
+        compter_la_demande(moteur, agent, demande)
         resultat = await travail.confier(demande, arguments.get("annonce"))
         await params.result_callback(resultat, properties=proprietes(params))
 

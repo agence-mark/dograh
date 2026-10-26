@@ -47,7 +47,8 @@
         "en": "Nothing is said: the caller waits for the tool's result.",
         "fr": "Rien n'est dit : l'appelant attend le résultat de l'outil."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "travail_dure",
@@ -84,7 +85,8 @@
         "en": "Nothing is said until the result.",
         "fr": "Rien n'est dit jusqu'au résultat."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "passation_tarde",
@@ -121,7 +123,8 @@
         "en": "Nothing is said: the caller waits for the colleague's first sentence.",
         "fr": "Rien n'est dit : l'appelant attend la première phrase du collègue."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "modele_tarde",
@@ -158,7 +161,8 @@
         "en": "Nothing is said during the second attempt.",
         "fr": "Rien n'est dit pendant la seconde tentative."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "appelant_se_tait",
@@ -198,7 +202,8 @@
         "en": "The model prompts the caller itself, as before.",
         "fr": "Le modèle relance lui-même la conversation, comme avant le chantier."
       },
-      "silence_de_l_appelant": true
+      "silence_de_l_appelant": true,
+      "sortie_par_le_code": false
     },
     {
       "id": "reponse_perdue",
@@ -238,7 +243,8 @@
         "en": "Silence: the caller speaks again.",
         "fr": "Silence : l'appelant reprend la parole."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "outil_echoue",
@@ -278,7 +284,8 @@
         "en": "The code says nothing: the model reads the failure and answers.",
         "fr": "Rien n'est dit par le code : le modèle lit l'échec et répond."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "travail_echoue",
@@ -318,7 +325,92 @@
         "en": "The model reads the failure and answers.",
         "fr": "Le modèle lit « Échec : rien n'a été fait » et répond."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
+    },
+    {
+      "id": "impasse",
+      "famille": "annonce",
+      "moment": "probleme",
+      "libelle": {
+        "en": "The conversation goes in circles",
+        "fr": "La conversation tourne en rond"
+      },
+      "quand": {
+        "en": "The code counts signs of a dead end (the agent repeats the same reply, sends the same request to the background work, gets nowhere in three turns, enters a step a third time). At the second sign the model gets a note, at the next another one; at the fourth the code says this sentence and takes the call back.",
+        "fr": "Le code compte des signes d'impasse (l'agent redit la même réplique, renvoie la même demande au travail de fond, ne sort de rien en trois tours, revient une troisième fois dans une étape). Au deuxième signe le modèle reçoit une consigne, au suivant une seconde ; au quatrième le code dit cette phrase et reprend la main."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "rendre_la_main",
+        "aller_a_une_etape",
+        "modele",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "rendre_la_main",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Reprenons, je n'ai pas bien compris. En quoi puis-je vous aider ?"
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code says nothing and keeps the step: the model keeps the call (the two notes meant for it stay).",
+        "fr": "Le code ne dit rien et ne change pas d'étape : le modèle garde la main (les deux consignes qui lui sont destinées restent)."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": true
+    },
+    {
+      "id": "impasse_repetee",
+      "famille": "annonce",
+      "moment": "probleme",
+      "libelle": {
+        "en": "The conversation goes in circles a second time",
+        "fr": "La conversation tourne en rond une deuxième fois"
+      },
+      "quand": {
+        "en": "A second dead end in the same call: the code says this sentence, then moves to the step of the main agent chosen under \"Then\" (no step chosen: as for the first dead end).",
+        "fr": "Une deuxième impasse dans le même appel : le code dit cette phrase, puis change l'étape de lui-même vers l'étape de l'agent principal choisie dans « Ensuite » (sans étape choisie : comme la première impasse)."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "rendre_la_main",
+        "aller_a_une_etape",
+        "modele",
+        "transferer",
+        "raccrocher"
+      ],
+      "sortie_defaut": "aller_a_une_etape",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Je prends votre demande pour qu'on vous rappelle."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code says nothing and keeps the step: the model keeps the call.",
+        "fr": "Le code ne dit rien et ne change pas d'étape : le modèle garde la main."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": true
     },
     {
       "id": "transfert_echoue",
@@ -357,7 +449,8 @@
         "en": "The model says itself that the transfer failed.",
         "fr": "Le modèle dit lui-même que le transfert n'a pas abouti."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     },
     {
       "id": "mise_en_relation",
@@ -394,7 +487,8 @@
         "en": "The model announces the transfer itself.",
         "fr": "Le modèle annonce lui-même la mise en relation."
       },
-      "silence_de_l_appelant": false
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     }
   ]
 }

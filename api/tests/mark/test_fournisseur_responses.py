@@ -32,7 +32,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from openai import AsyncOpenAI
+from openai import APIError, AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_chunk import (
     ChatCompletionChunk,
@@ -122,8 +122,10 @@ def _contexte(*messages: dict, outil: bool = True) -> LLMContext:
 class Rep:
     """Ce que le fournisseur répond à une requête : du texte, des appels d'outil, des jetons."""
 
-    def __init__(self, texte=None, appels=(), jetons=20, attente=0.0):
+    def __init__(self, texte=None, appels=(), jetons=20, attente=0.0, refus=False):
         self.texte = texte
+        # fiabilite-de-la-conversation : le fournisseur refuse la requête dès l'ouverture (runs 2019 et 2026).
+        self.refus = refus
         self.appels = list(appels)  # [(nom, arguments JSON, id)]
         self.jetons = jetons
         self.attente = attente
@@ -241,6 +243,8 @@ class FauxServeurResponses:
         if isinstance(rep, Rep):
             if rep.attente:
                 await asyncio.sleep(rep.attente)
+            if rep.refus:
+                return httpx.Response(500, json={"error": {"message": "refusé", "type": "server_error"}})
             reponse = _reponse_responses(rep)
         else:
             reponse = rep  # une réponse réelle, telle que le fournisseur l'a envoyée
@@ -345,6 +349,8 @@ class FauxServeurChat:
             rep = self._reponses.pop(0)
             if rep.attente:
                 await asyncio.sleep(rep.attente)
+            if rep.refus:
+                raise APIError("refusé", httpx.Request("POST", SCALEWAY), body=None)
             if params.get("stream"):
                 return _FluxChat(_morceaux_chat(rep))
             return _completion_chat(rep)
@@ -553,6 +559,23 @@ async def test_reprise_sans_flux_un_flux_avale_est_relance_une_fois_sans_flux(ap
 @pytest.mark.parametrize("api", DEUX_API)
 async def test_reprise_sans_flux_relance_vide_le_code_dit_la_phrase_de_repli(api):
     service, faux = _service(api, [Rep(jetons=10), Rep(jetons=10)])
+    texte, _ = await _jouer(service)
+    assert texte == "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
+    assert len(faux.vus) == 2
+
+
+@pytest.mark.parametrize("api", DEUX_API)
+async def test_reprise_sans_flux_une_requete_refusee_a_l_ouverture_est_relancee_sans_flux(api):
+    # fiabilite-de-la-conversation (runs 2019 et 2026) : refusée dès l'ouverture, plus jamais un agent muet.
+    service, faux = _service(api, [Rep(refus=True), Rep(texte="Oui, je vous entends.")])
+    texte, _ = await _jouer(service)
+    assert texte == "Oui, je vous entends."
+    assert len(faux.vus) == 2 and faux.vus[1]["stream"] is False
+
+
+@pytest.mark.parametrize("api", DEUX_API)
+async def test_reprise_sans_flux_refusee_puis_relance_refusee_le_code_dit_la_phrase_de_repli(api):
+    service, faux = _service(api, [Rep(refus=True), Rep(refus=True)])
     texte, _ = await _jouer(service)
     assert texte == "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
     assert len(faux.vus) == 2

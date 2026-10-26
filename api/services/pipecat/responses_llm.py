@@ -75,11 +75,16 @@ from openai.types.responses import (
 )
 
 from api.services.groupe.passations import NOTE_DE_PASSATION
-from api.services.panne.delai_modele import DelaiModeleMixin
+from api.services.panne.delai_modele import DelaiModeleDepasse, DelaiModeleMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
-from api.services.pipecat.reponse_avalee import ATTRIBUT_DECLENCHEUR, ATTRIBUT_VERITE, phrase_de_repli
+from api.services.pipecat.reponse_avalee import (
+    ATTRIBUT_DECLENCHEUR,
+    ATTRIBUT_VERITE,
+    FluxEnErreur,
+    phrase_de_repli,
+)
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.texte_du_cerveau import FluxNettoye, _noms_des_outils
 from api.services.pipecat.trace_modele import TraceModeleMixin
@@ -463,22 +468,31 @@ class FluxReprisResponses:
         tenus: list[Any] = []
         quelque_chose = False
         jetons = 0
-        async for evenement in self._flux:
+        # fiabilite-de-la-conversation : une erreur avant le premier événement utile (requête refusée à
+        # l'ouverture comprise) suit le chemin d'un flux vide, comme ``FluxRepris`` (K1).
+        erreur_du_flux = None
+        try:
+            async for evenement in self._flux:
+                if quelque_chose:
+                    yield evenement
+                    continue
+                jetons = max(jetons, jetons_generes(evenement))
+                if porte_quelque_chose(evenement):
+                    quelque_chose = True
+                    for tenu in tenus:
+                        yield tenu
+                    tenus = []
+                    yield evenement
+                else:
+                    tenus.append(evenement)
+        except Exception as erreur:  # noqa: BLE001
             if quelque_chose:
-                yield evenement
-                continue
-            jetons = max(jetons, jetons_generes(evenement))
-            if porte_quelque_chose(evenement):
-                quelque_chose = True
-                for tenu in tenus:
-                    yield tenu
-                tenus = []
-                yield evenement
-            else:
-                tenus.append(evenement)
+                raise
+            erreur_du_flux = erreur
+            logger.warning(f"[cerveau] flux en erreur avant le premier événement : {erreur!r}")
         if quelque_chose:
             return
-        if jetons <= 0 and not self._attend():
+        if erreur_du_flux is None and jetons <= 0 and not self._attend():
             for tenu in tenus:
                 yield tenu
             return
@@ -508,6 +522,9 @@ class FluxReprisResponses:
             )
             yield evenement_de_texte(texte)
             return
+        if erreur_du_flux is not None:
+            # La relance n'a rien rendu non plus : l'erreur d'origine remonte, comme avant.
+            raise erreur_du_flux
         logger.warning(f"[cerveau] flux vide ({jetons} jetons comptés), relance vide")
         for tenu in tenus:
             yield tenu
@@ -531,7 +548,16 @@ class RepriseSansFluxResponsesMixin:
     async def get_chat_completions(self, context):  # type: ignore[override]
         secours = bool(getattr(self, "_mark_relance_armee", False))
         entree = getattr(self, "_mark_entree_en_cours", None)
-        flux = await super().get_chat_completions(context)  # type: ignore[misc]
+        # Revue du 26/10 (R-1) : la relance part dans le contexte de l'appel (état de la fiche, notices).
+        contexte_de_l_appel = contextvars.copy_context()
+        try:
+            flux = await super().get_chat_completions(context)  # type: ignore[misc]
+        except Exception as erreur:
+            # fiabilite-de-la-conversation : la requête refusée à l'ouverture, comme ``RepriseSansFluxMixin``.
+            if isinstance(erreur, DelaiModeleDepasse):
+                raise
+            logger.warning(f"[cerveau] requête refusée à l'ouverture du flux : {erreur!r}")
+            flux = FluxEnErreur(erreur)
 
         async def relancer():
             if isinstance(entree, dict):
@@ -550,7 +576,7 @@ class RepriseSansFluxResponsesMixin:
             avant = getattr(self, "_mark_secours_en_cours", False)
             self._mark_secours_en_cours = secours
             try:
-                requete = dict(self.build_chat_completion_params(invocation))  # type: ignore[attr-defined]
+                requete = dict(contexte_de_l_appel.run(self.build_chat_completion_params, invocation))  # type: ignore[attr-defined]
             finally:
                 self._mark_secours_en_cours = avant
             requete["stream"] = False

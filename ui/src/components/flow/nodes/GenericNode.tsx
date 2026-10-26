@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
+import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
@@ -23,7 +24,13 @@ import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFi
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
-import { caseCochee, etapeQuiEcrit, valeurAEcrire, VeriteDesActions } from "@/components/mark/graphe/VeriteDesActions";
+import {
+    agentQuiAgit,
+    caseCochee,
+    etapeQuiEcrit,
+    valeurAEcrire,
+    VeriteDesActions,
+} from "@/components/mark/graphe/VeriteDesActions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";
@@ -506,6 +513,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     });
     const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif } =
         useWorkflow();
+    // fiabilite-de-la-conversation: the start step shows « Truth of actions » as soon as the agent acts anywhere.
+    const agentAgit = useWorkflowStore((s) => agentQuiAgit(s.nodes, travailActif === true));
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
@@ -798,7 +807,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                         )}
                         {(type === "agentNode" || type === "startCall") &&
                             (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
-                                (travailActif && values.travail_de_fond === true)) && (
+                                (travailActif && values.travail_de_fond === true) ||
+                                (type === "startCall" && agentAgit)) && (
                                 <VeriteDesActions
                                     coche={caseCochee(values.verite_des_actions, etapeEcrit)}
                                     onChange={(coche) =>
