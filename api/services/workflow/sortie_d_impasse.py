@@ -378,13 +378,27 @@ async def sortir(moteur: Any) -> bool:
             return False
         etat["impasses"] += 1
         _journaliser(etat, moteur, motif=motif, impasse=etat["impasses"])
+        # Revue du 26/10 (R-2, décision d'Evan) : la phrase attend que l'appelant ait fini ; la réponse que le modèle
+        # préparait à ce même tour, dans l'ancienne étape, n'est pas dite. Son cerveau est muet (« main passée ») jusqu'au
+        # changement d'étape ; il reparle si la sortie ne part pas.
+        from api.services.pipecat.main_passee import muter, rendre_la_parole
+
+        muter(getattr(agent, "llm", None))
         probleme = await moteur.phrases.signaler_un_probleme(motif, agent, differer=True)
-        if probleme.issue is None:
-            return False
+        if probleme.issue is None or not probleme.issue.prise_en_main:
+            rendre_la_parole(getattr(agent, "llm", None))
+            if probleme.issue is None:
+                return False
         lancer_apres(moteur, probleme.issue)
         return probleme.issue.prise_en_main
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[impasse] sortie non lancée : {erreur!r}")
+        try:
+            from api.services.pipecat.main_passee import rendre_la_parole
+
+            rendre_la_parole(getattr(getattr(moteur, "active_agent", None), "llm", None))
+        except Exception:  # noqa: BLE001
+            pass
         return False
 
 

@@ -455,6 +455,25 @@ async def test_pas_de_sortie_pendant_une_passation_la_riposte_attend():
     assert banc.mains == [None]
 
 
+@pytest.mark.asyncio
+async def test_au_temps_3_le_modele_ne_repond_plus_dans_l_ancienne_etape_puis_reparle_si_la_sortie_echoue():
+    # Revue du 26/10 (R-2, décision d'Evan) : la phrase de sortie attend que l'appelant ait fini ; la réponse que le
+    # modèle préparait à ce même tour n'est pas dite (deux voix) : son cerveau est muet jusqu'au changement d'étape.
+    from api.services.pipecat.main_passee import ATTRIBUT
+
+    banc = Banc()
+    banc.active_agent.llm = SimpleNamespace()
+    _entrer(banc)
+    await _repliques(banc, *([REPLIQUE] * 5))
+    assert banc.mains == [None] and getattr(banc.active_agent.llm, ATTRIBUT) is True
+    banc2 = Banc()
+    banc2.sortir_ok = False
+    banc2.active_agent.llm = SimpleNamespace()
+    _entrer(banc2)
+    await _repliques(banc2, *([REPLIQUE] * 5))
+    assert banc2.mains == [None] and getattr(banc2.active_agent.llm, ATTRIBUT) is False, "la sortie a échoué : il reparle"
+
+
 # --------------------------------------------------------------------------- #
 # La vraie méthode du moteur
 # --------------------------------------------------------------------------- #
@@ -588,3 +607,26 @@ async def test_le_modele_n_est_enveloppe_qu_a_la_premiere_notice_et_la_notice_pa
     assert textes == ["Bonjour.", NOTICE_TEMPS_1, "Oui."]  # juste avant la dernière parole de l'appelant
     # hors conversation (une relecture, le balayage), rien n'est ajouté
     assert llm.build_chat_completion_params({"messages": contexte})["messages"] == contexte
+
+
+@pytest.mark.asyncio
+async def test_moteur_l_agent_qui_passe_a_une_autre_etape_reparle_pour_l_ouvrir(appel, monkeypatch):  # noqa: F811
+    # Revue du 26/10 (R-2) : muet depuis la décision du temps 3, l'agent reparle avant le changement d'étape forcé.
+    from api.services.pipecat.main_passee import ATTRIBUT, muter
+    from api.services.workflow import pipecat_engine
+
+    await appel.monter(source_etapes=[_texte("rien")], fond_etapes=[_texte("rien")], outils_du_fond=False)
+    moteur = appel.engine
+    agent = moteur.active_agent
+    agent.reglages = {k: v for k, v in dict(agent.reglages or {}).items() if k != "agent_principal_id"}
+    monkeypatch.setattr(moteur, "agent_can_act", lambda a: True)
+    muet_au_changement = []
+
+    async def set_node(identifiant, **kw):
+        muet_au_changement.append(getattr(agent.llm, ATTRIBUT, False))
+
+    monkeypatch.setattr(moteur, "set_node", set_node)
+    monkeypatch.setattr(pipecat_engine, "etape_de_retour_du_graphe", lambda graphe: SimpleNamespace(id="retour", name="Retour", is_end=False))
+    muter(agent.llm)
+    assert await moteur.sortir_de_l_impasse(agent) is True
+    assert muet_au_changement == [False]

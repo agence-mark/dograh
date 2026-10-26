@@ -1313,6 +1313,10 @@ class PipecatEngine:
             if choisie is None or choisie is agent.current_node:
                 return False
             logger.info(f"[impasse] le code passe à l'étape « {choisie.name} »")
+            # Revue du 26/10 (R-2) : muet depuis la décision du temps 3, l'agent reparle pour ouvrir la nouvelle étape.
+            from api.services.pipecat.main_passee import rendre_la_parole
+
+            rendre_la_parole(getattr(agent, "llm", None))
             await self.set_node(choisie.id, origin_visit_id=agent.visit_id)
             return True
         except Exception as e:  # noqa: BLE001 -- une sortie d'impasse ne coûte jamais l'appel

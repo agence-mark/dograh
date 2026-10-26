@@ -263,6 +263,10 @@ async def executer(
                 await _attendre_la_phrase(moteur, parole)
                 if not await moteur.sortir_de_l_impasse(agent, etape_cible=cible):
                     logger.info("[sortie] la main n'a pas pu être rendue : le modèle reprend")
+                    # Revue du 26/10 (R-2) : muet depuis la décision du garde-fou, il reparle.
+                    from api.services.pipecat.main_passee import rendre_la_parole
+
+                    rendre_la_parole(getattr(agent or getattr(moteur, "active_agent", None), "llm", None))
                     await _reprendre_la_parole(moteur)
 
             issue.prise_en_main = True
