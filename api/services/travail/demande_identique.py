@@ -56,6 +56,17 @@ CONSIGNE_DEJA_ESSAYE = (
     "que tu n'as pas pu le faire, avec la phrase prévue pour ce cas dans ton étape."
 )
 
+# Décision d'Evan (26/10) : en position Automatique, c'est le code qui a confié ; le retour de l'outil ne revient donc à
+# personne. Le modèle lit ces notices dans la requête du tour (jamais dans l'historique).
+NOTICE_AUTOMATIQUE_DEJA_CONNU = (
+    "Le travail de fond a déjà fait cette même demande, il ne la relance pas. Son résultat : {resultat} "
+    "Utilise-le."
+)
+NOTICE_AUTOMATIQUE_DEJA_ESSAYE = (
+    "Le travail de fond a déjà essayé cette même demande sans succès, il ne la relance pas. Dis à la personne que "
+    "tu n'as pas pu le faire, avec la phrase prévue pour ce cas dans ton étape."
+)
+
 _MOTS = re.compile(r"\w+", re.UNICODE)
 
 
@@ -198,3 +209,19 @@ def retour_du_verdict(verdict: Verdict) -> dict:
             "consigne": CONSIGNE_DEJA_CONNU,
         }
     return {"statut": DEJA_ESSAYE, "consigne": CONSIGNE_DEJA_ESSAYE}
+
+
+def notice_du_retour(retour: Any) -> str | None:
+    """La notice au modèle quand le code a confié lui-même (position Automatique) et que B2 n'a pas relancé :
+    résultat connu, ou déjà essayé sans succès. Une demande encore en cours n'en a pas (la ligne du travail en cours
+    la dit déjà). ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(retour, dict):
+            return None
+        if retour.get("statut") == DEJA_CONNU:
+            return NOTICE_AUTOMATIQUE_DEJA_CONNU.format(resultat=str(retour.get("resultat") or "").strip())
+        if retour.get("statut") == DEJA_ESSAYE:
+            return NOTICE_AUTOMATIQUE_DEJA_ESSAYE
+        return None
+    except Exception:  # noqa: BLE001
+        return None

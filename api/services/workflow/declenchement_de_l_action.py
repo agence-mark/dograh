@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import re
+from contextvars import ContextVar
 from typing import Any, Mapping
 
 from loguru import logger
@@ -216,6 +217,9 @@ class Declencheur:
         self.noeud = noeud
         self.position = position
         self.outil = outil
+        # Décision d'Evan (26/10) : ce que la requête de CE tour dit au modèle quand B2 n'a pas relancé la demande
+        # confiée par le code (position Automatique) ; lue puis effacée par l'enveloppe des tours.
+        self.notice_du_tour: str | None = None
 
     # -- les conditions ------------------------------------------------------------------------
 
@@ -338,6 +342,9 @@ class Declencheur:
             demande = joindre_la_fiche(demande, reglages, fiche)
             noter_le_declenchement(self.moteur, self.noeud, self.outil)
             resultat = await travail.confier(demande)
+            from api.services.travail.demande_identique import notice_du_retour
+
+            self.notice_du_tour = notice_du_retour(resultat)
             entree = getattr(travail, "_entree_courante", None)
             # Lot B (B2) : une demande identique non relancée ne marque pas la trace d'avant.
             if isinstance(entree, dict) and isinstance(resultat, dict) and resultat.get("statut") == "lancé":
@@ -401,24 +408,47 @@ def _brancher_les_tours(llm: Any) -> bool:
     if not hasattr(llm, "get_chat_completions"):
         return False
     obtenir = llm.get_chat_completions
+    # La notice de B2 en Automatique, pour la requête de ce tour seulement (comme la notice du garde-fou d'impasse).
+    notice_en_cours: ContextVar[str | None] = ContextVar("notice_du_declenchement", default=None)
 
     async def get_chat_completions(context):
         declencheur = getattr(llm, ATTRIBUT_DECLENCHEUR, None)
         remettre = None
+        notice = None
         if declencheur is not None:
             try:
                 remettre = await declencheur.avant_le_tour(context)
+                notice, declencheur.notice_du_tour = getattr(declencheur, "notice_du_tour", None), None
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
                 logger.warning(f"[declenchement] tour non préparé : {erreur!r}")
+        jeton = notice_en_cours.set(notice)
         try:
             return await obtenir(context)
         finally:
+            notice_en_cours.reset(jeton)
             if remettre is not None:
                 try:
                     remettre()
                 except Exception as erreur:  # noqa: BLE001
                     logger.warning(f"[declenchement] choix d'outil non remis : {erreur!r}")
 
+    construire = getattr(llm, "build_chat_completion_params", None)
+    if construire is not None:
+
+        def build_chat_completion_params(params_from_context):
+            params = construire(params_from_context)
+            notice = notice_en_cours.get()
+            if notice:
+                try:
+                    from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
+
+                    cle = "messages" if "messages" in params else "input"
+                    params[cle] = inserer_l_etat(list(params[cle]), notice)
+                except Exception as erreur:  # noqa: BLE001
+                    logger.error(f"[declenchement] notice non montrée : {erreur!r}")
+            return params
+
+        llm.build_chat_completion_params = build_chat_completion_params
     llm.get_chat_completions = get_chat_completions
     setattr(llm, _MARQUE_TOURS, True)
     return True

@@ -12,6 +12,7 @@ de l'amont (``Appel``), le vrai déclencheur et la vraie enveloppe des actions.
 | B2, run 1950 | demande identique alors que la fiche change : pas relancée ; autre jour dans le texte : lancée |
 | B2, périmé | une écriture ou une annulation réussie depuis rend la demande identique permise (l'appelant change d'avis) |
 | B2, automatique | le déclenchement automatique passe par la même règle et ne marque pas la trace d'avant |
+| B2, automatique, notice (décision d'Evan, 26/10) | une demande bloquée par B2 en position Automatique est dite au modèle dans la requête du tour (résultat connu, ou déjà essayé sans succès), jamais dans l'historique ; la requête d'après est inchangée |
 | B3 | écriture en vigueur : le déclencheur ne s'arme plus, quoi que la fiche note ; après une annulation réussie, il repart |
 | B4 | le quatrième appel d'outil de l'agent dans un tour est refusé ; le tour suivant repart ; une annulation passe ; le fond n'est pas compté ; sans compteur de tour, rien n'est compté |
 """
@@ -377,3 +378,82 @@ async def test_b4_confier_compte_dans_le_plafond_de_l_agent(appel):
     assert rendus[0]["statut"] == "lancé"
     assert rendus[1]["statut"] == STATUT_PLAFOND
     assert len(recues) == 1
+
+
+# --------------------------------------------------------------------------- #
+# B2 en Automatique : la notice au modèle (décision d'Evan, 26/10)
+# --------------------------------------------------------------------------- #
+
+
+class _CerveauFactice:
+    """Un cerveau qui construit sa requête comme Pipecat (``build_chat_completion_params`` dans ``get_chat_completions``)."""
+
+    def __init__(self):
+        self.requetes: list[list[dict]] = []
+
+    async def get_chat_completions(self, context):
+        params = self.build_chat_completion_params({"messages": list(context.messages)})
+        self.requetes.append(params["messages"])
+        return None
+
+    def build_chat_completion_params(self, params):
+        return dict(params)
+
+
+async def _automatique_branche(appel, resultats):
+    from api.services.pipecat.reponse_avalee import ATTRIBUT_DECLENCHEUR
+    from api.services.workflow.declenchement_de_l_action import AUTOMATIQUE, Declencheur, _brancher_les_tours
+
+    travail, recues = await _fond_scenarise(appel, resultats)
+    moteur = appel.engine
+    moteur._fiche = _moteur()._fiche
+    moteur._gathered_context.update({"nom": "Lefèvre", "adresse": "8 rue Pasteur"})
+    noeud = SimpleNamespace(
+        id="n1", name="Étape", champs_etape=("nom", "adresse"), conditions_de_champs=(),
+        declenchement_de_l_action=AUTOMATIQUE, demande_type=RECHERCHE, verite_des_actions=None, is_end=False,
+    )
+    cerveau = _CerveauFactice()
+    agent = SimpleNamespace(current_node=noeud, llm=cerveau, travail=travail)
+    travail.agent = agent
+    setattr(cerveau, ATTRIBUT_DECLENCHEUR, Declencheur(moteur, agent, noeud, AUTOMATIQUE, NOM_OUTIL))
+    assert _brancher_les_tours(cerveau)
+    contexte = SimpleNamespace(messages=[{"role": "assistant", "content": "Bonjour."}, {"role": "user", "content": "Oui."}])
+
+    async def un_tour(essai):
+        moteur._gathered_context["adresse"] = f"8 rue Pasteur, Creil {essai}"
+        await cerveau.get_chat_completions(contexte)
+        await travail.attendre()
+        return cerveau.requetes[-1]
+
+    return un_tour, recues, contexte
+
+
+def _notices(requete):
+    return [m["content"] for m in requete if m["role"] == "user" and m["content"] != "Oui."]
+
+
+@pytest.mark.asyncio
+async def test_b2_automatique_un_resultat_connu_est_dit_au_modele_dans_la_requete_du_tour(appel):
+    from api.services.travail.demande_identique import NOTICE_AUTOMATIQUE_DEJA_CONNU
+
+    un_tour, recues, contexte = await _automatique_branche(appel, [DATES])
+    assert _notices(await un_tour(0)) == []
+    requete = await un_tour(1)
+    assert len(recues) == 1
+    assert _notices(requete) == [NOTICE_AUTOMATIQUE_DEJA_CONNU.format(resultat=DATES)]
+    assert requete[-1] == {"role": "user", "content": "Oui."}, "juste avant la dernière parole"
+    assert len(contexte.messages) == 2, "rien dans l'historique"
+
+
+@pytest.mark.asyncio
+async def test_b2_automatique_deja_essaye_sans_succes_est_dit_au_modele_puis_la_requete_d_apres_est_inchangee(appel):
+    from api.services.travail.demande_identique import NOTICE_AUTOMATIQUE_DEJA_ESSAYE
+
+    un_tour, recues, _ = await _automatique_branche(appel, ["Manque : date"])
+    for essai in range(2):
+        assert _notices(await un_tour(essai)) == []
+    assert len(recues) == 2, "un seul nouvel essai"
+    assert _notices(await un_tour(2)) == [NOTICE_AUTOMATIQUE_DEJA_ESSAYE]
+    assert len(recues) == 2
+    # même fiche, même empreinte : le déclencheur ne s'arme plus, la requête d'après ne porte plus la notice
+    assert _notices(await un_tour(2)) == []
