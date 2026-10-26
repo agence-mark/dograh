@@ -66,3 +66,25 @@ describe("[.mark] step field labels", () => {
         expect(screen.getByRole("alert").textContent).toContain("couleur");
     });
 });
+
+// fiabilite-de-la-conversation, lot C (C1): the opening step takes the same list of fields.
+describe("[.mark] step field labels on the opening step", () => {
+    const accueil = (specs as Record<string, unknown>).startCall as NodeSpec;
+
+    it("draws the list in the opening step's window and writes the same string", () => {
+        const onChange = vi.fn();
+        render(
+            <NodeEditForm
+                spec={accueil}
+                values={{ name: "Start", prompt: "Greet.", champs_etape: "kilometrage" }}
+                onChange={onChange}
+                context={CONTEXTE}
+            />,
+        );
+        expect(screen.getByText("Step field labels")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "+ immatriculation" }));
+        expect(onChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ champs_etape: "kilometrage, immatriculation" }),
+        );
+    });
+});

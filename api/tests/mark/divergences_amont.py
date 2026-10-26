@@ -60,6 +60,14 @@ _PREMIERE_REPLIQUE = (
     "champ, ces deux cas passent."
 )
 
+# [.mark] fiabilite-de-la-conversation, lot C (C1, 26/10/2026) : la liste des champs de l'etape de depart.
+_CHAMPS_DE_L_ETAPE_DE_DEPART = (
+    "[.mark] Plan fiabilite-de-la-conversation (GO d'Evan du 26/10/2026, C1) : l'etape de depart prend, comme "
+    "l'etape d'agent, la liste des champs de l'etape (champs_etape), juste apres le prompt, dans la fenetre du "
+    "noeud du graphe. L'amont fige l'ordre des proprietes de ce noeud sans ce champ. Prouve le 26/10 : sans "
+    "le champ, ce cas passe."
+)
+
 # [.mark] Plan orchestrateur-trois-cerveaux, lot 3 (D7, 17/10/2026) : la voix unique.
 _VOIX_UNIQUE = (
     "[.mark] Decision d'Evan du 17/10/2026 (plan orchestrateur-trois-cerveaux, D7) : UNE SEULE "
@@ -120,6 +128,7 @@ DIVERGENCES_ASSUMEES = {
         "test_node_spec_property_order_stable": {
             "agentNode-expected_order1": _PREMIERE_REPLIQUE,
             "endCall-expected_order2": _PREMIERE_REPLIQUE,
+            "startCall-expected_order0": _CHAMPS_DE_L_ETAPE_DE_DEPART,
         },
     },
     "tests/test_deepgram_endpoint_service_factory.py": {

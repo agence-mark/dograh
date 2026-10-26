@@ -174,3 +174,54 @@ def indices_des_modules(
     except Exception as erreur:  # noqa: BLE001 -- un indice ne coûte jamais l'appel
         logger.warning(f"[fiche] indices des modules non calculés : {erreur!r}")
         return None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# fiabilite-de-la-conversation, lot C (C4, point 6) : « il manque des chiffres », au tour même
+# ---------------------------------------------------------------------------------------------------------
+
+
+def consigne_chiffres_manquants(
+    reglages: Any, fiche: dict, tour: Any, deja_dite: Any = None
+) -> str | None:
+    """La consigne « Pas noté : il manque des chiffres dans … » (``CONSIGNE_CHIFFRES_MANQUANTS``), calculée à la
+    construction de la requête à partir des traces des nombres du tour, et non plus seulement au tour suivant, après la
+    passe du greffier (``Notices``). Un champ dicté qui déclare un nombre de chiffres (``chiffres``), encore vide, dont
+    le numéro lu à ce tour (et au tour d'avant : un numéro se dicte en deux fois) a moins de chiffres. ``deja_dite`` :
+    les notices déjà montrées (même consigne : pas de redite). Même case que les indices. ⛔ Ne lève jamais."""
+    try:
+        if not getattr(reglages, "indices_des_modules", False) or tour is None or not isinstance(tour, int):
+            return None
+        chiffres_lus = "".join(
+            re.sub(r"\D", "", str(trace.get("ecrit") or ""))
+            for trace in fiche.get(CLE_NOMBRES) or []
+            if isinstance(trace, dict) and trace.get("type") == "telephone" and trace.get("tour") in (tour - 1, tour)
+        )
+        # Rien lu à ce tour même : ce n'est pas lui qui est en cause.
+        if not any(
+            isinstance(t, dict) and t.get("type") == "telephone" and t.get("tour") == tour
+            for t in fiche.get(CLE_NOMBRES) or []
+        ):
+            return None
+        from api.services.fiche.traces import _correspond
+        from api.services.workflow.fiche_au_fil_de_leau import CONSIGNE_CHIFFRES_MANQUANTS, OrigineChamp
+
+        motifs = getattr(reglages, "motifs_des_types", None) or {}
+        champs = [
+            c
+            for c in reglages.champs
+            if getattr(c, "chiffres", None)
+            and c.origine == OrigineChamp.dicte
+            and c.chiffres > len(chiffres_lus)
+            and not str(fiche.get(c.nom) or "").strip()
+            and (_correspond(c.nom, motifs.get("telephone", ())) or not motifs.get("telephone"))
+        ]
+        if not champs or not chiffres_lus:
+            return None
+        consigne = CONSIGNE_CHIFFRES_MANQUANTS.format(champs=", ".join(c.nom for c in champs))
+        if consigne in str(deja_dite or ""):
+            return None
+        return consigne
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] chiffres manquants non calculés : {erreur!r}")
+        return None

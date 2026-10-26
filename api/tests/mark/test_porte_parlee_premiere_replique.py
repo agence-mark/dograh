@@ -179,7 +179,7 @@ def _fixture() -> dict:
     specs = _specs()
     return {
         type_: specs[type_].model_dump(mode="json")
-        for type_ in ("agentNode", "endCall")
+        for type_ in ("agentNode", "endCall", "startCall")
     }
 
 

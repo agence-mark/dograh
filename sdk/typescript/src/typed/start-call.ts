@@ -52,6 +52,10 @@ export interface StartCall {
      */
     prompt: string;
     /**
+     * Record fields this step gathers, in order of priority, separated by commas. Used only when "Show the model what is known and what is expected" is on in the agent's settings: the code then names the missing ones ("Still expected: …"), and the step's tools wait until they are known.
+     */
+    champs_etape?: string;
+    /**
      * When true, the user can interrupt the agent mid-utterance.
      */
     allow_interrupt?: boolean;

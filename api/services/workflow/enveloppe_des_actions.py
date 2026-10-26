@@ -277,6 +277,10 @@ def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
 # K2 (run 1492 et 1510 : « manque nom, prénom, adresse » juste après les avoir dits) : la garde lisait la
 # fiche pendant que la passe du greffier du même tour tournait encore. Au plus ce délai.
 DELAI_DES_NOTES_DE_LA_GARDE = 1.5
+# Lot C (C3, décision D-8) : le délai borné de l'attente de la passe du greffier qui lit le dernier tour. Aucun réglage
+# existant ne le dit pour la garde (``attente_max_s`` est celui d'un connecteur) : une constante nommée, la même durée
+# que l'attente des passes en vol ci-dessus. Atteint seulement quand la garde répond « incomplet ».
+DELAI_DE_LA_PASSE_DU_DERNIER_TOUR = 1.5
 
 
 async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | None:
@@ -300,11 +304,24 @@ async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seu
         from api.services.workflow.fiche_au_fil_de_leau import attendre_les_notes
 
         en_cours = getattr(moteur, "notes_en_cours", None)
-        if not en_cours or all(t.done() for t in en_cours):
-            return refus
-        await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+        if en_cours and not all(t.done() for t in en_cours):
+            await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
+            refus = garde_du_noeud(moteur, noeud)
+            if refus is None:
+                return None
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
         logger.warning(f"[fiche] passes en cours non attendues par la garde : {erreur!r}")
+        return refus
+    # Lot C (C3, point 3 ; run 1522, revue D10) : la garde s'apprête à répondre « incomplet ». La passe du greffier
+    # qui lit le DERNIER tour (adresse dite au tour même) part en même temps que la requête : elle est attendue (ou
+    # demandée si elle n'est pas partie), puis la garde recalcule. L'attente n'existe que dans ce cas.
+    greffier = getattr(moteur, "greffier", None)
+    if greffier is None:
+        return refus
+    try:
+        await greffier.rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] passe du dernier tour non attendue par la garde : {erreur!r}")
         return refus
     return garde_du_noeud(moteur, noeud)
 

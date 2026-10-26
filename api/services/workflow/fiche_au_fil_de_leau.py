@@ -4332,6 +4332,7 @@ def etat_avec_les_indices(
     messages: Iterable[dict],
     champs_etape: Iterable[str] = (),
     a_des_portes: bool = True,
+    sorties: Iterable[tuple[str, Any]] = (),
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
     dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
@@ -4363,10 +4364,25 @@ def etat_avec_les_indices(
         )
         if connu:
             texte = f"{texte or entete_etat(reglages)}\n{connu}"
+    # fiabilite-de-la-conversation, lot C (C2) : sous chaque sortie vers une étape du même agent, la première chose
+    # qui manque là-bas (même case que « Encore attendu »).
+    from api.services.workflow.sorties_de_l_etape import lignes_des_sorties
+
+    for ligne in lignes_des_sorties(reglages, fiche, sorties):
+        texte = f"{texte or entete_etat(reglages)}\n{ligne}"
     indices = indices_des_modules(reglages, parole, fiche, fiche.get(CLE_TOUR))
-    if not indices:
-        return texte
-    return f"{texte or entete_etat(reglages)}\n{indices}"
+    if indices:
+        texte = f"{texte or entete_etat(reglages)}\n{indices}"
+    # fiabilite-de-la-conversation, lot C (C4) : « il manque des chiffres », au tour même (les traces des nombres du
+    # tour), sans attendre la note du greffier.
+    from api.services.workflow.indices_des_modules import consigne_chiffres_manquants
+
+    chiffres = consigne_chiffres_manquants(
+        reglages, fiche, fiche.get(CLE_TOUR), (notices.derniere if notices is not None else None)
+    )
+    if chiffres:
+        texte = f"{texte or entete_etat(reglages)}\n{chiffres}"
+    return texte
 
 
 def inserer_l_etat(messages: list, texte: str) -> list:
@@ -4385,6 +4401,7 @@ def montrer_la_fiche(
     notices: Notices | None = None,
     champs_etape: Callable[[], Iterable[str]] | None = None,
     a_des_portes: Callable[[], bool] | None = None,
+    sorties: Callable[[], Iterable[tuple[str, Any]]] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -4432,6 +4449,7 @@ def montrer_la_fiche(
                     params[cle],
                     champs_etape() if champs_etape else (),
                     a_des_portes() if a_des_portes else True,
+                    sorties() if sorties else (),
                 )
                 if texte:
                     params[cle] = inserer_l_etat(list(params[cle]), texte)

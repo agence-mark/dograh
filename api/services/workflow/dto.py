@@ -444,6 +444,7 @@ class _ToolDocumentRefsMixin(BaseModel):
         "greeting",
         "greeting_recording_id",
         "prompt",
+        "champs_etape",
         "allow_interrupt",
         "add_global_prompt",
         "delayed_start",
@@ -568,11 +569,15 @@ class _ToolDocumentRefsMixin(BaseModel):
 class StartCallNodeData(
     BaseNodeData,
     _PromptedNodeDataMixin,
+    # fiabilite-de-la-conversation, lot C (C1) : la liste des champs de l'étape (et leurs conditions) vaut aussi
+    # sur l'étape de départ, comme sur une étape d'agent (même mixins). Vide = comportement d'avant.
+    _ChampsEtapeNodeDataMixin,
     _ExtractionNodeDataMixin,
     _ToolDocumentRefsMixin,
     _TravailDeFondNodeDataMixin,
     _VeriteDesActionsNodeDataMixin,
     _DeclenchementNodeDataMixin,
+    _ConditionsDeChampsNodeDataMixin,
 ):
     is_start: bool = spec_field(default=True, spec_exclude=True)
     greeting: Optional[str] = spec_field(default=None, ui_type=PropertyType.string)

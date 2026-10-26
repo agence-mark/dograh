@@ -110,6 +110,7 @@ from loguru import logger
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.champs_conditionnels import champs_actifs  # [.mark] lot 7 de correctifs-apres-banc-commun
+from api.services.workflow.sorties_de_l_etape import sorties_de  # [.mark] fiabilite-de-la-conversation, lot C (C2)
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.disposition_extraction import (
     CALL_DISPOSITION_CONTEXT_KEY,
@@ -1712,6 +1713,12 @@ class PipecatEngine:
                     getattr(
                         getattr(self.active_agent, "current_node", None), "out_edges", None
                     )
+                ),
+                # fiabilite-de-la-conversation, lot C (C2) : les sorties de l'étape en cours vers une étape du
+                # même agent (leur première chose qui manque est écrite dans le bloc d'état).
+                lambda: sorties_de(
+                    getattr(self.active_agent, "current_node", None),
+                    getattr(self.active_agent, "workflow", None),
                 ),
             )
         except Exception as e:  # noqa: BLE001

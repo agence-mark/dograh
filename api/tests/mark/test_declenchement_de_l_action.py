@@ -196,7 +196,7 @@ def test_lot7_le_champ_de_donnees_est_lu_et_vide_vaut_absent():
     donnees = AgentNodeData.model_validate({"name": "a", "prompt": "p", "conditions_de_champs": [CONDITION_MAIL]})
     assert donnees.conditions_de_champs[0].si == "contrat_entretien" and donnees.conditions_de_champs[0].champ == "mail"
     assert AgentNodeData(name="a", prompt="p").conditions_de_champs is None
-    assert not hasattr(StartCallNodeData(name="a", prompt="p"), "conditions_de_champs")  # la liste n'existe que sur l'étape d'agent
+    assert StartCallNodeData(name="a", prompt="p").conditions_de_champs is None  # fiabilite-de-la-conversation, C1 : la liste existe aussi sur l'étape de départ (vide = absent)
     propre = _sanitize_node({"type": "agentNode", "data": {"name": "a", "prompt": "p", "conditions_de_champs": []}})
     assert "conditions_de_champs" not in propre["data"]
     garde = _sanitize_node({"type": "agentNode", "data": {"name": "a", "prompt": "p", "conditions_de_champs": [CONDITION_MAIL]}})
