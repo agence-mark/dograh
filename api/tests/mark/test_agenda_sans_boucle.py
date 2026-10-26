@@ -281,6 +281,22 @@ async def test_b3_une_ecriture_en_vigueur_le_declencheur_ne_s_arme_plus():
     assert travail.demandes == []
 
 
+async def test_b3_une_ecriture_faite_dans_une_autre_etape_ne_bloque_pas_ce_declencheur():
+    # Revue du 26/10 (R-4, décision d'Evan) : seule l'étape où l'écriture a été faite ne se relance plus d'elle-même.
+    moteur, declencheur, travail = _banc_automatique()
+    verite.noter_l_action(moteur, RESERVER, {}, {"statut": "confirme"}, {"rendez_vous": "confirme"}, etape="20:7")
+    assert await declencheur.armer(), "une autre étape (ou un autre collègue) : rien ne bloque"
+    verite.noter_l_action(moteur, RESERVER, {}, {"statut": "confirme"}, {"rendez_vous": "confirme"}, etape="n1")
+    assert not await declencheur.armer(), "l'étape de l'écriture : bloquée"
+
+
+def test_b3_l_etape_d_une_action_du_fond_est_celle_de_l_agent_qui_a_confie():
+    etape = SimpleNamespace(id="7")
+    conversation = SimpleNamespace(workflow_id=20, current_node=etape)
+    fond = SimpleNamespace(workflow_id=20, current_node=None, agent_qui_confie=conversation)
+    assert verite.etape_de_l_action(conversation) == verite.etape_de_l_action(fond) == "20:7"
+
+
 async def test_b3_apres_une_annulation_reussie_changer_de_date_repart():
     moteur, declencheur, travail = _banc_automatique()
     verite.noter_l_action(moteur, RESERVER, {}, {"statut": "confirme"}, {"rendez_vous": "confirme"})

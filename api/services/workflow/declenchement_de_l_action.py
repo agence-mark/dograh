@@ -253,13 +253,15 @@ class Declencheur:
                 return False
             if self._deja_fait():
                 return False
-            # Lot B (B3) : une écriture est en vigueur dans l'appel (une réservation faite, pas défaite) : rien ne
-            # s'arme, quoi que le greffier note ensuite (run 1950 : « Oui, j'attends » noté changeait l'empreinte
-            # et relançait la recherche). Après une annulation réussie, l'écriture n'est plus en vigueur : un
+            # Lot B (B3) : une écriture est en vigueur (une réservation faite, pas défaite) : rien ne s'arme, quoi que
+            # le greffier note ensuite (run 1950 : « Oui, j'attends » noté changeait l'empreinte et relançait la recherche). Après une annulation réussie, l'écriture n'est plus en vigueur : un
             # changement de date repart. Le modèle garde tous ses outils.
+            # Revue du 26/10 (R-4, décision d'Evan) : seulement une écriture partie de CETTE étape (de cet agent) ; une
+            # autre étape ou un autre collègue peut encore déclencher sa propre action.
+            from api.services.travail.demande_identique import identifiant_de_l_etape
             from api.services.workflow.verite_des_actions import ecriture_en_vigueur
 
-            if ecriture_en_vigueur(self.moteur) is not None:
+            if ecriture_en_vigueur(self.moteur, identifiant_de_l_etape(self.noeud, self.agent)) is not None:
                 return False
             from api.services.workflow.enveloppe_des_actions import (
                 garde_du_noeud_apres_les_notes,
