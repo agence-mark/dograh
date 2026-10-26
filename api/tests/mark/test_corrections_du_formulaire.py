@@ -11,7 +11,7 @@
 | revue 10 | le choix d'outil d'avant est remis, quel qu'il soit |
 | F-1, annulation (revue 5) | une annulation passe sans les champs de l'étape ; une réservation, elle, reste gardée |
 | F-1, menu (revue 7) | chercher + réserver + annuler : l'action d'écriture est armée ; deux écritures : rien |
-| F-4, automatique | donnée corrigée après une réservation : avec annulation, le fond défait puis refait ; sans, rien ne repart |
+| F-4, automatique | (remplacé par B3 de fiabilite-de-la-conversation) donnée corrigée après une réservation : rien ne repart, avec ou sans annulation ; après une annulation réussie, la demande part normalement |
 | F-14, attente | plusieurs champs manquent : aucune attente du greffier ; un seul : attente |
 | F-3, réglage | ``verite_formulations_d_action`` lu par les réglages de la fiche, vide = défaut |
 """
@@ -34,7 +34,6 @@ from api.services.workflow import enveloppe_des_actions as enveloppe
 from api.services.workflow import verite_des_actions as verite
 from api.services.workflow.declenchement_de_l_action import (
     AUTOMATIQUE,
-    CONSIGNE_REFAIRE,
     OBLIGATOIRE,
     Declencheur,
     action_de_l_etape,
@@ -376,15 +375,15 @@ def _banc_automatique(annule=ANNULER):
     return moteur, Declencheur(moteur, agent, noeud, AUTOMATIQUE, NOM_OUTIL), travail
 
 
-async def test_f4_avec_annulation_le_fond_defait_puis_refait():
+async def test_f4_avec_annulation_une_donnee_corrigee_apres_une_ecriture_ne_relance_plus():
+    # fiabilite-de-la-conversation, B3 (décision D-4) : avant, le fond défaisait puis refaisait la réservation ;
+    # le greffier qui note autre chose (run 1950) aurait annulé une réservation juste. Le modèle garde ses outils.
     moteur, declencheur, travail = _banc_automatique()
     assert await declencheur.lancer_automatiquement()
     verite.noter_l_action(moteur, RESERVER, {"adresse": "8 rue Pasteur"}, {"statut": "confirme"}, {"rendez_vous": "confirme"})
     moteur._gathered_context["adresse"] = "10 rue Pasteur"  # l'appelant corrige
-    assert await declencheur.lancer_automatiquement()
-    assert len(travail.demandes) == 2
-    premiere = CONSIGNE_REFAIRE.split("(")[0]
-    assert premiere not in travail.demandes[0] and travail.demandes[1].startswith(premiere)
+    assert not await declencheur.lancer_automatiquement()
+    assert len(travail.demandes) == 1
 
 
 async def test_f4_sans_annulation_rien_ne_repart_apres_une_ecriture():
@@ -402,7 +401,7 @@ async def test_f4_apres_une_annulation_reussie_la_nouvelle_demande_part_normalem
     verite.noter_l_action(moteur, ANNULER, {}, {"statut": "annule"}, {"rendez_vous": "annule"})
     assert verite.ecriture_en_vigueur(moteur) is None
     assert await declencheur.lancer_automatiquement()
-    assert not travail.demandes[0].startswith(CONSIGNE_REFAIRE.split("(")[0])
+    assert len(travail.demandes) == 1
 
 
 # --------------------------------------------------------------------------- #

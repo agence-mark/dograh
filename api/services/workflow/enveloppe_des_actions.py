@@ -345,6 +345,15 @@ def envelopper_l_action(
         from api.services.workflow.verite_des_actions import outils_d_annulation
 
         annulation = _normaliser(nom_outil) in outils_d_annulation(moteur)
+        # Lot B (B4) : au plus trois appels d'outil par tour de l'appelant pour l'agent qui parle. Une annulation
+        # passe toujours et ne compte pas (l'appelant peut toujours changer d'avis) ; le fond n'est pas compté.
+        if agent is not None and not annulation:
+            from api.services.workflow.plafond_d_outils import compter_un_appel
+
+            plafond = compter_un_appel(moteur, agent)
+            if plafond is not None:
+                await params.result_callback(plafond)
+                return
         if garde and agent is not None and not annulation:
             refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
             if refus is not None:

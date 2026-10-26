@@ -677,9 +677,11 @@ async def test_k8_automatique_sans_les_champs_pret_n_est_pas_lance(appel):
     assert appel.travaux() == []
 
 
-async def test_k8_automatique_une_donnee_corrigee_rouvre_la_garde_et_relance_avec_la_donnee_corrigee(appel):
-    """Règle de l'humain : l'appelant corrige son adresse pendant le travail. Le travail en cours n'est jamais doublé
-    (rien ne part tant qu'il dure) ; au tour suivant, la demande n'est plus la même : elle repart, corrigée."""
+async def test_k8_automatique_une_donnee_corrigee_ne_relance_pas_une_demande_de_meme_texte(appel):
+    """Règle de l'humain, révisée par fiabilite-de-la-conversation (B1, B2, décision D-5) : l'appelant corrige son
+    adresse. Le travail en cours n'est jamais doublé ; une fois fini, la demande type est de même texte (la fiche
+    n'entre pas dans la règle « demande identique », run 1950) : elle n'est pas relancée, le résultat reste connu.
+    Le modèle garde ses outils pour une demande autrement écrite."""
     await appel.monter(
         source_etapes=[_texte("Je regarde."), _texte("Voilà."), _texte("Je regarde de nouveau."), _texte("Voilà.")],
         fond_etapes=[_texte(RESULTAT), _texte("Autre résultat.")],
@@ -694,9 +696,11 @@ async def test_k8_automatique_une_donnee_corrigee_rouvre_la_garde_et_relance_ave
     moteur._gathered_context["adresse"] = "9 rue Pasteur"
     if moteur.active_agent.travail.occupe:
         assert await d.armer() is False  # un travail est en cours : rien ne part
-    await appel.attendre(lambda: len(appel.travaux()) == 2 and all(t["remis"] for t in appel.travaux()))
+    await moteur.active_agent.travail.attendre()
+    await d.lancer_automatiquement()
+    assert len(appel.travaux()) == 1
     assert "- adresse : 8 rue Pasteur" in appel.travaux()[0]["demande"]
-    assert "- adresse : 9 rue Pasteur" in appel.travaux()[1]["demande"]
+    assert appel.travaux()[0]["redemandes"] >= 1
 
 
 async def test_k8_relance_le_moteur_pose_le_declencheur_sur_l_etape_qui_offre_confier(appel):

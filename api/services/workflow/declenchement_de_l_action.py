@@ -18,7 +18,8 @@ pour octet (rien n'est branché) :
 
 Règle de l'humain : aucune position ne s'arme pendant un travail en cours, ni après un appel de l'outil pour la
 même demande (l'**empreinte** : les valeurs des champs attendus de l'étape, hors champs que l'action écrit) ;
-une donnée corrigée change l'empreinte et rouvre la garde ; « Automatique » laisse toujours la conversation
+une donnée corrigée change l'empreinte et rouvre la garde, **sauf quand une écriture est en vigueur dans l'appel**
+(lot B, B3 : plus rien ne s'arme, le modèle gère le changement avec ses outils) ; « Automatique » laisse toujours la conversation
 reprendre après le résultat (autre date, annulation : le modèle garde tous ses outils, et ses propres appels ne
 sont jamais interceptés). ``tool_choice`` n'est posé que pour un tour, puis remis comme avant.
 
@@ -54,11 +55,6 @@ _MARQUE_TOURS = "_mark_declenchement_des_tours"
 # Générique, aucun métier : la demande du mode automatique quand l'étape n'a pas écrit de demande type. Les valeurs
 # de la fiche sont jointes derrière (K11).
 DEMANDE_PAR_DEFAUT = "Fais l'action de cette étape avec les valeurs de la fiche de l'appel."
-# Lot 11 (F-4) : générique, aucun métier. Une action d'écriture a déjà réussi, puis une donnée a changé.
-CONSIGNE_REFAIRE = (
-    "Une action a déjà été faite pour cette demande avec des valeurs qui ont changé depuis ({action}, {arguments}). "
-    "Défais-la d'abord avec l'outil d'annulation, puis refais-la avec les valeurs ci-dessous."
-)
 _CHAMP_DANS_LA_DEMANDE = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
 
 # Les marques de porte écrites DANS la réplique (porte parlée) : une réplique qui prend sa porte n'est pas relancée.
@@ -253,6 +249,14 @@ class Declencheur:
                 return False
             if self._deja_fait():
                 return False
+            # Lot B (B3) : une écriture est en vigueur dans l'appel (une réservation faite, pas défaite) : rien ne
+            # s'arme, quoi que le greffier note ensuite (run 1950 : « Oui, j'attends » noté changeait l'empreinte
+            # et relançait la recherche). Après une annulation réussie, l'écriture n'est plus en vigueur : un
+            # changement de date repart. Le modèle garde tous ses outils.
+            from api.services.workflow.verite_des_actions import ecriture_en_vigueur
+
+            if ecriture_en_vigueur(self.moteur) is not None:
+                return False
             from api.services.workflow.enveloppe_des_actions import (
                 garde_du_noeud_apres_les_notes,
             )
@@ -326,32 +330,19 @@ class Declencheur:
             if not await self.armer():
                 return False
             from api.services.travail.demande import joindre_la_fiche
-            from api.services.workflow.verite_des_actions import (
-                ecriture_en_vigueur,
-                outils_d_annulation,
-            )
 
             reglages = getattr(self.moteur, "_fiche", None)
             fiche = getattr(self.moteur, "_gathered_context", None)
             fiche = fiche if isinstance(fiche, dict) else {}
             demande = demande_type_remplie(getattr(self.noeud, "demande_type", None), fiche)
-            # Lot 11 (F-4, revue 6) : une donnée corrigée APRÈS une écriture réussie. Avec un outil d'annulation :
-            # le fond défait l'ancienne puis refait ; sans : rien ne repart (le modèle gère la correction).
-            deja = ecriture_en_vigueur(self.moteur)
-            if deja is not None:
-                if not outils_d_annulation(self.moteur):
-                    noter_le_declenchement(self.moteur, self.noeud, self.outil)
-                    logger.info("[declenchement] donnée corrigée après une écriture réussie, sans annulation : rien ne repart")
-                    return False
-                demande = CONSIGNE_REFAIRE.format(
-                    action=deja.nom, arguments=json.dumps(deja.arguments, ensure_ascii=False, default=str)
-                ) + "\n" + demande
             demande = joindre_la_fiche(demande, reglages, fiche)
             noter_le_declenchement(self.moteur, self.noeud, self.outil)
             resultat = await travail.confier(demande)
             entree = getattr(travail, "_entree_courante", None)
-            if isinstance(entree, dict):
-                entree["declenche_par"] = AUTOMATIQUE
+            # Lot B (B2) : une demande identique non relancée ne marque pas la trace d'avant.
+            if isinstance(entree, dict) and isinstance(resultat, dict) and resultat.get("statut") == "lancé":
+                if not resultat.get("deja_en_cours"):
+                    entree["declenche_par"] = AUTOMATIQUE
             logger.info(f"[declenchement] travail lancé par le code : {resultat}")
             return True
         except Exception as erreur:  # noqa: BLE001

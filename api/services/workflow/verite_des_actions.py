@@ -579,6 +579,18 @@ def ecriture_en_vigueur(moteur: Any) -> ActionVue | None:
         return None
 
 
+def ecriture_ou_annulation_depuis(moteur: Any, rang: int) -> bool:
+    """Lot B (B2) : une action d'écriture ou d'annulation a-t-elle réussi dans l'appel depuis le rang ``rang`` du
+    journal ? Périme le résultat connu d'une demande au fond. ⛔ Ne lève jamais (``False`` dans le doute)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        changent = outils_d_ecriture(moteur) | outils_d_annulation(moteur)
+        return any(v.reussie and _normaliser(v.nom) in changent for v in journal_de(moteur)[max(rang, 0) :])
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _dit_annule(formulation: str) -> bool:
     return "annul" in (formulation or "").casefold()
 
