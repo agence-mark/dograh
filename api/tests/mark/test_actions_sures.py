@@ -18,6 +18,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | journal au clavier (lot F) | le journal des actions survit au moteur refait à chaque réplique (fiche de l'appel), son nom de clé est réservé |
 | une réservation tient déjà (lot F, E11) | une nouvelle réservation rend la question « remplacer ou ajouter » ; le réessai dans le même tour est retenu ; après une parole de la personne elle part (deux rendez-vous possibles) ; défaire l'ancienne la libère tout de suite |
 | deux demandes d'une même réplique (lot F, E11) | la seconde attend la fin de la première au lieu de l'arrêter ; une demande d'un tour suivant reste une modification ; annuler vide la suite |
+| résultat d'une action retenue (lot F, E11) | le code écrit en tête du résultat remis que rien de nouveau n'a été fait ; rien quand l'action a fini par partir |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -27,7 +28,7 @@ from types import SimpleNamespace
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
-from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER
+from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER, LIGNE_ACTION_RETENUE
 from api.services.travail.demande import (
     ENTETE_DES_ACTIONS,
     ENTETE_DES_VALEURS,
@@ -362,3 +363,18 @@ async def test_une_demande_d_un_tour_suivant_reste_une_modification(appel):
     travail, second, faites = await _deux_demandes(appel, 4)
     assert second == {"statut": "lancé", "demande_precedente": "annulée"}
     assert appel.engine._gathered_context["travaux"][0]["statut"] == "annule"  # la trace du travail arrêté
+
+
+@pytest.mark.asyncio
+async def test_e11_une_action_retenue_est_dite_par_le_code_en_tete_du_resultat(appel):
+    from api.services.workflow.verite_des_actions import GARDE_DEJA_TENUE, ActionVue, _ajouter_au_journal
+
+    travail = await _monte(appel)
+    rang = travail._rang_du_journal()
+    retenue = {"statut": "incomplet", "garde": GARDE_DEJA_TENUE, "tient_deja": ["Réservé : jeudi 29 octobre"]}
+    _ajouter_au_journal(appel.engine, ActionVue(nom="reserver_entretien", arguments={}, resultat=retenue, reussie=False))
+    texte = travail._avec_les_actions_retenues("Réservation le lundi 2 novembre.", rang)
+    assert texte.startswith(LIGNE_ACTION_RETENUE.split("{")[0])
+    assert "Réservé : jeudi 29 octobre" in texte and texte.endswith("Réservation le lundi 2 novembre.")
+    _ajouter_au_journal(appel.engine, ActionVue(nom="reserver_entretien", arguments={}, resultat={"statut": "confirme"}, reussie=True))
+    assert travail._avec_les_actions_retenues("Réservé.", rang) == "Réservé."

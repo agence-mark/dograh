@@ -131,6 +131,14 @@ CONSIGNE_DEJA_FAIT = (
     "confie une demande qui le défait."
 )
 
+# Lot F (banc local du 27/10, E11) : le fond rendait « Réservation … le lundi 2 novembre » alors que la réservation avait été
+# retenue (une autre tenait) ; l'agent disait « le rendez-vous est pris pour lundi ». Le code, qui sait, écrit la vérité en tête
+# du résultat, comme l'issue d'une annulation (lot 8). Générique : le nom de l'outil et ce qui tient, tels quels.
+LIGNE_ACTION_RETENUE = (
+    "Écrit par le code : {outil} n'a rien fait de nouveau, parce qu'une action du même outil tient déjà dans l'appel "
+    "({tient_deja}). Ne dis pas que c'est fait : demande à la personne si elle remplace l'ancienne ou s'y ajoute."
+)
+
 # C2 : la ligne écrite par le code pendant un travail en cours (F1, F2). Générique : aucun métier.
 LIGNE_TRAVAIL_EN_COURS = (
     "Un travail est en cours : tu ne poses aucune question ; tu rassures, ou tu annules ou "
@@ -622,6 +630,42 @@ class TravailDeLAgent:
         except RuntimeError as erreur:
             logger.warning(f"[travail] suite non lancée : {erreur!r}")
 
+    def _rang_du_journal(self) -> int:
+        try:
+            from api.services.workflow.verite_des_actions import journal_de
+
+            return len(journal_de(self.moteur))
+        except Exception:  # noqa: BLE001
+            return 0
+
+    def _avec_les_actions_retenues(self, texte: str, rang: int) -> str:
+        """Lot F : une écriture de ce travail retenue par la garde « une action tient déjà », que rien n'a faite
+        ensuite, est dite en tête du résultat par le code. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.enveloppe_des_actions import _normaliser
+            from api.services.workflow.verite_des_actions import GARDE_DEJA_TENUE, journal_de
+
+            vues = journal_de(self.moteur)[rang:]
+            lignes = []
+            for i, vue in enumerate(vues):
+                lu = vue.resultat if isinstance(vue.resultat, dict) else {}
+                if lu.get("garde") != GARDE_DEJA_TENUE:
+                    continue
+                faite_ensuite = any(v.reussie and _normaliser(v.nom) == _normaliser(vue.nom) for v in vues[i + 1 :])
+                if faite_ensuite:
+                    continue
+                ligne = LIGNE_ACTION_RETENUE.format(
+                    outil=vue.nom, tient_deja=" ; ".join(lu.get("tient_deja") or []) or "?"
+                )
+                if ligne not in lignes:
+                    lignes.append(ligne)
+            if not lignes:
+                return texte
+            return "\n".join(lignes + ([texte] if texte else []))
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[travail] actions retenues illisibles : {erreur!r}")
+            return texte
+
     def _journaliser_la_fin(self, tache: asyncio.Task) -> None:
         if not tache.cancelled() and tache.exception() is not None:
             logger.error(f"[travail] tâche de fond tombée : {type(tache.exception()).__name__}")
@@ -734,7 +778,9 @@ class TravailDeLAgent:
         try:
             await self._preparer_les_outils()
             depuis = self._nombre_de_messages_du_fond()
+            rang = self._rang_du_journal()
             texte = (await self._executeur(self, demande)).strip()
+            texte = self._avec_les_actions_retenues(texte, rang)
             if not texte:
                 statut = STATUT_VIDE
             elif (
