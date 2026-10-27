@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
@@ -210,7 +210,8 @@ def _borne(resultat: Any) -> Any:
 
 
 def _en_donnees(vue: ActionVue) -> dict:
-    """Une action du journal, en données que la sauvegarde de l'appel sait écrire (résultat borné)."""
+    """Une action du journal, en données que la sauvegarde de l'appel sait écrire (résultat borné ; les dates des
+    arguments jointes à celles du résultat)."""
     return json.loads(
         json.dumps(
             {
@@ -218,7 +219,7 @@ def _en_donnees(vue: ActionVue) -> dict:
                 "arguments": vue.arguments,
                 "resultat": _borne(vue.resultat),
                 "reussie": vue.reussie,
-                "dates": sorted(list(d) for d in vue.dates),
+                "dates": sorted(list(d) for d in _dates_de(vue)),
                 "ecrits": vue.ecrits,
                 "etape": vue.etape,
             },
@@ -266,6 +267,11 @@ def journal_de(moteur: Any) -> list:
 def _ajouter_au_journal(moteur: Any, vue: ActionVue) -> None:
     fiche = getattr(moteur, "_gathered_context", None)
     if isinstance(fiche, dict):
+        if vue.arguments and not _est_une_ecriture(moteur, vue.nom):
+            # Lot F (CI du 27/10) : le journal est sauvegardé avec l'appel. Seuls les arguments d'une écriture sont
+            # relus (V4, la même action) ; ceux des autres outils sont les réponses de la personne (la vérification
+            # de l'appelant n'en garde aucune) : seules leurs dates restent.
+            vue = replace(vue, arguments={}, dates=_dates_de(vue))
         brut = fiche.get(CLE_JOURNAL)
         if not isinstance(brut, list):
             brut = fiche[CLE_JOURNAL] = []
