@@ -17,6 +17,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | actions qui tiennent (lot F, banc local, E11) | une demande au fond porte la réservation encore tenue de l'appel, sous un en-tête d'état ; plus rien quand elle est défaite ; rien sans action |
 | journal au clavier (lot F) | le journal des actions survit au moteur refait à chaque réplique (fiche de l'appel), son nom de clé est réservé |
 | une réservation tient déjà (lot F, E11) | une nouvelle réservation rend la question « remplacer ou ajouter » ; le réessai dans le même tour est retenu ; après une parole de la personne elle part (deux rendez-vous possibles) ; défaire l'ancienne la libère tout de suite |
+| deux demandes d'une même réplique (lot F, E11) | la seconde attend la fin de la première au lieu de l'arrêter ; une demande d'un tour suivant reste une modification ; annuler vide la suite |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -322,3 +323,42 @@ async def test_e11_defaire_l_ancienne_libere_la_nouvelle_tout_de_suite():
     await _nouvelle_date(banc)
     assert len(banc.executions[RESERVER]) == 2
     assert banc.fiche["rendez_vous"] == "confirme"
+
+
+async def _deux_demandes(appel, tour_de_la_seconde):
+    travail = await _monte(appel)
+    appel.engine._gathered_context["tour_appelant"] = 3
+    portail, faites = asyncio.Event(), []
+
+    async def executeur(_travail, demande):
+        faites.append(demande.splitlines()[0])
+        if len(faites) == 1:
+            await portail.wait()
+        return RESULTAT
+
+    travail._executeur = executeur
+    assert (await travail.confier("Annuler le jeudi."))["statut"] == "lancé"
+    await asyncio.sleep(0)
+    appel.engine._gathered_context["tour_appelant"] = tour_de_la_seconde
+    second = await travail.confier("Réserver le lundi.")
+    portail.set()
+    for _ in range(50):
+        await asyncio.sleep(0.01)
+        if len(faites) == 2 and not travail.occupe:
+            break
+    return travail, second, faites
+
+
+@pytest.mark.asyncio
+async def test_e11_deux_demandes_de_la_meme_replique_se_suivent(appel):
+    travail, second, faites = await _deux_demandes(appel, 3)
+    assert second == {"statut": "lancé", "apres": "le travail en cours"}
+    assert faites == ["Annuler le jeudi.", "Réserver le lundi."]
+    assert [t["statut"] for t in appel.engine._gathered_context["travaux"]][:2] == ["fait", "fait"]
+
+
+@pytest.mark.asyncio
+async def test_une_demande_d_un_tour_suivant_reste_une_modification(appel):
+    travail, second, faites = await _deux_demandes(appel, 4)
+    assert second == {"statut": "lancé", "demande_precedente": "annulée"}
+    assert appel.engine._gathered_context["travaux"][0]["statut"] == "annule"  # la trace du travail arrêté

@@ -274,6 +274,9 @@ class TravailDeLAgent:
         # remplacé par un neuf (contexte vierge, nouveau nom) au travail suivant.
         self._generation = 0
         self._a_remplacer = False
+        # Lot F : les demandes confiées dans la même réplique, en attente de la fin du travail en cours.
+        self._suite: list[tuple[str, Any]] = []
+        self._tour_du_travail: Any = None
         self._fermeture_differee: asyncio.Task | None = None
         # C1 : la seconde phrase d'attente du travail en cours (une tâche par travail).
         self._seconde_phrase: asyncio.Task | None = None
@@ -320,6 +323,15 @@ class TravailDeLAgent:
             if verdict.action != LANCER:
                 logger.info(f"[travail] demande identique non relancée : {verdict.action}")
                 return retour_du_verdict(verdict)
+            # Lot F (banc local du 27/10, E11) : « annuler jeudi » puis « réserver lundi » confiés dans la même réplique ;
+            # la seconde arrêtait la première et l'annulation se perdait. Une demande confiée pendant un travail lancé
+            # au même tour de l'appelant est la suite de la réplique : elle attend la fin du travail en cours. Une
+            # demande d'un tour suivant reste une modification (F2), comme avant.
+            tour = self._tour()
+            if self.occupe and tour is not None and tour == self._tour_du_travail:
+                self._suite.append((texte, annonce))
+                logger.info(f"[travail] demande mise à la suite du travail en cours ({len(self._suite)})")
+                return {"statut": "lancé", "apres": "le travail en cours"}
             # F2 : modifier = annuler la demande en cours, puis lancer la nouvelle.
             remplace = False
             if self.occupe:
@@ -341,6 +353,8 @@ class TravailDeLAgent:
                 name=f"travail:{self.worker.name}",
             )
             self._tache.add_done_callback(self._journaliser_la_fin)
+            self._tache.add_done_callback(self._lancer_la_suite)
+            self._tour_du_travail = tour
             self._lancer_la_seconde_phrase(self._tache, annonce, texte)
             return dict(RETOUR_REMPLACE if remplace else RETOUR_LANCE)
         except Exception as erreur:  # noqa: BLE001 -- l'outil ne casse jamais l'appel
@@ -354,6 +368,7 @@ class TravailDeLAgent:
     async def annuler(self) -> dict:
         """F2 : arrête le travail encore en cours ; ne défait rien de ce qu'un travail terminé a fait (lot F). ⛔ Ne lève jamais."""
         try:
+            self._suite.clear()
             if not self.occupe:
                 dernier = self._dernier_travail_qui_a_agi()
                 if dernier is None:
@@ -584,6 +599,28 @@ class TravailDeLAgent:
 
     def _noter_l_outil(self, nom: str) -> None:
         self._outils_appeles.append(nom)
+
+    def _tour(self) -> Any:
+        """Le tour de l'appelant (``tour_appelant`` de la fiche), ``None`` s'il n'est pas compté."""
+        try:
+            from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+            return (self._fiche() or {}).get(CLE_TOUR)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _lancer_la_suite(self, tache: asyncio.Task) -> None:
+        """Lot F : à la fin d'un travail (pas d'une annulation), la demande suivante de la même réplique part."""
+        if tache.cancelled():
+            self._suite.clear()
+            return
+        if not self._suite:
+            return
+        texte, annonce = self._suite.pop(0)
+        try:
+            asyncio.get_running_loop().create_task(self.confier(texte, annonce), name="travail:suite")
+        except RuntimeError as erreur:
+            logger.warning(f"[travail] suite non lancée : {erreur!r}")
 
     def _journaliser_la_fin(self, tache: asyncio.Task) -> None:
         if not tache.cancelled() and tache.exception() is not None:
