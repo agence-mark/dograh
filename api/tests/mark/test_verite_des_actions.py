@@ -119,7 +119,9 @@ async def appel():
 
 
 async def test_k11_par_la_vraie_route_le_fond_recoit_la_demande_avec_les_valeurs(appel):
-    """Run 1519 : le modèle envoie « avec l'adresse, la commune… » sans valeur. Moteur, outil « confier », trace."""
+    """Run 1519 : le modèle envoie « avec l'adresse, la commune… » sans valeur. Moteur, outil « confier », trace.
+    actions-sures-et-parite-clavier (lot B) : seuls les champs que l'étape attend sont joints ; l'étape du graphe de test
+    les déclare, comme l'étape d'action d'un agent en service (rendez_vous_entretien de 224)."""
     from api.tests.mark.test_travail_de_fond import RESULTAT, _appel_d_outil, _texte
 
     await appel.monter(
@@ -132,10 +134,13 @@ async def test_k11_par_la_vraie_route_le_fond_recoit_la_demande_avec_les_valeurs
         outils_du_fond=False,
     )
     appel.engine._fiche = _reglages_fiche()
-    appel.engine._gathered_context.update(nom="Durand", adresse="8 rue Pasteur", commune="Beauvais")
+    appel.engine._gathered_context.update(nom="Durand", adresse="8 rue Pasteur", commune="Beauvais", rendez_vous="confirme")
+    for noeud in appel.engine.active_agent.workflow.nodes.values():
+        noeud.champs_etape = ("nom", "adresse", "commune")
     await appel.ouvrir()
     await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
     demande = appel.travaux()[0]["demande"]
+    assert "rendez_vous" not in demande, "un champ que l'étape n'attend pas ne part pas"
     assert demande.startswith("Cherche deux dates avec l'adresse, la commune.")
     for ligne in ("- nom : Durand", "- adresse : 8 rue Pasteur", "- commune : Beauvais"):
         assert ligne in demande

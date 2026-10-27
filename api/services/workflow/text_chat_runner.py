@@ -115,6 +115,9 @@ from api.services.pipecat.worker_runner import (
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
 from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
+from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
+from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.workflow.sortie_d_impasse import brancher_la_sortie_d_impasse
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -361,6 +364,16 @@ class _ResponseWindowState:
 class _TaskQueueProxy:
     def __init__(self, queue_frame):
         self.queue_frame = queue_frame
+
+
+class _JournalDuClavier:
+    """[.mark] Le journal d'un appel, au clavier : une entrée devient un événement du tour (A2)."""
+
+    def __init__(self, capture: "_TextChatCaptureProcessor") -> None:
+        self._capture = capture
+
+    async def append(self, entree: dict[str, Any]) -> None:
+        self._capture._append_event(str(entree.get("type") or ""), dict(entree.get("payload") or {}))
 
 
 class _TextChatCaptureProcessor(FrameProcessor):
@@ -1068,6 +1081,9 @@ async def execute_text_chat_pending_turn(
         )
         brancher_la_relance(engine, agent.llm, agent.reglages)
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
+        # [.mark] actions-sures-et-parite-clavier (A2) : les refus et reprises du modèle de conversation, comme au
+        # téléphone ; au clavier ils vont aux événements du tour (pas de journal d'appel).
+        brancher_le_journal_des_requetes(agent.llm, _JournalDuClavier(capture_processor))
 
         assistant_params = LLMAssistantAggregatorParams()
         # [.mark] Lot 3 de cloture-code : le tour vide de Pipecat 1.12, réglé comme au téléphone
@@ -1085,6 +1101,9 @@ async def execute_text_chat_pending_turn(
 
         # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
         brancher_le_filet_de_fin(engine, assistant_context_aggregator)
+        # [.mark] actions-sures-et-parite-clavier (A1) : le garde-fou d'impasse, comme au téléphone (banc du 27/10 :
+        # absent ici, il était inerte au clavier).
+        brancher_la_sortie_d_impasse(engine, assistant_context_aggregator)
 
         @assistant_context_aggregator.event_handler("on_assistant_turn_started")
         async def on_assistant_turn_started(_aggregator):
@@ -1117,12 +1136,23 @@ async def execute_text_chat_pending_turn(
             run_configs.get("greffier_consigne"),
             format_garanti_du_greffier(run_configs),
         )
+        # [.mark] actions-sures-et-parite-clavier (A2) : le filtre du nom, de la civilité et de la relecture des
+        # numéros, après le post-scriptum comme au téléphone : ce que le clavier montre et garde en mémoire est ce
+        # que la voix aurait dit. ``None`` quand ses interrupteurs sont éteints (le défaut).
+        filtre_nom_civilite = creer_filtre_nom_civilite(
+            agent.reglages or run_configs,
+            lambda: engine._gathered_context.get("extracted_variables", {}),
+            lambda: engine._gathered_context,
+            # La voix de l'appel, comme au téléphone (``agent_runtime_factory`` : ``_voix_de_l_appel``).
+            voix=getattr(user_config, "tts", None),
+        )
         pipeline = Pipeline(
             [
                 p
                 for p in (
                     agent.llm,
                     post_scriptum,
+                    filtre_nom_civilite,
                     capture_processor,
                     assistant_context_aggregator,
                     pipeline_metrics_aggregator,

@@ -23,6 +23,7 @@ from loguru import logger
 TYPE_EVENEMENT = "mark-model-request"
 ENTETE_TENTATIVE = "x-stainless-retry-count"
 _DEBUT = "mark_debut"
+_MARQUE = "_mark_journal_des_requetes"
 
 
 def _client_http(llm: Any) -> Any:
@@ -45,6 +46,14 @@ def brancher_le_journal_des_requetes(llm: Any, journal: Any) -> bool:
                 f"{type(llm).__name__} n'est pas accessible"
             )
             return False
+        # actions-sures-et-parite-clavier (revue du 27/10) : branché deux fois sur le même client (passation A → B → A
+        # dans un tour du clavier), les crochets ne s'empilent pas : le journal est remplacé.
+        cible = getattr(http, _MARQUE, None)
+        if isinstance(cible, dict):
+            cible["journal"] = journal
+            return True
+        cible = {"journal": journal}
+        setattr(http, _MARQUE, cible)
         service = type(llm).__name__
         chaine = {"debut": None}
 
@@ -65,7 +74,7 @@ def brancher_le_journal_des_requetes(llm: Any, journal: Any) -> bool:
                     if debut is not None and chaine["debut"] is not None
                     else None
                 )
-                await journal.append(
+                await cible["journal"].append(
                     {
                         "type": TYPE_EVENEMENT,
                         "payload": {
