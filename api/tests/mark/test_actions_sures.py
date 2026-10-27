@@ -19,6 +19,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | une réservation tient déjà (lot F, E11) | une nouvelle réservation rend la question « remplacer ou ajouter » ; le réessai dans le même tour est retenu ; après une parole de la personne elle part (deux rendez-vous possibles) ; défaire l'ancienne la libère tout de suite |
 | deux demandes d'une même réplique (lot F, E11) | la seconde attend la fin de la première au lieu de l'arrêter ; une demande d'un tour suivant reste une modification ; annuler vide la suite |
 | résultat d'une action retenue (lot F, E11) | le code écrit en tête du résultat remis que rien de nouveau n'a été fait ; rien quand l'action a fini par partir |
+| actions du fond dans l'ordre (lot F, E11) | le service du fond exécute ses outils l'un après l'autre (annuler puis réserver) |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -378,3 +379,9 @@ async def test_e11_une_action_retenue_est_dite_par_le_code_en_tete_du_resultat(a
     assert "Réservé : jeudi 29 octobre" in texte and texte.endswith("Réservation le lundi 2 novembre.")
     _ajouter_au_journal(appel.engine, ActionVue(nom="reserver_entretien", arguments={}, resultat={"statut": "confirme"}, reussie=True))
     assert travail._avec_les_actions_retenues("Réservé.", rang) == "Réservé."
+
+
+@pytest.mark.asyncio
+async def test_e11_les_actions_du_fond_s_executent_dans_l_ordre(appel):
+    travail = await _monte(appel)
+    assert getattr(travail.service, "_run_in_parallel", False) is False

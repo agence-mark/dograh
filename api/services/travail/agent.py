@@ -178,6 +178,19 @@ Remise = Callable[[Any, str], Awaitable[bool]]
 Fabrique = Callable[[], Awaitable[Any]]
 
 
+def _actions_dans_l_ordre(service: Any) -> Any:
+    """Lot F (banc local du 27/10, E11) : le fond demandait « annuler jeudi » et « réserver lundi » dans la même réponse ;
+    Pipecat les lançait en même temps, la réservation partait avant la fin de l'annulation et la garde « une action tient
+    déjà » la retenait. Les actions du fond s'exécutent dans l'ordre où il les demande (``run_in_parallel`` de Pipecat,
+    lu au démarrage du service). La conversation n'est pas touchée. ⛔ Ne lève jamais."""
+    try:
+        if service is not None and hasattr(service, "_run_in_parallel"):
+            service._run_in_parallel = False
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] ordre des actions du fond non posé : {erreur!r}")
+    return service
+
+
 def schema_de_l_annulation() -> FunctionSchema:
     """Le schéma de l'outil « annuler » : aucun paramètre."""
     return FunctionSchema(
@@ -259,7 +272,7 @@ class TravailDeLAgent:
         self.moteur = moteur
         self.agent = agent
         self.reglages = reglages
-        self.service = service
+        self.service = _actions_dans_l_ordre(service)
         self._executeur = executeur
         self._remise = remise
         self._refaire_le_service = refaire_le_service
@@ -509,7 +522,7 @@ class TravailDeLAgent:
             if service is None:
                 self._a_remplacer = True
                 return False
-            self.service = service
+            self.service = _actions_dans_l_ordre(service)
             self._verser = versement_du_cout(self.moteur, NOM_DU_COUT, service)
             from api.services.panne.garde_modele import garder_le_fond
 
