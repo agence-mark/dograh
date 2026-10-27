@@ -118,9 +118,14 @@ async def appel():
         await a.arreter()
 
 
-async def test_k11_par_la_vraie_route_le_fond_recoit_la_demande_avec_les_valeurs(appel):
-    """Run 1519 : le modèle envoie « avec l'adresse, la commune… » sans valeur. Moteur, outil « confier », trace."""
+async def test_k11_par_la_vraie_route_le_fond_recoit_la_demande_avec_les_valeurs(appel, monkeypatch):
+    """Run 1519 : le modèle envoie « avec l'adresse, la commune… » sans valeur. Moteur, outil « confier », trace.
+    actions-sures-et-parite-clavier (lot B) : seuls les champs que l'étape attend sont joints ; l'étape de ce graphe de
+    test n'en déclare aucun, ils sont donc donnés ici comme ceux de l'étape (``champs_actifs``)."""
+    from api.services.workflow import champs_conditionnels
     from api.tests.mark.test_travail_de_fond import RESULTAT, _appel_d_outil, _texte
+
+    monkeypatch.setattr(champs_conditionnels, "champs_actifs", lambda _noeud, _fiche: ("nom", "adresse", "commune"))
 
     await appel.monter(
         source_etapes=[

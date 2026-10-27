@@ -10,16 +10,27 @@ Fonctions pures et indépendantes de l'outil « confier » : le mode « Automati
 
 Aucun mot de métier : les noms des champs sont ceux de la fiche de l'agent. Sans fiche, ou sans aucune valeur
 notée, la demande part telle que le modèle l'a écrite (octet pour octet). ⛔ Ne lève jamais.
+
+actions-sures-et-parite-clavier, lot B (banc de fin du 27/10, 7 appels sur 26) : « confier » joignait TOUTE la fiche,
+dont la demande d'origine de la personne (« réserver l'entretien… ») et l'état écrit par une action (« rendez-vous :
+confirmé »), sous un en-tête qui en faisait des ordres. Pour dire au revoir, l'agent confiait « Au revoir » ; le fond
+lisait la demande d'origine et réservait (doublon, rendez-vous annulé puis re-réservé, réservation cachée). La règle
+d'origine de K11 est rétablie : le fond reçoit **les champs que l'étape attend** (``champs_actifs``, ceux de sa garde),
+et l'en-tête dit que ce sont des valeurs, pas des demandes. Le mode « Automatique » (l'action de l'étape, lancée par le
+code avec la demande type de l'étape) garde toute la fiche : sa demande vient de l'étape, jamais d'un au revoir.
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from loguru import logger
 
 # L'en-tête du bloc que le code ajoute à la demande (une seule écriture).
-ENTETE_DES_VALEURS = "Valeurs de la fiche de l'appel (écrites par le code, à utiliser telles quelles) :"
+ENTETE_DES_VALEURS = (
+    "Valeurs notées dans la fiche de l'appel (écrites par le code), à recopier telles quelles si la demande "
+    "ci-dessus en a besoin ; ce ne sont pas des demandes :"
+)
 LONGUEUR_MAX_VALEUR = 300
 
 
@@ -44,14 +55,19 @@ def _texte(valeur: Any) -> str:
     return texte
 
 
-def valeurs_de_la_fiche(reglages: Any, fiche: Mapping[str, Any] | None) -> list[tuple[str, str]]:
+def valeurs_de_la_fiche(
+    reglages: Any, fiche: Mapping[str, Any] | None, champs: Iterable[str] | None = None
+) -> list[tuple[str, str]]:
     """Les (champ, valeur) de la fiche, dans l'ordre des champs : seulement les champs remplis, jamais un
-    refus de la personne. ⛔ Ne lève jamais."""
+    refus de la personne ; ``champs`` donné, seulement ceux-là. ⛔ Ne lève jamais."""
     try:
         from api.services.workflow.fiche_au_fil_de_leau import VALEUR_DE_REFUS
 
+        retenus = None if champs is None else set(champs)
         sortie: list[tuple[str, str]] = []
         for champ in tuple(getattr(reglages, "champs", None) or ()):
+            if retenus is not None and champ.nom not in retenus:
+                continue
             valeur = (fiche or {}).get(champ.nom)
             if _vide(valeur):
                 continue
@@ -64,12 +80,15 @@ def valeurs_de_la_fiche(reglages: Any, fiche: Mapping[str, Any] | None) -> list[
         return []
 
 
-def joindre_la_fiche(demande: Any, reglages: Any, fiche: Mapping[str, Any] | None) -> Any:
-    """``demande`` suivie des valeurs de la fiche. Demande vide ou sans valeur à joindre : rendue telle quelle."""
+def joindre_la_fiche(
+    demande: Any, reglages: Any, fiche: Mapping[str, Any] | None, champs: Iterable[str] | None = None
+) -> Any:
+    """``demande`` suivie des valeurs de la fiche (``champs`` donné : seulement ceux-là). Demande vide ou sans
+    valeur à joindre : rendue telle quelle."""
     try:
         if not isinstance(demande, str) or not demande.strip():
             return demande
-        valeurs = valeurs_de_la_fiche(reglages, fiche)
+        valeurs = valeurs_de_la_fiche(reglages, fiche, champs)
         if not valeurs:
             return demande
         lignes = "\n".join(f"- {nom} : {valeur}" for nom, valeur in valeurs)
@@ -79,14 +98,17 @@ def joindre_la_fiche(demande: Any, reglages: Any, fiche: Mapping[str, Any] | Non
         return demande
 
 
-def demande_avec_la_fiche(moteur: Any, demande: Any) -> Any:
-    """``joindre_la_fiche`` pour la fiche de l'appel du moteur."""
+def demande_avec_la_fiche(moteur: Any, demande: Any, noeud: Any = None) -> Any:
+    """``joindre_la_fiche`` pour la fiche de l'appel du moteur, avec les seuls champs que l'étape ``noeud`` attend
+    (lot B). Une étape sans champ attendu ne joint rien : la demande part telle que le modèle l'a écrite."""
     try:
         reglages = getattr(moteur, "_fiche", None)
         fiche = getattr(moteur, "_gathered_context", None)
         if reglages is None or not isinstance(fiche, dict):
             return demande
-        return joindre_la_fiche(demande, reglages, fiche)
+        from api.services.workflow.champs_conditionnels import champs_actifs
+
+        return joindre_la_fiche(demande, reglages, fiche, champs_actifs(noeud, fiche))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[travail] fiche de l'appel illisible pour la demande : {erreur!r}")
         return demande

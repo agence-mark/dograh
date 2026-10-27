@@ -121,6 +121,13 @@ RETOUR_REMPLACE = {"statut": "lancé", "demande_precedente": "annulée"}
 RETOUR_INDISPONIBLE = {"statut": "indisponible"}
 RETOUR_ANNULE = {"statut": "annulé"}
 RETOUR_AUCUN = {"statut": "aucun travail en cours"}
+# actions-sures-et-parite-clavier, lot B (run 2059) : « annuler » arrivé après que le travail a agi rendait « aucun
+# travail en cours » (ou « annulé ») sans dire ce qui était déjà fait ; l'agent réservait une seconde date à côté de la
+# première. Le retour dit la vérité et comment défaire. Consigne au modèle, jamais dite ; aucun métier.
+CONSIGNE_DEJA_FAIT = (
+    "Ce travail avait déjà appelé ses outils : ce qu'ils ont fait reste fait. Si la personne ne le veut plus, "
+    "confie une demande qui le défait."
+)
 
 # C2 : la ligne écrite par le code pendant un travail en cours (F1, F2). Générique : aucun métier.
 LIGNE_TRAVAIL_EN_COURS = (
@@ -342,13 +349,32 @@ class TravailDeLAgent:
         """F2 : l'appelant ne veut plus de sa demande. ⛔ Ne lève jamais."""
         try:
             if not self.occupe:
-                return dict(RETOUR_AUCUN)
+                dernier = self._dernier_travail_qui_a_agi()
+                if dernier is None:
+                    return dict(RETOUR_AUCUN)
+                return {
+                    **RETOUR_AUCUN,
+                    "dernier_travail": {"outils": list(dernier.get("outils") or []), "resultat": dernier.get("resultat")},
+                    "consigne": CONSIGNE_DEJA_FAIT,
+                }
+            deja = list(self._outils_appeles)
             await self._annuler_le_travail_en_cours()
             logger.info("[travail] travail annulé à la demande de l'appelant")
+            if deja:
+                return {**RETOUR_ANNULE, "outils_deja_appeles": deja, "consigne": CONSIGNE_DEJA_FAIT}
             return dict(RETOUR_ANNULE)
         except Exception as erreur:  # noqa: BLE001
             logger.error(f"[travail] annulation en échec : {type(erreur).__name__}")
             return dict(RETOUR_INDISPONIBLE)
+
+    def _dernier_travail_qui_a_agi(self) -> dict | None:
+        """Le dernier travail de l'appel, terminé, s'il a appelé au moins un outil (lu dans la trace de la fiche :
+        au clavier, le travail d'un tour précédent n'existe plus qu'ici). ``None`` sinon."""
+        travaux = (self._fiche() or {}).get(CLE_TRAVAUX) or []
+        dernier = travaux[-1] if travaux and isinstance(travaux[-1], dict) else None
+        if dernier is None or dernier.get("statut") != STATUT_FAIT or not dernier.get("outils"):
+            return None
+        return dernier
 
     async def _annuler_le_travail_en_cours(self) -> None:
         """Arrête la tâche en cours (sa trace dit « annulé », son résultat n'est jamais remis) ; le
@@ -770,10 +796,13 @@ def brancher_confier_le_travail(
         from api.services.workflow.declenchement_de_l_action import noter_l_appel
 
         noter_l_appel(moteur, agent, NOM_OUTIL)
-        # Lot 5 (K11) : les valeurs de la fiche sont jointes par le code, le modèle n'a plus à les recopier.
+        # Lot 5 (K11) : les valeurs de la fiche sont jointes par le code, le modèle n'a plus à les recopier ;
+        # actions-sures-et-parite-clavier (lot B) : seulement les champs que l'étape attend.
         from api.services.travail.demande import demande_avec_la_fiche
 
-        demande = demande_avec_la_fiche(moteur, arguments.get("demande"))
+        demande = demande_avec_la_fiche(
+            moteur, arguments.get("demande"), getattr(agent, "current_node", None) or noeud
+        )
         # fiabilite-de-la-conversation, lot A (signe 2) : la demande PART, identique à une demande déjà faite dans
         # l'étape ? Compté ici, avant la décision de B2 (qui la bloque le plus souvent : la tentative est le signe).
         from api.services.workflow.sortie_d_impasse import compter_la_demande
