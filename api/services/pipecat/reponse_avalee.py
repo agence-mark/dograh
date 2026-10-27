@@ -68,6 +68,12 @@ def porte_quelque_chose(morceau: Any) -> bool:
     return bool(getattr(delta, "content", None) or getattr(delta, "tool_calls", None))
 
 
+def _porte_du_texte(morceau: Any) -> bool:
+    """Le morceau porte-t-il du texte (ce qui part vers la voix) ?"""
+    delta = _delta(morceau)
+    return bool(delta is not None and getattr(delta, "content", None))
+
+
 def jetons_generes(morceau: Any) -> int:
     usage = getattr(morceau, "usage", None)
     try:
@@ -224,6 +230,10 @@ class FluxRepris:
         # Lot 1 (K1) : une erreur du flux AVANT le premier morceau utile (le fournisseur coupe le flux
         # sur une réponse qu'il a pourtant générée) est traitée comme un flux vide : même relance sans
         # flux. Une erreur après un morceau utile remonte comme avant (rien n'est dit deux fois).
+        # actions-sures-et-parite-clavier, lot D (run 2054) : seul un TEXTE est « déjà dit ». Un appel d'outil ne
+        # s'exécute qu'à la fin de la réponse : ses morceaux sont gardés jusqu'à la fin du flux (aucune latence) ; un
+        # flux qui casse après un début d'appel, avant toute parole, suit la relance puis la phrase de repli.
+        appel_tenu = False
         erreur_du_flux = None
         try:
             async for morceau in self._flux:
@@ -233,20 +243,25 @@ class FluxRepris:
                 jetons = max(jetons, jetons_generes(morceau))
                 if getattr(morceau, "usage", None) is not None:
                     usage_d_avant = morceau.usage
-                if porte_quelque_chose(morceau):
+                if _porte_du_texte(morceau):
                     quelque_chose = True
                     for tenu in tenus:
                         yield tenu
                     tenus = []
                     yield morceau
                 else:
+                    appel_tenu = appel_tenu or porte_quelque_chose(morceau)
                     tenus.append(morceau)
         except Exception as erreur:  # noqa: BLE001
             if quelque_chose:
                 raise
             erreur_du_flux = erreur
-            logger.warning(f"[cerveau] flux en erreur avant le premier morceau : {erreur!r}")
+            logger.warning(f"[cerveau] flux en erreur avant toute parole : {erreur!r}")
         if quelque_chose:
+            return
+        if appel_tenu and erreur_du_flux is None:
+            for tenu in tenus:
+                yield tenu
             return
         if erreur_du_flux is None and jetons <= 0 and not self._attend():
             for tenu in tenus:
