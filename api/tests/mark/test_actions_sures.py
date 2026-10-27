@@ -13,6 +13,8 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | en-tête | les valeurs jointes sont dites « pas des demandes » |
 | annuler après coup | sans travail en cours, le dernier travail qui a agi est rendu au modèle avec la consigne de le défaire |
 | annuler pendant | un travail annulé après avoir appelé ses outils le dit |
+| changement de date (lot F, runs 2086, 2087) | le champ défait par l'annulation de l'ancien rendez-vous reste « confirme » tant qu'une réservation tient, quel que soit l'ordre |
+| outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
 import asyncio
@@ -21,9 +23,10 @@ from types import SimpleNamespace
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
-from api.services.travail.agent import CONSIGNE_DEJA_FAIT
+from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER
 from api.services.travail.demande import ENTETE_DES_VALEURS, demande_avec_la_fiche
 from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+from api.tests.mark.test_annulation_d_un_rendez_vous import ANNULER, RESERVER, Banc
 from api.tests.mark.test_travail_de_fond import DEMANDE, RESULTAT, Appel, _texte
 
 CHAMPS = (
@@ -174,3 +177,40 @@ async def test_annuler_pendant_un_travail_qui_a_deja_ecrit_le_dit(appel):
 @pytest.mark.asyncio
 async def test_annuler_pendant_une_recherche_reste_un_simple_annule(appel):
     assert await _pendant(appel, ["chercher_dates_entretien"]) == {"statut": "annulé"}
+
+
+@pytest.mark.asyncio
+async def test_run_2086_reserver_la_nouvelle_date_puis_annuler_l_ancienne_laisse_le_rendez_vous_tenu():
+    banc = Banc()
+    await banc.reserver()
+    await banc.appeler(RESERVER, nom="Durand")  # la nouvelle date (le banc ne garde pas les dates)
+    rendu = await banc.appeler(ANNULER, nom="Durand")
+    assert banc.fiche["rendez_vous"] == "confirme"
+    assert rendu["statut"] == "annule"  # l'annulation de l'ancien est bien faite et dite
+    assert banc.fiche["actions_tenues"]["rendez_vous"] == {"faites": 2, "defaites": 1}
+
+
+@pytest.mark.asyncio
+async def test_run_2087_les_deux_ordres_d_un_meme_travail_finissent_confirme():
+    for ordre in ((RESERVER, ANNULER), (ANNULER, RESERVER)):
+        banc = Banc()
+        await banc.reserver()
+        for outil in ordre:
+            await banc.appeler(outil, nom="Durand")
+        assert banc.fiche["rendez_vous"] == "confirme", ordre
+
+
+@pytest.mark.asyncio
+async def test_annuler_le_seul_rendez_vous_ecrit_toujours_annule():
+    banc = Banc()
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand")
+    assert banc.fiche["rendez_vous"] == "annule"
+    await banc.appeler(RESERVER, nom="Durand")
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+def test_la_description_d_annuler_dit_qu_elle_ne_defait_pas_une_action_faite():
+    assert "ne défait rien de ce qu'un travail terminé a déjà fait" in DESCRIPTION_ANNULER
+    assert "confie une demande qui la défait" in DESCRIPTION_ANNULER
+    assert "ne veut plus de sa demande" not in DESCRIPTION_ANNULER

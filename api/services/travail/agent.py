@@ -146,9 +146,13 @@ DESCRIPTION_OUTIL = (
     "pendant un travail en cours annule la demande précédente et lance la nouvelle (pour la "
     "modifier, écris la demande complète corrigée)."
 )
+# Lot F (rejeu du 27/10, run 2086) : « quand la personne ne veut plus de sa demande » faisait prendre cet outil pour
+# « défaire une action faite » ; appelé dans la même réplique qu'une nouvelle réservation, il laissait deux rendez-vous.
+# La description dit ce que l'outil fait vraiment, et ce qu'il ne fait pas.
 DESCRIPTION_ANNULER = (
-    "Annule le travail en cours confié au second cerveau, quand la personne ne veut plus de sa "
-    "demande. Sans travail en cours, ne fait rien."
+    "Arrête le travail encore en cours chez le second cerveau. Il ne défait rien de ce qu'un travail "
+    "terminé a déjà fait : pour défaire une action déjà faite, confie une demande qui la défait. "
+    "Sans travail en cours, ne fait rien."
 )
 # D-3 (Evan, 21/10) : la description exacte, mesurée au lot 0.
 DESCRIPTION_ANNONCE = (

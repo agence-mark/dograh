@@ -22,6 +22,12 @@ résultat pour :
   dans le résultat que lit le modèle. Un outil sans règle posée ne dit rien de plus qu'avant (le défaut
   du catalogue ne parle que pour un connecteur, qui disait déjà sa phrase).
 
+- **actions-sures-et-parite-clavier (lot F, rejeu du 27/10, runs 2086 et 2087)** : un champ défait par une annulation
+  (``annule_par_outil``) suit le compte des actions de l'appel, pas le dernier outil arrivé. Une personne qui change de
+  date fait réserver la nouvelle puis annuler l'ancienne (ou les deux dans un même travail, dont les résultats arrivent
+  dans le désordre) : la fiche disait « annule » avec un rendez-vous tenu. L'annulation n'écrit sa valeur que si plus
+  aucune action faite dans l'appel ne tient (``CLE_ACTIONS_TENUES`` : faites, défaites, par champ).
+
 Les portes, passations, transferts et la fin d'appel n'y passent jamais : ce ne sont pas des actions.
 ⛔ Ne lève jamais : l'action rend toujours son résultat, l'enveloppe ne fait que regarder.
 """
@@ -142,6 +148,18 @@ def valeur_d_annulation(champ: Any, resultat: Any) -> Any:
     return None
 
 
+# Lot F : par champ, combien d'actions de l'appel l'ont rempli (« faites ») et défait (« defaites »).
+CLE_ACTIONS_TENUES = "actions_tenues"
+
+
+def _compter(fiche: dict, champ: str, sens: str) -> int:
+    """Ajoute une action au compte du champ (``sens`` : « faites » ou « defaites ») ; rend les actions encore
+    tenues (faites moins défaites, jamais négatif)."""
+    compte = fiche.setdefault(CLE_ACTIONS_TENUES, {}).setdefault(champ, {"faites": 0, "defaites": 0})
+    compte[sens] = int(compte.get(sens) or 0) + 1
+    return max(0, int(compte.get("faites") or 0) - int(compte.get("defaites") or 0))
+
+
 def champs_annules_par(moteur: Any, nom_outil: str) -> list[Any]:
     """Les champs de la fiche que ``nom_outil`` défait (``annule_par_outil``). ⛔ Ne lève jamais."""
     try:
@@ -190,6 +208,10 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
             )
             if valeur is None:
                 logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
+                continue
+            tenues = _compter(fiche, champ.nom, "faites" if champ in champs else "defaites")
+            if champ not in champs and tenues > 0:
+                logger.info(f"[fiche] {champ.nom} par {nom_outil} : {tenues} action(s) de l'appel tiennent encore, non défait")
                 continue
             verdict = ecrire_dans_la_fiche(
                 fiche, reglages, champ.nom, valeur, source=SOURCE_ACTION
