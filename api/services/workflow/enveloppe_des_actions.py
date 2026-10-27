@@ -23,10 +23,11 @@ résultat pour :
   du catalogue ne parle que pour un connecteur, qui disait déjà sa phrase).
 
 - **actions-sures-et-parite-clavier (lot F, rejeu du 27/10, runs 2086 et 2087)** : un champ défait par une annulation
-  (``annule_par_outil``) suit le compte des actions de l'appel, pas le dernier outil arrivé. Une personne qui change de
-  date fait réserver la nouvelle puis annuler l'ancienne (ou les deux dans un même travail, dont les résultats arrivent
-  dans le désordre) : la fiche disait « annule » avec un rendez-vous tenu. L'annulation n'écrit sa valeur que si plus
-  aucune action faite dans l'appel ne tient (``CLE_ACTIONS_TENUES`` : faites, défaites, par champ).
+  (``annule_par_outil``) suit les réservations de l'appel, pas le dernier outil arrivé. Une personne qui change de date
+  fait réserver la nouvelle puis annuler l'ancienne (ou les deux dans un même travail, résultats dans le désordre) : la
+  fiche disait « annule » avec un rendez-vous tenu. L'annulation n'écrit sa valeur que si plus aucune écriture de l'appel
+  qui remplit ce champ ne tient (``ecritures_tenues`` : le journal des actions, chaque écriture reconnue par sa date) ;
+  l'annulation faite reste dite « faite » au modèle.
 
 Les portes, passations, transferts et la fin d'appel n'y passent jamais : ce ne sont pas des actions.
 ⛔ Ne lève jamais : l'action rend toujours son résultat, l'enveloppe ne fait que regarder.
@@ -148,18 +149,6 @@ def valeur_d_annulation(champ: Any, resultat: Any) -> Any:
     return None
 
 
-# Lot F : par champ, combien d'actions de l'appel l'ont rempli (« faites ») et défait (« defaites »).
-CLE_ACTIONS_TENUES = "actions_tenues"
-
-
-def _compter(fiche: dict, champ: str, sens: str) -> int:
-    """Ajoute une action au compte du champ (``sens`` : « faites » ou « defaites ») ; rend les actions encore
-    tenues (faites moins défaites, jamais négatif)."""
-    compte = fiche.setdefault(CLE_ACTIONS_TENUES, {}).setdefault(champ, {"faites": 0, "defaites": 0})
-    compte[sens] = int(compte.get(sens) or 0) + 1
-    return max(0, int(compte.get("faites") or 0) - int(compte.get("defaites") or 0))
-
-
 def champs_annules_par(moteur: Any, nom_outil: str) -> list[Any]:
     """Les champs de la fiche que ``nom_outil`` défait (``annule_par_outil``). ⛔ Ne lève jamais."""
     try:
@@ -174,9 +163,13 @@ def champs_annules_par(moteur: Any, nom_outil: str) -> list[Any]:
         return []
 
 
-def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str]:
+def remplir_par_l_action(
+    moteur: Any, nom_outil: str, resultat: Any, arguments: Any = None, retenus: list[str] | None = None
+) -> list[str]:
     """Écrit les champs que ``nom_outil`` remplit (``rempli_par_outil``) ou défait (``annule_par_outil``, lot 8).
-    Rend les noms des champs écrits. ⛔ Ne lève jamais."""
+    Rend les noms des champs écrits. Lot F : un champ qu'une annulation réussie ne défait pas, parce qu'une autre
+    écriture de l'appel le tient encore, est ajouté à ``retenus`` (l'annulation est faite, le champ reste juste).
+    ⛔ Ne lève jamais."""
     ecrits: list[str] = []
     try:
         reglages = getattr(moteur, "_fiche", None)
@@ -209,9 +202,10 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
             if valeur is None:
                 logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
                 continue
-            tenues = _compter(fiche, champ.nom, "faites" if champ in champs else "defaites")
-            if champ not in champs and tenues > 0:
-                logger.info(f"[fiche] {champ.nom} par {nom_outil} : {tenues} action(s) de l'appel tiennent encore, non défait")
+            if champ not in champs and _tenu_par_une_autre_ecriture(moteur, champ, nom_outil, arguments, resultat):
+                if retenus is not None:
+                    retenus.append(champ.nom)
+                logger.info(f"[fiche] {champ.nom} par {nom_outil} : une autre écriture de l'appel le tient, non défait")
                 continue
             verdict = ecrire_dans_la_fiche(
                 fiche, reglages, champ.nom, valeur, source=SOURCE_ACTION
@@ -222,6 +216,31 @@ def remplir_par_l_action(moteur: Any, nom_outil: str, resultat: Any) -> list[str
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fiche] résultat de {nom_outil} non lu pour la fiche : {erreur!r}")
     return ecrits
+
+
+def _tenu_par_une_autre_ecriture(moteur: Any, champ: Any, nom_outil: str, arguments: Any, resultat: Any) -> bool:
+    """Lot F : après cette annulation (pas encore notée au journal), une écriture de l'appel qui remplit ``champ``
+    tient-elle encore ? ⛔ Ne lève jamais (``False`` : la règle d'avant, l'annulation écrit)."""
+    try:
+        from api.services.workflow.verite_des_actions import (
+            ActionVue,
+            dates_dans,
+            ecritures_tenues,
+            resultat_reussi,
+        )
+
+        cette = ActionVue(
+            nom=nom_outil,
+            arguments=dict(arguments) if isinstance(arguments, dict) else {},
+            resultat=resultat,
+            reussie=resultat_reussi(resultat),
+            dates=frozenset(dates_dans(resultat)),
+        )
+        cible = _normaliser(getattr(champ, "rempli_par_outil", None) or "")
+        return any(_normaliser(v.nom) == cible for v in ecritures_tenues(moteur, en_plus=cette))
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] écritures tenues illisibles : {erreur!r}")
+        return False
 
 
 # Lot 8 (K16, D-1) : l'issue réelle d'une annulation, dite au modèle. Génériques, aucun mot de métier.
@@ -424,7 +443,8 @@ def envelopper_l_action(
             # Un résultat intermédiaire (``is_final=False``) n'est pas encore la réponse de l'outil.
             if getattr(proprietes, "is_final", True) is not False:
                 fini.set()
-                ecrits = remplir_par_l_action(moteur, nom_outil, resultat)
+                retenus: list[str] = []
+                ecrits = remplir_par_l_action(moteur, nom_outil, resultat, arguments, retenus)
                 try:
                     from api.services.workflow.verite_des_actions import etape_de_l_action, noter_l_action
 
@@ -444,7 +464,7 @@ def envelopper_l_action(
                 )
                 if champs_annules_par(moteur, nom_outil):
                     # Lot 8 (K16) : une annulation dit son issue réelle au modèle (faite, échouée, non confirmée).
-                    resultat = avec_l_issue_d_annulation(resultat, ecrits)
+                    resultat = avec_l_issue_d_annulation(resultat, ecrits + retenus)
                 await rendre(resultat, *args, **kwargs)
                 if issue is not None:
                     # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.

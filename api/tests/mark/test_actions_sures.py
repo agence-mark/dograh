@@ -13,7 +13,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | en-tête | les valeurs jointes sont dites « pas des demandes » |
 | annuler après coup | sans travail en cours, le dernier travail qui a agi est rendu au modèle avec la consigne de le défaire |
 | annuler pendant | un travail annulé après avoir appelé ses outils le dit |
-| changement de date (lot F, runs 2086, 2087) | le champ défait par l'annulation de l'ancien rendez-vous reste « confirme » tant qu'une réservation tient, quel que soit l'ordre |
+| changement de date (lot F, runs 2086, 2087) | l'annulation de l'ancien rendez-vous (par sa date) laisse « confirme » et dite faite, dans les deux ordres, même pour un rendez-vous d'un appel précédent ; une réservation refusée ne tient pas ; « une écriture est en vigueur » lit le même suivi |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -25,7 +25,9 @@ import pytest
 from api.schemas.fiche_agent import ChampFiche
 from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER
 from api.services.travail.demande import ENTETE_DES_VALEURS, demande_avec_la_fiche
+from api.services.workflow.enveloppe_des_actions import ISSUE_ANNULE
 from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+from api.services.workflow.verite_des_actions import ecriture_en_vigueur
 from api.tests.mark.test_annulation_d_un_rendez_vous import ANNULER, RESERVER, Banc
 from api.tests.mark.test_travail_de_fond import DEMANDE, RESULTAT, Appel, _texte
 
@@ -179,29 +181,62 @@ async def test_annuler_pendant_une_recherche_reste_un_simple_annule(appel):
     assert await _pendant(appel, ["chercher_dates_entretien"]) == {"statut": "annulé"}
 
 
+ANCIEN = "2026-11-05"  # la date que rend la première réservation du banc
+NOUVEAU = {"statut": "confirme", "rendez_vous": "confirme", "debut": "2026-11-02T08:00:00+01:00"}
+
+
+async def _nouvelle_date(banc):
+    banc.reponses[RESERVER] = NOUVEAU
+    await banc.appeler(RESERVER, nom="Durand")
+
+
 @pytest.mark.asyncio
 async def test_run_2086_reserver_la_nouvelle_date_puis_annuler_l_ancienne_laisse_le_rendez_vous_tenu():
     banc = Banc()
     await banc.reserver()
-    await banc.appeler(RESERVER, nom="Durand")  # la nouvelle date (le banc ne garde pas les dates)
-    rendu = await banc.appeler(ANNULER, nom="Durand")
+    await _nouvelle_date(banc)
+    rendu = await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
     assert banc.fiche["rendez_vous"] == "confirme"
-    assert rendu["statut"] == "annule"  # l'annulation de l'ancien est bien faite et dite
-    assert banc.fiche["actions_tenues"]["rendez_vous"] == {"faites": 2, "defaites": 1}
+    # revue du lot F : l'annulation faite est dite faite au modèle, jamais « non confirmée »
+    assert rendu["issue"] == ISSUE_ANNULE
+    # une seule vérité : la règle « une écriture est en vigueur » voit le nouveau rendez-vous
+    tenue = ecriture_en_vigueur(banc.moteur)
+    assert tenue is not None and (11, 2) in tenue.dates
 
 
 @pytest.mark.asyncio
 async def test_run_2087_les_deux_ordres_d_un_meme_travail_finissent_confirme():
-    for ordre in ((RESERVER, ANNULER), (ANNULER, RESERVER)):
-        banc = Banc()
-        await banc.reserver()
-        for outil in ordre:
-            await banc.appeler(outil, nom="Durand")
-        assert banc.fiche["rendez_vous"] == "confirme", ordre
+    banc = Banc()
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert banc.fiche["rendez_vous"] == "annule"
+    await _nouvelle_date(banc)
+    assert banc.fiche["rendez_vous"] == "confirme"
 
 
 @pytest.mark.asyncio
-async def test_annuler_le_seul_rendez_vous_ecrit_toujours_annule():
+async def test_rendez_vous_d_un_appel_precedent_deplace_la_nouvelle_date_tient():
+    """Revue du lot F : « je rappelle pour décaler », l'ancien rendez-vous n'est pas une écriture de cet appel."""
+    banc = Banc()
+    await _nouvelle_date(banc)
+    rendu = await banc.appeler(ANNULER, nom="Durand", date="2026-10-29")
+    assert banc.fiche["rendez_vous"] == "confirme"
+    assert rendu["issue"] == ISSUE_ANNULE
+
+
+@pytest.mark.asyncio
+async def test_une_reservation_refusee_ne_tient_pas_l_annulation_de_la_seule_vraie_ecrit_annule():
+    banc = Banc()
+    await banc.reserver()
+    banc.reponses[RESERVER] = {"statut": "indisponible"}
+    await banc.appeler(RESERVER, nom="Durand")
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert banc.fiche["rendez_vous"] == "annule"
+    assert ecriture_en_vigueur(banc.moteur) is None
+
+
+@pytest.mark.asyncio
+async def test_annuler_le_seul_rendez_vous_sans_date_ecrit_toujours_annule():
     banc = Banc()
     await banc.reserver()
     await banc.appeler(ANNULER, nom="Durand")

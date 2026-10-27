@@ -352,7 +352,7 @@ class TravailDeLAgent:
         return getattr(self.agent, "current_node", None)
 
     async def annuler(self) -> dict:
-        """F2 : l'appelant ne veut plus de sa demande. ⛔ Ne lève jamais."""
+        """F2 : arrête le travail encore en cours ; ne défait rien de ce qu'un travail terminé a fait (lot F). ⛔ Ne lève jamais."""
         try:
             if not self.occupe:
                 dernier = self._dernier_travail_qui_a_agi()

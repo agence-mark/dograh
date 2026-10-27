@@ -576,26 +576,52 @@ def annulation_reussie(moteur: Any) -> bool:
         return True
 
 
-def ecriture_en_vigueur(moteur: Any, etape: str | None = None) -> ActionVue | None:
-    """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel, si aucune annulation réussie ne l'a défaite
-    depuis. ``None`` : rien n'est écrit (ou tout a été défait). Revue du 26/10 (R-4) : ``etape`` donnée, seules
-    comptent les écritures parties de cette étape (ou d'une étape inconnue, par prudence). ⛔ Ne lève jamais."""
+def _dates_de(vue: Any) -> frozenset:
+    """Les dates d'une action : celles de son résultat et de ses arguments."""
+    return frozenset(getattr(vue, "dates", None) or ()) | frozenset(dates_dans(getattr(vue, "arguments", None) or {}))
+
+
+def ecritures_tenues(moteur: Any, en_plus: Any = None) -> list:
+    """Lot F (rejeu du 27/10, runs 2086 et 2087) : les écritures réussies de l'appel qu'aucune annulation réussie n'a
+    défaites, dans l'ordre. Une annulation défait l'écriture qui porte une de ses dates (aucune ne la porte : la plus
+    récente écriture sans date lisible) ; sans date lisible, la plus récente écriture tenue (la règle d'avant). Une
+    annulation dont la date n'est celle d'aucune écriture de l'appel (un rendez-vous d'un appel précédent) ne défait
+    rien de l'appel. ``en_plus`` : une action pas encore notée. ⛔ Ne lève jamais."""
     try:
         from api.services.workflow.enveloppe_des_actions import _normaliser
 
         ecritures = outils_d_ecriture(moteur)
         annulations = outils_d_annulation(moteur)
-        en_vigueur = None
-        for vue in journal_de(moteur):
+        tenues: list = []
+        for vue in list(journal_de(moteur)) + ([en_plus] if en_plus is not None else []):
             if not vue.reussie:
                 continue
             nom = _normaliser(vue.nom)
             if nom in ecritures:
-                if etape is None or vue.etape is None or vue.etape == etape:
-                    en_vigueur = vue
-            elif nom in annulations:
-                en_vigueur = None
-        return en_vigueur
+                tenues.append(vue)
+            elif nom in annulations and tenues:
+                cibles = _dates_de(vue)
+                if not cibles:
+                    visees = tenues[-1:]
+                else:
+                    visees = [t for t in tenues if cibles & _dates_de(t)] or [
+                        t for t in tenues if not _dates_de(t)
+                    ][-1:]
+                for t in visees:
+                    tenues.remove(t)
+        return tenues
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def ecriture_en_vigueur(moteur: Any, etape: str | None = None) -> ActionVue | None:
+    """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel qui tient encore (``ecritures_tenues``, lot F :
+    le même suivi que la fiche). ``None`` : rien n'est écrit (ou tout a été défait). Revue du 26/10 (R-4) : ``etape``
+    donnée, seules comptent les écritures parties de cette étape (ou d'une étape inconnue, par prudence).
+    ⛔ Ne lève jamais."""
+    try:
+        tenues = [v for v in ecritures_tenues(moteur) if etape is None or v.etape is None or v.etape == etape]
+        return tenues[-1] if tenues else None
     except Exception:  # noqa: BLE001
         return None
 
