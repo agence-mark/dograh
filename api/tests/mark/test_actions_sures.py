@@ -16,6 +16,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | changement de date (lot F, runs 2086, 2087) | l'annulation de l'ancien rendez-vous (par sa date) laisse « confirme » et dite faite, dans les deux ordres, même pour un rendez-vous d'un appel précédent ; une réservation refusée ne tient pas ; « une écriture est en vigueur » lit le même suivi |
 | actions qui tiennent (lot F, banc local, E11) | une demande au fond porte la réservation encore tenue de l'appel, sous un en-tête d'état ; plus rien quand elle est défaite ; rien sans action |
 | journal au clavier (lot F) | le journal des actions survit au moteur refait à chaque réplique (fiche de l'appel), son nom de clé est réservé |
+| une réservation tient déjà (lot F, E11) | une nouvelle réservation rend la question « remplacer ou ajouter » ; le réessai dans le même tour est retenu ; après une parole de la personne elle part (deux rendez-vous possibles) ; défaire l'ancienne la libère tout de suite |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -199,7 +200,12 @@ async def _nouvelle_date(banc):
 @pytest.mark.asyncio
 async def test_run_2086_reserver_la_nouvelle_date_puis_annuler_l_ancienne_laisse_le_rendez_vous_tenu():
     banc = Banc()
+    banc.fiche["tour_appelant"] = 1
     await banc.reserver()
+    banc.fiche["tour_appelant"] = 2  # la personne a dit « plutôt lundi » : la nouvelle date est réservée d'abord
+    banc.reponses[RESERVER] = NOUVEAU
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "incomplet"  # remplacer ou ajouter ?
+    banc.fiche["tour_appelant"] = 3  # elle a répondu
     await _nouvelle_date(banc)
     rendu = await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
     assert banc.fiche["rendez_vous"] == "confirme"
@@ -290,3 +296,29 @@ def test_le_nom_du_journal_est_reserve():
 
     with pytest.raises(ValueError, match="reserved"):
         verifier_champs([ChampFiche(nom="mark_journal_des_actions")])
+
+
+@pytest.mark.asyncio
+async def test_e11_une_seconde_reservation_demande_remplacer_ou_ajouter_sans_l_interdire():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 4
+    await banc.reserver()
+    banc.reponses[RESERVER] = NOUVEAU
+    rendu = await banc.appeler(RESERVER, nom="Durand")
+    assert rendu["statut"] == "incomplet" and rendu["garde"] == "ecriture_qui_tient"
+    assert rendu["tient_deja"] and "remplace" in rendu["consigne"]
+    assert len(banc.executions[RESERVER]) == 1  # rien n'est parti
+    banc.fiche["tour_appelant"] = 5  # la personne a répondu : elle veut les deux
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "confirme"
+    assert len(banc.executions[RESERVER]) == 2
+
+
+@pytest.mark.asyncio
+async def test_e11_defaire_l_ancienne_libere_la_nouvelle_tout_de_suite():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 4
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    await _nouvelle_date(banc)
+    assert len(banc.executions[RESERVER]) == 2
+    assert banc.fiche["rendez_vous"] == "confirme"

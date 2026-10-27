@@ -386,6 +386,8 @@ def _est_une_ecriture(moteur: Any, nom: str) -> bool:
 # K7 : la garde de réservation
 # ---------------------------------------------------------------------------------------------------------
 
+STATUT_INCOMPLET = "incomplet"
+
 CONSIGNE_CHERCHER = (
     "Cette date n'a pas été donnée par la recherche : cherche d'abord ce jour, puis réserve une date "
     "qu'elle a donnée."
@@ -419,6 +421,70 @@ def garde_de_reservation(moteur: Any, agent: Any, nom_outil: str, arguments: Any
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] garde de réservation illisible : {erreur!r}")
         return None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Lot F : une écriture qui tient déjà (remplacer ou ajouter : la personne choisit)
+# ---------------------------------------------------------------------------------------------------------
+
+GARDE_DEJA_TENUE = "ecriture_qui_tient"
+CONSIGNE_DEJA_TENUE = (
+    "Une action de l'appel du même outil tient déjà (ci-dessus). Ne réessaie pas : rends la question, pour qu'on "
+    "demande à la personne si la nouvelle action remplace l'ancienne (la défaire d'abord) ou s'y ajoute."
+)
+
+
+def garde_d_une_ecriture_qui_tient(moteur: Any, agent: Any, nom_outil: str, arguments: Any) -> dict | None:
+    """Lot F (banc local du 27/10, E11 : jeudi réservé, « plutôt lundi », deux rendez-vous tenus). Une action d'écriture
+    dont une action du même outil tient encore dans l'appel (``ecritures_tenues``) ne part pas d'emblée : elle rend
+    ``incomplet`` avec ce qui tient et la question à poser (remplacer ou ajouter). Ce n'est pas un interdit : dès que
+    la personne a reparlé (tour de l'appelant suivant), la même action part ; et défaire l'ancienne la libère tout de
+    suite. Une action aux mêmes dates qu'une action qui tient est laissée au V4. ``None`` : l'action s'exécute.
+    ⛔ Ne lève jamais."""
+    try:
+        if not case_allumee(agent) or not _est_une_ecriture(moteur, nom_outil):
+            return None
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        cible = _normaliser(nom_outil)
+        tenues = [v for v in ecritures_tenues(moteur) if _normaliser(v.nom) == cible]
+        if not tenues:
+            return None
+        demandees = dates_dans(arguments if isinstance(arguments, Mapping) else {})
+        if demandees and any(demandees <= _dates_de(v) for v in tenues):
+            return None
+        fiche = getattr(moteur, "_gathered_context", None)
+        tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+        for vue in journal_de(moteur):
+            lu = vue.resultat if isinstance(vue.resultat, Mapping) else {}
+            if lu.get("garde") == GARDE_DEJA_TENUE and _normaliser(vue.nom) == cible and lu.get("tour") != tour:
+                return None  # la personne a reparlé depuis la question : son choix passe
+        refus = {
+            "statut": STATUT_INCOMPLET,
+            "garde": GARDE_DEJA_TENUE,
+            "tour": tour,
+            "tient_deja": [_texte_court(v.resultat) for v in tenues],
+            "consigne": CONSIGNE_DEJA_TENUE,
+        }
+        _ajouter_au_journal(
+            moteur, ActionVue(nom=nom_outil, arguments=dict(arguments or {}), resultat=refus, reussie=False)
+        )
+        logger.info(f"[verite] {nom_outil} retenu : une action du même outil tient déjà (tour {tour})")
+        return refus
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] garde de l'écriture qui tient illisible : {erreur!r}")
+        return None
+
+
+def _texte_court(resultat: Any) -> str:
+    lu = _lire(resultat)
+    for niveau in (lu, lu.get("data") if isinstance(lu, Mapping) else None):
+        if isinstance(niveau, Mapping):
+            for cle in ("message", "resultat", "date_reservee"):
+                if isinstance(niveau.get(cle), str) and niveau[cle].strip():
+                    return niveau[cle].strip()[:200]
+    return " ".join(str(resultat).split())[:200]
 
 
 # ---------------------------------------------------------------------------------------------------------

@@ -427,6 +427,9 @@ def envelopper_l_action(
             from api.services.workflow import verite_des_actions as verite
 
             refus = verite.garde_de_reservation(moteur, agent, nom_outil, arguments)
+            if refus is None:
+                # Lot F : une action du même outil tient déjà : remplacer ou ajouter, la personne choisit.
+                refus = verite.garde_d_une_ecriture_qui_tient(moteur, agent, nom_outil, arguments)
             if refus is not None:
                 await params.result_callback(refus)
                 return
