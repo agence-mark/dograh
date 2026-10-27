@@ -164,7 +164,18 @@ def _en_echec(entree: dict) -> bool:
 
 
 def _perime(moteur: Any, entree: dict) -> bool:
-    """Une écriture ou une annulation réussie a suivi ce travail : son résultat n'est peut-être plus vrai."""
+    """Une écriture ou une annulation réussie a suivi ce travail : son résultat n'est peut-être plus vrai. Lot F
+    (actions-sures) : un travail qui a rendu une question à la personne (action retenue) est périmé dès qu'elle a
+    répondu (tour de l'appelant suivant) : la même demande repart."""
+    from api.services.travail.agent import CLE_QUESTION_AU_TOUR
+
+    if CLE_QUESTION_AU_TOUR in entree:
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        fiche = getattr(moteur, "_gathered_context", None)
+        tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+        if tour != entree.get(CLE_QUESTION_AU_TOUR):
+            return True
     rang = entree.get(CLE_JOURNAL_A_LA_FIN)
     if not isinstance(rang, int):
         return False

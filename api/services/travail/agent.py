@@ -134,6 +134,8 @@ CONSIGNE_DEJA_FAIT = (
 # Lot F (banc local du 27/10, E11) : le fond rendait « Réservation … le lundi 2 novembre » alors que la réservation avait été
 # retenue (une autre tenait) ; l'agent disait « le rendez-vous est pris pour lundi ». Le code, qui sait, écrit la vérité en tête
 # du résultat, comme l'issue d'une annulation (lot 8). Générique : le nom de l'outil et ce qui tient, tels quels.
+# Lot F : le tour de l'appelant où un travail a rendu la question d'une action retenue (lu par B2, ``demande_identique``).
+CLE_QUESTION_AU_TOUR = "question_au_tour"
 LIGNE_ACTION_RETENUE = (
     "Écrit par le code : {outil} n'a rien fait de nouveau, parce qu'une action du même outil tient déjà dans l'appel "
     "({tient_deja}). Ne dis pas que c'est fait : demande à la personne si elle remplace l'ancienne ou s'y ajoute."
@@ -651,7 +653,7 @@ class TravailDeLAgent:
         except Exception:  # noqa: BLE001
             return 0
 
-    def _avec_les_actions_retenues(self, texte: str, rang: int) -> str:
+    def _avec_les_actions_retenues(self, texte: str, rang: int, entree: dict | None = None) -> str:
         """Lot F : une écriture de ce travail retenue par la garde « une action tient déjà », que rien n'a faite
         ensuite, est dite en tête du résultat par le code. ⛔ Ne lève jamais."""
         try:
@@ -674,6 +676,9 @@ class TravailDeLAgent:
                     lignes.append(ligne)
             if not lignes:
                 return texte
+            if isinstance(entree, dict):
+                # une question à la personne, pas un résultat : la même demande repart après sa réponse (B2)
+                entree[CLE_QUESTION_AU_TOUR] = self._tour()
             return "\n".join(lignes + ([texte] if texte else []))
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[travail] actions retenues illisibles : {erreur!r}")
@@ -793,7 +798,7 @@ class TravailDeLAgent:
             depuis = self._nombre_de_messages_du_fond()
             rang = self._rang_du_journal()
             texte = (await self._executeur(self, demande)).strip()
-            texte = self._avec_les_actions_retenues(texte, rang)
+            texte = self._avec_les_actions_retenues(texte, rang, entree)
             if not texte:
                 statut = STATUT_VIDE
             elif (

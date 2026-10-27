@@ -20,6 +20,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | deux demandes d'une même réplique (lot F, E11) | la seconde attend la fin de la première au lieu de l'arrêter ; une demande d'un tour suivant reste une modification ; annuler vide la suite |
 | résultat d'une action retenue (lot F, E11) | le code écrit en tête du résultat remis que rien de nouveau n'a été fait ; rien quand l'action a fini par partir |
 | actions du fond dans l'ordre (lot F, E11) | le service du fond exécute ses outils l'un après l'autre (annuler puis réserver) |
+| question d'une action retenue (lot F, deux rendez-vous) | le travail qui a rendu la question est périmé pour B2 dès que la personne a répondu ; pas avant |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -385,3 +386,14 @@ async def test_e11_une_action_retenue_est_dite_par_le_code_en_tete_du_resultat(a
 async def test_e11_les_actions_du_fond_s_executent_dans_l_ordre(appel):
     travail = await _monte(appel)
     assert getattr(travail.service, "_run_in_parallel", False) is False
+
+
+def test_deux_rendez_vous_la_question_d_une_action_retenue_ne_bloque_pas_la_reponse():
+    from api.services.travail.agent import CLE_QUESTION_AU_TOUR
+    from api.services.travail.demande_identique import _perime
+
+    moteur = SimpleNamespace(_gathered_context={"tour_appelant": 7})
+    entree = {"statut": "fait", "resultat": "…", CLE_QUESTION_AU_TOUR: 7}
+    assert _perime(moteur, entree) is False  # même tour : le réessai aveugle reste retenu
+    moteur._gathered_context["tour_appelant"] = 8
+    assert _perime(moteur, entree) is True  # la personne a répondu : la demande repart
