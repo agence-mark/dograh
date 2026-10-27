@@ -39,6 +39,8 @@ def test_une_question_d_adresse_mail_n_est_pas_un_signe_de_lieu(question):
         ("Quelle est l'adresse de l'intervention ?", "Creil"),
         (QUESTION_MAIL, "j'habite Creil"),
         (None, "mon adresse c'est 8 rue Pasteur"),
+        # revue du 27/10 : un « e » isolé (bruit de transcription) ne fait pas d'« adresse » une adresse mail
+        ("Votre adresse e, s'il vous plaît ?", "Creil"),
     ],
 )
 def test_une_vraie_question_ou_parole_de_lieu_reste_un_signe(question, texte):

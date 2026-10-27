@@ -106,13 +106,29 @@ async def appel():
         await a.arreter()
 
 
-@pytest.mark.asyncio
-async def test_annuler_apres_coup_rend_ce_que_le_dernier_travail_a_fait(appel):
+RENDEZ_VOUS = ChampFiche(
+    nom="rendez_vous",
+    origine="deduit",
+    valeurs=["confirme", "a_rappeler", "annule"],
+    rempli_par_outil="reserver_entretien",
+    annule_par_outil="annuler_entretien",
+)
+
+
+async def _monte(appel, travaux=None):
     await appel.monter(source_etapes=[_texte("rien")], fond_etapes=[_texte(RESULTAT)], outils_du_fond=False)
-    travail = appel.engine.active_agent.travail
-    appel.engine._gathered_context["travaux"] = [
-        {"statut": "fait", "outils": ["reserver_entretien"], "resultat": "Réservation confirmée : lundi 2 novembre."}
-    ]
+    appel.engine._fiche = ReglagesFiche(champs=(RENDEZ_VOUS,))
+    if travaux is not None:
+        appel.engine._gathered_context["travaux"] = travaux
+    return appel.engine.active_agent.travail
+
+
+@pytest.mark.asyncio
+async def test_annuler_apres_coup_rend_ce_que_le_dernier_travail_a_ecrit(appel):
+    travail = await _monte(appel, [
+        {"statut": "fait", "outils": ["chercher_dates_entretien", "reserver_entretien"],
+         "resultat": "Réservation confirmée : lundi 2 novembre."}
+    ])
     retour = await travail.annuler()
     assert retour["statut"] == "aucun travail en cours"
     assert retour["dernier_travail"] == {
@@ -122,18 +138,20 @@ async def test_annuler_apres_coup_rend_ce_que_le_dernier_travail_a_fait(appel):
     assert retour["consigne"] == CONSIGNE_DEJA_FAIT
 
 
+@pytest.mark.parametrize(
+    "outils",
+    [[], ["chercher_dates_entretien"], ["annuler_entretien"]],
+    ids=["sans outil", "recherche seule", "annulation seule"],
+)
 @pytest.mark.asyncio
-async def test_annuler_apres_un_travail_sans_outil_reste_aucun_travail(appel):
-    await appel.monter(source_etapes=[_texte("rien")], fond_etapes=[_texte(RESULTAT)], outils_du_fond=False)
-    travail = appel.engine.active_agent.travail
-    appel.engine._gathered_context["travaux"] = [{"statut": "fait", "outils": [], "resultat": "Manque : date"}]
+async def test_annuler_apres_un_travail_qui_n_a_rien_ecrit_reste_aucun_travail(appel, outils):
+    """Revue du 27/10 : une recherche n'a rien à défaire, et « défaire » une annulation serait refaire l'action."""
+    travail = await _monte(appel, [{"statut": "fait", "outils": outils, "resultat": "…"}])
     assert await travail.annuler() == {"statut": "aucun travail en cours"}
 
 
-@pytest.mark.asyncio
-async def test_annuler_pendant_un_travail_qui_a_deja_agi_le_dit(appel):
-    await appel.monter(source_etapes=[_texte("rien")], fond_etapes=[_texte(RESULTAT)], outils_du_fond=False)
-    travail = appel.engine.active_agent.travail
+async def _pendant(appel, outils):
+    travail = await _monte(appel)
     portail = asyncio.Event()
 
     async def bloque(_travail, _demande):
@@ -142,8 +160,17 @@ async def test_annuler_pendant_un_travail_qui_a_deja_agi_le_dit(appel):
 
     travail._executeur = bloque
     assert await travail.confier(DEMANDE) == {"statut": "lancé"}
-    travail._noter_l_outil("reserver_entretien")
-    retour = await travail.annuler()
-    assert retour["statut"] == "annulé"
-    assert retour["outils_deja_appeles"] == ["reserver_entretien"]
-    assert retour["consigne"] == CONSIGNE_DEJA_FAIT
+    for nom in outils:
+        travail._noter_l_outil(nom)
+    return await travail.annuler()
+
+
+@pytest.mark.asyncio
+async def test_annuler_pendant_un_travail_qui_a_deja_ecrit_le_dit(appel):
+    retour = await _pendant(appel, ["chercher_dates_entretien", "reserver_entretien"])
+    assert retour == {"statut": "annulé", "outils_deja_appeles": ["reserver_entretien"], "consigne": CONSIGNE_DEJA_FAIT}
+
+
+@pytest.mark.asyncio
+async def test_annuler_pendant_une_recherche_reste_un_simple_annule(appel):
+    assert await _pendant(appel, ["chercher_dates_entretien"]) == {"statut": "annulé"}

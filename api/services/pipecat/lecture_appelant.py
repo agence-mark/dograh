@@ -52,9 +52,8 @@ What the model reads (who does what, by switch)
 
 from __future__ import annotations
 
-import re
-
 import asyncio
+import re
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Callable

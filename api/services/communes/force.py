@@ -56,16 +56,18 @@ def _suites(mots: list[str]) -> set[tuple[str, str]]:
 
 # actions-sures-et-parite-clavier, lot C (run 2040) : « votre adresse mail » n'est pas une question de lieu. L'agent venait
 # de la poser ; « marc » de « marc.henry@gmail.com » a été lu commune sûre (Marcq) et a remplacé Creil.
-_SUITES_D_ADRESSE_MAIL = frozenset({"mail", "email", "mel", "e", "electronique", "courriel", "internet"})
+_SUITES_D_ADRESSE_MAIL = frozenset({"mail", "email", "mel", "electronique", "courriel", "internet"})
 
 
 def _sans_adresse_mail(mots: list[str]) -> list[str]:
-    """Les mots, sans « adresse » quand il est suivi d'un mot de l'adresse électronique."""
-    return [
-        mot
-        for i, mot in enumerate(mots)
-        if not (mot == "adresse" and i + 1 < len(mots) and mots[i + 1] in _SUITES_D_ADRESSE_MAIL)
-    ]
+    """Les mots, sans « adresse » quand il est suivi d'un mot de l'adresse électronique (« e mail » : les deux mots,
+    un « e » isolé ne suffit pas)."""
+
+    def de_mail(i: int) -> bool:
+        suite = mots[i + 1 : i + 3]
+        return bool(suite) and (suite[0] in _SUITES_D_ADRESSE_MAIL or suite == ["e", "mail"])
+
+    return [mot for i, mot in enumerate(mots) if not (mot == "adresse" and de_mail(i))]
 
 
 def signe_de_lieu(texte: str, question_avant: str | None = None, code_postal_dit: bool = False) -> bool:

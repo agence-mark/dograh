@@ -121,11 +121,13 @@ RETOUR_REMPLACE = {"statut": "lancé", "demande_precedente": "annulée"}
 RETOUR_INDISPONIBLE = {"statut": "indisponible"}
 RETOUR_ANNULE = {"statut": "annulé"}
 RETOUR_AUCUN = {"statut": "aucun travail en cours"}
-# actions-sures-et-parite-clavier, lot B (run 2059) : « annuler » arrivé après que le travail a agi rendait « aucun
+# actions-sures-et-parite-clavier, lot B (run 2059) : « annuler » arrivé après que le travail a ÉCRIT rendait « aucun
 # travail en cours » (ou « annulé ») sans dire ce qui était déjà fait ; l'agent réservait une seconde date à côté de la
-# première. Le retour dit la vérité et comment défaire. Consigne au modèle, jamais dite ; aucun métier.
+# première. Le retour dit la vérité et comment défaire. Seuls les outils d'écriture comptent (``outils_d_ecriture``) :
+# une recherche n'a rien à défaire, et défaire une annulation serait refaire l'action (revue du 27/10). Consigne au
+# modèle, jamais dite ; aucun métier.
 CONSIGNE_DEJA_FAIT = (
-    "Ce travail avait déjà appelé ses outils : ce qu'ils ont fait reste fait. Si la personne ne le veut plus, "
+    "Ce travail avait déjà écrit avec ses outils : ce qui est écrit reste fait. Si la personne ne le veut plus, "
     "confie une demande qui le défait."
 )
 
@@ -354,10 +356,10 @@ class TravailDeLAgent:
                     return dict(RETOUR_AUCUN)
                 return {
                     **RETOUR_AUCUN,
-                    "dernier_travail": {"outils": list(dernier.get("outils") or []), "resultat": dernier.get("resultat")},
+                    "dernier_travail": {"outils": self._ecritures(dernier.get("outils")), "resultat": dernier.get("resultat")},
                     "consigne": CONSIGNE_DEJA_FAIT,
                 }
-            deja = list(self._outils_appeles)
+            deja = self._ecritures(self._outils_appeles)
             await self._annuler_le_travail_en_cours()
             logger.info("[travail] travail annulé à la demande de l'appelant")
             if deja:
@@ -367,12 +369,23 @@ class TravailDeLAgent:
             logger.error(f"[travail] annulation en échec : {type(erreur).__name__}")
             return dict(RETOUR_INDISPONIBLE)
 
+    def _ecritures(self, noms: Any) -> list[str]:
+        """Parmi ``noms``, les outils d'écriture de la fiche (``rempli_par_outil``), dans l'ordre. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.enveloppe_des_actions import _normaliser
+            from api.services.workflow.verite_des_actions import outils_d_ecriture
+
+            ecriture = outils_d_ecriture(self.moteur)
+            return [n for n in (noms or []) if _normaliser(n) in ecriture]
+        except Exception:  # noqa: BLE001
+            return []
+
     def _dernier_travail_qui_a_agi(self) -> dict | None:
-        """Le dernier travail de l'appel, terminé, s'il a appelé au moins un outil (lu dans la trace de la fiche :
-        au clavier, le travail d'un tour précédent n'existe plus qu'ici). ``None`` sinon."""
+        """Le dernier travail de l'appel, terminé, s'il a appelé au moins un outil d'écriture (lu dans la trace de la
+        fiche : au clavier, le travail d'un tour précédent n'existe plus qu'ici). ``None`` sinon."""
         travaux = (self._fiche() or {}).get(CLE_TRAVAUX) or []
         dernier = travaux[-1] if travaux and isinstance(travaux[-1], dict) else None
-        if dernier is None or dernier.get("statut") != STATUT_FAIT or not dernier.get("outils"):
+        if dernier is None or dernier.get("statut") != STATUT_FAIT or not self._ecritures(dernier.get("outils")):
             return None
         return dernier
 

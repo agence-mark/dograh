@@ -1143,7 +1143,8 @@ async def execute_text_chat_pending_turn(
             agent.reglages or run_configs,
             lambda: engine._gathered_context.get("extracted_variables", {}),
             lambda: engine._gathered_context,
-            voix=getattr(agent.config or user_config, "tts", None),
+            # La voix de l'appel, comme au téléphone (``agent_runtime_factory`` : ``_voix_de_l_appel``).
+            voix=getattr(user_config, "tts", None),
         )
         pipeline = Pipeline(
             [

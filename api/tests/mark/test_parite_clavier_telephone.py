@@ -119,3 +119,19 @@ async def test_journal_du_clavier_une_entree_devient_un_evenement():
     capture = Capture()
     await _JournalDuClavier(capture).append({"type": "mark-model-request", "payload": {"status": 429, "attempt": 1}})
     assert capture.events == [("mark-model-request", {"status": 429, "attempt": 1})]
+
+
+def test_journal_branche_deux_fois_sur_le_meme_client_ne_s_empile_pas():
+    """Revue du 27/10 : passation A → B → A dans un tour du clavier, le même service est rebranché ; le journal est
+    remplacé, les crochets ne s'empilent pas (un refus serait noté deux fois)."""
+    from types import SimpleNamespace
+
+    from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
+
+    http = SimpleNamespace(event_hooks={"request": [], "response": []})
+    llm = SimpleNamespace(_client=SimpleNamespace(_client=http))
+    premier, second = object(), object()
+    assert brancher_le_journal_des_requetes(llm, premier) is True
+    assert brancher_le_journal_des_requetes(llm, second) is True
+    assert len(http.event_hooks["response"]) == 1 and len(http.event_hooks["request"]) == 1
+    assert http._mark_journal_des_requetes["journal"] is second
