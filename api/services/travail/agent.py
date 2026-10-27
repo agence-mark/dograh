@@ -300,6 +300,7 @@ class TravailDeLAgent:
         # Lot F : les demandes confiées dans la même réplique, en attente de la fin du travail en cours.
         self._suite: list[tuple[str, Any]] = []
         self._tour_du_travail: Any = None
+        self._tache_suite: asyncio.Task | None = None
         self._fermeture_differee: asyncio.Task | None = None
         # C1 : la seconde phrase d'attente du travail en cours (une tâche par travail).
         self._seconde_phrase: asyncio.Task | None = None
@@ -547,12 +548,14 @@ class TravailDeLAgent:
         """L'agent se retire pendant un travail : ``fermeture`` (ses sessions d'outils, MCP
         compris) attend la fin de ce travail, qui s'en sert encore, puis le fond s'arrête.
         ``False`` s'il n'y a aucun travail en cours (l'appelant ferme tout de suite)."""
-        tache = self._tache
-        if tache is None or tache.done():
+        if not self._occupe_avec_la_suite():
             return False
 
         async def fermer_apres() -> None:
-            await asyncio.gather(tache, return_exceptions=True)
+            try:
+                await self._attendre_tout(float(self.reglages.delai_max_s) + 5.0)
+            except Exception:  # noqa: BLE001 -- la fermeture part quand même
+                pass
             try:
                 await fermeture()
             except Exception as erreur:  # noqa: BLE001
@@ -564,14 +567,28 @@ class TravailDeLAgent:
         )
         return True
 
+    def _occupe_avec_la_suite(self) -> bool:
+        suite = self._tache_suite
+        return self.occupe or bool(self._suite) or (suite is not None and not suite.done())
+
+    async def _attendre_tout(self, limite: float) -> None:
+        """Revue du lot F : le travail en cours, puis les demandes de la même réplique qui le suivent (chacune avec
+        sa limite). Lève ``asyncio.TimeoutError`` à la limite."""
+        tours = 0
+        while self._occupe_avec_la_suite() and tours < 20:
+            tours += 1
+            for tache in (self._tache, self._tache_suite):
+                if tache is not None and not tache.done():
+                    await asyncio.wait_for(asyncio.shield(tache), timeout=limite)
+            await asyncio.sleep(0)
+
     async def attendre(self, delai_s: float | None = None) -> None:
-        """Attend la fin du travail en cours (le clavier, qui finit son tour). Ne lève jamais."""
-        tache = self._tache
-        if tache is None or tache.done():
+        """Attend la fin du travail en cours et de sa suite (le clavier, qui finit son tour). Ne lève jamais."""
+        if not self._occupe_avec_la_suite():
             return
         limite = (delai_s if delai_s is not None else self.reglages.delai_max_s) + 5.0
         try:
-            await asyncio.wait_for(asyncio.shield(tache), timeout=limite)
+            await self._attendre_tout(limite)
             # Les jetons de la dernière requête passent par l'observateur du worker : attendus,
             # pour que le coût du tour les compte.
             await asyncio.wait_for(self.worker.wait_for_observers(), timeout=5.0)
@@ -641,7 +658,7 @@ class TravailDeLAgent:
             return
         texte, annonce = self._suite.pop(0)
         try:
-            asyncio.get_running_loop().create_task(self.confier(texte, annonce), name="travail:suite")
+            self._tache_suite = asyncio.get_running_loop().create_task(self.confier(texte, annonce), name="travail:suite")
         except RuntimeError as erreur:
             logger.warning(f"[travail] suite non lancée : {erreur!r}")
 

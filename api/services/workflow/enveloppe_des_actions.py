@@ -202,6 +202,10 @@ def remplir_par_l_action(
             if valeur is None:
                 logger.info(f"[fiche] {champ.nom} par {nom_outil} : rien dans la réponse, non écrit")
                 continue
+            if champ not in champs and not _annulation_reussie(resultat):
+                # revue du lot F : une annulation refusée ne défait rien (jamais « refusé » écrit à sa place)
+                logger.info(f"[fiche] {champ.nom} par {nom_outil} : annulation refusée, non défait")
+                continue
             if champ not in champs and _tenu_par_une_autre_ecriture(moteur, champ, nom_outil, arguments, resultat):
                 if retenus is not None:
                     retenus.append(champ.nom)
@@ -216,6 +220,16 @@ def remplir_par_l_action(
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fiche] résultat de {nom_outil} non lu pour la fiche : {erreur!r}")
     return ecrits
+
+
+def _annulation_reussie(resultat: Any) -> bool:
+    """Revue du lot F : une annulation refusée (« refusé », « indisponible ») ne défait rien et n'est jamais dite faite."""
+    try:
+        from api.services.workflow.verite_des_actions import resultat_reussi
+
+        return resultat_reussi(resultat)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _tenu_par_une_autre_ecriture(moteur: Any, champ: Any, nom_outil: str, arguments: Any, resultat: Any) -> bool:
@@ -265,7 +279,9 @@ def avec_l_issue_d_annulation(resultat: Any, ecrits: list[str]) -> Any:
     ``annule`` : le service l'a confirmée (un champ de la fiche écrit) ; ``echec`` : elle a échoué ; sinon
     ``non_confirme``. Un résultat qui n'est pas un dictionnaire est emballé dans ``resultat``. ⛔ Ne lève jamais."""
     try:
-        issue = ISSUE_ECHEC if est_un_echec(resultat) else (ISSUE_ANNULE if ecrits else ISSUE_NON_CONFIRME)
+        # revue du lot F : une annulation refusée (« refusé », « indisponible ») est un échec dit tel quel
+        echec = est_un_echec(resultat) or not _annulation_reussie(resultat)
+        issue = ISSUE_ECHEC if echec else (ISSUE_ANNULE if ecrits else ISSUE_NON_CONFIRME)
         lu = _lire(resultat)
         en_texte = isinstance(resultat, str) and isinstance(lu, dict)
         if not isinstance(lu, dict):

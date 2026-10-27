@@ -115,6 +115,7 @@ export const NOMS_RESERVES = [
     // fiabilite-orchestration, lot 9: the model connections and the audio link, noted per call.
     "mark_connexions_modele",
     "mark_reseau",
+    "mark_journal_des_actions",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

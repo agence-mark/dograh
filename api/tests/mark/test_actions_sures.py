@@ -21,6 +21,7 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | résultat d'une action retenue (lot F, E11) | le code écrit en tête du résultat remis que rien de nouveau n'a été fait ; rien quand l'action a fini par partir |
 | actions du fond dans l'ordre (lot F, E11) | le service du fond exécute ses outils l'un après l'autre (annuler puis réserver) |
 | question d'une action retenue (lot F, deux rendez-vous) | le travail qui a rendu la question est périmé pour B2 dès que la personne a répondu ; pas avant |
+| revue du lot F | annulation refusée jamais dite faite ; la question revient pour chaque nouvelle écriture qui tient ; une annulation ne défait que l'outil de son champ ; la suite d'une réplique est attendue en fin de tour ; journal borné |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -397,3 +398,73 @@ def test_deux_rendez_vous_la_question_d_une_action_retenue_ne_bloque_pas_la_repo
     assert _perime(moteur, entree) is False  # même tour : le réessai aveugle reste retenu
     moteur._gathered_context["tour_appelant"] = 8
     assert _perime(moteur, entree) is True  # la personne a répondu : la demande repart
+
+
+@pytest.mark.asyncio
+async def test_revue_une_annulation_refusee_n_est_jamais_dite_faite():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 1
+    await banc.reserver()
+    banc.reponses[ANNULER] = {"statut": "refusé"}
+    rendu = await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert rendu["issue"] != ISSUE_ANNULE
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+@pytest.mark.asyncio
+async def test_revue_la_question_revient_pour_chaque_nouvelle_ecriture_qui_tient():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 1
+    await banc.reserver()
+    banc.fiche["tour_appelant"] = 2
+    banc.reponses[RESERVER] = NOUVEAU
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "incomplet"
+    banc.fiche["tour_appelant"] = 3
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    await banc.appeler(RESERVER, nom="Durand")  # lundi, seul
+    banc.fiche["tour_appelant"] = 8  # « finalement mardi », plus tard dans l'appel
+    banc.reponses[RESERVER] = {"statut": "confirme", "rendez_vous": "confirme", "debut": "2026-11-03T08:00:00+01:00"}
+    rendu = await banc.appeler(RESERVER, nom="Durand")
+    assert rendu["statut"] == "incomplet" and rendu["garde"] == "ecriture_qui_tient"
+
+
+def test_revue_une_annulation_ne_defait_que_l_outil_de_son_champ():
+    from api.services.workflow.verite_des_actions import ActionVue, _ajouter_au_journal, ecritures_tenues
+
+    reglages = ReglagesFiche(
+        champs=(
+            ChampFiche(nom="rendez_vous", origine="deduit", valeurs=["confirme", "annule"],
+                       rempli_par_outil="reserver", annule_par_outil="annuler"),
+            ChampFiche(nom="fiche_crm", origine="deduit", valeurs=["oui"], rempli_par_outil="maj_crm"),
+        )
+    )
+    moteur = SimpleNamespace(_fiche=reglages, _gathered_context={})
+    for nom, resultat in (("reserver", {"statut": "confirme"}), ("maj_crm", {"statut": "oui"}), ("annuler", {"statut": "annule"})):
+        _ajouter_au_journal(moteur, ActionVue(nom=nom, arguments={}, resultat=resultat, reussie=True))
+    assert [v.nom for v in ecritures_tenues(moteur)] == ["maj_crm"]
+
+
+@pytest.mark.asyncio
+async def test_revue_attendre_attend_aussi_la_suite_de_la_replique(appel):
+    travail = await _monte(appel)
+    appel.engine._gathered_context["tour_appelant"] = 3
+    faites = []
+
+    async def executeur(_travail, demande):
+        await asyncio.sleep(0.05)
+        faites.append(demande.splitlines()[0])
+        return RESULTAT
+
+    travail._executeur = executeur
+    await travail.confier("Annuler le jeudi.")
+    await travail.confier("Réserver le lundi.")
+    await travail.attendre(delai_s=5)
+    assert faites == ["Annuler le jeudi.", "Réserver le lundi."]
+    assert not travail._occupe_avec_la_suite()
+
+
+def test_revue_le_journal_garde_un_resultat_borne():
+    from api.services.workflow.verite_des_actions import LONGUEUR_MAX_RESULTAT, ActionVue, _en_donnees
+
+    long = {"creneaux": ["x" * 50] * 200}
+    assert len(str(_en_donnees(ActionVue(nom="a", arguments={}, resultat=long, reussie=True))["resultat"])) <= LONGUEUR_MAX_RESULTAT
