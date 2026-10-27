@@ -292,9 +292,14 @@ async def test_v4_la_meme_reservation_confirmee_rend_le_resultat_connu_sans_rapp
 
 
 async def test_v4_regle_de_l_humain_une_autre_date_passe_toujours():
+    """Lot F d'actions-sures (décision d'Evan, 27/10) : une autre date alors qu'une réservation tient pose d'abord la
+    question « remplacer ou ajouter » ; dès que la personne a répondu, elle part (deux rendez-vous restent possibles)."""
     banc = Banc()
+    banc.fiche["tour_appelant"] = 1
     await banc.appeler(CHERCHER, jour="x")
     await banc.appeler(RESERVER, debut="2026-11-05T14:00:00+01:00", nom="Durand")
+    assert (await banc.appeler(RESERVER, debut="2026-11-03T10:00:00+01:00", nom="Durand"))["statut"] == "incomplet"
+    banc.fiche["tour_appelant"] = 2
     await banc.appeler(RESERVER, debut="2026-11-03T10:00:00+01:00", nom="Durand")
     assert len(banc.executions[RESERVER]) == 2
 

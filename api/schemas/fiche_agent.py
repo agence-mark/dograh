@@ -332,6 +332,8 @@ NOMS_RESERVES = frozenset(
         # fiabilite-orchestration, lot 9 : connexions au modèle et liaison audio relevées par appel.
         "mark_connexions_modele",
         "mark_reseau",
+        # actions-sures-et-parite-clavier, lot F : le journal des actions de l'appel, gardé avec la fiche.
+        "mark_journal_des_actions",
     }
 )
 

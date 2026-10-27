@@ -18,6 +18,11 @@ lisait la demande d'origine et réservait (doublon, rendez-vous annulé puis re-
 d'origine de K11 est rétablie : le fond reçoit **les champs que l'étape attend** (``champs_actifs``, ceux de sa garde),
 et l'en-tête dit que ce sont des valeurs, pas des demandes. Le mode « Automatique » (l'action de l'étape, lancée par le
 code avec la demande type de l'étape) garde toute la fiche : sa demande vient de l'étape, jamais d'un au revoir.
+
+Lot F (banc local du 27/10, changement de date) : « réserver lundi » arrivait au fond sans qu'il sache qu'une réservation
+de l'appel tenait encore (jeudi) ; personne ne l'annulait, deux rendez-vous tenaient. ``confier`` joint désormais les actions
+qui tiennent dans l'appel (``ecritures_tenues``, le même suivi que la fiche), sous un en-tête qui en fait un état, pas une
+demande. Aucun mot de métier : le nom de l'outil et son résultat, tels qu'ils sont.
 """
 
 from __future__ import annotations
@@ -32,6 +37,10 @@ ENTETE_DES_VALEURS = (
     "ci-dessus en a besoin ; ce ne sont pas des demandes :"
 )
 LONGUEUR_MAX_VALEUR = 300
+# Lot F : l'en-tête des actions qui tiennent dans l'appel (une seule écriture).
+ENTETE_DES_ACTIONS = (
+    "Déjà fait dans cet appel et toujours en vigueur (un état, pas une demande) :"
+)
 
 
 def _vide(valeur: Any) -> bool:
@@ -98,9 +107,29 @@ def joindre_la_fiche(
         return demande
 
 
+def actions_qui_tiennent(moteur: Any) -> list[str]:
+    """Lot F : une ligne par action d'écriture de l'appel qui tient encore (nom de l'outil, résultat). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.verite_des_actions import (
+            ecritures_tenues,
+            journal_de,
+            outils_d_ecriture,
+        )
+
+        tenues = ecritures_tenues(moteur)
+        logger.info(
+            f"[travail] actions qui tiennent : {len(tenues)} (journal {len(journal_de(moteur))}, "
+            f"écritures {sorted(outils_d_ecriture(moteur))})"
+        )
+        return [f"- {vue.nom} : {_texte(vue.resultat)}" for vue in tenues]
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] actions de l'appel illisibles : {erreur!r}")
+        return []
+
+
 def demande_avec_la_fiche(moteur: Any, demande: Any, noeud: Any = None) -> Any:
     """``joindre_la_fiche`` pour la fiche de l'appel du moteur, avec les seuls champs que l'étape ``noeud`` attend
-    (lot B). Une étape sans champ attendu ne joint rien : la demande part telle que le modèle l'a écrite."""
+    (lot B), puis les actions qui tiennent dans l'appel (lot F). Une étape sans champ attendu ne joint aucun champ."""
     try:
         reglages = getattr(moteur, "_fiche", None)
         fiche = getattr(moteur, "_gathered_context", None)
@@ -108,7 +137,11 @@ def demande_avec_la_fiche(moteur: Any, demande: Any, noeud: Any = None) -> Any:
             return demande
         from api.services.workflow.champs_conditionnels import champs_actifs
 
-        return joindre_la_fiche(demande, reglages, fiche, champs_actifs(noeud, fiche))
+        avec_la_fiche = joindre_la_fiche(demande, reglages, fiche, champs_actifs(noeud, fiche))
+        actions = actions_qui_tiennent(moteur)
+        if not actions or not isinstance(avec_la_fiche, str) or not avec_la_fiche.strip():
+            return avec_la_fiche
+        return f"{avec_la_fiche.rstrip()}\n\n{ENTETE_DES_ACTIONS}\n" + "\n".join(actions)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[travail] fiche de l'appel illisible pour la demande : {erreur!r}")
         return demande

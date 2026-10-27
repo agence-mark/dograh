@@ -131,6 +131,16 @@ CONSIGNE_DEJA_FAIT = (
     "confie une demande qui le défait."
 )
 
+# Lot F (banc local du 27/10, E11) : le fond rendait « Réservation … le lundi 2 novembre » alors que la réservation avait été
+# retenue (une autre tenait) ; l'agent disait « le rendez-vous est pris pour lundi ». Le code, qui sait, écrit la vérité en tête
+# du résultat, comme l'issue d'une annulation (lot 8). Générique : le nom de l'outil et ce qui tient, tels quels.
+# Lot F : le tour de l'appelant où un travail a rendu la question d'une action retenue (lu par B2, ``demande_identique``).
+CLE_QUESTION_AU_TOUR = "question_au_tour"
+LIGNE_ACTION_RETENUE = (
+    "Écrit par le code : {outil} n'a rien fait de nouveau, parce qu'une action du même outil tient déjà dans l'appel "
+    "({tient_deja}). Ne dis pas que c'est fait : demande à la personne si elle remplace l'ancienne ou s'y ajoute."
+)
+
 # C2 : la ligne écrite par le code pendant un travail en cours (F1, F2). Générique : aucun métier.
 LIGNE_TRAVAIL_EN_COURS = (
     "Un travail est en cours : tu ne poses aucune question ; tu rassures, ou tu annules ou "
@@ -146,9 +156,13 @@ DESCRIPTION_OUTIL = (
     "pendant un travail en cours annule la demande précédente et lance la nouvelle (pour la "
     "modifier, écris la demande complète corrigée)."
 )
+# Lot F (rejeu du 27/10, run 2086) : « quand la personne ne veut plus de sa demande » faisait prendre cet outil pour
+# « défaire une action faite » ; appelé dans la même réplique qu'une nouvelle réservation, il laissait deux rendez-vous.
+# La description dit ce que l'outil fait vraiment, et ce qu'il ne fait pas.
 DESCRIPTION_ANNULER = (
-    "Annule le travail en cours confié au second cerveau, quand la personne ne veut plus de sa "
-    "demande. Sans travail en cours, ne fait rien."
+    "Arrête le travail encore en cours chez le second cerveau. Il ne défait rien de ce qu'un travail "
+    "terminé a déjà fait : pour défaire une action déjà faite, confie une demande qui la défait. "
+    "Sans travail en cours, ne fait rien."
 )
 # D-3 (Evan, 21/10) : la description exacte, mesurée au lot 0.
 DESCRIPTION_ANNONCE = (
@@ -164,6 +178,19 @@ Executeur = Callable[["TravailDeLAgent", str], Awaitable[str]]
 Remise = Callable[[Any, str], Awaitable[bool]]
 # Refait le service du fond pour un worker neuf : un service ne sert qu'à un seul worker.
 Fabrique = Callable[[], Awaitable[Any]]
+
+
+def _actions_dans_l_ordre(service: Any) -> Any:
+    """Lot F (banc local du 27/10, E11) : le fond demandait « annuler jeudi » et « réserver lundi » dans la même réponse ;
+    Pipecat les lançait en même temps, la réservation partait avant la fin de l'annulation et la garde « une action tient
+    déjà » la retenait. Les actions du fond s'exécutent dans l'ordre où il les demande (``run_in_parallel`` de Pipecat,
+    lu au démarrage du service). La conversation n'est pas touchée. ⛔ Ne lève jamais."""
+    try:
+        if service is not None and hasattr(service, "_run_in_parallel"):
+            service._run_in_parallel = False
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[travail] ordre des actions du fond non posé : {erreur!r}")
+    return service
 
 
 def schema_de_l_annulation() -> FunctionSchema:
@@ -247,7 +274,7 @@ class TravailDeLAgent:
         self.moteur = moteur
         self.agent = agent
         self.reglages = reglages
-        self.service = service
+        self.service = _actions_dans_l_ordre(service)
         self._executeur = executeur
         self._remise = remise
         self._refaire_le_service = refaire_le_service
@@ -270,6 +297,10 @@ class TravailDeLAgent:
         # remplacé par un neuf (contexte vierge, nouveau nom) au travail suivant.
         self._generation = 0
         self._a_remplacer = False
+        # Lot F : les demandes confiées dans la même réplique, en attente de la fin du travail en cours.
+        self._suite: list[tuple[str, Any]] = []
+        self._tour_du_travail: Any = None
+        self._tache_suite: asyncio.Task | None = None
         self._fermeture_differee: asyncio.Task | None = None
         # C1 : la seconde phrase d'attente du travail en cours (une tâche par travail).
         self._seconde_phrase: asyncio.Task | None = None
@@ -316,6 +347,15 @@ class TravailDeLAgent:
             if verdict.action != LANCER:
                 logger.info(f"[travail] demande identique non relancée : {verdict.action}")
                 return retour_du_verdict(verdict)
+            # Lot F (banc local du 27/10, E11) : « annuler jeudi » puis « réserver lundi » confiés dans la même réplique ;
+            # la seconde arrêtait la première et l'annulation se perdait. Une demande confiée pendant un travail lancé
+            # au même tour de l'appelant est la suite de la réplique : elle attend la fin du travail en cours. Une
+            # demande d'un tour suivant reste une modification (F2), comme avant.
+            tour = self._tour()
+            if self.occupe and tour is not None and tour == self._tour_du_travail:
+                self._suite.append((texte, annonce))
+                logger.info(f"[travail] demande mise à la suite du travail en cours ({len(self._suite)})")
+                return {"statut": "lancé", "apres": "le travail en cours"}
             # F2 : modifier = annuler la demande en cours, puis lancer la nouvelle.
             remplace = False
             if self.occupe:
@@ -337,6 +377,8 @@ class TravailDeLAgent:
                 name=f"travail:{self.worker.name}",
             )
             self._tache.add_done_callback(self._journaliser_la_fin)
+            self._tache.add_done_callback(self._lancer_la_suite)
+            self._tour_du_travail = tour
             self._lancer_la_seconde_phrase(self._tache, annonce, texte)
             return dict(RETOUR_REMPLACE if remplace else RETOUR_LANCE)
         except Exception as erreur:  # noqa: BLE001 -- l'outil ne casse jamais l'appel
@@ -348,8 +390,9 @@ class TravailDeLAgent:
         return getattr(self.agent, "current_node", None)
 
     async def annuler(self) -> dict:
-        """F2 : l'appelant ne veut plus de sa demande. ⛔ Ne lève jamais."""
+        """F2 : arrête le travail encore en cours ; ne défait rien de ce qu'un travail terminé a fait (lot F). ⛔ Ne lève jamais."""
         try:
+            self._suite.clear()
             if not self.occupe:
                 dernier = self._dernier_travail_qui_a_agi()
                 if dernier is None:
@@ -482,7 +525,7 @@ class TravailDeLAgent:
             if service is None:
                 self._a_remplacer = True
                 return False
-            self.service = service
+            self.service = _actions_dans_l_ordre(service)
             self._verser = versement_du_cout(self.moteur, NOM_DU_COUT, service)
             from api.services.panne.garde_modele import garder_le_fond
 
@@ -505,12 +548,14 @@ class TravailDeLAgent:
         """L'agent se retire pendant un travail : ``fermeture`` (ses sessions d'outils, MCP
         compris) attend la fin de ce travail, qui s'en sert encore, puis le fond s'arrête.
         ``False`` s'il n'y a aucun travail en cours (l'appelant ferme tout de suite)."""
-        tache = self._tache
-        if tache is None or tache.done():
+        if not self._occupe_avec_la_suite():
             return False
 
         async def fermer_apres() -> None:
-            await asyncio.gather(tache, return_exceptions=True)
+            try:
+                await self._attendre_tout(float(self.reglages.delai_max_s) + 5.0)
+            except Exception:  # noqa: BLE001 -- la fermeture part quand même
+                pass
             try:
                 await fermeture()
             except Exception as erreur:  # noqa: BLE001
@@ -522,14 +567,28 @@ class TravailDeLAgent:
         )
         return True
 
+    def _occupe_avec_la_suite(self) -> bool:
+        suite = self._tache_suite
+        return self.occupe or bool(self._suite) or (suite is not None and not suite.done())
+
+    async def _attendre_tout(self, limite: float) -> None:
+        """Revue du lot F : le travail en cours, puis les demandes de la même réplique qui le suivent (chacune avec
+        sa limite). Lève ``asyncio.TimeoutError`` à la limite."""
+        tours = 0
+        while self._occupe_avec_la_suite() and tours < 20:
+            tours += 1
+            for tache in (self._tache, self._tache_suite):
+                if tache is not None and not tache.done():
+                    await asyncio.wait_for(asyncio.shield(tache), timeout=limite)
+            await asyncio.sleep(0)
+
     async def attendre(self, delai_s: float | None = None) -> None:
-        """Attend la fin du travail en cours (le clavier, qui finit son tour). Ne lève jamais."""
-        tache = self._tache
-        if tache is None or tache.done():
+        """Attend la fin du travail en cours et de sa suite (le clavier, qui finit son tour). Ne lève jamais."""
+        if not self._occupe_avec_la_suite():
             return
         limite = (delai_s if delai_s is not None else self.reglages.delai_max_s) + 5.0
         try:
-            await asyncio.wait_for(asyncio.shield(tache), timeout=limite)
+            await self._attendre_tout(limite)
             # Les jetons de la dernière requête passent par l'observateur du worker : attendus,
             # pour que le coût du tour les compte.
             await asyncio.wait_for(self.worker.wait_for_observers(), timeout=5.0)
@@ -580,6 +639,67 @@ class TravailDeLAgent:
 
     def _noter_l_outil(self, nom: str) -> None:
         self._outils_appeles.append(nom)
+
+    def _tour(self) -> Any:
+        """Le tour de l'appelant (``tour_appelant`` de la fiche), ``None`` s'il n'est pas compté."""
+        try:
+            from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+            return (self._fiche() or {}).get(CLE_TOUR)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _lancer_la_suite(self, tache: asyncio.Task) -> None:
+        """Lot F : à la fin d'un travail (pas d'une annulation), la demande suivante de la même réplique part."""
+        if tache.cancelled():
+            self._suite.clear()
+            return
+        if not self._suite:
+            return
+        texte, annonce = self._suite.pop(0)
+        try:
+            self._tache_suite = asyncio.get_running_loop().create_task(self.confier(texte, annonce), name="travail:suite")
+        except RuntimeError as erreur:
+            logger.warning(f"[travail] suite non lancée : {erreur!r}")
+
+    def _rang_du_journal(self) -> int:
+        try:
+            from api.services.workflow.verite_des_actions import journal_de
+
+            return len(journal_de(self.moteur))
+        except Exception:  # noqa: BLE001
+            return 0
+
+    def _avec_les_actions_retenues(self, texte: str, rang: int, entree: dict | None = None) -> str:
+        """Lot F : une écriture de ce travail retenue par la garde « une action tient déjà », que rien n'a faite
+        ensuite, est dite en tête du résultat par le code. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.enveloppe_des_actions import _normaliser
+            from api.services.workflow.verite_des_actions import GARDE_DEJA_TENUE, journal_de
+
+            vues = journal_de(self.moteur)[rang:]
+            lignes = []
+            for i, vue in enumerate(vues):
+                lu = vue.resultat if isinstance(vue.resultat, dict) else {}
+                if lu.get("garde") != GARDE_DEJA_TENUE:
+                    continue
+                faite_ensuite = any(v.reussie and _normaliser(v.nom) == _normaliser(vue.nom) for v in vues[i + 1 :])
+                if faite_ensuite:
+                    continue
+                ligne = LIGNE_ACTION_RETENUE.format(
+                    outil=vue.nom, tient_deja=" ; ".join(lu.get("tient_deja") or []) or "?"
+                )
+                if ligne not in lignes:
+                    lignes.append(ligne)
+            if not lignes:
+                return texte
+            if isinstance(entree, dict):
+                # une question à la personne, pas un résultat : la même demande repart après sa réponse (B2)
+                entree[CLE_QUESTION_AU_TOUR] = self._tour()
+            return "\n".join(lignes + ([texte] if texte else []))
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[travail] actions retenues illisibles : {erreur!r}")
+            return texte
 
     def _journaliser_la_fin(self, tache: asyncio.Task) -> None:
         if not tache.cancelled() and tache.exception() is not None:
@@ -693,7 +813,9 @@ class TravailDeLAgent:
         try:
             await self._preparer_les_outils()
             depuis = self._nombre_de_messages_du_fond()
+            rang = self._rang_du_journal()
             texte = (await self._executeur(self, demande)).strip()
+            texte = self._avec_les_actions_retenues(texte, rang, entree)
             if not texte:
                 statut = STATUT_VIDE
             elif (

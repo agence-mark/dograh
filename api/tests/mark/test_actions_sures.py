@@ -13,6 +13,16 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | en-tête | les valeurs jointes sont dites « pas des demandes » |
 | annuler après coup | sans travail en cours, le dernier travail qui a agi est rendu au modèle avec la consigne de le défaire |
 | annuler pendant | un travail annulé après avoir appelé ses outils le dit |
+| changement de date (lot F, runs 2086, 2087) | l'annulation de l'ancien rendez-vous (par sa date) laisse « confirme » et dite faite, dans les deux ordres, même pour un rendez-vous d'un appel précédent ; une réservation refusée ne tient pas ; « une écriture est en vigueur » lit le même suivi |
+| actions qui tiennent (lot F, banc local, E11) | une demande au fond porte la réservation encore tenue de l'appel, sous un en-tête d'état ; plus rien quand elle est défaite ; rien sans action |
+| journal au clavier (lot F) | le journal des actions survit au moteur refait à chaque réplique (fiche de l'appel), son nom de clé est réservé |
+| une réservation tient déjà (lot F, E11) | une nouvelle réservation rend la question « remplacer ou ajouter » ; le réessai dans le même tour est retenu ; après une parole de la personne elle part (deux rendez-vous possibles) ; défaire l'ancienne la libère tout de suite |
+| deux demandes d'une même réplique (lot F, E11) | la seconde attend la fin de la première au lieu de l'arrêter ; une demande d'un tour suivant reste une modification ; annuler vide la suite |
+| résultat d'une action retenue (lot F, E11) | le code écrit en tête du résultat remis que rien de nouveau n'a été fait ; rien quand l'action a fini par partir |
+| actions du fond dans l'ordre (lot F, E11) | le service du fond exécute ses outils l'un après l'autre (annuler puis réserver) |
+| question d'une action retenue (lot F, deux rendez-vous) | le travail qui a rendu la question est périmé pour B2 dès que la personne a répondu ; pas avant |
+| revue du lot F | annulation refusée jamais dite faite ; la question revient pour chaque nouvelle écriture qui tient ; une annulation ne défait que l'outil de son champ ; la suite d'une réplique est attendue en fin de tour ; journal borné |
+| outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
 import asyncio
@@ -21,9 +31,16 @@ from types import SimpleNamespace
 import pytest
 
 from api.schemas.fiche_agent import ChampFiche
-from api.services.travail.agent import CONSIGNE_DEJA_FAIT
-from api.services.travail.demande import ENTETE_DES_VALEURS, demande_avec_la_fiche
+from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER, LIGNE_ACTION_RETENUE
+from api.services.travail.demande import (
+    ENTETE_DES_ACTIONS,
+    ENTETE_DES_VALEURS,
+    demande_avec_la_fiche,
+)
+from api.services.workflow.enveloppe_des_actions import ISSUE_ANNULE
 from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
+from api.services.workflow.verite_des_actions import ecriture_en_vigueur
+from api.tests.mark.test_annulation_d_un_rendez_vous import ANNULER, RESERVER, Banc
 from api.tests.mark.test_travail_de_fond import DEMANDE, RESULTAT, Appel, _texte
 
 CHAMPS = (
@@ -174,3 +191,280 @@ async def test_annuler_pendant_un_travail_qui_a_deja_ecrit_le_dit(appel):
 @pytest.mark.asyncio
 async def test_annuler_pendant_une_recherche_reste_un_simple_annule(appel):
     assert await _pendant(appel, ["chercher_dates_entretien"]) == {"statut": "annulé"}
+
+
+ANCIEN = "2026-11-05"  # la date que rend la première réservation du banc
+NOUVEAU = {"statut": "confirme", "rendez_vous": "confirme", "debut": "2026-11-02T08:00:00+01:00"}
+
+
+async def _nouvelle_date(banc):
+    banc.reponses[RESERVER] = NOUVEAU
+    await banc.appeler(RESERVER, nom="Durand")
+
+
+@pytest.mark.asyncio
+async def test_run_2086_reserver_la_nouvelle_date_puis_annuler_l_ancienne_laisse_le_rendez_vous_tenu():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 1
+    await banc.reserver()
+    banc.fiche["tour_appelant"] = 2  # la personne a dit « plutôt lundi » : la nouvelle date est réservée d'abord
+    banc.reponses[RESERVER] = NOUVEAU
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "incomplet"  # remplacer ou ajouter ?
+    banc.fiche["tour_appelant"] = 3  # elle a répondu
+    await _nouvelle_date(banc)
+    rendu = await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert banc.fiche["rendez_vous"] == "confirme"
+    # revue du lot F : l'annulation faite est dite faite au modèle, jamais « non confirmée »
+    assert rendu["issue"] == ISSUE_ANNULE
+    # une seule vérité : la règle « une écriture est en vigueur » voit le nouveau rendez-vous
+    tenue = ecriture_en_vigueur(banc.moteur)
+    assert tenue is not None and (11, 2) in tenue.dates
+
+
+@pytest.mark.asyncio
+async def test_run_2087_les_deux_ordres_d_un_meme_travail_finissent_confirme():
+    banc = Banc()
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert banc.fiche["rendez_vous"] == "annule"
+    await _nouvelle_date(banc)
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+@pytest.mark.asyncio
+async def test_rendez_vous_d_un_appel_precedent_deplace_la_nouvelle_date_tient():
+    """Revue du lot F : « je rappelle pour décaler », l'ancien rendez-vous n'est pas une écriture de cet appel."""
+    banc = Banc()
+    await _nouvelle_date(banc)
+    rendu = await banc.appeler(ANNULER, nom="Durand", date="2026-10-29")
+    assert banc.fiche["rendez_vous"] == "confirme"
+    assert rendu["issue"] == ISSUE_ANNULE
+
+
+@pytest.mark.asyncio
+async def test_une_reservation_refusee_ne_tient_pas_l_annulation_de_la_seule_vraie_ecrit_annule():
+    banc = Banc()
+    await banc.reserver()
+    banc.reponses[RESERVER] = {"statut": "indisponible"}
+    await banc.appeler(RESERVER, nom="Durand")
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert banc.fiche["rendez_vous"] == "annule"
+    assert ecriture_en_vigueur(banc.moteur) is None
+
+
+@pytest.mark.asyncio
+async def test_annuler_le_seul_rendez_vous_sans_date_ecrit_toujours_annule():
+    banc = Banc()
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand")
+    assert banc.fiche["rendez_vous"] == "annule"
+    await banc.appeler(RESERVER, nom="Durand")
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+def test_la_description_d_annuler_dit_qu_elle_ne_defait_pas_une_action_faite():
+    assert "ne défait rien de ce qu'un travail terminé a déjà fait" in DESCRIPTION_ANNULER
+    assert "confie une demande qui la défait" in DESCRIPTION_ANNULER
+    assert "ne veut plus de sa demande" not in DESCRIPTION_ANNULER
+
+
+@pytest.mark.asyncio
+async def test_e11_la_demande_au_fond_porte_la_reservation_qui_tient_encore():
+    banc = Banc()
+    banc.moteur._gathered_context = banc.fiche
+    assert ENTETE_DES_ACTIONS not in demande_avec_la_fiche(banc.moteur, "Réserver lundi 2 novembre.", ETAPE_RENDEZ_VOUS)
+    await banc.reserver()
+    demande = demande_avec_la_fiche(banc.moteur, "Réserver lundi 2 novembre.", ETAPE_RENDEZ_VOUS)
+    assert demande.startswith("Réserver lundi 2 novembre.")
+    assert ENTETE_DES_ACTIONS in demande and f"- {RESERVER} :" in demande and "2026-11-05" in demande
+    assert "pas une demande" in ENTETE_DES_ACTIONS
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert ENTETE_DES_ACTIONS not in demande_avec_la_fiche(banc.moteur, "Réserver lundi.", ETAPE_RENDEZ_VOUS)
+
+
+@pytest.mark.asyncio
+async def test_clavier_le_journal_des_actions_survit_au_moteur_refait_a_chaque_replique():
+    """Banc local du 27/10 : au clavier, le moteur est refait à chaque tour ; seule la fiche de l'appel passe."""
+    banc = Banc()
+    await banc.reserver()
+    moteur_du_tour_suivant = SimpleNamespace(_fiche=banc.moteur._fiche, _gathered_context=banc.fiche)
+    tenue = ecriture_en_vigueur(moteur_du_tour_suivant)
+    assert tenue is not None and tenue.nom == RESERVER
+    assert ENTETE_DES_ACTIONS in demande_avec_la_fiche(moteur_du_tour_suivant, "Réserver lundi.", ETAPE_RENDEZ_VOUS)
+    import json
+
+    json.dumps(banc.fiche)  # la fiche se sauvegarde telle quelle
+
+
+def test_le_nom_du_journal_est_reserve():
+    from api.schemas.fiche_agent import verifier_champs
+
+    with pytest.raises(ValueError, match="reserved"):
+        verifier_champs([ChampFiche(nom="mark_journal_des_actions")])
+
+
+@pytest.mark.asyncio
+async def test_e11_une_seconde_reservation_demande_remplacer_ou_ajouter_sans_l_interdire():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 4
+    await banc.reserver()
+    banc.reponses[RESERVER] = NOUVEAU
+    rendu = await banc.appeler(RESERVER, nom="Durand")
+    assert rendu["statut"] == "incomplet" and rendu["garde"] == "ecriture_qui_tient"
+    assert rendu["tient_deja"] and "remplace" in rendu["consigne"]
+    assert len(banc.executions[RESERVER]) == 1  # rien n'est parti
+    banc.fiche["tour_appelant"] = 5  # la personne a répondu : elle veut les deux
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "confirme"
+    assert len(banc.executions[RESERVER]) == 2
+
+
+@pytest.mark.asyncio
+async def test_e11_defaire_l_ancienne_libere_la_nouvelle_tout_de_suite():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 4
+    await banc.reserver()
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    await _nouvelle_date(banc)
+    assert len(banc.executions[RESERVER]) == 2
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+async def _deux_demandes(appel, tour_de_la_seconde):
+    travail = await _monte(appel)
+    appel.engine._gathered_context["tour_appelant"] = 3
+    portail, faites = asyncio.Event(), []
+
+    async def executeur(_travail, demande):
+        faites.append(demande.splitlines()[0])
+        if len(faites) == 1:
+            await portail.wait()
+        return RESULTAT
+
+    travail._executeur = executeur
+    assert (await travail.confier("Annuler le jeudi."))["statut"] == "lancé"
+    await asyncio.sleep(0)
+    appel.engine._gathered_context["tour_appelant"] = tour_de_la_seconde
+    second = await travail.confier("Réserver le lundi.")
+    portail.set()
+    for _ in range(50):
+        await asyncio.sleep(0.01)
+        if len(faites) == 2 and not travail.occupe:
+            break
+    return travail, second, faites
+
+
+@pytest.mark.asyncio
+async def test_e11_deux_demandes_de_la_meme_replique_se_suivent(appel):
+    travail, second, faites = await _deux_demandes(appel, 3)
+    assert second == {"statut": "lancé", "apres": "le travail en cours"}
+    assert faites == ["Annuler le jeudi.", "Réserver le lundi."]
+    assert [t["statut"] for t in appel.engine._gathered_context["travaux"]][:2] == ["fait", "fait"]
+
+
+@pytest.mark.asyncio
+async def test_une_demande_d_un_tour_suivant_reste_une_modification(appel):
+    travail, second, faites = await _deux_demandes(appel, 4)
+    assert second == {"statut": "lancé", "demande_precedente": "annulée"}
+    assert appel.engine._gathered_context["travaux"][0]["statut"] == "annule"  # la trace du travail arrêté
+
+
+@pytest.mark.asyncio
+async def test_e11_une_action_retenue_est_dite_par_le_code_en_tete_du_resultat(appel):
+    from api.services.workflow.verite_des_actions import GARDE_DEJA_TENUE, ActionVue, _ajouter_au_journal
+
+    travail = await _monte(appel)
+    rang = travail._rang_du_journal()
+    retenue = {"statut": "incomplet", "garde": GARDE_DEJA_TENUE, "tient_deja": ["Réservé : jeudi 29 octobre"]}
+    _ajouter_au_journal(appel.engine, ActionVue(nom="reserver_entretien", arguments={}, resultat=retenue, reussie=False))
+    texte = travail._avec_les_actions_retenues("Réservation le lundi 2 novembre.", rang)
+    assert texte.startswith(LIGNE_ACTION_RETENUE.split("{")[0])
+    assert "Réservé : jeudi 29 octobre" in texte and texte.endswith("Réservation le lundi 2 novembre.")
+    _ajouter_au_journal(appel.engine, ActionVue(nom="reserver_entretien", arguments={}, resultat={"statut": "confirme"}, reussie=True))
+    assert travail._avec_les_actions_retenues("Réservé.", rang) == "Réservé."
+
+
+@pytest.mark.asyncio
+async def test_e11_les_actions_du_fond_s_executent_dans_l_ordre(appel):
+    travail = await _monte(appel)
+    assert getattr(travail.service, "_run_in_parallel", False) is False
+
+
+def test_deux_rendez_vous_la_question_d_une_action_retenue_ne_bloque_pas_la_reponse():
+    from api.services.travail.agent import CLE_QUESTION_AU_TOUR
+    from api.services.travail.demande_identique import _perime
+
+    moteur = SimpleNamespace(_gathered_context={"tour_appelant": 7})
+    entree = {"statut": "fait", "resultat": "…", CLE_QUESTION_AU_TOUR: 7}
+    assert _perime(moteur, entree) is False  # même tour : le réessai aveugle reste retenu
+    moteur._gathered_context["tour_appelant"] = 8
+    assert _perime(moteur, entree) is True  # la personne a répondu : la demande repart
+
+
+@pytest.mark.asyncio
+async def test_revue_une_annulation_refusee_n_est_jamais_dite_faite():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 1
+    await banc.reserver()
+    banc.reponses[ANNULER] = {"statut": "refusé"}
+    rendu = await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert rendu["issue"] != ISSUE_ANNULE
+    assert banc.fiche["rendez_vous"] == "confirme"
+
+
+@pytest.mark.asyncio
+async def test_revue_la_question_revient_pour_chaque_nouvelle_ecriture_qui_tient():
+    banc = Banc()
+    banc.fiche["tour_appelant"] = 1
+    await banc.reserver()
+    banc.fiche["tour_appelant"] = 2
+    banc.reponses[RESERVER] = NOUVEAU
+    assert (await banc.appeler(RESERVER, nom="Durand"))["statut"] == "incomplet"
+    banc.fiche["tour_appelant"] = 3
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    await banc.appeler(RESERVER, nom="Durand")  # lundi, seul
+    banc.fiche["tour_appelant"] = 8  # « finalement mardi », plus tard dans l'appel
+    banc.reponses[RESERVER] = {"statut": "confirme", "rendez_vous": "confirme", "debut": "2026-11-03T08:00:00+01:00"}
+    rendu = await banc.appeler(RESERVER, nom="Durand")
+    assert rendu["statut"] == "incomplet" and rendu["garde"] == "ecriture_qui_tient"
+
+
+def test_revue_une_annulation_ne_defait_que_l_outil_de_son_champ():
+    from api.services.workflow.verite_des_actions import ActionVue, _ajouter_au_journal, ecritures_tenues
+
+    reglages = ReglagesFiche(
+        champs=(
+            ChampFiche(nom="rendez_vous", origine="deduit", valeurs=["confirme", "annule"],
+                       rempli_par_outil="reserver", annule_par_outil="annuler"),
+            ChampFiche(nom="fiche_crm", origine="deduit", valeurs=["oui"], rempli_par_outil="maj_crm"),
+        )
+    )
+    moteur = SimpleNamespace(_fiche=reglages, _gathered_context={})
+    for nom, resultat in (("reserver", {"statut": "confirme"}), ("maj_crm", {"statut": "oui"}), ("annuler", {"statut": "annule"})):
+        _ajouter_au_journal(moteur, ActionVue(nom=nom, arguments={}, resultat=resultat, reussie=True))
+    assert [v.nom for v in ecritures_tenues(moteur)] == ["maj_crm"]
+
+
+@pytest.mark.asyncio
+async def test_revue_attendre_attend_aussi_la_suite_de_la_replique(appel):
+    travail = await _monte(appel)
+    appel.engine._gathered_context["tour_appelant"] = 3
+    faites = []
+
+    async def executeur(_travail, demande):
+        await asyncio.sleep(0.05)
+        faites.append(demande.splitlines()[0])
+        return RESULTAT
+
+    travail._executeur = executeur
+    await travail.confier("Annuler le jeudi.")
+    await travail.confier("Réserver le lundi.")
+    await travail.attendre(delai_s=5)
+    assert faites == ["Annuler le jeudi.", "Réserver le lundi."]
+    assert not travail._occupe_avec_la_suite()
+
+
+def test_revue_le_journal_garde_un_resultat_borne():
+    from api.services.workflow.verite_des_actions import LONGUEUR_MAX_RESULTAT, ActionVue, _en_donnees
+
+    long = {"creneaux": ["x" * 50] * 200}
+    assert len(str(_en_donnees(ActionVue(nom="a", arguments={}, resultat=long, reussie=True))["resultat"])) <= LONGUEUR_MAX_RESULTAT

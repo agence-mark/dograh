@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
@@ -33,7 +33,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 CLE_JOURNAL = "mark_journal_des_actions"
-MAX_JOURNAL = 200
+MAX_JOURNAL = 80
 FUSEAU = ZoneInfo("Europe/Paris")
 
 # Les statuts d'un résultat d'outil qui disent « pas fait » en plus de ceux de l'enveloppe.
@@ -194,9 +194,65 @@ class ActionVue:
     etape: str | None = None
 
 
+LONGUEUR_MAX_RESULTAT = 2000
+
+
+def _borne(resultat: Any) -> Any:
+    """Revue du lot F : un résultat trop long (une liste de créneaux, une réponse brute) est gardé en texte borné ; un
+    résultat court, ou posé par une garde du code, reste tel quel."""
+    try:
+        texte = json.dumps(resultat, ensure_ascii=False, default=str)
+        if len(texte) <= LONGUEUR_MAX_RESULTAT or (isinstance(resultat, Mapping) and "garde" in resultat):
+            return resultat
+        return texte[: LONGUEUR_MAX_RESULTAT - 1] + "…"
+    except Exception:  # noqa: BLE001
+        return str(resultat)[:LONGUEUR_MAX_RESULTAT]
+
+
+def _en_donnees(vue: ActionVue) -> dict:
+    """Une action du journal, en données que la sauvegarde de l'appel sait écrire (résultat borné ; les dates des
+    arguments jointes à celles du résultat)."""
+    return json.loads(
+        json.dumps(
+            {
+                "nom": vue.nom,
+                "arguments": vue.arguments,
+                "resultat": _borne(vue.resultat),
+                "reussie": vue.reussie,
+                "dates": sorted(list(d) for d in _dates_de(vue)),
+                "ecrits": vue.ecrits,
+                "etape": vue.etape,
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+    )
+
+
+def _depuis_donnees(d: Mapping[str, Any]) -> ActionVue:
+    return ActionVue(
+        nom=str(d.get("nom") or ""),
+        arguments=dict(d.get("arguments") or {}),
+        resultat=d.get("resultat"),
+        reussie=bool(d.get("reussie")),
+        dates=frozenset(tuple(x) for x in d.get("dates") or ()),
+        ecrits=dict(d.get("ecrits") or {}),
+        etape=d.get("etape"),
+    )
+
+
 def journal_de(moteur: Any) -> list:
-    """Le journal des actions de l'appel (créé au besoin, sur le vrai moteur même vu à travers le moteur muet du
-    fond). Une liste jetable si le moteur ne se laisse pas écrire."""
+    """Le journal des actions de l'appel, dans l'ordre (une vue : on y ajoute par ``noter_l_action``).
+
+    actions-sures-et-parite-clavier, lot F (banc local du 27/10) : le journal vivait sur l'objet moteur. Au clavier, le
+    moteur est refait à chaque réplique : le journal repartait vide à chaque tour, et la garde, le V4, la règle
+    « une écriture est en vigueur » et le suivi des réservations ne voyaient rien de ce qui avait été fait. Il vit
+    désormais dans la fiche de l'appel (``_gathered_context``), sauvegardée avec l'appel, téléphone comme clavier ; le
+    moteur muet du fond la lit sur le vrai moteur. Sans fiche lisible : une liste sur le moteur, comme avant."""
+    fiche = getattr(moteur, "_gathered_context", None)
+    if isinstance(fiche, dict):
+        brut = fiche.get(CLE_JOURNAL)
+        return [_depuis_donnees(d) for d in brut if isinstance(d, Mapping)] if isinstance(brut, list) else []
     journal = getattr(moteur, CLE_JOURNAL, None)
     if isinstance(journal, list):
         return journal
@@ -206,6 +262,25 @@ def journal_de(moteur: Any) -> list:
     except Exception:  # noqa: BLE001
         pass
     return journal
+
+
+def _ajouter_au_journal(moteur: Any, vue: ActionVue) -> None:
+    fiche = getattr(moteur, "_gathered_context", None)
+    if isinstance(fiche, dict):
+        if vue.arguments and not _est_une_ecriture(moteur, vue.nom):
+            # Lot F (CI du 27/10) : le journal est sauvegardé avec l'appel. Seuls les arguments d'une écriture sont
+            # relus (V4, la même action) ; ceux des autres outils sont les réponses de la personne (la vérification
+            # de l'appelant n'en garde aucune) : seules leurs dates restent.
+            vue = replace(vue, arguments={}, dates=_dates_de(vue))
+        brut = fiche.get(CLE_JOURNAL)
+        if not isinstance(brut, list):
+            brut = fiche[CLE_JOURNAL] = []
+        brut.append(_en_donnees(vue))
+        del brut[:-MAX_JOURNAL]
+        return
+    journal = journal_de(moteur)
+    journal.append(vue)
+    del journal[:-MAX_JOURNAL]
 
 
 def _lire(resultat: Any) -> Any:
@@ -255,8 +330,8 @@ def noter_l_action(
 ) -> None:
     """L'enveloppe note le résultat final d'une action. ⛔ Ne lève jamais."""
     try:
-        journal = journal_de(moteur)
-        journal.append(
+        _ajouter_au_journal(
+            moteur,
             ActionVue(
                 nom=nom,
                 arguments=dict(arguments) if isinstance(arguments, Mapping) else {},
@@ -265,9 +340,8 @@ def noter_l_action(
                 dates=frozenset(dates_dans(resultat)),
                 ecrits=dict(ecrits),
                 etape=etape,
-            )
+            ),
         )
-        del journal[:-MAX_JOURNAL]
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] action {nom} non notée : {erreur!r}")
 
@@ -333,6 +407,8 @@ def _est_une_ecriture(moteur: Any, nom: str) -> bool:
 # K7 : la garde de réservation
 # ---------------------------------------------------------------------------------------------------------
 
+STATUT_INCOMPLET = "incomplet"
+
 CONSIGNE_CHERCHER = (
     "Cette date n'a pas été donnée par la recherche : cherche d'abord ce jour, puis réserve une date "
     "qu'elle a donnée."
@@ -366,6 +442,73 @@ def garde_de_reservation(moteur: Any, agent: Any, nom_outil: str, arguments: Any
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] garde de réservation illisible : {erreur!r}")
         return None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Lot F : une écriture qui tient déjà (remplacer ou ajouter : la personne choisit)
+# ---------------------------------------------------------------------------------------------------------
+
+GARDE_DEJA_TENUE = "ecriture_qui_tient"
+CONSIGNE_DEJA_TENUE = (
+    "Une action de l'appel du même outil tient déjà (ci-dessus). Ne réessaie pas : rends la question, pour qu'on "
+    "demande à la personne si la nouvelle action remplace l'ancienne (la défaire d'abord) ou s'y ajoute."
+)
+
+
+def garde_d_une_ecriture_qui_tient(moteur: Any, agent: Any, nom_outil: str, arguments: Any) -> dict | None:
+    """Lot F (banc local du 27/10, E11 : jeudi réservé, « plutôt lundi », deux rendez-vous tenus). Une action d'écriture
+    dont une action du même outil tient encore dans l'appel (``ecritures_tenues``) ne part pas d'emblée : elle rend
+    ``incomplet`` avec ce qui tient et la question à poser (remplacer ou ajouter). Ce n'est pas un interdit : dès que
+    la personne a reparlé (tour de l'appelant suivant), la même action part ; et défaire l'ancienne la libère tout de
+    suite. Une action aux mêmes dates qu'une action qui tient est laissée au V4. ``None`` : l'action s'exécute.
+    ⛔ Ne lève jamais."""
+    try:
+        if not case_allumee(agent) or not _est_une_ecriture(moteur, nom_outil):
+            return None
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        cible = _normaliser(nom_outil)
+        avec_rang = [(r, v) for r, v in _tenues_avec_rang(moteur) if _normaliser(v.nom) == cible]
+        if not avec_rang:
+            return None
+        tenues = [v for _, v in avec_rang]
+        derniere = max(r for r, _ in avec_rang)
+        demandees = dates_dans(arguments if isinstance(arguments, Mapping) else {})
+        if demandees and any(demandees <= _dates_de(v) for v in tenues):
+            return None
+        fiche = getattr(moteur, "_gathered_context", None)
+        tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+        for vue in journal_de(moteur)[derniere + 1 :]:
+            # revue du lot F : seule une question posée APRÈS la dernière écriture qui tient compte (une par écriture)
+            lu = vue.resultat if isinstance(vue.resultat, Mapping) else {}
+            if lu.get("garde") == GARDE_DEJA_TENUE and _normaliser(vue.nom) == cible and lu.get("tour") != tour:
+                return None  # la personne a reparlé depuis la question : son choix passe
+        refus = {
+            "statut": STATUT_INCOMPLET,
+            "garde": GARDE_DEJA_TENUE,
+            "tour": tour,
+            "tient_deja": [_texte_court(v.resultat) for v in tenues],
+            "consigne": CONSIGNE_DEJA_TENUE,
+        }
+        _ajouter_au_journal(
+            moteur, ActionVue(nom=nom_outil, arguments=dict(arguments or {}), resultat=refus, reussie=False)
+        )
+        logger.info(f"[verite] {nom_outil} retenu : une action du même outil tient déjà (tour {tour})")
+        return refus
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] garde de l'écriture qui tient illisible : {erreur!r}")
+        return None
+
+
+def _texte_court(resultat: Any) -> str:
+    lu = _lire(resultat)
+    for niveau in (lu, lu.get("data") if isinstance(lu, Mapping) else None):
+        if isinstance(niveau, Mapping):
+            for cle in ("message", "resultat", "date_reservee"):
+                if isinstance(niveau.get(cle), str) and niveau[cle].strip():
+                    return niveau[cle].strip()[:200]
+    return " ".join(str(resultat).split())[:200]
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -576,26 +719,79 @@ def annulation_reussie(moteur: Any) -> bool:
         return True
 
 
-def ecriture_en_vigueur(moteur: Any, etape: str | None = None) -> ActionVue | None:
-    """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel, si aucune annulation réussie ne l'a défaite
-    depuis. ``None`` : rien n'est écrit (ou tout a été défait). Revue du 26/10 (R-4) : ``etape`` donnée, seules
-    comptent les écritures parties de cette étape (ou d'une étape inconnue, par prudence). ⛔ Ne lève jamais."""
+def _dates_de(vue: Any) -> frozenset:
+    """Les dates d'une action : celles de son résultat et de ses arguments."""
+    return frozenset(getattr(vue, "dates", None) or ()) | frozenset(dates_dans(getattr(vue, "arguments", None) or {}))
+
+
+def _outils_defaits_par(moteur: Any, annulation: str) -> frozenset:
+    """Revue du lot F : les outils d'écriture qu'une annulation peut défaire, ceux qui remplissent un champ qu'elle
+    défait (``rempli_par_outil`` des champs dont elle est ``annule_par_outil``). Vide : tous (la règle d'avant)."""
     try:
         from api.services.workflow.enveloppe_des_actions import _normaliser
 
-        ecritures = outils_d_ecriture(moteur)
-        annulations = outils_d_annulation(moteur)
-        en_vigueur = None
-        for vue in journal_de(moteur):
-            if not vue.reussie:
-                continue
-            nom = _normaliser(vue.nom)
-            if nom in ecritures:
-                if etape is None or vue.etape is None or vue.etape == etape:
-                    en_vigueur = vue
-            elif nom in annulations:
-                en_vigueur = None
-        return en_vigueur
+        reglages = getattr(moteur, "_fiche", None)
+        return frozenset(
+            _normaliser(c.rempli_par_outil)
+            for c in tuple(getattr(reglages, "champs", None) or ())
+            if getattr(c, "annule_par_outil", None)
+            and getattr(c, "rempli_par_outil", None)
+            and _normaliser(c.annule_par_outil) == annulation
+        )
+    except Exception:  # noqa: BLE001
+        return frozenset()
+
+
+def _tenues_avec_rang(moteur: Any, en_plus: Any = None) -> list:
+    """(rang dans le journal, action) des écritures qui tiennent ; voir ``ecritures_tenues``."""
+    from api.services.workflow.enveloppe_des_actions import _normaliser
+
+    ecritures = outils_d_ecriture(moteur)
+    annulations = outils_d_annulation(moteur)
+    tenues: list = []
+    for rang, vue in enumerate(list(journal_de(moteur)) + ([en_plus] if en_plus is not None else [])):
+        if not vue.reussie:
+            continue
+        nom = _normaliser(vue.nom)
+        if nom in ecritures:
+            tenues.append((rang, vue))
+        elif nom in annulations and tenues:
+            defaits = _outils_defaits_par(moteur, nom)
+            candidates = [t for t in tenues if not defaits or _normaliser(t[1].nom) in defaits]
+            cibles = _dates_de(vue)
+            if not cibles:
+                visees = candidates[-1:]
+            else:
+                visees = [t for t in candidates if cibles & _dates_de(t[1])] or [
+                    t for t in candidates if not _dates_de(t[1])
+                ][-1:]
+            for t in visees:
+                tenues.remove(t)
+    return tenues
+
+
+def ecritures_tenues(moteur: Any, en_plus: Any = None) -> list:
+    """Lot F (rejeu du 27/10, runs 2086 et 2087) : les écritures réussies de l'appel qu'aucune annulation réussie n'a
+    défaites, dans l'ordre. Une annulation ne vise que les écritures des outils qui remplissent le champ qu'elle défait
+    (revue du lot F) ; parmi elles, celle qui porte une de ses dates (aucune ne la porte : la plus récente sans date
+    lisible) ; sans date lisible, la plus récente. Une annulation dont la date n'est celle d'aucune écriture de l'appel
+    (un rendez-vous d'un appel précédent) ne défait rien de l'appel. ``en_plus`` : une action pas encore notée.
+    ⛔ Ne lève jamais."""
+    try:
+        return [vue for _, vue in _tenues_avec_rang(moteur, en_plus)]
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] écritures tenues illisibles : {erreur!r}")
+        return []
+
+
+def ecriture_en_vigueur(moteur: Any, etape: str | None = None) -> ActionVue | None:
+    """Lot 11 (F-4) : la dernière action d'écriture réussie de l'appel qui tient encore (``ecritures_tenues``, lot F :
+    le même suivi que la fiche). ``None`` : rien n'est écrit (ou tout a été défait). Revue du 26/10 (R-4) : ``etape``
+    donnée, seules comptent les écritures parties de cette étape (ou d'une étape inconnue, par prudence).
+    ⛔ Ne lève jamais."""
+    try:
+        tenues = [v for v in ecritures_tenues(moteur) if etape is None or v.etape is None or v.etape == etape]
+        return tenues[-1] if tenues else None
     except Exception:  # noqa: BLE001
         return None
 
