@@ -52,6 +52,8 @@ What the model reads (who does what, by switch)
 
 from __future__ import annotations
 
+import re
+
 import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
@@ -274,18 +276,26 @@ def _trace_nombre(nombre, choix, etape: str | None) -> dict:
 ABRI = "courrielabrite"
 
 
+# actions-sures-et-parite-clavier, lot C (run 2040) : une adresse déjà ÉCRITE (« marc.henry@gmail.com », tapée au
+# clavier ou mise en forme par la transcription) est abritée comme une adresse dictée ; « marc » y était lu commune.
+_ADRESSE_ECRITE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.UNICODE)
+
+
 def _abriter_les_adresses(texte: str, epellations: list) -> tuple[str, dict[str, str]]:
-    """``texte`` with every address read replaced by a stand-in word, and the way back.
-    Never raises: on any doubt, ``texte`` unchanged."""
+    """``texte`` with every address read (dictated or already written) replaced by a stand-in word, and the way
+    back. Never raises: on any doubt, ``texte`` unchanged."""
     try:
-        adresses = [e for e in epellations if getattr(e, "courriel", False)]
-        if not adresses:
+        places = [(e.debut, e.fin) for e in epellations if getattr(e, "courriel", False)]
+        for trouvee in _ADRESSE_ECRITE.finditer(texte):
+            if not any(debut < trouvee.end() and trouvee.start() < fin for debut, fin in places):
+                places.append((trouvee.start(), trouvee.end()))
+        if not places:
             return texte, {}
         abris: dict[str, str] = {}
-        for rang, adresse in sorted(enumerate(adresses), key=lambda x: -x[1].debut):
+        for rang, (debut, fin) in sorted(enumerate(places), key=lambda x: -x[1][0]):
             mot = f"{ABRI}{chr(ord('a') + rang)}"
-            abris[mot] = texte[adresse.debut:adresse.fin]
-            texte = texte[:adresse.debut] + mot + texte[adresse.fin:]
+            abris[mot] = texte[debut:fin]
+            texte = texte[:debut] + mot + texte[fin:]
         return texte, abris
     except Exception:  # noqa: BLE001 -- the reading never costs a turn
         return texte, {}
