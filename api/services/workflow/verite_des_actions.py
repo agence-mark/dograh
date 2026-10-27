@@ -194,9 +194,49 @@ class ActionVue:
     etape: str | None = None
 
 
+def _en_donnees(vue: ActionVue) -> dict:
+    """Une action du journal, en données que la sauvegarde de l'appel sait écrire."""
+    return json.loads(
+        json.dumps(
+            {
+                "nom": vue.nom,
+                "arguments": vue.arguments,
+                "resultat": vue.resultat,
+                "reussie": vue.reussie,
+                "dates": sorted(list(d) for d in vue.dates),
+                "ecrits": vue.ecrits,
+                "etape": vue.etape,
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+    )
+
+
+def _depuis_donnees(d: Mapping[str, Any]) -> ActionVue:
+    return ActionVue(
+        nom=str(d.get("nom") or ""),
+        arguments=dict(d.get("arguments") or {}),
+        resultat=d.get("resultat"),
+        reussie=bool(d.get("reussie")),
+        dates=frozenset(tuple(x) for x in d.get("dates") or ()),
+        ecrits=dict(d.get("ecrits") or {}),
+        etape=d.get("etape"),
+    )
+
+
 def journal_de(moteur: Any) -> list:
-    """Le journal des actions de l'appel (créé au besoin, sur le vrai moteur même vu à travers le moteur muet du
-    fond). Une liste jetable si le moteur ne se laisse pas écrire."""
+    """Le journal des actions de l'appel, dans l'ordre (une vue : on y ajoute par ``noter_l_action``).
+
+    actions-sures-et-parite-clavier, lot F (banc local du 27/10) : le journal vivait sur l'objet moteur. Au clavier, le
+    moteur est refait à chaque réplique : le journal repartait vide à chaque tour, et la garde, le V4, la règle
+    « une écriture est en vigueur » et le suivi des réservations ne voyaient rien de ce qui avait été fait. Il vit
+    désormais dans la fiche de l'appel (``_gathered_context``), sauvegardée avec l'appel, téléphone comme clavier ; le
+    moteur muet du fond la lit sur le vrai moteur. Sans fiche lisible : une liste sur le moteur, comme avant."""
+    fiche = getattr(moteur, "_gathered_context", None)
+    if isinstance(fiche, dict):
+        brut = fiche.get(CLE_JOURNAL)
+        return [_depuis_donnees(d) for d in brut if isinstance(d, Mapping)] if isinstance(brut, list) else []
     journal = getattr(moteur, CLE_JOURNAL, None)
     if isinstance(journal, list):
         return journal
@@ -206,6 +246,20 @@ def journal_de(moteur: Any) -> list:
     except Exception:  # noqa: BLE001
         pass
     return journal
+
+
+def _ajouter_au_journal(moteur: Any, vue: ActionVue) -> None:
+    fiche = getattr(moteur, "_gathered_context", None)
+    if isinstance(fiche, dict):
+        brut = fiche.get(CLE_JOURNAL)
+        if not isinstance(brut, list):
+            brut = fiche[CLE_JOURNAL] = []
+        brut.append(_en_donnees(vue))
+        del brut[:-MAX_JOURNAL]
+        return
+    journal = journal_de(moteur)
+    journal.append(vue)
+    del journal[:-MAX_JOURNAL]
 
 
 def _lire(resultat: Any) -> Any:
@@ -255,8 +309,8 @@ def noter_l_action(
 ) -> None:
     """L'enveloppe note le résultat final d'une action. ⛔ Ne lève jamais."""
     try:
-        journal = journal_de(moteur)
-        journal.append(
+        _ajouter_au_journal(
+            moteur,
             ActionVue(
                 nom=nom,
                 arguments=dict(arguments) if isinstance(arguments, Mapping) else {},
@@ -265,9 +319,8 @@ def noter_l_action(
                 dates=frozenset(dates_dans(resultat)),
                 ecrits=dict(ecrits),
                 etape=etape,
-            )
+            ),
         )
-        del journal[:-MAX_JOURNAL]
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] action {nom} non notée : {erreur!r}")
 
@@ -610,7 +663,8 @@ def ecritures_tenues(moteur: Any, en_plus: Any = None) -> list:
                 for t in visees:
                     tenues.remove(t)
         return tenues
-    except Exception:  # noqa: BLE001
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] écritures tenues illisibles : {erreur!r}")
         return []
 
 

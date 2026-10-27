@@ -14,6 +14,8 @@ confiait « Au revoir » au fond ; « confier » y joignait TOUTE la fiche, dont
 | annuler après coup | sans travail en cours, le dernier travail qui a agi est rendu au modèle avec la consigne de le défaire |
 | annuler pendant | un travail annulé après avoir appelé ses outils le dit |
 | changement de date (lot F, runs 2086, 2087) | l'annulation de l'ancien rendez-vous (par sa date) laisse « confirme » et dite faite, dans les deux ordres, même pour un rendez-vous d'un appel précédent ; une réservation refusée ne tient pas ; « une écriture est en vigueur » lit le même suivi |
+| actions qui tiennent (lot F, banc local, E11) | une demande au fond porte la réservation encore tenue de l'appel, sous un en-tête d'état ; plus rien quand elle est défaite ; rien sans action |
+| journal au clavier (lot F) | le journal des actions survit au moteur refait à chaque réplique (fiche de l'appel), son nom de clé est réservé |
 | outil « annuler » (lot F) | sa description dit qu'il arrête un travail en cours et ne défait pas une action faite |
 """
 
@@ -24,7 +26,11 @@ import pytest
 
 from api.schemas.fiche_agent import ChampFiche
 from api.services.travail.agent import CONSIGNE_DEJA_FAIT, DESCRIPTION_ANNULER
-from api.services.travail.demande import ENTETE_DES_VALEURS, demande_avec_la_fiche
+from api.services.travail.demande import (
+    ENTETE_DES_ACTIONS,
+    ENTETE_DES_VALEURS,
+    demande_avec_la_fiche,
+)
 from api.services.workflow.enveloppe_des_actions import ISSUE_ANNULE
 from api.services.workflow.fiche_au_fil_de_leau import ReglagesFiche
 from api.services.workflow.verite_des_actions import ecriture_en_vigueur
@@ -249,3 +255,38 @@ def test_la_description_d_annuler_dit_qu_elle_ne_defait_pas_une_action_faite():
     assert "ne défait rien de ce qu'un travail terminé a déjà fait" in DESCRIPTION_ANNULER
     assert "confie une demande qui la défait" in DESCRIPTION_ANNULER
     assert "ne veut plus de sa demande" not in DESCRIPTION_ANNULER
+
+
+@pytest.mark.asyncio
+async def test_e11_la_demande_au_fond_porte_la_reservation_qui_tient_encore():
+    banc = Banc()
+    banc.moteur._gathered_context = banc.fiche
+    assert ENTETE_DES_ACTIONS not in demande_avec_la_fiche(banc.moteur, "Réserver lundi 2 novembre.", ETAPE_RENDEZ_VOUS)
+    await banc.reserver()
+    demande = demande_avec_la_fiche(banc.moteur, "Réserver lundi 2 novembre.", ETAPE_RENDEZ_VOUS)
+    assert demande.startswith("Réserver lundi 2 novembre.")
+    assert ENTETE_DES_ACTIONS in demande and f"- {RESERVER} :" in demande and "2026-11-05" in demande
+    assert "pas une demande" in ENTETE_DES_ACTIONS
+    await banc.appeler(ANNULER, nom="Durand", date=ANCIEN)
+    assert ENTETE_DES_ACTIONS not in demande_avec_la_fiche(banc.moteur, "Réserver lundi.", ETAPE_RENDEZ_VOUS)
+
+
+@pytest.mark.asyncio
+async def test_clavier_le_journal_des_actions_survit_au_moteur_refait_a_chaque_replique():
+    """Banc local du 27/10 : au clavier, le moteur est refait à chaque tour ; seule la fiche de l'appel passe."""
+    banc = Banc()
+    await banc.reserver()
+    moteur_du_tour_suivant = SimpleNamespace(_fiche=banc.moteur._fiche, _gathered_context=banc.fiche)
+    tenue = ecriture_en_vigueur(moteur_du_tour_suivant)
+    assert tenue is not None and tenue.nom == RESERVER
+    assert ENTETE_DES_ACTIONS in demande_avec_la_fiche(moteur_du_tour_suivant, "Réserver lundi.", ETAPE_RENDEZ_VOUS)
+    import json
+
+    json.dumps(banc.fiche)  # la fiche se sauvegarde telle quelle
+
+
+def test_le_nom_du_journal_est_reserve():
+    from api.schemas.fiche_agent import verifier_champs
+
+    with pytest.raises(ValueError, match="reserved"):
+        verifier_champs([ChampFiche(nom="mark_journal_des_actions")])
