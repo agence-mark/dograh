@@ -36,6 +36,7 @@ CLE_ARBITRE = "arbitre"
 CLE_DESACCORDS = "desaccords_arbitre"
 CLE_PASSAGES = "passages_par_le_code"
 CLE_DEPASSEMENTS = "depassements_modele"
+CLE_RETENUES = "retenues_verite"  # écrite par ``workflow/verite_des_actions.tracer_une_retenue``
 
 # --- L'agent ---------------------------------------------------------------------------------------------------
 SOURCE_AGENT = "agent"
@@ -52,12 +53,14 @@ TYPE_PORTE_INCONNUE = "porte_inconnue"
 TYPE_DESACCORD = "desaccord"
 TYPE_PASSAGE = "passage_sans_suite"
 TYPE_GARDE_MODELE = "garde_modele"
+TYPE_RETENUE = "retenue_verite"
 TYPES_DU_CODE = (
     TYPE_IMPASSE,
     TYPE_PORTE_INCONNUE,
     TYPE_DESACCORD,
     TYPE_PASSAGE,
     TYPE_GARDE_MODELE,
+    TYPE_RETENUE,
 )
 
 # Un passage par le code qui a abouti (ou que la personne a rendu sans objet en reparlant) ne mérite aucun tri.
@@ -101,6 +104,7 @@ def chemin_des_runs_a_trier() -> str:
         "$ ? ("
         f"exists(@.{CLE_SIGNALEMENTS}[*])"
         f" || exists(@.{CLE_DESACCORDS}[*])"
+        f" || exists(@.{CLE_RETENUES}[*])"
         f" || @.{CLE_IMPASSE}.impasses > 0"
         f" || @.{CLE_DEPASSEMENTS} >= {DEPASSEMENTS_A_TRIER}"
         f' || exists(@.{CLE_ARBITRE}[*] ? (@.resultat == "{RESULTAT_ARBITRE_A_TRIER}"))'
@@ -120,6 +124,7 @@ CLES_LUES_POUR_LE_TRI = (
     CLE_DESACCORDS,
     CLE_PASSAGES,
     CLE_DEPASSEMENTS,
+    CLE_RETENUES,
 )
 CLES_LUES_POUR_LES_ALERTES = (CLE_ALERTES, CLE_ALERTES_MAIL)
 
@@ -257,6 +262,18 @@ def lire_les_signalements(contexte: Any) -> list[dict]:
                     "type": TYPE_DESACCORD,
                     "motif": str(e.get("arbitre") or ""),
                     "etape": e.get("etape_de_depart"),
+                    "tour": e.get("tour"),
+                }
+            )
+        for rang, e in enumerate(_liste(contexte, CLE_RETENUES)):
+            lignes.append(
+                {
+                    "id": f"{TYPE_RETENUE}:{rang}",
+                    "source": SOURCE_CODE,
+                    "type": TYPE_RETENUE,
+                    # le genre (technique, lisible à l'écran par ``libelles.ts``) puis le détail
+                    "motif": " : ".join(x for x in (str(e.get("genre") or ""), str(e.get("outil") or ""), str(e.get("detail") or "")) if x),
+                    "etape": None,
                     "tour": e.get("tour"),
                 }
             )

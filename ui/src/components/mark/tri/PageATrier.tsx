@@ -15,11 +15,25 @@ import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
 import { useLangue } from "../langue/langue";
-import { CATEGORIES, STATUTS, TYPES_DE_SIGNALEMENT } from "./libelles";
+import { CATEGORIES, motifLisible, STATUTS, TYPES_DE_SIGNALEMENT } from "./libelles";
 
 type Statut = LigneDeTri["statut"];
 
 const dateCourte = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");
+
+/** The reason of a line: the agent's own words as they are; the code's technical value in plain words, the value second. */
+function MotifDeLaLigne({ ligne }: { ligne: LigneDeTri }) {
+    const { t } = useLangue();
+    if (ligne.source === "agent") return <p className="text-muted-foreground">{ligne.motif}</p>;
+    const { lisible, technique } = motifLisible(ligne.motif ?? "", ligne.type);
+    if (!lisible) return <p className="font-mono text-xs text-muted-foreground">{ligne.motif}</p>;
+    return (
+        <p className="text-muted-foreground" data-testid="motif-lisible">
+            {t(lisible)}
+            {technique && <span className="ml-2 font-mono text-xs opacity-70">({technique})</span>}
+        </p>
+    );
+}
 
 export function PageATrier() {
     const { t } = useLangue();
@@ -123,7 +137,7 @@ export function PageATrier() {
                                     ))}
                                 </select>
                             </div>
-                            {l.motif && <p className="text-muted-foreground">{l.motif}</p>}
+                            {l.motif && <MotifDeLaLigne ligne={l} />}
                             <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                                 <span>{l.workflow_nom}</span>
                                 {l.etape && (

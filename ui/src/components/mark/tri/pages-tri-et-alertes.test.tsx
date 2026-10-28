@@ -130,6 +130,45 @@ describe("[.mark] the « To triage » page", () => {
     });
 });
 
+describe("[.mark] the reasons written by the code (tri lisible)", () => {
+    const ligne = (id: string, type: string, motif: string) => ({
+        run_id: 30, workflow_id: 3, workflow_nom: "Accueil", cree_le: "2026-10-28T10:15:00+00:00", id, source: "code",
+        type, categorie: null, motif, etape: null, tour: 1, statut: "ouvert",
+    });
+
+    it("shows a plain French sentence first and the technical detail second", async () => {
+        m.tri.mockResolvedValue({
+            data: {
+                lignes: [
+                    ligne("impasse:1", "impasse", "impasse_repetee"),
+                    ligne("retenue_verite:0", "retenue_verite", "date_non_trouvee : reserver : lundi 3 novembre"),
+                    ligne("desaccord:0", "desaccord", "porte_x"),
+                    ligne("passage_sans_suite:0", "passage_sans_suite", "valeur_jamais_vue"),
+                ],
+                page: 0,
+                a_une_suite: false,
+            },
+        });
+        render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
+        expect(await screen.findByText("Action retenue par la vérité des actions")).toBeTruthy();
+        const lisibles = screen.getAllByTestId("motif-lisible").map((e) => e.textContent);
+        expect(lisibles).toEqual([
+            "Deuxième impasse dans le même appel(impasse_repetee)",
+            "Une date que la recherche n'a pas donnée(reserver : lundi 3 novembre)",
+            "L'arbitre proposait une autre sortie que l'agent(porte_x)",
+        ]);
+        // a value the table does not know stays visible as it is
+        expect(screen.getByText("valeur_jamais_vue")).toBeTruthy();
+        expect(screen.queryByText("date_non_trouvee : reserver : lundi 3 novembre")).toBeNull();
+    });
+
+    it("says the same in English outside the provider", async () => {
+        m.tri.mockResolvedValue({ data: { lignes: [ligne("impasse:1", "impasse", "impasse")], page: 0, a_une_suite: false } });
+        render(<PageATrier />);
+        expect((await screen.findByTestId("motif-lisible")).textContent).toContain("The agent kept repeating itself");
+    });
+});
+
 describe("[.mark] the « Alerts » page", () => {
     it("shows each alert with its mail state, in French", async () => {
         render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
