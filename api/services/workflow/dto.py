@@ -346,6 +346,20 @@ class _PassageNodeDataMixin(BaseModel):
         max_value=1.0,
     )
 
+    @field_validator("delai_du_passage")
+    @classmethod
+    def _delai_borne(cls, valeur: Optional[float]) -> Optional[float]:
+        if valeur is None or 0.0 <= valeur <= 10.0:
+            return valeur
+        raise ValueError("delai_du_passage must be between 0 and 10 seconds")
+
+    @field_validator("seuil_de_l_arbitre")
+    @classmethod
+    def _seuil_borne(cls, valeur: Optional[float]) -> Optional[float]:
+        if valeur is None or 0.0 <= valeur <= 1.0:
+            return valeur
+        raise ValueError("seuil_de_l_arbitre must be between 0 and 1")
+
     @field_validator("qui_decide_du_passage")
     @classmethod
     def _qui_decide_connu(cls, valeur: Optional[str]) -> Optional[str]:

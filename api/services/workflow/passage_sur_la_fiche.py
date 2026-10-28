@@ -29,6 +29,7 @@ Aucun mot de métier. ⛔ Ne lève jamais : un passage manqué ne coûte jamais 
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,6 +39,7 @@ from api.services.fiche.traces import CLE_TOUR
 
 CLE_PASSAGES = "passages_par_le_code"
 DELAI_PAR_DEFAUT = 1.5
+DELAI_MAX = 10.0  # borne côté serveur (l'écran la propose déjà)
 SEUIL_PAR_DEFAUT = 0.8
 RAISON_FICHE = "fiche"
 RAISON_ARBITRE = "arbitre"
@@ -82,7 +84,11 @@ def reglages_du_passage(noeud: Any) -> Reglages:
         return Reglages(
             qui=qui,
             moment=moment,
-            delai=float(delai) if isinstance(delai, (int, float)) and delai > 0 else DELAI_PAR_DEFAUT,
+            delai=(
+                min(float(delai), DELAI_MAX)
+                if isinstance(delai, (int, float)) and not isinstance(delai, bool) and delai > 0
+                else DELAI_PAR_DEFAUT
+            ),
             # Éteint par défaut, allumé par défaut sur les types « choix » et « libre ».
             arbitre=bool(arbitre) if isinstance(arbitre, bool) else qui in (CHOIX, LIBRE),
             seuil=float(seuil) if isinstance(seuil, (int, float)) and 0 <= seuil <= 1 else SEUIL_PAR_DEFAUT,
@@ -279,19 +285,28 @@ async def passer(
             tracer(moteur, **base, resultat="jetee_appel_occupe")
             return False
         relancer = option == 1
-        if relancer:
-            poser_la_notice(moteur, agent, dit)
-        etat = await moteur.prendre_porte_ecrite(arete.get_function_name(), relancer=relancer)
-        if etat != "prise":
-            moteur._notice_de_passage = None
-        tracer(moteur, **base, resultat="prise" if etat == "prise" else etat)
-        return etat == "prise"
+
+        async def prendre() -> bool:
+            if relancer:
+                cible = agent.workflow.nodes.get(arete.target)
+                poser_la_notice(moteur, agent, dit, (agent.visit_id, getattr(cible, "id", arete.target)))
+            etat = await moteur.prendre_porte_ecrite(arete.get_function_name(), relancer=relancer)
+            if etat != "prise":
+                _vider_la_notice(moteur)
+            tracer(moteur, **base, resultat="prise" if etat == "prise" else etat)
+            return etat == "prise"
+
+        # Le passage lui-même (changement d'étape, extraction) n'est jamais coupé par une interruption : il va
+        # jusqu'au bout dans sa tâche (comme ``_porte_protegee``). Seule l'attente du greffier, avant, est interruptible.
+        tache = asyncio.get_running_loop().create_task(prendre())
+        taches = getattr(moteur, "notes_en_cours", None)
+        if taches is not None:
+            taches.add(tache)
+            tache.add_done_callback(taches.discard)
+        return await asyncio.shield(tache)
     except Exception as erreur:  # noqa: BLE001 -- l'agent garde la main
         logger.error(f"[passage] passage par le code en échec : {erreur!r}")
-        try:
-            moteur._notice_de_passage = None
-        except Exception:  # noqa: BLE001
-            pass
+        _vider_la_notice(moteur)
         return False
 
 
@@ -304,11 +319,23 @@ async def passer(
 # ---------------------------------------------------------------------------------------------------------
 
 
-def poser_la_notice(moteur: Any, agent: Any, dit: str) -> None:
-    """La notice du tour d'arrivée : le compte rendu standard, montré sur la prochaine requête de conversation."""
+def _vider_la_notice(moteur: Any) -> None:
+    """Plus de notice en attente. ⛔ Ne lève jamais."""
+    try:
+        moteur._notice_de_passage = None
+        moteur._notice_cle = None
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def poser_la_notice(moteur: Any, agent: Any, dit: str, arrivee: tuple | None = None) -> None:
+    """La notice du tour d'arrivée : le compte rendu standard, montré sur la prochaine requête de conversation.
+    ``arrivee`` = (visite de l'agent, étape d'arrivée) : à la consommation, une notice dont l'étape n'est plus celle
+    où l'on est (retour au principal, autre passage) est jetée, jamais montrée plus tard."""
     from api.services.phrases.compte_rendu import compte_rendu
 
     moteur._notice_de_passage = compte_rendu(FAIT_DU_PASSAGE, dit=(dit or "").strip() or None, crochets=True)
+    moteur._notice_cle = arrivee
 
 
 def _inserer_avant_la_derniere_parole(messages: list, texte: str) -> list | None:
@@ -331,7 +358,13 @@ def contexte_avec_la_notice(moteur: Any, context: Any) -> Any | None:
         notice = getattr(moteur, "_notice_de_passage", None)
         if not notice:
             return None
-        moteur._notice_de_passage = None
+        cle = getattr(moteur, "_notice_cle", None)
+        _vider_la_notice(moteur)
+        if cle is not None:
+            courant = moteur.jeton_de_visite()
+            if (courant[0], courant[1]) != tuple(cle):
+                logger.info("[passage] notice jetée : l'étape d'arrivée n'est plus celle-ci")
+                return None
         messages = _inserer_avant_la_derniere_parole(list(context.get_messages()), notice)
         if messages is None:
             return None
