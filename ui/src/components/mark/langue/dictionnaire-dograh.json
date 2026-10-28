@@ -1611,5 +1611,11 @@
   "Wording the call button cycles through while a call connects and runs.": "Les libellés qu'affiche tour à tour le bouton d'appel pendant la connexion puis l'appel.",
   "Wording visitors see inside the chat panel.": "Les libellés que les visiteurs voient dans le panneau de discussion.",
   "Wording visitors see on the call panel across the call lifecycle.": "Les libellés que les visiteurs voient sur le panneau d'appel, du début à la fin de l'appel.",
-  "This tool has no action: create it again from « Tools ».": "Cet outil n'a pas d'action : recréez-le depuis « Outils »."
+  "This tool has no action: create it again from « Tools ».": "Cet outil n'a pas d'action : recréez-le depuis « Outils ».",
+  "Condition on the record": "Condition sur la fiche",
+  "Field name": "Nom du champ",
+  "A field holds a value": "Un champ vaut une valeur",
+  "Step complete (every field gathered)": "Étape complète (tous les champs obtenus)",
+  "Value (empty: any value)": "Valeur (vide : toute valeur)",
+  "Optional. On a step where the code decides the transition, the code takes this exit by itself when the call record allows it: every field of the step gathered, or one field holding a value (\"refusé\" for a refusal). Exits are read in the order of the canvas, the first true one wins.": "Facultatif. Sur une étape où le code décide du passage, le code prend cette sortie de lui-même quand la fiche de l'appel le permet : tous les champs de l'étape obtenus, ou un champ qui vaut une valeur (« refusé » pour un refus). Les sorties sont lues dans l'ordre du canevas, la première vraie gagne."
 }

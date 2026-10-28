@@ -621,7 +621,7 @@ def test_parite_le_decideur_est_branche_au_telephone_et_au_clavier_a_la_place_de
     racine = Path(passage.__file__).resolve().parents[1]
     for fichier in (racine / "pipecat" / "run_pipeline.py", racine / "workflow" / "text_chat_runner.py"):
         texte = fichier.read_text(encoding="utf-8")
-        assert "brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)" in texte, fichier.name
+        assert "brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator, service_arbitre)" in texte, fichier.name
         assert "brancher_le_filet_de_fin(" not in texte and "brancher_la_sortie_d_impasse(" not in texte, fichier.name
 
 
