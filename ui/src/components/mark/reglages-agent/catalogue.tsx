@@ -578,7 +578,7 @@ export const CATALOGUE = {
         aides: [
             {
                 en: "Offers the agent a tool for when the caller asks for a moment (to look something up or check). During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the tool is not offered.",
-                fr: "Offre à l'agent un outil pour quand l'appelant demande un moment (chercher, vérifier). Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « La personne prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : l'outil n'est pas offert.",
+                fr: "Offre à l'agent un outil pour quand l'appelant demande un moment (chercher, vérifier). Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « L'appelant prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : l'outil n'est pas offert.",
             },
         ],
     }),

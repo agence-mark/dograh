@@ -252,11 +252,11 @@ MOTIFS: dict[str, Motif] = {
         Motif(
             id=ATTENTE_ACCORDEE,
             famille=FAMILLE_ATTENTE,
-            libelle_fr="La personne prend son temps",
+            libelle_fr="L'appelant prend son temps",
             libelle_en="The caller is taking their time",
             quand_fr=(
-                "L'agent a laissé la parole (la personne cherche ou vérifie quelque chose, case « Laisser la personne "
-                "prendre son temps » de Rythme de l'appel) et elle reste muette pendant le délai."
+                "L'agent a laissé la parole (l'appelant cherche ou vérifie quelque chose, case « Laisser l'appelant "
+                "prendre son temps » de Rythme de l'appel) et il reste muet pendant le délai."
             ),
             quand_en=(
                 "The agent let the caller take their time (looking something up or checking, switch \"Let the caller "

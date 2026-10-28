@@ -35,7 +35,7 @@ RESULTAT = "La personne prend son temps. Ne dis rien de plus : attends qu'elle r
 
 
 def case_allumee(agent: Any, moteur: Any) -> bool:
-    """La case « Laisser la personne prendre son temps » de l'agent : posée à ``True`` seulement."""
+    """La case « Laisser l'appelant prendre son temps » de l'agent : posée à ``True`` seulement."""
     try:
         reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
         return reglages.get(CLE_LAISSER_LA_PAROLE) is True

@@ -41,7 +41,7 @@ import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
-import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
+import { aideCleDuCerveau, type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { AIDES_FICHE, EditeurChampsFiche, pourComparerLaFiche, texteErreursDesChamps } from "../SectionFiche";
 import { Reglage } from "./catalogue";
 import { CONSIGNE_GENERIQUE_GREFFIER } from "./consigne-greffier";
@@ -961,7 +961,12 @@ export const ThemeDonnees = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <ChampsFournisseurLlm bloc={blocArbitre} onChange={setBlocArbitre} idPrefixe="arbitre" />
+                        <ChampsFournisseurLlm
+                            bloc={blocArbitre}
+                            onChange={setBlocArbitre}
+                            idPrefixe="arbitre"
+                            aideCle={aideCleDuCerveau({ en: "the arbiter", fr: "l'arbitre" })}
+                        />
                     </div>
                     <DialogFooter>
                         <Button onClick={() => setFenetre(null)}>{t({ en: "Done", fr: "Terminé" })}</Button>

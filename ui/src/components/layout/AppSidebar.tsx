@@ -431,7 +431,9 @@ export function AppSidebar() {
         {NAV_SECTIONS.map((section, index) => (
           <SidebarGroup
             key={section.label ?? "overview"}
-            className={index === 0 ? "mt-2" : "mt-6"}
+            // [.mark] Compact groups: at 900 px high the last entries (« Alerts ») sat below the footer, the scrollbar
+            // being hidden by design (D8). Tighter groups keep every entry in view; the content still scrolls below that.
+            className={cn("py-1", index === 0 ? "mt-2" : "mt-3")}
           >
             {section.label && (
               <SidebarGroupLabel

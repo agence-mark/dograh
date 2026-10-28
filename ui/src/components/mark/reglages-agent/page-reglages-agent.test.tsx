@@ -737,6 +737,13 @@ describe("[.mark] the arbiter's dialog (passages-fiables, lot B)", () => {
         return envoye();
     };
 
+    it("names its own brain in the help under « API key » (the clerk's window keeps its own words)", async () => {
+        await regler();
+        const aideArbitre = document.getElementById("arbitre_api_key")?.closest("div.space-y-1")?.querySelector("p.text-xs")?.textContent ?? "";
+        expect(aideArbitre).toContain("Empty, the arbiter uses the conversation's key");
+        expect(aideArbitre).not.toContain("clerk");
+    });
+
     it("is drawn next to the clerk's settings, in every note-taking mode, with its own key rule", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         const theme = ouvrirLeTheme("donnees");
