@@ -98,3 +98,20 @@ def test_le_motif_attente_accordee_porte_le_nom_de_la_case_de_l_ecran():
     assert "Laisser la personne" not in m.quand_fr and m.libelle_fr == "L'appelant prend son temps"
     ecran = (RACINE / "ui/src/components/mark/reglages-agent/catalogue.tsx").read_text(encoding="utf-8")
     assert 'fr: "Laisser l\'appelant prendre son temps"' in ecran and f"« {m.libelle_fr} »" in ecran
+
+
+def test_les_cles_du_chantier_sont_des_noms_reserves_de_la_fiche():
+    """Un champ de fiche qui porterait le nom d'une trace du chantier l'écraserait : le nom est refusé."""
+    from api.schemas.fiche_agent import NOMS_RESERVES
+
+    for cle in (
+        "passages_par_le_code",
+        "arbitre",
+        "desaccords_arbitre",
+        "attentes_accordees",
+        "signalements",
+        "alertes",
+        "alertes_mail",
+        "retenues_verite",
+    ):
+        assert cle in NOMS_RESERVES, cle

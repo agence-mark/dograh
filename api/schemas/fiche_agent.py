@@ -338,6 +338,14 @@ NOMS_RESERVES = frozenset(
         "retenues_verite",
         "rejeu_sortants_simules",
         "outils_simules",
+        # passages-fiables : les traces du décideur et de l'arbitre, l'attente accordée, les signalements et les alertes.
+        "passages_par_le_code",
+        "arbitre",
+        "desaccords_arbitre",
+        "attentes_accordees",
+        "signalements",
+        "alertes",
+        "alertes_mail",
     }
 )
 
