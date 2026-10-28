@@ -90,10 +90,15 @@ def alerter_la_fin_en_erreur(moteur: Any, raison: str) -> None:
 
 
 def mail_allume(moteur: Any) -> bool:
-    """La case « Alertes par mail » de l'agent : ``True`` seulement. Éteinte par défaut. ⛔ Ne lève jamais."""
+    """La case « Alertes par mail » : le réglage de l'APPEL (celui du principal, ``reglages_appel``) d'abord, puis celui
+    de l'agent actif (un appel fini chez un spécialisé garde la case du principal). ``True`` seulement. Éteinte par
+    défaut. ⛔ Ne lève jamais."""
     try:
+        appel = getattr(moteur, "reglages_appel", None) or {}
+        if isinstance(appel, dict) and appel.get(CLE_ALERTES_PAR_MAIL) is not None:
+            return appel.get(CLE_ALERTES_PAR_MAIL) is True
         agent = getattr(moteur, "active_agent", None)
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = getattr(agent, "reglages", None) or {}
         return reglages.get(CLE_ALERTES_PAR_MAIL) is True
     except Exception:  # noqa: BLE001
         return False
