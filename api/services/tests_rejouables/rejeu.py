@@ -213,20 +213,37 @@ async def _un_essai(
 
 
 async def rejouer(
-    test: TestRejouable, agent_id: int, essais: int = ESSAIS_PAR_DEFAUT
+    test: TestRejouable,
+    agent_id: int,
+    essais: int = ESSAIS_PAR_DEFAUT,
+    organisation_id: int | None = None,
 ) -> ResultatTest:
     """Rejoue ``test`` ``essais`` fois sur l'agent ``agent_id`` (une copie). Lève ``ErreurTestRejouable``
-    pour un refus (agent protégé, autre organisation, étape introuvable)."""
+    pour un refus (agent protégé, autre organisation, étape introuvable). L'agent doit appartenir à l'organisation
+    de l'utilisateur (``organisation_id``) ou, à défaut, à celle du test ; ni l'une ni l'autre : refus."""
     refuser_si_protege(agent_id)
     if essais < 1:
         raise ErreurTestRejouable("au moins un essai")
     workflow = await db_client.get_workflow_by_id(agent_id)
     if workflow is None:
         raise ErreurTestRejouable(f"agent {agent_id} introuvable")
-    if test.organisation_id is not None and workflow.organization_id != test.organisation_id:
+    if (
+        organisation_id is not None
+        and test.organisation_id is not None
+        and organisation_id != test.organisation_id
+    ):
         raise ErreurTestRejouable(
-            f"agent {agent_id} refusé : le test {test.nom!r} est celui de l'organisation "
-            f"{test.organisation_id}, l'agent est d'une autre"
+            f"test {test.nom!r} refusé : il est celui de l'organisation {test.organisation_id}, "
+            f"pas de l'organisation {organisation_id}"
+        )
+    attendue = organisation_id if organisation_id is not None else test.organisation_id
+    if attendue is None:
+        raise ErreurTestRejouable(
+            f"test {test.nom!r} refusé : aucune organisation à contrôler (ni dans le test, ni en paramètre)"
+        )
+    if workflow.organization_id != attendue:
+        raise ErreurTestRejouable(
+            f"agent {agent_id} refusé : il est d'une autre organisation que celle du rejeu ({attendue})"
         )
     definition = await definition_to_run(db_client, workflow, use_draft=True)
     if definition is None:
@@ -239,7 +256,10 @@ async def rejouer(
 
 
 async def jouer_suite(
-    dossier: Path | str, agent_id: int, essais: int = ESSAIS_PAR_DEFAUT
+    dossier: Path | str,
+    agent_id: int,
+    essais: int = ESSAIS_PAR_DEFAUT,
+    organisation_id: int | None = None,
 ) -> list[ResultatTest]:
     """Tous les ``*.json`` du dossier, dans l'ordre des noms. Un fichier illisible ou un test refusé est
     rendu avec son erreur, les autres sont joués. Un agent protégé refuse toute la suite d'emblée."""
@@ -253,7 +273,7 @@ async def jouer_suite(
     sortie: list[ResultatTest] = []
     for f in fichiers:
         try:
-            sortie.append(await rejouer(lire_test(f), agent_id, essais))
+            sortie.append(await rejouer(lire_test(f), agent_id, essais, organisation_id))
         except ErreurTestRejouable as e:
             sortie.append(ResultatTest(nom=f.stem, agent_id=agent_id, erreur=str(e)))
     return sortie

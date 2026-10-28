@@ -8,7 +8,7 @@ Avec l'environnement de l'API (``api/.env``) ; chaque rejeu appelle le vrai mod�
         --nom numero-invente-2146 --critere '{"type":"texte_absent","texte":"06 12"}' --dossier DOSSIER
 
     # rejouer un test (3 fois par défaut)
-    python -m api.scripts.mark.tests_rejouables rejouer --test FICHIER.json --agent 250 [--essais 3]
+    python -m api.scripts.mark.tests_rejouables rejouer --test FICHIER.json --agent 250 [--essais 3] [--organisation 12]
 
     # jouer une suite (un dossier de tests)
     python -m api.scripts.mark.tests_rejouables suite --dossier DOSSIER --agent 250 [--essais 3]
@@ -55,7 +55,7 @@ async def _creer(args: argparse.Namespace) -> int:
 async def _rejouer(args: argparse.Namespace) -> int:
     from api.services.tests_rejouables.rejeu import rejouer, rendre
 
-    resultat = await rejouer(lire_test(args.test), args.agent, args.essais)
+    resultat = await rejouer(lire_test(args.test), args.agent, args.essais, args.organisation)
     print(rendre([resultat]))
     return 0 if resultat.vert else 1
 
@@ -63,7 +63,7 @@ async def _rejouer(args: argparse.Namespace) -> int:
 async def _suite(args: argparse.Namespace) -> int:
     from api.services.tests_rejouables.rejeu import jouer_suite, rendre
 
-    resultats = await jouer_suite(args.dossier, args.agent, args.essais)
+    resultats = await jouer_suite(args.dossier, args.agent, args.essais, args.organisation)
     print(rendre(resultats))
     if any(r.erreur for r in resultats):
         return 2
@@ -86,11 +86,13 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--test", required=True)
     r.add_argument("--agent", type=int, required=True, help="la COPIE d'agent jouée")
     r.add_argument("--essais", type=int, default=ESSAIS_PAR_DEFAUT)
+    r.add_argument("--organisation", type=int, help="l'organisation de l'agent joué (obligatoire si le test n'en porte pas)")
     r.set_defaults(fonction=_rejouer)
     s = sous.add_parser("suite", help="jouer un dossier de tests")
     s.add_argument("--dossier", required=True)
     s.add_argument("--agent", type=int, required=True, help="la COPIE d'agent jouée")
     s.add_argument("--essais", type=int, default=ESSAIS_PAR_DEFAUT)
+    s.add_argument("--organisation", type=int, help="l'organisation de l'agent joué (obligatoire si un test n'en porte pas)")
     s.set_defaults(fonction=_suite)
     args = p.parse_args(argv)
     try:

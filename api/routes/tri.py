@@ -83,6 +83,9 @@ class PageDAlertes(BaseModel):
     par_page: int = donnees.RUNS_PAR_PAGE
 
 
+MAX_PAGES_DE_RUNS_LUES = 20  # borne R7 : au plus 20 pages de runs lues pour remplir une page filtrée
+
+
 @router.get("/tri", response_model=PageDeTri)
 async def lire_la_file_de_tri(
     page: int = Query(0, ge=0),
@@ -90,14 +93,33 @@ async def lire_la_file_de_tri(
     statut: Optional[StatutDeTri] = Query(None),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> PageDeTri:
-    runs, suite = await db_client.runs_avec(
-        user.selected_organization_id,
-        chemin=donnees.chemin_des_runs_a_trier(),
-        cles=donnees.CLES_LUES_POUR_LE_TRI,
-        page=page,
-        workflow_id=workflow_id,
-    )
-    return PageDeTri(lignes=pages.lignes_de_tri(runs, statut), page=page, a_une_suite=suite)
+    if statut is None:
+        runs, suite = await db_client.runs_avec(
+            user.selected_organization_id,
+            chemin=donnees.chemin_des_runs_a_trier(),
+            cles=donnees.CLES_LUES_POUR_LE_TRI,
+            page=page,
+            workflow_id=workflow_id,
+        )
+        return PageDeTri(lignes=pages.lignes_de_tri(runs), page=page, a_une_suite=suite)
+    # Le statut se lit dans les annotations du run : le filtre passe AVANT de couper la page. On lit les pages de runs
+    # (bornées) jusqu'à remplir celle demandée ; la page 1 filtrée n'est jamais vide quand des lignes existent.
+    par_page = donnees.RUNS_PAR_PAGE
+    voulu = (page + 1) * par_page + 1
+    lignes: list[dict] = []
+    lues, encore = 0, True
+    while encore and len(lignes) < voulu and lues < MAX_PAGES_DE_RUNS_LUES:
+        runs, encore = await db_client.runs_avec(
+            user.selected_organization_id,
+            chemin=donnees.chemin_des_runs_a_trier(),
+            cles=donnees.CLES_LUES_POUR_LE_TRI,
+            page=lues,
+            workflow_id=workflow_id,
+        )
+        lignes.extend(pages.lignes_de_tri(runs, statut))
+        lues += 1
+    suite = len(lignes) > (page + 1) * par_page or encore
+    return PageDeTri(lignes=lignes[page * par_page : (page + 1) * par_page], page=page, a_une_suite=suite)
 
 
 @router.put("/tri/{run_id}", response_model=StatutEcrit)
