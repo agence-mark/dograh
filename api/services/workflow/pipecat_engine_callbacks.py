@@ -47,9 +47,27 @@ def _phrase_de_silence(engine: "PipecatEngine"):
         return None
 
 
+def _phrase_d_attente(engine: "PipecatEngine"):
+    """[.mark] passages-fiables (lot E) : la phrase douce en vigueur (motif ``attente_accordee``), ou ``None``."""
+    try:
+        from api.services.phrases.catalogue import ATTENTE_ACCORDEE
+
+        phrases = getattr(engine, "phrases", None)
+        return phrases.phrase(ATTENTE_ACCORDEE) if phrases is not None else None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[phrases] phrase d'attente illisible : {erreur!r}")
+        return None
+
+
 def delai_de_la_relance(engine: "PipecatEngine") -> float | None:
     """[.mark] Lot 5 : le délai posé par la règle « l'appelant se tait » ; ``None`` : le réglage
-    de Rythme (``max_user_idle_timeout``) reste le délai."""
+    de Rythme (``max_user_idle_timeout``) reste le délai. Lot E : pendant une attente accordée à la personne,
+    le délai de la phrase douce (défaut 45 s)."""
+    moniteur = getattr(engine, "call_monitor", None)
+    if moniteur is not None and getattr(moniteur, "attente_accordee", False):
+        attente = _phrase_d_attente(engine)
+        if attente is not None and attente.delai_s:
+            return attente.delai_s
     phrase = _phrase_de_silence(engine)
     if phrase is not None and phrase.dite and phrase.delai_pose:
         return phrase.delai_s
@@ -85,6 +103,35 @@ async def _relance_dite_par_la_voix(engine: "PipecatEngine") -> bool:
     return True
 
 
+async def _relance_douce(engine: "PipecatEngine", attempt: int) -> None:
+    """[.mark] passages-fiables (lot E) : le délai de l'attente accordée est écoulé. La phrase douce remplace la relance
+    normale ; jamais de raccrochage. Phrase éteinte ou clavier : l'attente se termine en silence. Phrase refusée par un
+    verrou du diseur : l'attente continue. ⛔ Ne lève jamais."""
+    from api.services.phrases.catalogue import ATTENTE_ACCORDEE
+    from api.services.workflow.laisser_la_parole import tracer
+
+    moniteur = engine.call_monitor
+    try:
+        await noter_la_relance(engine, attempt, raccroche=False)
+        phrase = _phrase_d_attente(engine)
+        dite = False
+        if (
+            phrase is not None
+            and phrase.dite
+            and getattr(engine, "sans_sortie_audio", False) is not True
+        ):
+            dite = await engine.phrases.dire(ATTENTE_ACCORDEE)
+            if not dite:
+                tracer(engine, "relance_douce_refusee")
+                moniteur.relance_douce_dite(dite=False)
+                return
+        tracer(engine, "relance_douce_dite" if dite else "attente_finie_sans_phrase")
+        moniteur.relance_douce_dite(dite=True)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[parole] relance douce en échec : {erreur!r}")
+        moniteur.relance_douce_dite(dite=True)
+
+
 async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) -> None:
     """Execute the monitor's idle decision; timing and retry state live there.
 
@@ -99,6 +146,10 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
     ⚠️ They are INSTRUCTIONS given to the model, not sentences spoken word for
     word: each one already asks the model to answer in the caller's language.
     """
+    # [.mark] passages-fiables (lot E) : la personne a demandé du temps : phrase douce, jamais de raccrochage.
+    if getattr(getattr(engine, "call_monitor", None), "attente_accordee", False):
+        await _relance_douce(engine, attempt)
+        return
     reglages = getattr(engine, "reglages_relances", None) or {}
     idle_prompt = reglages.get("user_idle_prompt") or DEFAULT_USER_IDLE_PROMPT
     goodbye_prompt = (

@@ -86,6 +86,8 @@ MODELE_TARDE = "modele_tarde"
 OUTIL_TARDE = "outil_tarde"
 TRAVAIL_DURE = "travail_dure"
 APPELANT_SE_TAIT = "appelant_se_tait"
+# passages-fiables (lot E) : la personne a demandé du temps (outil « laisser la parole ») et se tait.
+ATTENTE_ACCORDEE = "attente_accordee"
 REPONSE_PERDUE = "reponse_perdue"
 MISE_EN_RELATION = "mise_en_relation"
 TRANSFERT_ECHOUE = "transfert_echoue"
@@ -246,6 +248,36 @@ MOTIFS: dict[str, Motif] = {
                 "the exit goes at the silence that follows the last prompt."
             ),
             fin_d_attente_reglage="rythme",
+        ),
+        Motif(
+            id=ATTENTE_ACCORDEE,
+            famille=FAMILLE_ATTENTE,
+            libelle_fr="La personne prend son temps",
+            libelle_en="The caller is taking their time",
+            quand_fr=(
+                "L'agent a laissé la parole (la personne cherche ou vérifie quelque chose, case « Laisser la personne "
+                "prendre son temps » de Rythme de l'appel) et elle reste muette pendant le délai."
+            ),
+            quand_en=(
+                "The agent let the caller take their time (looking something up or checking, switch \"Let the caller "
+                "take their time\" in Call pace) and the caller stays silent for the delay."
+            ),
+            a_un_delai=True,
+            variantes_defaut=("Prenez votre temps, je suis toujours là.",),
+            delai_defaut_s=45.0,
+            actif_par_defaut=True,
+            eteinte_fr="Rien n'est dit : l'attente se termine sans phrase, et l'appel n'est jamais raccroché pendant elle.",
+            eteinte_en="Nothing is said: the wait ends without a sentence, and the call is never hung up during it.",
+            silence_de_l_appelant=True,
+            moment=MOMENT_ATTENTE,
+            delai_min_s=5.0,
+            peut_redire=False,
+            fin_d_attente_fr=(
+                "La personne reparle, ou la phrase est dite : le comportement normal de « L'appelant se tait » reprend."
+            ),
+            fin_d_attente_en=(
+                "The caller speaks again, or the sentence is said: the normal \"The caller is silent\" behaviour resumes."
+            ),
         ),
         Motif(
             id=REPONSE_PERDUE,

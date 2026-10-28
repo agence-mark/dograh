@@ -206,6 +206,44 @@
       "sortie_par_le_code": false
     },
     {
+      "id": "attente_accordee",
+      "famille": "attente",
+      "moment": "attente",
+      "libelle": {
+        "en": "The caller is taking their time",
+        "fr": "La personne prend son temps"
+      },
+      "quand": {
+        "en": "The agent let the caller take their time (looking something up or checking, switch \"Let the caller take their time\" in Call pace) and the caller stays silent for the delay.",
+        "fr": "L'agent a laissé la parole (la personne cherche ou vérifie quelque chose, case « Laisser la personne prendre son temps » de Rythme de l'appel) et elle reste muette pendant le délai."
+      },
+      "a_un_delai": true,
+      "delai_min_s": 5.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "The caller speaks again, or the sentence is said: the normal \"The caller is silent\" behaviour resumes.",
+        "fr": "La personne reparle, ou la phrase est dite : le comportement normal de « L'appelant se tait » reprend."
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Prenez votre temps, je suis toujours là."
+      ],
+      "delai_defaut_s": 45.0,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Nothing is said: the wait ends without a sentence, and the call is never hung up during it.",
+        "fr": "Rien n'est dit : l'attente se termine sans phrase, et l'appel n'est jamais raccroché pendant elle."
+      },
+      "silence_de_l_appelant": true,
+      "sortie_par_le_code": false
+    },
+    {
       "id": "reponse_perdue",
       "famille": "annonce",
       "moment": "probleme",

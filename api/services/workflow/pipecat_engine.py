@@ -2138,6 +2138,11 @@ class PipecatEngine:
             node,
             offre_une_action=not node.is_end and etape_qui_ecrit(self, actions_offertes(self), etape_du_fond),
         )
+        # [.mark] passages-fiables (lot E) : l'outil « laisser la parole », seulement case allumée.
+        from api.services.workflow.laisser_la_parole import brancher_laisser_la_parole
+
+        if (schema_parole := brancher_laisser_la_parole(self, agent, node)) is not None:
+            functions.append(schema_parole)
         # [.mark] passages-fiables (lot C1) : un numéro jamais dicté n'est pas dit (case par agent, éteinte par défaut).
         from api.services.workflow.numero_jamais_dicte import brancher_le_numero_jamais_dicte
 
