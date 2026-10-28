@@ -47,6 +47,7 @@ from api.services.configuration.masking import (
 )
 from api.services.configuration.merge import (
     merge_greffier_secret,
+    merge_arbitre_secret,
     merge_repli_du_fond_secret,
     merge_repli_secret,
     merge_travail_secret,
@@ -1303,6 +1304,12 @@ async def update_workflow(
                 "greffier_llm",
                 merge_greffier_secret,
                 "the clerk's API key is masked: type the key again",
+            ),
+            # [.mark] passages-fiables (lot B) : le cerveau de l'arbitre, même règle.
+            (
+                "arbitre_llm",
+                merge_arbitre_secret,
+                "the arbiter's API key is masked: type the key again",
             ),
             (
                 "travail_llm",

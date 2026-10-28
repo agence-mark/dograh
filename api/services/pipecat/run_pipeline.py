@@ -97,6 +97,7 @@ from api.services.pipecat.realtime_feedback_observer import (
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.groupe.fiche import traitement_pour_agent_appele
+from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.groupe.mesure_passation import ObservateurPremierOctet
 from api.services.groupe.prechauffage import Precharge
@@ -1270,6 +1271,13 @@ async def _run_pipeline_impl(
         correlation_id=mps_correlation_id,
     )
     estampiller_le_mode(runtime_configuration, reglages_fiche)
+    # [.mark] passages-fiables (lot B) : le cerveau propre de l'arbitre, si son bloc est réglé (sinon le greffier).
+    service_arbitre = preparer_l_arbitre(
+        await resoudre_le_bloc_de_l_arbitre(run_configs, workflow.organization_id),
+        user_config,
+        runtime_configuration,
+        correlation_id=mps_correlation_id,
+    )
     # [.mark] Quel code et quelle version de l'agent jouent l'appel (langwatch-et-fenetre-du-run, lot 2).
     estampiller_la_version(runtime_configuration, run_definition)
     if not is_realtime:
@@ -2039,7 +2047,7 @@ async def _run_pipeline_impl(
     # [.mark] passages-fiables (R3) : UN décideur de fin de tour, à la place du filet de fin d'appel d'un collègue
     # (orchestrateur-trois-cerveaux, B2) et du garde-fou de sortie d'impasse (fiabilite-de-la-conversation, lot A). Ordre :
     # porte de l'agent, filet de fin, passage sur la fiche, arbitre, sortie d'impasse ; une seule porte par tour.
-    brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)
+    brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator, service_arbitre)
 
     # Register event handlers — resolve provider_id for PostHog tracking
     if not user_provider_id:

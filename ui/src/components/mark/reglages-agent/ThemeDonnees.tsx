@@ -248,6 +248,17 @@ export const ThemeDonnees = ({
     const consigneEnvoyee = consigne.trim() === "" || consigne === CONSIGNE_GENERIQUE_GREFFIER ? null : consigne;
     const consigneModifiee = consigneEnvoyee !== consigneEnregistree;
     const cleEnregistree = typeof blocEdite.api_key === "string" && blocEdite.api_key !== "";
+    // ---- The arbiter's brain (passages-fiables, lot B): the clerk's block, to the letter. ----
+    // Absent = the clerk's model, else the conversation model. Same masked key, same generated form.
+    const arbitreEnregistre = useMemo(() => (resolue.arbitre_llm ?? null) as GreffierLlm | null, [resolue.arbitre_llm]);
+    const [blocArbitre, setBlocArbitre] = useState<BlocModele>({});
+    const arbitreRelu = JSON.stringify(arbitreEnregistre);
+    useEffect(() => {
+        setBlocArbitre(((JSON.parse(arbitreRelu) as GreffierLlm | null) ?? {}) as BlocModele);
+    }, [arbitreRelu]);
+    const arbitreEnvoye = (): GreffierLlm | null => (Object.keys(blocArbitre).length > 0 ? (blocArbitre as GreffierLlm) : null);
+    const arbitreModifie = pourComparerLeGreffier(arbitreEnvoye()) !== pourComparerLeGreffier(arbitreEnregistre);
+    const cleArbitreEnregistree = typeof blocArbitre.api_key === "string" && blocArbitre.api_key !== "";
 
     // ---- After the call (chantier l-agent-travaille, L4, A6) ------------------
     const apresAppelEnregistre = JSON.stringify(pourEnvoyer(lireApresAppel(resolue.apres_appel)));
@@ -269,7 +280,7 @@ export const ThemeDonnees = ({
 
     const [correspondances, setCorrespondances] = useState<ExternalPBXFieldMapping[]>(resolue.external_pbx_field_mappings);
     const [champsProspect, setChampsProspect] = useState<string[]>(resolue.external_pbx_lead_headers);
-    const [fenetre, setFenetre] = useState<"correspondance" | "prospect" | "greffier" | null>(null);
+    const [fenetre, setFenetre] = useState<"correspondance" | "prospect" | "greffier" | "arbitre" | null>(null);
     const correspondancesValides = correspondances.every(
         (m) => Boolean(m.context_path.trim()) && NOM_DE_CHAMP_PBX.test(m.destination_field.trim()),
     );
@@ -341,6 +352,7 @@ export const ThemeDonnees = ({
         || indicesModifies
         || greffierModifie
         || consigneModifiee
+        || arbitreModifie
         || generalModifie
         || apresAppelModifie
         || connuEtAttenduModifie
@@ -426,6 +438,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Clerk instructions", fr: "Consigne du greffier" },
                 modifie: consigneModifiee,
                 config: () => ({ greffier_consigne: consigneEnvoyee }),
+            },
+            {
+                // passages-fiables, lot B: its own part, sent only when changed (E6).
+                nom: { en: "Arbiter model", fr: "Modèle de l'arbitre" },
+                modifie: arbitreModifie,
+                config: () => ({ arbitre_llm: arbitreEnvoye() }),
             },
             {
                 nom: { en: "Call data settings", fr: "Réglages des données de l'appel" },
@@ -704,6 +722,31 @@ export const ThemeDonnees = ({
                         </div>
                     </ChampReglage>
                 )}
+                {/* passages-fiables, lot B: the arbiter's brain, next to the clerk's, in a dialog (convention E4). */}
+                <ChampReglage
+                    cle="arbitre_llm"
+                    libelle={{ en: "Arbiter", fr: "Arbitre" }}
+                    aides={[
+                        {
+                            en: "A separate small model that decides, in parallel as the caller finishes speaking, whether the conversation calls for an exit of the step. Turned on per step. Empty fields come from the conversation model; with no block, it uses the clerk's model.",
+                            fr: "Un petit modèle séparé qui décide, en parallèle dès que la personne a fini de parler, si la conversation appelle une sortie de l'étape. Allumé étape par étape. Un champ vide reprend le modèle de la conversation ; sans bloc, il prend le modèle du greffier.",
+                        },
+                    ]}
+                >
+                    <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
+                        <span>
+                            {(typeof blocArbitre.model === "string" && blocArbitre.model) ||
+                                t({ en: "The clerk's model", fr: "Le modèle du greffier" })}{" "}
+                            ·{" "}
+                            {cleArbitreEnregistree
+                                ? t({ en: "own key", fr: "clé propre" })
+                                : t({ en: "conversation's key", fr: "clé de la conversation" })}
+                        </span>
+                        <Button variant="outline" size="sm" onClick={() => setFenetre("arbitre")}>
+                            {t({ en: "Configure the arbiter", fr: "Régler l'arbitre" })}
+                        </Button>
+                    </div>
+                </ChampReglage>
                 <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
                     <EditeurChampsFiche
                         actif={ficheActive}
@@ -871,6 +914,26 @@ export const ThemeDonnees = ({
                                 })}
                             </p>
                         </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setFenetre(null)}>{t({ en: "Done", fr: "Terminé" })}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={fenetre === "arbitre"} onOpenChange={(o) => setFenetre(o ? "arbitre" : null)}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{t({ en: "Arbiter", fr: "Arbitre" })}</DialogTitle>
+                        <DialogDescription>
+                            {t({
+                                en: "A separate model that, in parallel, says which exit of the step the conversation calls for, if any. It passes only when sure. Empty fields come from the conversation model; with no block at all, it uses the clerk's model.",
+                                fr: "Un modèle séparé qui dit, en parallèle, quelle sortie de l'étape la conversation appelle, s'il y en a une. Il ne fait passer que s'il est sûr. Un champ vide reprend le modèle de la conversation ; sans aucun bloc, il prend le modèle du greffier.",
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <ChampsFournisseurLlm bloc={blocArbitre} onChange={setBlocArbitre} idPrefixe="arbitre" />
                     </div>
                     <DialogFooter>
                         <Button onClick={() => setFenetre(null)}>{t({ en: "Done", fr: "Terminé" })}</Button>

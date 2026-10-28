@@ -713,6 +713,70 @@ describe("[.mark] the clerk's dialog (plan mode-prise-de-notes, part 2; D9 of ag
 });
 
 
+// [.mark] passages-fiables, lot B: the arbiter's brain, the clerk's dialog to the letter (same place, same form, same key rule).
+describe("[.mark] the arbiter's dialog (passages-fiables, lot B)", () => {
+    const MASQUE = "sk-***abcd";
+    const AVEC_ARBITRE = { arbitre_llm: { provider: "mistral", model: "mistral-small-2603", api_key: MASQUE } };
+    const envoye = () => {
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+        return appels[appels.length - 1][0];
+    };
+    const regler = async (config: Record<string, unknown> = AVEC_ARBITRE) => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), ...config }, NOVA);
+        ouvrirLeTheme("donnees");
+        fireEvent.click(await screen.findByRole("button", { name: "Configure the arbiter" }));
+        await waitFor(() => expect(document.getElementById("arbitre_model")).not.toBeNull());
+    };
+    const saisir = (id: string, valeur: string) =>
+        fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value: valeur } });
+    const termine = async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Done" }));
+        m.save.mockClear();
+        fireEvent.click(await screen.findByRole("button", { name: "Save Call data" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        return envoye();
+    };
+
+    it("is drawn next to the clerk's settings, in every note-taking mode, with its own key rule", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const theme = ouvrirLeTheme("donnees");
+        await waitFor(() => expect(theme.querySelector('[data-reglage="arbitre_llm"]')).not.toBeNull());
+        expect(screen.getByText("The clerk's model · conversation's key")).toBeTruthy();
+    });
+
+    it("the saved key goes back as its mask, untouched, with the model changed", async () => {
+        await regler();
+        saisir("arbitre_model", "mistral-small-3.2");
+        const charge = await termine();
+        expect(charge.arbitre_llm).toEqual({ provider: "mistral", model: "mistral-small-3.2", api_key: MASQUE });
+    });
+
+    it("the provider's own settings are generated from its schema, with the arbiter's ids", async () => {
+        await regler({});
+        saisir("arbitre_provider", "openai");
+        saisir("arbitre_model", "mistral-small-3.2-24b-instruct-2506");
+        const charge = await termine();
+        expect(charge.arbitre_llm).toEqual({ provider: "openai", model: "mistral-small-3.2-24b-instruct-2506" });
+        expect(document.getElementById("greffier_model")).toBeNull();
+    });
+
+    it("« as the conversation » empties the block: the clerk's model is used again", async () => {
+        await regler();
+        saisir("arbitre_provider", "__comme_la_conversation__");
+        expect(document.querySelector("[data-champ-fournisseur]")).toBeNull();
+        const charge = await termine();
+        expect(charge.arbitre_llm ?? null).toBeNull();
+    });
+
+    it("an untouched page saves no arbiter block (absent block = today's behaviour)", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("donnees");
+        const bouton = await screen.findByRole("button", { name: "Save Call data" });
+        expect((bouton as HTMLButtonElement).disabled).toBe(true);
+    });
+});
+
+
 // [.mark] Plan porte-parlee, lot 6: « Transitions in the reply », rendered.
 describe("[.mark] transitions in the reply, in the call data theme", () => {
     const FICHE = {

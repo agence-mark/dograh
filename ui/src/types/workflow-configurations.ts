@@ -454,6 +454,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).
     greffier_llm?: GreffierLlm | null;
+    // [.mark] passages-fiables (lot B): the arbiter's model block, same shape as the clerk's (no `format_garanti`).
+    arbitre_llm?: GreffierLlm | null;
     greffier_consigne?: string | null;
     // [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain of this agent. Five keys,
     // all off or empty by default (the agent plays the call of before). Its model is shaped like the

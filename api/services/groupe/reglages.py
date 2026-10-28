@@ -204,6 +204,7 @@ CLES_THEME_DONNEES: tuple[str, ...] = (
     "verite_formulations_d_action",
     "phrase_sans_redemande",
     "greffier_llm",
+    "arbitre_llm",
     "greffier_consigne",
     "fiche_champs",
     "apres_appel",

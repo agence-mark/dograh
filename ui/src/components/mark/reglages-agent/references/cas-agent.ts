@@ -295,6 +295,14 @@ export const CAS_AGENT: CasAgent[] = [
         inter("greffier_format_garanti"),
         { type: "cliquer", nom: "Done" },
     ]),
+    // passages-fiables, lot B: the arbiter's brain, same dialog as the clerk's, frozen once.
+    c("arbitre", "ajout-mark", "donnees", ["arbitre_llm"], [
+        { type: "cliquer", nom: "Configure the arbiter" },
+        saisir("arbitre_provider", "mistral"),
+        saisir("arbitre_model", "mistral-small-2603"),
+        saisir("arbitre_api_key", "cle-de-reference"),
+        { type: "cliquer", nom: "Done" },
+    ]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },

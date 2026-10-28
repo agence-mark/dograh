@@ -253,11 +253,14 @@ def _brancher_l_arbitre_a_la_conversation(engine: Any) -> None:
         logger.warning(f"[arbitre] non branché à la conversation : {erreur!r}")
 
 
-def brancher_le_decideur_de_fin_de_tour(engine: Any, assistant_aggregator: Any) -> None:
+def brancher_le_decideur_de_fin_de_tour(engine: Any, assistant_aggregator: Any, service_arbitre: Any = None) -> None:
     """Branche le décideur sur l'agrégateur de l'assistant : au début d'une réplique, l'étape où l'on est et son jeton ; à
     sa fin, ``decider``. Remplace ``brancher_le_filet_de_fin`` et ``brancher_la_sortie_d_impasse``. Téléphone et
     clavier. ⛔ Ne lève jamais."""
     try:
+        if service_arbitre is not None:
+            # Le cerveau propre de l'arbitre (``arbitre_llm``) ; absent : le greffier, sinon la conversation.
+            engine.arbitre_service = service_arbitre
         if getattr(engine, "arbitre", None) is None:
             engine.arbitre = arbitre_mod.ArbitreDuPassage(engine)
         _brancher_l_arbitre_a_la_conversation(engine)

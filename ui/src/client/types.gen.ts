@@ -13633,6 +13633,14 @@ export type WorkflowConfigurationDefaults = {
         [key: string]: unknown;
     } | null;
     /**
+     * Arbitre Llm
+     *
+     * The arbiter's model (the separate small model that decides, in parallel, whether the conversation calls for an exit of the step): provider, model, settings and its own API key. Empty: the clerk's model, else the conversation model. An empty key uses the conversation's key (and its rate limit).
+     */
+    arbitre_llm?: {
+        [key: string]: unknown;
+    } | null;
+    /**
      * Greffier Consigne
      *
      * The clerk's instructions. Empty: the generic instructions written in the code. The record's fields and the expected answer format are always added by the code.

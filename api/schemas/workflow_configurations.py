@@ -1079,6 +1079,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "model; an empty key uses the conversation's key (and its rate limit)."
         ),
     )
+    # [.mark] passages-fiables (lot B) : le cerveau de l'arbitre du passage d'étape, sur le modèle exact du greffier.
+    arbitre_llm: dict | None = Field(
+        default=None,
+        description=(
+            "The arbiter's model (the separate small model that decides, in parallel, whether the "
+            "conversation calls for an exit of the step): provider, model, settings and its own API key. "
+            "Empty: the clerk's model, else the conversation model. An empty key uses the conversation's "
+            "key (and its rate limit)."
+        ),
+    )
     greffier_consigne: str | None = Field(
         default=None,
         max_length=20000,
@@ -1334,6 +1344,12 @@ class WorkflowConfigurationDefaults(BaseModel):
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
         return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
+
+    @field_validator("arbitre_llm")
+    @classmethod
+    def arbitre_llm_valide(cls, value: dict | None) -> dict | None:
+        """[.mark] The arbiter's model block, the shape of a model override (same checks as the clerk's)."""
+        return _bloc_de_modele_valide(value, "arbitre_llm")
 
     @field_validator("phrases_regles")
     @classmethod

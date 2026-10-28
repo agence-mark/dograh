@@ -55,6 +55,9 @@ CONSIGNE = (
     "dans l'étape. Ne réponds jamais à la place de l'agent."
 )
 
+CLE_LLM = "arbitre_llm"
+CLE_ESTAMPILLE = "arbitre_modele"
+
 # Les états d'une décision.
 ETAT_OK, ETAT_DELAI, ETAT_ERREUR, ETAT_ILLISIBLE, ETAT_429, ETAT_SANS_CERVEAU = (
     "ok",
@@ -320,3 +323,60 @@ def tracer_un_desaccord(moteur: Any, **entree: Any) -> None:
             fiche.setdefault(CLE_DESACCORDS, []).append({"tour": fiche.get(CLE_TOUR), **entree})
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[arbitre] désaccord non écrit : {erreur!r}")
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Le cerveau de l'arbitre (sur le modèle exact du greffier : bloc de l'agent, clé de la bibliothèque, estampille)
+# ---------------------------------------------------------------------------------------------------------
+
+
+def configuration_de_l_arbitre(user_config: Any, bloc: dict | None) -> Any:
+    """La configuration de modèle de l'arbitre : celle de la conversation, à laquelle son bloc s'applique comme une
+    surcharge de modèle (``configuration_d_un_cerveau_annexe``, comme le greffier)."""
+    from api.services.pipecat.greffier import configuration_d_un_cerveau_annexe
+
+    return configuration_d_un_cerveau_annexe(user_config, bloc, objet="arbiter", nom_du_reglage="Arbiter model")
+
+
+async def resoudre_le_bloc_de_l_arbitre(run_configs: dict | None, organization_id: int | None) -> dict | None:
+    """Le bloc ``arbitre_llm`` dont la clé est une référence de la bibliothèque, rendu avec la vraie clé (une copie).
+    Ne lève jamais."""
+    from api.services.pipecat.greffier import resoudre_le_bloc_annexe
+
+    return await resoudre_le_bloc_annexe(run_configs, organization_id, CLE_LLM, "arbiter")
+
+
+def bloc_regle(run_configs: dict | None) -> bool:
+    """Le bloc ``arbitre_llm`` dit quelque chose (au moins une valeur) ? Absent ou vide : l'arbitre suit le greffier, sinon
+    le cerveau de conversation, exactement comme avant ce réglage."""
+    bloc = (run_configs or {}).get(CLE_LLM)
+    return isinstance(bloc, dict) and any(v is not None and v != "" for v in bloc.values())
+
+
+def preparer_l_arbitre(
+    run_configs: dict | None,
+    user_config: Any,
+    runtime_configuration: dict | None,
+    *,
+    correlation_id: str | None = None,
+) -> Any:
+    """Le service de modèle de l'arbitre quand son bloc est réglé, construit à part (``usage_context="arbitre"``, le coût
+    est compté à part) ; sinon ``None`` (le service du greffier, sinon la conversation). Pose l'estampille
+    ``arbitre_modele`` (fournisseur et modèle, jamais la clé). Un service qui ne se construit pas : journalisé, ``None``
+    (l'arbitre suit alors le greffier). ⛔ Ne lève jamais."""
+    try:
+        if not bloc_regle(run_configs):
+            return None
+        from api.services.pipecat.service_factory import create_llm_service
+
+        configuration = configuration_de_l_arbitre(user_config, (run_configs or {}).get(CLE_LLM))
+        service = create_llm_service(configuration, correlation_id=correlation_id, usage_context=USAGE_ARBITRE)
+        if runtime_configuration is not None:
+            runtime_configuration[CLE_ESTAMPILLE] = {
+                "provider": configuration.llm.provider,
+                "model": configuration.llm.model,
+            }
+        return service
+    except Exception as erreur:  # noqa: BLE001 -- l'arbitre ne coûte jamais l'appel
+        logger.error(f"[arbitre] modèle impossible à construire, celui du greffier est gardé : {type(erreur).__name__}")
+        return None

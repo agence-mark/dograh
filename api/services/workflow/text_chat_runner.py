@@ -114,6 +114,7 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
+from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
@@ -825,6 +826,12 @@ async def execute_text_chat_pending_turn(
         initial_context["runtime_configuration"],
     )
     estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
+    # [.mark] passages-fiables (lot B) : le cerveau propre de l'arbitre, si son bloc est réglé (sinon le greffier).
+    service_arbitre = preparer_l_arbitre(
+        await resoudre_le_bloc_de_l_arbitre(run_configs, workflow.organization_id),
+        user_config,
+        initial_context["runtime_configuration"],
+    )
     # [.mark] Quel code et quelle version de l'agent jouent l'essai (langwatch-et-fenetre-du-run, lot 2).
     estampiller_la_version(initial_context["runtime_configuration"], run_definition)
 
@@ -1100,7 +1107,7 @@ async def execute_text_chat_pending_turn(
 
         # [.mark] passages-fiables (R3) : le décideur unique de fin de tour (filet de fin, passage sur la fiche, arbitre,
         # sortie d'impasse), comme au téléphone.
-        brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)
+        brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator, service_arbitre)
 
         @assistant_context_aggregator.event_handler("on_assistant_turn_started")
         async def on_assistant_turn_started(_aggregator):

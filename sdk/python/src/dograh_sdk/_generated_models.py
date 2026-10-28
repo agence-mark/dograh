@@ -1769,6 +1769,10 @@ class WorkflowConfigurationDefaults(BaseModel):
     """
     The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
     """
+    arbitre_llm: Annotated[dict[str, Any] | None, Field(title='Arbitre Llm')] = None
+    """
+    The arbiter's model (the separate small model that decides, in parallel, whether the conversation calls for an exit of the step): provider, model, settings and its own API key. Empty: the clerk's model, else the conversation model. An empty key uses the conversation's key (and its rate limit).
+    """
     greffier_consigne: Annotated[
         GreffierConsigne | None, Field(title='Greffier Consigne')
     ] = None
