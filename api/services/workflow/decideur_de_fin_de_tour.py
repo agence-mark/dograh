@@ -13,6 +13,8 @@ de ``brancher_la_sortie_d_impasse``, au téléphone (``run_pipeline.py``) **et**
             │
             ├─ 1. l'agent a écrit/appelé sa porte ────── oui (l'étape a changé depuis le début de la réplique) → STOP
             ├─ 2. filet de fin (au revoir sans porte) ── oui → sortie retour (existant, déplacé, inchangé), STOP
+            ├─ la réplique pose une question ? ───────── oui → rien ce tour-ci : la personne répond d'abord, la
+            │      (rien reporté au tour d'avant)          décision se refait à la fin de la réplique suivante
             ├─ 3. condition sur la fiche vraie ? ─────── attend la passe du greffier de CETTE parole (bornée)
             │      (étape complète, champ = valeur,        oui → prendre_porte_ecrite(porte, relancer=True), STOP
             │       ordre de l'écran, rien « à confirmer »)
@@ -38,6 +40,12 @@ Latence (Evan, 29/10 : « ne pas ajouter de latence le temps de calculer ce qui 
   (filet puis impasse, comme la base) ;
 - quand il agit, la durée de la décision (``duree_decision``, en secondes, de la fin de la réplique au passage) est
   écrite dans ``passages_par_le_code``.
+
+Une réplique qui pose une question attend une réponse (banc local du 29/10 : runs 19 et 27, passage pris juste après
+« … c'est bien ça ? », la personne n'a pas pu confirmer ; run 20, l'arbitre a pris la fin juste après « autre chose ? »,
+sur une décision née de la parole d'avant). Le code ne passe donc pas à la fin d'une telle réplique : la décision se
+refait sur la réponse. Jamais deux tours de suite dans la même visite d'étape, pour qu'un agent qui pose la question de
+l'étape suivante sans passer (passage sauté) soit quand même rattrapé au tour d'après.
 
 Aucun mot de métier. ⛔ Ne lève jamais.
 """
@@ -84,6 +92,46 @@ def _duree(debut: float) -> float:
     return round(time.monotonic() - debut, 3)
 
 
+RAISON_QUESTION = "question"
+RESULTAT_REPORTE = "reportee_question"
+# Ce qui peut suivre le point d'interrogation sans changer le sens : espaces, guillemets, parenthèse fermante.
+_APRES_LA_QUESTION = " \t\r\n\"'»”’)]*_"
+
+
+def la_replique_pose_une_question(texte: str) -> bool:
+    """La réplique de l'agent finit par une question."""
+    return (texte or "").rstrip(_APRES_LA_QUESTION).endswith("?")
+
+
+def _reporter_pour_la_question(moteur: Any, texte: str, jeton: tuple) -> bool:
+    """La réplique pose une question et rien n'a été reporté au tour d'avant dans cette visite d'étape : la décision
+    est reportée (``True``). Sinon le report est effacé et le code décide (``False``)."""
+    deja = getattr(moteur, "_passage_reporte", None)
+    if la_replique_pose_une_question(texte) and deja != jeton:
+        moteur._passage_reporte = jeton
+        return True
+    moteur._passage_reporte = None
+    return False
+
+
+async def _tracer_le_report(moteur: Any, noeud: Any, r: Any, jeton: tuple, debut: float) -> None:
+    """Le report, tracé ; la décision de l'arbitre née de la parole d'avant est lue pour la trace, puis oubliée."""
+    passage.tracer(
+        moteur, etape=getattr(noeud, "name", None), raison=RAISON_QUESTION, resultat=RESULTAT_REPORTE,
+        duree_decision=_duree(debut),
+    )
+    arbitre = getattr(moteur, "arbitre", None) if r.arbitre else None
+    if arbitre is None:
+        return
+    decision = await arbitre.resultat(jeton)
+    arbitre.oublier()
+    if decision is not None:
+        arbitre_mod.tracer(
+            moteur, etape=getattr(noeud, "name", None), choix=decision.choix, confiance=decision.confiance,
+            etat=decision.etat, seuil=r.seuil, duree=decision.duree, **decision.jetons, resultat=RESULTAT_REPORTE,
+        )
+
+
 async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: float | None = None) -> str | None:
     """Les étapes 3 et 4. Rend ``fiche`` ou ``arbitre`` si une porte a été prise, sinon ``None``."""
     debut = time.monotonic() if debut is None else debut
@@ -97,6 +145,13 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: floa
     if jeton != moteur.jeton_de_visite():
         return None
     if passage.la_personne_parle(moteur) or passage.un_outil_ou_un_travail_est_en_cours(moteur):
+        return None
+    # Une réponse sans parole (appels d'outil seuls) : rien n'a été dit, la décision attend la réplique relancée.
+    if not (texte or "").strip():
+        return None
+    # La réplique attend une réponse : rien ce tour-ci, la décision se refait sur la réponse.
+    if _reporter_pour_la_question(moteur, texte, jeton):
+        await _tracer_le_report(moteur, noeud, r, jeton, debut)
         return None
     # 3. Les conditions sur la fiche.
     if passage.portes_a_condition(noeud):
