@@ -90,6 +90,138 @@
         "renderer_options": null
       },
       {
+        "name": "qui_decide_du_passage",
+        "type": "options",
+        "display_name": "Who decides the transition",
+        "description": "Agent (default): the model alone takes the exits. Collection: the code takes the first exit once every field of the step is gathered. Choice: the code takes the exit whose condition on the record holds, else the arbiter chooses. Free: the agent leads, the arbiter is the safety net.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": [
+          {
+            "value": "agent",
+            "label": "Agent (as before)",
+            "description": null
+          },
+          {
+            "value": "collecte",
+            "label": "Collection (the record decides)",
+            "description": null
+          },
+          {
+            "value": "choix",
+            "label": "Choice (a rule, else the arbiter)",
+            "description": null
+          },
+          {
+            "value": "libre",
+            "label": "Free (agent, arbiter as safety net)",
+            "description": null
+          }
+        ],
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "moment_du_passage",
+        "type": "options",
+        "display_name": "Transition timing",
+        "description": "After the reply (default): the code passes once the agent has answered. Wait for the last field: when a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, and the next step speaks at once.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": [
+          {
+            "value": "apres_la_reponse",
+            "label": "After the reply",
+            "description": null
+          },
+          {
+            "value": "attendre_le_dernier_champ",
+            "label": "Wait for the last field",
+            "description": null
+          }
+        ],
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "delai_du_passage",
+        "type": "number",
+        "display_name": "Wait for the last field (seconds)",
+        "description": "Longest wait for the clerk before the usual timing plays instead. Default 1.5.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": 0.0,
+        "max_value": 10.0,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "arbitre",
+        "type": "boolean",
+        "display_name": "Arbiter",
+        "description": "A separate small model, asked in parallel as the caller finishes speaking, which exit (if any) the conversation calls for. Empty: off, except on a Choice or Free step. It passes only when sure.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "seuil_de_l_arbitre",
+        "type": "number",
+        "display_name": "Arbiter confidence threshold",
+        "description": "Lowest confidence at which the arbiter's choice is taken (0 to 1). Default 0.8.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": 0.0,
+        "max_value": 1.0,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
         "name": "allow_interrupt",
         "type": "boolean",
         "display_name": "Allow Interruption",
@@ -768,6 +900,138 @@
         "max_value": null,
         "min_length": null,
         "max_length": 1000,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "qui_decide_du_passage",
+        "type": "options",
+        "display_name": "Who decides the transition",
+        "description": "Agent (default): the model alone takes the exits. Collection: the code takes the first exit once every field of the step is gathered. Choice: the code takes the exit whose condition on the record holds, else the arbiter chooses. Free: the agent leads, the arbiter is the safety net.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": [
+          {
+            "value": "agent",
+            "label": "Agent (as before)",
+            "description": null
+          },
+          {
+            "value": "collecte",
+            "label": "Collection (the record decides)",
+            "description": null
+          },
+          {
+            "value": "choix",
+            "label": "Choice (a rule, else the arbiter)",
+            "description": null
+          },
+          {
+            "value": "libre",
+            "label": "Free (agent, arbiter as safety net)",
+            "description": null
+          }
+        ],
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "moment_du_passage",
+        "type": "options",
+        "display_name": "Transition timing",
+        "description": "After the reply (default): the code passes once the agent has answered. Wait for the last field: when a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, and the next step speaks at once.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": [
+          {
+            "value": "apres_la_reponse",
+            "label": "After the reply",
+            "description": null
+          },
+          {
+            "value": "attendre_le_dernier_champ",
+            "label": "Wait for the last field",
+            "description": null
+          }
+        ],
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "delai_du_passage",
+        "type": "number",
+        "display_name": "Wait for the last field (seconds)",
+        "description": "Longest wait for the clerk before the usual timing plays instead. Default 1.5.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": 0.0,
+        "max_value": 10.0,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "arbitre",
+        "type": "boolean",
+        "display_name": "Arbiter",
+        "description": "A separate small model, asked in parallel as the caller finishes speaking, which exit (if any) the conversation calls for. Empty: off, except on a Choice or Free step. It passes only when sure.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
+      },
+      {
+        "name": "seuil_de_l_arbitre",
+        "type": "number",
+        "display_name": "Arbiter confidence threshold",
+        "description": "Lowest confidence at which the arbiter's choice is taken (0 to 1). Default 0.8.",
+        "llm_hint": null,
+        "default": null,
+        "required": false,
+        "placeholder": null,
+        "display_options": null,
+        "options": null,
+        "properties": null,
+        "min_value": 0.0,
+        "max_value": 1.0,
+        "min_length": null,
+        "max_length": null,
         "pattern": null,
         "editor": null,
         "renderer_options": null

@@ -551,3 +551,102 @@ async def test_la_notice_d_un_tour_est_montree_une_fois_dans_la_requete_jamais_d
         assert not any("Ce qui vient de se passer" in str(m.get("content")) for m in envoyees[1])
     finally:
         await harness.stop()
+
+
+# --------------------------------------------------------------------------- #
+# Une session au clavier (R1) : les mêmes cas, par les vraies routes
+# --------------------------------------------------------------------------- #
+
+
+def definition_clavier(etape: dict):
+    from api.tests.mark.test_passation_clavier import _arete as arete_json
+    from api.tests.mark.test_passation_clavier import _noeud as noeud_json
+
+    return {
+        "nodes": [
+            noeud_json("start", "startCall", "Collecte", "Tu prends le nom.", greeting_type="text", greeting="Bonjour.", **etape),
+            noeud_json("suite", "agentNode", "Suite", "Tu continues."),
+            noeud_json("end", "endCall", "Fin", "Fin."),
+        ],
+        "edges": [arete_json("start", "suite", "Suite"), arete_json("suite", "end", "Fin")],
+    }
+
+
+@pytest.mark.asyncio
+async def test_session_clavier_la_collecte_complete_passe_a_la_suite_par_le_code(
+    db_session, async_session, test_client_factory
+):
+    from api.tests.mark.test_clavier_porte_la_fiche import FICHE, _monter
+    from api.tests.mark.test_passation_clavier import _dit, _session, _texte, _vide
+    from api.tests.mark.test_clavier_porte_la_fiche import _noter
+
+    etape = {"champs_etape": "nom", "qui_decide_du_passage": "collecte"}
+    user, workflow = await _monter(db_session, async_session, FICHE, definition_clavier(etape))
+    reponses = await _session(
+        test_client_factory,
+        user,
+        workflow,
+        [_vide(), _dit(_noter({"nom": "Lemaire"}, "n1"), _texte("Merci."), _texte("Voici la suite."))],
+        ["je m'appelle Lemaire"],
+    )
+    fiche = reponses[-1]["checkpoint"]["gathered_context"]
+    passes = fiche.get(passage.CLE_PASSAGES) or []
+    assert [p["resultat"] for p in passes] == ["prise"], fiche
+    assert passes[0]["etape"] == "Collecte" and passes[0]["vers"] == "Suite" and passes[0]["raison"] == "fiche"
+    assert "Suite" in (fiche.get("nodes_visited") or []), fiche
+
+
+@pytest.mark.asyncio
+async def test_session_clavier_etape_en_mode_agent_rien_ne_change(db_session, async_session, test_client_factory):
+    from api.tests.mark.test_clavier_porte_la_fiche import FICHE, _monter, _noter
+    from api.tests.mark.test_passation_clavier import _dit, _session, _texte, _vide
+
+    user, workflow = await _monter(
+        db_session, async_session, FICHE, definition_clavier({"champs_etape": "nom"})
+    )
+    reponses = await _session(
+        test_client_factory,
+        user,
+        workflow,
+        [_vide(), _dit(_noter({"nom": "Lemaire"}, "n1"), _texte("Merci."))],
+        ["je m'appelle Lemaire"],
+    )
+    fiche = reponses[-1]["checkpoint"]["gathered_context"]
+    assert passage.CLE_PASSAGES not in fiche and "Suite" not in (fiche.get("nodes_visited") or []), fiche
+
+
+def test_parite_le_decideur_est_branche_au_telephone_et_au_clavier_a_la_place_des_deux_anciens():
+    from pathlib import Path
+
+    racine = Path(passage.__file__).resolve().parents[1]
+    for fichier in (racine / "pipecat" / "run_pipeline.py", racine / "workflow" / "text_chat_runner.py"):
+        texte = fichier.read_text(encoding="utf-8")
+        assert "brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)" in texte, fichier.name
+        assert "brancher_le_filet_de_fin(" not in texte and "brancher_la_sortie_d_impasse(" not in texte, fichier.name
+
+
+def test_le_schema_porte_les_reglages_de_l_etape_et_de_la_porte_et_un_agent_sans_reglage_ne_change_pas():
+    from api.services.workflow.dto import sanitize_workflow_definition
+
+    vide = {
+        "nodes": [
+            {"id": "a", "type": "agentNode", "position": {"x": 0, "y": 0},
+             "data": {"name": "A", "prompt": "p", "qui_decide_du_passage": "", "moment_du_passage": "", "arbitre": None,
+                      "delai_du_passage": None, "seuil_de_l_arbitre": ""}},
+        ],
+        "edges": [{"id": "e", "source": "a", "target": "b",
+                   "data": {"label": "L", "condition": "c", "condition_sur_la_fiche": {"etape_complete": False, "champ": " "}}}],
+    }
+    propre = sanitize_workflow_definition(vide)
+    assert propre["nodes"][0]["data"] == {"name": "A", "prompt": "p"}  # le JSON d'un agent qui n'y touche pas reste identique
+    assert "condition_sur_la_fiche" not in propre["edges"][0]["data"]
+    plein = sanitize_workflow_definition(
+        {"nodes": [{"id": "a", "type": "agentNode", "position": {"x": 0, "y": 0},
+                    "data": {"name": "A", "qui_decide_du_passage": "choix", "arbitre": False, "seuil_de_l_arbitre": 0.9}}],
+         "edges": [{"id": "e", "source": "a", "target": "b",
+                    "data": {"label": "L", "condition": "c", "condition_sur_la_fiche": {"champ": "x", "vaut": "y"}}}]}
+    )
+    assert plein["nodes"][0]["data"]["qui_decide_du_passage"] == "choix" and plein["nodes"][0]["data"]["arbitre"] is False
+    assert plein["edges"][0]["data"]["condition_sur_la_fiche"] == {"champ": "x", "vaut": "y"}
+    with pytest.raises(ValueError):
+        AgentNodeData(name="A", prompt="p", qui_decide_du_passage="n'importe quoi")

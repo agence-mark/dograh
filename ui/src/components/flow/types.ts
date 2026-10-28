@@ -75,9 +75,17 @@ export type FlowNode = {
     dragging?: boolean;
 };
 
+// [.mark] passages-fiables (lot A) : la condition d'une porte sur la fiche (étape complète, ou champ = valeur).
+export type EdgeRecordCondition = {
+    etape_complete?: boolean;
+    champ?: string;
+    vaut?: string;
+};
+
 export type FlowEdgeData = {
     condition: string;
     label: string;
+    condition_sur_la_fiche?: EdgeRecordCondition;
     transition_speech?: string;
     transition_speech_type?: 'text' | 'audio';
     transition_speech_recording_id?: string;
