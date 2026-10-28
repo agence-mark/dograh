@@ -97,7 +97,7 @@ from api.services.pipecat.realtime_feedback_observer import (
 )
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
 from api.services.groupe.fiche import traitement_pour_agent_appele
-from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
+from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.groupe.mesure_passation import ObservateurPremierOctet
 from api.services.groupe.prechauffage import Precharge
 from api.services.groupe.reglages_passation import prechauffage_actif
@@ -177,7 +177,6 @@ from api.services.workflow.fiche_au_fil_de_leau import (
 )
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
-from api.services.workflow.sortie_d_impasse import brancher_la_sortie_d_impasse
 from api.services.workflow.workflow_graph import WorkflowGraph
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
@@ -2037,10 +2036,10 @@ async def _run_pipeline_impl(
         user_context_aggregator,
         assistant_context_aggregator,
     )
-    # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
-    brancher_le_filet_de_fin(engine, assistant_context_aggregator)
-    # fiabilite-de-la-conversation, lot A : le garde-fou de sortie d'impasse lit chaque réplique de l'agent.
-    brancher_la_sortie_d_impasse(engine, assistant_context_aggregator)
+    # [.mark] passages-fiables (R3) : UN décideur de fin de tour, à la place du filet de fin d'appel d'un collègue
+    # (orchestrateur-trois-cerveaux, B2) et du garde-fou de sortie d'impasse (fiabilite-de-la-conversation, lot A). Ordre :
+    # porte de l'agent, filet de fin, passage sur la fiche, arbitre, sortie d'impasse ; une seule porte par tour.
+    brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)
 
     # Register event handlers — resolve provider_id for PostHog tracking
     if not user_provider_id:

@@ -310,10 +310,11 @@ def _signe_rien_de_nouveau(moteur: Any, etat: dict, noeud: Any) -> bool:
     return False
 
 
-async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None) -> bool:
+async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None, *, sortie_permise: bool = True) -> bool:
     """À la fin de chaque réplique de l'agent : signes 1 et 3, puis, si la riposte est au temps 3, la sortie.
     ``depart`` : où l'on était au début de la réplique ; si l'étape a changé pendant elle, rien ne compte. Rend ``True``
-    si le code a repris la main. ⛔ Ne lève jamais."""
+    si le code a repris la main. ``sortie_permise`` (passages-fiables, R3) : faux quand le décideur de fin de tour a déjà pris
+    une porte ce tour-ci ; les signes se comptent quand même, la sortie ne joue pas. ⛔ Ne lève jamais."""
     try:
         etat = _etat(moteur)
         if etat is None or moteur.is_call_disposed():
@@ -332,7 +333,7 @@ async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None) -> b
                 etat["tour_evalue"] = tour
                 if _signe_rien_de_nouveau(moteur, etat, noeud):
                     noter_un_signe(moteur, SIGNE_RIEN_DE_NOUVEAU)
-        if etat["a_declencher"] and not _un_travail_est_en_cours(moteur):
+        if sortie_permise and etat["a_declencher"] and not _un_travail_est_en_cours(moteur):
             return await sortir(moteur)
         return False
     except Exception as erreur:  # noqa: BLE001

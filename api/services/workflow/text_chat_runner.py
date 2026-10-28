@@ -114,10 +114,9 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
-from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
+from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
-from api.services.workflow.sortie_d_impasse import brancher_la_sortie_d_impasse
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -1099,11 +1098,9 @@ async def execute_text_chat_pending_turn(
         )
         assistant_context_aggregator = context_aggregator.assistant()
 
-        # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
-        brancher_le_filet_de_fin(engine, assistant_context_aggregator)
-        # [.mark] actions-sures-et-parite-clavier (A1) : le garde-fou d'impasse, comme au téléphone (banc du 27/10 :
-        # absent ici, il était inerte au clavier).
-        brancher_la_sortie_d_impasse(engine, assistant_context_aggregator)
+        # [.mark] passages-fiables (R3) : le décideur unique de fin de tour (filet de fin, passage sur la fiche, arbitre,
+        # sortie d'impasse), comme au téléphone.
+        brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator)
 
         @assistant_context_aggregator.event_handler("on_assistant_turn_started")
         async def on_assistant_turn_started(_aggregator):

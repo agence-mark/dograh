@@ -281,6 +281,12 @@ class PipecatEngine:
         self.notes_en_cours: set[asyncio.Task] = set()
         # [.mark] Plan porte-parlee (D7) : les raccrochages après une porte écrite.
         self._taches_de_porte: set[asyncio.Task] = set()
+        # [.mark] passages-fiables (lot A, R2) : les portes en cours du post-scriptum (le décideur de fin de tour les
+        # attend) et le rang d'entrée dans l'étape (le jeton de visite d'étape, sans base).
+        self.portes_du_post_scriptum: list[set[asyncio.Task]] = []
+        self._rang_d_entree = 0
+        self._notice_de_passage: str | None = None
+        self.arbitre = None
         # [.mark] Plan postscriptum-note-d-abord (C3) : la réplique de l'appelant déjà
         # relancée après une réponse muette (une relance par réplique, jamais plus).
         self._replique_relancee: object = None
@@ -3507,7 +3513,22 @@ class PipecatEngine:
         (signe 4) et repart de zéro à chaque changement d'étape. ⛔ Ne lève jamais."""
         from api.services.workflow.sortie_d_impasse import entrer_dans_l_etape
 
+        self._rang_d_entree += 1
         entrer_dans_l_etape(self, agent, node)
+        # [.mark] passages-fiables : les crochets du passage sur la fiche, posés seulement sur un agent qui en réclame.
+        from api.services.workflow.passage_sur_la_fiche import armer_les_crochets
+
+        armer_les_crochets(self, agent)
+
+    def jeton_de_visite(self) -> tuple:
+        """[.mark] passages-fiables (R2) : le jeton de visite d'étape ``(visite de l'agent, étape, rang d'entrée)``. Une
+        décision née sous un autre jeton (l'étape a changé, même pour y revenir) est jetée. ``agent.visit_id`` seul ne
+        change qu'à une passation d'agent. ⛔ Ne lève jamais."""
+        try:
+            agent = self.active_agent
+            return (agent.visit_id, getattr(agent.current_node, "id", None), self._rang_d_entree)
+        except Exception:  # noqa: BLE001
+            return (None, None, self._rang_d_entree)
 
     def _noter_le_parcours(self, agent: AgentRuntime, node: Node) -> None:
         """Une entrée par (agent, étape), dans l'ordre : ``nodes_visited`` dédoublonne par nom

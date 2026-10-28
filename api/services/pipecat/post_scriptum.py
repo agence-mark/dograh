@@ -173,6 +173,9 @@ class PostScriptumProcessor(FrameProcessor):
         # seulement (``None`` : le processeur d'avant, à l'octet).
         self._portes = portes if reglages.portes_dans_la_reponse else None
         self._portes_en_cours: set[asyncio.Task] = set()
+        # [.mark] passages-fiables (lot A) : le décideur de fin de tour attend ces portes avant de décider.
+        if portes is not None and isinstance(getattr(portes, "portes_du_post_scriptum", None), list):
+            portes.portes_du_post_scriptum.append(self._portes_en_cours)
         # B6 : le moteur qui relance le modèle, case des portes ou non (c'est un défaut du format).
         self._moteur = portes
         self._reglages = reglages
