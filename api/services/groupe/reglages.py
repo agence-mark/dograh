@@ -207,6 +207,8 @@ CLES_THEME_DONNEES: tuple[str, ...] = (
     "phrase_sans_redemande",
     "greffier_llm",
     "arbitre_llm",
+    "signaler_un_probleme",
+    "alertes_par_mail",
     "greffier_consigne",
     "fiche_champs",
     "apres_appel",

@@ -914,6 +914,25 @@ class WorkflowConfigurationDefaults(BaseModel):
             "lifts the wait. Off (default): the tool is not offered."
         ),
     )
+    # [.mark] passages-fiables (lot F) : le signalement par l'agent.
+    signaler_un_probleme: bool = Field(
+        default=False,
+        description=(
+            "Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, "
+            "a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two "
+            "flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the "
+            "tool is not offered."
+        ),
+    )
+    # [.mark] passages-fiables (lot G) : le mail regroupé des alertes de l'appel.
+    alertes_par_mail: bool = Field(
+        default=False,
+        description=(
+            "At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE "
+            "grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in "
+            "the « Alerts » page; without a mail server the mail is simply not sent. Off (default): no mail."
+        ),
+    )
     # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours. Chantier
     # schema-parcours-unique (C1) : une seule case, la carte des rôles et la fin d'étape.
     generer_schema_parcours: bool = Field(

@@ -141,6 +141,7 @@ def test_journal_branche_deux_fois_sur_le_meme_client_ne_s_empile_pas():
 # branché dans le moteur (`set_node`), donc offert au clavier comme au téléphone ; seule la relance de silence manque.
 ECARTS_DE_COMPORTEMENT = {
     "laisser_la_parole (relance douce)": "audio : le clavier n'a pas de silence à surveiller (aucun agrégateur de parole n'est lié au moniteur), l'attente n'a donc rien à retenir",
+    "alertes (mail regroupé de l'appel)": "pas de fin d'appel au clavier : une session d'essai n'a pas de fin du pipeline qui envoie le mail ; les alertes elles-mêmes sont écrites dans le run au clavier comme au téléphone (même moteur) et lues par la page « Alertes »",
 }
 
 

@@ -231,6 +231,17 @@ class GardienPanne:
                 fiche[CLE_FICHE] = trace
             if hasattr(self.engine, "set_call_disposition"):
                 self.engine.set_call_disposition(ISSUE)
+            # [.mark] passages-fiables (lot G) : tracée dans les alertes ; le mail est celui du gardien (ci-dessous), le
+            # mail regroupé de l'appel ne la redit pas.
+            from api.services.tri.alertes import alerter
+            from api.services.tri.donnees import ALERTE_PANNE_MODELE
+
+            alerter(
+                self.engine,
+                ALERTE_PANNE_MODELE,
+                detail=f"{brique} ({raison})",
+                deja_notifiee=True,
+            )
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[.mark] Outage not written on the run: {erreur!r}")
         try:

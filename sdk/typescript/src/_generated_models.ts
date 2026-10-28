@@ -1891,6 +1891,18 @@ export interface components {
              */
             laisser_la_parole: boolean;
             /**
+             * Signaler Un Probleme
+             * @description Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the tool is not offered.
+             * @default false
+             */
+            signaler_un_probleme: boolean;
+            /**
+             * Alertes Par Mail
+             * @description At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in the « Alerts » page; without a mail server the mail is simply not sent. Off (default): no mail.
+             * @default false
+             */
+            alertes_par_mail: boolean;
+            /**
              * Generer Schema Parcours
              * @description At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
              * @default false
