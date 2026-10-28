@@ -427,12 +427,18 @@ class AgentRuntimeFactory:
             generation_started_callback=callbacks.generation_started,
             llm_text_frame_callback=callbacks.llm_text_frame,
         )
+        # [.mark] passages-fiables : l'option 2 et la notice d'un tour, par les trames autour du cerveau (tout service).
+        from api.services.pipecat.avant_la_requete import autour_du_cerveau
+
         pipeline = build_agent_generation_pipeline(
             runtime.llm,
             generation_callbacks,
             recording_router=runtime.recording_router,
             filtre_nom_civilite=runtime.filtre_nom_civilite,  # [.mark]
             post_scriptum=runtime.post_scriptum,  # [.mark]
+            autour_du_cerveau=autour_du_cerveau(  # [.mark]
+                self._moteur_de_l_appel() if self._moteur_de_l_appel else None, runtime
+            ),
         )
         call_tracing_context = getattr(self._call_worker, "_tracing_context", None)
         if call_tracing_context is None:

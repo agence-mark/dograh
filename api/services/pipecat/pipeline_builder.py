@@ -147,6 +147,7 @@ def build_agent_generation_pipeline(
     *,
     filtre_nom_civilite=None,
     post_scriptum=None,
+    autour_du_cerveau=None,
 ):
     """Build the generation stage that runs in one agent visit's own worker.
 
@@ -172,8 +173,17 @@ def build_agent_generation_pipeline(
             filter: the note the model writes after its separator never reaches
             the filter, the voice, nor the model's memory. None leaves the list
             unchanged.
+        autour_du_cerveau: [.mark] Optional pair ``(before, right_after)`` of
+            ``AvantLaRequete`` processors (plan passages-fiables): a request
+            reaches the LLM downstream from the head and upstream from the tail
+            (a ``LLMRunFrame`` comes back as a context frame from the call's
+            assistant aggregator), so one sits on each side. Provider-agnostic:
+            they only read ``LLMContextFrame``. ``None`` (an agent with no step
+            that asks the code, the default) leaves the list unchanged.
     """
-    processors = [llm, generation_callback_processor]
+    avant, apres = autour_du_cerveau or (None, None)
+    processors = [p for p in (avant, llm, apres) if p is not None]
+    processors.append(generation_callback_processor)
     if recording_router:
         processors.append(recording_router)
     # [.mark] post-scriptum, puis filtre du nom (la voix est celle de l'appel)

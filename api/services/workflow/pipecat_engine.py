@@ -3530,10 +3530,6 @@ class PipecatEngine:
 
         self._rang_d_entree += 1
         entrer_dans_l_etape(self, agent, node)
-        # [.mark] passages-fiables : les crochets du passage sur la fiche, posés seulement sur un agent qui en réclame.
-        from api.services.workflow.passage_sur_la_fiche import armer_les_crochets
-
-        armer_les_crochets(self, agent)
 
     def jeton_de_visite(self) -> tuple:
         """[.mark] passages-fiables (R2) : le jeton de visite d'étape ``(visite de l'agent, étape, rang d'entrée)``. Une

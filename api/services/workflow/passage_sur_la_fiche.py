@@ -16,8 +16,8 @@ Ce module ne décide pas **quand** : c'est le décideur de fin de tour (``decide
 le jeton de visite d'étape. Il porte aussi :
 
 - **la notice d'un tour** : l'étape d'arrivée d'un passage fait par le code reçoit, sur sa première requête, le compte
-  rendu « ce qui vient de se passer… L'appelant a entendu : « … ». Ne la répète pas. » (même mécanisme que la notice
-  d'impasse : insérée à la requête, jamais dans l'historique) ;
+  rendu « ce qui vient de se passer… L'appelant a entendu : « … ». Ne la répète pas. » (dans une copie du contexte de
+  CETTE requête, jamais dans l'historique) ;
 - **l'option 2** : sur une étape réglée « attendre le dernier champ », quand un seul champ manque, la requête de l'agent
   attend (au plus le délai) la passe du greffier sur la dernière parole ; si la condition devient vraie, le passage a
   lieu **avant** que l'agent parle, et l'étape d'arrivée parle directement. Sauf vers une fin, un retour au principal
@@ -29,7 +29,6 @@ Aucun mot de métier. ⛔ Ne lève jamais : un passage manqué ne coûte jamais 
 
 from __future__ import annotations
 
-from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -297,10 +296,12 @@ async def passer(
 
 
 # ---------------------------------------------------------------------------------------------------------
-# Les crochets sur la requête du cerveau de conversation : notice d'un tour, option 2
+# Avant la requête du cerveau de conversation : notice d'un tour, option 2
+#
+# Ni crochet ni méthode d'une famille de fournisseurs : ces deux fonctions ne lisent que le contexte partagé de Pipecat
+# (``LLMContext``). Elles sont appelées par le processeur de trames posé autour du cerveau
+# (``pipecat/avant_la_requete.py``), au téléphone et au clavier, quel que soit le service (décision d'Evan, 29/10).
 # ---------------------------------------------------------------------------------------------------------
-
-_MARQUE = "_mark_passage_crochets"
 
 
 def poser_la_notice(moteur: Any, agent: Any, dit: str) -> None:
@@ -308,64 +309,47 @@ def poser_la_notice(moteur: Any, agent: Any, dit: str) -> None:
     from api.services.phrases.compte_rendu import compte_rendu
 
     moteur._notice_de_passage = compte_rendu(FAIT_DU_PASSAGE, dit=(dit or "").strip() or None, crochets=True)
-    poser_les_crochets(moteur, getattr(agent, "llm", None))
 
 
-def armer_les_crochets(moteur: Any, agent: Any) -> None:
-    """Pose les crochets sur le cerveau de ``agent`` s'il a une étape qui réclame le code. Un agent qui n'en a aucune :
-    son service n'est pas touché. ⛔ Ne lève jamais."""
+def _inserer_avant_la_derniere_parole(messages: list, texte: str) -> list | None:
+    """Une COPIE de ``messages`` avec ``texte`` juste avant la dernière parole de la personne (même place que l'état de
+    la fiche, ``inserer_l_etat``) ; ``None`` sans parole de la personne. Les messages propres à un fournisseur (objets,
+    non dictionnaires) sont laissés tels quels."""
+    from api.services.groupe.passations import est_la_note_de_passation
+
+    for i in range(len(messages) - 1, -1, -1):
+        m = messages[i]
+        if isinstance(m, dict) and m.get("role") == "user" and not est_la_note_de_passation(m):
+            return [*messages[:i], {"role": "user", "content": texte}, *messages[i:]]
+    return None
+
+
+def contexte_avec_la_notice(moteur: Any, context: Any) -> Any | None:
+    """La notice d'un tour, consommée : une COPIE du contexte avec la notice, pour CETTE requête seulement ; le contexte
+    partagé (l'historique) n'est pas touché. ``None`` sans notice en attente. ⛔ Ne lève jamais."""
+    try:
+        notice = getattr(moteur, "_notice_de_passage", None)
+        if not notice:
+            return None
+        moteur._notice_de_passage = None
+        messages = _inserer_avant_la_derniere_parole(list(context.get_messages()), notice)
+        if messages is None:
+            return None
+        from pipecat.processors.aggregators.llm_context import LLMContext
+
+        return LLMContext(messages=messages, tools=context.tools, tool_choice=context.tool_choice)
+    except Exception as erreur:  # noqa: BLE001
+        logger.error(f"[passage] notice non montrée : {erreur!r}")
+        return None
+
+
+def agent_reclame_le_code(agent: Any) -> bool:
+    """L'agent a au moins une étape qui réclame le code (conditions sur la fiche ou arbitre). Sinon rien n'est posé
+    autour de son cerveau. ⛔ Ne lève jamais."""
     try:
         noeuds = getattr(getattr(agent, "workflow", None), "nodes", None) or {}
-        if any(l_etape_reclame_le_code(n) for n in noeuds.values()):
-            poser_les_crochets(moteur, getattr(agent, "llm", None))
-    except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[passage] crochets non armés : {erreur!r}")
-
-
-def poser_les_crochets(moteur: Any, llm: Any) -> bool:
-    """Enveloppe, une fois par cerveau, la requête de CONVERSATION : (1) l'option 2 avant la requête ; (2) la notice d'un
-    tour dans la requête (insérée avant la dernière parole de la personne, jamais dans l'historique). ⛔ Ne lève jamais."""
-    try:
-        if llm is None or getattr(llm, _MARQUE, False):
-            return llm is not None
-        if not (hasattr(llm, "get_chat_completions") and hasattr(llm, "build_chat_completion_params")):
-            return False
-        en_conversation: ContextVar[bool] = ContextVar("passage_en_conversation", default=False)
-        obtenir = llm.get_chat_completions
-        construire = llm.build_chat_completion_params
-
-        async def get_chat_completions(context):
-            try:
-                await avant_la_requete(moteur, llm, context)
-            except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
-                logger.warning(f"[passage] option 2 en échec : {erreur!r}")
-            jeton = en_conversation.set(True)
-            try:
-                return await obtenir(context)
-            finally:
-                en_conversation.reset(jeton)
-
-        def build_chat_completion_params(params_from_context):
-            params = construire(params_from_context)
-            if en_conversation.get():
-                try:
-                    notice = getattr(moteur, "_notice_de_passage", None)
-                    if notice:
-                        from api.services.workflow.fiche_au_fil_de_leau import inserer_l_etat
-
-                        cle = "messages" if "messages" in params else "input"
-                        params[cle] = inserer_l_etat(list(params[cle]), notice)
-                        moteur._notice_de_passage = None
-                except Exception as erreur:  # noqa: BLE001
-                    logger.error(f"[passage] notice non montrée : {erreur!r}")
-            return params
-
-        llm.get_chat_completions = get_chat_completions
-        llm.build_chat_completion_params = build_chat_completion_params
-        setattr(llm, _MARQUE, True)
-        return True
-    except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[passage] crochets non posés : {erreur!r}")
+        return any(l_etape_reclame_le_code(n) for n in noeuds.values())
+    except Exception:  # noqa: BLE001
         return False
 
 

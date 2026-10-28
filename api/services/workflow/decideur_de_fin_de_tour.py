@@ -29,12 +29,23 @@ Toute décision est liée à la **visite d'étape** où elle est née (``engine.
 étape, rang d'entrée) : autre jeton, elle est jetée et tracée. Une étape en mode ``agent`` sans arbitre (le défaut) ne
 fait rien de plus que le filet puis l'impasse : comportement d'avant.
 
+Latence (Evan, 29/10 : « ne pas ajouter de latence le temps de calculer ce qui s'est passé ») :
+
+- le décideur tourne dans l'événement ``on_assistant_turn_stopped`` de l'agrégateur de l'assistant, enregistré par
+  Pipecat SANS ``sync`` (``LLMAssistantAggregator.__init__``) : chaque gestionnaire part dans sa propre tâche, le
+  circuit n'attend jamais la décision ;
+- une étape qui ne réclame pas le code (le défaut) n'attend RIEN : ni les portes en cours, ni le greffier, ni l'arbitre
+  (filet puis impasse, comme la base) ;
+- quand il agit, la durée de la décision (``duree_decision``, en secondes, de la fin de la réplique au passage) est
+  écrite dans ``passages_par_le_code``.
+
 Aucun mot de métier. ⛔ Ne lève jamais.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any, Iterable
 
 from loguru import logger
@@ -61,8 +72,21 @@ async def attendre_les_portes(moteur: Any, delai: float = DELAI_DES_PORTES) -> N
         logger.warning(f"[decideur] attente des portes en échec : {erreur!r}")
 
 
-async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple) -> str | None:
+def _l_etape_reclame_le_code(moteur: Any) -> bool:
+    """L'étape où l'on est réclame le code (conditions sur la fiche ou arbitre). ⛔ Ne lève jamais (dans le doute : non)."""
+    try:
+        return passage.l_etape_reclame_le_code(moteur.active_agent.current_node)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _duree(debut: float) -> float:
+    return round(time.monotonic() - debut, 3)
+
+
+async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: float | None = None) -> str | None:
     """Les étapes 3 et 4. Rend ``fiche`` ou ``arbitre`` si une porte a été prise, sinon ``None``."""
+    debut = time.monotonic() if debut is None else debut
     agent = moteur.active_agent
     noeud = agent.current_node
     if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
@@ -86,6 +110,7 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple) -> str | No
                     etape=getattr(noeud, "name", None),
                     raison=passage.RAISON_FICHE,
                     resultat="greffier_sans_reponse",
+                    duree_decision=_duree(debut),
                 )
         if lue_a_temps:
             if jeton != moteur.jeton_de_visite() or passage.la_personne_parle(moteur):
@@ -94,7 +119,13 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple) -> str | No
             if trouvee is not None:
                 arete, lecture = trouvee
                 if await passage.passer(
-                    moteur, arete, raison=passage.RAISON_FICHE, jeton=jeton, dit=texte, lecture=lecture
+                    moteur,
+                    arete,
+                    raison=passage.RAISON_FICHE,
+                    jeton=jeton,
+                    dit=texte,
+                    lecture=lecture,
+                    detail={"duree_decision": _duree(debut)},
                 ):
                     return passage.RAISON_FICHE
                 return None
@@ -136,7 +167,7 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple) -> str | No
         raison=passage.RAISON_ARBITRE,
         jeton=jeton,
         dit=texte,
-        detail={"confiance": decision.confiance},
+        detail={"confiance": decision.confiance, "duree_decision": _duree(debut)},
     )
     arbitre_mod.tracer(moteur, **ligne, resultat="prise" if prise else "refusee")
     return passage.RAISON_ARBITRE if prise else None
@@ -176,8 +207,11 @@ async def decider(moteur: Any, texte: str, depart: tuple | None, jeton: tuple | 
     """La fin d'une réplique de l'agent. Rend qui a pris une porte : ``filet``, ``fiche``, ``arbitre``, ``impasse``, ou
     ``None``. ⛔ Ne lève jamais."""
     prise: str | None = None
+    debut = time.monotonic()
     try:
-        await attendre_les_portes(moteur)
+        # Seule une étape qui réclame le code attend les portes en cours ; sinon rien n'est attendu (comme la base).
+        if _l_etape_reclame_le_code(moteur):
+            await attendre_les_portes(moteur)
         agent_a_pris = depart is not None and depart != moteur.etat_pour_le_filet()
         # 2. Le filet de fin (existant, inchangé : il a ses propres gardes).
         if await moteur.filet_de_fin(texte, depart):
@@ -186,7 +220,7 @@ async def decider(moteur: Any, texte: str, depart: tuple | None, jeton: tuple | 
             # 1. L'agent a pris sa porte : le code ne passe jamais par-dessus ; l'arbitre en désaccord est tracé.
             await _noter_le_desaccord(moteur, jeton, depart)
         elif jeton is not None:
-            prise = await _fiche_puis_arbitre(moteur, texte, jeton)
+            prise = await _fiche_puis_arbitre(moteur, texte, jeton, debut)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[decideur] décision en échec : {erreur!r}")
     # 5. L'impasse : ses signes se comptent à chaque tour ; sa sortie ne joue que si rien n'a été pris.

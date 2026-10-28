@@ -115,6 +115,7 @@ from api.services.pipecat.worker_runner import (
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
 from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
+from api.services.pipecat.avant_la_requete import autour_du_cerveau
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
@@ -1150,11 +1151,16 @@ async def execute_text_chat_pending_turn(
             # La voix de l'appel, comme au téléphone (``agent_runtime_factory`` : ``_voix_de_l_appel``).
             voix=getattr(user_config, "tts", None),
         )
+        # [.mark] passages-fiables : l'option 2 et la notice d'un tour, par les trames autour du cerveau, comme au
+        # téléphone (``AgentRuntimeFactory.attach``). ``(None, None)`` pour un agent tout éteint.
+        avant_le_cerveau, apres_le_cerveau = autour_du_cerveau(engine, engine.active_agent)
         pipeline = Pipeline(
             [
                 p
                 for p in (
+                    avant_le_cerveau,
                     agent.llm,
+                    apres_le_cerveau,
                     post_scriptum,
                     filtre_nom_civilite,
                     capture_processor,
@@ -1269,7 +1275,8 @@ async def execute_text_chat_pending_turn(
                 generation_marker = capture_processor.activity_count
                 response_window.note_direct_context_request()
                 engine.expect_response()
-                await agent.llm.queue_frame(LLMContextFrame(context))
+                # [.mark] passages-fiables : par la tête du circuit (avant le cerveau) quand elle est posée.
+                await (avant_le_cerveau or agent.llm).queue_frame(LLMContextFrame(context))
                 await _wait_for_quiescence(
                     capture_processor=capture_processor,
                     response_window=response_window,

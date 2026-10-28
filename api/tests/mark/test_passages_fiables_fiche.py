@@ -16,7 +16,7 @@ VRAI moteur (banc fendu de `test_agent_transfer.py`) ; seuls les modèles, la vo
 | jeton | une décision née sous une autre visite d'étape est jetée et tracée ; le même retour dans la même étape change le jeton |
 | greffier muet | le greffier ne répond pas à temps : aucun passage, l'appel continue |
 | option 2 | un seul champ manquant : le passage a lieu avant la requête, sans relance ; au délai, l'option 1 joue ; jamais vers une fin |
-| notice | la notice d'un tour est montrée une fois, dans la requête, jamais dans l'historique |
+| notice | dans `test_passages_fiables_agnostique.py` (deux familles de cerveaux, par les trames) |
 | filet déplacé | le filet de fin passe d'abord dans le décideur ; sa porte interdit la fiche et la sortie d'impasse |
 | impasse | les signes de l'impasse se comptent, sa sortie est interdite quand une porte est prise |
 """
@@ -507,48 +507,6 @@ async def test_option_2_jamais_vers_une_fin_ni_quand_plusieurs_champs_manquent_n
         contexte = _Contexte([{"role": "user", "content": "x"}, {"role": "tool", "content": "ok"}])
         assert await passage.avant_la_requete(engine, engine.active_agent.llm, contexte) is False
         assert greffier.appels == []
-    finally:
-        await harness.stop()
-
-
-# --------------------------------------------------------------------------- #
-# La notice d'un tour
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.asyncio
-async def test_la_notice_d_un_tour_est_montree_une_fois_dans_la_requete_jamais_dans_l_historique():
-    harness = await monter(fiche=_complete(), greffier=GreffierFactice())
-    try:
-        engine = harness.engine
-        envoyees = []
-
-        class Service:
-            def __init__(self):
-                self.get_chat_completions = self._gcc
-                self.build_chat_completion_params = lambda p: {"messages": list(p["messages"])}
-
-            async def _gcc(self, context):
-                params = self.build_chat_completion_params({"messages": context.get_messages()})
-                envoyees.append(params["messages"])
-                return None
-
-        service = Service()
-        assert passage.poser_les_crochets(engine, service)  # le service du cerveau de l'agent, enveloppé
-        historique = [{"role": "assistant", "content": "Bien noté."}, {"role": "user", "content": "voilà"}]
-        qui, _, _ = await _fin_de_reponse(engine, "Bien noté, merci.")
-        assert qui == "fiche"
-        contexte = _Contexte(historique)
-        await service.get_chat_completions(contexte)
-        notice = [m for m in envoyees[0] if "Ce qui vient de se passer" in str(m.get("content"))]
-        assert len(notice) == 1
-        assert "L'appelant a entendu : « Bien noté, merci. »" in notice[0]["content"] and "Ne la répète pas" in notice[0]["content"]
-        # Insérée avant la dernière parole de la personne ; l'historique, lui, n'a pas bougé.
-        assert envoyees[0][-1] == {"role": "user", "content": "voilà"} and envoyees[0][-2] is notice[0]
-        assert historique == [{"role": "assistant", "content": "Bien noté."}, {"role": "user", "content": "voilà"}]
-        # Un seul tour.
-        await service.get_chat_completions(_Contexte(historique))
-        assert not any("Ce qui vient de se passer" in str(m.get("content")) for m in envoyees[1])
     finally:
         await harness.stop()
 
