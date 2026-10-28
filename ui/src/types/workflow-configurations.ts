@@ -80,6 +80,9 @@ export const DEFAUTS_PIPECAT = {
     interdire_civilite_appelant: false,
     // [.mark] Plan postscriptum-note-d-abord (C10): off by default.
     relecture_des_numeros: false,
+    // [.mark] passages-fiables (lots C1 and E): off by default.
+    numero_jamais_dicte: false,
+    laisser_la_parole: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -491,6 +494,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // `null` or absent = the voice's own default; `[]` = every bracket removed.
     tts_balises_permises?: string[] | null;
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
+    numero_jamais_dicte?: boolean;  // [.mark] passages-fiables C1: a number the caller never dictated is not said
+    laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

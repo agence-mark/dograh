@@ -2138,6 +2138,10 @@ class PipecatEngine:
             node,
             offre_une_action=not node.is_end and etape_qui_ecrit(self, actions_offertes(self), etape_du_fond),
         )
+        # [.mark] passages-fiables (lot C1) : un numéro jamais dicté n'est pas dit (case par agent, éteinte par défaut).
+        from api.services.workflow.numero_jamais_dicte import brancher_le_numero_jamais_dicte
+
+        brancher_le_numero_jamais_dicte(self, agent, node)
         # [.mark] Lot 6 de correctifs-apres-banc-commun (K8) : le déclenchement de l'outil d'action de l'étape
         # (libre = rien n'est branché).
         brancher_le_declenchement(

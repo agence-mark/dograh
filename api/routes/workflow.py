@@ -28,6 +28,7 @@ from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user_with_selected_organization, get_user
 from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
+from api.services.groupe.reglages import CONFIGURATION_DE_CREATION
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
     WORKFLOW_MODEL_CONFIGURATION_V2_OVERRIDE_KEY,
@@ -577,6 +578,7 @@ async def create_workflow(
         workflow_definition,
         user.id,
         user.selected_organization_id,
+        workflow_configurations=CONFIGURATION_DE_CREATION,
     )
 
     capture_event(
@@ -675,6 +677,7 @@ async def create_workflow_from_template(
             workflow_definition=workflow_def,
             user_id=user.id,
             organization_id=user.selected_organization_id,
+            workflow_configurations=CONFIGURATION_DE_CREATION,
         )
 
         capture_event(

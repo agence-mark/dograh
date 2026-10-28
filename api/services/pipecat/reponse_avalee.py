@@ -447,6 +447,8 @@ class ArgumentsLisibles:
 ATTRIBUT_VERITE = "mark_verite_des_actions"
 # Lot 6 (K8) : l'attribut du service où le moteur pose le déclencheur de l'outil d'action de l'étape (``None`` : libre).
 ATTRIBUT_DECLENCHEUR = "mark_declencheur"
+# passages-fiables (lot C1) : l'attribut du service où le moteur pose le contrôle « numéro jamais dicté » (``None`` : éteint).
+ATTRIBUT_NUMERO = "mark_numero_jamais_dicte"
 
 
 class RepliqueVerifiee:
@@ -459,12 +461,17 @@ class RepliqueVerifiee:
       la relance est rendue telle quelle, quoi qu'elle dise. Relance vide ou en erreur : la réplique d'origine passe.
 
     Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
-    seulement). ⛔ Ne lève jamais à la place du service."""
+    seulement). ⛔ Ne lève jamais à la place du service.
 
-    def __init__(self, flux: Any, controler, relancer):
+    ``des_le_chiffre`` (passages-fiables, lot C1, L0-7) : le flux n'est tenu qu'à partir du premier chiffre ; le texte
+    d'avant part tout de suite (aucune latence de plus aux répliques sans chiffre). Une réplique retenue est relancée
+    avec « l'appelant a déjà entendu : … » pour la partie déjà partie."""
+
+    def __init__(self, flux: Any, controler, relancer, des_le_chiffre: bool = False):
         self._flux = flux
         self._controler = controler
         self._relancer = relancer
+        self._des_le_chiffre = des_le_chiffre
 
     def __aiter__(self):
         return self._parcourir()
@@ -474,16 +481,45 @@ class RepliqueVerifiee:
         texte: list[str] = []
         appel = False
         usage = None
+        # Texte déjà parti (mode « dès le chiffre ») : l'appelant l'a entendu, la relance ne le redit pas.
+        parti: list[str] = []
+        tient = not self._des_le_chiffre
         async for morceau in self._flux:
+            delta = _delta(morceau)
+            contenu = getattr(delta, "content", None) if delta is not None else None
+            if not tient:
+                if (
+                    isinstance(contenu, str)
+                    and any(c.isdigit() for c in contenu)
+                    and not getattr(delta, "tool_calls", None)
+                ):
+                    tient = True
+                else:
+                    if getattr(morceau, "usage", None) is not None:
+                        usage = morceau.usage
+                    if getattr(delta, "tool_calls", None):
+                        appel = True
+                    if contenu:
+                        parti.append(contenu)
+                    yield morceau
+                    continue
             tenus.append(morceau)
             if getattr(morceau, "usage", None) is not None:
                 usage = morceau.usage
-            delta = _delta(morceau)
             if delta is not None:
                 if getattr(delta, "tool_calls", None):
                     appel = True
-                if getattr(delta, "content", None):
-                    texte.append(delta.content)
+                if contenu:
+                    texte.append(contenu)
+        if not tenus:
+            return
+        if appel and parti:
+            # Un appel d'outil est arrivé après du texte déjà parti : ce qui est tenu passe tel quel.
+            for tenu in tenus:
+                yield tenu
+            return
+        if parti:
+            texte = [*parti, *texte]
         retenue = None
         if not appel and texte:
             try:
@@ -493,6 +529,19 @@ class RepliqueVerifiee:
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] réplique non contrôlée : {erreur!r}")
         if retenue is not None:
+            if parti and getattr(retenue, "consigne", None):
+                from dataclasses import replace
+
+                try:
+                    retenue = replace(
+                        retenue,
+                        consigne=(
+                            f"{retenue.consigne} L'appelant a déjà entendu : « {''.join(parti).strip()} ». "
+                            "Ne le répète pas : reprends à la suite."
+                        ),
+                    )
+                except TypeError:
+                    pass
             reprise = None
             try:
                 reprise = await self._relancer(retenue)
@@ -614,23 +663,35 @@ class RepriseSansFluxMixin:
         relanceur = getattr(self, ATTRIBUT_DECLENCHEUR, None)
         if relanceur is not None and getattr(relanceur, "position", None) != "relance":
             relanceur = None
-        if verificateur is not None or relanceur is not None:
+        # passages-fiables (lot C1) : « numéro jamais dicté », même chemin, posé même sur une étape sans action.
+        numero = getattr(self, ATTRIBUT_NUMERO, None)
+        if numero is not None and not hasattr(numero, "controler"):
+            numero = None
+        if verificateur is not None or relanceur is not None or numero is not None:
             messages = [m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)]
             # Lot 11 (F-1, revue 4) : le prompt de l'étape vit hors des messages ; ses dates sont connues aussi.
             systeme = getattr(getattr(self, "_settings", None), "system_instruction", None)
             if isinstance(systeme, str) and systeme:
                 messages = [{"role": "system", "content": systeme}, *messages]
-            if relanceur is None:
+            if relanceur is None and numero is None:
                 controle = lambda texte: verificateur.controler(texte, messages)  # noqa: E731
             else:
 
                 async def controle(texte):
                     retenue = verificateur.controler(texte, messages) if verificateur is not None else None
-                    if retenue is None:
+                    if retenue is None and relanceur is not None:
                         retenue = await relanceur.controler_la_replique(texte)
+                    if retenue is None and numero is not None:
+                        retenue = numero.controler(texte, messages)
                     return retenue
 
-            repris = RepliqueVerifiee(repris, controle, relancer_la_replique)
+            # Seul le contrôle du numéro : le flux n'est tenu qu'à partir du premier chiffre (le reste part tout de suite).
+            repris = RepliqueVerifiee(
+                repris,
+                controle,
+                relancer_la_replique,
+                des_le_chiffre=verificateur is None and relanceur is None,
+            )
         return ArgumentsLisibles(
             repris,
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),

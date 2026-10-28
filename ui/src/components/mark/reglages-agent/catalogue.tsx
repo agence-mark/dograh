@@ -515,6 +515,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // passages-fiables (lot C1, registre XXIX.4): off by default.
+    numero_jamais_dicte: d({
+        type: "interrupteur",
+        libelle: { en: "Never say a number the caller did not dictate", fr: "Ne jamais dire un numéro que l'appelant n'a pas dicté" },
+        aides: [
+            {
+                en: "A reply holding a run of 8 digits or more (spaces and dots ignored) that the caller never dictated, that no tool result gives and that is not the call's own number, is held back. The model is asked once to have the caller dictate it. The reply is held from its first digit on: the words before it are spoken at once. Works with the OpenAI-compatible brain only. Off: replies are spoken as written.",
+                fr: "Une réplique qui contient une suite de 8 chiffres ou plus (espaces et points ignorés) que l'appelant n'a jamais dictée, qu'aucun résultat d'outil ne donne et qui n'est pas le numéro de l'appel est retenue. Le modèle est relancé une fois pour demander à l'appelant de le dicter. La réplique n'est tenue qu'à partir de son premier chiffre : les mots d'avant partent tout de suite. Seulement avec le cerveau compatible OpenAI. Éteint : les répliques sont dites telles qu'écrites.",
+            },
+        ],
+    }),
     tts_replacements: d({
         type: "etiquettes",
         indication: "SAV:S. A. V.",
@@ -568,6 +579,17 @@ export const CATALOGUE = {
             {
                 en: "When the agent owes an answer and nothing is heard at all. Protects the caller from a frozen agent. While a tool runs, the wait is 180 s whatever this says.",
                 fr: "Quand l'agent doit une réponse et que rien n'est entendu. Protège l'appelant d'un agent figé. Pendant un outil, l'attente est de 180 s quoi qu'indique ce réglage.",
+            },
+        ],
+    }),
+    // passages-fiables (lot E): off by default.
+    laisser_la_parole: d({
+        type: "interrupteur",
+        libelle: { en: "Let the caller take their time", fr: "Laisser l'appelant prendre son temps" },
+        aides: [
+            {
+                en: "Offers the agent a tool for when the caller asks for a moment (to look something up or check). During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the tool is not offered.",
+                fr: "Offre à l'agent un outil pour quand l'appelant demande un moment (chercher, vérifier). Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « La personne prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : l'outil n'est pas offert.",
             },
         ],
     }),

@@ -64,6 +64,8 @@
     "interdire_nom_appelant": false,
     "interdire_civilite_appelant": false,
     "relecture_des_numeros": false,
+    "numero_jamais_dicte": false,
+    "laisser_la_parole": false,
     "mute_until_first_bot_complete": true,
     "mute_during_function_call": true,
     "mute_engine_callback": true,
@@ -1071,6 +1073,34 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "relecture_des_numeros": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "numero-jamais-dicte": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "numero_jamais_dicte": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "laisser-la-parole": {
+      "carte": "ajout-mark",
+      "theme": "rythme",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "laisser_la_parole": true
           },
           "retirees": []
         }

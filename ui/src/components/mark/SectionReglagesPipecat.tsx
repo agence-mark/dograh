@@ -121,12 +121,14 @@ export const CLES_VOIX = [
     "interdire_nom_appelant",
     "interdire_civilite_appelant",
     "relecture_des_numeros",
+    "numero_jamais_dicte",
 ] as const;
 
 export const CLES_RELANCE = [
     "user_idle_prompt",
     "user_idle_goodbye_prompt",
     "user_idle_max_prompts",
+    "laisser_la_parole",
 ] as const;
 
 export const CLES_TOUR_DE_PAROLE = [

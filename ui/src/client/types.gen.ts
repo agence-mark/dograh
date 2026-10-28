@@ -13535,6 +13535,18 @@ export type WorkflowConfigurationDefaults = {
      */
     relecture_des_numeros?: boolean;
     /**
+     * Numero Jamais Dicte
+     *
+     * A reply holding a run of 8 digits or more (spaces and dots ignored) that the caller never dictated, that no tool result gives, and that is not the call's own number, is held back and the model is asked once to have the caller dictate it. The reply is held from its first digit on. OpenAI-compatible brain only. Off (default): replies are spoken as written.
+     */
+    numero_jamais_dicte?: boolean;
+    /**
+     * Laisser La Parole
+     *
+     * Offers the agent a tool for when the caller asks for a moment (to look something up or check). While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. Off (default): the tool is not offered.
+     */
+    laisser_la_parole?: boolean;
+    /**
      * Generer Schema Parcours
      *
      * At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
