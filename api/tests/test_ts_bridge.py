@@ -11,6 +11,7 @@ from types import NoneType
 from typing import Any, get_args
 
 import pytest
+from pydantic import BaseModel
 
 from api.mcp_server.ts_bridge import TsBridgeError, generate_code, parse_code
 from api.services.workflow.dto import EdgeDataDTO
@@ -174,6 +175,13 @@ def _sample_edge_value(field_name: str, annotation: Any) -> Any:
         return True
     if inner in (int, float):
         return 1
+    # [.mark] passages-fiables (lot A) : un champ d'arête structuré (``condition_sur_la_fiche``) doit traverser le pont
+    # avec tous ses sous-champs.
+    if isinstance(inner, type) and issubclass(inner, BaseModel):
+        return {
+            nom: _sample_edge_value(f"{field_name}.{nom}", champ.annotation)
+            for nom, champ in inner.model_fields.items()
+        }
     raise AssertionError(
         f"Unhandled edge field annotation in TS bridge test: {field_name} -> {annotation!r}"
     )
