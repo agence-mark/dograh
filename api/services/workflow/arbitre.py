@@ -87,6 +87,7 @@ class Decision:
     confiance: float = 0.0
     jetons: dict = field(default_factory=dict)
     duree: float = 0.0
+    parole: int = 0  # le numéro de la parole qui a lancé la demande (le jeton ne change pas entre deux paroles)
 
     @property
     def veut_passer(self) -> bool:
@@ -215,6 +216,7 @@ class ArbitreDuPassage:
         self._jeton: tuple | None = None
         self._portes: dict[str, str] = {}
         self._decision: Decision | None = None
+        self._parole = 0
 
     def _service(self) -> Any:
         moteur = self._engine
@@ -228,6 +230,12 @@ class ArbitreDuPassage:
     def lancer(self, jeton: tuple, noeud: Any, messages: Iterable[Any], *, delai: float = DELAI_PAR_DEFAUT) -> bool:
         """Part en parallèle ; ne bloque jamais. Rend ``True`` si une demande est partie. ⛔ Ne lève jamais."""
         try:
+            # Une nouvelle parole périme la demande d'avant : annulée, et sa décision ne s'écrira plus.
+            self._parole += 1
+            parole = self._parole
+            ancienne, self._tache = self._tache, None
+            if ancienne is not None and not ancienne.done():
+                ancienne.cancel()
             self._jeton, self._decision = None, None
             if noeud is None or not (getattr(noeud, "out_edges", None) or ()):
                 return False
@@ -238,11 +246,11 @@ class ArbitreDuPassage:
             service = self._service()
             self._jeton, self._portes, self._decision = jeton, portes, None
             if service is None:
-                self._decision = Decision(jeton=jeton, etat=ETAT_SANS_CERVEAU)
+                self._decision = Decision(jeton=jeton, etat=ETAT_SANS_CERVEAU, parole=parole)
                 self._tache = None
                 return False
             etat = etat_a_juger(noeud, echanges)
-            self._tache = asyncio.get_running_loop().create_task(self._demander(jeton, service, etat, question, delai))
+            self._tache = asyncio.get_running_loop().create_task(self._demander(jeton, service, etat, question, delai, parole))
             self._engine.notes_en_cours.add(self._tache)
             self._tache.add_done_callback(self._engine.notes_en_cours.discard)
             return True
@@ -250,10 +258,12 @@ class ArbitreDuPassage:
             logger.warning(f"[arbitre] non lancé : {erreur!r}")
             return False
 
-    async def _demander(self, jeton: tuple, service: Any, etat: str, question: ChoiceQuestion, delai: float) -> None:
+    async def _demander(
+        self, jeton: tuple, service: Any, etat: str, question: ChoiceQuestion, delai: float, parole: int = 0
+    ) -> None:
         debut = time.monotonic()
         classifieur = ClassifieurDeLArbitre(service=service, delai=delai)
-        decision = Decision(jeton=jeton)
+        decision = Decision(jeton=jeton, parole=parole)
         try:
             resultats = await classifieur.choice(etat, {NOM_DE_LA_QUESTION: question})
             resultat = resultats[NOM_DE_LA_QUESTION]
@@ -269,6 +279,8 @@ class ArbitreDuPassage:
         decision.jetons = dict(classifieur.jetons)
         decision.duree = round(time.monotonic() - debut, 3)
         self._verser(service, decision.jetons)
+        if parole != self._parole or self._tache is not asyncio.current_task():
+            return  # une parole plus récente a pris la place : cette décision est périmée
         self._decision = decision
         if decision.etat == ETAT_429:
             logger.warning("[arbitre] 429 : l'arbitre se tait pour ce tour")
@@ -292,8 +304,17 @@ class ArbitreDuPassage:
         try:
             if self._jeton != jeton:
                 return None
-            if self._tache is not None and not self._tache.done():
-                await asyncio.shield(self._tache)
+            while self._tache is not None and not self._tache.done():
+                tache = self._tache
+                try:
+                    await asyncio.shield(tache)
+                except asyncio.CancelledError:
+                    courante = asyncio.current_task()
+                    if tache.cancelled() and not (courante is not None and courante.cancelling()):
+                        continue  # la demande attendue a été remplacée par une parole plus récente
+                    raise
+            if self._jeton != jeton:
+                return None
             return self._decision
         except asyncio.CancelledError:
             raise
