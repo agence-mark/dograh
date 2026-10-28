@@ -138,6 +138,9 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
     // passages-fiables, lot B: the arbiter's brain, next to the clerk's.
     arbitre_llm: { theme: "donnees", cas: ["arbitre"] },
+    // passages-fiables, lots F and G: « Improving the agent » in Call data.
+    signaler_un_probleme: { theme: "donnees", cas: ["signaler-un-probleme"] },
+    alertes_par_mail: { theme: "donnees", cas: ["alertes-par-mail"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     apres_appel: { theme: "donnees", cas: ["apres-appel"] },
     panne: { theme: "etablissement", cas: ["panne"] },

@@ -66,6 +66,8 @@
     "relecture_des_numeros": false,
     "numero_jamais_dicte": false,
     "laisser_la_parole": false,
+    "signaler_un_probleme": false,
+    "alertes_par_mail": false,
     "mute_until_first_bot_complete": true,
     "mute_during_function_call": true,
     "mute_engine_callback": true,
@@ -1405,6 +1407,34 @@
               "model": "mistral-small-2603",
               "api_key": "cle-de-reference"
             }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "signaler-un-probleme": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "signaler_un_probleme": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "alertes-par-mail": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "alertes_par_mail": true
           },
           "retirees": []
         }

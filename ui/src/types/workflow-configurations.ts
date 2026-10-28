@@ -83,6 +83,9 @@ export const DEFAUTS_PIPECAT = {
     // [.mark] passages-fiables (lots C1 and E): off by default.
     numero_jamais_dicte: false,
     laisser_la_parole: false,
+    // [.mark] passages-fiables (lots F and G): off by default.
+    signaler_un_probleme: false,
+    alertes_par_mail: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -496,6 +499,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     numero_jamais_dicte?: boolean;  // [.mark] passages-fiables C1: a number the caller never dictated is not said
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
+    signaler_un_probleme?: boolean;  // [.mark] passages-fiables F: the agent can flag, silently, that it is lost
+    alertes_par_mail?: boolean;  // [.mark] passages-fiables G: one grouped mail per call that raised alerts
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

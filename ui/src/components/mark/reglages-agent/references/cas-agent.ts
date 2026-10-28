@@ -307,6 +307,9 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("arbitre_api_key", "cle-de-reference"),
         { type: "cliquer", nom: "Done" },
     ]),
+    // passages-fiables, lots F and G: added after the reorganisation, frozen once.
+    c("signaler-un-probleme", "ajout-mark", "donnees", ["signaler_un_probleme"], [inter("signaler_un_probleme")]),
+    c("alertes-par-mail", "ajout-mark", "donnees", ["alertes_par_mail"], [inter("alertes_par_mail")]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },

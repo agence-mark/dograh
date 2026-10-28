@@ -1344,3 +1344,42 @@ describe("[.mark] the sending mode of the text, as the call will use it", () => 
         expect(mode()).toBe("sentence:defaut");
     });
 });
+
+// [.mark] passages-fiables, lots F and G: « Improving the agent » in Call data, two boxes, both off by default.
+describe("[.mark] the agent's improvement boxes (passages-fiables, lots F and G)", () => {
+    it("draws the box and the mail box under « Improving the agent », off by default, with the English label", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const theme = ouvrirLeTheme("donnees");
+        await waitFor(() => expect(theme.querySelector('[data-reglage="signaler_un_probleme"]')).not.toBeNull());
+        expect(screen.getByText("Improving the agent", { selector: "h3, h4, legend, p, span, div" })).toBeTruthy();
+        expect(screen.getByText("The agent can flag an issue")).toBeTruthy();
+        expect(screen.getByText("Alerts by mail")).toBeTruthy();
+        expect((document.getElementById("signaler_un_probleme") as HTMLElement).getAttribute("aria-checked")).toBe("false");
+        expect((document.getElementById("alertes_par_mail") as HTMLElement).getAttribute("aria-checked")).toBe("false");
+    });
+
+    it("shows the French labels", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
+        const theme = ouvrirLeTheme("donnees");
+        await waitFor(() => expect(theme.querySelector('[data-reglage="signaler_un_probleme"]')).not.toBeNull());
+        expect(screen.getByText("L'agent peut signaler un problème")).toBeTruthy();
+        expect(screen.getByText("Alertes par mail")).toBeTruthy();
+        expect(screen.getAllByText("Amélioration de l'agent").length).toBeGreaterThan(0);
+    });
+
+    it("saves the two keys, and only when changed (E6)", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("donnees");
+        const bouton = await screen.findByRole("button", { name: "Save Call data" });
+        expect((bouton as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.click(document.getElementById("signaler_un_probleme") as HTMLElement);
+        fireEvent.click(document.getElementById("alertes_par_mail") as HTMLElement);
+        m.save.mockClear();
+        fireEvent.click(await screen.findByRole("button", { name: "Save Call data" }));
+        await waitFor(() => expect(m.save).toHaveBeenCalled());
+        const appels = m.save.mock.calls as unknown as Array<[Record<string, unknown>]>;
+        const charge = appels[appels.length - 1][0];
+        expect(charge.signaler_un_probleme).toBe(true);
+        expect(charge.alertes_par_mail).toBe(true);
+    });
+});

@@ -593,6 +593,28 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // passages-fiables (lot F): off by default.
+    signaler_un_probleme: d({
+        type: "interrupteur",
+        libelle: { en: "The agent can flag an issue", fr: "L'agent peut signaler un problème" },
+        aides: [
+            {
+                en: "Offers the agent a tool to flag, silently, that it is lost: an ambiguous request, a rule it does not know, a failing tool. It gives a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags, with those the code raises itself, are listed in the « To triage » page of the menu. Off: the tool is not offered.",
+                fr: "Offre à l'agent un outil pour signaler, sans rien dire, qu'il est perdu : une demande ambiguë, une règle qu'il ne connaît pas, un outil qui échoue. Il donne un motif court et une catégorie. Rien n'est dit à l'appelant et l'appel continue ; deux signalements au plus par appel. Les signalements, avec ceux que le code lève lui-même, sont listés dans la page « À trier » du menu. Éteint : l'outil n'est pas offert.",
+            },
+        ],
+    }),
+    // passages-fiables (lot G): off by default (D8: the mail is not wired this week).
+    alertes_par_mail: d({
+        type: "interrupteur",
+        libelle: { en: "Alerts by mail", fr: "Alertes par mail" },
+        aides: [
+            {
+                en: "At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in the « Alerts » page of the menu, mail or not; without a mail server nothing is sent and nothing is lost. Off: no mail.",
+                fr: "À la fin d'un appel qui a levé des alertes (appel terminé en erreur, outil en échec, transfert échoué), envoie UN seul mail regroupé aux adresses de notification de l'organisation et à celles de .mark. Les alertes sont toujours listées dans la page « Alertes » du menu, mail ou non ; sans serveur de mail rien n'est envoyé et rien n'est perdu. Éteint : pas de mail.",
+            },
+        ],
+    }),
 } as const satisfies Record<string, Definition>;
 
 export type CleCatalogue = keyof typeof CATALOGUE;

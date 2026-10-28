@@ -205,6 +205,14 @@ export const ThemeDonnees = ({
     useEffect(() => setRedemande(redemandeEnregistree), [redemandeEnregistree]);
     const redemandeEnvoyee = modeDeNote === "post_scriptum" && ordre === "porte_note_phrase" && redemande;
     const redemandeModifiee = redemandeEnvoyee !== redemandeEnregistree;
+    // passages-fiables (lots F and G): « Improving the agent », two boxes, both off by default.
+    const signalerEnregistre = resolue.signaler_un_probleme ?? false;
+    const [signaler, setSignaler] = useState(signalerEnregistre);
+    useEffect(() => setSignaler(signalerEnregistre), [signalerEnregistre]);
+    const alertesMailEnregistre = resolue.alertes_par_mail ?? false;
+    const [alertesMail, setAlertesMail] = useState(alertesMailEnregistre);
+    useEffect(() => setAlertesMail(alertesMailEnregistre), [alertesMailEnregistre]);
+    const amelioration = signaler !== signalerEnregistre || alertesMail !== alertesMailEnregistre;
     // As the call record card did (24/09): follow the record the server stored,
     // keyed on its CONTENT so another theme's save does not wipe an edit here.
     const ficheEnregistree = JSON.stringify([ficheActiveEnregistree, modeEnregistre, champsEnregistres]);
@@ -358,7 +366,8 @@ export const ThemeDonnees = ({
         || connuEtAttenduModifie
         || transfertModifie
         || formulationsModifiees
-        || redemandeModifiee;
+        || redemandeModifiee
+        || amelioration;
     useEtatTheme(ID_THEME_DONNEES, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -421,6 +430,12 @@ export const ThemeDonnees = ({
                 nom: { en: "No repeated question", fr: "Pas de question redemandée" },
                 modifie: redemandeModifiee,
                 config: () => ({ phrase_sans_redemande: redemandeEnvoyee }),
+            },
+            {
+                // passages-fiables (lots F and G): its own part, sent only when changed (E6).
+                nom: { en: "Improving the agent", fr: "Amélioration de l'agent" },
+                modifie: amelioration,
+                config: () => ({ signaler_un_probleme: signaler, alertes_par_mail: alertesMail }),
             },
             {
                 // L4: its own part, sent only when changed (E6).
@@ -761,6 +776,19 @@ export const ThemeDonnees = ({
                         }}
                     />
                 </div>
+            </Intertitre>
+
+            {/* passages-fiables, lots F and G: the agent flags what it cannot settle; the alerts leave by mail. */}
+            <Intertitre
+                id="donnees-amelioration"
+                titre={{ en: "Improving the agent", fr: "Amélioration de l'agent" }}
+                description={{
+                    en: "What the agent and the code raise during calls. Read in the « To triage » and « Alerts » pages of the menu.",
+                    fr: "Ce que l'agent et le code lèvent pendant les appels. À lire dans les pages « À trier » et « Alertes » du menu.",
+                }}
+            >
+                <Reglage cle="signaler_un_probleme" valeur={signaler} onChange={(v) => setSignaler(Boolean(v))} />
+                <Reglage cle="alertes_par_mail" valeur={alertesMail} onChange={(v) => setAlertesMail(Boolean(v))} />
             </Intertitre>
 
             <Intertitre id="donnees-issue" titre={{ en: "Call disposition", fr: "Issue de l'appel" }}>

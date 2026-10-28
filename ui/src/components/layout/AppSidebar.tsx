@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   AudioLines,
+  BellRing,
   ChartColumn,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   House,
   Key,
   KeyRound,
+  ListChecks,
   LogOut,
   type LucideIcon,
   Megaphone,
@@ -31,6 +33,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { SidebarOrganizationSwitcher } from "@/components/layout/SidebarOrganizationSwitcher";
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
 import { BoutonLangue } from "@/components/mark/langue/BoutonLangue";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import ThemeToggle from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +71,8 @@ type SidebarNavItem = {
   title: string;
   url: string;
   icon: LucideIcon;
+  /** [.mark] The title in both languages (T2); `title` stays the key and the English fallback. */
+  titre?: Texte;
   showsTelephonyWarning?: boolean;
 };
 
@@ -158,6 +163,19 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         url: "/cles",
         icon: Key,
       },
+      // [.mark] passages-fiables (lot G): what the agent and the code flagged, and the customer's problems.
+      {
+        title: "To triage",
+        titre: { en: "To triage", fr: "À trier" },
+        url: "/a-trier",
+        icon: ListChecks,
+      },
+      {
+        title: "Alerts",
+        titre: { en: "Alerts", fr: "Alertes" },
+        url: "/alertes",
+        icon: BellRing,
+      },
     ],
   },
 ];
@@ -166,6 +184,8 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { state, isMobile, setOpenMobile } = useSidebar();
+  const { t: texte } = useLangue();
+  const intitule = (item: SidebarNavItem) => (item.titre ? texte(item.titre) : item.title);
   const { provider, logout, user } = useAuth();
   const { config } = useAppConfig();
   const { openHireExpert } = useLeadForms();
@@ -202,7 +222,7 @@ export function AppSidebar() {
     const tooltip = {
       children: (
         <div className="notranslate" translate="no">
-          <p>{item.title}</p>
+          <p>{intitule(item)}</p>
           {showWarningDot && (
             <p className="text-foreground">{TELEPHONY_WARNING_COPY}</p>
           )}
@@ -251,7 +271,7 @@ export function AppSidebar() {
             className={cn("notranslate min-w-0 flex-1 truncate", isCollapsed && "sr-only")}
             translate="no"
           >
-            {item.title}
+            {intitule(item)}
           </span>
           {showWarningDot && (
             isCollapsed ? (

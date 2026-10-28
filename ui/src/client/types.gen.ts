@@ -2090,6 +2090,20 @@ export type ChampFiche = {
 };
 
 /**
+ * ChangementDeStatut
+ */
+export type ChangementDeStatut = {
+    /**
+     * Identifiant
+     */
+    identifiant: string;
+    /**
+     * Statut
+     */
+    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
+};
+
+/**
  * ChoixTraducteurs
  */
 export type ChoixTraducteurs = {
@@ -6018,6 +6032,114 @@ export type LiensDesGroupesResponse = {
 };
 
 /**
+ * LigneDAlerte
+ */
+export type LigneDAlerte = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Outil
+     */
+    outil?: string | null;
+    /**
+     * Tour
+     */
+    tour?: number | null;
+    /**
+     * Heure
+     */
+    heure?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+};
+
+/**
+ * LigneDeTri
+ */
+export type LigneDeTri = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Source
+     */
+    source: 'agent' | 'code';
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Categorie
+     */
+    categorie?: string | null;
+    /**
+     * Motif
+     */
+    motif?: string;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Tour
+     */
+    tour?: number | null;
+    /**
+     * Statut
+     */
+    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
+};
+
+/**
  * LigneObjet
  *
  * A line of a list: its cells, by column label. ``id`` absent: a new line.
@@ -8070,6 +8192,58 @@ export type OutilVu = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * PageDAlertes
+ */
+export type PageDAlertes = {
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDAlerte>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * A Une Suite
+     */
+    a_une_suite: boolean;
+    /**
+     * Jours
+     */
+    jours?: number;
+    /**
+     * Par Page
+     */
+    par_page?: number;
+};
+
+/**
+ * PageDeTri
+ */
+export type PageDeTri = {
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDeTri>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * A Une Suite
+     */
+    a_une_suite: boolean;
+    /**
+     * Jours
+     */
+    jours?: number;
+    /**
+     * Par Page
+     */
+    par_page?: number;
 };
 
 /**
@@ -10801,11 +10975,11 @@ export type Sortie = {
      *
      * The final action. Empty: the default of the cause (the behavior before).
      */
-    action?: 'continuer' | 'modele' | 'transferer' | 'raccrocher' | null;
+    action?: 'continuer' | 'modele' | 'transferer' | 'raccrocher' | 'rendre_la_main' | 'aller_a_une_etape' | null;
     /**
      * Destination
      *
-     * For a transfer: the key of a member of the team (set in Team).
+     * For a transfer: the key of a member of the team (set in Team). For "go to a step": the identifier of a step of the main agent.
      */
     destination?: string | null;
 };
@@ -10992,6 +11166,24 @@ export type SpeechmaticsSttConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * StatutEcrit
+ */
+export type StatutEcrit = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Identifiant
+     */
+    identifiant: string;
+    /**
+     * Statut
+     */
+    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
 };
 
 /**
@@ -13546,6 +13738,18 @@ export type WorkflowConfigurationDefaults = {
      * Offers the agent a tool for when the caller asks for a moment (to look something up or check). While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. Off (default): the tool is not offered.
      */
     laisser_la_parole?: boolean;
+    /**
+     * Signaler Un Probleme
+     *
+     * Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the tool is not offered.
+     */
+    signaler_un_probleme?: boolean;
+    /**
+     * Alertes Par Mail
+     *
+     * At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in the « Alerts » page; without a mail server the mail is simply not sent. Off (default): no mail.
+     */
+    alertes_par_mail?: boolean;
     /**
      * Generer Schema Parcours
      *
@@ -18039,6 +18243,162 @@ export type UsagesDUneCleApiV1ClesUuidUsagesGetResponses = {
 };
 
 export type UsagesDUneCleApiV1ClesUuidUsagesGetResponse = UsagesDUneCleApiV1ClesUuidUsagesGetResponses[keyof UsagesDUneCleApiV1ClesUuidUsagesGetResponses];
+
+export type LireLaFileDeTriApiV1TriGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+        /**
+         * Statut
+         */
+        statut?: 'ouvert' | 'en cours' | 'résolu' | 'fusionné' | null;
+    };
+    url: '/api/v1/tri';
+};
+
+export type LireLaFileDeTriApiV1TriGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaFileDeTriApiV1TriGetError = LireLaFileDeTriApiV1TriGetErrors[keyof LireLaFileDeTriApiV1TriGetErrors];
+
+export type LireLaFileDeTriApiV1TriGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDeTri;
+};
+
+export type LireLaFileDeTriApiV1TriGetResponse = LireLaFileDeTriApiV1TriGetResponses[keyof LireLaFileDeTriApiV1TriGetResponses];
+
+export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutData = {
+    body: ChangementDeStatut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tri/{run_id}';
+};
+
+export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutError = ChangerLeStatutDUnSignalementApiV1TriRunIdPutErrors[keyof ChangerLeStatutDUnSignalementApiV1TriRunIdPutErrors];
+
+export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: StatutEcrit;
+};
+
+export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutResponse = ChangerLeStatutDUnSignalementApiV1TriRunIdPutResponses[keyof ChangerLeStatutDUnSignalementApiV1TriRunIdPutResponses];
+
+export type LireLesAlertesApiV1AlertesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+    };
+    url: '/api/v1/alertes';
+};
+
+export type LireLesAlertesApiV1AlertesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesAlertesApiV1AlertesGetError = LireLesAlertesApiV1AlertesGetErrors[keyof LireLesAlertesApiV1AlertesGetErrors];
+
+export type LireLesAlertesApiV1AlertesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDAlertes;
+};
+
+export type LireLesAlertesApiV1AlertesGetResponse = LireLesAlertesApiV1AlertesGetResponses[keyof LireLesAlertesApiV1AlertesGetResponses];
 
 export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
     body?: never;
