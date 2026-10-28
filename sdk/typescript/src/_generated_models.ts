@@ -2030,12 +2030,6 @@ export interface components {
              */
             relecture_des_numeros: boolean;
             /**
-             * Numero Jamais Dicte
-             * @description A reply holding a run of 8 digits or more (spaces and dots ignored) that the caller never dictated, that no tool result gives, and that is not the call's own number, is held back and the model is asked once to have the caller dictate it. The reply is held from its first digit on. OpenAI-compatible brain only. Off (default): replies are spoken as written.
-             * @default false
-             */
-            numero_jamais_dicte: boolean;
-            /**
              * Laisser La Parole
              * @description Offers the agent a tool for when the caller asks for a moment (to look something up or check). While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. Off (default): the tool is not offered.
              * @default false

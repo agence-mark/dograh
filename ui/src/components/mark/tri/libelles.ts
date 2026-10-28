@@ -17,7 +17,6 @@ export const TYPES_DE_SIGNALEMENT: Record<string, Texte> = {
     porte_inconnue: { en: "Unknown exit chosen by the arbiter", fr: "Sortie inconnue choisie par l'arbitre" },
     desaccord: { en: "Agent and arbiter disagreed", fr: "L'agent et l'arbitre en désaccord" },
     passage_sans_suite: { en: "Transition by the code that did not go through", fr: "Passage par le code sans suite" },
-    replique_retenue: { en: "Reply held back (number never dictated)", fr: "Réplique retenue (numéro jamais dicté)" },
     garde_modele: { en: "Model too slow, several times", fr: "Modèle trop lent, plusieurs fois" },
 };
 

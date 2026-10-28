@@ -5,7 +5,7 @@ Aucune migration, aucune recopie. Tout ce que le code et l'agent notent pendant 
 
 - ``signalements`` : l'agent (lot F, source ``agent``) ;
 - les traces du code qui méritent un tri : impasse, porte inconnue de l'arbitre, désaccord agent/arbitre, passage par le
-  code qui n'a pas abouti, réplique retenue (numéro jamais dicté), garde du modèle (lent deux fois) ;
+  code qui n'a pas abouti, garde du modèle (lent deux fois) ;
 - ``alertes`` : le problème du CLIENT (appel en erreur, outil en échec, panne du modèle, transfert échoué).
 
 Le statut d'un signalement (``ouvert`` · ``en cours`` · ``résolu`` · ``fusionné``) n'est PAS dans ``gathered_context`` : la
@@ -35,7 +35,6 @@ CLE_IMPASSE = "impasse"
 CLE_ARBITRE = "arbitre"
 CLE_DESACCORDS = "desaccords_arbitre"
 CLE_PASSAGES = "passages_par_le_code"
-CLE_REPLIQUES_RETENUES = "repliques_numero_retenues"
 CLE_DEPASSEMENTS = "depassements_modele"
 
 # --- L'agent ---------------------------------------------------------------------------------------------------
@@ -52,14 +51,12 @@ TYPE_IMPASSE = "impasse"
 TYPE_PORTE_INCONNUE = "porte_inconnue"
 TYPE_DESACCORD = "desaccord"
 TYPE_PASSAGE = "passage_sans_suite"
-TYPE_REPLIQUE_RETENUE = "replique_retenue"
 TYPE_GARDE_MODELE = "garde_modele"
 TYPES_DU_CODE = (
     TYPE_IMPASSE,
     TYPE_PORTE_INCONNUE,
     TYPE_DESACCORD,
     TYPE_PASSAGE,
-    TYPE_REPLIQUE_RETENUE,
     TYPE_GARDE_MODELE,
 )
 
@@ -104,7 +101,6 @@ def chemin_des_runs_a_trier() -> str:
         "$ ? ("
         f"exists(@.{CLE_SIGNALEMENTS}[*])"
         f" || exists(@.{CLE_DESACCORDS}[*])"
-        f" || exists(@.{CLE_REPLIQUES_RETENUES}[*])"
         f" || @.{CLE_IMPASSE}.impasses > 0"
         f" || @.{CLE_DEPASSEMENTS} >= {DEPASSEMENTS_A_TRIER}"
         f' || exists(@.{CLE_ARBITRE}[*] ? (@.resultat == "{RESULTAT_ARBITRE_A_TRIER}"))'
@@ -123,7 +119,6 @@ CLES_LUES_POUR_LE_TRI = (
     CLE_ARBITRE,
     CLE_DESACCORDS,
     CLE_PASSAGES,
-    CLE_REPLIQUES_RETENUES,
     CLE_DEPASSEMENTS,
 )
 CLES_LUES_POUR_LES_ALERTES = (CLE_ALERTES, CLE_ALERTES_MAIL)
@@ -277,17 +272,6 @@ def lire_les_signalements(contexte: Any) -> list[dict]:
                         "tour": e.get("tour"),
                     }
                 )
-        for rang, e in enumerate(_liste(contexte, CLE_REPLIQUES_RETENUES)):
-            lignes.append(
-                {
-                    "id": f"{TYPE_REPLIQUE_RETENUE}:{rang}",
-                    "source": SOURCE_CODE,
-                    "type": TYPE_REPLIQUE_RETENUE,
-                    "motif": str(e.get("raison") or ""),
-                    "etape": e.get("etape"),
-                    "tour": None,
-                }
-            )
         if _entier(contexte.get(CLE_DEPASSEMENTS)) >= DEPASSEMENTS_A_TRIER:
             lignes.append(
                 {

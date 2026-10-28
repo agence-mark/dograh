@@ -515,17 +515,6 @@ export const CATALOGUE = {
             },
         ],
     }),
-    // passages-fiables (lot C1, registre XXIX.4): off by default.
-    numero_jamais_dicte: d({
-        type: "interrupteur",
-        libelle: { en: "Never say a number the caller did not dictate", fr: "Ne jamais dire un numéro que l'appelant n'a pas dicté" },
-        aides: [
-            {
-                en: "A reply holding a run of 8 digits or more (spaces and dots ignored) that the caller never dictated, that no tool result gives and that is not the call's own number, is held back. The model is asked once to have the caller dictate it. The reply is held from its first digit on: the words before it are spoken at once. Works with the OpenAI-compatible brain only. Off: replies are spoken as written.",
-                fr: "Une réplique qui contient une suite de 8 chiffres ou plus (espaces et points ignorés) que l'appelant n'a jamais dictée, qu'aucun résultat d'outil ne donne et qui n'est pas le numéro de l'appel est retenue. Le modèle est relancé une fois pour demander à l'appelant de le dicter. La réplique n'est tenue qu'à partir de son premier chiffre : les mots d'avant partent tout de suite. Seulement avec le cerveau compatible OpenAI. Éteint : les répliques sont dites telles qu'écrites.",
-            },
-        ],
-    }),
     tts_replacements: d({
         type: "etiquettes",
         indication: "SAV:S. A. V.",

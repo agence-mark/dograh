@@ -102,7 +102,6 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     interdire_nom_appelant: { theme: "voix", cas: ["nom-appelant"] },
     interdire_civilite_appelant: { theme: "voix", cas: ["civilite"] },
     relecture_des_numeros: { theme: "voix", cas: ["relecture-des-numeros"] },
-    numero_jamais_dicte: { theme: "voix", cas: ["numero-jamais-dicte"] },
     tts_replacements: { theme: "voix", cas: ["prononciation"] },
     // Chantier voix-soniox, lot 5 bis (D11) then lot 7: a card that opens a centred modal (`BalisesPermises.tsx`).
     tts_balises_permises: { theme: "voix", cas: ["balises-permises"] },

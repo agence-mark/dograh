@@ -894,16 +894,6 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written."
         ),
     )
-    # [.mark] passages-fiables (lot C1, registre XXIX.4) : un numéro que la personne n'a jamais dicté n'est pas dit.
-    numero_jamais_dicte: bool = Field(
-        default=False,
-        description=(
-            "A reply holding a run of 8 digits or more (spaces and dots ignored) that the caller never dictated, "
-            "that no tool result gives, and that is not the call's own number, is held back and the model is asked "
-            "once to have the caller dictate it. The reply is held from its first digit on. OpenAI-compatible brain "
-            "only. Off (default): replies are spoken as written."
-        ),
-    )
     # [.mark] passages-fiables (lot E) : laisser la parole.
     laisser_la_parole: bool = Field(
         default=False,

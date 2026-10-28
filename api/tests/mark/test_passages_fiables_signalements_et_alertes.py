@@ -184,7 +184,6 @@ def _contexte_riche():
             {"etape": "A", "resultat": "jetee_la_personne_parle", "tour": 2},
             {"etape": "C", "resultat": "greffier_sans_reponse", "tour": 7},
         ],
-        "repliques_numero_retenues": [{"raison": "numero_jamais_dicte", "numero": "06 06 06 06 06", "etape": "C"}],
         "depassements_modele": 2,
     }
 
@@ -193,7 +192,7 @@ def test_g_chaque_trace_du_code_qui_merite_un_tri_est_lue_et_pas_le_normal():
     lignes = donnees.lire_les_signalements(_contexte_riche())
     types = sorted(ligne["type"] for ligne in lignes)
     assert types == sorted(
-        ["agent", "impasse", "porte_inconnue", "desaccord", "passage_sans_suite", "replique_retenue", "garde_modele"]
+        ["agent", "impasse", "porte_inconnue", "desaccord", "passage_sans_suite", "garde_modele"]
     )
     assert len({ligne["id"] for ligne in lignes}) == len(lignes)  # identifiants uniques et stables
     assert {ligne["source"] for ligne in lignes if ligne["type"] != "agent"} == {"code"}
@@ -462,12 +461,12 @@ def test_g_le_moteur_branche_l_alerte_de_fin_en_erreur_et_le_mail_est_au_telepho
     assert "brancher_signaler_un_probleme" in (racine / "workflow" / "pipecat_engine.py").read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("cle", ["signalements", "impasse", "arbitre", "desaccords_arbitre", "passages_par_le_code", "repliques_numero_retenues", "depassements_modele"])
+@pytest.mark.parametrize("cle", ["signalements", "impasse", "arbitre", "desaccords_arbitre", "passages_par_le_code", "depassements_modele"])
 async def test_g_le_filtre_de_la_base_trouve_chaque_sorte_de_signalement_que_la_lecture_trouve(
     db_session, async_session, test_client_factory, cle
 ):
     """Le filtre SQL et la lecture en Python partent des mêmes constantes : un run que la lecture trouve est aussi un
-    run que la base remonte, pour chacune des sept sources."""
+    run que la base remonte, pour chacune des six sources."""
     user, workflow = await _monter(db_session, async_session, dict(FICHE))
     contexte = {cle: _contexte_riche()[cle]}
     assert donnees.lire_les_signalements(contexte), cle

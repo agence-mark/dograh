@@ -121,7 +121,6 @@ export const CLES_VOIX = [
     "interdire_nom_appelant",
     "interdire_civilite_appelant",
     "relecture_des_numeros",
-    "numero_jamais_dicte",
 ] as const;
 
 export const CLES_RELANCE = [

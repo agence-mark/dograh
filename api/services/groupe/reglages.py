@@ -175,7 +175,6 @@ CLES_THEME_VOIX: tuple[str, ...] = (
     "interdire_nom_appelant",
     "interdire_civilite_appelant",
     "relecture_des_numeros",
-    "numero_jamais_dicte",
     "tts_replacements",
     "tts_balises_permises",
     "ambient_noise_configuration",

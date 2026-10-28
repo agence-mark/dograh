@@ -47,7 +47,6 @@ export const CLES_VOIX_MARK = [
     "interdire_nom_appelant",
     "interdire_civilite_appelant",
     "relecture_des_numeros",
-    "numero_jamais_dicte",
     "tts_replacements",
 ] as const satisfies readonly CleCatalogue[];
 
@@ -232,7 +231,6 @@ export const ThemeVoix = ({
                 {r("interdire_nom_appelant")}
                 {r("interdire_civilite_appelant")}
                 {r("relecture_des_numeros")}
-                {r("numero_jamais_dicte")}
                 <p className="text-xs text-muted-foreground">
                     {t({
                         en: "Enforced in code, not by the prompt: five rewrites of the instructions in two days still left the name spoken in 2 voice runs out of 5. Each switch works on its own.",
