@@ -27,6 +27,7 @@ from api.db.models import WorkflowRunModel
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.tri import alertes, donnees, pages
 from api.services.workflow.pipecat_engine import PipecatEngine
+from api.services.pipecat.parole_avant_outil import SuiviDeLaParole
 from api.services.workflow.signaler_un_probleme import (
     NOM_OUTIL,
     RESULTAT,
@@ -46,18 +47,27 @@ class _Agent:
         self.current_node = SimpleNamespace(name="Étape", is_end=fin)
         self.enregistres = {}
         self.llm = SimpleNamespace(register_function=lambda nom, f: self.enregistres.update({nom: f}))
+        # R15 (correction du banc local, 29/10) : le suivi de la parole, comme sur un vrai service.
+        self.suivi = SuiviDeLaParole()
+        self.llm._mark_parole_avant_outil = self.suivi
 
     def bind_tool(self, moteur, f):
         return f
 
 
-async def _appeler(agent, **arguments):
+async def _appeler(agent, ident="s1", parle=True, **arguments):
+    """Appelle l'outil ; ``parle`` : la même réponse a dit une phrase avant l'appel."""
+    if parle:
+        agent.suivi.texte = "Je note."
+        agent.suivi.appels_emis([SimpleNamespace(tool_call_id=ident)])
     rendu = {}
 
     async def result_callback(valeur, properties=None):
         rendu["valeur"], rendu["properties"] = valeur, properties
 
-    await agent.enregistres[NOM_OUTIL](SimpleNamespace(arguments=arguments, result_callback=result_callback))
+    await agent.enregistres[NOM_OUTIL](
+        SimpleNamespace(arguments=arguments, tool_call_id=ident, result_callback=result_callback)
+    )
     return rendu
 
 
@@ -93,7 +103,7 @@ async def test_f_deux_signalements_au_plus_par_appel_le_troisieme_est_ignore_san
     agent = _Agent({"signaler_un_probleme": True})
     brancher_signaler_un_probleme(moteur, agent, agent.current_node)
     for numero in range(3):
-        rendu = await _appeler(agent, motif=f"motif {numero}", categorie="autre")
+        rendu = await _appeler(agent, ident=f"s{numero}", motif=f"motif {numero}", categorie="autre")
         assert rendu["properties"].run_llm is False
     assert [s["motif"] for s in moteur._gathered_context["signalements"]] == ["motif 0", "motif 1"]
 
@@ -111,8 +121,8 @@ async def test_f_sans_fiche_ou_sans_arguments_l_outil_ne_leve_pas():
     moteur = SimpleNamespace(_gathered_context=None)
     agent = _Agent({"signaler_un_probleme": True})
     brancher_signaler_un_probleme(moteur, agent, agent.current_node)
-    rendu = await _appeler(agent)
-    assert rendu["properties"].run_llm is False
+    rendu = await _appeler(agent, parle=False)
+    assert rendu["properties"] is None  # appelé seul : le modèle est relancé (R15)
 
 
 async def test_f_un_vrai_moteur_offre_l_outil_case_allumee_et_pas_case_eteinte(three_node_workflow, no_disposition_mapping):

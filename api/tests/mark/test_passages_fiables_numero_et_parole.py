@@ -160,7 +160,15 @@ async def test_e_l_outil_accorde_l_attente_et_ne_fait_pas_reparler_l_agent():
     async def result_callback(valeur, properties=None):
         rendu["valeur"], rendu["properties"] = valeur, properties
 
-    await agent.enregistres[NOM_OUTIL](SimpleNamespace(result_callback=result_callback))
+    # R15 (correction du banc local, 29/10) : la même réponse a dit « je vous attends » avant l'appel.
+    from api.services.pipecat.parole_avant_outil import SuiviDeLaParole
+
+    suivi = SuiviDeLaParole()
+    agent.llm._mark_parole_avant_outil = suivi
+    brancher_laisser_la_parole(moteur, agent, agent.current_node)
+    suivi.texte = "Je vous attends."
+    suivi.appels_emis([SimpleNamespace(tool_call_id="a1")])
+    await agent.enregistres[NOM_OUTIL](SimpleNamespace(tool_call_id="a1", result_callback=result_callback))
     assert moteur.call_monitor.attente_accordee is True
     assert rendu["properties"].run_llm is False
     assert moteur._gathered_context[TRACE_PAROLE][0]["evenement"] == "accordee"
