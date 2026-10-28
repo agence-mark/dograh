@@ -209,6 +209,8 @@ class Observation:
     etape_id: str | None = None
     etape_nom: str | None = None
     etapes_traversees: list[str] = field(default_factory=list)  # noms, dans l'ordre
+    # Les outils sortants qui n'ont PAS été exécutés (simulés au rejeu) : [{"nom", "categorie", "ecriture", "arguments"}]
+    simules: list[dict[str, Any]] = field(default_factory=list)
 
     def en_json(self) -> dict[str, Any]:
         return {
@@ -216,6 +218,7 @@ class Observation:
             "outils": self.outils,
             "etape": {"id": self.etape_id, "nom": self.etape_nom},
             "etapes_traversees": self.etapes_traversees,
+            "simules": self.simules,
         }
 
 

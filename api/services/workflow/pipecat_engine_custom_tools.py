@@ -54,6 +54,7 @@ from api.services.equipe.transferts_humains import (
 from api.services.telephony.external_pbx import resolve_external_pbx_field_mappings
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
+from api.services.tests_rejouables.simulation import simuler_si_rejeu
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
@@ -339,7 +340,13 @@ class CustomToolManager:
                                 envelopper_l_action(
                                     self._engine,
                                     fs.name,
-                                    self._create_mcp_handler(session, fs.name),
+                                    # [.mark] passages-fiables (rejeu d'un test) : simulé, jamais exécuté ; hors rejeu : tel quel.
+                                    simuler_si_rejeu(
+                                        self._engine,
+                                        tool.category,
+                                        fs.name,
+                                        self._create_mcp_handler(session, fs.name),
+                                    ),
                                     self._agent,
                                 ),
                                 timeout_secs=session.call_timeout_secs,
@@ -382,7 +389,13 @@ class CustomToolManager:
                             envelopper_l_action(
                                 self._engine,
                                 nom,
-                                integration.creer_gestionnaire(self, tool, nom),
+                                # [.mark] passages-fiables (rejeu d'un test) : simulé, jamais exécuté ; hors rejeu : tel quel.
+                                simuler_si_rejeu(
+                                    self._engine,
+                                    tool.category,
+                                    nom,
+                                    integration.creer_gestionnaire(self, tool, nom),
+                                ),
                                 self._agent,
                                 garde=not interne,
                             ),
@@ -455,7 +468,13 @@ class CustomToolManager:
             handler = self._create_transfer_agent_handler(tool, function_name)
         elif tool.category == ToolCategory.TRANSFER_CALL.value:
             timeout_secs = self._transfer_handler_timeout_secs(tool)
-            handler = self._create_transfer_call_handler(tool, function_name)
+            # [.mark] passages-fiables (rejeu d'un test) : le transfert d'appel est simulé, hors rejeu : tel quel.
+            handler = simuler_si_rejeu(
+                self._engine,
+                tool.category,
+                function_name,
+                self._create_transfer_call_handler(tool, function_name),
+            )
         else:
             # [.mark] correctifs-apres-banc-v4, lot 3 : le délai de l'appel de fonction couvre les essais.
             # M2 (revue) : une marge au-dessus des essais, pour que la panne arrive jusqu'à la règle « un outil
@@ -465,7 +484,13 @@ class CustomToolManager:
             handler = envelopper_l_action(
                 self._engine,
                 function_name,
-                self._create_http_tool_handler(tool, function_name),
+                # [.mark] passages-fiables (rejeu d'un test) : simulé, jamais exécuté ; hors rejeu : tel quel.
+                simuler_si_rejeu(
+                    self._engine,
+                    tool.category,
+                    function_name,
+                    self._create_http_tool_handler(tool, function_name),
+                ),
                 self._agent,
             )
 

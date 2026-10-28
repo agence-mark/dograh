@@ -29,6 +29,7 @@ from api.services.tests_rejouables.modele import (
     lire_test,
     refuser_si_protege,
 )
+from api.services.tests_rejouables.simulation import CLE_NOTES, CLE_REJEU
 from api.services.workflow.run_creation import (
     definition_to_run,
     prepare_workflow_run_inputs,
@@ -109,7 +110,7 @@ def _point_de_reprise(test: TestRejouable, etape_id: str | None) -> dict[str, An
         "anchor_turn_id": "turn_restaure",
         "current_node_id": etape_id,
         "messages": _serialize_text_chat_checkpoint_messages(messages),
-        "gathered_context": dict(test.fiche),
+        "gathered_context": {**test.fiche, CLE_REJEU: True},
         "tool_state": {},
     }
 
@@ -126,6 +127,9 @@ def _observer(tour: dict[str, Any], noeuds: dict[str, str]) -> Observation:
             obs.etapes_traversees.append(nom)
             if p.get("node_id") is not None:
                 noms_par_id[str(p["node_id"])] = nom
+    fiche_apres = (tour.get("checkpoint_after_turn") or {}).get("gathered_context") or {}
+    notes = fiche_apres.get(CLE_NOTES) if isinstance(fiche_apres, dict) else None
+    obs.simules = [n for n in notes if isinstance(n, dict)] if isinstance(notes, list) else []
     obs.etape_id = (tour.get("checkpoint_after_turn") or {}).get("current_node_id")
     if obs.etape_id is not None:
         obs.etape_nom = noms_par_id.get(str(obs.etape_id)) or noeuds.get(str(obs.etape_id)) or None
@@ -151,7 +155,8 @@ async def _un_essai(
             mode=WorkflowRunMode.TEXTCHAT.value,
             user_id=workflow.user_id,
             initial_context=entrees.initial_context,
-            gathered_context=dict(test.fiche),
+            # CLE_REJEU : les outils sortants de la copie ne partent pas (voir ``simulation.py``).
+            gathered_context={**test.fiche, CLE_REJEU: True},
             organization_id=workflow.organization_id,
             definition_id=entrees.definition_id,
             use_draft=entrees.use_draft,
@@ -264,6 +269,9 @@ def rendre(resultats: list[ResultatTest]) -> str:
         for e in r.essais:
             marque = "ok " if e.reussi else "raté"
             lignes.append(f"    essai {e.numero} {marque} : {e.erreur or e.detail}" + (f" (run {e.run_id})" if e.run_id else ""))
+            simules = [n.get("nom") or "?" for n in (e.observe.get("simules") or [])]
+            if simules:
+                lignes.append(f"        outils simulés (rien n'est parti) : {', '.join(simules)}")
     if len(resultats) > 1:
         verts = sum(1 for r in resultats if r.vert)
         lignes.append(f"Suite : {verts}/{len(resultats)} test(s) à 100 %.")
