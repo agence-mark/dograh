@@ -4416,6 +4416,20 @@ def montrer_la_fiche(
     ``get_chat_completions`` est marquée, par une variable de contexte propre à
     la tâche en cours.
     """
+    def etat_pour(messages: Iterable[dict]) -> str | None:
+        return etat_avec_les_indices(
+            reglages,
+            fiche(),
+            notices,
+            messages,
+            champs_etape() if champs_etape else (),
+            a_des_portes() if a_des_portes else True,
+            sorties() if sorties else (),
+        )
+
+    # [.mark] figeage-v12 (D4) : le constructeur du texte de l'état, retrouvé par le processeur posé autour du cerveau
+    # (``fiche_dans_le_systeme``), quelle que soit la famille du service.
+    setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
     if not (
         hasattr(llm, "get_chat_completions")
         and hasattr(llm, "build_chat_completion_params")
@@ -4439,20 +4453,14 @@ def montrer_la_fiche(
 
     def build_chat_completion_params(params_from_context):
         params = construire(params_from_context)
-        if en_conversation.get():
+        # figeage-v12 (D4) : case « fiche dans le système » allumée et bloc rangé pour CETTE requête : l'état est déjà dans
+        # l'instruction système, il n'est pas répété comme un message de la personne.
+        if en_conversation.get() and not getattr(llm, "_mark_fiche_en_systeme", False):
             try:
                 # Lot 1 d'orchestrateur-trois-cerveaux : l'API Responses range la conversation
                 # dans ``input`` (mêmes éléments rôle + contenu) ; chat completions, dans ``messages``.
                 cle = "messages" if "messages" in params else "input"
-                texte = etat_avec_les_indices(
-                    reglages,
-                    fiche(),
-                    notices,
-                    params[cle],
-                    champs_etape() if champs_etape else (),
-                    a_des_portes() if a_des_portes else True,
-                    sorties() if sorties else (),
-                )
+                texte = etat_pour(params[cle])
                 if texte:
                     params[cle] = inserer_l_etat(list(params[cle]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel

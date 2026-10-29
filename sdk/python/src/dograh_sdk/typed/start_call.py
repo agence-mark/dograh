@@ -91,12 +91,14 @@ class StartCall(TypedNode):
     arbiter chooses. Free: the agent leads, the arbiter is the safety net.
     """
 
-    moment_du_passage: Optional[Literal['apres_la_reponse', 'attendre_le_dernier_champ']] = None
+    moment_du_passage: Optional[Literal['apres_la_reponse', 'attendre_le_dernier_champ', 'attendre_a_chaque_tour']] = None
     """
     After the reply (default): the code passes once the agent has answered.
     Wait for the last field: when a single field is missing, the request
     waits (briefly) for the clerk to read the caller's last words, and the
-    next step speaks at once.
+    next step speaks at once. Wait at every turn (collection steps): the
+    request always waits (briefly) for the clerk, so the record shown to the
+    agent holds what the caller just said.
     """
 
     delai_du_passage: Optional[float] = None

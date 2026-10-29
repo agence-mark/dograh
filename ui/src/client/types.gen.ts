@@ -13737,6 +13737,12 @@ export type WorkflowConfigurationDefaults = {
      */
     laisser_la_parole?: boolean;
     /**
+     * Fiche Dans Le Systeme
+     *
+     * Where the record's state (what is noted, what is still expected) is shown to the model. Off (default): as a message of the caller, just before their last words. On: at the end of the system instruction, rebuilt for every request, which is where the model takes its orders (measured: a model that asked again for what the record held read it there). Works with any model.
+     */
+    fiche_dans_le_systeme?: boolean;
+    /**
      * Signaler Un Probleme
      *
      * Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the tool is not offered.

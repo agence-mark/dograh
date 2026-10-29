@@ -18,7 +18,7 @@ le jeton de visite d'étape. Il porte aussi :
 - **la notice d'un tour** : l'étape d'arrivée d'un passage fait par le code reçoit, sur sa première requête, le compte
   rendu « ce qui vient de se passer… L'appelant a entendu : « … ». Ne la répète pas. » (dans une copie du contexte de
   CETTE requête, jamais dans l'historique) ;
-- **l'option 2** : sur une étape réglée « attendre le dernier champ », quand un seul champ manque, la requête de l'agent
+- **l'option 2** (et, figeage-v12, « attendre à chaque tour ») : sur une étape réglée « attendre le dernier champ », quand un seul champ manque, la requête de l'agent
   attend (au plus le délai) la passe du greffier sur la dernière parole ; si la condition devient vraie, le passage a
   lieu **avant** que l'agent parle, et l'étape d'arrivée parle directement. Sauf vers une fin, un retour au principal
   ou un transfert garanti : l'option 1 joue alors ;
@@ -47,6 +47,9 @@ RAISON_ARBITRE = "arbitre"
 
 AGENT, COLLECTE, CHOIX, LIBRE = "agent", "collecte", "choix", "libre"
 APRES_LA_REPONSE, ATTENDRE_LE_DERNIER_CHAMP = "apres_la_reponse", "attendre_le_dernier_champ"
+# figeage-v12 (D4) : la fiche a un tour de retard (le greffier part EN MÊME TEMPS que la requête de l'agent, jamais avant) ;
+# sur une étape de collecte réglée ainsi, la requête attend la passe du greffier sur la dernière parole à CHAQUE tour.
+ATTENDRE_A_CHAQUE_TOUR = "attendre_a_chaque_tour"
 
 # Le fait du compte rendu de la notice d'un tour (une consigne au modèle, jamais dite à l'appelant).
 FAIT_DU_PASSAGE = "le code est passé à l'étape suivante, parce que la fiche ou la conversation le demandait"
@@ -69,6 +72,15 @@ class Reglages:
     @property
     def option_2(self) -> bool:
         return self.qui == COLLECTE and self.moment == ATTENDRE_LE_DERNIER_CHAMP
+
+    @property
+    def attend_a_chaque_tour(self) -> bool:
+        return self.qui == COLLECTE and self.moment == ATTENDRE_A_CHAQUE_TOUR
+
+    @property
+    def attend_le_greffier(self) -> bool:
+        """La requête de l'agent attend la passe du greffier sur la dernière parole (option 2, ou chaque tour)."""
+        return self.option_2 or self.attend_a_chaque_tour
 
 
 def reglages_du_passage(noeud: Any) -> Reglages:
@@ -467,7 +479,7 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         noeud = agent.current_node
         r = reglages_du_passage(noeud)
         greffier = getattr(moteur, "greffier", None)
-        if not r.option_2 or greffier is None or getattr(noeud, "is_end", False):
+        if not r.attend_le_greffier or greffier is None or getattr(noeud, "is_end", False):
             return False
         if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
             return False
@@ -482,7 +494,9 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         manque = champs_attendus(
             reglages, fiche, champs_actifs(noeud, fiche), valeurs_des_traces(reglages, fiche)
         )
-        if len(manque) != 1:
+        # Option 2 : un seul champ manque. Chaque tour (D4) : à tout tour d'une étape de collecte, pour que la fiche montrée
+        # à l'agent contienne ce que la personne vient de dire.
+        if not r.attend_a_chaque_tour and len(manque) != 1:
             return False
         jeton = moteur.jeton_de_visite()
         reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))

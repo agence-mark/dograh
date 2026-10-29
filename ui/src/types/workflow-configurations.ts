@@ -82,6 +82,8 @@ export const DEFAUTS_PIPECAT = {
     relecture_des_numeros: false,
     // [.mark] passages-fiables (lot E): off by default.
     laisser_la_parole: false,
+    // [.mark] figeage-v12 (D4): off by default.
+    fiche_dans_le_systeme: false,
     // [.mark] passages-fiables (lots F and G): off by default.
     signaler_un_probleme: false,
     alertes_par_mail: false,
@@ -420,6 +422,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     etiquettes_des_etapes?: boolean;
     // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (D4): « Known: name, town » next to the question.
     fiche_deja_connu?: boolean;
+    // [.mark] figeage-v12 (D4): the record's state at the end of the system instruction, not as a caller message.
+    fiche_dans_le_systeme?: boolean;
     // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2): the end-of-call safety net of a specialised agent.
     filet_de_fin?: boolean;
     // [.mark] greffier-conversation, lot E (C4): the code launches the transfer on arrival.

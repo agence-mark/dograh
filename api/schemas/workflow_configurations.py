@@ -905,6 +905,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the agent. Off (default): the question is not asked."
         ),
     )
+    # [.mark] figeage-v12 (D4) : l'état de la fiche dans l'instruction système.
+    fiche_dans_le_systeme: bool = Field(
+        default=False,
+        description=(
+            "Where the record's state (what is noted, what is still expected) is shown to the model. Off (default): "
+            "as a message of the caller, just before their last words. On: at the end of the system instruction, "
+            "rebuilt for every request, which is where the model takes its orders (measured: a model that asked again "
+            "for what the record held read it there). Works with any model."
+        ),
+    )
     # [.mark] passages-fiables (lot F) : le signalement par l'agent.
     signaler_un_probleme: bool = Field(
         default=False,

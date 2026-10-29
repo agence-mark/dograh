@@ -582,6 +582,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // figeage-v12 (D4): off by default.
+    fiche_dans_le_systeme: d({
+        type: "interrupteur",
+        libelle: { en: "Show the record in the system instruction", fr: "Montrer la fiche dans l'instruction système" },
+        aides: [
+            {
+                en: "Where the model reads the record's state (what is noted, what is still expected). Off: as a message of the caller, just before their last words. On: at the end of the system instruction, rebuilt for every request, which is where the model takes its orders; it stops asking again for what the record already holds. Works with any model. Takes effect on the next call.",
+                fr: "L'endroit où le modèle lit l'état de la fiche (ce qui est noté, ce qui est encore attendu). Éteint : comme un message de l'appelant, juste avant ses dernières paroles. Allumé : à la fin de l'instruction système, recalculée à chaque requête, là où le modèle prend ses consignes ; il ne redemande plus ce que la fiche tient déjà. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
     // passages-fiables (lot F): off by default.
     signaler_un_probleme: d({
         type: "interrupteur",

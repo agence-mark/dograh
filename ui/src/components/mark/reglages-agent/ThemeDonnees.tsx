@@ -185,6 +185,11 @@ export const ThemeDonnees = ({
     const [connuEtAttendu, setConnuEtAttendu] = useState(connuEtAttenduEnregistre);
     useEffect(() => setConnuEtAttendu(connuEtAttenduEnregistre), [connuEtAttenduEnregistre]);
     const connuEtAttenduModifie = connuEtAttendu !== connuEtAttenduEnregistre;
+    // figeage-v12 (D4): the record's state at the end of the system instruction. Off by default; every note-taking mode.
+    const ficheSystemeEnregistree = resolue.fiche_dans_le_systeme ?? false;
+    const [ficheSysteme, setFicheSysteme] = useState(ficheSystemeEnregistree);
+    useEffect(() => setFicheSysteme(ficheSystemeEnregistree), [ficheSystemeEnregistree]);
+    const ficheSystemeModifiee = ficheSysteme !== ficheSystemeEnregistree;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -364,6 +369,7 @@ export const ThemeDonnees = ({
         || generalModifie
         || apresAppelModifie
         || connuEtAttenduModifie
+        || ficheSystemeModifiee
         || transfertModifie
         || formulationsModifiees
         || redemandeModifiee
@@ -413,6 +419,12 @@ export const ThemeDonnees = ({
                 },
                 modifie: connuEtAttenduModifie,
                 config: () => ({ etiquettes_des_etapes: connuEtAttendu, fiche_deja_connu: connuEtAttendu }),
+            },
+            {
+                // figeage-v12 (D4): its own part, sent only when changed (E6).
+                nom: { en: "Record in the system instruction", fr: "Fiche dans l'instruction système" },
+                modifie: ficheSystemeModifiee,
+                config: () => ({ fiche_dans_le_systeme: ficheSysteme }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -614,6 +626,10 @@ export const ThemeDonnees = ({
                         <Switch id="fiche_deja_connu" checked={connuEtAttendu} onCheckedChange={setConnuEtAttendu} />
                         </ChampReglage>
                     </div>
+                )}
+                {/* figeage-v12 (D4): where the model reads the record, next to what it shows. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
                 )}
                 {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
                     next to the known fields. */}

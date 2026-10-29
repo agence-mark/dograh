@@ -224,6 +224,8 @@ export const CAS_AGENT: CasAgent[] = [
     // Lot 2 d'orchestrateur-trois-cerveaux (D4): the line « Known: … », frozen once ; fiabilite-orchestration,
     // lot 2 (F19): the same box now writes « Still expected » too (the step labels' box is gone).
     c("fiche-deja-connu", "ajout-mark", "donnees", ["etiquettes_des_etapes", "fiche_deja_connu"], [inter("fiche_deja_connu")]),
+    // figeage-v12 (D4): added after the reorganisation, frozen once.
+    c("fiche-dans-le-systeme", "ajout-mark", "donnees", ["fiche_dans_le_systeme"], [inter("fiche_dans_le_systeme")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Lot 11 de correctifs-apres-banc-commun (F-3).

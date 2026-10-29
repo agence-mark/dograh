@@ -24,7 +24,10 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
    est allumé, la requête attend sa décision sur la parole de la personne (au plus le délai de l'étape) ; sûre et ≠
    « rester » : même passage que l'option 2, l'étape d'arrivée répond directement. Au-delà du délai, la requête part
    sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ;
-4. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
+4. **l'état de la fiche dans l'instruction système** (``fiche_dans_le_systeme``, D4 du figeage v12, case de l'agent,
+   éteinte par défaut) : rangé en dernier dans l'instruction système du service, recalculé à chaque requête, après les
+   passages ci-dessus ;
+5. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
    cette requête seulement ; l'historique n'est pas touché.
 
 ⚠️ Requête anticipée (``speculation``) : jamais préparée ici, et si l'anticipation est CONFIRMÉE Pipecat ne relance pas de
@@ -32,7 +35,7 @@ requête (``run_llm=not confirms_speculation``) : l'option 2, l'arbitre et la no
 tour-là. La détection anticipée n'est pas activée aujourd'hui ; si elle l'était, ce tour partirait sans ces portes (une
 requête anticipée ne change jamais d'étape, prouvé par ``test_passages_fiables_seconde_revue``).
 
-Posés seulement sur un agent qui a au moins une étape qui réclame le code (``autour_du_cerveau``) : un agent tout éteint
+Posés seulement sur un agent qui a au moins une étape qui réclame le code, ou la case « fiche dans le système » allumée (``autour_du_cerveau``) : un agent tout éteint
 a le circuit de la base, sans processeur de plus. ⛔ Ne lève jamais : dans le doute, la trame passe telle quelle.
 """
 
@@ -69,6 +72,15 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
         raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
         logger.warning(f"[passage] option 2 ou arbitre en échec : {erreur!r}")
+    # figeage-v12 (D4) : l'état de la fiche, calculé APRÈS les passages ci-dessus (l'étape d'arrivée écrit pour la sienne), rangé
+    # dans l'instruction système quand la case de l'agent est allumée.
+    try:
+        if getattr(moteur.active_agent, "llm", None) is llm:
+            from api.services.workflow import fiche_dans_le_systeme
+
+            fiche_dans_le_systeme.placer_la_fiche(moteur, llm, list(trame.context.get_messages()))
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] état non rangé dans le système : {erreur!r}")
     copie = passage.contexte_avec_la_notice(moteur, trame.context)
     if copie is None:
         return trame
@@ -103,7 +115,9 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         from api.services.workflow.passage_sur_la_fiche import agent_reclame_le_code
 
         llm = getattr(agent, "llm", None)
-        if moteur is None or llm is None or not agent_reclame_le_code(agent):
+        from api.services.workflow.fiche_dans_le_systeme import case_allumee
+
+        if moteur is None or llm is None or not (agent_reclame_le_code(agent) or case_allumee(agent, moteur)):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"
         return (
