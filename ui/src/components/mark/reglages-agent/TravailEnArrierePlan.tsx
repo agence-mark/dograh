@@ -44,7 +44,7 @@ import { attributsDeBorne, texteHorsBornes } from "../bornes-reglages";
 import { ChampReglage, texteBornes } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { useLangue } from "../langue/langue";
-import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
+import { aideCleDuCerveau, type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { type Enregistrer, RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { CerveauDeRepli } from "./GardeDuModele";
 
@@ -307,7 +307,12 @@ export const TravailEnArrierePlan = ({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <ChampsFournisseurLlm bloc={blocEdite} onChange={setBlocEdite} idPrefixe="travail" />
+                        <ChampsFournisseurLlm
+                            bloc={blocEdite}
+                            onChange={setBlocEdite}
+                            idPrefixe="travail"
+                            aideCle={aideCleDuCerveau({ en: "the background brain", fr: "le cerveau de fond" })}
+                        />
                         <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                                 <label htmlFor="travail_consigne" className="text-sm font-medium">

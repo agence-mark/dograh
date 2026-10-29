@@ -188,6 +188,7 @@ CLES_THEME_RYTHME: tuple[str, ...] = (
     "user_idle_max_prompts",
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
+    "laisser_la_parole",
     "max_call_duration",
 )
 
@@ -204,6 +205,9 @@ CLES_THEME_DONNEES: tuple[str, ...] = (
     "verite_formulations_d_action",
     "phrase_sans_redemande",
     "greffier_llm",
+    "arbitre_llm",
+    "signaler_un_probleme",
+    "alertes_par_mail",
     "greffier_consigne",
     "fiche_champs",
     "apres_appel",
@@ -336,3 +340,8 @@ def cles_sans_classement(cles: Iterable[str]) -> list[str]:
     """Les clés données qui ne sont ni communes ni propres (pour le test de l'écran)."""
     connues = set(CLES_COMMUNES) | set(CLES_PROPRES)
     return sorted(c for c in cles if c not in connues)
+
+
+# [.mark] passages-fiables (lot C2) : la configuration écrite à la création d'un agent. Seule la valeur ÉCRITE change ;
+# la valeur lue par défaut reste éteinte, donc aucun agent existant (sans la clé) ne bouge.
+CONFIGURATION_DE_CREATION: dict[str, object] = {"relecture_des_numeros": True}

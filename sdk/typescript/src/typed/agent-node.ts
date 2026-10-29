@@ -46,6 +46,26 @@ export interface AgentNode {
      */
     champs_etape?: string;
     /**
+     * Agent (default): the model alone takes the exits. Collection: the code takes the first exit once every field of the step is gathered. Choice: the code takes the exit whose condition on the record holds, else the arbiter chooses. Free: the agent leads, the arbiter is the safety net.
+     */
+    qui_decide_du_passage?: "agent" | "collecte" | "choix" | "libre";
+    /**
+     * After the reply (default): the code passes once the agent has answered. Wait for the last field: when a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, and the next step speaks at once.
+     */
+    moment_du_passage?: "apres_la_reponse" | "attendre_le_dernier_champ";
+    /**
+     * How long the agent's reply may wait for the clerk (Wait for the last field) or for the arbiter, before it leaves without them. Default 1.5.
+     */
+    delai_du_passage?: number;
+    /**
+     * A separate small model, asked as the caller finishes speaking, which exit (if any) their words call for. The agent's reply waits for it (bounded); when it is sure, the next step answers at once. Empty: off, except on a Choice or Free step.
+     */
+    arbitre?: boolean;
+    /**
+     * Lowest confidence at which the arbiter's choice is taken (0 to 1). Default 0.8.
+     */
+    seuil_de_l_arbitre?: number;
+    /**
      * When true, the user can interrupt the agent mid-utterance. Set false for non-interruptible disclosures.
      */
     allow_interrupt?: boolean;

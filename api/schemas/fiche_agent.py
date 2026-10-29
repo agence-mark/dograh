@@ -334,6 +334,18 @@ NOMS_RESERVES = frozenset(
         "mark_reseau",
         # actions-sures-et-parite-clavier, lot F : le journal des actions de l'appel, gardé avec la fiche.
         "mark_journal_des_actions",
+        # passages-fiables : les retenues de la vérité des actions (file de tri) ; le rejeu d'un test et ses outils simulés.
+        "retenues_verite",
+        "rejeu_sortants_simules",
+        "outils_simules",
+        # passages-fiables : les traces du décideur et de l'arbitre, l'attente accordée, les signalements et les alertes.
+        "passages_par_le_code",
+        "arbitre",
+        "desaccords_arbitre",
+        "attentes_accordees",
+        "signalements",
+        "alertes",
+        "alertes_mail",
     }
 )
 

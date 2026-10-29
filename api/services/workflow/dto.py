@@ -281,6 +281,114 @@ class ConditionDeChampDTO(BaseModel):
     )
 
 
+# [.mark] passages-fiables (lots A et B) : qui décide du passage d'une étape à l'autre.
+QUI_DECIDE_DU_PASSAGE = ("agent", "collecte", "choix", "libre")
+MOMENTS_DU_PASSAGE = ("apres_la_reponse", "attendre_le_dernier_champ")
+
+
+class _PassageNodeDataMixin(BaseModel):
+    # Hors de ``agent`` (le défaut, comportement d'avant), le code lit les conditions des portes sur la fiche à la fin de
+    # chaque réponse de l'agent, et passe lui-même quand l'une est vraie ; l'arbitre (un petit modèle séparé) décide
+    # pour le flou. Vide = absent du JSON de l'agent.
+    qui_decide_du_passage: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.options,
+        display_name="Who decides the transition",
+        description=(
+            "Agent (default): the model alone takes the exits. Collection: the code takes the first exit "
+            "once every field of the step is gathered. Choice: the code takes the exit whose condition on the "
+            "record holds, else the arbiter chooses. Free: the agent leads, the arbiter is the safety net."
+        ),
+        options=[
+            PropertyOption(value="agent", label="Agent (as before)"),
+            PropertyOption(value="collecte", label="Collection (the record decides)"),
+            PropertyOption(value="choix", label="Choice (a rule, else the arbiter)"),
+            PropertyOption(value="libre", label="Free (agent, arbiter as safety net)"),
+        ],
+    )
+    moment_du_passage: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.options,
+        display_name="Transition timing",
+        description=(
+            "After the reply (default): the code passes once the agent has answered. Wait for the last field: when "
+            "a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, "
+            "and the next step speaks at once."
+        ),
+        options=[
+            PropertyOption(value="apres_la_reponse", label="After the reply"),
+            PropertyOption(value="attendre_le_dernier_champ", label="Wait for the last field"),
+        ],
+    )
+    delai_du_passage: Optional[float] = spec_field(
+        default=None,
+        ui_type=PropertyType.number,
+        display_name="Longest wait before the reply (seconds)",
+        description=(
+            "How long the agent's reply may wait for the clerk (Wait for the last field) or for the arbiter, before "
+            "it leaves without them. Default 1.5."
+        ),
+        min_value=0.0,
+        max_value=10.0,
+    )
+    arbitre: Optional[bool] = spec_field(
+        default=None,
+        ui_type=PropertyType.boolean,
+        display_name="Arbiter",
+        description=(
+            "A separate small model, asked as the caller finishes speaking, which exit (if any) their words call "
+            "for. The agent's reply waits for it (bounded); when it is sure, the next step answers at once. Empty: "
+            "off, except on a Choice or Free step."
+        ),
+    )
+    seuil_de_l_arbitre: Optional[float] = spec_field(
+        default=None,
+        ui_type=PropertyType.number,
+        display_name="Arbiter confidence threshold",
+        description="Lowest confidence at which the arbiter's choice is taken (0 to 1). Default 0.8.",
+        min_value=0.0,
+        max_value=1.0,
+    )
+
+    @field_validator("delai_du_passage")
+    @classmethod
+    def _delai_borne(cls, valeur: Optional[float]) -> Optional[float]:
+        if valeur is None or 0.0 <= valeur <= 10.0:
+            return valeur
+        raise ValueError("delai_du_passage must be between 0 and 10 seconds")
+
+    @field_validator("seuil_de_l_arbitre")
+    @classmethod
+    def _seuil_borne(cls, valeur: Optional[float]) -> Optional[float]:
+        if valeur is None or 0.0 <= valeur <= 1.0:
+            return valeur
+        raise ValueError("seuil_de_l_arbitre must be between 0 and 1")
+
+    @field_validator("qui_decide_du_passage")
+    @classmethod
+    def _qui_decide_connu(cls, valeur: Optional[str]) -> Optional[str]:
+        if valeur in (None, "") or valeur in QUI_DECIDE_DU_PASSAGE:
+            return valeur or None
+        raise ValueError(f"qui_decide_du_passage must be one of {QUI_DECIDE_DU_PASSAGE}")
+
+    @field_validator("moment_du_passage")
+    @classmethod
+    def _moment_connu(cls, valeur: Optional[str]) -> Optional[str]:
+        if valeur in (None, "") or valeur in MOMENTS_DU_PASSAGE:
+            return valeur or None
+        raise ValueError(f"moment_du_passage must be one of {MOMENTS_DU_PASSAGE}")
+
+
+class ConditionDePorteDTO(BaseModel):
+    """[.mark] passages-fiables (lot A) : la condition d'une porte sur la fiche. Soit « étape complète » (tous les
+    champs de l'étape obtenus, plus rien à confirmer), soit un champ de la fiche qui vaut une valeur (« refusé »
+    compris). Vide = pas de condition."""
+
+    etape_complete: bool = Field(default=False)
+    champ: Optional[str] = Field(default=None, max_length=200)
+    vaut: Optional[str] = Field(default=None, max_length=500)
+
+
 class _ConditionsDeChampsNodeDataMixin(BaseModel):
     # Les conditions des champs de l'étape (``champs_etape``). Un champ sans condition est toujours attendu.
     # Hors du formulaire généré : elles se posent dans la liste des champs de l'étape.
@@ -445,6 +553,11 @@ class _ToolDocumentRefsMixin(BaseModel):
         "greeting_recording_id",
         "prompt",
         "champs_etape",
+        "qui_decide_du_passage",
+        "moment_du_passage",
+        "delai_du_passage",
+        "arbitre",
+        "seuil_de_l_arbitre",
         "allow_interrupt",
         "add_global_prompt",
         "delayed_start",
@@ -578,6 +691,7 @@ class StartCallNodeData(
     _VeriteDesActionsNodeDataMixin,
     _DeclenchementNodeDataMixin,
     _ConditionsDeChampsNodeDataMixin,
+    _PassageNodeDataMixin,
 ):
     is_start: bool = spec_field(default=True, spec_exclude=True)
     greeting: Optional[str] = spec_field(default=None, ui_type=PropertyType.string)
@@ -670,6 +784,11 @@ class StartCallNodeData(
         "prompt",
         "premiere_replique",
         "champs_etape",
+        "qui_decide_du_passage",
+        "moment_du_passage",
+        "delai_du_passage",
+        "arbitre",
+        "seuil_de_l_arbitre",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -721,6 +840,7 @@ class AgentNodeData(
     _VeriteDesActionsNodeDataMixin,
     _DeclenchementNodeDataMixin,
     _ConditionsDeChampsNodeDataMixin,
+    _PassageNodeDataMixin,
 ):
     pass
 
@@ -1325,6 +1445,8 @@ class EdgeDataDTO(BaseModel):
     transition_speech: Optional[str] = None
     transition_speech_type: Optional[str] = None  # 'text' or 'audio'
     transition_speech_recording_id: Optional[str] = None
+    # [.mark] passages-fiables (lot A) : la condition de la porte sur la fiche (étape complète, ou champ = valeur).
+    condition_sur_la_fiche: Optional[ConditionDePorteDTO] = None
 
 
 class RFEdgeDTO(BaseModel):
@@ -1439,6 +1561,13 @@ def _sanitize_node(node):
         data.pop("demande_type", None)
     if not data.get("conditions_de_champs"):
         data.pop("conditions_de_champs", None)
+    # [.mark] passages-fiables : vide = le défaut (« agent » : comportement d'avant), rien n'est écrit dans le JSON.
+    for cle in ("qui_decide_du_passage", "moment_du_passage"):
+        if not str(data.get(cle) or "").strip():
+            data.pop(cle, None)
+    for cle in ("delai_du_passage", "arbitre", "seuil_de_l_arbitre"):
+        if data.get(cle) is None or data.get(cle) == "":
+            data.pop(cle, None)
     return {**node, "data": data}
 
 
@@ -1449,4 +1578,11 @@ def _sanitize_edge(edge):
     if not isinstance(raw_data, dict):
         return edge
     allowed = EdgeDataDTO.model_fields.keys()
-    return {**edge, "data": {k: v for k, v in raw_data.items() if k in allowed}}
+    data = {k: v for k, v in raw_data.items() if k in allowed}
+    # [.mark] passages-fiables : une condition vide (ni étape complète, ni champ) n'est pas écrite.
+    condition = data.get("condition_sur_la_fiche")
+    if not isinstance(condition, dict) or not (
+        condition.get("etape_complete") or str(condition.get("champ") or "").strip()
+    ):
+        data.pop("condition_sur_la_fiche", None)
+    return {**edge, "data": data}

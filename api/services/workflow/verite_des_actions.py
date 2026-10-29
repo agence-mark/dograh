@@ -404,6 +404,41 @@ def _est_une_ecriture(moteur: Any, nom: str) -> bool:
 
 
 # ---------------------------------------------------------------------------------------------------------
+# Passages-fiables (29/10) : chaque retenue est écrite DANS l'appel (file de tri), pas seulement au journal technique
+# ---------------------------------------------------------------------------------------------------------
+
+CLE_RETENUES = "retenues_verite"
+MAX_RETENUES_PAR_APPEL = 20
+GENRE_DATE_INCONNUE = "date_non_trouvee"  # une écriture demandée avec une date que la recherche n'a pas donnée
+GENRE_ECRITURE_QUI_TIENT = "ecriture_qui_tient"  # une écriture du même outil tient déjà : remplacer ou ajouter ?
+# Le genre d'une réplique retenue est sa ``raison`` (RAISON_DATE, RAISON_ACTION, RAISON_JOUR).
+
+
+def tracer_une_retenue(moteur: Any, genre: str, *, outil: str | None = None, detail: str | None = None) -> None:
+    """Une retenue de plus dans ``retenues_verite`` (fiche de l'appel) : la file de tri la lit. Ne change rien au
+    comportement de la retenue elle-même. ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        if not isinstance(fiche, dict):
+            return
+        liste = fiche.setdefault(CLE_RETENUES, [])
+        if not isinstance(liste, list) or len(liste) >= MAX_RETENUES_PAR_APPEL:
+            return
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        liste.append(
+            {
+                "genre": genre,
+                "outil": outil,
+                "detail": None if detail is None else " ".join(str(detail).split())[:300],
+                "tour": fiche.get(CLE_TOUR),
+            }
+        )
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] retenue non tracée : {erreur!r}")
+
+
+# ---------------------------------------------------------------------------------------------------------
 # K7 : la garde de réservation
 # ---------------------------------------------------------------------------------------------------------
 
@@ -434,6 +469,9 @@ def garde_de_reservation(moteur: Any, agent: Any, nom_outil: str, arguments: Any
         if not inconnues:
             return None
         logger.info(f"[verite] {nom_outil} retenu : {', '.join(map(libelle_de_la_date, inconnues))} non trouvées")
+        tracer_une_retenue(
+            moteur, GENRE_DATE_INCONNUE, outil=nom_outil, detail=", ".join(map(libelle_de_la_date, inconnues))
+        )
         return {
             "statut": "incomplet",
             "manque": [f"une date donnée par la recherche ({libelle_de_la_date(d)} ne l'est pas)" for d in inconnues],
@@ -495,6 +533,7 @@ def garde_d_une_ecriture_qui_tient(moteur: Any, agent: Any, nom_outil: str, argu
             moteur, ActionVue(nom=nom_outil, arguments=dict(arguments or {}), resultat=refus, reussie=False)
         )
         logger.info(f"[verite] {nom_outil} retenu : une action du même outil tient déjà (tour {tour})")
+        tracer_une_retenue(moteur, GENRE_ECRITURE_QUI_TIENT, outil=nom_outil, detail=f"tour {tour}")
         return refus
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] garde de l'écriture qui tient illisible : {erreur!r}")
@@ -825,6 +864,12 @@ class VerificateurDeReplique:
         self.agent = agent
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:
+        retenue = self._controler(texte, messages)
+        if retenue is not None:
+            tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+        return retenue
+
+    def _controler(self, texte: str, messages: Any = None) -> Retenue | None:
         try:
             if not case_allumee(self.agent):
                 return None

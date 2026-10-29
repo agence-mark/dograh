@@ -20,8 +20,20 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
 
 import { ChampCleModele } from "../cles/ChampCleModele";
-import { useLangue } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "./GroupesFournisseur";
+
+/** The help under « API key » of the clerk's window (also the default: the text of the windows that existed). */
+export const AIDE_CLE_DU_GREFFIER: Texte = {
+    en: "A key of the library is named, never shown. Empty, the clerk uses the conversation's key and shares its rate limit.",
+    fr: "Une clé de la bibliothèque est nommée, jamais montrée. Vide, le greffier prend la clé de la conversation et partage son quota.",
+};
+
+/** The same help, naming another brain: `nom` is the brain in each language (« the arbiter » / « l'arbitre »). */
+export const aideCleDuCerveau = (nom: Texte): Texte => ({
+    en: `A key of the library is named, never shown. Empty, ${nom.en} uses the conversation's key and shares its rate limit.`,
+    fr: `Une clé de la bibliothèque est nommée, jamais montrée. Vide, ${nom.fr} prend la clé de la conversation et partage son quota.`,
+});
 
 export type BlocModele = Record<string, unknown>;
 type Propriete = ProviderSchema["properties"][string];
@@ -49,12 +61,15 @@ export function ChampsFournisseurLlm({
     onChange,
     schemas: schemasDonnes,
     idPrefixe = "greffier",
+    aideCle,
 }: {
     bloc: BlocModele;
     onChange: (bloc: BlocModele) => void;
     /** For tests and callers that already hold them; otherwise read from the server. */
     schemas?: Record<string, ProviderSchema> | null;
     idPrefixe?: string;
+    /** The help under « API key », naming the brain of THIS window. Absent: the clerk's (the first window to have it). */
+    aideCle?: Texte;
 }) {
     const { t, langue } = useLangue();
     const [schemasLus, setSchemasLus] = useState<Record<string, ProviderSchema> | null>(null);
@@ -194,10 +209,7 @@ export function ChampsFournisseurLlm({
                         }
                     />
                     <p className="text-xs text-muted-foreground">
-                        {t({
-                            en: "A key of the library is named, never shown. Empty, the clerk uses the conversation's key and shares its rate limit.",
-                            fr: "Une clé de la bibliothèque est nommée, jamais montrée. Vide, le greffier prend la clé de la conversation et partage son quota.",
-                        })}
+                        {t(aideCle ?? AIDE_CLE_DU_GREFFIER)}
                     </p>
                 </div>
             )}

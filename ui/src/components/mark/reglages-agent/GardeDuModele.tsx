@@ -28,7 +28,7 @@ import { attributsDeBorne, texteHorsBornes } from "../bornes-reglages";
 import { ChampReglage, texteBornes } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type Texte, useLangue } from "../langue/langue";
-import { type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
+import { aideCleDuCerveau, type BlocModele, ChampsFournisseurLlm } from "../modeles/ChampsFournisseurLlm";
 import { type Enregistrer, RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 
 export const DELAI_DE_GARDE_PAR_DEFAUT_S = 4;
@@ -109,7 +109,12 @@ export function CerveauDeRepli({
                             })}
                         </DialogDescription>
                     </DialogHeader>
-                    <ChampsFournisseurLlm bloc={bloc} onChange={setBloc} idPrefixe={idPrefixe} />
+                    <ChampsFournisseurLlm
+                        bloc={bloc}
+                        onChange={setBloc}
+                        idPrefixe={idPrefixe}
+                        aideCle={aideCleDuCerveau({ en: "the second try", fr: "la seconde tentative" })}
+                    />
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setFenetre(false)}>
                             {t({ en: "Cancel", fr: "Annuler" })}

@@ -135,3 +135,25 @@ def test_journal_branche_deux_fois_sur_le_meme_client_ne_s_empile_pas():
     assert brancher_le_journal_des_requetes(llm, second) is True
     assert len(http.event_hooks["response"]) == 1 and len(http.event_hooks["request"]) == 1
     assert http._mark_journal_des_requetes["journal"] is second
+
+
+# passages-fiables (lot E) : un effet qui n'a pas d'équivalent au clavier, avec sa raison. La demande de temps est reconnue
+# par l'arbitre (même crochet de la conversation) et l'attente accordée au clavier comme au téléphone ; seule la relance de
+# silence manque.
+ECARTS_DE_COMPORTEMENT = {
+    "laisser_la_parole (relance douce)": "audio : le clavier n'a pas de silence à surveiller (aucun agrégateur de parole n'est lié au moniteur), l'attente n'a donc rien à retenir",
+    "alertes (mail regroupé de l'appel)": "pas de fin d'appel au clavier : une session d'essai n'a pas de fin du pipeline qui envoie le mail ; les alertes elles-mêmes sont écrites dans le run au clavier comme au téléphone (même moteur) et lues par la page « Alertes »",
+}
+
+
+def test_e_au_clavier_le_moniteur_ne_relance_jamais_donc_l_attente_n_a_pas_d_effet():
+    from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
+
+    assert all(raison.strip() for raison in ECARTS_DE_COMPORTEMENT.values())
+    moniteur = CallMonitorProcessor(
+        response_source=lambda: None, on_response_timeout=lambda _s: None, on_user_idle=None,
+        conversation_enabled=lambda: True,
+    )
+    moniteur.activate()  # comme `text_chat_runner.py` : activé, mais sans `bind_user`
+    moniteur.accorder_l_attente()
+    assert moniteur.user_aggregator is None and moniteur._idle_eligible() is False and moniteur._deadline is None

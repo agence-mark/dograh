@@ -83,6 +83,42 @@ class StartCall(TypedNode):
     known.
     """
 
+    qui_decide_du_passage: Optional[Literal['agent', 'collecte', 'choix', 'libre']] = None
+    """
+    Agent (default): the model alone takes the exits. Collection: the code
+    takes the first exit once every field of the step is gathered. Choice:
+    the code takes the exit whose condition on the record holds, else the
+    arbiter chooses. Free: the agent leads, the arbiter is the safety net.
+    """
+
+    moment_du_passage: Optional[Literal['apres_la_reponse', 'attendre_le_dernier_champ']] = None
+    """
+    After the reply (default): the code passes once the agent has answered.
+    Wait for the last field: when a single field is missing, the request
+    waits (briefly) for the clerk to read the caller's last words, and the
+    next step speaks at once.
+    """
+
+    delai_du_passage: Optional[float] = None
+    """
+    How long the agent's reply may wait for the clerk (Wait for the last
+    field) or for the arbiter, before it leaves without them. Default 1.5.
+    """
+
+    arbitre: Optional[bool] = None
+    """
+    A separate small model, asked as the caller finishes speaking, which
+    exit (if any) their words call for. The agent's reply waits for it
+    (bounded); when it is sure, the next step answers at once. Empty: off,
+    except on a Choice or Free step.
+    """
+
+    seuil_de_l_arbitre: Optional[float] = None
+    """
+    Lowest confidence at which the arbiter's choice is taken (0 to 1).
+    Default 0.8.
+    """
+
     allow_interrupt: bool = False
     """
     When true, the user can interrupt the agent mid-utterance.

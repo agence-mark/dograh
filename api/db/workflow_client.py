@@ -68,6 +68,7 @@ class WorkflowClient(BaseDBClient):
         workflow_definition: dict,
         user_id: int,
         organization_id: int = None,
+        workflow_configurations: dict | None = None,
     ) -> WorkflowModel:
         async with self.async_session() as session:
             try:
@@ -77,6 +78,9 @@ class WorkflowClient(BaseDBClient):
                     user_id=user_id,
                     organization_id=organization_id,
                 )
+                # [.mark] passages-fiables (C2) : la configuration écrite À LA CRÉATION (jamais la valeur lue par défaut).
+                if workflow_configurations:
+                    new_workflow.workflow_configurations = dict(workflow_configurations)
                 session.add(new_workflow)
                 await session.flush()  # Flush to get the workflow ID
 

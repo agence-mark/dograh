@@ -343,13 +343,26 @@ def est_un_resultat_de_travail(message: Any) -> bool:
     return isinstance(contenu, str) and contenu.startswith(PREFIXE_RESULTAT_DU_TRAVAIL)
 
 
+class ConsigneDuCode(str):
+    """[.mark] passages-fiables (seconde revue) : une consigne écrite par le CODE à l'intention du modèle (la relance de
+    silence « demande si la personne est toujours là », son au revoir). Un message ``user`` en apparence, jamais une
+    parole de l'appelant : le texte reste celui d'avant (``==`` inchangé, rien de plus n'est envoyé au fournisseur), seule
+    la classe le distingue. Exclue partout où la note de passation l'est (arbitre, décideur, passage sur la fiche)."""
+
+    __slots__ = ()
+
+
+def est_une_consigne_du_code(message: Any) -> bool:
+    return isinstance(message, dict) and isinstance(message.get("content"), ConsigneDuCode)
+
+
 def est_la_note_de_passation(message: Any) -> bool:
     """La note du code, jamais une parole de l'appelant (retour, résumé, agent suivant).
     Lot 4 d'orchestrateur-trois-cerveaux : le résultat du travail de fond est une note du code
-    de même nature, exclue de la même façon."""
+    de même nature, exclue de la même façon. Seconde revue de passages-fiables : la consigne de relance de silence aussi."""
     return (
         isinstance(message, dict) and message.get("content") == NOTE_DE_PASSATION
-    ) or est_un_resultat_de_travail(message)
+    ) or est_un_resultat_de_travail(message) or est_une_consigne_du_code(message)
 
 
 def finit_par_l_assistant(messages: Iterable[Any]) -> bool:

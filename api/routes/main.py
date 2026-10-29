@@ -11,6 +11,7 @@ from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
+from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
 from api.services.panne.routes import router as panne_router
@@ -76,6 +77,8 @@ router.include_router(fenetre_du_run_router)
 router.include_router(appel_simule_router)
 # [.mark] The key library (direct-et-passe-muette, lot 0, P15, P16).
 router.include_router(cles_router)
+# [.mark] passages-fiables (lot G): the triage queue and the alerts.
+router.include_router(tri_router)
 # [.mark] The establishments of the organization (chantier l-agent-travaille, L1),
 # mounted BEFORE the organization router so its paths are never read as parameters.
 router.include_router(etablissements_router)

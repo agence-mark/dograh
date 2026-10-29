@@ -425,6 +425,22 @@ export interface components {
              * @description Scope in a call with several requests: whole call (what concerns the caller: shared by every request) or this request (closed with it when another specialist takes over). Empty: computed from the agent's settings (town and street readers, field recognition).
              */
             portee?: ("appel" | "demande") | null;
+            /**
+             * Rempli Par Outil
+             * @description Filled by a tool: the name of the tool whose result writes this field (the value of the same key in its answer, else its status, else the first allowed value). The model, the clerk and the end-of-call pass never write it. Empty: off.
+             */
+            rempli_par_outil?: string | null;
+            /**
+             * Annule Par Outil
+             * @description Undone by a tool: the name of the tool that cancels what the filling tool did. Its successful result writes this field (the value of the same key in its answer, else its status); a failure writes nothing, and the agent is told the real outcome. It is never held back by the booking guard. Empty: off.
+             */
+            annule_par_outil?: string | null;
+            /**
+             * Obligatoire Sans Exception
+             * @description Required without exception: a refusal by the caller does not count as an answer, the field stays missing for the step's guard. Off: a refused field counts as handled.
+             * @default false
+             */
+            obligatoire_sans_exception: boolean;
         };
         /**
          * ContextDestinationMappingConfig
@@ -795,6 +811,24 @@ export interface components {
              */
             timeout_ms: number | null;
             /**
+             * Essais
+             * @description Extra attempts (0 to 2) when the service does not answer or is down. 0: a single request.
+             * @default 0
+             */
+            essais: number;
+            /**
+             * Attente Entre Essais S
+             * @description Seconds to wait between two attempts.
+             * @default 1
+             */
+            attente_entre_essais_s: number;
+            /**
+             * Sans Risque De Doublon
+             * @description The tool can be called again without risk of a duplicate (a lookup, a search). Off: it is called again only when the request never left (connection refused, unknown host); a timeout or a 5xx answer is then not retried. A 4xx answer is never retried.
+             * @default false
+             */
+            sans_risque_de_doublon: boolean;
+            /**
              * Custommessage
              * @description Custom message to play before the tool executes, while the request is in flight.
              */
@@ -1133,6 +1167,16 @@ export interface components {
             node_types: components["schemas"]["NodeSpec"][];
         };
         /**
+         * NoteDeSortie
+         * @description Noter dans la fiche : [un champ de la fiche] = [une valeur de sa liste].
+         */
+        NoteDeSortie: {
+            /** Champ */
+            champ: string;
+            /** Valeur */
+            valeur: string;
+        };
+        /**
          * NumberInputOptions
          * @description Renderer hints for numeric inputs.
          */
@@ -1325,6 +1369,107 @@ export interface components {
             created_at: string;
             /** Is Active */
             is_active: boolean;
+        };
+        /** ReglePhrase */
+        ReglePhrase: {
+            /**
+             * Motif
+             * @description The cause or problem that makes the code speak (from the catalogue).
+             */
+            motif: string;
+            /**
+             * Portee
+             * @description Where the rule applies: the whole group (set on the main agent), this agent, or one step of this agent.
+             * @default agent
+             * @enum {string}
+             */
+            portee: "groupe" | "agent" | "etape";
+            /**
+             * Etape
+             * @description The step name, shown on screen (a rule from before is found by it).
+             */
+            etape?: string | null;
+            /**
+             * Etape Id
+             * @description The step's node identifier: renaming the step keeps its rules.
+             */
+            etape_id?: string | null;
+            /**
+             * Outils
+             * @description The tools this rule aims at (tool causes only). Empty: all tools.
+             */
+            outils?: string[];
+            /**
+             * Variantes
+             * @description One to three sentences said by the voice, without the model. The code rotates them and never says the same one twice in a call while another is left.
+             */
+            variantes?: string[];
+            /**
+             * Ordre
+             * @description Rotated, or in order (the first time sentence 1, the second time sentence 2...).
+             * @default tournees
+             * @enum {string}
+             */
+            ordre: "tournees" | "dans_l_ordre";
+            /**
+             * Delai S
+             * @description After how long the sentence is said, for a cause that has a delay (0 = at once).
+             */
+            delai_s?: number | null;
+            /**
+             * Redite S
+             * @description Says it again every so often, counted from the end of the previous sentence. Empty: never.
+             */
+            redite_s?: number | null;
+            /**
+             * Max Par Attente
+             * @description At most this many times for one wait, the first included. Empty: once. For the caller's silence: the number of prompts.
+             */
+            max_par_attente?: number | null;
+            /**
+             * Max Par Appel
+             * @description At most this many times in the call. Empty: no limit. For a problem: the number of incidents allowed before the exit.
+             */
+            max_par_appel?: number | null;
+            /** @description What happens after the last time, or when it repeats. */
+            ensuite?: components["schemas"]["Sortie"];
+            /**
+             * Texte De L Agent
+             * @description Background work only: the announcement is the one the agent writes when it hands the work over, falling back on the sentences above.
+             * @default false
+             */
+            texte_de_l_agent: boolean;
+            /**
+             * Active
+             * @description Off: the code says nothing for this cause.
+             * @default true
+             */
+            active: boolean;
+        };
+        /**
+         * Sortie
+         * @description « Ensuite » : dire, noter dans la fiche, puis une action finale, toujours dans cet ordre.
+         *     Chaque élément est facultatif ; ``action`` vide : l'action par défaut du motif (le comportement
+         *     d'avant).
+         */
+        Sortie: {
+            /**
+             * Phrases
+             * @description What the voice says on the way out (one to three variants, rotated).
+             */
+            phrases?: string[];
+            /** @description A field of the call record and one of its values to write. */
+            noter?: components["schemas"]["NoteDeSortie"] | null;
+            /**
+             * Action
+             * @description The final action. Empty: the default of the cause (the behavior before).
+             */
+            action?: ("continuer" | "modele" | "transferer" | "raccrocher" | "rendre_la_main" | "aller_a_une_etape") | null;
+            /**
+             * Destination
+             * @description For a transfer: the key of a member of the team (set in Team). For "go to a step": the identifier of a step of the main agent.
+             */
+            destination?: string | null;
         };
         /**
          * ToolParameter
@@ -1678,6 +1823,12 @@ export interface components {
              */
             incomplete_long_timeout: number;
             /**
+             * Relance Tour Vide
+             * @description When the caller cut the agent off and nothing was transcribed (a cough, noise, speech the transcription missed), the model is told so once and asks the caller to repeat. Pipecat 1.12 turns this on by default; off (default here): nothing is said, the behaviour of before. ⚠️ Pipecat's instruction is in English and sent with the developer role (converted to user for Mistral).
+             * @default false
+             */
+            relance_tour_vide: boolean;
+            /**
              * User Idle Prompt
              * @description What the agent is told to do when the caller goes quiet. ⚠️ An instruction given to the model, not a sentence spoken word for word: the model answers in the caller's language.
              * @default The user has been quiet. Politely and briefly ask if they're still there in the language that the user has been speaking so far.
@@ -1879,6 +2030,24 @@ export interface components {
              */
             relecture_des_numeros: boolean;
             /**
+             * Laisser La Parole
+             * @description When the caller asks for a moment (to look something up or check), the arbiter recognises it on their words and the code grants the wait; the agent answers as usual. While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. No tool is offered to the agent. Off (default): the question is not asked.
+             * @default false
+             */
+            laisser_la_parole: boolean;
+            /**
+             * Signaler Un Probleme
+             * @description Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the tool is not offered.
+             * @default false
+             */
+            signaler_un_probleme: boolean;
+            /**
+             * Alertes Par Mail
+             * @description At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in the « Alerts » page; without a mail server the mail is simply not sent. Off (default): no mail.
+             * @default false
+             */
+            alertes_par_mail: boolean;
+            /**
              * Generer Schema Parcours
              * @description At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
              * @default false
@@ -1939,6 +2108,11 @@ export interface components {
              */
             transfert_garanti: boolean;
             /**
+             * Verite Formulations D Action
+             * @description Past participles that say an action is done (booked, confirmed, cancelled...), checked by the « Truth of actions » box of the steps: a reply that says one of them with no tool result behind it is held back and the model asked again once. Empty (default): the built-in list. Needs the call record.
+             */
+            verite_formulations_d_action?: string[];
+            /**
              * Trace Requetes Modele
              * @description Test agents only (Agent theme, Diagnostic). About 20 KB per answer. Each answer the conversation model is asked for is recorded in the run (requetes_modele): the exact request (messages, tools, settings, never a key), every piece of the stream with its finish reason and arrival time, the token count, how the stream ended, and what was spoken. Off (default): nothing is recorded and nothing changes.
              * @default false
@@ -1965,6 +2139,13 @@ export interface components {
              * @description The clerk's model, when the note-taking mode is Clerk: provider, model, settings and its own API key. Empty fields come from the conversation model; an empty key uses the conversation's key (and its rate limit).
              */
             greffier_llm?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Arbitre Llm
+             * @description The arbiter's model (the separate small model that decides, in parallel, whether the conversation calls for an exit of the step): provider, model, settings and its own API key. Empty: the clerk's model, else the conversation model. An empty key uses the conversation's key (and its rate limit).
+             */
+            arbitre_llm?: {
                 [key: string]: unknown;
             } | null;
             /**
@@ -2002,6 +2183,35 @@ export interface components {
              */
             travail_delai_max_s: number;
             /**
+             * Delai Garde Modele S
+             * @description Model guard delay: past it without the model's first words, the code says its « model is slow » sentence and tries again (at the fallback brain if one is set). Empty: the outage setting if any, else 4 s.
+             */
+            delai_garde_modele_s?: number | null;
+            /**
+             * Cerveau De Repli
+             * @description Fallback brain, a troubleshooting tool, never part of a standard setup: when the model is past its guard delay, the second try goes to this model (an OpenAI-compatible provider), with the agent's tools and record. Empty (default): none.
+             */
+            cerveau_de_repli?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Travail Llm Repli
+             * @description Fallback brain of the background brain (troubleshooting only). Empty: none.
+             */
+            travail_llm_repli?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Phrases Regles
+             * @description Sentences said by the code, without the model: one rule per cause and place (group, agent or step), one to three sentences, a delay when the cause has one.
+             */
+            phrases_regles?: components["schemas"]["ReglePhrase"][];
+            /**
+             * Phrases Repos S
+             * @description Minimum pause between two waiting sentences said by the code, in seconds (set on the main agent). Empty: 3 s, as before.
+             */
+            phrases_repos_s?: number | null;
+            /**
              * Fiche Champs
              * @description The fields of the call record the tool can write: name, type, dictated or deduced, and a hint for the model. A dictated value is written only if the caller said it.
              */
@@ -2011,6 +2221,11 @@ export interface components {
              * @description Words the voice mispronounces, written as heard:spoken -- for instance SAV:S. A. V. Matched literally, not as a pattern, and applied to the text sent to the voice only: the conversation history keeps the original.
              */
             tts_replacements?: string[];
+            /**
+             * Tts Balises Permises
+             * @description Expression tags allowed in the text sent to the voice, written without brackets (warm, calm, slowly, pause). Any other passage between square brackets is removed before the voice: an unknown tag can be read out loud. Empty list: every bracket is removed. Not filled in (default): the Soniox voice uses warm, calm, slowly and pause, any other voice sends its text as written. Under the Soniox voice the model itself may write a tag of this list (any other bracket it writes is removed, as before). Sentence by sentence only. Applies to the text sent to the voice. Under a voice that times each word (Soniox, ElevenLabs) the conversation history is rebuilt from what was said, so it keeps the allowed tags; brackets are never shown in the transcript or read by the call record.
+             */
+            tts_balises_permises?: string[] | null;
             /**
              * Tts Markdown Filter Enabled
              * @description Strip markdown formatting before the text reaches the voice. Without it, a model that answers with **bold** has the asterisks read out loud. Does not touch parentheses: a stage direction like (one moment) is still spoken, and stays a matter for the prompt.
@@ -2166,6 +2381,7 @@ export type NodeCategory = components['schemas']['NodeCategory'];
 export type NodeExample = components['schemas']['NodeExample'];
 export type NodeSpec = components['schemas']['NodeSpec'];
 export type NodeTypesResponse = components['schemas']['NodeTypesResponse'];
+export type NoteDeSortie = components['schemas']['NoteDeSortie'];
 export type NumberInputOptions = components['schemas']['NumberInputOptions'];
 export type OrigineChamp = components['schemas']['OrigineChamp'];
 export type PresetToolParameter = components['schemas']['PresetToolParameter'];
@@ -2176,6 +2392,8 @@ export type PropertySpec = components['schemas']['PropertySpec'];
 export type PropertyType = components['schemas']['PropertyType'];
 export type RecordingListResponseSchema = components['schemas']['RecordingListResponseSchema'];
 export type RecordingResponseSchema = components['schemas']['RecordingResponseSchema'];
+export type ReglePhrase = components['schemas']['ReglePhrase'];
+export type Sortie = components['schemas']['Sortie'];
 export type ToolParameter = components['schemas']['ToolParameter'];
 export type ToolResponse = components['schemas']['ToolResponse'];
 export type TransferAgentConfig = components['schemas']['TransferAgentConfig'];

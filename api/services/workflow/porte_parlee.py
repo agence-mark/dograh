@@ -78,6 +78,9 @@ Dès qu'une condition est remplie, tu passes dans cette réponse. Sinon, tu rép
 Tu passes à :
 {sorties}"""
 
+# La phrase d'arrivée d'une sortie, telle que le bloc « Tu passes à… » l'écrit sous chaque sortie.
+PHRASE_D_ARRIVEE = "Phrase d'arrivée : {phrase}"
+
 # D3 : une étape d'arrivée sans première réplique écrite à l'écran.
 SANS_PREMIERE_REPLIQUE = "pose la première question de cette étape."
 
@@ -155,5 +158,19 @@ def _sorties_lisibles(noeud: Node, graphe: WorkflowGraph, rendre: Callable[[str]
         )
         # Revue du 14/10 (retouche 4, Evan) : une porte sans condition n'écrit pas « quand . ».
         quand = f", quand {condition}." if condition else "."
-        lignes.append(f"- {tete}{quand}\n  Phrase d'arrivée : {phrase}")
+        lignes.append(f"- {tete}{quand}\n  {PHRASE_D_ARRIVEE.format(phrase=phrase)}")
     return CONSIGNE_DU_PARCOURS_LISIBLE.format(etape=noeud.name, sorties="\n".join(lignes))
+
+
+# Passage par le code avant la requête : la consigne d'un tour, reprise du bloc « Tu passes à… » (même phrase de règle).
+DIRE_LA_PHRASE_D_ARRIVEE = "Tu dis la phrase d'arrivée de cette étape, sans redemander ce que la personne a déjà donné."
+
+
+def consigne_de_la_premiere_replique(cible: Node, rendre: Callable[[str], str]) -> str | None:
+    """Quand le CODE change d'étape avant la requête, l'étape d'arrivée ne lit pas le bloc « Tu passes à… » de l'étape
+    de départ : cette consigne d'un tour lui donne sa première réplique, rendue comme dans le bloc. ``None`` : l'étape
+    n'a pas de première réplique, rien n'est ajouté. Aucun mot de métier."""
+    phrase = (rendre(cible.premiere_replique) if getattr(cible, "premiere_replique", None) else "").strip()
+    if not phrase:
+        return None
+    return "[" + DIRE_LA_PHRASE_D_ARRIVEE + "\n" + PHRASE_D_ARRIVEE.format(phrase=phrase) + "]"

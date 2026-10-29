@@ -398,6 +398,16 @@ def register_event_handlers(
         # them under a row lock at write time, so re-merging a staler unlocked
         # copy would only be a second, worse answer.
         await engine.finish_tool_calls()
+        # [.mark] passages-fiables (lot G) : le mail regroupé des alertes de l'appel (au plus un), avant la copie du contexte
+        # pour que son état parte avec le run. Case éteinte ou rien à dire : rien ne part. Ne lève jamais, borné.
+        try:
+            from api.services.tri.alertes import envoyer_le_mail_de_l_appel
+
+            await asyncio.wait_for(
+                envoyer_le_mail_de_l_appel(engine, workflow_run_id, await engine._get_organization_id()), timeout=20
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[alertes] mail de l'appel non envoyé : {exc!r}")
         gathered_context = await engine.get_gathered_context()
 
         # Store disposition code in workflow for dynamic filtering

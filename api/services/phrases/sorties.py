@@ -137,7 +137,13 @@ async def transferer_a(moteur: Any, destination: str) -> tuple[bool, str | None]
             rendu["resultat"] = resultat
 
         params = SimpleNamespace(arguments={}, result_callback=au_resultat, llm=None, tool_call_id=None)
-        await manager._create_transfer_call_handler(outil, "sortie_transfert")(params)
+        from api.services.tests_rejouables.simulation import simuler_si_rejeu
+
+        # Au rejeu d'un test, le transfert est simulé (rien ne part) ; hors rejeu, le gestionnaire tel quel.
+        gestionnaire = simuler_si_rejeu(
+            moteur, "transfer_call", "sortie_transfert", manager._create_transfer_call_handler(outil, "sortie_transfert")
+        )
+        await gestionnaire(params)
         statut = (rendu.get("resultat") or {}).get("status") if isinstance(rendu.get("resultat"), dict) else None
         if statut in ("transfer_success", "success"):
             return True, None

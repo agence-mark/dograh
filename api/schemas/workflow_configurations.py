@@ -894,6 +894,36 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written."
         ),
     )
+    # [.mark] passages-fiables (lot E) : laisser la parole.
+    laisser_la_parole: bool = Field(
+        default=False,
+        description=(
+            "When the caller asks for a moment (to look something up or check), the arbiter recognises it on their "
+            "words and the code grants the wait; the agent answers as usual. While it waits, the silence reminder is "
+            "replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and "
+            "the call is never hung up on silence. The caller speaking again lifts the wait. No tool is offered to "
+            "the agent. Off (default): the question is not asked."
+        ),
+    )
+    # [.mark] passages-fiables (lot F) : le signalement par l'agent.
+    signaler_un_probleme: bool = Field(
+        default=False,
+        description=(
+            "Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, "
+            "a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two "
+            "flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the "
+            "tool is not offered."
+        ),
+    )
+    # [.mark] passages-fiables (lot G) : le mail regroupé des alertes de l'appel.
+    alertes_par_mail: bool = Field(
+        default=False,
+        description=(
+            "At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE "
+            "grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in "
+            "the « Alerts » page; without a mail server the mail is simply not sent. Off (default): no mail."
+        ),
+    )
     # [.mark] Chantier correctifs-modules, lot 4 bis : le schéma du parcours. Chantier
     # schema-parcours-unique (C1) : une seule case, la carte des rôles et la fin d'étape.
     generer_schema_parcours: bool = Field(
@@ -1077,6 +1107,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "The clerk's model, when the note-taking mode is Clerk: provider, model, "
             "settings and its own API key. Empty fields come from the conversation "
             "model; an empty key uses the conversation's key (and its rate limit)."
+        ),
+    )
+    # [.mark] passages-fiables (lot B) : le cerveau de l'arbitre du passage d'étape, sur le modèle exact du greffier.
+    arbitre_llm: dict | None = Field(
+        default=None,
+        description=(
+            "The arbiter's model (the separate small model that decides, in parallel, whether the "
+            "conversation calls for an exit of the step): provider, model, settings and its own API key. "
+            "Empty: the clerk's model, else the conversation model. An empty key uses the conversation's "
+            "key (and its rate limit)."
         ),
     )
     greffier_consigne: str | None = Field(
@@ -1334,6 +1374,12 @@ class WorkflowConfigurationDefaults(BaseModel):
         fields stay text, so a bad save is refused (422) rather than read as
         an unusable clerk at call time."""
         return _bloc_de_modele_valide(value, "greffier_llm", ("format_garanti",))
+
+    @field_validator("arbitre_llm")
+    @classmethod
+    def arbitre_llm_valide(cls, value: dict | None) -> dict | None:
+        """[.mark] The arbiter's model block, the shape of a model override (same checks as the clerk's)."""
+        return _bloc_de_modele_valide(value, "arbitre_llm")
 
     @field_validator("phrases_regles")
     @classmethod

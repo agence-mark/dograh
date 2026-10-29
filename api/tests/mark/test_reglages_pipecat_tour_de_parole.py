@@ -523,8 +523,11 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # on 2026-09-26: the greeting (E1, two settings) and the agent-silence
     # hang-up (E2), rise to upstream 4e6cb22b. Then 44 on 2026-10-08: the
     # correction of a phone number read back (plan postscriptum-note-d-abord, C10).
-    assert len(ecran) == 44, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 44. "
+    # Then 47 on 2026-10-29: letting the caller take their time, the agent's
+    # silent report, the grouped alert mail (plan passages-fiables, E, F, G),
+    # all three in the schema with the same value (the loop above says so).
+    assert len(ecran) == 47, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 47. "
         f"A setting added on one side only renders and is then dropped."
     )
 

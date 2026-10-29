@@ -84,6 +84,10 @@ class CallMonitorProcessor(FrameProcessor):
         # ne part. Posés par le moteur ; sans eux, le moniteur de l'amont tel quel.
         self.delai_de_relance: Callable[[], float | None] | None = None
         self.relance_suspendue: Callable[[], bool] | None = None
+        # [.mark] passages-fiables (lot E) : la personne a demandé du temps (« laisser la parole »). Levée dès qu'elle
+        # reparle ; ``delai_de_relance`` et ``handle_user_idle`` la lisent (délai doux, jamais de raccrochage).
+        self.attente_accordee = False
+        self.sur_attente_levee: Callable[[], None] | None = None
         self._response_source = response_source
         self._on_response_timeout = on_response_timeout
         self._on_user_idle = on_user_idle
@@ -143,6 +147,7 @@ class CallMonitorProcessor(FrameProcessor):
             self._response_during_user_turn = False
         self._user_turn_active = True
         self._waiting_for_user = False
+        self.lever_l_attente()
         self._retry_count = 0
         self._refus_d_affilee = 0
         # Only an accepted interruption cancels an outstanding bot response.
@@ -292,6 +297,42 @@ class CallMonitorProcessor(FrameProcessor):
         self._refus_d_affilee += 1
         if self._refus_d_affilee <= REFUS_MAX_D_AFFILEE:
             self._retry_count = max(0, self._retry_count - 1)
+        self._arm_idle()
+
+    def accorder_l_attente(self) -> None:
+        """[.mark] passages-fiables (lot E) : la personne a demandé du temps (décidé par le code sur sa parole). Le silence
+        qui suivra la réponse de l'agent est une attente voulue : son délai est celui de la phrase douce
+        (``delai_de_relance``) et le moniteur ne raccroche pas. Une réponse due reste due (l'agent répond normalement) ;
+        un silence déjà surveillé passe au délai de l'attente. ⛔ Ne lève jamais."""
+        try:
+            self.attente_accordee = True
+            self._retry_count = 0
+            if self._deadline_kind == "idle":
+                self._cancel_deadline()
+                self._arm_idle()
+        except Exception:  # noqa: BLE001
+            logger.warning("Call monitor: could not grant the wait")
+
+    def lever_l_attente(self) -> None:
+        """[.mark] passages-fiables (lot E) : l'attente est finie (la personne reparle, ou la phrase douce est dite)."""
+        if not self.attente_accordee:
+            return
+        self.attente_accordee = False
+        if self.sur_attente_levee is not None:
+            try:
+                self.sur_attente_levee()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def relance_douce_dite(self, *, dite: bool) -> None:
+        """[.mark] passages-fiables (lot E) : la phrase douce a été confiée à la voix. ``dite`` : l'attente est finie et la
+        relance ne compte pas (le comportement normal reprend à zéro). Refusée par un verrou : l'attente continue."""
+        self.cancel()
+        self._waiting_for_user = True
+        self._retry_count = max(0, self._retry_count - 1)
+        if dite:
+            self._refus_d_affilee = 0
+            self.attente_accordee = False
         self._arm_idle()
 
     def _cancel_deadline(self) -> None:

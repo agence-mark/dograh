@@ -231,9 +231,16 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 f"transfer failed ({(resultat or {}).get('reason', 'unknown')})", rappel=True
             )
 
-        await manager._create_transfer_call_handler(outil_de_transfert, nom_de_fonction)(
-            dataclasses.replace(params, result_callback=au_resultat)
+        from api.services.tests_rejouables.simulation import simuler_si_rejeu
+
+        # Au rejeu d'un test, le transfert est simulé (rien ne part) ; hors rejeu, le gestionnaire tel quel.
+        transfert = simuler_si_rejeu(
+            engine,
+            "transfer_call",
+            nom_de_fonction,
+            manager._create_transfer_call_handler(outil_de_transfert, nom_de_fonction),
         )
+        await transfert(dataclasses.replace(params, result_callback=au_resultat))
         if not rendu:
             # The transfer handler returned without an outcome: never leave the model waiting.
             await transmettre("transfer gave no outcome", rappel=True)

@@ -611,6 +611,11 @@ class DiseurDePhrases:
         ⛔ Ne lève jamais."""
         probleme = Probleme()
         try:
+            # [.mark] passages-fiables (lot G) : un outil, le travail de fond ou un transfert qui échoue est une alerte
+            # du client, que la règle de phrase soit éteinte ou non.
+            from api.services.tri.alertes import alerter_un_fait
+
+            alerter_un_fait(self._moteur, motif_id, outil=outil, etape=etape)
             agent = self._agent(agent)
             etape, etape_id = self._endroit(agent, etape, None)
             phrase = self.phrase(motif_id, agent, etape, outil, etape_id)

@@ -113,6 +113,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     user_idle_max_prompts: { theme: "rythme", cas: ["relances-nombre"] },
     user_idle_goodbye_prompt: { theme: "rythme", cas: ["au-revoir"] },
     raccrochage_silence_agent_s: { theme: "rythme", cas: ["raccrochage-agent"] },
+    laisser_la_parole: { theme: "rythme", cas: ["laisser-la-parole"] },
     max_call_duration: { theme: "rythme", cas: ["duree-max"] },
     // Données de l'appel
     fiche_au_fil_de_leau: { theme: "donnees", cas: ["fiche"] },
@@ -134,6 +135,11 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     reflexion_de_relance: { theme: "agent", cas: ["reflexion-de-relance"] },
     greffier_llm: { theme: "donnees", cas: ["greffier", "greffier-format-garanti"] },
     greffier_consigne: { theme: "donnees", cas: ["greffier-consigne"] },
+    // passages-fiables, lot B: the arbiter's brain, next to the clerk's.
+    arbitre_llm: { theme: "donnees", cas: ["arbitre"] },
+    // passages-fiables, lots F and G: « Improving the agent » in Call data.
+    signaler_un_probleme: { theme: "donnees", cas: ["signaler-un-probleme"] },
+    alertes_par_mail: { theme: "donnees", cas: ["alertes-par-mail"] },
     fiche_champs: { theme: "donnees", cas: ["fiche-champ"] },
     apres_appel: { theme: "donnees", cas: ["apres-appel"] },
     panne: { theme: "etablissement", cas: ["panne"] },

@@ -4,6 +4,7 @@ from api.db.campaign_client import CampaignClient
 from api.db.conservation_client import ConservationClient
 from api.db.embed_token_client import EmbedTokenClient
 from api.db.apres_appel_client import ApresAppelClient
+from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
 from api.db.folder_client import FolderClient
 from api.db.integration_client import IntegrationClient
@@ -59,6 +60,8 @@ class DBClient(
     ConservationClient,
     # [.mark] cloture-code, constat 28: le verrou des écritures par élément (organisation sans base du client).
     VerrouClient,
+    # [.mark] passages-fiables, lot G: the triage queue and the alerts (bounded reads of a run's JSON).
+    TriClient,
 ):
     """
     Unified database client that combines all specialized database operations.

@@ -571,6 +571,39 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // passages-fiables (lot E): off by default.
+    laisser_la_parole: d({
+        type: "interrupteur",
+        libelle: { en: "Let the caller take their time", fr: "Laisser l'appelant prendre son temps" },
+        aides: [
+            {
+                en: "When the caller asks for a moment (to look something up or check), the arbiter recognises it on their words and the code grants the wait; the agent answers as usual, no tool is offered to it. During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the question is not asked.",
+                fr: "Quand l'appelant demande un moment (chercher, vérifier), l'arbitre le reconnaît sur sa parole et le code accorde l'attente ; l'agent répond normalement, aucun outil ne lui est offert. Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « L'appelant prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : la question n'est pas posée.",
+            },
+        ],
+    }),
+    // passages-fiables (lot F): off by default.
+    signaler_un_probleme: d({
+        type: "interrupteur",
+        libelle: { en: "The agent can flag an issue", fr: "L'agent peut signaler un problème" },
+        aides: [
+            {
+                en: "Offers the agent a tool to flag, silently, that it is lost: an ambiguous request, a rule it does not know, a failing tool. It gives a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags, with those the code raises itself, are listed in the « To triage » page of the menu. Off: the tool is not offered.",
+                fr: "Offre à l'agent un outil pour signaler, sans rien dire, qu'il est perdu : une demande ambiguë, une règle qu'il ne connaît pas, un outil qui échoue. Il donne un motif court et une catégorie. Rien n'est dit à l'appelant et l'appel continue ; deux signalements au plus par appel. Les signalements, avec ceux que le code lève lui-même, sont listés dans la page « À trier » du menu. Éteint : l'outil n'est pas offert.",
+            },
+        ],
+    }),
+    // passages-fiables (lot G): off by default (D8: the mail is not wired this week).
+    alertes_par_mail: d({
+        type: "interrupteur",
+        libelle: { en: "Alerts by mail", fr: "Alertes par mail" },
+        aides: [
+            {
+                en: "At the end of a call that raised alerts (call ended in error, tool failure, transfer failed), sends ONE grouped mail to the organization's notification addresses and to .mark's. The alerts are always listed in the « Alerts » page of the menu, mail or not; without a mail server nothing is sent and nothing is lost. Off: no mail.",
+                fr: "À la fin d'un appel qui a levé des alertes (appel terminé en erreur, outil en échec, transfert échoué), envoie UN seul mail regroupé aux adresses de notification de l'organisation et à celles de .mark. Les alertes sont toujours listées dans la page « Alertes » du menu, mail ou non ; sans serveur de mail rien n'est envoyé et rien n'est perdu. Éteint : pas de mail.",
+            },
+        ],
+    }),
 } as const satisfies Record<string, Definition>;
 
 export type CleCatalogue = keyof typeof CATALOGUE;

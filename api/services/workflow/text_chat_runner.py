@@ -114,10 +114,11 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
-from api.services.groupe.filet_de_fin import brancher_le_filet_de_fin
+from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
+from api.services.pipecat.avant_la_requete import autour_du_cerveau
+from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
-from api.services.workflow.sortie_d_impasse import brancher_la_sortie_d_impasse
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -826,6 +827,12 @@ async def execute_text_chat_pending_turn(
         initial_context["runtime_configuration"],
     )
     estampiller_le_mode(initial_context["runtime_configuration"], reglages_fiche)
+    # [.mark] passages-fiables (lot B) : le cerveau propre de l'arbitre, si son bloc est réglé (sinon le greffier).
+    service_arbitre = preparer_l_arbitre(
+        await resoudre_le_bloc_de_l_arbitre(run_configs, workflow.organization_id),
+        user_config,
+        initial_context["runtime_configuration"],
+    )
     # [.mark] Quel code et quelle version de l'agent jouent l'essai (langwatch-et-fenetre-du-run, lot 2).
     estampiller_la_version(initial_context["runtime_configuration"], run_definition)
 
@@ -1099,11 +1106,9 @@ async def execute_text_chat_pending_turn(
         )
         assistant_context_aggregator = context_aggregator.assistant()
 
-        # [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2) : le filet de fin d'appel d'un collègue.
-        brancher_le_filet_de_fin(engine, assistant_context_aggregator)
-        # [.mark] actions-sures-et-parite-clavier (A1) : le garde-fou d'impasse, comme au téléphone (banc du 27/10 :
-        # absent ici, il était inerte au clavier).
-        brancher_la_sortie_d_impasse(engine, assistant_context_aggregator)
+        # [.mark] passages-fiables (R3) : le décideur unique de fin de tour (filet de fin, passage sur la fiche, arbitre,
+        # sortie d'impasse), comme au téléphone.
+        brancher_le_decideur_de_fin_de_tour(engine, assistant_context_aggregator, service_arbitre)
 
         @assistant_context_aggregator.event_handler("on_assistant_turn_started")
         async def on_assistant_turn_started(_aggregator):
@@ -1146,11 +1151,16 @@ async def execute_text_chat_pending_turn(
             # La voix de l'appel, comme au téléphone (``agent_runtime_factory`` : ``_voix_de_l_appel``).
             voix=getattr(user_config, "tts", None),
         )
+        # [.mark] passages-fiables : l'option 2 et la notice d'un tour, par les trames autour du cerveau, comme au
+        # téléphone (``AgentRuntimeFactory.attach``). ``(None, None)`` pour un agent tout éteint.
+        avant_le_cerveau, apres_le_cerveau = autour_du_cerveau(engine, engine.active_agent)
         pipeline = Pipeline(
             [
                 p
                 for p in (
+                    avant_le_cerveau,
                     agent.llm,
+                    apres_le_cerveau,
                     post_scriptum,
                     filtre_nom_civilite,
                     capture_processor,
@@ -1265,7 +1275,8 @@ async def execute_text_chat_pending_turn(
                 generation_marker = capture_processor.activity_count
                 response_window.note_direct_context_request()
                 engine.expect_response()
-                await agent.llm.queue_frame(LLMContextFrame(context))
+                # [.mark] passages-fiables : par la tête du circuit (avant le cerveau) quand elle est posée.
+                await (avant_le_cerveau or agent.llm).queue_frame(LLMContextFrame(context))
                 await _wait_for_quiescence(
                     capture_processor=capture_processor,
                     response_window=response_window,

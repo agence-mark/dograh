@@ -202,6 +202,14 @@ def merge_greffier_secret(
     return _merge_bloc_secret(incoming_config, existing_config, "greffier_llm")
 
 
+def merge_arbitre_secret(
+    incoming_config: dict | None,
+    existing_config: dict | None,
+) -> dict | None:
+    """[.mark] passages-fiables (lot B) : la clé du cerveau de l'arbitre, rendue à l'enregistrement comme celle du greffier."""
+    return _merge_bloc_secret(incoming_config, existing_config, "arbitre_llm")
+
+
 def merge_travail_secret(
     incoming_config: dict | None,
     existing_config: dict | None,

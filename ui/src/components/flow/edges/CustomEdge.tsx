@@ -12,9 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from "@/lib/utils";
 
-import { FlowEdge, FlowEdgeData, FlowNode } from '../types';
+import { EdgeRecordCondition, FlowEdge, FlowEdgeData, FlowNode } from '../types';
 type CustomEdge = Edge<{ value: number }, 'custom'>;
 
+
+type RecordConditionMode = 'none' | 'complete' | 'field';
+
+const recordModeOf = (condition?: EdgeRecordCondition): RecordConditionMode =>
+    condition?.etape_complete ? 'complete' : condition?.champ ? 'field' : 'none';
 
 interface EdgeDetailsDialogProps {
     open: boolean;
@@ -32,9 +37,17 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
     const [transitionSpeechType, setTransitionSpeechType] = useState<'text' | 'audio'>(data?.transition_speech_type ?? 'text');
     const [transitionSpeechRecordingId, setTransitionSpeechRecordingId] = useState(data?.transition_speech_recording_id ?? '');
 
+    // [.mark] passages-fiables (lot A): optional condition on the call record, read by the code in the step order.
+    const [recordMode, setRecordMode] = useState<RecordConditionMode>(recordModeOf(data?.condition_sur_la_fiche));
+    const [recordField, setRecordField] = useState(data?.condition_sur_la_fiche?.champ ?? '');
+    const [recordValue, setRecordValue] = useState(data?.condition_sur_la_fiche?.vaut ?? '');
+
     // Update form state when data changes (e.g., from undo/redo)
     useEffect(() => {
         if (open) {
+            setRecordMode(recordModeOf(data?.condition_sur_la_fiche));
+            setRecordField(data?.condition_sur_la_fiche?.champ ?? '');
+            setRecordValue(data?.condition_sur_la_fiche?.vaut ?? '');
             setCondition(data?.condition ?? '');
             setLabel(data?.label ?? '');
             setTransitionSpeech(data?.transition_speech ?? '');
@@ -44,15 +57,22 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
     }, [data, open]);
 
     const handleSave = useCallback(() => {
+        const recordCondition: EdgeRecordCondition | undefined =
+            recordMode === 'complete'
+                ? { etape_complete: true }
+                : recordMode === 'field' && recordField.trim()
+                  ? { champ: recordField.trim(), vaut: recordValue.trim() || undefined }
+                  : undefined;
         onSave({
             condition,
             label,
+            condition_sur_la_fiche: recordCondition,
             transition_speech: transitionSpeechType === 'text' ? (transitionSpeech || undefined) : undefined,
             transition_speech_type: transitionSpeechType,
             transition_speech_recording_id: transitionSpeechType === 'audio' ? (transitionSpeechRecordingId || undefined) : undefined,
         });
         onOpenChange(false);
-    }, [condition, label, transitionSpeech, transitionSpeechType, transitionSpeechRecordingId, onSave, onOpenChange]);
+    }, [condition, label, recordMode, recordField, recordValue, transitionSpeech, transitionSpeechType, transitionSpeechRecordingId, onSave, onOpenChange]);
 
     // Handle Cmd+S / Ctrl+S keyboard shortcut to save
     useEffect(() => {
@@ -107,6 +127,45 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDial
                             value={condition}
                             onChange={(e) => setCondition(e.target.value)}
                         />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Condition on the record</Label>
+                        <Label className="text-xs text-muted-foreground">
+                            Optional. On a step where the code decides the transition, the code takes this exit by
+                            itself when the call record allows it: every field of the step gathered, or one field
+                            holding a value (&quot;refusé&quot; for a refusal). Exits are read in the order of the canvas,
+                            the first true one wins.
+                        </Label>
+                        <select
+                            className="border rounded-md p-2 text-sm bg-background"
+                            value={recordMode}
+                            disabled={readOnly}
+                            onChange={(e) => setRecordMode(e.target.value as RecordConditionMode)}
+                        >
+                            <option value="none">No condition</option>
+                            <option value="complete">Step complete (every field gathered)</option>
+                            <option value="field">A field holds a value</option>
+                        </select>
+                        {recordMode === 'field' && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input
+                                    type="text"
+                                    value={recordField}
+                                    placeholder="Field name"
+                                    maxLength={200}
+                                    disabled={readOnly}
+                                    onChange={(e) => setRecordField(e.target.value)}
+                                />
+                                <Input
+                                    type="text"
+                                    value={recordValue}
+                                    placeholder="Value (empty: any value)"
+                                    maxLength={500}
+                                    disabled={readOnly}
+                                    onChange={(e) => setRecordValue(e.target.value)}
+                                />
+                            </div>
+                        )}
                     </div>
                     <div className="grid gap-2">
                         <Label>Transition Speech</Label>

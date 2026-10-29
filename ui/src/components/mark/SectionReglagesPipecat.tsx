@@ -127,6 +127,7 @@ export const CLES_RELANCE = [
     "user_idle_prompt",
     "user_idle_goodbye_prompt",
     "user_idle_max_prompts",
+    "laisser_la_parole",
 ] as const;
 
 export const CLES_TOUR_DE_PAROLE = [

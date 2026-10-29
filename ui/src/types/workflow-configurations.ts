@@ -80,6 +80,11 @@ export const DEFAUTS_PIPECAT = {
     interdire_civilite_appelant: false,
     // [.mark] Plan postscriptum-note-d-abord (C10): off by default.
     relecture_des_numeros: false,
+    // [.mark] passages-fiables (lot E): off by default.
+    laisser_la_parole: false,
+    // [.mark] passages-fiables (lots F and G): off by default.
+    signaler_un_probleme: false,
+    alertes_par_mail: false,
     mute_until_first_bot_complete: true,
     mute_during_function_call: true,
     mute_engine_callback: true,
@@ -454,6 +459,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // comes back masked and is restored on save), and its instructions (absent:
     // the generic ones written in the code).
     greffier_llm?: GreffierLlm | null;
+    // [.mark] passages-fiables (lot B): the arbiter's model block, same shape as the clerk's (no `format_garanti`).
+    arbitre_llm?: GreffierLlm | null;
     greffier_consigne?: string | null;
     // [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain of this agent. Five keys,
     // all off or empty by default (the agent plays the call of before). Its model is shaped like the
@@ -489,6 +496,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // `null` or absent = the voice's own default; `[]` = every bracket removed.
     tts_balises_permises?: string[] | null;
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
+    laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
+    signaler_un_probleme?: boolean;  // [.mark] passages-fiables F: the agent can flag, silently, that it is lost
+    alertes_par_mail?: boolean;  // [.mark] passages-fiables G: one grouped mail per call that raised alerts
     mute_until_first_bot_complete: boolean;
     mute_during_function_call: boolean;
     mute_engine_callback: boolean;

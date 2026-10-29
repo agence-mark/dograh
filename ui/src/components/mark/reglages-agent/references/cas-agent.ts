@@ -176,6 +176,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("accueil-coupable", "speech-tuning", "tour", ["accueil_interruptible"], [inter("accueil_interruptible")]),
     c("accueil-mots", "speech-tuning", "tour", ["accueil_mots_minimum"], [saisir("accueil_mots_minimum", "3")]),
     c("raccrochage-agent", "speech-tuning", "rythme", ["raccrochage_silence_agent_s"], [saisir("raccrochage_silence_agent_s", "40")]),
+    // passages-fiables (lot E): added after the reorganisation, frozen once.
+    c("laisser-la-parole", "ajout-mark", "rythme", ["laisser_la_parole"], [inter("laisser_la_parole")]),
     c("relance-texte", "speech-tuning", "rythme", ["user_idle_prompt"], [saisir("user_idle_prompt", "Relance modifiée.")]),
     c("relances-nombre", "speech-tuning", "rythme", ["user_idle_max_prompts"], [saisir("user_idle_max_prompts", "3")]),
     c("au-revoir", "speech-tuning", "rythme", ["user_idle_goodbye_prompt"], [saisir("user_idle_goodbye_prompt", "Au revoir modifié.")]),
@@ -295,6 +297,17 @@ export const CAS_AGENT: CasAgent[] = [
         inter("greffier_format_garanti"),
         { type: "cliquer", nom: "Done" },
     ]),
+    // passages-fiables, lot B: the arbiter's brain, same dialog as the clerk's, frozen once.
+    c("arbitre", "ajout-mark", "donnees", ["arbitre_llm"], [
+        { type: "cliquer", nom: "Configure the arbiter" },
+        saisir("arbitre_provider", "mistral"),
+        saisir("arbitre_model", "mistral-small-2603"),
+        saisir("arbitre_api_key", "cle-de-reference"),
+        { type: "cliquer", nom: "Done" },
+    ]),
+    // passages-fiables, lots F and G: added after the reorganisation, frozen once.
+    c("signaler-un-probleme", "ajout-mark", "donnees", ["signaler_un_probleme"], [inter("signaler_un_probleme")]),
+    c("alertes-par-mail", "ajout-mark", "donnees", ["alertes_par_mail"], [inter("alertes_par_mail")]),
     c("greffier-consigne", "ajout-mark", "donnees", ["fiche_mode_de_note", "greffier_consigne"], [
         choisir("fiche_mode_de_note", "greffier"),
         { type: "cliquer", nom: "Configure the clerk" },
