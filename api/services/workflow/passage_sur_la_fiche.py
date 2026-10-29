@@ -287,9 +287,14 @@ async def passer(
         relancer = option == 1
 
         async def prendre() -> bool:
+            cible = agent.workflow.nodes.get(arete.target)
+            arrivee = (agent.visit_id, getattr(cible, "id", arete.target))
             if relancer:
-                cible = agent.workflow.nodes.get(arete.target)
-                poser_la_notice(moteur, agent, dit, (agent.visit_id, getattr(cible, "id", arete.target)))
+                poser_la_notice(moteur, agent, dit, arrivee, cible=cible)
+            else:
+                # Avant la requête : l'étape d'arrivée répond sans avoir lu le bloc des sorties de l'étape de départ ;
+                # sa première réplique lui est donnée pour ce tour seulement (rien si elle n'en a pas).
+                poser_la_premiere_replique(moteur, cible, arrivee)
             etat = await moteur.prendre_porte_ecrite(arete.get_function_name(), relancer=relancer)
             if etat != "prise":
                 _vider_la_notice(moteur)
@@ -331,13 +336,36 @@ def _vider_la_notice(moteur: Any) -> None:
         pass
 
 
-def poser_la_notice(moteur: Any, agent: Any, dit: str, arrivee: tuple | None = None) -> None:
+def _la_premiere_replique(moteur: Any, cible: Any) -> str | None:
+    """La consigne d'un tour de la première réplique de l'étape d'arrivée (même forme que la porte parlée). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.porte_parlee import consigne_de_la_premiere_replique
+
+        return consigne_de_la_premiere_replique(cible, moteur._format_prompt) if cible is not None else None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] première réplique non montrée : {erreur!r}")
+        return None
+
+
+def poser_la_premiere_replique(moteur: Any, cible: Any, arrivee: tuple | None = None) -> None:
+    """Passage par le code AVANT la requête (arbitre, option 2) : la notice d'un tour ne porte que la première réplique de
+    l'étape d'arrivée. Sans première réplique, rien n'est posé. ⛔ Ne lève jamais."""
+    consigne = _la_premiere_replique(moteur, cible)
+    if consigne:
+        moteur._notice_de_passage = consigne
+        moteur._notice_cle = arrivee
+
+
+def poser_la_notice(moteur: Any, agent: Any, dit: str, arrivee: tuple | None = None, cible: Any = None) -> None:
     """La notice du tour d'arrivée : le compte rendu standard, montré sur la prochaine requête de conversation.
     ``arrivee`` = (visite de l'agent, étape d'arrivée) : à la consommation, une notice dont l'étape n'est plus celle
     où l'on est (retour au principal, autre passage) est jetée, jamais montrée plus tard."""
     from api.services.phrases.compte_rendu import compte_rendu
 
-    moteur._notice_de_passage = compte_rendu(FAIT_DU_PASSAGE, dit=(dit or "").strip() or None, crochets=True)
+    notice = compte_rendu(FAIT_DU_PASSAGE, dit=(dit or "").strip() or None, crochets=True)
+    # Option 1 (relance) : l'étape d'arrivée reparle ; sa première réplique est donnée avec le compte rendu.
+    consigne = _la_premiere_replique(moteur, cible)
+    moteur._notice_de_passage = "\n".join([notice, consigne]) if consigne else notice
     moteur._notice_cle = arrivee
 
 
