@@ -284,7 +284,11 @@ def retirer_nom_et_civilite(
         sortie = motif.sub(_remplacer, texte)
         if not retraits:
             return texte
-        return _recoudre(sortie)
+        recousue = _recoudre(sortie)
+        # 🔴 D14 (figeage-v12) : le blanc de fin de la phrase d'origine est rendu avec elle. Le découpage en phrases
+        # (``FIN_DE_PHRASE``) emporte l'espace qui suit le point ; la recouture le jetait (``strip``) et la phrase
+        # suivante, qui commence sans espace, se collait : « Je note Marc.Est-ce que… » (runs 143, 148).
+        return recousue + texte[len(texte.rstrip()) :] if recousue else recousue
     except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
         logger.warning(f"[.mark] Name filter failed, sentence kept as is: {erreur!r}")
         return texte

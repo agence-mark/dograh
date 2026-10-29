@@ -76,6 +76,7 @@ from typing import Any, Iterable
 
 from loguru import logger
 
+from api.services.fiche.traces import CLE_TOUR
 from api.services.groupe.passations import est_la_note_de_passation, est_un_resultat_de_travail
 from api.services.workflow import arbitre as arbitre_mod
 from api.services.workflow import passage_sur_la_fiche as passage
@@ -121,15 +122,47 @@ def la_replique_pose_une_question(texte: str) -> bool:
     return (texte or "").rstrip(_APRES_LA_QUESTION).endswith("?")
 
 
-def _reporter_pour_la_question(moteur: Any, texte: str, jeton: tuple) -> bool:
-    """La réplique pose une question et rien n'a été reporté au tour d'avant dans cette visite d'étape : la décision
-    est reportée (``True``). Sinon le report est effacé et le code décide (``False``)."""
-    deja = getattr(moteur, "_passage_reporte", None)
-    if la_replique_pose_une_question(texte) and deja != jeton:
-        moteur._passage_reporte = jeton
+# Le report « une seule fois » vit dans la FICHE de l'appel, pas sur le moteur : au clavier le moteur est reconstruit à
+# chaque tour (``text_chat_runner``), un attribut y repartirait à vide et chaque réplique en « ? » reporterait (D8,
+# figeage-v12, run 161 : quatre reports de suite, l'étape de collecte ne passait jamais). Forme : ``{etape, tour}``.
+CLE_REPORT = "passage_reporte"
+
+
+def _tour_de_la_personne(moteur: Any) -> int | None:
+    fiche = getattr(moteur, "_gathered_context", None)
+    tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+    return tour if isinstance(tour, int) and not isinstance(tour, bool) else None
+
+
+def _deja_reporte(moteur: Any, etape: Any) -> bool:
+    """Un report est rangé dans la fiche pour cette étape, au tour de la personne d'avant ou à celui-ci."""
+    fiche = getattr(moteur, "_gathered_context", None)
+    report = fiche.get(CLE_REPORT) if isinstance(fiche, dict) else None
+    if not isinstance(report, dict) or report.get("etape") != etape:
+        return False
+    tour, tour_du_report = _tour_de_la_personne(moteur), report.get("tour")
+    if tour is None or not isinstance(tour_du_report, int):
         return True
-    moteur._passage_reporte = None
-    return False
+    return tour_du_report >= tour - 1
+
+
+def _reporter_pour_la_question(moteur: Any, texte: str, jeton: tuple) -> bool:
+    """La réplique pose une question et rien n'a été reporté au tour d'avant dans cette étape : la décision est reportée
+    (``True``). Sinon le report est effacé et le code décide (``False``). Le report est rangé dans la fiche de l'appel
+    (parité clavier / téléphone). ⛔ Ne lève jamais (dans le doute : le code décide)."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        if not isinstance(fiche, dict):
+            return False
+        etape = jeton[1] if len(jeton) > 1 else None
+        if la_replique_pose_une_question(texte) and not _deja_reporte(moteur, etape):
+            fiche[CLE_REPORT] = {"etape": etape, "tour": _tour_de_la_personne(moteur)}
+            return True
+        fiche.pop(CLE_REPORT, None)
+        return False
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[decideur] report non rangé : {erreur!r}")
+        return False
 
 
 def _tracer_le_report(moteur: Any, noeud: Any, debut: float) -> None:
@@ -325,7 +358,20 @@ async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depar
             greffier = getattr(moteur, "greffier", None)
             reste = max(0.0, r.delai - (time.monotonic() - origine))
             lue = True if greffier is None else await greffier.rattraper(reste)
-            if lue and passage.porte_a_prendre_sur_la_fiche(moteur, noeud) is not None:
+            trouvee = passage.porte_a_prendre_sur_la_fiche(moteur, noeud) if lue else None
+            if trouvee is not None:
+                # D7 : la fiche garde la main, et elle passe AVANT la requête (sans relance) quand la cible le permet ;
+                # sinon (fin, retour au principal, transfert garanti) elle se prend à la fin de la réplique, comme avant.
+                fiche_arete, lecture = trouvee
+                if jeton == moteur.jeton_de_visite() and passage._cible_sans_relance(moteur, agent, fiche_arete):
+                    prise = await passage.passer(
+                        moteur, fiche_arete, raison=passage.RAISON_FICHE, jeton=jeton, lecture=lecture, option=2,
+                        detail={"duree_decision": _duree(origine)},
+                    )
+                    if prise:
+                        arbitre.oublier()
+                    arbitre_mod.tracer(moteur, **ligne, resultat="fiche_avant_la_requete" if prise else "fiche_refusee")
+                    return prise
                 arbitre_mod.tracer(moteur, **ligne, resultat="fiche_d_abord")
                 return False
             if jeton != moteur.jeton_de_visite() or passage.la_personne_parle(moteur):

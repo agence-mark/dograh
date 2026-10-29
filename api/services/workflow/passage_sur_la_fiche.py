@@ -501,3 +501,47 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[passage] option 2 non jouée : {erreur!r}")
         return False
+
+
+async def fiche_deja_vraie_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float | None = None) -> bool:
+    """D7 (figeage-v12) : une condition de la fiche déjà vraie quand la requête part se prend AVANT la requête, sans relance
+    (comme l'option 2), au lieu de « à la fin de la réplique » : l'agent répondait alors dans l'étape de départ, posait déjà
+    la question de l'étape suivante, puis l'étape d'arrivée la posait encore (deux paroles dans un tour, le doublon entrait
+    dans l'historique et se recopiait). Sans attente ajoutée quand rien n'est vrai : seule une porte déjà vraie sur la fiche
+    d'aujourd'hui attend la passe du greffier sur la dernière parole (au plus le délai de l'étape), pour que la parole
+    nouvelle (une correction) soit lue avant de passer ; la condition doit rester vraie. Délai dépassé, vers une fin, un
+    retour au principal ou un transfert garanti : rien, l'option 1 jouera en fin de réplique, comme avant. Étape qui ne lit
+    pas la fiche : rien. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais."""
+    try:
+        agent = moteur.active_agent
+        if getattr(agent, "llm", None) is not llm:
+            return False
+        noeud = agent.current_node
+        if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
+            return False
+        if not reglages_du_passage(noeud).le_code_lit_la_fiche:
+            return False
+        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+            return False
+        if porte_a_prendre_sur_la_fiche(moteur, noeud) is None:
+            return False
+        jeton = moteur.jeton_de_visite()
+        r = reglages_du_passage(noeud)
+        greffier = getattr(moteur, "greffier", None)
+        if greffier is not None:
+            reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))
+            if not await greffier.rattraper(reste):
+                tracer(moteur, etape=getattr(noeud, "name", None), option=2, resultat="delai_option_1_jouera", raison=RAISON_FICHE)
+                return False
+        if jeton != moteur.jeton_de_visite() or la_personne_parle(moteur):
+            return False
+        trouvee = porte_a_prendre_sur_la_fiche(moteur, noeud)
+        if trouvee is None:
+            return False
+        arete, lecture = trouvee
+        if not _cible_sans_relance(moteur, agent, arete):
+            return False
+        return await passer(moteur, arete, raison=RAISON_FICHE, jeton=jeton, lecture=lecture, option=2)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] fiche déjà vraie non jouée avant la requête : {erreur!r}")
+        return False
