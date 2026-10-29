@@ -293,6 +293,9 @@ async def passer(
             etat = await moteur.prendre_porte_ecrite(arete.get_function_name(), relancer=relancer)
             if etat != "prise":
                 _vider_la_notice(moteur)
+            elif not relancer:
+                # Avant la requête : la réplique de l'étape d'arrivée ne prend pas une seconde porte sur cette parole.
+                moteur._porte_prise_avant_la_requete = moteur.jeton_de_visite()
             tracer(moteur, **base, resultat="prise" if etat == "prise" else etat)
             return etat == "prise"
 
@@ -384,6 +387,26 @@ def agent_reclame_le_code(agent: Any) -> bool:
         return any(l_etape_reclame_le_code(n) for n in noeuds.values())
     except Exception:  # noqa: BLE001
         return False
+
+
+def porte_prise_avant_la_requete(moteur: Any, jeton: tuple) -> bool:
+    """Une porte a été prise par le code AVANT la requête de la réplique qui commence sous ``jeton`` (option 2, arbitre) :
+    la fin de cette réplique ne prend pas une seconde porte sur la même parole. Lue une seule fois. ⛔ Ne lève jamais."""
+    try:
+        if getattr(moteur, "_porte_prise_avant_la_requete", None) == jeton:
+            moteur._porte_prise_avant_la_requete = None
+            return True
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def oublier_la_porte_prise_avant(moteur: Any) -> None:
+    """Une nouvelle parole de la personne : le repère de la parole d'avant ne vaut plus. ⛔ Ne lève jamais."""
+    try:
+        moteur._porte_prise_avant_la_requete = None
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _derniere_parole_de_la_personne(context: Any) -> bool:

@@ -15,17 +15,32 @@ de ``brancher_la_sortie_d_impasse``, au téléphone (``run_pipeline.py``) **et**
             ├─ 2. filet de fin (au revoir sans porte) ── oui → sortie retour (existant, déplacé, inchangé), STOP
             ├─ la réplique pose une question ? ───────── oui → rien ce tour-ci : la personne répond d'abord, la
             │      (rien reporté au tour d'avant)          décision se refait à la fin de la réplique suivante
+            ├─ porte déjà prise avant la requête ? ───── oui → ni fiche ni sortie d'impasse : une porte par parole
             ├─ 3. condition sur la fiche vraie ? ─────── attend la passe du greffier de CETTE parole (bornée)
             │      (étape complète, champ = valeur,        oui → prendre_porte_ecrite(porte, relancer=True), STOP
             │       ordre de l'écran, rien « à confirmer »)
-            ├─ 4. arbitre : choix ≠ « rester », ──────── oui → prendre_porte_ecrite(choix, relancer=True), STOP
-            │      confiance ≥ seuil, même visite
             ├─ 5. sortie d'impasse : les signes se comptent à chaque tour comme avant ; la sortie ne joue que si
             │      rien n'a été pris plus haut
             └─ sinon ─────────────────────────────────── l'agent garde la main (comme avant)
 
-    option 2 (collecte, un seul champ manquant) : la requête de l'agent attend la passe (bornée) ; condition vraie →
-    passage AVANT que l'agent parle ; délai dépassé → option 1 (``passage_sur_la_fiche.avant_la_requete``).
+    AVANT la requête de l'agent, sur la parole de la personne (``pipecat/avant_la_requete.py``, trames et contexte
+    partagé, n'importe quel cerveau) :
+
+    parole de la personne → requête de l'agent
+            ├─ option 2 (collecte, un seul champ manquant) : attend la passe du greffier (bornée) ; condition vraie →
+            │      passage AVANT que l'agent parle ; délai dépassé → option 1 en fin de réplique
+            │      (``passage_sur_la_fiche.avant_la_requete``)
+            └─ 4. arbitre (étape où il est allumé) : attend sa décision sur CETTE parole, au plus le délai de l'étape
+                   (``arbitre_avant_la_requete``) ; choix ≠ « rester », confiance ≥ seuil, même visite, personne
+                   qui ne parle pas → passage AVANT que l'agent parle, l'étape d'arrivée répond directement ; au-delà
+                   du délai, la requête part sans lui. Vers une fin, un retour au principal ou un transfert garanti :
+                   laissé à l'agent (aucune porte prise par le code).
+
+Décision d'Evan (29/10, après le rebanc) : l'arbitre ne passe plus à la fin de la réplique de l'agent. Appliqué là, il
+arrivait après une réplique qui finissait presque toujours par une question : 74 décisions reportées sur 16 appels,
+aucune porte passée ; et quand il passait, c'était sur une décision née de la parole d'avant (run 20). Avant la réponse,
+la décision et la parole qu'elle juge sont les mêmes, et la question de l'agent n'existe pas encore. Une décision trop
+lente n'est donc plus jamais appliquée plus tard : elle ne sert qu'à tracer un désaccord avec l'agent.
 
 Toute décision est liée à la **visite d'étape** où elle est née (``engine.jeton_de_visite()`` : visite de l'agent,
 étape, rang d'entrée) : autre jeton, elle est jetée et tracée. Une étape en mode ``agent`` sans arbitre (le défaut) ne
@@ -39,7 +54,10 @@ Latence (Evan, 29/10 : « ne pas ajouter de latence le temps de calculer ce qui 
 - une étape qui ne réclame pas le code (le défaut) n'attend RIEN : ni les portes en cours, ni le greffier, ni l'arbitre
   (filet puis impasse, comme la base) ;
 - quand il agit, la durée de la décision (``duree_decision``, en secondes, de la fin de la réplique au passage) est
-  écrite dans ``passages_par_le_code``.
+  écrite dans ``passages_par_le_code`` ;
+- l'arbitre AVANT la requête ajoute une attente à la réponse de l'agent : elle n'existe que sur une étape où l'arbitre
+  est allumé, bornée par le délai de l'étape, et mesurée (``attente`` dans ``arbitre``, ``duree_decision`` dans
+  ``passages_par_le_code``).
 
 Une réplique qui pose une question attend une réponse (banc local du 29/10 : runs 19 et 27, passage pris juste après
 « … c'est bien ça ? », la personne n'a pas pu confirmer ; run 20, l'arbitre a pris la fin juste après « autre chose ? »,
@@ -114,33 +132,24 @@ def _reporter_pour_la_question(moteur: Any, texte: str, jeton: tuple) -> bool:
     return False
 
 
-async def _tracer_le_report(moteur: Any, noeud: Any, r: Any, jeton: tuple, debut: float) -> None:
-    """Le report, tracé ; la décision de l'arbitre née de la parole d'avant est lue pour la trace, puis oubliée."""
+def _tracer_le_report(moteur: Any, noeud: Any, debut: float) -> None:
+    """Le report, tracé."""
     passage.tracer(
         moteur, etape=getattr(noeud, "name", None), raison=RAISON_QUESTION, resultat=RESULTAT_REPORTE,
         duree_decision=_duree(debut),
     )
-    arbitre = getattr(moteur, "arbitre", None) if r.arbitre else None
-    if arbitre is None:
-        return
-    decision = await arbitre.resultat(jeton)
-    arbitre.oublier()
-    if decision is not None:
-        arbitre_mod.tracer(
-            moteur, etape=getattr(noeud, "name", None), choix=decision.choix, confiance=decision.confiance,
-            etat=decision.etat, seuil=r.seuil, duree=decision.duree, **decision.jetons, resultat=RESULTAT_REPORTE,
-        )
 
 
-async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: float | None = None) -> str | None:
-    """Les étapes 3 et 4. Rend ``fiche`` ou ``arbitre`` si une porte a été prise, sinon ``None``."""
+async def _la_fiche(moteur: Any, texte: str, jeton: tuple, debut: float | None = None) -> str | None:
+    """L'étape 3 (l'arbitre décide avant la requête, ``arbitre_avant_la_requete``). Rend ``fiche`` si une porte a été
+    prise, sinon ``None``."""
     debut = time.monotonic() if debut is None else debut
     agent = moteur.active_agent
     noeud = agent.current_node
     if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
         return None
     r = passage.reglages_du_passage(noeud)
-    if not (r.le_code_lit_la_fiche or r.arbitre):
+    if not r.le_code_lit_la_fiche:
         return None
     if jeton != moteur.jeton_de_visite():
         return None
@@ -151,7 +160,7 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: floa
         return None
     # La réplique attend une réponse : rien ce tour-ci, la décision se refait sur la réponse.
     if _reporter_pour_la_question(moteur, texte, jeton):
-        await _tracer_le_report(moteur, noeud, r, jeton, debut)
+        _tracer_le_report(moteur, noeud, debut)
         return None
     # 3. Les conditions sur la fiche.
     if passage.portes_a_condition(noeud):
@@ -184,48 +193,7 @@ async def _fiche_puis_arbitre(moteur: Any, texte: str, jeton: tuple, debut: floa
                 ):
                     return passage.RAISON_FICHE
                 return None
-    # 4. L'arbitre.
-    if not r.arbitre:
-        return None
-    arbitre = getattr(moteur, "arbitre", None)
-    if arbitre is None:
-        return None
-    decision = await arbitre.resultat(jeton)
-    arbitre.oublier()
-    if decision is None:
-        return None
-    ligne = {
-        "etape": getattr(noeud, "name", None),
-        "choix": decision.choix,
-        "confiance": decision.confiance,
-        "etat": decision.etat,
-        "seuil": r.seuil,
-        "duree": decision.duree,
-        **decision.jetons,
-    }
-    if jeton != moteur.jeton_de_visite() or passage.la_personne_parle(moteur):
-        arbitre_mod.tracer(moteur, **ligne, resultat="jetee")
-        return None
-    if not decision.veut_passer:
-        arbitre_mod.tracer(moteur, **ligne, resultat="rien" if decision.etat == arbitre_mod.ETAT_OK else decision.etat)
-        return None
-    if decision.confiance < r.seuil:
-        arbitre_mod.tracer(moteur, **ligne, resultat="sous_le_seuil")
-        return None
-    arete = moteur._porte_de_l_etape(decision.choix)
-    if arete is None:
-        arbitre_mod.tracer(moteur, **ligne, resultat="porte_inconnue")
-        return None
-    prise = await passage.passer(
-        moteur,
-        arete,
-        raison=passage.RAISON_ARBITRE,
-        jeton=jeton,
-        dit=texte,
-        detail={"confiance": decision.confiance, "duree_decision": _duree(debut)},
-    )
-    arbitre_mod.tracer(moteur, **ligne, resultat="prise" if prise else "refusee")
-    return passage.RAISON_ARBITRE if prise else None
+    return None
 
 
 async def _noter_le_desaccord(moteur: Any, jeton_debut: tuple | None, depart: tuple | None) -> None:
@@ -259,9 +227,10 @@ async def _noter_le_desaccord(moteur: Any, jeton_debut: tuple | None, depart: tu
 
 
 async def decider(moteur: Any, texte: str, depart: tuple | None, jeton: tuple | None) -> str | None:
-    """La fin d'une réplique de l'agent. Rend qui a pris une porte : ``filet``, ``fiche``, ``arbitre``, ``impasse``, ou
-    ``None``. ⛔ Ne lève jamais."""
+    """La fin d'une réplique de l'agent. Rend qui a pris une porte : ``filet``, ``fiche``, ``impasse``, ou ``None``.
+    ⛔ Ne lève jamais."""
     prise: str | None = None
+    deja_prise = False
     debut = time.monotonic()
     try:
         # Seule une étape qui réclame le code attend les portes en cours ; sinon rien n'est attendu (comme la base).
@@ -274,23 +243,120 @@ async def decider(moteur: Any, texte: str, depart: tuple | None, jeton: tuple | 
         elif agent_a_pris:
             # 1. L'agent a pris sa porte : le code ne passe jamais par-dessus ; l'arbitre en désaccord est tracé.
             await _noter_le_desaccord(moteur, jeton, depart)
+        elif jeton is not None and passage.porte_prise_avant_la_requete(moteur, jeton):
+            # Une porte a déjà été prise sur cette parole, avant la requête : une seule porte par parole.
+            deja_prise = True
         elif jeton is not None:
-            prise = await _fiche_puis_arbitre(moteur, texte, jeton, debut)
+            prise = await _la_fiche(moteur, texte, jeton, debut)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[decideur] décision en échec : {erreur!r}")
     # 5. L'impasse : ses signes se comptent à chaque tour ; sa sortie ne joue que si rien n'a été pris.
     try:
-        if await fin_de_la_replique(moteur, texte, depart, sortie_permise=prise is None):
+        if await fin_de_la_replique(moteur, texte, depart, sortie_permise=prise is None and not deja_prise):
             prise = prise or "impasse"
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[decideur] impasse en échec : {erreur!r}")
     return prise
 
 
+MOMENT_AVANT = "avant_la_reponse"
+
+
+async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
+    """L'arbitre, juste avant la requête de l'agent qui répond à la personne : attend sa décision sur CETTE parole (au
+    plus le délai de l'étape) ; sûre et ≠ « rester » : passage AVANT que la requête parte, l'étape d'arrivée répond
+    directement (sans relance, comme l'option 2). Vers une fin, un retour au principal ou un transfert garanti : laissé
+    à l'agent. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais (sauf l'annulation, propagée)."""
+    try:
+        agent = moteur.active_agent
+        if getattr(agent, "llm", None) is not llm:
+            return False
+        noeud = agent.current_node
+        if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
+            return False
+        r = passage.reglages_du_passage(noeud)
+        arbitre = getattr(moteur, "arbitre", None)
+        if not r.arbitre or arbitre is None:
+            return False
+        if passage.la_personne_parle(moteur) or not passage._derniere_parole_de_la_personne(context):
+            return False
+        jeton = moteur.jeton_de_visite()
+        debut = time.monotonic()
+        decision, demandee = await arbitre.attendre(jeton, r.delai)
+        attente = _duree(debut)
+        if decision is None:
+            if demandee:
+                arbitre_mod.tracer(
+                    moteur, etape=getattr(noeud, "name", None), moment=MOMENT_AVANT, resultat="trop_lent",
+                    attente=attente, seuil=r.seuil,
+                )
+            return False
+        ligne = {
+            "etape": getattr(noeud, "name", None),
+            "moment": MOMENT_AVANT,
+            "choix": decision.choix,
+            "confiance": decision.confiance,
+            "etat": decision.etat,
+            "seuil": r.seuil,
+            "duree": decision.duree,
+            "attente": attente,
+            **({"temps": decision.temps} if decision.temps is not None else {}),
+            **decision.jetons,
+        }
+        if jeton != moteur.jeton_de_visite() or passage.la_personne_parle(moteur):
+            arbitre_mod.tracer(moteur, **ligne, resultat="jetee")
+            return False
+        if not decision.veut_passer:
+            arbitre_mod.tracer(moteur, **ligne, resultat="rien" if decision.etat == arbitre_mod.ETAT_OK else decision.etat)
+            return False
+        if decision.confiance < r.seuil:
+            arbitre_mod.tracer(moteur, **ligne, resultat="sous_le_seuil")
+            return False
+        arete = moteur._porte_de_l_etape(decision.choix)
+        if arete is None:
+            arbitre_mod.tracer(moteur, **ligne, resultat="porte_inconnue")
+            return False
+        # La fiche d'abord (ordre du décideur) : une condition sur la fiche déjà vraie, lue sur CETTE parole dans le
+        # même délai, garde la main ; elle se prend à la fin de la réplique, comme avant.
+        if passage.portes_a_condition(noeud):
+            greffier = getattr(moteur, "greffier", None)
+            reste = max(0.0, r.delai - (time.monotonic() - debut))
+            lue = True if greffier is None else await greffier.rattraper(reste)
+            if lue and passage.porte_a_prendre_sur_la_fiche(moteur, noeud) is not None:
+                arbitre_mod.tracer(moteur, **ligne, resultat="fiche_d_abord")
+                return False
+            if jeton != moteur.jeton_de_visite() or passage.la_personne_parle(moteur):
+                arbitre_mod.tracer(moteur, **ligne, resultat="jetee")
+                return False
+        if not passage._cible_sans_relance(moteur, agent, arete):
+            # Une fin, un retour au principal, un transfert garanti : ils ne se prennent pas avant la réponse ; et à la
+            # fin de la réplique, la réponse a déjà posé sa question (run 20). L'agent garde sa porte.
+            arbitre_mod.tracer(moteur, **ligne, resultat="laissee_a_l_agent")
+            return False
+        prise = await passage.passer(
+            moteur,
+            arete,
+            raison=passage.RAISON_ARBITRE,
+            jeton=jeton,
+            option=2,
+            detail={"confiance": decision.confiance, "duree_decision": attente},
+        )
+        if prise:
+            arbitre.oublier()
+        arbitre_mod.tracer(moteur, **ligne, resultat="prise" if prise else "refusee")
+        return prise
+    except asyncio.CancelledError:
+        raise
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[arbitre] décision avant la requête en échec : {erreur!r}")
+        return False
+
+
 def _brancher_l_arbitre_a_la_conversation(engine: Any) -> None:
     """Quand une réplique de la personne entre dans la conversation (fin de sa parole), l'arbitre part en parallèle de la
     passe du greffier, jamais en l'attendant. Même point d'accroche que le greffier (``declencher_a_la_conversation``).
-    Hors étape qui l'allume, rien ne part. ⛔ Ne lève jamais."""
+    Questions posées : le passage sur une étape qui l'allume, le temps quand la case « Laisser l'appelant prendre son
+    temps » est allumée ; ni l'un ni l'autre, rien ne part. ⛔ Ne lève jamais."""
     try:
         contexte = getattr(engine, "context", None)
         ajouter = getattr(contexte, "add_message", None)
@@ -310,16 +376,24 @@ def _brancher_l_arbitre_a_la_conversation(engine: Any) -> None:
                     for m in messages
                 ):
                     return
+                from api.services.workflow.laisser_la_parole import case_allumee
+
                 noeud = engine.active_agent.current_node
                 r = passage.reglages_du_passage(noeud)
                 arbitre = getattr(engine, "arbitre", None)
-                if arbitre is None or not r.arbitre or getattr(noeud, "is_end", False):
+                if arbitre is None or noeud is None or getattr(noeud, "is_end", False):
+                    return
+                temps = case_allumee(engine.active_agent, engine)
+                if not (r.arbitre or temps):
                     return
                 arbitre.lancer(
                     engine.jeton_de_visite(),
                     noeud,
                     engine.context.get_messages(),
                     delai=arbitre_mod.DELAI_PAR_DEFAUT,
+                    portes=r.arbitre,
+                    temps=temps,
+                    seuil_du_temps=r.seuil,
                 )
             except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
                 logger.error(f"[arbitre] non déclenché : {erreur!r}")

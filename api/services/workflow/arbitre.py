@@ -13,8 +13,17 @@ Ce qui est réutilisé de Pipecat 1.12 (R9) : le rendu, le schéma et la lecture
 (``interroger_au_format``) sont ceux d'une fiche : ils ne valent pas ici, le repli est donc fait ici (schéma refusé,
 même requête en mode JSON).
 
-Le résultat est lié à la **visite d'étape** où il est né (``engine.jeton_de_visite()``) : le décideur de fin de tour
-(``decideur_de_fin_de_tour.py``) jette toute décision arrivée sous un autre jeton.
+Le résultat est lié à la **visite d'étape** où il est né (``engine.jeton_de_visite()``) et à la parole qui l'a lancé.
+
+Décision d'Evan (29/10, après le rebanc : 74 votes reportés, aucune porte passée) : **l'arbitre décide sur la parole de la
+personne, et l'étape change AVANT que l'agent réponde** (comme Retell). La requête de l'agent attend son résultat, au
+plus le délai de l'étape (``decideur_de_fin_de_tour.arbitre_avant_la_requete``, appelé par les processeurs de
+``pipecat/avant_la_requete.py``) ; il n'est plus appliqué à la fin de la réplique de l'agent.
+
+Dans le même appel, une **question oui/non à part** : la personne demande-t-elle du temps
+(``laisser_la_parole.QUESTION_DU_TEMPS``), posée seulement si la case « Laisser l'appelant prendre son temps » est
+allumée, même si l'arbitre de l'étape est éteint. Oui, au-dessus du seuil : le code accorde l'attente dès la réponse
+(``laisser_la_parole.accorder``) ; la requête de l'agent ne l'attend jamais.
 
 Erreur, délai (3 s), JSON illisible, 429 : **rien ne se passe**, c'est tracé. L'appel ne paie jamais pour l'arbitre.
 Consigne générique : aucun mot de métier (les étapes, portes et descriptions sont des données).
@@ -55,6 +64,14 @@ CONSIGNE = (
     "dans l'étape. Ne réponds jamais à la place de l'agent."
 )
 
+# La consigne quand seule la question du temps est posée (arbitre de l'étape éteint, case allumée).
+CONSIGNE_DU_TEMPS = (
+    "Tu lis les derniers échanges d'une conversation entre un agent et une personne et tu réponds à la question posée "
+    "sur ce que la personne vient de dire. Ne réponds jamais à la place de l'agent."
+)
+# Ajoutée à la consigne du passage quand les deux questions partent ensemble.
+CONSIGNE_DES_DEUX = " Tu réponds aussi, à part, à la question sur ce que la personne demande."
+
 CLE_LLM = "arbitre_llm"
 CLE_ESTAMPILLE = "arbitre_modele"
 
@@ -88,6 +105,7 @@ class Decision:
     jetons: dict = field(default_factory=dict)
     duree: float = 0.0
     parole: int = 0  # le numéro de la parole qui a lancé la demande (le jeton ne change pas entre deux paroles)
+    temps: float | None = None  # probabilité que la personne demande du temps (``None`` : question non posée)
 
     @property
     def veut_passer(self) -> bool:
@@ -97,8 +115,8 @@ class Decision:
 class ClassifieurDeLArbitre(LLMClassifier):
     """``LLMClassifier`` dont l'appel passe par le client du service du greffier (jetons comptés, 429 visible)."""
 
-    def __init__(self, *, service: Any, delai: float = DELAI_PAR_DEFAUT):
-        super().__init__(llm=service, instructions=f"{CONSIGNE}\n\n{DEFAULT_INSTRUCTIONS}", timeout=delai)
+    def __init__(self, *, service: Any, delai: float = DELAI_PAR_DEFAUT, consigne: str = CONSIGNE):
+        super().__init__(llm=service, instructions=f"{consigne}\n\n{DEFAULT_INSTRUCTIONS}", timeout=delai)
         self.jetons: dict = {}
 
     @property
@@ -227,8 +245,19 @@ class ArbitreDuPassage:
             service = getattr(getattr(moteur, "active_agent", None), "llm", None)
         return service
 
-    def lancer(self, jeton: tuple, noeud: Any, messages: Iterable[Any], *, delai: float = DELAI_PAR_DEFAUT) -> bool:
-        """Part en parallèle ; ne bloque jamais. Rend ``True`` si une demande est partie. ⛔ Ne lève jamais."""
+    def lancer(
+        self,
+        jeton: tuple,
+        noeud: Any,
+        messages: Iterable[Any],
+        *,
+        delai: float = DELAI_PAR_DEFAUT,
+        portes: bool = True,
+        temps: bool = False,
+        seuil_du_temps: float = SEUIL_PAR_DEFAUT,
+    ) -> bool:
+        """Part en parallèle ; ne bloque jamais. ``portes`` : la question du passage (étape à arbitre) ; ``temps`` : la
+        question du temps (case allumée). Rend ``True`` si une demande est partie. ⛔ Ne lève jamais."""
         try:
             # Une nouvelle parole périme la demande d'avant : annulée, et sa décision ne s'écrira plus.
             self._parole += 1
@@ -237,20 +266,35 @@ class ArbitreDuPassage:
             if ancienne is not None and not ancienne.done():
                 ancienne.cancel()
             self._jeton, self._decision = None, None
-            if noeud is None or not (getattr(noeud, "out_edges", None) or ()):
+            if noeud is None:
                 return False
-            question, portes = question_de_l_etape(noeud)
+            questions: dict[str, Any] = {}
+            portes_de_l_etape: dict[str, str] = {}
+            if portes and (getattr(noeud, "out_edges", None) or ()):
+                questions[NOM_DE_LA_QUESTION], portes_de_l_etape = question_de_l_etape(noeud)
+            if temps:
+                from api.services.workflow.laisser_la_parole import NOM_DE_LA_QUESTION as NOM_DU_TEMPS
+                from api.services.workflow.laisser_la_parole import QUESTION_DU_TEMPS
+
+                questions[NOM_DU_TEMPS] = QUESTION_DU_TEMPS
+            if not questions:
+                return False
             echanges = derniers_echanges(messages)
             if not echanges:
                 return False
             service = self._service()
-            self._jeton, self._portes, self._decision = jeton, portes, None
+            self._jeton, self._portes, self._decision = jeton, portes_de_l_etape, None
             if service is None:
                 self._decision = Decision(jeton=jeton, etat=ETAT_SANS_CERVEAU, parole=parole)
                 self._tache = None
                 return False
             etat = etat_a_juger(noeud, echanges)
-            self._tache = asyncio.get_running_loop().create_task(self._demander(jeton, service, etat, question, delai, parole))
+            self._tache = asyncio.get_running_loop().create_task(
+                self._demander(
+                    jeton, service, etat, questions, delai, parole,
+                    seuil_du_temps=seuil_du_temps, etape=getattr(noeud, "name", None),
+                )
+            )
             self._engine.notes_en_cours.add(self._tache)
             self._tache.add_done_callback(self._engine.notes_en_cours.discard)
             return True
@@ -259,16 +303,36 @@ class ArbitreDuPassage:
             return False
 
     async def _demander(
-        self, jeton: tuple, service: Any, etat: str, question: ChoiceQuestion, delai: float, parole: int = 0
+        self,
+        jeton: tuple,
+        service: Any,
+        etat: str,
+        questions: dict[str, Any],
+        delai: float,
+        parole: int = 0,
+        *,
+        seuil_du_temps: float = SEUIL_PAR_DEFAUT,
+        etape: str | None = None,
     ) -> None:
+        from api.services.workflow import laisser_la_parole
+
         debut = time.monotonic()
-        classifieur = ClassifieurDeLArbitre(service=service, delai=delai)
+        avec_les_portes = NOM_DE_LA_QUESTION in questions
+        avec_le_temps = laisser_la_parole.NOM_DE_LA_QUESTION in questions
+        if avec_les_portes:
+            consigne = CONSIGNE + (CONSIGNE_DES_DEUX if avec_le_temps else "")
+        else:
+            consigne = CONSIGNE_DU_TEMPS
+        classifieur = ClassifieurDeLArbitre(service=service, delai=delai, consigne=consigne)
         decision = Decision(jeton=jeton, parole=parole)
         try:
-            resultats = await classifieur.choice(etat, {NOM_DE_LA_QUESTION: question})
-            resultat = resultats[NOM_DE_LA_QUESTION]
-            decision.choix = self._portes.get(resultat.choice) if resultat.choice in self._portes else RESTER
-            decision.confiance = float(resultat.confidence)
+            resultats = await classifieur.ask(etat, questions)
+            if avec_les_portes:
+                resultat = resultats[NOM_DE_LA_QUESTION]
+                decision.choix = self._portes.get(resultat.choice) if resultat.choice in self._portes else RESTER
+                decision.confiance = float(resultat.confidence)
+            if avec_le_temps:
+                decision.temps = float(resultats[laisser_la_parole.NOM_DE_LA_QUESTION].probability)
         except ArbitreEnEchec as erreur:
             decision.etat = erreur.etat
         except asyncio.CancelledError:
@@ -284,6 +348,8 @@ class ArbitreDuPassage:
         self._decision = decision
         if decision.etat == ETAT_429:
             logger.warning("[arbitre] 429 : l'arbitre se tait pour ce tour")
+        if decision.temps is not None and decision.temps >= seuil_du_temps:
+            laisser_la_parole.accorder(self._engine, decision.temps, etape)
 
     def _verser(self, service: Any, jetons: dict) -> None:
         """Le coût de l'arbitre, à part (``arbitre``) dans le coût de l'appel. ⛔ Ne lève jamais."""
@@ -321,6 +387,27 @@ class ArbitreDuPassage:
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[arbitre] décision illisible : {erreur!r}")
             return None
+
+    async def attendre(self, jeton: tuple, delai: float) -> tuple[Decision | None, bool]:
+        """La décision née sous ``jeton`` pour la dernière parole, attendue AU PLUS ``delai`` secondes (la demande, elle,
+        continue). Rend ``(décision, demandée)`` : ``demandée`` dit si une demande est partie pour cette parole (une
+        décision absente alors = trop lente). ⛔ Ne lève jamais (sauf l'annulation de l'appelant, propagée)."""
+        try:
+            if self._jeton != jeton:
+                return None, False
+            tache = self._tache
+            if tache is not None and not tache.done():
+                await asyncio.wait({tache}, timeout=max(0.0, delai))
+            if self._jeton != jeton or self._tache is not tache:
+                return None, True  # une parole plus récente a pris la place
+            if tache is not None and not tache.done():
+                return None, True
+            return self._decision, True
+        except asyncio.CancelledError:
+            raise
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[arbitre] décision illisible : {erreur!r}")
+            return None, False
 
     def oublier(self) -> None:
         self._jeton, self._decision = None, None

@@ -300,17 +300,16 @@ class CallMonitorProcessor(FrameProcessor):
         self._arm_idle()
 
     def accorder_l_attente(self) -> None:
-        """[.mark] passages-fiables (lot E) : l'agent laisse la parole. Le silence qui suit est une attente voulue : son délai
-        est celui de la phrase douce (``delai_de_relance``) et le moniteur ne raccroche pas. Une réponse due (l'outil seul,
-        sans parole) ne doit pas finir en délai de réponse : elle est déchargée. ⛔ Ne lève jamais."""
+        """[.mark] passages-fiables (lot E) : la personne a demandé du temps (décidé par le code sur sa parole). Le silence
+        qui suivra la réponse de l'agent est une attente voulue : son délai est celui de la phrase douce
+        (``delai_de_relance``) et le moniteur ne raccroche pas. Une réponse due reste due (l'agent répond normalement) ;
+        un silence déjà surveillé passe au délai de l'attente. ⛔ Ne lève jamais."""
         try:
             self.attente_accordee = True
             self._retry_count = 0
-            if self._response_watch is not None:
-                self._response_watch = None
-            self._cancel_deadline()
-            self._waiting_for_user = True
-            self._arm_idle()
+            if self._deadline_kind == "idle":
+                self._cancel_deadline()
+                self._arm_idle()
         except Exception:  # noqa: BLE001
             logger.warning("Call monitor: could not grant the wait")
 

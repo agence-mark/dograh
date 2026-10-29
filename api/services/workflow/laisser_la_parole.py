@@ -1,23 +1,23 @@
 """[.mark] passages-fiables (lot E) : laisser la parole.
 
-Quand la personne demande un moment (chercher, vérifier), l'agent appelle l'outil ``laisser_la_parole`` (offert seulement
-si la case de l'agent est allumée). Le moniteur de silence (``CallMonitorProcessor``) passe en ATTENTE : le délai est celui
-de la phrase ``attente_accordee`` du catalogue (défaut 45 s), puis cette phrase douce (modifiable à l'écran) remplace la
-relance normale, jamais de raccrochage pendant l'attente ; la personne qui reparle la lève, puis le comportement normal
-reprend.
+Quand la personne demande un moment (chercher, vérifier), le **code** accorde l'attente : le moniteur de silence
+(``CallMonitorProcessor``) passe en ATTENTE, son délai est celui de la phrase ``attente_accordee`` du catalogue (défaut
+45 s), puis cette phrase douce (modifiable à l'écran) remplace la relance normale, jamais de raccrochage pendant
+l'attente ; la personne qui reparle la lève, puis le comportement normal reprend. L'agent, lui, répond normalement (il
+peut dire « je vous attends »).
 
-L'attente s'accorde avec une phrase dite dans la MÊME réponse (« je vous attends ») : le résultat ne fait alors pas
-reparler l'agent (R15, ``parole_avant_outil``). Outil appelé seul, sans phrase (banc local du 29/10, runs 22, 30 et 33 :
-le modèle l'a appelé au moment de passer d'étape, sur « oui, je veux bien » ou une adresse donnée) : rien n'est accordé
-et le modèle est relancé, il répond à la personne. Jamais de résultat d'outil en fin d'historique sans réponse derrière
-(la parole suivante de la personne derrière un rôle ``tool`` est refusée par certains gabarits : 400 chez Scaleway).
-Sans suivi de la parole (service sans les points d'accroche), l'attente est accordée et le modèle relancé, comme R15.
+Décision d'Evan (29/10, après le rebanc) : **plus aucun outil offert au modèle**. Offrir un outil sans argument à Small le
+poussait à « passer » par lui (runs 22, 30, 33, 59 t3, 60, 64) ; il a même corrompu son nom
+(``laisser_la_paroleYfc6dd4H4[TOOL_CALLS]``, run 59) ; l'appel légitime du run 65 a été refusé. La demande de temps est
+reconnue par l'arbitre : une **question oui/non à part** (``QUESTION_DU_TEMPS``) dans le même appel au classifieur que
+la question du passage, posée seulement case allumée (même si l'arbitre de l'étape est éteint). Oui, au-dessus du seuil
+de l'étape : ``accorder``.
 
 Branchements existants du moteur : ``call_monitor.delai_de_relance`` et ``handle_user_idle`` (``pipecat_engine_callbacks``).
-Le clavier n'a pas de silence (aucun agrégateur de parole n'est lié au moniteur) : l'outil y est offert et tracé, sans
-relance (écart écrit dans ``test_parite_clavier_telephone``).
+Le clavier n'a pas de silence (aucun agrégateur de parole n'est lié au moniteur) : l'attente y est accordée et tracée,
+sans relance (écart écrit dans ``test_parite_clavier_telephone``).
 
-⛔ Zéro vocabulaire métier (la description de l'outil est une consigne au modèle, jamais dite). ⛔ Ne lève jamais.
+⛔ Zéro vocabulaire métier (la question est une consigne au modèle, jamais dite). ⛔ Ne lève jamais.
 """
 
 from __future__ import annotations
@@ -25,26 +25,25 @@ from __future__ import annotations
 from typing import Any
 
 from loguru import logger
-from pipecat.adapters.schemas.function_schema import FunctionSchema
-from pipecat.frames.frames import FunctionCallResultProperties
+from pipecat.classifiers.base_classifier import YesNoQuestion
 
 CLE_LAISSER_LA_PAROLE = "laisser_la_parole"
-NOM_OUTIL = "laisser_la_parole"
 # La trace de l'appel, lue par l'analyse : ce qui s'est passé de l'attente.
 CLE_TRACE = "attentes_accordees"
 
-DESCRIPTION_OUTIL = (
-    "Appelle cet outil seulement quand la personne te demande explicitement du temps pour chercher ou vérifier quelque "
-    "chose avant de te répondre. Dans la même réponse, dis d'abord une phrase très courte pour lui dire que tu "
-    "l'attends : sans cette phrase, rien n'est accordé. Ensuite tu te tais jusqu'à ce qu'elle reprenne la parole : elle "
-    "ne sera pas relancée pendant un bon moment. Cet outil ne répond pas à la personne et ne fait passer à aucune autre "
-    "étape."
+# La question posée à l'arbitre, à part de celle du passage (une consigne au modèle, jamais dite à l'appelant).
+NOM_DE_LA_QUESTION = "temps"
+QUESTION_DU_TEMPS = YesNoQuestion(
+    instructions=(
+        "Dans sa dernière parole, la personne demande-t-elle un moment pour chercher, retrouver ou vérifier quelque "
+        "chose avant de répondre ?"
+    ),
+    yes="Elle demande explicitement d'attendre, de patienter ou un instant, le temps de chercher ou de vérifier.",
+    no=(
+        "Elle répond, donne une information, accepte, refuse, pose une question ou demande autre chose. Une phrase "
+        "qui donne déjà l'information n'est pas une demande de temps."
+    ),
 )
-RESULTAT = "La personne prend son temps. Ne dis rien de plus : attends qu'elle reprenne la parole."
-# Sans suivi de la parole : l'attente est accordée et le modèle relancé, il dit qu'il attend.
-RESULTAT_A_DIRE = "La personne prend son temps. Dis-lui seulement, en une phrase très courte, que tu l'attends."
-# Outil appelé seul, sans phrase : rien n'est accordé, le modèle relancé répond à la personne.
-RESULTAT_REFUSE = "Rien n'est accordé. Réponds à ce que la personne vient de dire."
 
 
 def case_allumee(agent: Any, moteur: Any) -> bool:
@@ -54,10 +53,6 @@ def case_allumee(agent: Any, moteur: Any) -> bool:
         return reglages.get(CLE_LAISSER_LA_PAROLE) is True
     except Exception:  # noqa: BLE001
         return False
-
-
-def schema_de_l_outil() -> FunctionSchema:
-    return FunctionSchema(name=NOM_OUTIL, description=DESCRIPTION_OUTIL, properties={}, required=[])
 
 
 def tracer(moteur: Any, evenement: str, **detail: Any) -> None:
@@ -70,41 +65,20 @@ def tracer(moteur: Any, evenement: str, **detail: Any) -> None:
         pass
 
 
-def brancher_laisser_la_parole(moteur: Any, agent: Any, noeud: Any) -> FunctionSchema | None:
-    """Enregistre l'outil sur le cerveau de ``agent`` et rend son schéma ; ``None`` (rien d'offert) : case éteinte, étape de
-    fin, ou pas de moniteur. ⛔ Ne lève jamais."""
+def accorder(moteur: Any, probabilite: float, etape: str | None = None) -> bool:
+    """La personne a demandé du temps (l'arbitre en est sûr) : le moniteur passe en attente. Rien si elle parle déjà de
+    nouveau (sa nouvelle parole a sa propre décision). Rend ``True`` si l'attente est accordée. ⛔ Ne lève jamais."""
     try:
-        if getattr(noeud, "is_end", False) or not case_allumee(agent, moteur):
-            return None
-        if getattr(moteur, "call_monitor", None) is None or getattr(agent, "llm", None) is None:
-            return None
+        from api.services.workflow.passage_sur_la_fiche import la_personne_parle
 
-        from api.services.pipecat.parole_avant_outil import suivre_la_parole
-
-        suivi = suivre_la_parole(agent.llm)
-
-        async def laisser(params) -> None:
-            noeud_en_cours = getattr(agent, "current_node", None)
-            # R15 : la même réponse a-t-elle parlé ? (inconnu sans suivi)
-            a_parle = None if suivi is None else suivi.a_parle_avant(getattr(params, "tool_call_id", None))
-            if a_parle is False:
-                tracer(moteur, "refusee_sans_phrase", etape=getattr(noeud_en_cours, "name", None))
-                await params.result_callback(RESULTAT_REFUSE)
-                return
-            try:
-                moniteur = moteur.call_monitor
-                moniteur.sur_attente_levee = lambda: tracer(moteur, "levee_la_personne_reparle")
-                moniteur.accorder_l_attente()
-                tracer(moteur, "accordee", etape=getattr(noeud_en_cours, "name", None))
-            except Exception as erreur:  # noqa: BLE001
-                logger.warning(f"[parole] attente non accordée : {erreur!r}")
-            if a_parle:
-                await params.result_callback(RESULTAT, properties=FunctionCallResultProperties(run_llm=False))
-            else:
-                await params.result_callback(RESULTAT_A_DIRE)
-
-        agent.llm.register_function(NOM_OUTIL, agent.bind_tool(moteur, laisser))
-        return schema_de_l_outil()
+        if la_personne_parle(moteur):
+            return False
+        moniteur = getattr(moteur, "call_monitor", None)
+        if moniteur is not None:
+            moniteur.sur_attente_levee = lambda: tracer(moteur, "levee_la_personne_reparle")
+            moniteur.accorder_l_attente()
+        tracer(moteur, "accordee", etape=etape, probabilite=probabilite)
+        return True
     except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[parole] outil non branché : {erreur!r}")
-        return None
+        logger.warning(f"[parole] attente non accordée : {erreur!r}")
+        return False

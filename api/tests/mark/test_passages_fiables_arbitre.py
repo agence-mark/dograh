@@ -6,7 +6,7 @@ par une réponse écrite d'avance.
 
 | Test | Ce qu'il prouve |
 |---|---|
-| choix sûr | l'arbitre est sûr d'une sortie (au-dessus du seuil) : le code la prend, l'étape d'arrivée reparle, coût versé à part |
+| choix sûr | l'arbitre est sûr d'une sortie (au-dessus du seuil) : le code la prend AVANT la requête de l'agent, l'étape d'arrivée répond, coût versé à part |
 | rien | « rester », sous le seuil, erreur, délai, JSON illisible, 429 : aucun passage, la raison est tracée, l'appel continue |
 | seuil de l'étape | le seuil réglé sur l'étape remplace 0,8 |
 | désaccord | l'agent a pris une autre porte que l'arbitre : l'agent gagne, le désaccord est tracé |
@@ -110,17 +110,24 @@ async def test_choix_sur_le_code_prend_la_porte_et_le_cout_est_a_part(monkeypatc
     try:
         qui, *_ = await _fin(engine)
         assert qui == "arbitre" and _etape(engine) == "suite"
-        engine.active_agent.queue_frame.assert_awaited()
+        engine.active_agent.queue_frame.assert_not_awaited()  # avant la requête : l'étape d'arrivée répond, sans relance
         ligne = _ligne(engine)
         assert ligne["choix"] == "suite" and ligne["resultat"] == "prise" and ligne["jetons_entree"] == 120
         passe = engine._gathered_context[passage.CLE_PASSAGES][-1]
-        assert passe["raison"] == "arbitre" and passe["resultat"] == "prise"
+        assert passe["raison"] == "arbitre" and passe["resultat"] == "prise" and passe["option"] == 2
         assert engine.collecteur_de_cout.verses == [("arbitre", 120, 15)]
     finally:
         await harness.stop()
 
 
 async def _fin(engine, texte="Très bien."):
+    """La requête de l'agent qui répond à la personne (l'arbitre décide AVANT elle, décision d'Evan du 29/10), puis la
+    fin de sa réplique (la fiche, l'impasse)."""
+    from pipecat.processors.aggregators.llm_context import LLMContext
+
+    contexte = LLMContext(messages=[dict(m) for m in ECHANGES])
+    if await decideur.arbitre_avant_la_requete(engine, engine.active_agent.llm, contexte):
+        return "arbitre", None, None
     depart, jeton = engine.etat_pour_le_filet(), engine.jeton_de_visite()
     return await decideur.decider(engine, texte, depart, jeton), depart, jeton
 
@@ -210,7 +217,7 @@ async def test_la_condition_sur_la_fiche_passe_avant_l_arbitre(monkeypatch):
     try:
         qui, *_ = await _fin(engine)
         assert qui == "fiche" and _etape(engine) == "refus"
-        assert arbitre_mod.CLE_ARBITRE not in engine._gathered_context
+        assert _ligne(engine)["resultat"] == "fiche_d_abord"  # l'arbitre, sûr, laisse la main à la fiche
     finally:
         await harness.stop()
 

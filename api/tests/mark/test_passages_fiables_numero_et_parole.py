@@ -3,9 +3,9 @@
 | Test | Ce qu'il prouve |
 |---|---|
 | C2 | un agent créé (définition ou gabarit) a la relecture des numéros allumée ; la valeur lue par défaut reste éteinte |
-| E outil | outil offert seulement case allumée, résultat sans nouvelle parole de l'agent |
+| E sans outil | aucun outil offert au modèle, case allumée ou non (décision d'Evan du 29/10 : la demande de temps est reconnue par l'arbitre, `test_passages_fiables_avant_la_reponse.py`) |
 | E attente | délai de la phrase douce (45 s), phrase douce au lieu de la relance, jamais de raccrochage, parole = attente levée |
-| E clavier | l'outil est offert au clavier comme au téléphone ; pas de silence au clavier : écart écrit dans le test de parité |
+| E clavier | pas de silence au clavier : écart écrit dans le test de parité |
 """
 
 import asyncio
@@ -23,11 +23,9 @@ from api.services.auth.depends import get_user
 from api.services.groupe.reglages import CONFIGURATION_DE_CREATION
 from api.services.phrases.catalogue import ATTENTE_ACCORDEE, MOTIFS
 from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
-from api.services.workflow.laisser_la_parole import (
-    CLE_TRACE as TRACE_PAROLE,
-    NOM_OUTIL,
-    brancher_laisser_la_parole,
-)
+from api.services.workflow.laisser_la_parole import CLE_TRACE as TRACE_PAROLE
+
+NOM_DE_L_ANCIEN_OUTIL = "laisser_la_parole"
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.pipecat_engine_callbacks import delai_de_la_relance, handle_user_idle
 from api.tests.mark.test_relance_par_la_voix import _Agregateur, _Moteur as _MoteurSilence
@@ -113,17 +111,6 @@ async def test_c2_la_base_ecrit_la_configuration_de_creation(db_session):
 # --------------------------------------------------------------------------- #
 
 
-class _Agent:
-    def __init__(self, reglages):
-        self.reglages = reglages
-        self.current_node = SimpleNamespace(name="Étape", is_end=False)
-        self.enregistres = {}
-        self.llm = SimpleNamespace(register_function=lambda nom, f: self.enregistres.update({nom: f}))
-
-    def bind_tool(self, moteur, f):
-        return f
-
-
 def _moniteur(**reglages):
     moniteur = CallMonitorProcessor(
         response_source=lambda: None, on_response_timeout=lambda _s: None, on_user_idle=None,
@@ -138,41 +125,8 @@ def _moniteur(**reglages):
     return moniteur
 
 
-def test_e_l_outil_n_est_offert_que_case_allumee():
-    moteur = SimpleNamespace(call_monitor=_moniteur(), _gathered_context={})
-    eteinte = _Agent({})
-    assert brancher_laisser_la_parole(moteur, eteinte, eteinte.current_node) is None and eteinte.enregistres == {}
-    allumee = _Agent({"laisser_la_parole": True})
-    schema = brancher_laisser_la_parole(moteur, allumee, allumee.current_node)
-    assert schema.name == NOM_OUTIL and NOM_OUTIL in allumee.enregistres
-    fin = _Agent({"laisser_la_parole": True})
-    fin.current_node = SimpleNamespace(name="Fin", is_end=True)
-    assert brancher_laisser_la_parole(moteur, fin, fin.current_node) is None
+def test_e_la_case_est_eteinte_par_defaut():
     assert WorkflowConfigurationDefaults().laisser_la_parole is False
-
-
-async def test_e_l_outil_accorde_l_attente_et_ne_fait_pas_reparler_l_agent():
-    moteur = SimpleNamespace(call_monitor=_moniteur(), _gathered_context={})
-    agent = _Agent({"laisser_la_parole": True})
-    brancher_laisser_la_parole(moteur, agent, agent.current_node)
-    rendu = {}
-
-    async def result_callback(valeur, properties=None):
-        rendu["valeur"], rendu["properties"] = valeur, properties
-
-    # R15 (correction du banc local, 29/10) : la même réponse a dit « je vous attends » avant l'appel.
-    from api.services.pipecat.parole_avant_outil import SuiviDeLaParole
-
-    suivi = SuiviDeLaParole()
-    agent.llm._mark_parole_avant_outil = suivi
-    brancher_laisser_la_parole(moteur, agent, agent.current_node)
-    suivi.texte = "Je vous attends."
-    suivi.appels_emis([SimpleNamespace(tool_call_id="a1")])
-    await agent.enregistres[NOM_OUTIL](SimpleNamespace(tool_call_id="a1", result_callback=result_callback))
-    assert moteur.call_monitor.attente_accordee is True
-    assert rendu["properties"].run_llm is False
-    assert moteur._gathered_context[TRACE_PAROLE][0]["evenement"] == "accordee"
-    moteur.call_monitor._cancel_deadline()
 
 
 async def test_e_le_delai_de_l_attente_est_celui_de_la_phrase_douce_45_s_par_defaut():
@@ -194,14 +148,6 @@ async def test_e_pas_de_relance_avant_le_delai_le_moniteur_arme_le_delai_de_l_at
     assert 9 < moniteur._deadline.when() - loop.time() <= 10
     moniteur.accorder_l_attente()  # re-arme avec le délai de l'attente
     assert moniteur._deadline_kind == "idle" and 44 < moniteur._deadline.when() - loop.time() <= 45
-    moniteur._cancel_deadline()
-
-
-async def test_e_une_reponse_due_ne_finit_pas_en_delai_de_reponse():
-    moniteur = _moniteur()
-    moniteur._response_watch = object()  # l'outil seul, sans parole : une réponse resterait « due »
-    moniteur.accorder_l_attente()
-    assert moniteur._response_watch is None
     moniteur._cancel_deadline()
 
 
@@ -260,8 +206,8 @@ async def test_e_sans_attente_la_relance_normale_et_le_raccrochage_sont_inchange
     assert moteur.raccroche is not None  # sans l'attente : le comportement d'avant
 
 
-async def test_e_un_vrai_moteur_offre_l_outil_case_allumee_et_pas_case_eteinte(three_node_workflow, no_disposition_mapping):
-    """Le branchement est dans le moteur (téléphone et clavier : même `set_node`)."""
+async def test_e_un_vrai_moteur_n_offre_jamais_l_outil(three_node_workflow, no_disposition_mapping):
+    """Plus aucun outil offert au modèle (téléphone et clavier : même `set_node`), case allumée ou non."""
 
     async def outils(reglages):
         moteur = PipecatEngine(
@@ -279,5 +225,5 @@ async def test_e_un_vrai_moteur_offre_l_outil_case_allumee_et_pas_case_eteinte(t
         await moteur.set_node(moteur.active_agent.workflow.start_node_id)
         return vus[-1]
 
-    assert NOM_OUTIL in await outils({"laisser_la_parole": True})
-    assert NOM_OUTIL not in await outils({})
+    assert NOM_DE_L_ANCIEN_OUTIL not in await outils({"laisser_la_parole": True})
+    assert NOM_DE_L_ANCIEN_OUTIL not in await outils({})

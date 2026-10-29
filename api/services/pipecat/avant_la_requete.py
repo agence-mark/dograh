@@ -17,7 +17,11 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
    manque : attente bornée de la passe du greffier, puis passage d'étape AVANT que la requête parte. Le passage réécrit
    le prompt de l'étape (``LLMService._update_settings``, commun à tous) et les outils du contexte partagé : la requête
    qui part parle déjà dans l'étape d'arrivée ;
-2. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
+2. **l'arbitre** (``decideur_de_fin_de_tour.arbitre_avant_la_requete``, décision d'Evan du 29/10) : sur une étape où il
+   est allumé, la requête attend sa décision sur la parole de la personne (au plus le délai de l'étape) ; sûre et ≠
+   « rester » : même passage que l'option 2, l'étape d'arrivée répond directement. Au-delà du délai, la requête part
+   sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ;
+3. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
    cette requête seulement ; l'historique n'est pas touché.
 
 Posés seulement sur un agent qui a au moins une étape qui réclame le code (``autour_du_cerveau``) : un agent tout éteint
@@ -26,6 +30,7 @@ a le circuit de la base, sans processeur de plus. ⛔ Ne lève jamais : dans le 
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from loguru import logger
@@ -35,16 +40,23 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
 async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> LLMContextFrame:
-    """L'option 2 puis la notice d'un tour, sur la requête que porte ``trame``. Rend la trame à pousser (la même, ou une
-    trame neuve sur une copie du contexte). ⛔ Ne lève jamais."""
+    """L'option 2, puis l'arbitre, puis la notice d'un tour, sur la requête que porte ``trame``. Rend la trame à pousser
+    (la même, ou une trame neuve sur une copie du contexte). ⛔ Ne lève jamais (l'annulation d'une interruption est
+    propagée)."""
+    from api.services.workflow import decideur_de_fin_de_tour as decideur
     from api.services.workflow import passage_sur_la_fiche as passage
 
     if getattr(trame, "speculation", False):
         return trame
     try:
-        await passage.avant_la_requete(moteur, llm, trame.context)
+        if passage._derniere_parole_de_la_personne(trame.context):
+            passage.oublier_la_porte_prise_avant(moteur)
+        if not await passage.avant_la_requete(moteur, llm, trame.context):
+            await decideur.arbitre_avant_la_requete(moteur, llm, trame.context)
+    except asyncio.CancelledError:
+        raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
-        logger.warning(f"[passage] option 2 en échec : {erreur!r}")
+        logger.warning(f"[passage] option 2 ou arbitre en échec : {erreur!r}")
     copie = passage.contexte_avec_la_notice(moteur, trame.context)
     if copie is None:
         return trame
@@ -65,6 +77,8 @@ class AvantLaRequete(FrameProcessor):
         if isinstance(frame, LLMContextFrame) and direction == self._sens:
             try:
                 frame = await preparer_la_requete(self._moteur, self._llm, frame)
+            except asyncio.CancelledError:
+                raise
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[passage] requête non préparée : {erreur!r}")
         await self.push_frame(frame, direction)

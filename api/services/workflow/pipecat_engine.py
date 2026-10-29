@@ -2138,11 +2138,8 @@ class PipecatEngine:
             node,
             offre_une_action=not node.is_end and etape_qui_ecrit(self, actions_offertes(self), etape_du_fond),
         )
-        # [.mark] passages-fiables (lot E) : l'outil « laisser la parole », seulement case allumée.
-        from api.services.workflow.laisser_la_parole import brancher_laisser_la_parole
-
-        if (schema_parole := brancher_laisser_la_parole(self, agent, node)) is not None:
-            functions.append(schema_parole)
+        # [.mark] passages-fiables (lot E) : « laisser la parole » n'est plus un outil offert au modèle (décision d'Evan du
+        # 29/10) ; la demande de temps est reconnue par l'arbitre (``laisser_la_parole.QUESTION_DU_TEMPS``).
         # [.mark] passages-fiables (lot F) : l'outil « signaler un problème », seulement case allumée (rien n'est dit).
         from api.services.workflow.signaler_un_probleme import brancher_signaler_un_probleme
 

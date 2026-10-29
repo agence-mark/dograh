@@ -137,8 +137,9 @@ def test_journal_branche_deux_fois_sur_le_meme_client_ne_s_empile_pas():
     assert http._mark_journal_des_requetes["journal"] is second
 
 
-# passages-fiables (lot E) : un effet qui n'a pas d'équivalent au clavier, avec sa raison. L'outil « laisser la parole » est
-# branché dans le moteur (`set_node`), donc offert au clavier comme au téléphone ; seule la relance de silence manque.
+# passages-fiables (lot E) : un effet qui n'a pas d'équivalent au clavier, avec sa raison. La demande de temps est reconnue
+# par l'arbitre (même crochet de la conversation) et l'attente accordée au clavier comme au téléphone ; seule la relance de
+# silence manque.
 ECARTS_DE_COMPORTEMENT = {
     "laisser_la_parole (relance douce)": "audio : le clavier n'a pas de silence à surveiller (aucun agrégateur de parole n'est lié au moniteur), l'attente n'a donc rien à retenir",
     "alertes (mail regroupé de l'appel)": "pas de fin d'appel au clavier : une session d'essai n'a pas de fin du pipeline qui envoie le mail ; les alertes elles-mêmes sont écrites dans le run au clavier comme au téléphone (même moteur) et lues par la page « Alertes »",

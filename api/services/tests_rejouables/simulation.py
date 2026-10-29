@@ -18,7 +18,7 @@ inventée). Ils restent distingués dans la note (``ecriture: false``).
 
 Ne sont PAS simulés : la calculatrice (pure), la fin d'appel et la passation à un autre agent de l'appel (internes,
 sans effet hors de l'appel : le test d'un passage doit les voir marcher), et les outils du moteur lui-même
-(``noter_information``, ``laisser_la_parole``, ``signaler_un_probleme``, travail de fond).
+(``noter_information``, ``signaler_un_probleme``, travail de fond).
 
 Hors rejeu : ``simuler_si_rejeu`` rend le gestionnaire tel quel (aucun enrobage). ⛔ Zéro vocabulaire métier.
 ⛔ Ne lève jamais dans le chemin de l'appel.
