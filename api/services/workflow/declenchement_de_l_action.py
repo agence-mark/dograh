@@ -169,6 +169,23 @@ def empreinte(moteur: Any, noeud: Any) -> str:
         return "?"
 
 
+def dernier_travail_de_l_etape_en_echec(moteur: Any, etape: str | None) -> bool:
+    """Le dernier travail confié depuis l'étape ``etape`` (trace de la fiche) s'est-il terminé en échec ?
+    ⛔ Ne lève jamais (``False`` dans le doute)."""
+    try:
+        from api.services.travail.agent import STATUTS_D_ECHEC
+        from api.services.travail.demande_identique import CLE_ETAPE
+        from api.services.travail.reglages import CLE_TRAVAUX
+
+        fiche = getattr(moteur, "_gathered_context", None)
+        travaux = (fiche.get(CLE_TRAVAUX) if isinstance(fiche, dict) else None) or []
+        de_l_etape = [e for e in travaux if isinstance(e, dict) and e.get(CLE_ETAPE) == etape]
+        return bool(de_l_etape) and de_l_etape[-1].get("statut") in STATUTS_D_ECHEC
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[declenchement] travaux illisibles : {erreur!r}")
+        return False
+
+
 def _fait(moteur: Any) -> set:
     fait = getattr(moteur, CLE_DECLENCHEMENTS, None)
     if isinstance(fait, set):
@@ -262,6 +279,11 @@ class Declencheur:
             from api.services.workflow.verite_des_actions import ecriture_en_vigueur
 
             if ecriture_en_vigueur(self.moteur, identifiant_de_l_etape(self.noeud, self.agent)) is not None:
+                return False
+            # Figeage (Evan, 29/10, banc v12 E9) : le dernier travail de CETTE étape a échoué : le code ne relance
+            # plus rien seul ici (la fiche retouchée après l'échec réarmait la recherche, l'appel ne concluait pas).
+            # L'agent garde ses outils : la personne qui redemande est servie.
+            if dernier_travail_de_l_etape_en_echec(self.moteur, identifiant_de_l_etape(self.noeud, self.agent)):
                 return False
             from api.services.workflow.enveloppe_des_actions import (
                 garde_du_noeud_apres_les_notes,

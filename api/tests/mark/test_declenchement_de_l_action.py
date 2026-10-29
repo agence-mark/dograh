@@ -713,3 +713,25 @@ async def test_k8_relance_le_moteur_pose_le_declencheur_sur_l_etape_qui_offre_co
     declencheur = getattr(moteur.active_agent.llm, ATTRIBUT_DECLENCHEUR)
     assert declencheur.position == RELANCE and declencheur.outil == NOM_OUTIL
     assert not getattr(moteur.active_agent.llm, "_mark_declenchement_des_tours", False)  # la relance n'enveloppe pas la requête
+
+
+# --------------------------------------------------------------------------- #
+# Figeage (Evan, 29/10) : après un échec du travail de l'étape, plus de relance par le code
+# --------------------------------------------------------------------------- #
+
+
+async def test_figeage_aucune_position_ne_s_arme_apres_un_echec_du_travail_de_l_etape():
+    from api.services.travail.demande_identique import CLE_ETAPE, identifiant_de_l_etape
+
+    for position in (RELANCE, OBLIGATOIRE, AUTOMATIQUE):
+        banc = Banc(position)
+        d = banc.declencheur()
+        etape = identifiant_de_l_etape(banc.noeud, banc.agent)
+        banc.fiche["travaux"] = [{CLE_ETAPE: "autre", "statut": "echec"}]
+        assert await d.armer() is True  # l'échec d'une autre étape ne compte pas
+        banc.fiche["travaux"].append({CLE_ETAPE: etape, "statut": "echec"})
+        assert await d.armer() is False
+        banc.fiche["adresse"] = "9 rue Pasteur"  # la fiche retouchée ne réarme pas (banc v12, E9)
+        assert await d.armer() is False
+        banc.fiche["travaux"].append({CLE_ETAPE: etape, "statut": "fait"})  # l'agent a relancé et réussi
+        assert await d.armer() is True

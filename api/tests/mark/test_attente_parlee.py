@@ -130,7 +130,7 @@ async def test_l_outil_annuler_est_offert_avec_confier(appel):
     noms = {
         getattr(f, "name", None) for f in appel.engine.context.tools.standard_tools
     }
-    assert {NOM_OUTIL, "annuler_le_travail"} <= noms
+    assert {NOM_OUTIL, "arreter_le_travail_en_cours"} <= noms
 
 
 # --------------------------------------------------------------------------- #

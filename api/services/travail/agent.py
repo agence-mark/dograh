@@ -18,7 +18,7 @@ Chantier fiabilite-orchestration, lot 1 (F1, F2, C1, C2, R15) :
 - l'attente parlée : pendant un travail, une ligne du code (``LIGNE_TRAVAIL_EN_COURS``) entre dans
   chaque requête de conversation, juste avant la dernière parole de l'appelant (comme l'état de la
   fiche : hors historique, le cache reste servi) ; elle dit de ne poser aucune question ;
-- l'appelant peut toujours **annuler** (``annuler_le_travail``) ou **modifier** : ``confier`` pendant
+- l'appelant peut toujours **annuler** (``arreter_le_travail_en_cours``) ou **modifier** : ``confier`` pendant
   un travail annule la demande précédente et lance la nouvelle ;
 - la **phrase d'attente** (motif ``travail_dure`` des phrases du code, veille générique du diseur) est
   dite par la voix, sans le modèle, quand le travail dure au-delà de son délai d'attente du système
