@@ -30,6 +30,7 @@ Aucun mot de métier. ⛔ Ne lève jamais : un passage manqué ne coûte jamais 
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -419,12 +420,11 @@ def agent_reclame_le_code(agent: Any) -> bool:
 
 def porte_prise_avant_la_requete(moteur: Any, jeton: tuple) -> bool:
     """Une porte a été prise par le code AVANT la requête de la réplique qui commence sous ``jeton`` (option 2, arbitre) :
-    la fin de cette réplique ne prend pas une seconde porte sur la même parole. Lue une seule fois. ⛔ Ne lève jamais."""
+    la fin de cette réplique, et celle de la relance qui suit un appel d'outil, ne prennent pas une seconde porte sur la
+    même parole. Non consommée à la lecture : seule une NOUVELLE parole l'oublie (``oublier_la_porte_prise_avant``).
+    ⛔ Ne lève jamais."""
     try:
-        if getattr(moteur, "_porte_prise_avant_la_requete", None) == jeton:
-            moteur._porte_prise_avant_la_requete = None
-            return True
-        return False
+        return getattr(moteur, "_porte_prise_avant_la_requete", None) == jeton
     except Exception:  # noqa: BLE001
         return False
 
@@ -453,11 +453,13 @@ def _derniere_parole_de_la_personne(context: Any) -> bool:
     )
 
 
-async def avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
+async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float | None = None) -> bool:
     """L'option 2, juste avant la requête de l'agent. Étape réglée « attendre le dernier champ » : un seul champ manque ;
     la requête attend la passe du greffier sur la dernière parole (au plus le délai de l'étape) ; si une condition devient
     vraie, le passage a lieu avant que l'agent parle. Délai dépassé, vers une fin, un retour ou un transfert garanti,
-    la personne qui parle : rien, l'option 1 jouera. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais."""
+    la personne qui parle : rien, l'option 1 jouera. ``depart`` : l'instant (``time.monotonic``) où la requête a commencé
+    à être préparée ; l'attente ne dépasse jamais ce qui reste du délai de l'étape. Rend ``True`` si la porte a été
+    prise. ⛔ Ne lève jamais."""
     try:
         agent = moteur.active_agent
         if getattr(agent, "llm", None) is not llm:
@@ -483,7 +485,8 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
         if len(manque) != 1:
             return False
         jeton = moteur.jeton_de_visite()
-        if not await greffier.rattraper(r.delai):
+        reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))
+        if not await greffier.rattraper(reste):
             tracer(moteur, etape=getattr(noeud, "name", None), option=2, resultat="delai_option_1_jouera", raison=RAISON_FICHE)
             return False
         if jeton != moteur.jeton_de_visite() or la_personne_parle(moteur):

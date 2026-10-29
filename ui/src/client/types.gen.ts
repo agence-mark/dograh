@@ -8244,6 +8244,10 @@ export type PageDeTri = {
      * Par Page
      */
     par_page?: number;
+    /**
+     * Recherche Tronquee
+     */
+    recherche_tronquee?: boolean;
 };
 
 /**

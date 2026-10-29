@@ -24,6 +24,11 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
 3. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
    cette requête seulement ; l'historique n'est pas touché.
 
+⚠️ Requête anticipée (``speculation``) : jamais préparée ici, et si l'anticipation est CONFIRMÉE Pipecat ne relance pas de
+requête (``run_llm=not confirms_speculation``) : l'option 2, l'arbitre et la notice d'un tour ne s'appliquent donc pas à ce
+tour-là. La détection anticipée n'est pas activée aujourd'hui ; si elle l'était, ce tour partirait sans ces portes (une
+requête anticipée ne change jamais d'étape, prouvé par ``test_passages_fiables_seconde_revue``).
+
 Posés seulement sur un agent qui a au moins une étape qui réclame le code (``autour_du_cerveau``) : un agent tout éteint
 a le circuit de la base, sans processeur de plus. ⛔ Ne lève jamais : dans le doute, la trame passe telle quelle.
 """
@@ -31,6 +36,7 @@ a le circuit de la base, sans processeur de plus. ⛔ Ne lève jamais : dans le 
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from loguru import logger
@@ -48,11 +54,12 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
 
     if getattr(trame, "speculation", False):
         return trame
+    depart = time.monotonic()  # l'attente cumulée (option 2 puis arbitre) ne dépasse jamais le délai de l'étape
     try:
         if passage._derniere_parole_de_la_personne(trame.context):
             passage.oublier_la_porte_prise_avant(moteur)
-        if not await passage.avant_la_requete(moteur, llm, trame.context):
-            await decideur.arbitre_avant_la_requete(moteur, llm, trame.context)
+        if not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart):
+            await decideur.arbitre_avant_la_requete(moteur, llm, trame.context, depart=depart)
     except asyncio.CancelledError:
         raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour

@@ -140,7 +140,7 @@ async def test_option_2_la_requete_part_deja_dans_l_etape_d_arrivee_avec_toute_f
         [requete] = cerveau.requetes
         assert "Tu es l'étape Suite." in requete["systeme"]  # le passage a eu lieu AVANT que la requête parte
         engine.active_agent.queue_frame.assert_not_awaited()  # aucune relance : un seul tour
-        assert greffier.appels == [passage.DELAI_PAR_DEFAUT]
+        assert greffier.appels == pytest.approx([passage.DELAI_PAR_DEFAUT], abs=0.05)  # il reste le délai moins le temps déjà passé
         trace = engine._gathered_context[passage.CLE_PASSAGES][-1]
         assert trace["option"] == 2 and trace["resultat"] == "prise"
     finally:
@@ -156,7 +156,7 @@ async def test_option_2_au_delai_la_requete_part_de_l_etape_d_avant_avec_toute_f
         engine = harness.engine
         cerveau = await _brancher(engine, famille)
         await _requete(engine, cerveau, [{"role": "user", "content": "une demande"}])
-        assert _etape(engine) == "etape" and greffier.appels == [0.2]
+        assert _etape(engine) == "etape" and greffier.appels == pytest.approx([0.2], abs=0.05)
         [requete] = cerveau.requetes
         assert "Tu es l'étape Collecte." in requete["systeme"]
     finally:

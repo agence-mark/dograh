@@ -46,6 +46,8 @@ class PageDeTri(BaseModel):
     a_une_suite: bool
     jours: int = donnees.JOURS_DE_LECTURE
     par_page: int = donnees.RUNS_PAR_PAGE
+    # Filtre par statut : la borne de lecture est atteinte avant de remplir la page ; la recherche s'est arrêtée là.
+    recherche_tronquee: bool = False
 
 
 class ChangementDeStatut(BaseModel):
@@ -118,8 +120,13 @@ async def lire_la_file_de_tri(
         )
         lignes.extend(pages.lignes_de_tri(runs, statut))
         lues += 1
-    suite = len(lignes) > (page + 1) * par_page or encore
-    return PageDeTri(lignes=lignes[page * par_page : (page + 1) * par_page], page=page, a_une_suite=suite)
+    # Borne atteinte avant de remplir la page : on ne promet pas une suite qu'on n'a pas lue (une page vide « avec suite »
+    # renvoyait l'écran dans le vide) ; la réponse dit que la recherche est tronquée.
+    tronquee = encore and len(lignes) < voulu
+    suite = len(lignes) > (page + 1) * par_page
+    return PageDeTri(
+        lignes=lignes[page * par_page : (page + 1) * par_page], page=page, a_une_suite=suite, recherche_tronquee=tronquee
+    )
 
 
 @router.put("/tri/{run_id}", response_model=StatutEcrit)

@@ -40,6 +40,7 @@ export function PageATrier() {
     const [lignes, setLignes] = useState<LigneDeTri[] | null>(null);
     const [page, setPage] = useState(0);
     const [aUneSuite, setAUneSuite] = useState(false);
+    const [tronquee, setTronquee] = useState(false);
     const [agent, setAgent] = useState<number | "">("");
     const [agents, setAgents] = useState<Record<number, string>>({});
     const [erreur, setErreur] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export function PageATrier() {
         setErreur(null);
         setLignes(donnees.lignes);
         setAUneSuite(donnees.a_une_suite);
+        setTronquee(donnees.recherche_tronquee === true);
         setAgents((avant) => ({ ...avant, ...Object.fromEntries(donnees.lignes.map((l) => [l.workflow_id, l.workflow_nom])) }));
     }, [page, agent]);
 
@@ -102,6 +104,14 @@ export function PageATrier() {
                     })}
                 </p>
             </div>
+            {tronquee && (
+                <p className="text-xs text-muted-foreground" data-testid="a-trier-tronquee">
+                    {t({
+                        en: "The search stopped at the reading limit: older calls were not read.",
+                        fr: "La recherche s'est arrêtée à la limite de lecture : les appels plus anciens n'ont pas été lus.",
+                    })}
+                </p>
+            )}
             {erreur && (
                 <p role="alert" className="text-sm text-destructive">
                     {erreur}

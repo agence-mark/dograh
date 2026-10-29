@@ -262,11 +262,13 @@ async def decider(moteur: Any, texte: str, depart: tuple | None, jeton: tuple | 
 MOMENT_AVANT = "avant_la_reponse"
 
 
-async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
+async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float | None = None) -> bool:
     """L'arbitre, juste avant la requête de l'agent qui répond à la personne : attend sa décision sur CETTE parole (au
     plus le délai de l'étape) ; sûre et ≠ « rester » : passage AVANT que la requête parte, l'étape d'arrivée répond
     directement (sans relance, comme l'option 2). Vers une fin, un retour au principal ou un transfert garanti : laissé
-    à l'agent. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais (sauf l'annulation, propagée)."""
+    à l'agent. ``depart`` : l'instant où la préparation de la requête a commencé (l'option 2 a pu déjà attendre) ; au total la
+    requête n'attend jamais plus que le délai de l'étape. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais (sauf
+    l'annulation, propagée)."""
     try:
         agent = moteur.active_agent
         if getattr(agent, "llm", None) is not llm:
@@ -282,7 +284,8 @@ async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
             return False
         jeton = moteur.jeton_de_visite()
         debut = time.monotonic()
-        decision, demandee = await arbitre.attendre(jeton, r.delai)
+        origine = debut if depart is None else depart
+        decision, demandee = await arbitre.attendre(jeton, max(0.0, r.delai - (debut - origine)))
         attente = _duree(debut)
         if decision is None:
             if demandee:
@@ -320,7 +323,7 @@ async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any) -> bool:
         # même délai, garde la main ; elle se prend à la fin de la réplique, comme avant.
         if passage.portes_a_condition(noeud):
             greffier = getattr(moteur, "greffier", None)
-            reste = max(0.0, r.delai - (time.monotonic() - debut))
+            reste = max(0.0, r.delai - (time.monotonic() - origine))
             lue = True if greffier is None else await greffier.rattraper(reste)
             if lue and passage.porte_a_prendre_sur_la_fiche(moteur, noeud) is not None:
                 arbitre_mod.tracer(moteur, **ligne, resultat="fiche_d_abord")

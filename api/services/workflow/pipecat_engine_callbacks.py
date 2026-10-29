@@ -19,6 +19,7 @@ from api.schemas.workflow_configurations import (
     DEFAULT_USER_IDLE_PROMPT,
 )
 from api.services.analyse_run.incidents_appel import noter_la_relance
+from api.services.groupe.passations import ConsigneDuCode
 from loguru import logger
 from pipecat.frames.frames import (
     LLMMessagesAppendFrame,
@@ -175,7 +176,7 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
             return
         await aggregator.push_frame(
             LLMMessagesAppendFrame(
-                [{"role": "user", "content": idle_prompt}], run_llm=True
+                [{"role": "user", "content": ConsigneDuCode(idle_prompt)}], run_llm=True
             )
         )
         return
@@ -194,7 +195,7 @@ async def handle_user_idle(engine: "PipecatEngine", aggregator, attempt: int) ->
         if issue.prise_en_main or issue.action == "continuer":
             return
     await aggregator.push_frame(
-        LLMMessagesAppendFrame([{"role": "user", "content": goodbye_prompt}], run_llm=True)
+        LLMMessagesAppendFrame([{"role": "user", "content": ConsigneDuCode(goodbye_prompt)}], run_llm=True)
     )
     await engine.end_call_with_reason(
         EndTaskReason.USER_IDLE_MAX_DURATION_EXCEEDED.value

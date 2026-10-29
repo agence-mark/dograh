@@ -238,8 +238,19 @@ async def test_une_seule_porte_par_tour_apres_un_passage_avant_la_requete(monkey
         jeton = engine.jeton_de_visite()
         qui = await decideur.decider(engine, "Très bien.", engine.etat_pour_le_filet(), jeton)
         assert qui is None and _etape(engine) == "suite"  # même parole : une seule porte
+        # Seconde revue : le repère n'est pas consommé par une fin de réplique (une relance d'outil en est une aussi).
         qui = await decideur.decider(engine, "Très bien.", engine.etat_pour_le_filet(), jeton)
-        assert qui == "fiche" and _etape(engine) == "reprise"  # au tour suivant, la fiche joue
+        assert qui is None and _etape(engine) == "suite"
+        # Au tour suivant, une VRAIE nouvelle parole de la personne : le repère est oublié, la fiche joue.
+        suite_de_la_conversation = [
+            *E5,
+            {"role": "assistant", "content": "Très bien."},
+            {"role": "user", "content": "D'accord, merci."},
+        ]
+        _la_personne_parle(engine, suite_de_la_conversation[-1:])
+        await _requete(engine, cerveau, suite_de_la_conversation)
+        qui = await decideur.decider(engine, "Très bien.", engine.etat_pour_le_filet(), jeton)
+        assert qui == "fiche" and _etape(engine) == "reprise"
     finally:
         await harness.stop()
 
