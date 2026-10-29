@@ -13729,7 +13729,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Laisser La Parole
      *
-     * Offers the agent a tool for when the caller asks for a moment (to look something up or check). While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. Off (default): the tool is not offered.
+     * When the caller asks for a moment (to look something up or check), the arbiter recognises it on their words and the code grants the wait; the agent answers as usual. While it waits, the silence reminder is replaced by a gentle sentence (a rule of the sentence catalogue, with its own delay, default 45 s) and the call is never hung up on silence. The caller speaking again lifts the wait. No tool is offered to the agent. Off (default): the question is not asked.
      */
     laisser_la_parole?: boolean;
     /**

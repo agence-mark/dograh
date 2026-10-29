@@ -101,15 +101,16 @@ class StartCall(TypedNode):
 
     delai_du_passage: Optional[float] = None
     """
-    Longest wait for the clerk before the usual timing plays instead.
-    Default 1.5.
+    How long the agent's reply may wait for the clerk (Wait for the last
+    field) or for the arbiter, before it leaves without them. Default 1.5.
     """
 
     arbitre: Optional[bool] = None
     """
-    A separate small model, asked in parallel as the caller finishes
-    speaking, which exit (if any) the conversation calls for. Empty: off,
-    except on a Choice or Free step. It passes only when sure.
+    A separate small model, asked as the caller finishes speaking, which
+    exit (if any) their words call for. The agent's reply waits for it
+    (bounded); when it is sure, the next step answers at once. Empty: off,
+    except on a Choice or Free step.
     """
 
     seuil_de_l_arbitre: Optional[float] = None

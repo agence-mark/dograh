@@ -577,8 +577,8 @@ export const CATALOGUE = {
         libelle: { en: "Let the caller take their time", fr: "Laisser l'appelant prendre son temps" },
         aides: [
             {
-                en: "Offers the agent a tool for when the caller asks for a moment (to look something up or check). During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the tool is not offered.",
-                fr: "Offre à l'agent un outil pour quand l'appelant demande un moment (chercher, vérifier). Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « L'appelant prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : l'outil n'est pas offert.",
+                en: "When the caller asks for a moment (to look something up or check), the arbiter recognises it on their words and the code grants the wait; the agent answers as usual, no tool is offered to it. During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the question is not asked.",
+                fr: "Quand l'appelant demande un moment (chercher, vérifier), l'arbitre le reconnaît sur sa parole et le code accorde l'attente ; l'agent répond normalement, aucun outil ne lui est offert. Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « L'appelant prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : la question n'est pas posée.",
             },
         ],
     }),

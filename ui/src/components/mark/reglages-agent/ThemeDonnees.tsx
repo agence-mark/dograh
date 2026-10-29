@@ -955,8 +955,8 @@ export const ThemeDonnees = ({
                         <DialogTitle>{t({ en: "Arbiter", fr: "Arbitre" })}</DialogTitle>
                         <DialogDescription>
                             {t({
-                                en: "A separate model that, in parallel, says which exit of the step the conversation calls for, if any. It passes only when sure. Empty fields come from the conversation model; with no block at all, it uses the clerk's model.",
-                                fr: "Un modèle séparé qui dit, en parallèle, quelle sortie de l'étape la conversation appelle, s'il y en a une. Il ne fait passer que s'il est sûr. Un champ vide reprend le modèle de la conversation ; sans aucun bloc, il prend le modèle du greffier.",
+                                en: "A separate model that says, on the caller's words, which exit of the step they call for, if any, and whether the caller asks for a moment. It passes only when sure, before the agent answers. Empty fields come from the conversation model; with no block at all, it uses the clerk's model.",
+                                fr: "Un modèle séparé qui dit, sur la parole de l'appelant, quelle sortie de l'étape elle appelle, s'il y en a une, et si l'appelant demande un moment. Il ne fait passer que s'il est sûr, avant que l'agent réponde. Un champ vide reprend le modèle de la conversation ; sans aucun bloc, il prend le modèle du greffier.",
                             })}
                         </DialogDescription>
                     </DialogHeader>
