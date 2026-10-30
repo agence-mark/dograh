@@ -100,8 +100,12 @@ class DispositionExtractionService:
         parent_context: Any = None,
         organization_id: int | None = None,
         workflow_run_id: int | None = None,
+        fiche: str | None = None,
     ) -> str | None:
-        """Return the configured disposition supported by the conversation."""
+        """Return the configured disposition supported by the conversation.
+
+        [.mark] agent-facon-tala, C4: ``fiche`` is what the call's record noted (the conversation can be cut
+        short at agent changes); the classifier reads it with the conversation. ``None``: as before."""
         if not self._options or self._llm is None or self._context is None:
             return None
         if not has_user_turns(self._context):
@@ -111,7 +115,7 @@ class DispositionExtractionService:
             return None
 
         try:
-            messages = [{"role": "user", "content": self._build_user_prompt()}]
+            messages = [{"role": "user", "content": self._build_user_prompt(fiche)}]
             inference_context = LLMContext()
             inference_context.set_messages(messages)
             response = await self._run_inference(
@@ -152,7 +156,7 @@ class DispositionExtractionService:
             )
             return None
 
-    def _build_user_prompt(self) -> str:
+    def _build_user_prompt(self, fiche: str | None = None) -> str:
         options = [
             option.model_copy(
                 update={
@@ -166,6 +170,12 @@ class DispositionExtractionService:
         ]
         choices = json.dumps(options, ensure_ascii=False, indent=2)
         conversation_history = build_conversation_history(self._context)
+        # [.mark] C4: what the call's record noted, after the conversation (same prompt when there is none).
+        bloc_fiche = (
+            f"\n\nWhat the call's record noted (it can be fuller than the conversation above):\n{fiche}"
+            if fiche
+            else ""
+        )
         return (
             "Set call_disposition to exactly one code from the configured options "
             "below. Return the code exactly as written, not its description. If "
@@ -173,6 +183,7 @@ class DispositionExtractionService:
             "to null. Never invent a new code.\n\n"
             f"Configured dispositions (JSON):\n{choices}\n\n"
             f"Conversation history:\n{conversation_history}"
+            f"{bloc_fiche}"
         )
 
     async def _run_inference(

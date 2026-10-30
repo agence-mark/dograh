@@ -1495,6 +1495,95 @@ async def execute_text_chat_pending_turn(
     )
 
 
+async def extract_text_chat_final_disposition(
+    *,
+    workflow_run_id: int,
+    workflow_id: int,
+    organization_id: int,
+    checkpoint: dict[str, Any] | None,
+    session_data: dict[str, Any] | None = None,
+    extracted: dict[str, Any] | None = None,
+) -> str | None:
+    """[.mark] agent-facon-tala, C4: the business outcome of a chat that ends without the agent's own ending
+    (the person leaves, inactivity, the keyboard's end). The same classifier as a voice call's teardown
+    (``DispositionExtractionService``), reading the conversation AND the record (the checkpoint's, with what the
+    end-of-chat pass just wrote in ``extracted``); when the reason is not clear and the person spoke, the list's
+    "unclear call" outcome if the list has one. ``None``: nothing to say. Never raises (the caller persists the
+    completion after this)."""
+    from api.services.workflow.disposition_extraction import DispositionExtractionService
+    from api.services.workflow.issue_de_fin import issue_finale, texte_de_la_fiche
+
+    try:
+        base_checkpoint = normalize_text_chat_checkpoint(checkpoint)
+        if not base_checkpoint.get("current_node_id"):
+            return None
+        messages = _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
+        pending_user_message = pending_text_chat_user_message(session_data)
+        if pending_user_message:
+            messages = [*messages, {"role": "user", "content": pending_user_message}]
+        if not any(isinstance(m, dict) and m.get("role") == "user" for m in messages):
+            return None
+        workflow_run, run_organization_id = await db_client.get_workflow_run_with_context(
+            workflow_run_id
+        )
+        if (
+            not workflow_run
+            or workflow_run.workflow_id != workflow_id
+            or workflow_run.definition is None
+            or run_organization_id != organization_id
+        ):
+            return None
+        run_configs = workflow_run.definition.workflow_configurations or {}
+        options = tuple(
+            WorkflowConfigurationDefaults.model_validate(
+                {"call_dispositions": run_configs.get("call_dispositions") or []}
+            ).call_dispositions
+        )
+        if not options:
+            return None
+
+        from api.services.configuration.ai_model_configuration import (
+            get_effective_ai_model_configuration_for_workflow,
+        )
+        from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
+
+        set_current_org_id(organization_id)
+        user_config = await get_effective_ai_model_configuration_for_workflow(
+            organization_id=organization_id, workflow_configurations=run_configs
+        )
+        if user_config.llm is None:
+            return None
+        initial_context = dict(workflow_run.initial_context or {})
+        llm = create_llm_service(
+            user_config,
+            correlation_id=initial_context.get(MPS_CORRELATION_ID_CONTEXT_KEY),
+            usage_context="variable_extraction",
+        )
+        context = LLMContext()
+        context.set_messages(messages)
+        fiche = {**(base_checkpoint.get("gathered_context") or {}), **(extracted or {})}
+        service = DispositionExtractionService(
+            llm=llm, context=context, options=options, template_context=initial_context
+        )
+        retenue = None
+        try:
+            async with asyncio.timeout(FINAL_EXTRACTION_TIMEOUT_SECONDS):
+                retenue = await service.extract(
+                    organization_id=organization_id,
+                    workflow_run_id=workflow_run_id,
+                    fiche=texte_de_la_fiche(ReglagesFiche.depuis(run_configs), fiche),
+                )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Final text-chat disposition timed out after {FINAL_EXTRACTION_TIMEOUT_SECONDS}s "
+                f"for run {workflow_run_id}"
+            )
+        return issue_finale(options, retenue, a_parle=True)
+    except Exception as e:  # noqa: BLE001 -- best effort: a chat always completes
+        logger.error(f"Final text-chat disposition failed for run {workflow_run_id}: {e}")
+        return None
+
+
 async def extract_text_chat_final_variables(
     *,
     workflow_run_id: int,

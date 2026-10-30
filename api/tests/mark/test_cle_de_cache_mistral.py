@@ -241,8 +241,9 @@ def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
     assert {cible for cible, _ in autres} == autres_attendus
     for cible, texte in autres:
         assert "prompt_cache_key" not in texte, f"{module.__name__}: key handed to '{cible}'"
-    # Le clavier : un client d'extraction de plus (celui de l'agent appelé).
-    extra = 1 if module is text_chat_runner else 0
+    # Le clavier : un client d'extraction de plus (celui de l'agent appelé) et, depuis agent-facon-tala (C4), le
+    # client du classement de l'issue de fin (``usage_context="variable_extraction"``, sans clé de cache).
+    extra = 2 if module is text_chat_runner else 0
     assert len(appels) == 1 + len(autres_attendus) + extra
 
 

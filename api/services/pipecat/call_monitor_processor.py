@@ -101,6 +101,10 @@ class CallMonitorProcessor(FrameProcessor):
         self._retry_count = 0
         # [.mark] Lot 5 : relances de silence refusées d'affilée par un verrou du diseur.
         self._refus_d_affilee = 0
+        # [.mark] agent-facon-tala, C5 : une seule relance par silence. L'instant de la dernière relance, et
+        # si l'appelant a parlé depuis ; deux relances rapprochées sans parole entre elles sont le même silence.
+        self._derniere_relance_a: float | None = None
+        self._parole_depuis_la_relance = True
         self._total_idle_events = 0
         self.on_idle_diagnostic: Callable[..., None] | None = None
         self._waiting_for_user = False
@@ -146,6 +150,7 @@ class CallMonitorProcessor(FrameProcessor):
         if not self._user_turn_active:
             self._response_during_user_turn = False
         self._user_turn_active = True
+        self._parole_depuis_la_relance = True  # [.mark] C5 : le silence suivant est un autre silence
         self._waiting_for_user = False
         self.lever_l_attente()
         self._retry_count = 0
@@ -361,6 +366,21 @@ class CallMonitorProcessor(FrameProcessor):
         self._cancel_deadline()
         if not self._idle_eligible():
             return
+        # [.mark] agent-facon-tala, C5 : « Êtes-vous toujours là ? » dit deux fois de suite pour un seul silence
+        # (casques 2447, 2449, 2468). Une seconde relance qui arrive moins d'une demi-attente après la
+        # précédente, sans que l'appelant ait parlé, n'est pas un nouveau silence : écartée, le silence reste
+        # surveillé (la vraie seconde relance part après une attente entière, ce qui dépasse toujours ce seuil).
+        maintenant = asyncio.get_running_loop().time()
+        if (
+            self._derniere_relance_a is not None
+            and not self._parole_depuis_la_relance
+            and maintenant - self._derniere_relance_a < 0.5 * self._delai_de_silence()
+        ):
+            logger.warning("Call monitor: second reminder for the same silence, dropped")
+            self._arm_idle()
+            return
+        self._derniere_relance_a = maintenant
+        self._parole_depuis_la_relance = False
         self._waiting_for_user = False
         self._retry_count += 1
         self._total_idle_events += 1

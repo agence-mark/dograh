@@ -134,6 +134,8 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     montrer_la_fiche,
     suivre_les_tours,
 )
+from api.services.workflow.conversation_history import has_user_turns
+from api.services.workflow.issue_de_fin import issue_finale, texte_de_la_fiche
 from api.services.groupe.prechauffage_du_cache import (
     chauffer_les_collegues,
     prechauffer_les_collegues_actif,
@@ -2826,6 +2828,8 @@ class PipecatEngine:
                                 parent_context=self._get_otel_context(),
                                 organization_id=self._organization_id,
                                 workflow_run_id=self._workflow_run_id,
+                                # [.mark] agent-facon-tala, C4: the record's notes, read with the conversation.
+                                fiche=texte_de_la_fiche(self._fiche, self._gathered_context),
                             )
                         )
             except asyncio.TimeoutError:
@@ -2835,6 +2839,18 @@ class PipecatEngine:
                     f"disposition '{call_disposition}'"
                 )
             if should_extract_disposition:
+                # [.mark] agent-facon-tala, C4: an ending that is not the agent's own (hangup, inactivity)
+                # still gets a business outcome; when the reason is not clear and the person spoke, the
+                # list's "unclear call" outcome if the list has one (never invented).
+                if (
+                    extracted_disposition is None
+                    and self._disposition_extraction_service is not None
+                    and self.context is not None
+                    and has_user_turns(self.context)
+                ):
+                    extracted_disposition = issue_finale(
+                        self._call_dispositions, None, a_parle=True
+                    )
                 self.refine_call_disposition(
                     call_disposition,
                     extracted_disposition,
