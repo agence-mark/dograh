@@ -783,22 +783,58 @@ class TexteDuCerveauMixin:
 
     async def get_chat_completions(self, context):  # type: ignore[override]
         flux = await super().get_chat_completions(context)  # type: ignore[misc]
-        try:
-            consigne = str(getattr(getattr(self, "_settings", None), "system_instruction", "") or "")
-            portes = FLECHE in consigne or any(
-                isinstance(m, dict) and m.get("role") == "system" and FLECHE in str(m.get("content") or "")
-                for m in (getattr(context, "messages", None) or [])
-            )
-            outils = _noms_des_outils(context)
-            # C9 : les outils déclarés à cette requête, lus par le détecteur d'impasse (une réplique qui n'est que leur nom).
-            setattr(self, ATTRIBUT_DERNIERS_OUTILS, tuple(outils))
-            return FluxNettoye(
-                flux,
-                outils,
-                portes,
-                getattr(self, "balises_du_cerveau", ()) or (),
-                outil_ecrit=getattr(self, ATTRIBUT_OUTIL_ECRIT, False) is True,
-            )
-        except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
-            logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
-            return flux
+        return nettoyer_le_flux(self, flux, context)
+
+
+def nettoyer_le_flux(llm: Any, flux: Any, context: Any) -> Any:
+    """Le flux de ``llm`` nettoyé (appel écrit en texte, crochets, nom d'outil écrit si la case de l'agent est allumée).
+    Commun au mixin de classe et à ``couvrir_le_cerveau``. ⛔ Ne lève jamais : en échec, le flux d'origine."""
+    try:
+        consigne = str(getattr(getattr(llm, "_settings", None), "system_instruction", "") or "")
+        portes = FLECHE in consigne or any(
+            isinstance(m, dict) and m.get("role") == "system" and FLECHE in str(m.get("content") or "")
+            for m in (getattr(context, "messages", None) or [])
+        )
+        outils = _noms_des_outils(context)
+        # C9 : les outils déclarés à cette requête, lus par le détecteur d'impasse (une réplique qui n'est que leur nom).
+        setattr(llm, ATTRIBUT_DERNIERS_OUTILS, tuple(outils))
+        return FluxNettoye(
+            flux,
+            outils,
+            portes,
+            getattr(llm, "balises_du_cerveau", ()) or (),
+            outil_ecrit=getattr(llm, ATTRIBUT_OUTIL_ECRIT, False) is True,
+        )
+    except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+        logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
+        return flux
+
+
+ATTRIBUT_COUVERT = "_mark_texte_du_cerveau_couvert"
+_MIXINS_DU_TEXTE = ("TexteDuCerveauMixin", "TexteDuCerveauResponsesMixin")
+
+
+def est_couvert(llm: Any) -> bool:
+    """Le service de conversation ``llm`` nettoie-t-il le texte de son cerveau (mixin de classe, ou ``couvrir_le_cerveau``) ?"""
+    return any(c.__name__ in _MIXINS_DU_TEXTE for c in type(llm).__mro__) or getattr(llm, ATTRIBUT_COUVERT, False) is True
+
+
+def couvrir_le_cerveau(llm: Any) -> Any:
+    """agent-facon-tala (C1) : tout cerveau de conversation que la fabrique construit nettoie son texte, quelle que soit sa
+    famille de fournisseur (règle « code agnostique de la brique »). Un service qui n'a pas le mixin de classe et qui a une
+    requête de conversation en flux (``get_chat_completions``) reçoit le même nettoyage, posé sur l'instance. Un service sans
+    cette requête (Google, Bedrock, temps réel) n'est pas touché : son flux n'a pas la forme d'un flux de chat completions.
+    Idempotent. ⛔ Ne lève jamais ; rend ``llm``."""
+    try:
+        if llm is None or est_couvert(llm) or not hasattr(llm, "get_chat_completions"):
+            return llm
+        suivant = llm.get_chat_completions
+
+        async def get_chat_completions(context):
+            return nettoyer_le_flux(llm, await suivant(context), context)
+
+        llm.get_chat_completions = get_chat_completions
+        setattr(llm, ATTRIBUT_COUVERT, True)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] texte du cerveau non couvert : {erreur!r}")
+    return llm
