@@ -16,6 +16,7 @@ import { detailFromError } from "@/lib/apiError";
 
 import { useLangue } from "../langue/langue";
 import { CATEGORIES, motifLisible, STATUTS, TYPES_DE_SIGNALEMENT } from "./libelles";
+import { TauxDeSortieDImpasse } from "./TauxDeSortieDImpasse";
 
 type Statut = LigneDeTri["statut"];
 
@@ -77,6 +78,14 @@ export function PageATrier() {
 
     return (
         <div className="space-y-4" data-testid="page-a-trier">
+            <TauxDeSortieDImpasse
+                agentChoisi={agent}
+                onChoisir={(id) => {
+                    setPage(0);
+                    setAgent(id);
+                }}
+                onAgents={(noms) => setAgents((avant) => ({ ...noms, ...avant }))}
+            />
             <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm">
                     <span>{t({ en: "Agent", fr: "Agent" })}</span>

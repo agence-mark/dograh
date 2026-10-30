@@ -2090,6 +2090,32 @@ export type ChampFiche = {
 };
 
 /**
+ * ChampRequisDuRappel
+ *
+ * [.mark] Un champ de la fiche que l'outil « demander un rappel » exige avant d'écrire.
+ */
+export type ChampRequisDuRappel = {
+    /**
+     * Champ
+     *
+     * Name of the record field that must be noted.
+     */
+    champ: string;
+    /**
+     * Libelle
+     *
+     * How the tool names it when it is missing.
+     */
+    libelle?: string | null;
+    /**
+     * Repli Appel
+     *
+     * A call variable that stands in for the field when it is not noted (the caller's own number).
+     */
+    repli_appel?: string | null;
+};
+
+/**
  * ChangementDeStatut
  */
 export type ChangementDeStatut = {
@@ -2831,7 +2857,9 @@ export type CreateToolRequest = {
         type: 'mcp';
     } & McpToolDefinition) | ({
         type: 'integration';
-    } & IntegrationToolDefinition);
+    } & IntegrationToolDefinition) | ({
+        type: 'native';
+    } & NativeToolDefinition);
 };
 
 /**
@@ -3507,6 +3535,38 @@ export type DemandeCreation = {
      * The agent whose active settings are frozen.
      */
     workflow_id: number;
+};
+
+/**
+ * DemandeDeRappelConfig
+ *
+ * [.mark] Configuration de l'outil natif « demander un rappel » (agent-facon-tala, lot B1).
+ */
+export type DemandeDeRappelConfig = {
+    /**
+     * Action
+     *
+     * The native action.
+     */
+    action: 'demander_un_rappel';
+    /**
+     * Parameters
+     *
+     * What the model gives (object, wished moment).
+     */
+    parameters?: Array<ToolParameter>;
+    /**
+     * Champs Requis
+     *
+     * Record fields that must be noted before the request is written.
+     */
+    champs_requis?: Array<ChampRequisDuRappel>;
+    /**
+     * Call Disposition
+     *
+     * Disposition recorded when the request is written, and only then.
+     */
+    call_disposition?: string | null;
 };
 
 /**
@@ -6086,6 +6146,44 @@ export type LigneDAlerte = {
 };
 
 /**
+ * LigneDeTaux
+ */
+export type LigneDeTaux = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Appels
+     */
+    appels: number;
+    /**
+     * Avec Impasse
+     */
+    avec_impasse: number;
+    /**
+     * Part Impasse
+     */
+    part_impasse?: number | null;
+    /**
+     * Appels Avec Compteur
+     */
+    appels_avec_compteur: number;
+    /**
+     * Avec Reprise Sans Impasse
+     */
+    avec_reprise_sans_impasse: number;
+    /**
+     * Part Reprise
+     */
+    part_reprise?: number | null;
+};
+
+/**
  * LigneDeTri
  */
 export type LigneDeTri = {
@@ -7248,6 +7346,30 @@ export type MoveWorkflowToFolderRequest = {
      * Folder Id
      */
     folder_id?: number | null;
+};
+
+/**
+ * NativeToolDefinition
+ *
+ * [.mark] Tool definition of a built-in action (type ``native``): the call-back request.
+ */
+export type NativeToolDefinition = {
+    /**
+     * Schema Version
+     *
+     * Schema version.
+     */
+    schema_version?: number;
+    /**
+     * Type
+     *
+     * Tool type.
+     */
+    type: 'native';
+    /**
+     * Call-back request configuration.
+     */
+    config: DemandeDeRappelConfig;
 };
 
 /**
@@ -11395,6 +11517,20 @@ export type TtsCacheList = {
 };
 
 /**
+ * TauxDeSortieDImpasse
+ */
+export type TauxDeSortieDImpasse = {
+    /**
+     * Jours
+     */
+    jours: number;
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDeTaux>;
+};
+
+/**
  * TelephonyConfigWarningsResponse
  *
  * Aggregated telephony-configuration warning counts for the user's org.
@@ -12755,7 +12891,9 @@ export type UpdateToolRequest = {
         type: 'mcp';
     } & McpToolDefinition) | ({
         type: 'integration';
-    } & IntegrationToolDefinition) | null;
+    } & IntegrationToolDefinition) | ({
+        type: 'native';
+    } & NativeToolDefinition) | null;
     /**
      * Status
      */
@@ -18321,6 +18459,54 @@ export type LireLaFileDeTriApiV1TriGetResponses = {
 };
 
 export type LireLaFileDeTriApiV1TriGetResponse = LireLaFileDeTriApiV1TriGetResponses[keyof LireLaFileDeTriApiV1TriGetResponses];
+
+export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Jours
+         */
+        jours?: number;
+    };
+    url: '/api/v1/tri/taux';
+};
+
+export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetError = LireLesTauxDeSortieDImpasseApiV1TriTauxGetErrors[keyof LireLesTauxDeSortieDImpasseApiV1TriTauxGetErrors];
+
+export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TauxDeSortieDImpasse;
+};
+
+export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponse = LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses[keyof LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses];
 
 export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutData = {
     body: ChangementDeStatut;
