@@ -66,6 +66,8 @@ MOTS_MIN_D_UNE_REPLIQUE = 3
 # quand au moins 60 % des mots pleins de la plus courte se retrouvent dans l'autre ; la troisième de suite est un signe.
 LETTRES_D_UN_MOT_PLEIN = 5
 RECOUVREMENT_D_UNE_REDEMANDE = 0.6
+# Deux mots pleins communs au moins (commit R-13 : mesure sur les runs des bancs, un seul mot commun donnait 6 faux positifs pour 1 vrai).
+MOTS_COMMUNS_POUR_UNE_REDEMANDE = 2
 QUESTIONS_POUR_LE_SIGNE = 3
 
 # Consignes au modèle (jamais dites à l'appelant) : génériques, aucun métier.
@@ -341,10 +343,10 @@ MOTS_DE_TOURNURE = frozenset(
     {
         "quel", "quelle", "quels", "quelles", "lequel", "laquelle", "votre", "vos", "notre", "nous", "pouvez", "pourriez",
         "pouvons", "pourrait", "voulez", "voudriez", "souhaitez", "pouvoir", "comment", "serait", "seraient", "avez",
-        "etes", "êtes", "peut", "peuvent", "merci", "plait", "plaît", "bien", "alors", "encore", "aussi", "habitez",
+        "etes", "êtes", "peut", "peuvent", "merci", "plait", "plaît", "bien", "alors", "encore", "aussi",
         "indiquer", "indiquez", "donner", "donnez", "dire", "dites", "preciser", "précisez", "préciser", "communiquer",
         "communiquez", "confirmer", "confirmez", "redonner", "redonnez", "repeter", "répéter", "répétez", "repetez",
-        "pourriez", "disposez", "dans", "pour", "avec", "sans", "cette", "cela", "voici", "voila", "voilà", "tout",
+        "disposez", "dans", "pour", "avec", "sans", "cette", "cela", "voici", "voila", "voilà", "tout",
         "toute", "etre", "être", "faire", "dont", "mais", "donc",
     }
 )
@@ -373,7 +375,7 @@ def _signe_de_la_redemande(moteur: Any, etat: dict, noeud: Any, texte: str) -> b
         petit = min(len(avant), len(mots))
         return (
             petit >= 1
-            and len(avant & mots) >= 1
+            and len(avant & mots) >= MOTS_COMMUNS_POUR_UNE_REDEMANDE
             and len(avant & mots) / petit >= RECOUVREMENT_D_UNE_REDEMANDE
             and precedente.get("signature") == signature
         )

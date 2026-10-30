@@ -371,7 +371,7 @@ async def test_c9_revue_trois_questions_differentes_a_la_meme_tournure_ne_font_p
     banc = _banc_c9(outils=())
     assert await _repliques_c9(
         banc,
-        "Quelle est votre adresse ?",
+        "Quelle est votre adresse exacte ?",
         "Quelle est votre commune ?",
         "Quelle est votre profession ?",
     ) == 0
@@ -382,8 +382,8 @@ async def test_c9_revue_la_meme_question_reformulee_trois_fois_fait_un_signe():
     banc = _banc_c9(outils=())
     assert await _repliques_c9(
         banc,
-        "Quelle est votre adresse ?",
-        "Pouvez-vous m'indiquer l'adresse ?",
+        "Quelle est votre adresse exacte ?",
+        "Pouvez-vous m'indiquer l'adresse exacte ?",
         "Où se trouve l'adresse exacte ?",
     ) == 1
     assert [e.get("signe") for e in banc.etat()["journal"] if e.get("signe")] == ["redemande_reformulee"]
@@ -398,8 +398,8 @@ async def test_c9_revue_sans_compteur_de_tours_dans_la_fiche_le_signe_compte_qua
     banc = _banc_c9(outils=())
     banc._gathered_context.pop(CLE_TOUR, None)
     for texte in (
-        "Quelle est votre adresse ?",
-        "Pouvez-vous m'indiquer l'adresse ?",
+        "Quelle est votre adresse exacte ?",
+        "Pouvez-vous m'indiquer l'adresse exacte ?",
         "Où se trouve l'adresse exacte ?",
     ):
         await fin_de_la_replique(banc, texte, None)
