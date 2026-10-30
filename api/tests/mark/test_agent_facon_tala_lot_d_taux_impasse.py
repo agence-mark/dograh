@@ -12,7 +12,10 @@ masquait un défaut. D1 compte ces reprises dans la fiche ; D2 les lit par agent
 | D2 pures | une part n'existe pas sans dénominateur (jamais un zéro qui ferait croire à un taux nul) ; 7 ou 30 jours |
 | D2 route | taux justes sur un jeu connu, période respectée, runs sans compteur hors de la part des reprises |
 | D2 cloisonnement | un run d'une autre organisation n'est jamais compté, et ne donne aucune ligne à l'autre |
+| R-18 plan | le plan de Postgres convertit le contexte UNE fois par run, pas une fois par compte (contre-revue) |
 """
+
+from unittest.mock import patch
 
 import pytest
 
@@ -152,3 +155,40 @@ async def test_d2_une_organisation_sans_appel_n_a_aucune_ligne(db_session, async
     async with test_client_factory(user) as client:
         corps = (await client.get("/api/v1/tri/taux")).json()
     assert corps == {"jours": 7, "lignes": []}
+
+
+async def test_r18_le_contexte_est_converti_une_seule_fois_par_run(db_session, async_session, test_client_factory):
+    """Avant R-18, Postgres aplatissait la sous-requête et recopiait la conversion ``-> 'impasse'`` dans chaque compte."""
+    from sqlalchemy.dialects.postgresql import asyncpg as pg_asyncpg
+
+    from api.db import db_client
+
+    user, workflow = await _monter(db_session, async_session, dict(FICHE))
+    await _jeu(db_session, async_session, user, workflow)
+    plans = []
+    fabrique = db_client.async_session
+
+    class _Expliquee:
+        def __init__(self):
+            self._s = fabrique()
+
+        async def __aenter__(self):
+            self._session = await self._s.__aenter__()
+            return self
+
+        async def __aexit__(self, *exc):
+            return await self._s.__aexit__(*exc)
+
+        async def execute(self, requete, *a, **k):
+            compilee = requete.compile(dialect=pg_asyncpg.dialect())
+            valeurs = tuple(compilee.params[nom] for nom in compilee.positiontup)
+            connexion = await self._session.connection()
+            plan = await connexion.exec_driver_sql("EXPLAIN VERBOSE " + str(compilee), valeurs)
+            plans.append(chr(10).join(ligne[0] for ligne in plan.all()))
+            return await self._session.execute(requete, *a, **k)
+
+    with patch.object(db_client, "async_session", _Expliquee):
+        lignes = await db_client.taux_de_sortie_d_impasse(user.selected_organization_id, jours=30)
+    assert lignes and lignes[0]["appels"] == 6
+    (plan,) = plans
+    assert plan.count("gathered_context)::jsonb") == 1, plan

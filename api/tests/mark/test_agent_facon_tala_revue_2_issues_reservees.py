@@ -17,6 +17,7 @@ le brouillon voyait son issue non réservée : le classement final remplaçait l
 | R-17 | au rejeu d'un test, l'outil de rappel est simulé : aucune entrée, aucune issue, une note |
 """
 
+import inspect
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -248,6 +249,39 @@ async def test_la_fin_de_session_clavier_lit_le_groupe_une_seule_fois(db_session
             classement_reel=True,
         )
     assert contexte["call_disposition"] == "autre_issue"  # le classement a tourné
+    assert len(lectures) == 1, lectures
+
+
+@pytest.mark.asyncio
+async def test_la_fin_de_session_clavier_lit_le_run_une_seule_fois(db_session, async_session, test_client_factory):
+    """Même cas qu'au-dessus (issue posée non réservée, classement qui tourne) : le run se lit une fois. Avant R-19 : deux."""
+    from api.services.workflow import text_chat_runner
+
+    lectures = []
+    vraie = text_chat_runner.db_client.get_workflow_run_with_context
+
+    async def comptee(*args, **kwargs):
+        appelants = {cadre.function for cadre in inspect.stack()[1:4]}
+        if {"extract_text_chat_final_disposition", "run_et_organisation"} & appelants:  # seules les lectures de la fin de session comptent
+            lectures.append(1)
+        return await vraie(*args, **kwargs)
+
+    async def aucune(*_a, **_k):
+        return set()
+
+    with (
+        patch.object(text_chat_runner.db_client, "get_workflow_run_with_context", comptee),
+        patch("api.services.workflow.issue_reservee.issues_reservees_du_groupe", aucune),
+    ):
+        _tour, contexte, _classement = await _clavier(
+            db_session,
+            async_session,
+            test_client_factory,
+            avec_outil=True,
+            appel_du_modele=_appels_du_modele(),
+            classement_reel=True,
+        )
+    assert contexte["call_disposition"] == "autre_issue"
     assert len(lectures) == 1, lectures
 
 

@@ -109,13 +109,15 @@ class TriClient(BaseDBClient):
         contexte lu en entier. ⛔ Seuls les runs de l'organisation : la jointure sur ``WorkflowModel.organization_id``."""
         depuis = datetime.now(timezone.utc) - timedelta(days=jours)
         # ``gathered_context`` est du JSON : l'objet ``impasse`` est extrait et converti UNE fois par run (sous-requête), puis les
-        # trois chemins le lisent (un run sans impasse donne NULL : aucun des comptes ne le compte).
+        # trois chemins le lisent (un run sans impasse donne NULL : aucun des comptes ne le compte). R-18 (contre-revue) : une
+        # sous-requête simple est aplatie par Postgres, qui recopie alors la conversion dans chaque filtre ; ``MATERIALIZED`` l'interdit.
         impasse = cast(WorkflowRunModel.gathered_context, JSONB).op("->")(literal(CLE_IMPASSE)).label("impasse")
         runs = (
             select(WorkflowRunModel.workflow_id.label("workflow_id"), impasse)
             .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
             .where(and_(WorkflowModel.organization_id == organization_id, WorkflowRunModel.created_at >= depuis))
-            .subquery()
+            .cte("runs_de_l_organisation")
+            .prefix_with("MATERIALIZED")
         )
 
         def existe(chemin: str):

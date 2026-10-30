@@ -1558,8 +1558,17 @@ async def extract_text_chat_final_disposition(
                 lues = await issues_reservees_du_clavier(workflow_id, organization_id, run)
             return lues
 
+        # R-19 (contre-revue) : le run se lit UNE fois par fin de session, pour l'issue posée et pour le classement.
+        run_lu: tuple | None = None
+
+        async def run_et_organisation():
+            nonlocal run_lu
+            if run_lu is None:
+                run_lu = await db_client.get_workflow_run_with_context(workflow_run_id)
+            return run_lu
+
         if posee:
-            run_de_l_issue, org_de_l_issue = await db_client.get_workflow_run_with_context(workflow_run_id)
+            run_de_l_issue, org_de_l_issue = await run_et_organisation()
             if (
                 run_de_l_issue is not None
                 and run_de_l_issue.workflow_id == workflow_id
@@ -1573,9 +1582,7 @@ async def extract_text_chat_final_disposition(
             messages = [*messages, {"role": "user", "content": pending_user_message}]
         if not any(isinstance(m, dict) and m.get("role") == "user" for m in messages):
             return None
-        workflow_run, run_organization_id = await db_client.get_workflow_run_with_context(
-            workflow_run_id
-        )
+        workflow_run, run_organization_id = await run_et_organisation()
         if (
             not workflow_run
             or workflow_run.workflow_id != workflow_id
