@@ -22,6 +22,10 @@ from api.services.pipecat.main_passee import muter
 from api.db import db_client
 from api.enums import ToolCategory, WorkflowRunMode
 from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
+from api.services.apres_appel.demande_de_rappel import (
+    creer_gestionnaire as creer_gestionnaire_de_rappel,
+)
+from api.services.apres_appel.demande_de_rappel import est_un_outil_de_rappel
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_TRANSFERT
 from api.services.groupe.prechauffage import precharge_de
 from api.services.groupe.reglages_passation import (
@@ -475,6 +479,9 @@ class CustomToolManager:
                 function_name,
                 self._create_transfer_call_handler(tool, function_name),
             )
+        elif est_un_outil_de_rappel(tool):
+            # [.mark] agent-facon-tala, lot B1 : l'outil natif « demander un rappel » (acte local, aucun réseau).
+            handler = creer_gestionnaire_de_rappel(self._engine, tool)
         else:
             # [.mark] correctifs-apres-banc-v4, lot 3 : le délai de l'appel de fonction couvre les essais.
             # M2 (revue) : une marge au-dessus des essais, pour que la panne arrive jusqu'à la règle « un outil

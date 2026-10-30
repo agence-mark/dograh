@@ -1529,6 +1529,12 @@ async def extract_text_chat_final_disposition(
         base_checkpoint = normalize_text_chat_checkpoint(checkpoint)
         if not base_checkpoint.get("current_node_id"):
             return None
+        # [.mark] agent-facon-tala, lot B1 : une issue posée PAR UN OUTIL pendant la conversation (celle de la demande
+        # de rappel, réservée à son résultat réel) est celle de l'appel, comme au téléphone où le classement final ne
+        # tourne pas quand une issue est déjà posée. Seules les issues réservées comptent : rien d'autre ne change.
+        posee = str((base_checkpoint.get("gathered_context") or {}).get("call_disposition") or "").strip()
+        if posee and posee.casefold() in await issues_reservees_du_clavier(workflow_id, organization_id):
+            return posee
         messages = _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
         pending_user_message = pending_text_chat_user_message(session_data)
         if pending_user_message:

@@ -24,11 +24,14 @@ CATEGORIE_TRANSFERT_D_APPEL = "transfer_call"
 
 
 def codes_reserves(outils: Iterable[Any]) -> set[str]:
-    """Les issues de réussite réglées sur les outils de transfert d'appel de ``outils``. ⛔ Ne lève jamais."""
+    """Les issues de réussite réglées sur les outils de transfert d'appel de ``outils``, et sur l'outil « demander un
+    rappel » (lot B1 : même règle, l'issue ne sort que de son résultat réel). ⛔ Ne lève jamais."""
+    from api.services.apres_appel.demande_de_rappel import est_un_outil_de_rappel
+
     codes: set[str] = set()
     try:
         for outil in outils or []:
-            if getattr(outil, "category", None) != CATEGORIE_TRANSFERT_D_APPEL:
+            if getattr(outil, "category", None) != CATEGORIE_TRANSFERT_D_APPEL and not est_un_outil_de_rappel(outil):
                 continue
             config = ((getattr(outil, "definition", None) or {}).get("config")) or {}
             code = config.get("call_disposition")
