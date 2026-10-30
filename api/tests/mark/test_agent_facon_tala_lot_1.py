@@ -360,3 +360,47 @@ async def test_c9_deux_questions_sur_autre_chose_ou_coupees_par_une_phrase_ne_co
     q3 = "Dans quelle commune de résidence habitez-vous ?"
     # Une phrase sans question au milieu remet la série à zéro : trois questions, mais pas de suite.
     assert await _repliques_c9(banc, q1, q2, "Très bien, je note cela pour la suite de votre dossier.", q3) == 0
+
+
+# --- C9, revue : tournure contre objet de la question, et compteur de tours absent ------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_c9_revue_trois_questions_differentes_a_la_meme_tournure_ne_font_pas_de_signe():
+    # Rouge avant le correctif : « quelle » et « votre » (cinq lettres) faisaient 67 % de recouvrement.
+    banc = _banc_c9(outils=())
+    assert await _repliques_c9(
+        banc,
+        "Quelle est votre adresse ?",
+        "Quelle est votre commune ?",
+        "Quelle est votre profession ?",
+    ) == 0
+
+
+@pytest.mark.asyncio
+async def test_c9_revue_la_meme_question_reformulee_trois_fois_fait_un_signe():
+    banc = _banc_c9(outils=())
+    assert await _repliques_c9(
+        banc,
+        "Quelle est votre adresse ?",
+        "Pouvez-vous m'indiquer l'adresse ?",
+        "Où se trouve l'adresse exacte ?",
+    ) == 1
+    assert [e.get("signe") for e in banc.etat()["journal"] if e.get("signe")] == ["redemande_reformulee"]
+
+
+@pytest.mark.asyncio
+async def test_c9_revue_sans_compteur_de_tours_dans_la_fiche_le_signe_compte_quand_meme():
+    # Rouge avant le correctif : « None != None » est faux, le signe ne comptait jamais.
+    from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+    from api.services.workflow.sortie_d_impasse import fin_de_la_replique
+
+    banc = _banc_c9(outils=())
+    banc._gathered_context.pop(CLE_TOUR, None)
+    for texte in (
+        "Quelle est votre adresse ?",
+        "Pouvez-vous m'indiquer l'adresse ?",
+        "Où se trouve l'adresse exacte ?",
+    ):
+        await fin_de_la_replique(banc, texte, None)
+    assert banc.etat()["signes"] == 1

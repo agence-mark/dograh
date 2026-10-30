@@ -323,8 +323,25 @@ def _un_travail_est_en_cours(moteur: Any) -> bool:
     return ligne_du_travail(moteur) is not None
 
 
+# La tournure d'une question, pas son objet. ⚠️ Liste de FRANÇAIS, inévitable ici : le code ne sait pas ce qui distingue une
+# question sans connaître les mots-outils de la langue de l'appel. Aucun mot de métier : seulement l'interrogation, la
+# demande polie et leurs verbes (« indiquer », « donner »). Une autre langue = une autre liste (même constante).
+MOTS_DE_TOURNURE = frozenset(
+    {
+        "quel", "quelle", "quels", "quelles", "lequel", "laquelle", "votre", "vos", "notre", "nous", "pouvez", "pourriez",
+        "pouvons", "pourrait", "voulez", "voudriez", "souhaitez", "pouvoir", "comment", "serait", "seraient", "avez",
+        "etes", "êtes", "peut", "peuvent", "merci", "plait", "plaît", "bien", "alors", "encore", "aussi", "habitez",
+        "indiquer", "indiquez", "donner", "donnez", "dire", "dites", "preciser", "précisez", "préciser", "communiquer",
+        "communiquez", "confirmer", "confirmez", "redonner", "redonnez", "repeter", "répéter", "répétez", "repetez",
+        "pourriez", "disposez", "dans", "pour", "avec", "sans", "cette", "cela", "voici", "voila", "voilà", "tout",
+        "toute", "etre", "être", "faire", "dont", "mais", "donc",
+    }
+)
+
+
 def _mots_pleins(cle: str) -> frozenset:
-    return frozenset(m for m in cle.split() if len(m) >= LETTRES_D_UN_MOT_PLEIN)
+    """Les mots qui portent l'objet de la question : cinq lettres au moins, hors mots de tournure."""
+    return frozenset(m for m in cle.split() if len(m) >= LETTRES_D_UN_MOT_PLEIN and m not in MOTS_DE_TOURNURE)
 
 
 def _signe_de_la_redemande(moteur: Any, etat: dict, noeud: Any, texte: str) -> bool:
@@ -344,7 +361,8 @@ def _signe_de_la_redemande(moteur: Any, etat: dict, noeud: Any, texte: str) -> b
         avant = frozenset(precedente.get("mots") or ())
         petit = min(len(avant), len(mots))
         return (
-            petit >= 2
+            petit >= 1
+            and len(avant & mots) >= 1
             and len(avant & mots) / petit >= RECOUVREMENT_D_UNE_REDEMANDE
             and precedente.get("signature") == signature
         )
@@ -405,7 +423,11 @@ async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None, *, s
         if sans_changement and not _attente_du_systeme(moteur, etat):
             if _signe_de_la_replique(moteur, etat, noeud, texte, tour):
                 noter_un_signe(moteur, SIGNE_REPLIQUE)
-            elif _signe_de_la_redemande(moteur, etat, noeud, texte) and etat.get("tour_signe_replique") != tour:
+            # Sans compteur de tours dans la fiche (``tour`` est ``None``), « None != None » est faux : le signe ne comptait
+            # jamais. Un tour inconnu ne bloque pas le signe.
+            elif _signe_de_la_redemande(moteur, etat, noeud, texte) and (
+                tour is None or etat.get("tour_signe_replique") != tour
+            ):
                 etat["tour_signe_replique"] = tour
                 noter_un_signe(moteur, SIGNE_REDEMANDE)
             # Le tour d'un appelant n'est évalué qu'une fois pour le signe 3 (un tour peut porter plusieurs répliques).
