@@ -13749,6 +13749,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_forme_courte?: boolean;
     /**
+     * Prechauffer Les Collegues
+     *
+     * Whether the colleagues' prompts are read ahead. Off (default): nothing changes. On: at the start of the call, one minimal request per colleague of the group (one token asked, nothing said, nothing written in the conversation) carries the colleague's entry prompt with the agent's cache key, so that the real first request finds the start of that prompt already read and the handoff is shorter. Needs the colleagues to be preloaded (on by default in a group). Works with any model; a provider without a cache just receives an ordinary small request.
+     */
+    prechauffer_les_collegues?: boolean;
+    /**
      * Reconnaitre Un Outil Ecrit
      *
      * What happens when the model's whole reply is only the name of one of its tools (bare or dressed up: underscores, italics, punctuation, arguments). Off (default): the reply is kept as written. On: the reply becomes the call of that tool, never spoken and never kept in the history. A reply that holds real text besides the name is never touched. Works with any model.

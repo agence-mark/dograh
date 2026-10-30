@@ -99,3 +99,36 @@ def brancher_le_journal_des_requetes(llm: Any, journal: Any) -> bool:
             f"[captures] crochet des requêtes du modèle non posé : {erreur!r}"
         )
         return False
+
+
+_MARQUE_DEPARTS = "_mark_departs_des_requetes"
+
+
+def noter_les_departs_de_requete(llm: Any, rappel: Any) -> bool:
+    """agent-facon-tala, C3 bis : appelle ``rappel(instant)`` (horloge monotone) à chaque requête que
+    ce service envoie au modèle, pour dater la décision d'un agent et la première requête d'un collègue
+    (mesure de la passation). Ne lit ni le corps ni la clé, ne change aucune requête ; branché deux fois
+    sur le même client, le rappel est remplacé (pas d'empilement). ``False`` si le client n'est pas
+    accessible. ⛔ Ne lève jamais."""
+    try:
+        http = _client_http(llm)
+        if http is None:
+            return False
+        cible = getattr(http, _MARQUE_DEPARTS, None)
+        if isinstance(cible, dict):
+            cible["rappel"] = rappel
+            return True
+        cible = {"rappel": rappel}
+        setattr(http, _MARQUE_DEPARTS, cible)
+
+        async def au_depart(_requete):
+            try:
+                cible["rappel"](time.monotonic())
+            except Exception:  # noqa: BLE001 -- une mesure n'emporte pas l'appel
+                pass
+
+        http.event_hooks["request"].append(au_depart)
+        return True
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[captures] départ des requêtes du modèle non daté : {erreur!r}")
+        return False

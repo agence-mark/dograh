@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as _remplacer
 from datetime import UTC, datetime
 from typing import Any
 
@@ -114,6 +114,11 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
+from api.services.groupe.prechauffage_du_cache import (
+    chauffer_les_collegues,
+    collegues_depuis_la_base,
+    prechauffer_les_collegues_actif,
+)
 from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
 from api.services.pipecat.avant_la_requete import autour_du_cerveau
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
@@ -164,6 +169,43 @@ class _Passage:
     capture: Any
     sorties: list[str]
     usage: dict[str, Any]
+
+
+_TACHES_DE_FOND: set = set()
+
+
+def _tache_de_fond(coroutine) -> None:
+    """Une tâche qui vit seule (référence gardée jusqu'à sa fin) : le tour ne l'attend pas."""
+    tache = asyncio.get_running_loop().create_task(coroutine)
+    _TACHES_DE_FOND.add(tache)
+    tache.add_done_callback(_TACHES_DE_FOND.discard)
+
+
+async def _chauffer_les_collegues_du_clavier(engine, graphe_du_principal, id_du_principal: int) -> None:
+    """[.mark] agent-facon-tala, C3 bis : le préchauffage du cache des collègues, comme au début d'un
+    appel (mêmes collègues : les cibles des outils de passation du principal). ⛔ Ne lève jamais."""
+    try:
+        fabrique = engine._agent_factory
+        collegues = await collegues_depuis_la_base(
+            engine, fabrique, graphe_du_principal, ids_a_exclure={id_du_principal}
+        )
+        await chauffer_les_collegues(engine, collegues)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[prechauffage] cache du clavier abandonné : {e!r}")
+
+
+def agent_a_cerveaux_neufs(
+    agent: "_AgentDuTour", creer, cle_du_cache: str, *, avec_extraction: bool
+) -> "_AgentDuTour":
+    """[.mark] agent-facon-tala, C3 : le même agent (graphe, réglages, visite) avec des cerveaux
+    neufs. Un cerveau est un processeur du circuit d'UN passage ; une fois ce circuit arrêté, le
+    remettre dans un circuit neuf ne démarre jamais (la trame de départ ne sort pas). ``creer`` fabrique
+    un cerveau à partir des options du service (clé de cache, usage)."""
+    cerveau = creer(prompt_cache_key=cle_du_cache)
+    extraction = creer(usage_context="variable_extraction") if avec_extraction else cerveau
+    return _remplacer(
+        agent, llm=cerveau, inference_llm=cerveau, variable_extraction_llm=extraction
+    )
 
 
 async def _attendre_le_groupe(engine, *, capture_processor, response_window, runner_task) -> None:
@@ -915,6 +957,19 @@ async def execute_text_chat_pending_turn(
         reglages=dict(run_configs),
     )
 
+    agents_joues: set[int] = set()
+
+    def _premier_agent_a_neuf() -> "_AgentDuTour":
+        return agent_a_cerveaux_neufs(
+            premier_agent,
+            lambda **options: create_llm_service(
+                user_config, correlation_id=mps_correlation_id, **options
+            ),
+            cle_de_cache(workflow_id),
+            avec_extraction=needs_extraction_llm
+            and user_config.llm.provider == ServiceProviders.DOGRAH.value,
+        )
+
     async def charger_agent(actif: dict[str, Any]) -> "_AgentDuTour | None":
         """L'agent ``actif`` (après une passation), à sa définition épinglée, dans
         l'organisation de l'appel. ``None`` s'il n'est plus lisible."""
@@ -924,7 +979,13 @@ async def execute_text_chat_pending_turn(
                 None,
                 premier_agent.definition_id,
             ):
-                return premier_agent
+                if id(premier_agent) not in agents_joues:
+                    return premier_agent
+                # [.mark] agent-facon-tala, C3 : le premier agent a déjà joué un passage de ce tour
+                # (passation puis retour au même tour). Son cerveau est un processeur arrêté avec ce
+                # circuit : le remettre dans un circuit neuf, c'est un départ qui n'aboutit jamais
+                # (la trame de départ ne sort pas, le tour reste bloqué). Même agent, cerveau neuf.
+                return _premier_agent_a_neuf()
             agent_workflow = await db_client.get_workflow(
                 identifiant, organization_id=workflow.organization_id
             )
@@ -1074,6 +1135,16 @@ async def execute_text_chat_pending_turn(
                 creer_llm=lambda *a, **k: create_llm_service(*a, **k),
             )
         )
+        # [.mark] agent-facon-tala, C3 bis : « Préchauffer les collègues » (éteinte par défaut), comme au
+        # début d'un appel : une fois, au premier tour de la session, en fond (le tour ne l'attend pas).
+        if (
+            is_initial_node_opening
+            and agent is premier_agent
+            and prechauffer_les_collegues_actif(run_configs)
+        ):
+            _tache_de_fond(
+                _chauffer_les_collegues_du_clavier(engine, workflow_graph, workflow_id)
+            )
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de l'agent qui
         # parle, si son travail en arrière-plan est allumé. Au clavier il travaille dans le tour
         # et son résultat est remis au tour suivant (``travail/clavier.py``).
@@ -1326,6 +1397,7 @@ async def execute_text_chat_pending_turn(
     message_du_passage = pending_user_message
     ouverture_du_passage: dict[str, Any] | None = None
     for _ in range(TEXT_CHAT_MAX_PASSAGES):
+        agents_joues.add(id(agent_du_tour))
         passage = await jouer_un_passage(
             agent_du_tour, checkpoint_du_passage, message_du_passage, ouverture_du_passage
         )

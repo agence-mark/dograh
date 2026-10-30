@@ -925,6 +925,13 @@ class WorkflowConfigurationDefaults(BaseModel):
             "own. Works with any model."
         ),
     )
+    # [.mark] agent-facon-tala (C3 bis) : préchauffer le cache du prompt des collègues.
+    prechauffer_les_collegues: bool = Field(
+        default=False,
+        description=(
+            "Whether the colleagues' prompts are read ahead. Off (default): nothing changes. On: at the start of the call, one minimal request per colleague of the group (one token asked, nothing said, nothing written in the conversation) carries the colleague's entry prompt with the agent's cache key, so that the real first request finds the start of that prompt already read and the handoff is shorter. Needs the colleagues to be preloaded (on by default in a group). Works with any model; a provider without a cache just receives an ordinary small request."
+        ),
+    )
     # [.mark] agent-facon-tala (C1) : l'outil écrit en texte.
     reconnaitre_un_outil_ecrit: bool = Field(
         default=False,

@@ -604,6 +604,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // agent-facon-tala (C3 bis): off by default.
+    prechauffer_les_collegues: d({
+        type: "interrupteur",
+        libelle: { en: "Warm up the colleagues", fr: "Préchauffer les collègues" },
+        aides: [
+            {
+                en: "Whether the colleagues' prompts are read ahead. Off (default): nothing changes. On: at the start of the call, one minimal request per colleague of the group (one token asked, nothing said, nothing written in the conversation) carries the colleague's entry prompt with the agent's cache key, so that the real first request finds the start of that prompt already read and the handoff is shorter. Needs the colleagues to be preloaded (on by default in a group). Works with any model; a provider without a cache just receives an ordinary small request.",
+                fr: "Faut-il lire à l'avance les prompts des collègues. Éteint (défaut) : rien ne change. Allumé : au début de l'appel, une requête minimale par collègue du groupe (un jeton demandé, rien de dit, rien d'écrit dans la conversation) porte le prompt d'entrée du collègue avec la clé de cache de l'agent, pour que sa vraie première requête retrouve ce début de prompt déjà lu et que la passation soit plus courte. Demande que les collègues soient préchargés (le cas par défaut dans un groupe). Marche avec tout modèle ; un fournisseur sans cache reçoit une petite requête ordinaire. Prend effet au prochain appel.",
+            },
+        ],
+    }),
     // agent-facon-tala (C1): off by default.
     reconnaitre_un_outil_ecrit: d({
         type: "interrupteur",

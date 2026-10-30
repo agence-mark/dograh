@@ -228,6 +228,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("fiche-dans-le-systeme", "ajout-mark", "donnees", ["fiche_dans_le_systeme"], [inter("fiche_dans_le_systeme")]),
     // agent-facon-tala (C8): added after the reorganisation, frozen once.
     c("fiche-forme-courte", "ajout-mark", "donnees", ["fiche_forme_courte"], [inter("fiche_forme_courte")]),
+    // agent-facon-tala (C3 bis): added after the reorganisation, frozen once.
+    c("prechauffer-les-collegues", "ajout-mark", "donnees", ["prechauffer_les_collegues"], [inter("prechauffer_les_collegues")]),
     // agent-facon-tala (C1): added after the reorganisation, frozen once.
     c("outil-ecrit-en-texte", "ajout-mark", "donnees", ["reconnaitre_un_outil_ecrit"], [inter("reconnaitre_un_outil_ecrit")]),
     // greffier-conversation, lot E (C4, D6).

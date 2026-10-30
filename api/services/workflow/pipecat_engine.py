@@ -134,6 +134,10 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     montrer_la_fiche,
     suivre_les_tours,
 )
+from api.services.groupe.prechauffage_du_cache import (
+    chauffer_les_collegues,
+    prechauffer_les_collegues_actif,
+)
 from api.services.workflow.initial_context import GREETING_OVERRIDE_CONTEXT_KEY
 from api.services.workflow.mcp_tool_session import McpToolSession
 from api.services.workflow.pipecat_engine_context_composer import (
@@ -446,7 +450,9 @@ class PipecatEngine:
         # lu au banc d'apres le chantier (jamais joue pendant).
         from api.services.groupe.mesure_passation import MesureDePassation
 
-        self.mesure_passation = MesureDePassation()
+        self.mesure_passation = MesureDePassation(
+            enregistrements=lambda: getattr(self, "_transfer_outcomes", [])
+        )
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D12) : le collecteur de coût de
         # l'appel (posé par le circuit : le greffier et le cerveau de fond y versent leurs
         # jetons) et les cerveaux de fond des agents de l'appel (arrêtés au nettoyage).
@@ -3222,7 +3228,9 @@ class PipecatEngine:
         chaud = self.principal_chaud_pour(workflow_id)
         if chaud is not None:
             self._pending_agent = chaud
-            self.mesure_passation.installee(0.0, "principal_chaud", memoire_du_processus_mo())
+            self.mesure_passation.installee(
+                0.0, "principal_chaud", memoire_du_processus_mo(), getattr(chaud, "visit_id", None)
+            )
             logger.info(f"[groupe] principal {workflow_id} resté chaud : rendu sans construction")
             return chaud
         debut = time.monotonic()
@@ -3647,6 +3655,24 @@ class PipecatEngine:
                     ids_a_exclure={agent.workflow_id},
                     lire_outils=db_client.get_tools_by_uuids,
                 )
+                # [.mark] agent-facon-tala, C3 bis : case « Préchauffer les collègues » (éteinte par défaut) :
+                # une requête d'un jeton par collègue, en fond, pour chauffer le cache de son prompt.
+                if precharge is not None and prechauffer_les_collegues_actif(self.reglages_appel):
+                    from api.services.workflow.workflow_graph import WorkflowGraph
+
+                    self._tache_du_groupe(
+                        chauffer_les_collegues(
+                            self,
+                            [
+                                (
+                                    identifiant,
+                                    WorkflowGraph(charge.dto, skip_instance_constraints_for={"trigger"}),
+                                    charge.user_config,
+                                )
+                                for identifiant, charge in precharge.agents.items()
+                            ],
+                        )
+                    )
                 # [.mark] fiabilite-orchestration, lot 3 (F5, F6) : puis la réserve, chaque
                 # collègue construit à l'avance (service, worker, cerveau de fond).
                 if precharge is not None:
@@ -3754,6 +3780,15 @@ class PipecatEngine:
         )
 
     def _bind_call_monitor(self, runtime: AgentRuntime) -> None:
+        # [.mark] agent-facon-tala, C3 bis : le départ de chaque requête au modèle de cet agent date la
+        # décision d'une passation (agent d'origine) et l'entrée du collègue (mesure de la passation).
+        from api.services.analyse_run.requetes_modele import noter_les_departs_de_requete
+
+        visite = runtime.visit_id
+        noter_les_departs_de_requete(
+            runtime.llm,
+            lambda instant, visite=visite: self.mesure_passation.depart_de_requete(visite, instant),
+        )
         self.speech_playback.observe_responses(runtime.llm)
         self.call_monitor.bind_source(
             runtime.llm, enabled=lambda: self._response_watch_enabled(runtime)

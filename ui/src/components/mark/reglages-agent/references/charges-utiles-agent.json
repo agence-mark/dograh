@@ -67,6 +67,7 @@
     "laisser_la_parole": false,
     "fiche_dans_le_systeme": false,
     "fiche_forme_courte": false,
+    "prechauffer_les_collegues": false,
     "reconnaitre_un_outil_ecrit": false,
     "signaler_un_probleme": false,
     "alertes_par_mail": false,
@@ -1240,6 +1241,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "fiche_forme_courte": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "prechauffer-les-collegues": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffer_les_collegues": true
           },
           "retirees": []
         }

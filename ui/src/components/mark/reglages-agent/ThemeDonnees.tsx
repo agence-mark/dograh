@@ -195,6 +195,11 @@ export const ThemeDonnees = ({
     const [ficheCourte, setFicheCourte] = useState(ficheCourteEnregistree);
     useEffect(() => setFicheCourte(ficheCourteEnregistree), [ficheCourteEnregistree]);
     const ficheCourteModifiee = ficheCourte !== ficheCourteEnregistree;
+    // agent-facon-tala (C3 bis): read the colleagues' prompts ahead (cache warm-up). Off by default; any agent.
+    const prechauffeEnregistre = resolue.prechauffer_les_collegues ?? false;
+    const [prechauffe, setPrechauffe] = useState(prechauffeEnregistre);
+    useEffect(() => setPrechauffe(prechauffeEnregistre), [prechauffeEnregistre]);
+    const prechauffeModifie = prechauffe !== prechauffeEnregistre;
     // agent-facon-tala (C1): a reply that is only a tool name becomes the call of that tool. Off by default; any agent.
     const outilEcritEnregistre = resolue.reconnaitre_un_outil_ecrit ?? false;
     const [outilEcrit, setOutilEcrit] = useState(outilEcritEnregistre);
@@ -381,6 +386,7 @@ export const ThemeDonnees = ({
         || connuEtAttenduModifie
         || ficheSystemeModifiee
         || outilEcritModifie
+        || prechauffeModifie
         || ficheCourteModifiee
         || transfertModifie
         || formulationsModifiees
@@ -443,6 +449,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Short record block", fr: "Bloc de fiche court" },
                 modifie: ficheCourteModifiee,
                 config: () => ({ fiche_forme_courte: ficheCourte }),
+            },
+            {
+                // agent-facon-tala (C3 bis): its own part, sent only when changed (E6).
+                nom: { en: "Warm up the colleagues", fr: "Préchauffer les collègues" },
+                modifie: prechauffeModifie,
+                config: () => ({ prechauffer_les_collegues: prechauffe }),
             },
             {
                 // agent-facon-tala (C1): its own part, sent only when changed (E6).
@@ -660,6 +672,8 @@ export const ThemeDonnees = ({
                     <Reglage cle="fiche_forme_courte" valeur={ficheCourte} onChange={(v) => setFicheCourte(Boolean(v))} />
                 )}
                 {/* agent-facon-tala (C1): independent of the record, so outside the record condition. */}
+                {/* agent-facon-tala (C3 bis): independent of the record. */}
+                <Reglage cle="prechauffer_les_collegues" valeur={prechauffe} onChange={(v) => setPrechauffe(Boolean(v))} />
                 <Reglage cle="reconnaitre_un_outil_ecrit" valeur={outilEcrit} onChange={(v) => setOutilEcrit(Boolean(v))} />
                 {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
                     next to the known fields. */}

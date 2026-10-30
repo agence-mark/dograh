@@ -140,7 +140,7 @@ class AgentTransferCoordinator:
         # [.mark] Lot 3 (D7, D18) : passation demandee, debut de la mesure du premier octet de voix.
         mesure = getattr(self._engine, "mesure_passation", None)
         if mesure is not None:
-            mesure.demandee(request.request_id)
+            mesure.demandee(request.request_id, request.origin_visit_id)
         return True
 
     def start(self, request, *, context_ready=None) -> bool:

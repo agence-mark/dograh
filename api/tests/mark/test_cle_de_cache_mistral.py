@@ -212,7 +212,9 @@ def _appels(source: str, fonction: str) -> list[tuple[str, str]]:
         # l'agent appelé par passation (`agent_llm`, SA clé, voir plus bas) et son
         # client d'extraction (`""`), et passe la fabrique à `TextAgentFactory`
         # (`creer_llm=lambda`, qui ne pose aucune clé elle-même).
-        (text_chat_runner, {"", "llm =", "creer_llm=lambda *a, **k:"}),
+        # [.mark] agent-facon-tala (C3) : le premier agent rejoué dans le même tour reçoit des cerveaux neufs par
+        # ``agent_a_cerveaux_neufs``, qui pose SA clé lui-même (``creer(prompt_cache_key=...)``, testé à part).
+        (text_chat_runner, {"", "llm =", "creer_llm=lambda *a, **k:", "lambda **options:"}),
     ],
 )
 def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):

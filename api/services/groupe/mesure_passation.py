@@ -35,13 +35,25 @@ CLE_INSTALLATION = "installation_s"
 CLE_ORIGINE = "installation"
 CLE_MEMOIRE = "memoire_mo"
 CLE_PREMIER_MOT = "premier_mot_s"
+# agent-facon-tala, C3 bis : les morceaux qui manquaient pour dire où part le délai.
+CLE_DECISION = "decision_s"  # début de la requête qui a décidé la passation -> demande
+CLE_COMMIT = "commit_s"  # demande -> l'agent appelé prend la main
+CLE_REQUETE_COLLEGUE = "requete_collegue_s"  # demande -> départ de la 1re requête du collègue
 
 
 class MesureDePassation:
     """L'état d'une mesure à la fois (une passation à la fois par appel)."""
 
-    def __init__(self, horloge: Callable[[], float] = time.monotonic):
+    def __init__(
+        self,
+        horloge: Callable[[], float] = time.monotonic,
+        enregistrements: Callable[[], list] | None = None,
+    ):
         self._horloge = horloge
+        # Les enregistrements de passation déjà écrits, à compléter quand un morceau arrive après coup.
+        self._enregistrements = enregistrements
+        # Le départ de la dernière requête au modèle de chaque visite (``depart_de_requete``).
+        self._departs: dict[str, float] = {}
         self._request_id: str | None = None
         self._demande: float | None = None
         self._commit: float | None = None
@@ -49,14 +61,43 @@ class MesureDePassation:
         self._decoupe: dict = {}
         self._visite: str | None = None
 
-    def demandee(self, request_id: str) -> None:
-        """Le coordinateur accepte une passation : on repart de zéro."""
+    def demandee(self, request_id: str, visite_origine: str | None = None) -> None:
+        """Le coordinateur accepte une passation : on repart de zéro. ``visite_origine`` : l'agent qui
+        la demande, dont la dernière requête au modèle est la décision."""
         self._request_id = request_id
         self._demande = self._horloge()
         self._commit = None
         self._resultat = None
         self._decoupe = {}
         self._visite = None
+        depart = self._departs.get(visite_origine) if visite_origine else None
+        if depart is not None and depart <= self._demande:
+            self._decoupe[CLE_DECISION] = round(self._demande - depart, 3)
+
+    def depart_de_requete(self, visite: str | None, instant: float) -> None:
+        """Une requête part vers le modèle de ``visite`` (``noter_les_departs_de_requete``). La première
+        du collègue après le commit date son entrée dans la mesure."""
+        try:
+            if visite is None:
+                return
+            self._departs[visite] = instant
+            if (
+                self._demande is not None
+                and self._commit is not None
+                and visite == self._visite
+                and CLE_REQUETE_COLLEGUE not in self._decoupe
+            ):
+                self._decoupe[CLE_REQUETE_COLLEGUE] = round(instant - self._demande, 3)
+                self._reporter()
+        except Exception as erreur:  # noqa: BLE001 -- une mesure ne coûte jamais l'appel
+            logger.warning(f"[transfer] départ de requête non daté : {erreur!r}")
+
+    def _reporter(self) -> None:
+        """Un morceau arrivé après l'écriture de l'enregistrement y est ajouté."""
+        if self._enregistrements is None:
+            return
+        for enregistrement in self._enregistrements() or []:
+            self.completer(enregistrement)
 
     def installee(
         self, duree_s: float, origine: str, memoire_mo: float | None, visite: str | None = None
@@ -83,11 +124,13 @@ class MesureDePassation:
         ):
             return
         self._decoupe[CLE_PREMIER_MOT] = round(self._horloge() - self._demande, 3)
+        self._reporter()
 
     def commise(self) -> None:
         """L'agent appelé prend la main (``commit_agent``)."""
         if self._demande is not None:
             self._commit = self._horloge()
+            self._decoupe[CLE_COMMIT] = round(self._commit - self._demande, 3)
 
     def premier_octet(self) -> dict[str, float] | None:
         """La voix de l'appel pousse son premier audio après le commit. Rend la mesure la première
