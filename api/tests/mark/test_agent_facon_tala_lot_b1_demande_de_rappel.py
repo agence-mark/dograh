@@ -415,7 +415,9 @@ ISSUES = [
 ]
 
 
-async def _clavier(db_session, async_session, test_client_factory, *, avec_outil, appel_du_modele):
+async def _clavier(db_session, async_session, test_client_factory, *, avec_outil, appel_du_modele, version="les_deux", classement_reel=False):
+    """``version`` : où l'outil est posé. ``les_deux`` : publiée et brouillon ; ``brouillon`` : brouillon seulement (R-12) ;
+    ``publiee`` : publiée seulement, le brouillon (celui que joue le clavier) ne l'a pas (R-12)."""
     import copy
 
     from api.tests.mark.test_clavier_porte_la_fiche import DEFINITION, FICHE, _monter
@@ -423,6 +425,7 @@ async def _clavier(db_session, async_session, test_client_factory, *, avec_outil
     definition = copy.deepcopy(DEFINITION)
     reglages = {**FICHE, "call_dispositions": ISSUES}
     user, workflow = await _monter(db_session, async_session, reglages, definition)
+    outil = None
     if avec_outil:
         outil = await db_session.create_tool(
             organization_id=workflow.organization_id,
@@ -432,9 +435,15 @@ async def _clavier(db_session, async_session, test_client_factory, *, avec_outil
             category="native",
             definition={"schema_version": 1, "type": "native", "config": CLAVIER_CONFIG},
         )
-        definition["nodes"][0]["data"]["tool_uuids"] = [outil.tool_uuid]
-        await db_session.save_workflow_draft(workflow.id, workflow_definition=definition, workflow_configurations=reglages)
-        await db_session.publish_workflow_draft(workflow.id)
+        avec = copy.deepcopy(definition)
+        avec["nodes"][0]["data"]["tool_uuids"] = [outil.tool_uuid]
+        if version in ("les_deux", "publiee"):
+            await db_session.save_workflow_draft(workflow.id, workflow_definition=avec, workflow_configurations=reglages)
+            await db_session.publish_workflow_draft(workflow.id)
+        if version == "publiee":  # le brouillon, joué par le clavier, n'a plus l'outil
+            await db_session.save_workflow_draft(workflow.id, workflow_definition=definition, workflow_configurations=reglages)
+        if version == "brouillon":  # la publiée n'a pas l'outil ; le brouillon l'a
+            await db_session.save_workflow_draft(workflow.id, workflow_definition=avec, workflow_configurations=reglages)
 
     modeles = [
         MockLLMService(mock_steps=[], chunk_delay=0.001),
@@ -455,7 +464,12 @@ async def _clavier(db_session, async_session, test_client_factory, *, avec_outil
         with (
             patch("api.services.workflow.text_chat_session_service.extract_text_chat_final_variables", new=AsyncMock(return_value={})),
             patch("api.services.workflow.text_chat_runner.create_llm_service"),
-            patch.object(DispositionExtractionService, "extract", new_callable=AsyncMock, return_value="autre_issue") as classement,
+            patch.object(
+                DispositionExtractionService,
+                "extract" if not classement_reel else "_run_inference",
+                new_callable=AsyncMock,
+                return_value="autre_issue" if not classement_reel else '{"call_disposition": "autre_issue"}',
+            ) as classement,
             patch("api.tasks.arq.enqueue_job", AsyncMock()),
         ):
             fin = await client.post(

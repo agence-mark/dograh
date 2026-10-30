@@ -88,6 +88,7 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
 from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
+from api.services.workflow.issue_reservee import _uuids_d_un_graphe
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
@@ -1495,15 +1496,30 @@ async def execute_text_chat_pending_turn(
     )
 
 
-async def issues_reservees_du_clavier(workflow_id: int, organization_id: int) -> set[str]:
-    """[.mark] agent-facon-tala, lot 7 (F3): the same reading as the phone's engine (every agent of the group)."""
+async def issues_reservees_du_clavier(workflow_id: int, organization_id: int, workflow_run: Any = None) -> set[str]:
+    """[.mark] agent-facon-tala, lot 7 (F3): the same reading as the phone's engine (every agent of the group).
+    R-12 (revue 2): read in what the run EXECUTES -- the definition the run pinned for the starting agent, and for the others
+    the version this run uses (the draft of a keyboard test, the published one otherwise: ``definition_to_run``, the rule of
+    the handover). Without ``workflow_run``: the published versions, as before."""
     from api.services.workflow.issue_reservee import issues_reservees_du_groupe
+    from api.services.workflow.run_creation import definition_to_run
 
     async def lire_workflow(identifiant, organisation):
         return await db_client.get_workflow(identifiant, organization_id=organisation)
 
+    if workflow_run is None:
+        return await issues_reservees_du_groupe(workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids)
+    utilise_le_brouillon = bool((getattr(workflow_run, "extra", None) or {}).get("use_draft"))
+
+    async def lire_definition(workflow):
+        return await definition_to_run(db_client, workflow, use_draft=utilise_le_brouillon)
+
+    pinned = getattr(workflow_run, "definition", None)
+    uuids_de_depart = (
+        _uuids_d_un_graphe((getattr(pinned, "workflow_json", None) or {}).get("nodes")) if pinned is not None else None
+    )
     return await issues_reservees_du_groupe(
-        workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids
+        workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids, lire_definition, uuids_de_depart
     )
 
 
@@ -1533,8 +1549,24 @@ async def extract_text_chat_final_disposition(
         # de rappel, réservée à son résultat réel) est celle de l'appel, comme au téléphone où le classement final ne
         # tourne pas quand une issue est déjà posée. Seules les issues réservées comptent : rien d'autre ne change.
         posee = str((base_checkpoint.get("gathered_context") or {}).get("call_disposition") or "").strip()
-        if posee and posee.casefold() in await issues_reservees_du_clavier(workflow_id, organization_id):
-            return posee
+        # R-16 (revue 2) : le groupe se lit UNE fois par fin de session, ici et pour le classement.
+        lues: set[str] | None = None
+
+        async def reservees_du_groupe(run) -> set[str]:
+            nonlocal lues
+            if lues is None:
+                lues = await issues_reservees_du_clavier(workflow_id, organization_id, run)
+            return lues
+
+        if posee:
+            run_de_l_issue, org_de_l_issue = await db_client.get_workflow_run_with_context(workflow_run_id)
+            if (
+                run_de_l_issue is not None
+                and run_de_l_issue.workflow_id == workflow_id
+                and org_de_l_issue == organization_id
+                and posee.casefold() in await reservees_du_groupe(run_de_l_issue)
+            ):
+                return posee
         messages = _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
         pending_user_message = pending_text_chat_user_message(session_data)
         if pending_user_message:
@@ -1581,7 +1613,7 @@ async def extract_text_chat_final_disposition(
         context.set_messages(messages)
         fiche = {**(base_checkpoint.get("gathered_context") or {}), **(extracted or {})}
         async def reservees() -> set[str]:
-            return await issues_reservees_du_clavier(workflow_id, organization_id)
+            return await reservees_du_groupe(workflow_run)
 
         service = DispositionExtractionService(
             llm=llm, context=context, options=options, template_context=initial_context, reservees=reservees

@@ -115,11 +115,15 @@ def _borne(arguments: Any) -> Any:
         return None
 
 
-def simuler_si_rejeu(moteur: Any, categorie: Any, nom: str, gestionnaire: Gestionnaire) -> Gestionnaire:
+def simuler_si_rejeu(
+    moteur: Any, categorie: Any, nom: str, gestionnaire: Gestionnaire, *, sortant: bool = False
+) -> Gestionnaire:
     """Le gestionnaire de l'outil ``nom`` : celui qu'on lui donne, ou, au rejeu d'un outil sortant, un gestionnaire qui
-    note l'appel et rend le résultat neutre sans rien exécuter. ⛔ Ne lève jamais."""
+    note l'appel et rend le résultat neutre sans rien exécuter. ``sortant`` : l'appelant déclare l'outil sortant quand sa
+    catégorie ne le dit pas (R-17 : l'outil natif de demande de rappel écrit une entrée que l'envoi d'après l'appel transmet ;
+    la catégorie ``native`` reste interne pour tout autre usage). ⛔ Ne lève jamais."""
     try:
-        if not en_rejeu(moteur) or not est_sortant(moteur, categorie, nom):
+        if not en_rejeu(moteur) or not (sortant or est_sortant(moteur, categorie, nom)):
             return gestionnaire
 
         async def simule(params: Any) -> None:

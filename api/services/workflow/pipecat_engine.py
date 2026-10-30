@@ -3767,11 +3767,28 @@ class PipecatEngine:
             async def lire_workflow(identifiant, organisation):
                 return await db_client.get_workflow(identifiant, organization_id=organisation)
 
+            # R-12 (revue 2) : les outils réservés se lisent dans ce que l'appel EXÉCUTE : le graphe de l'agent actif, et la
+            # version que l'appel utilise pour les autres (le brouillon d'un test, la publiée d'un appel : la règle de la passation).
+            from api.services.workflow.run_creation import definition_to_run
+
+            utilise_le_brouillon = bool(getattr(self.__dict__.get("_agent_factory"), "_use_draft", False))
+
+            async def lire_definition(workflow):
+                return await definition_to_run(db_client, workflow, use_draft=utilise_le_brouillon)
+
+            try:
+                uuids_de_depart = [
+                    u for noeud in self.active_agent.workflow.nodes.values() for u in (noeud.tool_uuids or []) if isinstance(u, str)
+                ]
+            except Exception:  # noqa: BLE001 -- graphe illisible : la lecture de la version du run reprend
+                uuids_de_depart = None
             return await issues_reservees_du_groupe(
                 self.active_agent.workflow_id,
                 await self._get_organization_id(),
                 lire_workflow,
                 self.lire_outils,
+                lire_definition,
+                uuids_de_depart,
             )
         except Exception:  # noqa: BLE001
             return set()

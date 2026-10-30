@@ -67,32 +67,47 @@ async def issues_reservees(
         return set()
 
 
-def _uuids_d_une_definition(workflow: Any) -> list[str]:
-    definition = getattr(workflow, "released_definition", None) or getattr(workflow, "current_definition", None)
-    noeuds = (getattr(definition, "workflow_json", None) or {}).get("nodes") or []
+def _uuids_d_un_graphe(noeuds: Any) -> list[str]:
     return [
         u
-        for n in noeuds
+        for n in noeuds or []
         if isinstance(n, dict)
         for u in ((n.get("data") or {}).get("tool_uuids") or [])
         if isinstance(u, str)
     ]
 
 
+def _uuids_d_une_definition(definition: Any) -> list[str]:
+    return _uuids_d_un_graphe((getattr(definition, "workflow_json", None) or {}).get("nodes"))
+
+
+async def _definition_publiee(workflow: Any) -> Any:
+    """La version publiée d'un agent (à défaut la courante) : la lecture d'avant R-12, gardée par défaut."""
+    return getattr(workflow, "released_definition", None) or getattr(workflow, "current_definition", None)
+
+
 async def uuids_des_outils_du_groupe(
     depart_id: int | None,
     organization_id: int | None,
     lire_workflow: Callable[[int, int], Awaitable[Any]],
+    lire_definition: Callable[[Any], Awaitable[Any]] | None = None,
+    uuids_de_depart: Iterable[str] | None = None,
 ) -> list[str]:
     """Les outils posés sur les étapes de TOUS les agents du groupe de ``depart_id`` : le principal et ses
     spécialisés, quel que soit l'agent sur lequel l'appel finit. Même lecture au téléphone et au clavier.
-    Un agent seul : ses propres outils. ⛔ Ne lève jamais."""
+    Un agent seul : ses propres outils. ⛔ Ne lève jamais.
+
+    R-12 (revue 2) : les outils réservés se lisent dans ce que le run EXÉCUTE, pas toujours dans la version publiée.
+    ``uuids_de_depart`` : les outils du graphe que le run exécute pour l'agent de départ (sa version épinglée) ;
+    ``lire_definition`` : la version d'un autre agent du groupe que ce run utilise (le brouillon d'un test, la publiée
+    d'un appel), la même règle que la passation (``definition_to_run``). Sans eux : la version publiée, comme avant."""
     try:
         if not depart_id or not organization_id:
             return []
         from api.services.groupe.groupe import specialises_de
         from api.services.groupe.passations import agent_principal_de
 
+        lire = lire_definition or _definition_publiee
         depart = await lire_workflow(depart_id, organization_id)
         if depart is None:
             return []
@@ -103,6 +118,9 @@ async def uuids_des_outils_du_groupe(
             ids.append(depart_id)
         uuids: list[str] = []
         for i in dict.fromkeys(ids):
+            if i == depart_id and uuids_de_depart is not None:
+                uuids += [u for u in uuids_de_depart if isinstance(u, str)]
+                continue
             if i == depart_id:
                 workflow = depart
             elif i == principal_id:
@@ -110,7 +128,7 @@ async def uuids_des_outils_du_groupe(
             else:
                 workflow = await lire_workflow(i, organization_id)
             if workflow is not None:
-                uuids += _uuids_d_une_definition(workflow)
+                uuids += _uuids_d_une_definition(await lire(workflow))
         return list(dict.fromkeys(uuids))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[issue] outils du groupe non lus : {erreur!r}")
@@ -122,7 +140,12 @@ async def issues_reservees_du_groupe(
     organization_id: int | None,
     lire_workflow: Callable[[int, int], Awaitable[Any]],
     lire_outils: Callable[[list[str], int], Awaitable[Iterable[Any]]],
+    lire_definition: Callable[[Any], Awaitable[Any]] | None = None,
+    uuids_de_depart: Iterable[str] | None = None,
 ) -> set[str]:
-    """Les issues réservées par tout outil de transfert d'appel du groupe (téléphone et clavier : ce seul chemin)."""
-    uuids = await uuids_des_outils_du_groupe(depart_id, organization_id, lire_workflow)
+    """Les issues réservées par tout outil de transfert d'appel ou de demande de rappel du groupe, lues dans les
+    versions que le run utilise (téléphone et clavier : ce seul chemin)."""
+    uuids = await uuids_des_outils_du_groupe(
+        depart_id, organization_id, lire_workflow, lire_definition, uuids_de_depart
+    )
     return await issues_reservees(uuids, organization_id, lire_outils)
