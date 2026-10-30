@@ -9,6 +9,7 @@ from api.routes.agent_stream import router as agent_stream_router
 from api.routes.analyse_run import router as analyse_run_router
 from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
+from api.routes.builder import router as builder_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
 from api.routes.tri import router as tri_router
@@ -66,6 +67,8 @@ router.include_router(telephony_router)
 router.include_router(superuser_router)
 router.include_router(workflow_router)
 router.include_router(groupe_router)
+# [.mark] builder-agent-vocal : le builder d'agent vocal (conversation, bibliothèque, cerveau)
+router.include_router(builder_router)
 router.include_router(workflow_text_chat_router)
 # [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
 router.include_router(renvoi_en_test_router)
