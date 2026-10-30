@@ -64,6 +64,28 @@ describe("[.mark] the dead-end rates table", () => {
         await waitFor(() => expect(m.taux).toHaveBeenCalledWith({ query: { jours: 30 } }));
     });
 
+    it("ignores a late answer for a period that is no longer the chosen one", async () => {
+        let rendre7: (v: unknown) => void = () => {};
+        let rendre30: (v: unknown) => void = () => {};
+        m.taux.mockImplementation((o: { query: { jours: number } }) =>
+            new Promise((resolve) => {
+                if (o.query.jours === 7) rendre7 = resolve;
+                else rendre30 = resolve;
+            }),
+        );
+        monter();
+        await waitFor(() => expect(m.taux).toHaveBeenCalledWith({ query: { jours: 7 } }));
+        fireEvent.click(screen.getByText("30 jours"));
+        await waitFor(() => expect(m.taux).toHaveBeenCalledWith({ query: { jours: 30 } }));
+        // la réponse de 30 jours arrive d'abord, celle de 7 jours (périmée) ensuite
+        rendre30({ data: { jours: 30, lignes: [{ ...LIGNES_DE_TAUX[0], workflow_nom: "Trente", appels: 30 }] } });
+        await waitFor(() => expect(screen.getByText("Trente", { selector: "button" })).toBeTruthy());
+        rendre7({ data: { jours: 7, lignes: [{ ...LIGNES_DE_TAUX[0], workflow_nom: "Sept", appels: 7 }] } });
+        await new Promise((r) => setTimeout(r, 30));
+        expect(screen.queryByText("Sept", { selector: "button" })).toBeNull();
+        expect(screen.getByText("Trente", { selector: "button" })).toBeTruthy();
+    });
+
     it("a click on an agent sets the filter of the queue; a second click clears it", async () => {
         monter();
         await waitFor(() => expect(screen.getByTestId("taux-4")).toBeTruthy());

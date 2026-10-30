@@ -8,7 +8,7 @@
  */
 import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
 import type { LigneDeTaux } from "@/client/types.gen";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { detailFromError } from "@/lib/apiError";
 
@@ -27,9 +27,14 @@ export function TauxDeSortieDImpasse({ agentChoisi, onChoisir, onAgents }: {
     const [jours, setJours] = useState<number>(7);
     const [lignes, setLignes] = useState<LigneDeTaux[] | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
+    // La période choisie à l'instant où une réponse arrive : une réponse d'une autre période est périmée et ignorée.
+    const periodeCourante = useRef(jours);
+    periodeCourante.current = jours;
 
     const charger = useCallback(async () => {
-        const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours } });
+        const demandee = jours;
+        const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours: demandee } });
+        if (demandee !== periodeCourante.current) return;
         if (reponse.error || !reponse.data) {
             setErreur(detailFromError(reponse.error, "The rates could not be read"));
             return;
