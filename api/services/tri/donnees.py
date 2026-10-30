@@ -123,12 +123,13 @@ def jours_des_taux(jours: int) -> int:
     return min(JOURS_DES_TAUX, key=lambda permis: abs(permis - jours)) if jours not in JOURS_DES_TAUX else jours
 
 
-# Les chemins des comptes, écrits à partir des mêmes constantes que ``chemin_des_runs_a_trier`` : un appel avec une impasse est
-# celui que la file de tri montre ; un appel porte le compteur de reprises s'il date d'après lui (``reprises`` est dans l'état de
-# l'impasse) ; une reprise sans impasse est un appel où le modèle s'est corrigé seul.
-CHEMIN_AVEC_IMPASSE = f"$ ? (@.{CLE_IMPASSE}.impasses > 0)"
-CHEMIN_PORTE_LE_COMPTEUR = f"$ ? (exists(@.{CLE_IMPASSE}.reprises))"
-CHEMIN_AVEC_REPRISE = f"$ ? (@.{CLE_IMPASSE}.reprises > 0)"
+# Les chemins des comptes, lus sur l'objet ``impasse`` du contexte, extrait UNE fois par run (``gathered_context`` est du JSON : le
+# convertir à chaque chemin coûtait quatre conversions par run). Mêmes clés que ``chemin_des_runs_a_trier`` : un appel avec une impasse
+# est celui que la file de tri montre ; il porte le compteur de reprises s'il date d'après lui ; une reprise sans impasse est un appel
+# où le modèle s'est corrigé seul.
+CHEMIN_AVEC_IMPASSE = "$ ? (@.impasses > 0)"
+CHEMIN_PORTE_LE_COMPTEUR = "$ ? (exists(@.reprises))"
+CHEMIN_AVEC_REPRISE = "$ ? (@.reprises > 0)"
 
 
 def part(numerateur: int, denominateur: int) -> float | None:

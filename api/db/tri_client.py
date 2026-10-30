@@ -24,6 +24,7 @@ from api.services.tri.donnees import (
     CHEMIN_AVEC_IMPASSE,
     CHEMIN_AVEC_REPRISE,
     CHEMIN_PORTE_LE_COMPTEUR,
+    CLE_IMPASSE,
     CLE_TRI,
     JOURS_DE_LECTURE,
     RUNS_PAR_PAGE,
@@ -107,24 +108,31 @@ class TriClient(BaseDBClient):
         dont la fiche porte le compteur de reprises, et ceux qui ont une reprise sans impasse. Un seul passage SQL, aucun
         contexte lu en entier. ⛔ Seuls les runs de l'organisation : la jointure sur ``WorkflowModel.organization_id``."""
         depuis = datetime.now(timezone.utc) - timedelta(days=jours)
-        contexte = cast(WorkflowRunModel.gathered_context, JSONB)
+        # ``gathered_context`` est du JSON : l'objet ``impasse`` est extrait et converti UNE fois par run (sous-requête), puis les
+        # trois chemins le lisent (un run sans impasse donne NULL : aucun des comptes ne le compte).
+        impasse = cast(WorkflowRunModel.gathered_context, JSONB).op("->")(literal(CLE_IMPASSE)).label("impasse")
+        runs = (
+            select(WorkflowRunModel.workflow_id.label("workflow_id"), impasse)
+            .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+            .where(and_(WorkflowModel.organization_id == organization_id, WorkflowRunModel.created_at >= depuis))
+            .subquery()
+        )
 
         def existe(chemin: str):
-            return func.jsonb_path_exists(contexte, cast(literal(chemin), JSONPATH))
+            return func.jsonb_path_exists(runs.c.impasse, cast(literal(chemin), JSONPATH))
 
         requete = (
             select(
-                WorkflowRunModel.workflow_id,
+                runs.c.workflow_id,
                 WorkflowModel.name,
                 func.count(),
                 func.count().filter(existe(CHEMIN_AVEC_IMPASSE)),
                 func.count().filter(existe(CHEMIN_PORTE_LE_COMPTEUR)),
                 func.count().filter(and_(existe(CHEMIN_AVEC_REPRISE), ~existe(CHEMIN_AVEC_IMPASSE))),
             )
-            .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
-            .where(and_(WorkflowModel.organization_id == organization_id, WorkflowRunModel.created_at >= depuis))
-            .group_by(WorkflowRunModel.workflow_id, WorkflowModel.name)
-            .order_by(WorkflowRunModel.workflow_id)
+            .join(WorkflowModel, WorkflowModel.id == runs.c.workflow_id)
+            .group_by(runs.c.workflow_id, WorkflowModel.name)
+            .order_by(runs.c.workflow_id)
         )
         async with self.async_session() as session:
             lignes = (await session.execute(requete)).all()
