@@ -154,7 +154,17 @@ class FauxDb:
 
 MODULES_AVEC_DB = (
     "api.services.builder.stock",
+    "api.services.builder.cerveau.reglages",
     "api.services.builder.bibliotheque.droits",
+    "api.services.builder.brouillon",
+    "api.services.builder.contexte",
+    "api.services.builder.creation",
+    "api.services.builder.actions._commun",
+    "api.mcp_server.tools._workflow_projection",
+    "api.services.modeles_reglages.service",
+    "api.services.builder.reglages_agent",
+    "api.services.lexique.stockage",
+    "api.mcp_server.tools.workflows",
 )
 
 

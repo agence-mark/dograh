@@ -6,6 +6,13 @@ from api.db.models import UserModel
 from api.services.auth.depends import _handle_api_key_auth
 
 
+# [.mark] builder-agent-vocal, lot 1 : le moteur du builder appelle les outils de ce serveur COMME DES FONCTIONS
+# (« un moteur, deux portes »). Il pose l'utilisateur déjà authentifié par la route ``/builder`` dans
+# ``UTILISATEUR_DIRECT`` : seul du code du serveur peut le poser, aucun en-tête de requête ne le peut. Vide (défaut) :
+# comportement de l'amont.
+from api.services.builder.identite import UTILISATEUR_DIRECT  # noqa: E402
+
+
 async def authenticate_mcp_request() -> UserModel:
     """Resolve the authenticated Dograh user for an MCP tool invocation.
 
@@ -18,6 +25,10 @@ async def authenticate_mcp_request() -> UserModel:
     the `langfuse.user.id` / `langfuse.session.id` attributes make the
     span filterable in the Langfuse UI.
     """
+    direct = UTILISATEUR_DIRECT.get()
+    if direct is not None:
+        return direct
+
     # FastMCP strips Authorization by default unless explicitly included.
     # Preserve it here so Bearer API keys work for MCP tool invocations.
     headers = get_http_headers(include={"authorization"})
