@@ -4462,17 +4462,22 @@ def montrer_la_fiche(
             bool(forme_courte()) if forme_courte else False,
         )
 
-    # [.mark] figeage-v12 (D4) : le constructeur du texte de l'état, retrouvé par le processeur posé autour du cerveau
-    # (``fiche_dans_le_systeme``), quelle que soit la famille du service.
-    setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
     if not (
         hasattr(llm, "get_chat_completions")
         and hasattr(llm, "build_chat_completion_params")
     ):
+        # [.mark] figeage-v12 (D4) : une autre famille (service Pipecat générique, sans requête de chat completions) garde le
+        # constructeur de l'état, retrouvé par le processeur posé autour du cerveau (``fiche_dans_le_systeme``) : son
+        # instruction système se compose par l'API de Pipecat. Un service qui n'a pas non plus cette composition n'est pas
+        # touché (contrat de ``test_un_service_sans_requete_de_conversation_n_est_pas_touche``).
+        if hasattr(llm, "_compose_system_instruction"):
+            setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
         logger.warning(
             "[fiche] service sans requête de conversation : fiche non montrée"
         )
         return False
+    # [.mark] figeage-v12 (D4) : le constructeur du texte de l'état, quelle que soit la famille du service.
+    setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
     en_conversation: ContextVar[bool] = ContextVar(
         "fiche_en_conversation", default=False
     )
