@@ -7,7 +7,11 @@ données.
 **Les signes** (comptés par le code) :
 
 1. dans l'étape en cours, l'agent redit une réplique identique (après normalisation) à l'une de ses deux précédentes, hors
-   phrases du code (dont celles d'attente), hors phrases entre guillemets du prompt de l'étape ;
+   phrases du code (dont celles d'attente), hors phrases entre guillemets du prompt de l'étape. agent-facon-tala (C9) :
+   compte aussi (a) une réplique qui n'est QUE le nom d'un outil ou d'une sortie déclarés (« coordonnees » écrit six fois,
+   casque 2469 : une seule « parole » de moins de trois mots, jamais comptée avant), redite à l'une des deux précédentes ;
+   (b) la même question posée une troisième fois de suite, reformulée (recouvrement des mots pleins, champs attendus
+   inchangés) : la règle des deux essais, le troisième est un signe ;
 2. une demande au fond **identique** (règle B1 du lot B, ``demandes_deja_faites``, jamais recopiée) à une demande déjà faite
    dans l'étape. Comptée au moment où la demande PART, même pendant une attente, et même si B2 la refuse (D-3) ;
 3. seulement dans une étape qui a des champs attendus encore vides (D11) : trois tours de suite sans champ nouveau (un
@@ -39,6 +43,7 @@ from api.services.fiche.traces import CLE_TOUR
 CLE_IMPASSE = "impasse"
 
 SIGNE_REPLIQUE = "replique_redite"
+SIGNE_REDEMANDE = "redemande_reformulee"
 SIGNE_DEMANDE = "demande_identique"
 SIGNE_RIEN_DE_NOUVEAU = "rien_de_nouveau"
 SIGNE_ETAPE_REVISITEE = "etape_revisitee"
@@ -52,6 +57,11 @@ ENTREES_POUR_LE_SIGNE_4 = 3
 TOURS_SANS_CHAMP = 3
 # Signe 1 : une réplique de moins de trois mots (« d'accord », « très bien ») se redit naturellement.
 MOTS_MIN_D_UNE_REPLIQUE = 3
+# C9 (b) : une question redemandée autrement. Les « mots pleins » ont au moins cinq lettres ; deux questions se ressemblent
+# quand au moins 60 % des mots pleins de la plus courte se retrouvent dans l'autre ; la troisième de suite est un signe.
+LETTRES_D_UN_MOT_PLEIN = 5
+RECOUVREMENT_D_UNE_REDEMANDE = 0.6
+QUESTIONS_POUR_LE_SIGNE = 3
 
 # Consignes au modèle (jamais dites à l'appelant) : génériques, aucun métier.
 NOTICE_TEMPS_1 = (
@@ -231,14 +241,45 @@ def _phrases_a_ignorer(moteur: Any, noeud: Any) -> list[str]:
     return sorted((c for c in cles if c), key=len, reverse=True)
 
 
-def _reste_de_la_replique(texte: str, moteur: Any, noeud: Any) -> str | None:
-    """La réplique normalisée, privée des phrases qu'elle a le droit de redire. ``None`` : il n'en reste pas assez pour
-    être une réplique de l'agent."""
+def _sans_phrases_permises(texte: str, moteur: Any, noeud: Any) -> str:
     cle = f" {_cle_de_texte(texte)} "
     for phrase in _phrases_a_ignorer(moteur, noeud):
         cle = cle.replace(f" {phrase} ", " ")
-    reste = " ".join(cle.split())
+    return " ".join(cle.split())
+
+
+def _reste_de_la_replique(texte: str, moteur: Any, noeud: Any) -> str | None:
+    """La réplique normalisée, privée des phrases qu'elle a le droit de redire. ``None`` : il n'en reste pas assez pour
+    être une réplique de l'agent."""
+    reste = _sans_phrases_permises(texte, moteur, noeud)
     return reste if len(reste.split()) >= MOTS_MIN_D_UNE_REPLIQUE else None
+
+
+def _noms_d_outils_et_de_sorties(moteur: Any, noeud: Any) -> list[str]:
+    """C9 : les noms que le modèle peut écrire à la place d'un appel : les outils déclarés à sa dernière requête (posés sur
+    son service par ``TexteDuCerveauMixin``) et les sorties de l'étape. ⛔ Ne lève jamais."""
+    noms: list[str] = []
+    try:
+        llm = getattr(getattr(moteur, "active_agent", None), "llm", None)
+        noms += [n for n in (getattr(llm, "_mark_derniers_outils", None) or ()) if isinstance(n, str)]
+        for arete in getattr(noeud, "out_edges", None) or ():
+            nom = arete.get_function_name()
+            if isinstance(nom, str):
+                noms.append(nom)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[impasse] noms d'outils illisibles : {erreur!r}")
+    return list(dict.fromkeys(noms))
+
+
+def _que_le_nom_d_un_outil(texte: str, moteur: Any, noeud: Any) -> str | None:
+    """C9 (a) : ``outil:<nom>`` quand la réplique n'est QUE le nom d'un outil ou d'une sortie (nu ou habillé), sinon ``None``."""
+    noms = _noms_d_outils_et_de_sorties(moteur, noeud)
+    if not noms:
+        return None
+    from api.services.pipecat.texte_du_cerveau import lire_un_outil_ecrit
+
+    lu = lire_un_outil_ecrit(texte, noms)
+    return f"outil:{lu[0]}" if lu else None
 
 
 def _signature_des_champs(moteur: Any, noeud: Any) -> list | None:
@@ -282,8 +323,44 @@ def _un_travail_est_en_cours(moteur: Any) -> bool:
     return ligne_du_travail(moteur) is not None
 
 
+def _mots_pleins(cle: str) -> frozenset:
+    return frozenset(m for m in cle.split() if len(m) >= LETTRES_D_UN_MOT_PLEIN)
+
+
+def _signe_de_la_redemande(moteur: Any, etat: dict, noeud: Any, texte: str) -> bool:
+    """C9 (b) : la même question, posée une troisième fois de suite sous d'autres mots. Une réplique sans question remet la
+    série à zéro, comme un champ nouveau (la question suivante porte alors sur autre chose). Le code ne lit pas le métier :
+    il compare les mots pleins de deux questions et la liste des champs encore attendus."""
+    if "?" not in str(texte or ""):
+        etat["serie_de_questions"] = 0
+        etat["questions_precedentes"] = []
+        return False
+    mots = _mots_pleins(_sans_phrases_permises(texte, moteur, noeud))
+    signature = _signature_des_champs(moteur, noeud)
+    # Comparée aux DEUX questions d'avant : une reformulation dérive, la troisième ressemble à la première autant qu'à la deuxième.
+    precedentes = [p for p in (etat.get("questions_precedentes") or []) if isinstance(p, dict)]
+
+    def _ressemble(precedente: dict) -> bool:
+        avant = frozenset(precedente.get("mots") or ())
+        petit = min(len(avant), len(mots))
+        return (
+            petit >= 2
+            and len(avant & mots) / petit >= RECOUVREMENT_D_UNE_REDEMANDE
+            and precedente.get("signature") == signature
+        )
+
+    voisine = any(_ressemble(p) for p in precedentes)
+    etat["serie_de_questions"] = int(etat.get("serie_de_questions") or 0) + 1 if voisine else 1
+    etat["questions_precedentes"] = [*precedentes[-1:], {"mots": sorted(mots), "signature": signature}]
+    if etat["serie_de_questions"] >= QUESTIONS_POUR_LE_SIGNE:
+        etat["serie_de_questions"] = 0
+        return True
+    return False
+
+
 def _signe_de_la_replique(moteur: Any, etat: dict, noeud: Any, texte: str, tour: int | None) -> bool:
-    reste = _reste_de_la_replique(texte, moteur, noeud)
+    nom_seul = _que_le_nom_d_un_outil(texte, moteur, noeud)
+    reste = nom_seul or _reste_de_la_replique(texte, moteur, noeud)
     if reste is None:
         return False
     deja = reste in etat["repliques"]
@@ -328,6 +405,9 @@ async def fin_de_la_replique(moteur: Any, texte: str, depart: tuple | None, *, s
         if sans_changement and not _attente_du_systeme(moteur, etat):
             if _signe_de_la_replique(moteur, etat, noeud, texte, tour):
                 noter_un_signe(moteur, SIGNE_REPLIQUE)
+            elif _signe_de_la_redemande(moteur, etat, noeud, texte) and etat.get("tour_signe_replique") != tour:
+                etat["tour_signe_replique"] = tour
+                noter_un_signe(moteur, SIGNE_REDEMANDE)
             # Le tour d'un appelant n'est évalué qu'une fois pour le signe 3 (un tour peut porter plusieurs répliques).
             if tour is None or etat.get("tour_evalue") != tour:
                 etat["tour_evalue"] = tour

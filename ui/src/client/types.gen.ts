@@ -13743,6 +13743,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_dans_le_systeme?: boolean;
     /**
+     * Reconnaitre Un Outil Ecrit
+     *
+     * What happens when the model's whole reply is only the name of one of its tools (bare or dressed up: underscores, italics, punctuation, arguments). Off (default): the reply is kept as written. On: the reply becomes the call of that tool, never spoken and never kept in the history. A reply that holds real text besides the name is never touched. Works with any model.
+     */
+    reconnaitre_un_outil_ecrit?: boolean;
+    /**
      * Signaler Un Probleme
      *
      * Offers the agent a tool to flag, silently, that it is lost (an ambiguous request, a rule it does not know, a failing tool): a short reason and a category. Nothing is said to the caller and the call goes on; two flags at most per call. The flags are read after the call in the « To triage » page. Off (default): the tool is not offered.

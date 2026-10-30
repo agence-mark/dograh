@@ -826,6 +826,7 @@ class PipecatEngine:
         reponse: Optional[str] = None,
         relancer: bool = False,
         fin_demandee: bool = False,
+        au_revoir_dit: bool = False,
     ) -> str:
         """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
         (interruption comprise), comme ``_create_transition_func`` mais sans
@@ -838,7 +839,9 @@ class PipecatEngine:
         modèle reparle dans la nouvelle étape (comme une porte appelée en fonction).
 
         ``fin_demandee`` (lot 1, K4) : cette porte est prise pour finir l'appel (le filet de fin) ; une
-        porte ``fin`` réécrite en ``retour`` l'est aussi, d'elle-même.
+        porte ``fin`` réécrite en ``retour`` l'est aussi, d'elle-même. ``au_revoir_dit`` (agent-facon-tala, C2) : le
+        collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
+        mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
         Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
@@ -907,7 +910,7 @@ class PipecatEngine:
             )
             # [.mark] Chantier agents-specialises (A17) : un nœud de fin aux phrases
             # figées ne demande aucune réponse au modèle.
-            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin else None
+            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin and not au_revoir_dit else None
             # Comme `_create_transition_func` : l'attente de la réponse de fin est
             # posée avant de changer d'étape, jamais après (revue du 05/10).
             closing = (
@@ -931,7 +934,9 @@ class PipecatEngine:
                     arete.get_function_name() != nom
                     and porte_ecrite_est_une_fin(agent.workflow, nom)
                 )
-                if self._rendre_au_principal(agent, principal, fin_demandee=fin_voulue):
+                if self._rendre_au_principal(
+                    agent, principal, fin_demandee=fin_voulue, au_revoir_dit=au_revoir_dit
+                ):
                     return "prise"
             if phrase_figee is not None:
                 self._mute_pipeline = True
@@ -1258,6 +1263,7 @@ class PipecatEngine:
         context_ready=None,
         fin_demandee: bool = False,
         etape_cible: Optional[str] = None,
+        au_revoir_dit: bool = False,
     ) -> bool:
         """Le code passe la main au principal : ni annonce, ni musique, historique sans
         résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
@@ -1279,6 +1285,7 @@ class PipecatEngine:
                 etape_de_retour=True,
                 fin_demandee=fin_demandee,
                 etape_cible=etape_cible,
+                au_revoir_dit=au_revoir_dit,
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -1351,12 +1358,17 @@ class PipecatEngine:
                 return False
             if self.transfer_coordinator.in_progress:
                 return False
-            arete = porte_de_retour(agent.current_node, agent.workflow)
+            # agent-facon-tala (C2) : la sortie de FIN du collègue quand son étape en offre une, sinon le retour (comme avant).
+            fin_propre = sortie_de_fin_de_l_etape(agent.current_node, agent.workflow)
+            arete = fin_propre if fin_propre is not None else porte_de_retour(agent.current_node, agent.workflow)
             if arete is None:
                 return False
             if not contient_une_formule(texte, formules_de(self._call_context_vars)):
                 return False
-            logger.info("[filet] formule de fin sans porte : le code prend la sortie retour")
+            logger.info(
+                "[filet] formule de fin sans porte : le code prend la sortie "
+                + ("fin du collègue" if fin_propre is not None else "retour")
+            )
             cible = agent.workflow.nodes[arete.target]
             self._gathered_context.setdefault("porte_reecrite", []).append(
                 {
@@ -1367,14 +1379,18 @@ class PipecatEngine:
                 }
             )
             return (
-                await self.prendre_porte_ecrite(arete.get_function_name(), fin_demandee=True)
+                await self.prendre_porte_ecrite(
+                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True
+                )
                 == "prise"
             )
         except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
             logger.error(f"[filet] fin d'appel en échec : {e!r}")
             return False
 
-    async def fin_directe_de_l_accueil(self, agent: AgentRuntime, noeud_id: str) -> bool:
+    async def fin_directe_de_l_accueil(
+        self, agent: AgentRuntime, noeud_id: str, au_revoir_dit: bool = False
+    ) -> bool:
         """[.mark] Lot 1 (K4) : le collègue a demandé la fin de l'appel ; l'accueil, arrivé sur son
         étape de retour, prend sa sortie ``fin`` SANS tour de modèle : la phrase de fin figée si le nœud
         en a une, sinon il raccroche (le collègue a déjà dit au revoir). Rend ``False`` (le tour de
@@ -1386,7 +1402,8 @@ class PipecatEngine:
                 return False
             logger.info("[groupe] fin demandée par le collègue : l'accueil prend sa sortie fin")
             await self.set_node(arete.target, origin_visit_id=agent.visit_id)
-            phrase = self._phrase_de_fin_figee(agent, arete.target)
+            # agent-facon-tala (C2) : le collègue a déjà dit au revoir (filet de fin) : l'accueil ne le redit pas.
+            phrase = None if au_revoir_dit else self._phrase_de_fin_figee(agent, arete.target)
             self._mute_pipeline = True
             if phrase is not None:
                 self._tache_du_groupe(self._dire_la_fin_figee(agent, phrase))

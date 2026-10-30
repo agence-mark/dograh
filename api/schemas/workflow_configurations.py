@@ -915,6 +915,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "for what the record held read it there). Works with any model."
         ),
     )
+    # [.mark] agent-facon-tala (C1) : l'outil écrit en texte.
+    reconnaitre_un_outil_ecrit: bool = Field(
+        default=False,
+        description=(
+            "What happens when the model's whole reply is only the name of one of its tools (bare or dressed up: "
+            "underscores, italics, punctuation, arguments). Off (default): the reply is kept as written. On: the reply "
+            "becomes the call of that tool, never spoken and never kept in the history. A reply that holds real text "
+            "besides the name is never touched. Works with any model."
+        ),
+    )
     # [.mark] passages-fiables (lot F) : le signalement par l'agent.
     signaler_un_probleme: bool = Field(
         default=False,

@@ -86,7 +86,7 @@ from api.services.pipecat.reponse_avalee import (
     phrase_de_repli,
 )
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
-from api.services.pipecat.texte_du_cerveau import FluxNettoye, _noms_des_outils
+from api.services.pipecat.texte_du_cerveau import ATTRIBUT_DERNIERS_OUTILS, ATTRIBUT_OUTIL_ECRIT, FluxNettoye, _noms_des_outils
 from api.services.pipecat.trace_modele import TraceModeleMixin
 from api.services.workflow.porte_parlee import FLECHE
 from pipecat.frames.frames import BotStoppedSpeakingFrame, FunctionCallsFromLLMInfoFrame
@@ -405,10 +405,11 @@ class FluxNettoyeResponses:
         outils: list[str],
         portes_dans_la_reponse: bool,
         balises_permises: Any = (),
+        outil_ecrit: bool = False,
     ):
         self._flux = flux
         self._nettoye = FluxNettoye(
-            _VersMorceaux(flux), outils, portes_dans_la_reponse, balises_permises
+            _VersMorceaux(flux), outils, portes_dans_la_reponse, balises_permises, outil_ecrit=outil_ecrit
         )
 
     def __aiter__(self):
@@ -438,11 +439,14 @@ class TexteDuCerveauResponsesMixin:
                 and FLECHE in str(m.get("content") or "")
                 for m in (getattr(context, "messages", None) or [])
             )
+            outils = _noms_des_outils(context)
+            setattr(self, ATTRIBUT_DERNIERS_OUTILS, tuple(outils))  # C9 : lus par le détecteur d'impasse
             return FluxNettoyeResponses(
                 flux,
-                _noms_des_outils(context),
+                outils,
                 portes,
                 getattr(self, "balises_du_cerveau", ()) or (),
+                outil_ecrit=getattr(self, ATTRIBUT_OUTIL_ECRIT, False) is True,
             )
         except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
             logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")

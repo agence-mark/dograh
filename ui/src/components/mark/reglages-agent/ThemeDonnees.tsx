@@ -190,6 +190,11 @@ export const ThemeDonnees = ({
     const [ficheSysteme, setFicheSysteme] = useState(ficheSystemeEnregistree);
     useEffect(() => setFicheSysteme(ficheSystemeEnregistree), [ficheSystemeEnregistree]);
     const ficheSystemeModifiee = ficheSysteme !== ficheSystemeEnregistree;
+    // agent-facon-tala (C1): a reply that is only a tool name becomes the call of that tool. Off by default; any agent.
+    const outilEcritEnregistre = resolue.reconnaitre_un_outil_ecrit ?? false;
+    const [outilEcrit, setOutilEcrit] = useState(outilEcritEnregistre);
+    useEffect(() => setOutilEcrit(outilEcritEnregistre), [outilEcritEnregistre]);
+    const outilEcritModifie = outilEcrit !== outilEcritEnregistre;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -370,6 +375,7 @@ export const ThemeDonnees = ({
         || apresAppelModifie
         || connuEtAttenduModifie
         || ficheSystemeModifiee
+        || outilEcritModifie
         || transfertModifie
         || formulationsModifiees
         || redemandeModifiee
@@ -425,6 +431,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Record in the system instruction", fr: "Fiche dans l'instruction système" },
                 modifie: ficheSystemeModifiee,
                 config: () => ({ fiche_dans_le_systeme: ficheSysteme }),
+            },
+            {
+                // agent-facon-tala (C1): its own part, sent only when changed (E6).
+                nom: { en: "Tool written as text", fr: "Outil écrit en texte" },
+                modifie: outilEcritModifie,
+                config: () => ({ reconnaitre_un_outil_ecrit: outilEcrit }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -631,6 +643,8 @@ export const ThemeDonnees = ({
                 {ficheActive && (
                     <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
                 )}
+                {/* agent-facon-tala (C1): independent of the record, so outside the record condition. */}
+                <Reglage cle="reconnaitre_un_outil_ecrit" valeur={outilEcrit} onChange={(v) => setOutilEcrit(Boolean(v))} />
                 {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
                     next to the known fields. */}
                 {ficheActive && (modeDeNote === "post_scriptum" || modeDeNote === "greffier") && (

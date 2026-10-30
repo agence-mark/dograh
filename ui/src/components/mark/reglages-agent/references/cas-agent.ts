@@ -226,6 +226,8 @@ export const CAS_AGENT: CasAgent[] = [
     c("fiche-deja-connu", "ajout-mark", "donnees", ["etiquettes_des_etapes", "fiche_deja_connu"], [inter("fiche_deja_connu")]),
     // figeage-v12 (D4): added after the reorganisation, frozen once.
     c("fiche-dans-le-systeme", "ajout-mark", "donnees", ["fiche_dans_le_systeme"], [inter("fiche_dans_le_systeme")]),
+    // agent-facon-tala (C1): added after the reorganisation, frozen once.
+    c("outil-ecrit-en-texte", "ajout-mark", "donnees", ["reconnaitre_un_outil_ecrit"], [inter("reconnaitre_un_outil_ecrit")]),
     // greffier-conversation, lot E (C4, D6).
     c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Lot 11 de correctifs-apres-banc-commun (F-3).

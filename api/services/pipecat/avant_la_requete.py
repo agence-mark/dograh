@@ -35,7 +35,7 @@ requête (``run_llm=not confirms_speculation``) : l'option 2, l'arbitre et la no
 tour-là. La détection anticipée n'est pas activée aujourd'hui ; si elle l'était, ce tour partirait sans ces portes (une
 requête anticipée ne change jamais d'étape, prouvé par ``test_passages_fiables_seconde_revue``).
 
-Posés seulement sur un agent qui a au moins une étape qui réclame le code, ou la case « fiche dans le système » allumée (``autour_du_cerveau``) : un agent tout éteint
+Posés seulement sur un agent qui a au moins une étape qui réclame le code, ou l'une des cases « fiche dans le système » et « reconnaître un outil écrit en texte » allumée (``autour_du_cerveau``) : un agent tout éteint
 a le circuit de la base, sans processeur de plus. ⛔ Ne lève jamais : dans le doute, la trame passe telle quelle.
 """
 
@@ -81,6 +81,14 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
             fiche_dans_le_systeme.placer_la_fiche(moteur, llm, list(trame.context.get_messages()))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fiche] état non rangé dans le système : {erreur!r}")
+    # agent-facon-tala (C1) : la case « reconnaître un outil écrit en texte » de l'agent actif, posée sur son cerveau.
+    try:
+        if getattr(moteur.active_agent, "llm", None) is llm:
+            from api.services.pipecat.texte_du_cerveau import poser_la_case_outil_ecrit
+
+            poser_la_case_outil_ecrit(moteur, llm)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] case « outil écrit » non posée : {erreur!r}")
     copie = passage.contexte_avec_la_notice(moteur, trame.context)
     if copie is None:
         return trame
@@ -115,9 +123,12 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         from api.services.workflow.passage_sur_la_fiche import agent_reclame_le_code
 
         llm = getattr(agent, "llm", None)
+        from api.services.pipecat.texte_du_cerveau import case_outil_ecrit
         from api.services.workflow.fiche_dans_le_systeme import case_allumee
 
-        if moteur is None or llm is None or not (agent_reclame_le_code(agent) or case_allumee(agent, moteur)):
+        if moteur is None or llm is None or not (
+            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur)
+        ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"
         return (

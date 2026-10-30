@@ -51,6 +51,7 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_PORTES_DANS_LA_REPONSE,
     CLE_SCHEMA_DU_PARCOURS,
     MODE_GREFFIER,
+    MODES_DES_PORTES_DANS_LA_REPONSE,
 )
 
 CLE_REGLAGE = CLE_SCHEMA_DU_PARCOURS
@@ -146,7 +147,11 @@ def _equipe_accueil(collegues: list[tuple[str, str]]) -> list[str]:
     return lignes
 
 
-def _equipe_specialiste(etapes: list[dict]) -> list[str]:
+def _equipe_specialiste(etapes: list[dict], portes_ecrites: bool = True) -> list[str]:
+    """Le bloc « # Ton équipe » d'un collègue. ``portes_ecrites`` : ses sorties sont des portes écrites dans la réponse
+    (« tu écris la sortie… ») ; faux, ce sont des outils (« tu appelles l'outil… »). agent-facon-tala (C1) : dire « écris »
+    à un modèle dont les sorties sont des outils lui faisait écrire leur nom au lieu de les appeler (casque 2469)."""
+    verbe, cible = ("écris", "la sortie") if portes_ecrites else ("appelles", "l'outil")
     depart = next((n for n in etapes if n.get("type") == "startCall"), None)
     mission = _role(depart) if depart else ""
     retours = [
@@ -168,17 +173,17 @@ def _equipe_specialiste(etapes: list[dict]) -> list[str]:
     if retours and fins:
         # Lot 2 d'orchestrateur-trois-cerveaux (D5) : deux sorties pour chaque collègue. Plusieurs
         # étapes de chaque sorte : toutes sont citées, chacune est une sortie valable.
-        clore = " ou ".join(f"la sortie {nom}" for nom in fins)
-        rendre = " ou ".join(f"la sortie {nom}" for nom in retours)
+        clore = " ou ".join(f"{cible} {nom}" for nom in fins)
+        rendre = " ou ".join(f"{cible} {nom}" for nom in retours)
         phrases.append(
-            f"Tu as deux sorties : pour clore l'appel, tu écris {clore} ; "
-            f"pour rendre la main à l'accueil, tu écris {rendre}."
+            f"Tu as deux sorties : pour clore l'appel, tu {verbe} {clore} ; "
+            f"pour rendre la main à l'accueil, tu {verbe} {rendre}."
         )
     elif retours:
         # Plusieurs étapes marquées : toutes sont citées, chacune est une sortie valable.
-        sorties = " ou ".join(f"la sortie {nom}" for nom in retours)
+        sorties = " ou ".join(f"{cible} {nom}" for nom in retours)
         phrases.append(
-            f"Pour rendre la main à l'accueil, tu écris {sorties}, "
+            f"Pour rendre la main à l'accueil, tu {verbe} {sorties}, "
             "dès que la demande n'est pas la tienne ou que ton travail est fini."
         )
     return ["# Ton équipe", " ".join(phrases)]
@@ -188,6 +193,7 @@ def parcours(
     definition: dict,
     type_workflow: str = TYPE_SEUL,
     collegues: list[tuple[str, str]] | None = None,
+    portes_ecrites: bool = True,
 ) -> str:
     """Le bloc ``<parcours_genere>`` : la carte des étapes et de leur rôle, précédée pour un
     accueil ou un spécialiste du bloc « # Ton équipe »."""
@@ -197,7 +203,7 @@ def parcours(
     if type_workflow == TYPE_ACCUEIL:
         lignes += _equipe_accueil(collegues or []) + [""]
     elif type_workflow == TYPE_SPECIALISTE:
-        lignes += _equipe_specialiste(etapes) + [""]
+        lignes += _equipe_specialiste(etapes, portes_ecrites) + [""]
     lignes.append("# Les étapes de l'appel" if type_workflow == TYPE_SEUL else "# Tes étapes")
     for etape in _ordre_des_etapes(etapes, definition.get("edges") or []):
         role = _role(etape)
@@ -212,6 +218,7 @@ def appliquer(
     position: bool = True,
     type_workflow: str = TYPE_SEUL,
     collegues: list[tuple[str, str]] | None = None,
+    portes_ecrites: bool = True,
 ) -> dict | None:
     """La définition avec les blocs à jour (allumé) ou retirés (éteint).
     ``position`` : « Tu es ici » en fin d'étape ; faux en greffier avec les portes dans la
@@ -222,7 +229,7 @@ def appliquer(
     if not definition:
         return definition
     resultat = copy.deepcopy(definition)
-    bloc = parcours(resultat, type_workflow, collegues) if allume else None
+    bloc = parcours(resultat, type_workflow, collegues, portes_ecrites) if allume else None
     for noeud in resultat.get("nodes") or []:
         data = noeud.get("data")
         if not isinstance(data, dict) or not isinstance(data.get("prompt"), (str, type(None))):
@@ -309,7 +316,9 @@ async def _ecrire(
         collegues = await collegues_de(definition, organization_id)
         if collegues is None:
             return definition
-    return appliquer(definition, allume, _position(configurations), type_workflow, collegues)
+    return appliquer(
+        definition, allume, _position(configurations), type_workflow, collegues, _portes_ecrites(configurations)
+    )
 
 
 async def a_l_enregistrement(
@@ -348,6 +357,15 @@ async def a_l_enregistrement(
         return await _ecrire(definition, allume, reglages, organization_id)
     nouvelle = await _ecrire(active.workflow_json, allume, reglages, organization_id)
     return nouvelle if nouvelle != active.workflow_json else None
+
+
+def _portes_ecrites(configurations: dict) -> bool:
+    """agent-facon-tala (C1) : les sorties de cet agent sont-elles des portes écrites dans la réponse (« → nom »), comme
+    ``fiche_au_fil_de_leau._portes_dans_la_reponse`` les allume ? Sinon ce sont des outils."""
+    return (
+        configurations.get(CLE_PORTES_DANS_LA_REPONSE) is True
+        and configurations.get(CLE_MODE) in MODES_DES_PORTES_DANS_LA_REPONSE
+    )
 
 
 def _position(configurations: dict) -> bool:

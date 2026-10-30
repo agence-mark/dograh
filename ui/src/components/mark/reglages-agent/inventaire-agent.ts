@@ -125,6 +125,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     etiquettes_des_etapes: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_dans_le_systeme: { theme: "donnees", cas: ["fiche-dans-le-systeme"] },
+    reconnaitre_un_outil_ecrit: { theme: "donnees", cas: ["outil-ecrit-en-texte"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », read by the steps' « Truth of actions ».
     verite_formulations_d_action: { theme: "donnees", cas: ["formulations-d-action"] },

@@ -593,6 +593,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // agent-facon-tala (C1): off by default.
+    reconnaitre_un_outil_ecrit: d({
+        type: "interrupteur",
+        libelle: { en: "Recognise a tool written as text", fr: "Reconnaître un outil écrit en texte" },
+        aides: [
+            {
+                en: "When the model's whole reply is only the name of one of its tools (bare, or dressed up with underscores, italics, punctuation or arguments), the reply becomes the call of that tool: it is never spoken and never kept in the history, so the model stops imitating it. A reply that holds real text besides the name is never touched. Off: the reply is kept as written. Works with any model. Takes effect on the next call.",
+                fr: "Quand toute la réponse du modèle n'est que le nom d'un de ses outils (nu, ou habillé de tirets bas, d'italiques, de ponctuation ou d'arguments), la réponse devient l'appel de cet outil : elle n'est jamais dite ni gardée dans l'historique, le modèle cesse donc de l'imiter. Une réponse qui contient du vrai texte en plus du nom n'est jamais touchée. Éteint : la réponse est gardée telle qu'écrite. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
     // passages-fiables (lot F): off by default.
     signaler_un_probleme: d({
         type: "interrupteur",
