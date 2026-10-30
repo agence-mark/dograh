@@ -335,6 +335,12 @@ quelque chose. **Un patch perdu ne se présente pas toujours comme un échec de 
 | `test_agent_facon_tala_lot_4_issue.py` | 🆕 **agent-facon-tala, lot 4 (C4)** : l'issue métier à toute fin d'appel : un raccrochage (vrai moteur) et la fin du clavier (vraie route) prennent l'issue du classement, l'issue floue de la liste quand le motif n'est pas clair, l'état mécanique si la liste n'en a pas ou si personne n'a parlé |
 | `test_agent_facon_tala_lot_4_relance.py` | 🆕 **agent-facon-tala, lot 4 (C5)** : une seule relance de silence par silence (moniteur de l'appel) ; la vraie seconde relance passe |
 | `test_agent_facon_tala_lot_4_prenom.py` | 🆕 **agent-facon-tala, lot 4 (C6)** : le filtre du nom couvre le prénom de la fiche, même case, mêmes règles ; chaîne réelle du flux |
+| `test_texte_du_cerveau_tout_fournisseur.py` | 🆕 **agent-facon-tala (C1)** : le nettoyage du texte du cerveau (appel écrit en texte, crochets, nom d'outil écrit) vaut pour tout cerveau de conversation de la fabrique, Mistral compris (règle « code agnostique ») |
+| `test_agent_facon_tala_lot_7_issue_reservee.py` | 🆕 **agent-facon-tala, lot 7 (F3)** : une issue de transfert ne sort que du vrai résultat de l'outil de transfert ; le classement final ne la voit ni ne la rend |
+| `test_agent_facon_tala_lot_b1_demande_de_rappel.py` | 🆕 **agent-facon-tala, suite, lot B1** : l'outil natif `demander_un_rappel` écrit une entrée de rappel d'origine agent et pose son issue réservée sur son résultat réel seulement ; parité téléphone et clavier |
+| `test_agent_facon_tala_lot_d_taux_impasse.py` | 🆕 **agent-facon-tala, suite, lot D** : compteur `reprises` de l'impasse (temps 1 et 2, jamais remis à zéro), `GET /tri/taux` par agent sur 7 ou 30 jours, cloisonné à l'organisation ; R-18 : le contexte converti une fois par run (plan `EXPLAIN`) |
+| `test_agent_facon_tala_lot_e_seuil_redemande.py` | 🆕 **agent-facon-tala, revue 2 (R-13)** : le signe « redemande reformulée » de l'impasse exige deux mots pleins communs |
+| `test_agent_facon_tala_revue_2_issues_reservees.py` | 🆕 **agent-facon-tala, revue 2 (R-12, R-16, R-17) et contre-revue (R-19)** : issues réservées lues dans la version que le run exécute, téléphone et clavier ; groupe et run lus une fois par fin de session clavier ; outil de rappel simulé au rejeu |
 
 ⛔ **Le second cas est le plus dangereux, parce qu'il ressemble à une panne d'environnement.**
 Retirer le patch Mistral donne exactement ça :
