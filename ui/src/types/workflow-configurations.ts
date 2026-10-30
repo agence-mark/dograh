@@ -84,6 +84,8 @@ export const DEFAUTS_PIPECAT = {
     laisser_la_parole: false,
     // [.mark] figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: false,
+    // [.mark] agent-facon-tala (C8): off by default.
+    fiche_forme_courte: false,
     // [.mark] agent-facon-tala (C1): off by default.
     reconnaitre_un_outil_ecrit: false,
     // [.mark] passages-fiables (lots F and G): off by default.
@@ -426,6 +428,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     fiche_deja_connu?: boolean;
     // [.mark] figeage-v12 (D4): the record's state at the end of the system instruction, not as a caller message.
     fiche_dans_le_systeme?: boolean;
+    // [.mark] agent-facon-tala (C8): the record's block without its instructions (the prompt carries them).
+    fiche_forme_courte?: boolean;
     // [.mark] agent-facon-tala (C1): a reply that is only a tool name becomes the call of that tool.
     reconnaitre_un_outil_ecrit?: boolean;
     // [.mark] Lot 2 d'orchestrateur-trois-cerveaux (B2): the end-of-call safety net of a specialised agent.

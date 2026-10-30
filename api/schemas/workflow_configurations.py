@@ -915,6 +915,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "for what the record held read it there). Works with any model."
         ),
     )
+    # [.mark] agent-facon-tala (C8) : la forme courte du bloc de la fiche.
+    fiche_forme_courte: bool = Field(
+        default=False,
+        description=(
+            "How much the model is told along with the record's state. Off (default): the block as before, with its "
+            "instructions (\"do not ask again\", \"let the caller choose\"). On: the data lines only (what is noted, "
+            "what is still expected, what the modules read) under a one-line heading; the instructions are the prompt's "
+            "own. Works with any model."
+        ),
+    )
     # [.mark] agent-facon-tala (C1) : l'outil écrit en texte.
     reconnaitre_un_outil_ecrit: bool = Field(
         default=False,

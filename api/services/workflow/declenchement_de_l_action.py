@@ -474,6 +474,9 @@ def _brancher_les_tours(llm: Any) -> bool:
 
         llm.build_chat_completion_params = build_chat_completion_params
     llm.get_chat_completions = get_chat_completions
+    from api.services.pipecat.trace_modele import remettre_la_trace_en_dernier
+
+    remettre_la_trace_en_dernier(llm)  # agent-facon-tala (C8)
     setattr(llm, _MARQUE_TOURS, True)
     return True
 

@@ -593,6 +593,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // agent-facon-tala (C8): off by default.
+    fiche_forme_courte: d({
+        type: "interrupteur",
+        libelle: { en: "Short record block", fr: "Bloc de fiche court" },
+        aides: [
+            {
+                en: "What the model is told along with the record's state. Off: the block as before, with its instructions (« do not ask again », « let the caller choose »). On: the data lines only (what is noted, what is still expected, what our modules read) under a one-line heading; the instructions belong to the prompt. Use it with prompts that already say how to talk. Works with any model. Takes effect on the next call.",
+                fr: "Ce que le modèle lit avec l'état de la fiche. Éteint : le bloc d'avant, avec ses consignes (« ne redemande pas », « fais choisir l'appelant »). Allumé : seulement les lignes de données (ce qui est noté, ce qui est encore attendu, ce que nos modules ont lu) sous un titre d'une ligne ; les consignes sont celles du prompt. À employer avec des prompts qui disent déjà comment parler. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
     // agent-facon-tala (C1): off by default.
     reconnaitre_un_outil_ecrit: d({
         type: "interrupteur",

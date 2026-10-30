@@ -4325,6 +4325,37 @@ def souffle_de_l_etape(
     return SOUFFLE_ETAPE_COMPLETE
 
 
+CLE_FICHE_FORME_COURTE = "fiche_forme_courte"
+# agent-facon-tala (C8) : l'en-tête du bloc en forme courte (il garde le début que ``DEBUT_ENTETE_FICHE`` retire si le modèle le recopie).
+ENTETE_ETAT_COURT = "[Fiche de l'appel : pour toi seulement.]"
+ENTETE_INDICES_COURT = "Lu par nos modules dans sa dernière réplique : "
+
+
+def en_forme_courte(texte: str | None) -> str | None:
+    """agent-facon-tala (C8) : le bloc de l'état sans les consignes que les prompts au gabarit de Tala portent eux-mêmes
+    (« ne redemande pas », « fais alors choisir », « elle est tenue par le greffier… ») : l'en-tête et l'en-tête des indices
+    sont réduits, les lignes de données (Noté, À confirmer, Encore attendu, Déjà connu) restent telles quelles. Le texte du
+    bloc d'avant n'est touché que par la case de l'agent. ⛔ Ne lève jamais."""
+    try:
+        if not texte:
+            return texte
+        from api.services.workflow import indices_des_modules as indices
+
+        for long in (
+            ENTETE_ETAT,
+            ENTETE_ETAT_POST_SCRIPTUM,
+            ENTETE_ETAT_GREFFIER,
+            ENTETE_ETAT_NOTE_D_ABORD,
+        ):
+            texte = texte.replace(long, ENTETE_ETAT_COURT)
+        for long in (indices.ENTETE_INDICES, indices.ENTETE_INDICES_GREFFIER):
+            texte = texte.replace(long, ENTETE_INDICES_COURT)
+        return texte
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] forme courte non appliquée : {erreur!r}")
+        return texte
+
+
 def etat_avec_les_indices(
     reglages: ReglagesFiche,
     fiche: dict,
@@ -4333,6 +4364,7 @@ def etat_avec_les_indices(
     champs_etape: Iterable[str] = (),
     a_des_portes: bool = True,
     sorties: Iterable[tuple[str, Any]] = (),
+    courte: bool = False,
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
     dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
@@ -4384,7 +4416,7 @@ def etat_avec_les_indices(
     )
     if chiffres:
         texte = f"{texte or entete_etat(reglages)}\n{chiffres}"
-    return texte
+    return en_forme_courte(texte) if courte else texte
 
 
 def inserer_l_etat(messages: list, texte: str) -> list:
@@ -4404,6 +4436,7 @@ def montrer_la_fiche(
     champs_etape: Callable[[], Iterable[str]] | None = None,
     a_des_portes: Callable[[], bool] | None = None,
     sorties: Callable[[], Iterable[tuple[str, Any]]] | None = None,
+    forme_courte: Callable[[], bool] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -4425,6 +4458,8 @@ def montrer_la_fiche(
             champs_etape() if champs_etape else (),
             a_des_portes() if a_des_portes else True,
             sorties() if sorties else (),
+            # agent-facon-tala (C8) : la case « fiche courte » de l'agent qui parle, lue à chaque requête.
+            bool(forme_courte()) if forme_courte else False,
         )
 
     # [.mark] figeage-v12 (D4) : le constructeur du texte de l'état, retrouvé par le processeur posé autour du cerveau
@@ -4469,4 +4504,8 @@ def montrer_la_fiche(
 
     llm.get_chat_completions = get_chat_completions
     llm.build_chat_completion_params = build_chat_completion_params
+    # agent-facon-tala (C8) : la trace photographie la requête par-dessus cette enveloppe, même posée après elle.
+    from api.services.pipecat.trace_modele import remettre_la_trace_en_dernier
+
+    remettre_la_trace_en_dernier(llm)
     return True

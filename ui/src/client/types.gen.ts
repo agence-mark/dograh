@@ -13743,6 +13743,12 @@ export type WorkflowConfigurationDefaults = {
      */
     fiche_dans_le_systeme?: boolean;
     /**
+     * Fiche Forme Courte
+     *
+     * How much the model is told along with the record's state. Off (default): the block as before, with its instructions ("do not ask again", "let the caller choose"). On: the data lines only (what is noted, what is still expected, what the modules read) under a one-line heading; the instructions are the prompt's own. Works with any model.
+     */
+    fiche_forme_courte?: boolean;
+    /**
      * Reconnaitre Un Outil Ecrit
      *
      * What happens when the model's whole reply is only the name of one of its tools (bare or dressed up: underscores, italics, punctuation, arguments). Off (default): the reply is kept as written. On: the reply becomes the call of that tool, never spoken and never kept in the history. A reply that holds real text besides the name is never touched. Works with any model.

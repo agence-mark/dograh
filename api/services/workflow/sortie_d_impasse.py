@@ -546,6 +546,9 @@ def montrer_l_impasse(moteur: Any, llm: Any) -> bool:
 
         llm.get_chat_completions = get_chat_completions
         llm.build_chat_completion_params = build_chat_completion_params
+        from api.services.pipecat.trace_modele import remettre_la_trace_en_dernier
+
+        remettre_la_trace_en_dernier(llm)  # agent-facon-tala (C8)
         setattr(llm, _MARQUE, True)
         return True
     except Exception as erreur:  # noqa: BLE001

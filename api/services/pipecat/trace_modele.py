@@ -319,6 +319,38 @@ class TraceModeleMixin:
         return params
 
 
+ATTRIBUT_ENVELOPPE_TRACE = "_mark_enveloppe_de_la_trace"
+
+
+def remettre_la_trace_en_dernier(llm: Any) -> bool:
+    """agent-facon-tala (C8) : la trace photographie la requête telle qu'elle PART, donc par-dessus toutes les enveloppes du
+    constructeur de requête (état de la fiche, ligne du travail, notice d'impasse…). Au téléphone, un agent appelé par
+    passation est construit, tracé, PUIS reçoit la fiche : la trace se retrouvait sous l'enveloppe de la fiche et la
+    montrait absente de requêtes qui la portaient (1 requête sur 19 dans les relevés des runs 2447 et 2468, contre 14 sur 14
+    dans l'agent unique, tracé en dernier). Rappelée après chaque enveloppe posée plus tard : l'ancienne enveloppe de la
+    trace devient muette, la nouvelle est la dernière. Sans trace sur ce service : rien. ⛔ Ne lève jamais."""
+    try:
+        actuelle = getattr(llm, ATTRIBUT_ENVELOPPE_TRACE, None)
+        if actuelle is None or getattr(llm, "mark_trace", None) is None:
+            return False
+        courant = llm.build_chat_completion_params
+        if courant is actuelle:
+            return False
+
+        def build_chat_completion_params(params_from_context):
+            params = courant(params_from_context)
+            if getattr(llm, ATTRIBUT_ENVELOPPE_TRACE, None) is build_chat_completion_params:
+                return llm._mark_tracer_parametres(params)
+            return params
+
+        setattr(llm, ATTRIBUT_ENVELOPPE_TRACE, build_chat_completion_params)
+        llm.build_chat_completion_params = build_chat_completion_params
+        return True
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[trace] trace non remise en dernier : {erreur!r}")
+        return False
+
+
 def brancher_la_trace(
     engine: Any,
     llm: Any,
@@ -359,8 +391,13 @@ def brancher_la_trace(
         construire = llm.build_chat_completion_params
 
         def build_chat_completion_params(params_from_context):
-            return llm._mark_tracer_parametres(construire(params_from_context))
+            params = construire(params_from_context)
+            # agent-facon-tala (C8) : une seule enveloppe photographie, la dernière posée (voir ``remettre_la_trace_en_dernier``).
+            if getattr(llm, ATTRIBUT_ENVELOPPE_TRACE, None) is build_chat_completion_params:
+                return llm._mark_tracer_parametres(params)
+            return params
 
+        setattr(llm, ATTRIBUT_ENVELOPPE_TRACE, build_chat_completion_params)
         llm.build_chat_completion_params = build_chat_completion_params
         setattr(engine, ATTRIBUT_TRACE, trace)
         return trace

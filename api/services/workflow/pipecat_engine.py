@@ -1784,6 +1784,9 @@ class PipecatEngine:
                     getattr(self.active_agent, "current_node", None),
                     getattr(self.active_agent, "workflow", None),
                 ),
+                # agent-facon-tala (C8) : la forme courte du bloc, case de l'agent qui parle.
+                forme_courte=lambda: (getattr(self.active_agent, "reglages", None) or {}).get("fiche_forme_courte")
+                is True,
             )
         except Exception as e:  # noqa: BLE001
             logger.error(f"[fiche] fiche non branchée sur l'agent : {e!r}")

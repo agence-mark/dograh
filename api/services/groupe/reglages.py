@@ -202,6 +202,7 @@ CLES_THEME_DONNEES: tuple[str, ...] = (
     "etiquettes_des_etapes",
     "fiche_deja_connu",
     "fiche_dans_le_systeme",
+    "fiche_forme_courte",
     "reconnaitre_un_outil_ecrit",
     "transfert_garanti",
     "verite_formulations_d_action",

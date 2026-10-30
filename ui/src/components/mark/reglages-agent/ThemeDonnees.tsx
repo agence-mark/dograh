@@ -190,6 +190,11 @@ export const ThemeDonnees = ({
     const [ficheSysteme, setFicheSysteme] = useState(ficheSystemeEnregistree);
     useEffect(() => setFicheSysteme(ficheSystemeEnregistree), [ficheSystemeEnregistree]);
     const ficheSystemeModifiee = ficheSysteme !== ficheSystemeEnregistree;
+    // agent-facon-tala (C8): the short form of the record's block. Off by default; every note-taking mode.
+    const ficheCourteEnregistree = resolue.fiche_forme_courte ?? false;
+    const [ficheCourte, setFicheCourte] = useState(ficheCourteEnregistree);
+    useEffect(() => setFicheCourte(ficheCourteEnregistree), [ficheCourteEnregistree]);
+    const ficheCourteModifiee = ficheCourte !== ficheCourteEnregistree;
     // agent-facon-tala (C1): a reply that is only a tool name becomes the call of that tool. Off by default; any agent.
     const outilEcritEnregistre = resolue.reconnaitre_un_outil_ecrit ?? false;
     const [outilEcrit, setOutilEcrit] = useState(outilEcritEnregistre);
@@ -376,6 +381,7 @@ export const ThemeDonnees = ({
         || connuEtAttenduModifie
         || ficheSystemeModifiee
         || outilEcritModifie
+        || ficheCourteModifiee
         || transfertModifie
         || formulationsModifiees
         || redemandeModifiee
@@ -431,6 +437,12 @@ export const ThemeDonnees = ({
                 nom: { en: "Record in the system instruction", fr: "Fiche dans l'instruction système" },
                 modifie: ficheSystemeModifiee,
                 config: () => ({ fiche_dans_le_systeme: ficheSysteme }),
+            },
+            {
+                // agent-facon-tala (C8): its own part, sent only when changed (E6).
+                nom: { en: "Short record block", fr: "Bloc de fiche court" },
+                modifie: ficheCourteModifiee,
+                config: () => ({ fiche_forme_courte: ficheCourte }),
             },
             {
                 // agent-facon-tala (C1): its own part, sent only when changed (E6).
@@ -642,6 +654,10 @@ export const ThemeDonnees = ({
                 {/* figeage-v12 (D4): where the model reads the record, next to what it shows. */}
                 {ficheActive && (
                     <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
+                )}
+                {/* agent-facon-tala (C8): the short form of what the model reads about the record. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_forme_courte" valeur={ficheCourte} onChange={(v) => setFicheCourte(Boolean(v))} />
                 )}
                 {/* agent-facon-tala (C1): independent of the record, so outside the record condition. */}
                 <Reglage cle="reconnaitre_un_outil_ecrit" valeur={outilEcrit} onChange={(v) => setOutilEcrit(Boolean(v))} />
