@@ -27,6 +27,11 @@ au signe suivant le code dit la phrase du motif « impasse » du catalogue puis 
 de l'appel, le motif « impasse répétée ». Les compteurs des signes 1 à 3 repartent à chaque changement d'étape et après le
 temps 3 ; celui du signe 4 jamais. Tout vit dans la fiche de l'appel (``impasse``), qui survit d'un tour à l'autre au clavier.
 
+**Les reprises** (agent-facon-tala, lot D1) : ``reprises`` compte les consignes des temps 1 et 2 données dans l'appel, c'est-à-dire les
+fois où le modèle a été repris et a pu se corriger seul, sans que le code ait à changer d'étape. Jamais remis à zéro (ni au
+changement d'étape ni après le temps 3). Un appel dont la fiche n'a pas la clé date d'avant le compteur : la lecture
+(``api/services/tri/donnees.py``) ne l'en compte jamais.
+
 ⛔ Ne lève jamais : une impasse mal comptée ne coûte jamais l'appel.
 """
 
@@ -77,6 +82,10 @@ _ENTRE_GUILLEMETS = re.compile(r"«\s*(.+?)\s*»|“\s*(.+?)\s*”|\"\s*(.+?)\s*
 _LONGUEUR_JOURNAL = 30
 
 
+def _entier(valeur: Any) -> int:
+    return valeur if isinstance(valeur, int) and not isinstance(valeur, bool) else 0
+
+
 def _fiche(moteur: Any) -> dict | None:
     fiche = getattr(moteur, "_gathered_context", None)
     return fiche if isinstance(fiche, dict) else None
@@ -105,6 +114,7 @@ def _etat(moteur: Any) -> dict | None:
             "signe_rien_de_nouveau": False,
             "visites": {},
             "impasses": 0,
+            "reprises": 0,
             "notice": None,
             "notice_tour": None,
             "a_declencher": False,
@@ -161,6 +171,7 @@ def noter_un_signe(moteur: Any, nature: str) -> int:
             etat["temps"] = cible
             etat["notice_tour"] = _tour(moteur)
             if cible in (1, 2):
+                etat["reprises"] = _entier(etat.get("reprises")) + 1
                 etat["notice"] = NOTICE_TEMPS_1 if cible == 1 else NOTICE_TEMPS_2
                 # Le modèle n'est enveloppé qu'à la première notice : un agent qui ne tourne jamais en rond garde son
                 # service tel quel (R1, test_D12).

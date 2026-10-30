@@ -113,6 +113,45 @@ def chemin_des_runs_a_trier() -> str:
     )
 
 
+# --- Les taux de sortie d'impasse (agent-facon-tala, lot D) ----------------------------------------------------
+# Jours proposés à l'écran pour la part des impasses et des reprises (la borne de lecture reste JOURS_DE_LECTURE).
+JOURS_DES_TAUX = (7, 30)
+
+
+def jours_des_taux(jours: int) -> int:
+    """Une période proposée (7 ou 30 jours) ; toute autre valeur est ramenée à la plus proche permise, jamais au-delà de la borne."""
+    return min(JOURS_DES_TAUX, key=lambda permis: abs(permis - jours)) if jours not in JOURS_DES_TAUX else jours
+
+
+# Les chemins des comptes, écrits à partir des mêmes constantes que ``chemin_des_runs_a_trier`` : un appel avec une impasse est
+# celui que la file de tri montre ; un appel porte le compteur de reprises s'il date d'après lui (``reprises`` est dans l'état de
+# l'impasse) ; une reprise sans impasse est un appel où le modèle s'est corrigé seul.
+CHEMIN_AVEC_IMPASSE = f"$ ? (@.{CLE_IMPASSE}.impasses > 0)"
+CHEMIN_PORTE_LE_COMPTEUR = f"$ ? (exists(@.{CLE_IMPASSE}.reprises))"
+CHEMIN_AVEC_REPRISE = f"$ ? (@.{CLE_IMPASSE}.reprises > 0)"
+
+
+def part(numerateur: int, denominateur: int) -> float | None:
+    """Une part entre 0 et 1, ``None`` quand il n'y a rien à diviser (jamais un zéro qui ferait croire à un taux nul)."""
+    return round(numerateur / denominateur, 4) if denominateur > 0 else None
+
+
+def ligne_de_taux(workflow_id: int, workflow_nom: str, appels: int, avec_impasse: int, portent_le_compteur: int,
+                  avec_reprise_sans_impasse: int) -> dict:
+    """Une ligne du tableau : par agent, les appels, la part des impasses, la part des reprises (sans impasse) lue sur les seuls
+    appels qui portent le compteur (leur nombre est rendu à côté)."""
+    return {
+        "workflow_id": workflow_id,
+        "workflow_nom": workflow_nom,
+        "appels": appels,
+        "avec_impasse": avec_impasse,
+        "part_impasse": part(avec_impasse, appels),
+        "appels_avec_compteur": portent_le_compteur,
+        "avec_reprise_sans_impasse": avec_reprise_sans_impasse,
+        "part_reprise": part(avec_reprise_sans_impasse, portent_le_compteur),
+    }
+
+
 def chemin_des_runs_en_alerte() -> str:
     return f"$ ? (exists(@.{CLE_ALERTES}[*]))"
 

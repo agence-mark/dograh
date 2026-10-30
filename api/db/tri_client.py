@@ -16,15 +16,29 @@ from typing import Any
 
 from sqlalchemy import and_, cast, func, literal, select, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import UserDefinedType
 
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowModel, WorkflowRunModel
 from api.services.tri.donnees import (
+    CHEMIN_AVEC_IMPASSE,
+    CHEMIN_AVEC_REPRISE,
+    CHEMIN_PORTE_LE_COMPTEUR,
     CLE_TRI,
     JOURS_DE_LECTURE,
     RUNS_PAR_PAGE,
     STATUTS,
+    ligne_de_taux,
 )
+
+
+class JSONPATH(UserDefinedType):
+    """Le type ``jsonpath`` de PostgreSQL, pour que la valeur du chemin soit liée comme paramètre (jamais collée dans le SQL)."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "JSONPATH"
 
 
 class TriClient(BaseDBClient):
@@ -87,6 +101,34 @@ class TriClient(BaseDBClient):
             ],
             a_une_suite,
         )
+
+    async def taux_de_sortie_d_impasse(self, organization_id: int, *, jours: int) -> list[dict[str, Any]]:
+        """Par agent de l'organisation, sur les ``jours`` derniers jours : les appels, ceux qui ont eu au moins une impasse, ceux
+        dont la fiche porte le compteur de reprises, et ceux qui ont une reprise sans impasse. Un seul passage SQL, aucun
+        contexte lu en entier. ⛔ Seuls les runs de l'organisation : la jointure sur ``WorkflowModel.organization_id``."""
+        depuis = datetime.now(timezone.utc) - timedelta(days=jours)
+        contexte = cast(WorkflowRunModel.gathered_context, JSONB)
+
+        def existe(chemin: str):
+            return func.jsonb_path_exists(contexte, cast(literal(chemin), JSONPATH))
+
+        requete = (
+            select(
+                WorkflowRunModel.workflow_id,
+                WorkflowModel.name,
+                func.count(),
+                func.count().filter(existe(CHEMIN_AVEC_IMPASSE)),
+                func.count().filter(existe(CHEMIN_PORTE_LE_COMPTEUR)),
+                func.count().filter(and_(existe(CHEMIN_AVEC_REPRISE), ~existe(CHEMIN_AVEC_IMPASSE))),
+            )
+            .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+            .where(and_(WorkflowModel.organization_id == organization_id, WorkflowRunModel.created_at >= depuis))
+            .group_by(WorkflowRunModel.workflow_id, WorkflowModel.name)
+            .order_by(WorkflowRunModel.workflow_id)
+        )
+        async with self.async_session() as session:
+            lignes = (await session.execute(requete)).all()
+        return [ligne_de_taux(*ligne) for ligne in lignes]
 
     async def run_de_l_organisation(self, organization_id: int, run_id: int) -> dict[str, Any] | None:
         """Le contexte utile d'UN run, seulement s'il est de l'organisation (sinon ``None``, jamais une fuite)."""
