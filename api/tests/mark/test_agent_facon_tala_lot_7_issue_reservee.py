@@ -117,3 +117,81 @@ async def test_issues_reservees_lit_les_outils_et_ne_leve_jamais():
         raise RuntimeError("x")
 
     assert await issues_reservees(["a"], 7, casse) == set()
+
+
+# --------------------------------------------------------------------------- #
+# Tout le groupe, téléphone et clavier : l'appel finit sur un collègue sans outil de transfert
+# --------------------------------------------------------------------------- #
+
+from unittest.mock import AsyncMock, patch  # noqa: E402
+
+PRINCIPAL, COLLEGUE_A, COLLEGUE_B, ORG = 10, 11, 12, 7
+
+
+def _workflow(identifiant, reglages, uuids):
+    definition = SimpleNamespace(workflow_json={"nodes": [{"id": "1", "data": {"tool_uuids": uuids}}]})
+    return SimpleNamespace(id=identifiant, workflow_configurations=reglages, released_definition=definition, current_definition=None)
+
+
+GROUPE = {
+    PRINCIPAL: _workflow(PRINCIPAL, {"agents_specialises": [COLLEGUE_A, COLLEGUE_B]}, ["outil-de-transfert", "passation"]),
+    COLLEGUE_A: _workflow(COLLEGUE_A, {"agent_principal_id": PRINCIPAL}, ["autre-outil"]),
+    COLLEGUE_B: _workflow(COLLEGUE_B, {"agent_principal_id": PRINCIPAL}, []),
+}
+OUTILS = {
+    "outil-de-transfert": _outil("transfer_call", "transfert_ok"),
+    "passation": _outil("transfer_agent", "autre"),
+    "autre-outil": _outil("http_api", None),
+}
+
+
+async def _get_workflow(identifiant, organization_id=None):
+    return GROUPE[identifiant]
+
+
+async def _get_tools(uuids, organization_id):
+    return [OUTILS[u] for u in uuids if u in OUTILS]
+
+
+@pytest.mark.asyncio
+async def test_au_telephone_un_appel_qui_finit_sur_un_collegue_sans_transfert_reserve_l_issue_du_groupe():
+    from api.services.workflow.pipecat_engine import PipecatEngine
+
+    moteur = SimpleNamespace(
+        active_agent=SimpleNamespace(workflow_id=COLLEGUE_B),
+        _get_organization_id=AsyncMock(return_value=ORG),
+        lire_outils=_get_tools,
+    )
+    with patch("api.services.workflow.pipecat_engine.db_client.get_workflow", new=_get_workflow):
+        reservees = await PipecatEngine._issues_reservees_aux_transferts(moteur)
+    assert reservees == {"transfert_ok"}  # sans le correctif : set() (seul le graphe de l'agent actif était lu)
+
+
+@pytest.mark.asyncio
+async def test_au_clavier_le_meme_groupe_donne_les_memes_issues_reservees():
+    from api.services.workflow import text_chat_runner
+
+    with (
+        patch("api.services.workflow.text_chat_runner.db_client.get_workflow", new=_get_workflow),
+        patch("api.services.workflow.text_chat_runner.db_client.get_tools_by_uuids", new=_get_tools),
+    ):
+        depuis_un_collegue = await text_chat_runner.issues_reservees_du_clavier(COLLEGUE_B, ORG)
+        depuis_le_principal = await text_chat_runner.issues_reservees_du_clavier(PRINCIPAL, ORG)
+    assert depuis_un_collegue == depuis_le_principal == {"transfert_ok"}
+
+
+@pytest.mark.asyncio
+async def test_un_agent_seul_ne_lit_que_ses_outils_et_une_lecture_en_echec_ne_reserve_rien():
+    from api.services.workflow.issue_reservee import uuids_des_outils_du_groupe
+
+    seul = _workflow(99, {}, ["outil-de-transfert"])
+
+    async def lire(identifiant, organisation):
+        return seul
+
+    assert await uuids_des_outils_du_groupe(99, ORG, lire) == ["outil-de-transfert"]
+
+    async def casse(identifiant, organisation):
+        raise RuntimeError("base indisponible")
+
+    assert await uuids_des_outils_du_groupe(99, ORG, casse) == []

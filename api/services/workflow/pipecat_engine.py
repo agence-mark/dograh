@@ -3759,14 +3759,20 @@ class PipecatEngine:
         return runtime
 
     async def _issues_reservees_aux_transferts(self) -> set[str]:
-        """[.mark] agent-facon-tala, lot 7 (F3): the outcomes the transfer tools of the active agent's steps set
+        """[.mark] agent-facon-tala, lot 7 (F3): the outcomes the transfer tools of EVERY agent of the group set
         themselves on success; the final classification never returns them. ⛔ Never raises."""
-        from api.services.workflow.issue_reservee import issues_reservees
+        from api.services.workflow.issue_reservee import issues_reservees_du_groupe
 
         try:
-            graphe = self.active_agent.workflow
-            uuids = [u for n in graphe.nodes.values() for u in (n.tool_uuids or [])]
-            return await issues_reservees(uuids, await self._get_organization_id(), self.lire_outils)
+            async def lire_workflow(identifiant, organisation):
+                return await db_client.get_workflow(identifiant, organization_id=organisation)
+
+            return await issues_reservees_du_groupe(
+                self.active_agent.workflow_id,
+                await self._get_organization_id(),
+                lire_workflow,
+                self.lire_outils,
+            )
         except Exception:  # noqa: BLE001
             return set()
 

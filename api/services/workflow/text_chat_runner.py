@@ -1495,6 +1495,18 @@ async def execute_text_chat_pending_turn(
     )
 
 
+async def issues_reservees_du_clavier(workflow_id: int, organization_id: int) -> set[str]:
+    """[.mark] agent-facon-tala, lot 7 (F3): the same reading as the phone's engine (every agent of the group)."""
+    from api.services.workflow.issue_reservee import issues_reservees_du_groupe
+
+    async def lire_workflow(identifiant, organisation):
+        return await db_client.get_workflow(identifiant, organization_id=organisation)
+
+    return await issues_reservees_du_groupe(
+        workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids
+    )
+
+
 async def extract_text_chat_final_disposition(
     *,
     workflow_run_id: int,
@@ -1562,12 +1574,8 @@ async def extract_text_chat_final_disposition(
         context = LLMContext()
         context.set_messages(messages)
         fiche = {**(base_checkpoint.get("gathered_context") or {}), **(extracted or {})}
-        from api.services.workflow.issue_reservee import issues_reservees
-
         async def reservees() -> set[str]:
-            noeuds = (getattr(workflow_run.definition, "workflow_json", None) or {}).get("nodes") or []
-            uuids = [u for n in noeuds if isinstance(n, dict) for u in ((n.get("data") or {}).get("tool_uuids") or [])]
-            return await issues_reservees(uuids, organization_id, db_client.get_tools_by_uuids)
+            return await issues_reservees_du_clavier(workflow_id, organization_id)
 
         service = DispositionExtractionService(
             llm=llm, context=context, options=options, template_context=initial_context, reservees=reservees
