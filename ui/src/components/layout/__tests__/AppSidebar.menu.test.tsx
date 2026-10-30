@@ -76,6 +76,14 @@ describe("[.mark] the side menu keeps « Alerts » reachable", () => {
         expect(screen.getByRole("link", { name: /To triage|À trier/ }).getAttribute("href")).toBe("/a-trier");
     });
 
+    it("lists « Library » (builder-agent-vocal, lot 2) in the menu, in both languages", () => {
+        monter(false);
+        expect(screen.getByRole("link", { name: /Library|Bibliothèque/ }).getAttribute("href")).toBe("/bibliotheque");
+        cleanup();
+        monter(true);
+        expect(screen.getByRole("link", { name: "Bibliothèque" }).getAttribute("href")).toBe("/bibliotheque");
+    });
+
     it("uses compact groups so the whole menu fits in 900 px", () => {
         monter(false);
         const groupes = [...document.querySelectorAll('[data-slot="sidebar-group"]')] as HTMLElement[];

@@ -15,6 +15,7 @@ import {
   House,
   Key,
   KeyRound,
+  Library,
   ListChecks,
   LogOut,
   type LucideIcon,
@@ -162,6 +163,13 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Keys",
         url: "/cles",
         icon: Key,
+      },
+      // [.mark] builder-agent-vocal (lot 2): the library of recipes the builder draws from.
+      {
+        title: "Library",
+        titre: { en: "Library", fr: "Bibliothèque" },
+        url: "/bibliotheque",
+        icon: Library,
       },
       // [.mark] passages-fiables (lot G): what the agent and the code flagged, and the customer's problems.
       {

@@ -227,6 +227,17 @@ export type AwsNovaSonicRealtimeLlmConfiguration = {
 };
 
 /**
+ * Acceptation
+ */
+export type Acceptation = {
+    banc?: Banc | null;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+};
+
+/**
  * ActionEquipe
  *
  * l-agent-collegue, L8: what the agent did for the team during the call, read in the record.
@@ -1242,6 +1253,26 @@ export type ByokRealtimeAiModelConfiguration = {
 };
 
 /**
+ * Banc
+ *
+ * Ce qui prouve une version : un texte court et, si on l'a, la référence du banc.
+ */
+export type Banc = {
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Date
+     */
+    date?: string;
+};
+
+/**
  * BatchRecordingCreateRequestSchema
  *
  * Request schema for creating one or more recording records after upload.
@@ -2113,20 +2144,6 @@ export type ChampRequisDuRappel = {
      * A call variable that stands in for the field when it is not noted (the caller's own number).
      */
     repli_appel?: string | null;
-};
-
-/**
- * ChangementDeStatut
- */
-export type ChangementDeStatut = {
-    /**
-     * Identifiant
-     */
-    identifiant: string;
-    /**
-     * Statut
-     */
-    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
 };
 
 /**
@@ -3159,6 +3176,20 @@ export type DailyUsageItem = {
 };
 
 /**
+ * DecisionDeConception
+ */
+export type DecisionDeConception = {
+    /**
+     * Approuve
+     */
+    approuve: boolean;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
  * DecisionDeRenvoi
  */
 export type DecisionDeRenvoi = {
@@ -4169,6 +4200,32 @@ export type EcranPanne = {
      * Texte Du Bin Promesse
      */
     texte_du_bin_promesse: string;
+};
+
+/**
+ * Element
+ */
+export type Element = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Version Courante
+     */
+    version_courante: number;
+    /**
+     * Versions
+     */
+    versions: Array<Version>;
 };
 
 /**
@@ -5676,6 +5733,69 @@ export type ImpersonateResponse = {
 };
 
 /**
+ * Importation
+ */
+export type Importation = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Contenu
+     */
+    contenu: {
+        [key: string]: unknown;
+    };
+    origine: Origine;
+};
+
+/**
+ * ImportationParAdresse
+ */
+export type ImportationParAdresse = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Adresse
+     */
+    adresse: string;
+    /**
+     * Licence
+     *
+     * The licence, or 'inconnue'.
+     */
+    licence: string;
+    /**
+     * Date
+     */
+    date: string;
+    /**
+     * Cle Du Contenu
+     *
+     * The content is stored as {cle_du_contenu: text}.
+     */
+    cle_du_contenu?: string;
+};
+
+/**
  * InitEmbedRequest
  *
  * Request model for initializing an embed session
@@ -6768,6 +6888,20 @@ export type MentionDuRun = {
 };
 
 /**
+ * MessageDuBuilder
+ */
+export type MessageDuBuilder = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * MiniMaxLLMConfiguration
  */
 export type MiniMaxLlmConfiguration = {
@@ -7021,6 +7155,60 @@ export type ModeleImporte = {
      * YYYY-MM-DD
      */
     date: string;
+};
+
+/**
+ * ModificationDuCerveau
+ */
+export type ModificationDuCerveau = {
+    /**
+     * Format
+     */
+    format: 'openai' | 'anthropic';
+    /**
+     * Modele
+     */
+    modele: string;
+    /**
+     * Adresse
+     */
+    adresse?: string;
+    /**
+     * Plafond Depense
+     */
+    plafond_depense?: number;
+    /**
+     * Plafond Jetons
+     */
+    plafond_jetons?: number;
+    /**
+     * Prix Entree Par Million
+     */
+    prix_entree_par_million?: number;
+    /**
+     * Prix Sortie Par Million
+     */
+    prix_sortie_par_million?: number;
+    /**
+     * Fenetre
+     */
+    fenetre?: number;
+    /**
+     * Sortie Max
+     */
+    sortie_max?: number;
+    /**
+     * Tours Outils Max
+     */
+    tours_outils_max?: number;
+    /**
+     * Tours Correction Max
+     */
+    tours_correction_max?: number;
+    /**
+     * Cle
+     */
+    cle?: string | null;
 };
 
 /**
@@ -7512,6 +7700,30 @@ export type NoteDeSortie = {
 };
 
 /**
+ * NouvelElement
+ */
+export type NouvelElement = {
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Contenu
+     */
+    contenu: {
+        [key: string]: unknown;
+    };
+    /**
+     * Notes
+     */
+    notes?: string;
+};
+
+/**
  * NouvelleCle
  */
 export type NouvelleCle = {
@@ -7535,6 +7747,63 @@ export type NouvelleCle = {
      * Adresse
      */
     adresse?: string | null;
+};
+
+/**
+ * NouvelleProposition
+ */
+export type NouvelleProposition = {
+    /**
+     * Type
+     */
+    type: 'version' | 'passage_recette' | 'rejet';
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Justification
+     */
+    justification: string;
+    /**
+     * Titre
+     */
+    titre?: string;
+    /**
+     * Contenu
+     */
+    contenu?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    banc?: Banc | null;
+};
+
+/**
+ * NouvelleVersion
+ */
+export type NouvelleVersion = {
+    /**
+     * Contenu
+     */
+    contenu: {
+        [key: string]: unknown;
+    };
+    /**
+     * Titre
+     */
+    titre?: string | null;
+    /**
+     * Notes
+     */
+    notes?: string;
 };
 
 /**
@@ -8270,6 +8539,26 @@ export type OrganizationSummary = {
 };
 
 /**
+ * Origine
+ *
+ * D'où vient une importation (B35) : source, licence (ou « inconnue »), date.
+ */
+export type Origine = {
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Licence
+     */
+    licence: string;
+    /**
+     * Date
+     */
+    date: string;
+};
+
+/**
  * OrigineChamp
  *
  * D4 : un champ DICTÉ subit le contrôle de citation, un champ DÉDUIT non.
@@ -8740,6 +9029,16 @@ export type PlivoConfigurationRequest = {
 };
 
 /**
+ * Preferences
+ */
+export type Preferences = {
+    /**
+     * Texte
+     */
+    texte?: string;
+};
+
+/**
  * PresetToolParameter
  *
  * A parameter injected by Dograh at runtime.
@@ -8998,6 +9297,71 @@ export type PropertySpec = {
 export type PropertyType = 'string' | 'number' | 'boolean' | 'options' | 'multi_options' | 'fixed_collection' | 'json' | 'tool_refs' | 'document_refs' | 'recording_ref' | 'credential_ref' | 'mention_textarea' | 'url';
 
 /**
+ * Proposition
+ */
+export type Proposition = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Type
+     */
+    type: 'version' | 'passage_recette' | 'rejet';
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre?: string;
+    /**
+     * Contenu
+     */
+    contenu?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Justification
+     */
+    justification: string;
+    banc?: Banc | null;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Date
+     */
+    date?: string;
+    /**
+     * Etat
+     */
+    etat?: 'en_attente' | 'acceptee' | 'refusee';
+    /**
+     * Decide Par
+     */
+    decide_par?: string | null;
+    /**
+     * Decide Le
+     */
+    decide_le?: string | null;
+    /**
+     * Motif Refus
+     */
+    motif_refus?: string | null;
+};
+
+/**
  * ProviderSetupChecklist
  *
  * A configuration's setup progress, as computed by its provider.
@@ -9132,7 +9496,7 @@ export type PublierGroupeResponse = {
      * Deja A Jour
      */
     deja_a_jour?: Array<number>;
-    refus?: Refus | null;
+    refus?: RefusOutput | null;
 };
 
 /**
@@ -9364,7 +9728,17 @@ export type RedialCampaignRequest = {
 /**
  * Refus
  */
-export type Refus = {
+export type RefusInput = {
+    /**
+     * Motif
+     */
+    motif: string;
+};
+
+/**
+ * Refus
+ */
+export type RefusOutput = {
     /**
      * Id
      */
@@ -10137,24 +10511,6 @@ export type ResultatCopieEtablissement = {
 };
 
 /**
- * ResultatImport
- */
-export type ResultatImport = {
-    /**
-     * Ajoutes
-     *
-     * Terms added to the vocabulary.
-     */
-    ajoutes: number;
-    /**
-     * Deja Presents
-     *
-     * Terms left untouched: one of their spellings was already there.
-     */
-    deja_presents: number;
-};
-
-/**
  * ResultatRattachement
  */
 export type ResultatRattachement = {
@@ -10245,6 +10601,45 @@ export type ResultatSecours = {
 };
 
 /**
+ * Resume
+ *
+ * Une ligne de la liste : jamais le contenu entier.
+ */
+export type Resume = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    statut: Statut;
+    /**
+     * Version Courante
+     */
+    version_courante: number;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Date
+     */
+    date: string;
+    banc: Banc | null;
+    origine: Origine | null;
+    /**
+     * Utilisee Par
+     */
+    utilisee_par?: number;
+};
+
+/**
  * ResumeDuModele
  */
 export type ResumeDuModele = {
@@ -10269,6 +10664,16 @@ export type ResumeDuModele = {
      * Nombre De Reglages
      */
     nombre_de_reglages: number;
+};
+
+/**
+ * RetourArriere
+ */
+export type RetourArriere = {
+    /**
+     * Version
+     */
+    version: number;
 };
 
 /**
@@ -11293,6 +11698,11 @@ export type SpeechmaticsSttConfiguration = {
      */
     language?: string;
 };
+
+/**
+ * Statut
+ */
+export type Statut = 'candidat' | 'recette' | 'rejete';
 
 /**
  * StatutEcrit
@@ -13170,6 +13580,45 @@ export type ValidationError = {
 };
 
 /**
+ * Version
+ */
+export type Version = {
+    /**
+     * Numero
+     */
+    numero: number;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Date
+     */
+    date?: string;
+    /**
+     * Notes
+     */
+    notes?: string;
+    statut?: Statut;
+    /**
+     * Raison Rejet
+     */
+    raison_rejet?: string | null;
+    banc?: Banc | null;
+    origine?: Origine | null;
+    /**
+     * Restaure De
+     */
+    restaure_de?: number | null;
+    /**
+     * Contenu
+     */
+    contenu: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * VicidialAgentAPIConfiguration
  *
  * VICIdial remote-agent call-control API configuration.
@@ -13411,6 +13860,42 @@ export type VonageConfigurationRequest = {
 };
 
 /**
+ * VueAction
+ */
+export type VueAction = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Groupe
+     */
+    groupe: string;
+    /**
+     * Ecriture
+     */
+    ecriture: boolean;
+    /**
+     * Disponible
+     */
+    disponible: boolean;
+    /**
+     * Mcp
+     */
+    mcp: boolean;
+    /**
+     * Parametres
+     */
+    parametres: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * VueConservationAppels
  *
  * What the screen reads: the settings, the installation's ceiling and the last passage.
@@ -13424,6 +13909,114 @@ export type VueConservationAppels = {
      */
     audio_autorise_par_l_installation: boolean;
     dernier_passage?: BilanDuPassage | null;
+};
+
+/**
+ * VueConversation
+ */
+export type VueConversation = {
+    /**
+     * Resume
+     */
+    resume: string;
+    /**
+     * Messages
+     */
+    messages: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Depense
+     */
+    depense: {
+        [key: string]: unknown;
+    };
+    /**
+     * En Cours
+     */
+    en_cours: boolean;
+};
+
+/**
+ * VueFamille
+ */
+export type VueFamille = {
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Groupe
+     */
+    groupe: string;
+    /**
+     * Cible
+     */
+    cible: string;
+    /**
+     * Mode
+     */
+    mode: string;
+};
+
+/**
+ * VueReglagesCerveau
+ *
+ * Ce que l'écran lit : les mêmes réglages, et SEULEMENT si une clé est posée.
+ */
+export type VueReglagesCerveau = {
+    /**
+     * Format
+     */
+    format?: 'openai' | 'anthropic';
+    /**
+     * Modele
+     */
+    modele?: string;
+    /**
+     * Adresse
+     */
+    adresse?: string;
+    /**
+     * Plafond Depense
+     */
+    plafond_depense?: number;
+    /**
+     * Plafond Jetons
+     */
+    plafond_jetons?: number;
+    /**
+     * Prix Entree Par Million
+     */
+    prix_entree_par_million?: number;
+    /**
+     * Prix Sortie Par Million
+     */
+    prix_sortie_par_million?: number;
+    /**
+     * Fenetre
+     */
+    fenetre?: number;
+    /**
+     * Sortie Max
+     */
+    sortie_max?: number;
+    /**
+     * Tours Outils Max
+     */
+    tours_outils_max?: number;
+    /**
+     * Tours Correction Max
+     */
+    tours_correction_max?: number;
+    /**
+     * Cle Posee
+     */
+    cle_posee?: boolean;
 };
 
 /**
@@ -14819,6 +15412,42 @@ export type XaittsConfiguration = {
 };
 
 /**
+ * ChangementDeStatut
+ */
+export type ApiRoutesBuilderBibliothequeChangementDeStatut = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Statut
+     */
+    statut: 'recette' | 'rejete' | 'candidat';
+    banc?: Banc | null;
+    /**
+     * Raison
+     */
+    raison?: string | null;
+};
+
+/**
+ * ResultatImport
+ */
+export type ApiRoutesBuilderBibliothequeResultatImport = {
+    element: Element;
+    /**
+     * Cree
+     */
+    cree: boolean;
+    /**
+     * Comparatif
+     */
+    comparatif: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * Suppression
  */
 export type ApiRoutesClesSuppression = {
@@ -14834,6 +15463,20 @@ export type ApiRoutesClesSuppression = {
      * Usages
      */
     usages: Array<Usage>;
+};
+
+/**
+ * ChangementDeStatut
+ */
+export type ApiRoutesTriChangementDeStatut = {
+    /**
+     * Identifiant
+     */
+    identifiant: string;
+    /**
+     * Statut
+     */
+    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
 };
 
 /**
@@ -14860,6 +15503,24 @@ export type ApiSchemasBaseClientDemandeRattachement = {
      * Nom Base
      */
     nom_base?: string | null;
+};
+
+/**
+ * ResultatImport
+ */
+export type ApiSchemasLexiqueMetierResultatImport = {
+    /**
+     * Ajoutes
+     *
+     * Terms added to the vocabulary.
+     */
+    ajoutes: number;
+    /**
+     * Deja Presents
+     *
+     * Terms left untouched: one of their spellings was already there.
+     */
+    deja_presents: number;
 };
 
 /**
@@ -17130,6 +17791,1222 @@ export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses = {
 
 export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponse = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses];
 
+export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles';
+};
+
+export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetError = ListerLesFamillesApiV1BuilderBibliothequeFamillesGetErrors[keyof ListerLesFamillesApiV1BuilderBibliothequeFamillesGetErrors];
+
+export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses = {
+    /**
+     * Response Lister Les Familles Api V1 Builder Bibliotheque Familles Get
+     *
+     * Successful Response
+     */
+    200: Array<VueFamille>;
+};
+
+export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponse = ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses[keyof ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses];
+
+export type ListerLesElementsApiV1BuilderBibliothequeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Famille
+         */
+        famille?: string | null;
+        /**
+         * Statut
+         */
+        statut?: Statut | null;
+    };
+    url: '/api/v1/builder/bibliotheque';
+};
+
+export type ListerLesElementsApiV1BuilderBibliothequeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesElementsApiV1BuilderBibliothequeGetError = ListerLesElementsApiV1BuilderBibliothequeGetErrors[keyof ListerLesElementsApiV1BuilderBibliothequeGetErrors];
+
+export type ListerLesElementsApiV1BuilderBibliothequeGetResponses = {
+    /**
+     * Response Lister Les Elements Api V1 Builder Bibliotheque Get
+     *
+     * Successful Response
+     */
+    200: Array<Resume>;
+};
+
+export type ListerLesElementsApiV1BuilderBibliothequeGetResponse = ListerLesElementsApiV1BuilderBibliothequeGetResponses[keyof ListerLesElementsApiV1BuilderBibliothequeGetResponses];
+
+export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Etat
+         */
+        etat?: 'en_attente' | 'acceptee' | 'refusee' | null;
+    };
+    url: '/api/v1/builder/bibliotheque/propositions';
+};
+
+export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetError = ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetErrors[keyof ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetErrors];
+
+export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponses = {
+    /**
+     * Response Lister Les Propositions Api V1 Builder Bibliotheque Propositions Get
+     *
+     * Successful Response
+     */
+    200: Array<Proposition>;
+};
+
+export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponse = ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponses[keyof ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponses];
+
+export type ProposerApiV1BuilderBibliothequePropositionsPostData = {
+    body: NouvelleProposition;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/propositions';
+};
+
+export type ProposerApiV1BuilderBibliothequePropositionsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProposerApiV1BuilderBibliothequePropositionsPostError = ProposerApiV1BuilderBibliothequePropositionsPostErrors[keyof ProposerApiV1BuilderBibliothequePropositionsPostErrors];
+
+export type ProposerApiV1BuilderBibliothequePropositionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: Proposition;
+};
+
+export type ProposerApiV1BuilderBibliothequePropositionsPostResponse = ProposerApiV1BuilderBibliothequePropositionsPostResponses[keyof ProposerApiV1BuilderBibliothequePropositionsPostResponses];
+
+export type AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostData = {
+    body: Acceptation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/propositions/{identifiant}/accepter';
+};
+
+export type AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostError = AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostErrors[keyof AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostErrors];
+
+export type AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Proposition;
+};
+
+export type AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostResponse = AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostResponses[keyof AccepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPostResponses];
+
+export type RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostData = {
+    body: RefusInput;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/propositions/{identifiant}/refuser';
+};
+
+export type RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostError = RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostErrors[keyof RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostErrors];
+
+export type RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Proposition;
+};
+
+export type RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostResponse = RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostResponses[keyof RefuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPostResponses];
+
+export type ImporterApiV1BuilderBibliothequeImportPostData = {
+    body: Importation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/import';
+};
+
+export type ImporterApiV1BuilderBibliothequeImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterApiV1BuilderBibliothequeImportPostError = ImporterApiV1BuilderBibliothequeImportPostErrors[keyof ImporterApiV1BuilderBibliothequeImportPostErrors];
+
+export type ImporterApiV1BuilderBibliothequeImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiRoutesBuilderBibliothequeResultatImport;
+};
+
+export type ImporterApiV1BuilderBibliothequeImportPostResponse = ImporterApiV1BuilderBibliothequeImportPostResponses[keyof ImporterApiV1BuilderBibliothequeImportPostResponses];
+
+export type ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostData = {
+    body: ImportationParAdresse;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/import/adresse';
+};
+
+export type ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostError = ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostErrors[keyof ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostErrors];
+
+export type ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiRoutesBuilderBibliothequeResultatImport;
+};
+
+export type ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostResponse = ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostResponses[keyof ImporterDepuisUneAdresseApiV1BuilderBibliothequeImportAdressePostResponses];
+
+export type LireUnElementApiV1BuilderBibliothequeFamilleSlugGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}';
+};
+
+export type LireUnElementApiV1BuilderBibliothequeFamilleSlugGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnElementApiV1BuilderBibliothequeFamilleSlugGetError = LireUnElementApiV1BuilderBibliothequeFamilleSlugGetErrors[keyof LireUnElementApiV1BuilderBibliothequeFamilleSlugGetErrors];
+
+export type LireUnElementApiV1BuilderBibliothequeFamilleSlugGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Element;
+};
+
+export type LireUnElementApiV1BuilderBibliothequeFamilleSlugGetResponse = LireUnElementApiV1BuilderBibliothequeFamilleSlugGetResponses[keyof LireUnElementApiV1BuilderBibliothequeFamilleSlugGetResponses];
+
+export type LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}/utilisation';
+};
+
+export type LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetError = LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetErrors[keyof LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetErrors];
+
+export type LireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CreerUnElementApiV1BuilderBibliothequeFamillePostData = {
+    body: NouvelElement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}';
+};
+
+export type CreerUnElementApiV1BuilderBibliothequeFamillePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnElementApiV1BuilderBibliothequeFamillePostError = CreerUnElementApiV1BuilderBibliothequeFamillePostErrors[keyof CreerUnElementApiV1BuilderBibliothequeFamillePostErrors];
+
+export type CreerUnElementApiV1BuilderBibliothequeFamillePostResponses = {
+    /**
+     * Successful Response
+     */
+    201: Element;
+};
+
+export type CreerUnElementApiV1BuilderBibliothequeFamillePostResponse = CreerUnElementApiV1BuilderBibliothequeFamillePostResponses[keyof CreerUnElementApiV1BuilderBibliothequeFamillePostResponses];
+
+export type AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostData = {
+    body: NouvelleVersion;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}/versions';
+};
+
+export type AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostError = AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostErrors[keyof AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostErrors];
+
+export type AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Element;
+};
+
+export type AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostResponse = AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostResponses[keyof AjouterUneVersionApiV1BuilderBibliothequeFamilleSlugVersionsPostResponses];
+
+export type RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostData = {
+    body: RetourArriere;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}/retour';
+};
+
+export type RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostError = RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostErrors[keyof RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostErrors];
+
+export type RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Element;
+};
+
+export type RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostResponse = RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostResponses[keyof RevenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPostResponses];
+
+export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostData = {
+    body: ApiRoutesBuilderBibliothequeChangementDeStatut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}/statut';
+};
+
+export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostError = ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostErrors[keyof ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostErrors];
+
+export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Element;
+};
+
+export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponse = ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponses[keyof ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponses];
+
+export type ParlerAuBuilderApiV1BuilderConversationPostData = {
+    body: MessageDuBuilder;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/conversation';
+};
+
+export type ParlerAuBuilderApiV1BuilderConversationPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ParlerAuBuilderApiV1BuilderConversationPostError = ParlerAuBuilderApiV1BuilderConversationPostErrors[keyof ParlerAuBuilderApiV1BuilderConversationPostErrors];
+
+export type ParlerAuBuilderApiV1BuilderConversationPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/conversation/{workflow_id}/corriger';
+};
+
+export type CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostError = CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostErrors[keyof CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostErrors];
+
+export type CorrigerLeBrouillonApiV1BuilderConversationWorkflowIdCorrigerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLaConversationApiV1BuilderConversationWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/conversation/{workflow_id}';
+};
+
+export type LireLaConversationApiV1BuilderConversationWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaConversationApiV1BuilderConversationWorkflowIdGetError = LireLaConversationApiV1BuilderConversationWorkflowIdGetErrors[keyof LireLaConversationApiV1BuilderConversationWorkflowIdGetErrors];
+
+export type LireLaConversationApiV1BuilderConversationWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueConversation;
+};
+
+export type LireLaConversationApiV1BuilderConversationWorkflowIdGetResponse = LireLaConversationApiV1BuilderConversationWorkflowIdGetResponses[keyof LireLaConversationApiV1BuilderConversationWorkflowIdGetResponses];
+
+export type LireLaConceptionApiV1BuilderConceptionWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/conception/{workflow_id}';
+};
+
+export type LireLaConceptionApiV1BuilderConceptionWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaConceptionApiV1BuilderConceptionWorkflowIdGetError = LireLaConceptionApiV1BuilderConceptionWorkflowIdGetErrors[keyof LireLaConceptionApiV1BuilderConceptionWorkflowIdGetErrors];
+
+export type LireLaConceptionApiV1BuilderConceptionWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostData = {
+    body: DecisionDeConception;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/conception/{workflow_id}/decision';
+};
+
+export type DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostError = DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostErrors[keyof DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostErrors];
+
+export type DeciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLaFicheApiV1BuilderFicheWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fiche/{workflow_id}';
+};
+
+export type LireLaFicheApiV1BuilderFicheWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaFicheApiV1BuilderFicheWorkflowIdGetError = LireLaFicheApiV1BuilderFicheWorkflowIdGetErrors[keyof LireLaFicheApiV1BuilderFicheWorkflowIdGetErrors];
+
+export type LireLaFicheApiV1BuilderFicheWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fiche/{workflow_id}/valider';
+};
+
+export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostError = ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors[keyof ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors];
+
+export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ListerLesActionsApiV1BuilderActionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/actions';
+};
+
+export type ListerLesActionsApiV1BuilderActionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesActionsApiV1BuilderActionsGetError = ListerLesActionsApiV1BuilderActionsGetErrors[keyof ListerLesActionsApiV1BuilderActionsGetErrors];
+
+export type ListerLesActionsApiV1BuilderActionsGetResponses = {
+    /**
+     * Response Lister Les Actions Api V1 Builder Actions Get
+     *
+     * Successful Response
+     */
+    200: Array<VueAction>;
+};
+
+export type ListerLesActionsApiV1BuilderActionsGetResponse = ListerLesActionsApiV1BuilderActionsGetResponses[keyof ListerLesActionsApiV1BuilderActionsGetResponses];
+
+export type LireLeCerveauApiV1BuilderCerveauGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/cerveau';
+};
+
+export type LireLeCerveauApiV1BuilderCerveauGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeCerveauApiV1BuilderCerveauGetError = LireLeCerveauApiV1BuilderCerveauGetErrors[keyof LireLeCerveauApiV1BuilderCerveauGetErrors];
+
+export type LireLeCerveauApiV1BuilderCerveauGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueReglagesCerveau;
+};
+
+export type LireLeCerveauApiV1BuilderCerveauGetResponse = LireLeCerveauApiV1BuilderCerveauGetResponses[keyof LireLeCerveauApiV1BuilderCerveauGetResponses];
+
+export type ReglerLeCerveauApiV1BuilderCerveauPutData = {
+    body: ModificationDuCerveau;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/cerveau';
+};
+
+export type ReglerLeCerveauApiV1BuilderCerveauPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeCerveauApiV1BuilderCerveauPutError = ReglerLeCerveauApiV1BuilderCerveauPutErrors[keyof ReglerLeCerveauApiV1BuilderCerveauPutErrors];
+
+export type ReglerLeCerveauApiV1BuilderCerveauPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueReglagesCerveau;
+};
+
+export type ReglerLeCerveauApiV1BuilderCerveauPutResponse = ReglerLeCerveauApiV1BuilderCerveauPutResponses[keyof ReglerLeCerveauApiV1BuilderCerveauPutResponses];
+
+export type LireLesPreferencesApiV1BuilderPreferencesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/preferences';
+};
+
+export type LireLesPreferencesApiV1BuilderPreferencesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesPreferencesApiV1BuilderPreferencesGetError = LireLesPreferencesApiV1BuilderPreferencesGetErrors[keyof LireLesPreferencesApiV1BuilderPreferencesGetErrors];
+
+export type LireLesPreferencesApiV1BuilderPreferencesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Preferences;
+};
+
+export type LireLesPreferencesApiV1BuilderPreferencesGetResponse = LireLesPreferencesApiV1BuilderPreferencesGetResponses[keyof LireLesPreferencesApiV1BuilderPreferencesGetResponses];
+
+export type EcrireLesPreferencesApiV1BuilderPreferencesPutData = {
+    body: Preferences;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/preferences';
+};
+
+export type EcrireLesPreferencesApiV1BuilderPreferencesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EcrireLesPreferencesApiV1BuilderPreferencesPutError = EcrireLesPreferencesApiV1BuilderPreferencesPutErrors[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutErrors];
+
+export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Preferences;
+};
+
+export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
+
 export type CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData = {
     body: CreateTextChatSessionRequest;
     headers?: {
@@ -18509,7 +20386,7 @@ export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses = {
 export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponse = LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses[keyof LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses];
 
 export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutData = {
-    body: ChangementDeStatut;
+    body: ApiRoutesTriChangementDeStatut;
     headers?: {
         /**
          * Authorization
@@ -24282,7 +26159,7 @@ export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses = {
     /**
      * Successful Response
      */
-    200: ResultatImport;
+    200: ApiSchemasLexiqueMetierResultatImport;
 };
 
 export type ImportLexiqueApiV1OrganizationsLexiqueImportPostResponse = ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses[keyof ImportLexiqueApiV1OrganizationsLexiqueImportPostResponses];
