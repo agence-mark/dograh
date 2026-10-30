@@ -553,6 +553,7 @@ class PipecatEngine:
                     context=self.context,
                     options=self._call_dispositions,
                     template_context=self._call_context_vars,
+                    reservees=self._issues_reservees_aux_transferts,
                 )
 
             # Helper that encapsulates custom tool management
@@ -3756,6 +3757,18 @@ class PipecatEngine:
             return None
         self._tache_du_groupe(self._mettre_en_reserve(workflow_id))
         return runtime
+
+    async def _issues_reservees_aux_transferts(self) -> set[str]:
+        """[.mark] agent-facon-tala, lot 7 (F3): the outcomes the transfer tools of the active agent's steps set
+        themselves on success; the final classification never returns them. ⛔ Never raises."""
+        from api.services.workflow.issue_reservee import issues_reservees
+
+        try:
+            graphe = self.active_agent.workflow
+            uuids = [u for n in graphe.nodes.values() for u in (n.tool_uuids or [])]
+            return await issues_reservees(uuids, await self._get_organization_id(), self.lire_outils)
+        except Exception:  # noqa: BLE001
+            return set()
 
     async def lire_outils(self, uuids, organization_id: int) -> list:
         """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le

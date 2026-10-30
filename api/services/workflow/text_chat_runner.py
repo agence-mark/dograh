@@ -1562,8 +1562,15 @@ async def extract_text_chat_final_disposition(
         context = LLMContext()
         context.set_messages(messages)
         fiche = {**(base_checkpoint.get("gathered_context") or {}), **(extracted or {})}
+        from api.services.workflow.issue_reservee import issues_reservees
+
+        async def reservees() -> set[str]:
+            noeuds = (getattr(workflow_run.definition, "workflow_json", None) or {}).get("nodes") or []
+            uuids = [u for n in noeuds if isinstance(n, dict) for u in ((n.get("data") or {}).get("tool_uuids") or [])]
+            return await issues_reservees(uuids, organization_id, db_client.get_tools_by_uuids)
+
         service = DispositionExtractionService(
-            llm=llm, context=context, options=options, template_context=initial_context
+            llm=llm, context=context, options=options, template_context=initial_context, reservees=reservees
         )
         retenue = None
         try:
