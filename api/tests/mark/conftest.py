@@ -27,3 +27,7 @@ def _aucune_tache_de_fond_ne_survit():
         for tache in list(registre):
             if not tache.done():
                 tache.cancel()
+
+
+# [.mark] builder-agent-vocal : la fixture ``monde`` (base en mémoire) est offerte à tous les tests du builder.
+from api.tests.mark.builder_commun import monde  # noqa: E402, F401
