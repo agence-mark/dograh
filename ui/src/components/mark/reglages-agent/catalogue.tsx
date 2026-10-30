@@ -582,6 +582,50 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // figeage-v12 (D4): off by default.
+    fiche_dans_le_systeme: d({
+        type: "interrupteur",
+        libelle: { en: "Show the record in the system instruction", fr: "Montrer la fiche dans l'instruction système" },
+        aides: [
+            {
+                en: "Where the model reads the record's state (what is noted, what is still expected). Off: as a message of the caller, just before their last words. On: at the end of the system instruction, rebuilt for every request, which is where the model takes its orders; it stops asking again for what the record already holds. Works with any model. Takes effect on the next call.",
+                fr: "L'endroit où le modèle lit l'état de la fiche (ce qui est noté, ce qui est encore attendu). Éteint : comme un message de l'appelant, juste avant ses dernières paroles. Allumé : à la fin de l'instruction système, recalculée à chaque requête, là où le modèle prend ses consignes ; il ne redemande plus ce que la fiche tient déjà. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
+    // agent-facon-tala (C8): off by default.
+    fiche_forme_courte: d({
+        type: "interrupteur",
+        libelle: { en: "Short record block", fr: "Bloc de fiche court" },
+        aides: [
+            {
+                en: "What the model is told along with the record's state. Off: the block as before, with its instructions (« do not ask again », « let the caller choose »). On: the data lines only (what is noted, what is still expected, what our modules read) under a one-line heading; the instructions belong to the prompt. Use it with prompts that already say how to talk. Works with any model. Takes effect on the next call.",
+                fr: "Ce que le modèle lit avec l'état de la fiche. Éteint : le bloc d'avant, avec ses consignes (« ne redemande pas », « fais choisir l'appelant »). Allumé : seulement les lignes de données (ce qui est noté, ce qui est encore attendu, ce que nos modules ont lu) sous un titre d'une ligne ; les consignes sont celles du prompt. À employer avec des prompts qui disent déjà comment parler. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
+    // agent-facon-tala (C3 bis): off by default.
+    prechauffer_les_collegues: d({
+        type: "interrupteur",
+        libelle: { en: "Warm up the colleagues", fr: "Préchauffer les collègues" },
+        aides: [
+            {
+                en: "Whether the colleagues' prompts are read ahead. Off (default): nothing changes. On: at the start of the call, one minimal request per colleague of the group (one token asked, nothing said, nothing written in the conversation) carries the colleague's entry prompt with the agent's cache key, so that the real first request finds the start of that prompt already read and the handoff is shorter. Needs the colleagues to be preloaded (on by default in a group). Works with any model; a provider without a cache just receives an ordinary small request.",
+                fr: "Faut-il lire à l'avance les prompts des collègues. Éteint (défaut) : rien ne change. Allumé : au début de l'appel, une requête minimale par collègue du groupe (un jeton demandé, rien de dit, rien d'écrit dans la conversation) porte le prompt d'entrée du collègue avec la clé de cache de l'agent, pour que sa vraie première requête retrouve ce début de prompt déjà lu et que la passation soit plus courte. Demande que les collègues soient préchargés (le cas par défaut dans un groupe). Marche avec tout modèle ; un fournisseur sans cache reçoit une petite requête ordinaire. Prend effet au prochain appel.",
+            },
+        ],
+    }),
+    // agent-facon-tala (C1): off by default.
+    reconnaitre_un_outil_ecrit: d({
+        type: "interrupteur",
+        libelle: { en: "Recognise a tool written as text", fr: "Reconnaître un outil écrit en texte" },
+        aides: [
+            {
+                en: "When the model's whole reply is only the name of one of its tools (bare, or dressed up with underscores, italics, punctuation or arguments), the reply becomes the call of that tool: it is never spoken and never kept in the history, so the model stops imitating it. A reply that holds real text besides the name is never touched. Off: the reply is kept as written. Works with any model. Takes effect on the next call.",
+                fr: "Quand toute la réponse du modèle n'est que le nom d'un de ses outils (nu, ou habillé de tirets bas, d'italiques, de ponctuation ou d'arguments), la réponse devient l'appel de cet outil : elle n'est jamais dite ni gardée dans l'historique, le modèle cesse donc de l'imiter. Une réponse qui contient du vrai texte en plus du nom n'est jamais touchée. Éteint : la réponse est gardée telle qu'écrite. Marche avec tout modèle. Prend effet au prochain appel.",
+            },
+        ],
+    }),
     // passages-fiables (lot F): off by default.
     signaler_un_probleme: d({
         type: "interrupteur",

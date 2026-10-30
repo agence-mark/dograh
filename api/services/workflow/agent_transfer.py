@@ -90,6 +90,8 @@ class TransferRequest:
     # Lot 1 (K4) : le retour a été demandé pour finir l'appel (filet de fin, ou porte ``fin`` réécrite
     # en ``retour``) : l'accueil prend sa sortie ``fin`` sans tour de modèle. ``False`` : comme avant.
     fin_demandee: bool = False
+    # agent-facon-tala (C2) : le collègue a déjà dit au revoir (filet de fin) : l'accueil ne redit pas la fin figée.
+    au_revoir_dit: bool = False
     # fiabilite-de-la-conversation, lot A : le retour tombe sur CETTE étape de l'accueil (identifiant du nœud), choisie à
     # l'écran pour la deuxième impasse. ``None`` : l'étape de retour, ou celle de départ, comme avant.
     etape_cible: str | None = None
@@ -138,7 +140,7 @@ class AgentTransferCoordinator:
         # [.mark] Lot 3 (D7, D18) : passation demandee, debut de la mesure du premier octet de voix.
         mesure = getattr(self._engine, "mesure_passation", None)
         if mesure is not None:
-            mesure.demandee(request.request_id)
+            mesure.demandee(request.request_id, request.origin_visit_id)
         return True
 
     def start(self, request, *, context_ready=None) -> bool:
@@ -332,7 +334,9 @@ class AgentTransferCoordinator:
             if (
                 request.fin_demandee
                 and not self._sans_sortie_audio()
-                and await engine.fin_directe_de_l_accueil(destination, start_node_id)
+                and await engine.fin_directe_de_l_accueil(
+                    destination, start_node_id, au_revoir_dit=request.au_revoir_dit
+                )
             ):
                 outcome = "completed"
                 return

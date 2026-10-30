@@ -216,8 +216,12 @@ async def test_la_condition_sur_la_fiche_passe_avant_l_arbitre(monkeypatch):
     )
     try:
         qui, *_ = await _fin(engine)
-        assert qui == "fiche" and _etape(engine) == "refus"
-        assert _ligne(engine)["resultat"] == "fiche_d_abord"  # l'arbitre, sûr, laisse la main à la fiche
+        # L'arbitre, sûr, laisse la main à la fiche, qui passe AVANT la requête (D7, figeage-v12) : une seule parole.
+        assert qui == "arbitre" and _etape(engine) == "refus"
+        assert _ligne(engine)["resultat"] == "fiche_avant_la_requete"
+        derniere = engine._gathered_context[passage.CLE_PASSAGES][-1]
+        assert (derniere["raison"], derniere["option"], derniere["resultat"]) == ("fiche", 2, "prise")
+        engine.active_agent.queue_frame.assert_not_awaited()  # pas de relance : pas de double parole
     finally:
         await harness.stop()
 

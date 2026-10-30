@@ -88,7 +88,7 @@ def test_deux_outils_lances_dans_la_meme_reponse():
     """Relecture du 20/10 : « Je relance la recherche. » puis annuler et confier ensemble ; Pipecat range chaque
     appel avec son résultat. La phrase passe après le dernier résultat du groupe."""
     annuler = {"role": "assistant", "tool_calls": [{"id": "A1b2C3d4E", "type": "function",
-               "function": {"name": "annuler_le_travail", "arguments": "{}"}}]}
+               "function": {"name": "arreter_le_travail_en_cours", "arguments": "{}"}}]}
     annule = {"role": "tool", "content": "{\"statut\": \"annulé\"}", "tool_call_id": "A1b2C3d4E"}
     relance = {"role": "assistant", "content": "Je relance la recherche."}
     sortie = remettre_la_parole_apres_l_outil([*DEBUT, relance, annuler, annule, APPEL, LANCE, DACCORD])

@@ -452,7 +452,7 @@ async def _attendre(harness):
 
 
 async def test_le_filet_de_fin_fait_prendre_a_l_accueil_sa_sortie_fin_sans_tour_de_modele():
-    harness = await _monter()
+    harness = await _monter(collegue=graphe_du_collegue_sans_porte_fin())
     try:
         engine = harness.engine
         assert await engine.filet_de_fin("Très bien, bonne journée.", engine.etat_pour_le_filet()) is True
@@ -505,7 +505,7 @@ async def test_sans_sortie_fin_offerte_le_retour_marque_joue_le_tour_comme_avant
     ]
     accueil = WorkflowGraph(ReactFlowDTO(nodes=noeuds, edges=[]))
     assert sortie_de_fin_de_l_etape(accueil.nodes["retour"], accueil) is None
-    harness = await _monter(accueil=accueil)
+    harness = await _monter(collegue=graphe_du_collegue_sans_porte_fin(), accueil=accueil)
     try:
         engine = harness.engine
         assert await engine.filet_de_fin("Au revoir !", engine.etat_pour_le_filet()) is True

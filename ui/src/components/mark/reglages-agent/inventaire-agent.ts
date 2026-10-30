@@ -124,6 +124,10 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // fiabilite-orchestration, lot 2 (F19): one box writes both keys (« known and expected »).
     etiquettes_des_etapes: { theme: "donnees", cas: ["fiche-deja-connu"] },
     fiche_deja_connu: { theme: "donnees", cas: ["fiche-deja-connu"] },
+    fiche_dans_le_systeme: { theme: "donnees", cas: ["fiche-dans-le-systeme"] },
+    fiche_forme_courte: { theme: "donnees", cas: ["fiche-forme-courte"] },
+    prechauffer_les_collegues: { theme: "donnees", cas: ["prechauffer-les-collegues"] },
+    reconnaitre_un_outil_ecrit: { theme: "donnees", cas: ["outil-ecrit-en-texte"] },
     transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
     // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », read by the steps' « Truth of actions ».
     verite_formulations_d_action: { theme: "donnees", cas: ["formulations-d-action"] },

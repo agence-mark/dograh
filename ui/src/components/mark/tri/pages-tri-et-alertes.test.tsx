@@ -23,12 +23,14 @@ const m = vi.hoisted(() => ({
     tri: vi.fn(),
     statut: vi.fn(),
     alertes: vi.fn(),
+    taux: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
     lireLaFileDeTriApiV1TriGet: (options: unknown) => m.tri(options),
     changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),
     lireLesAlertesApiV1AlertesGet: (options: unknown) => m.alertes(options),
+    lireLesTauxDeSortieDImpasseApiV1TriTauxGet: (options: unknown) => m.taux(options),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
 
@@ -58,6 +60,7 @@ beforeEach(() => {
     m.tri.mockResolvedValue({ data: { lignes: LIGNES, page: 0, a_une_suite: false } });
     m.statut.mockResolvedValue({ data: { run_id: 12, identifiant: "agent:0", statut: "résolu" } });
     m.alertes.mockResolvedValue({ data: { lignes: ALERTES, page: 0, a_une_suite: true } });
+    m.taux.mockResolvedValue({ data: { jours: 7, lignes: [] } });
 });
 afterEach(() => {
     cleanup();

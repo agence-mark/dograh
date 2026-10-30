@@ -26,6 +26,9 @@ ORIGINE_VERIFICATION = "verification"
 # [.mark] Lot 6 (K8) : le transfert vers l'établissement (pas vers une personne de l'équipe,
 # qui a sa propre origine) n'a pas abouti : l'appelant est à rappeler.
 ORIGINE_TRANSFERT = "transfert"
+# [.mark] agent-facon-tala, lot B1 : l'outil « demander un rappel » (``demande_de_rappel.py``) : l'agent a recueilli la
+# demande de la personne et l'a transmise lui-même, par un acte.
+ORIGINE_AGENT = "agent"
 
 
 def origine(entree: dict) -> str:
@@ -44,6 +47,15 @@ def resume_du_rappel(entree: dict) -> str:
     if origine(entree) == ORIGINE_EQUIPE:
         qui = entree.get("prenom") or entree.get("personne") or "la personne demandée"
         morceaux = [f"Rappel à faire : {qui} n'a pas pu prendre l'appel transféré"]
+        if entree.get("numero"):
+            morceaux.append(f"numéro de l'appelant : {entree['numero']}")
+        if entree.get("objet"):
+            morceaux.append(f"objet : {entree['objet']}")
+        if souhait:
+            morceaux.append(f"créneau souhaité : « {souhait} »")
+        return " ; ".join(morceaux) + "."
+    if origine(entree) == ORIGINE_AGENT:
+        morceaux = ["Rappel à faire : demande de rappel de l'appelant"]
         if entree.get("numero"):
             morceaux.append(f"numéro de l'appelant : {entree['numero']}")
         if entree.get("objet"):

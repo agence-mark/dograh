@@ -699,7 +699,7 @@ class IntegrationToolConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _action_connue(self) -> "IntegrationToolConfig":
+    def _action_connue(self) -> IntegrationToolConfig:
         from api.services.integrations.connectors.catalogue import trouver
 
         trouve = trouver(self.connecteur, self.action)
@@ -725,6 +725,49 @@ class IntegrationToolDefinition(BaseModel):
     config: IntegrationToolConfig = Field(description="Connector, action and the client's rules.")
 
 
+class ChampRequisDuRappel(BaseModel):
+    """[.mark] Un champ de la fiche que l'outil « demander un rappel » exige avant d'écrire."""
+
+    champ: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$", description="Name of the record field that must be noted.")
+    libelle: str | None = Field(default=None, max_length=80, description="How the tool names it when it is missing.")
+    repli_appel: str | None = Field(
+        default=None,
+        pattern=r"^[a-z][a-z0-9_]{0,63}$",
+        description="A call variable that stands in for the field when it is not noted (the caller's own number).",
+    )
+
+
+class DemandeDeRappelConfig(BaseModel):
+    """[.mark] Configuration de l'outil natif « demander un rappel » (agent-facon-tala, lot B1)."""
+
+    action: Literal["demander_un_rappel"] = Field(description="The native action.")
+    parameters: list[ToolParameter] = Field(default_factory=list, description="What the model gives (object, wished moment).")
+    champs_requis: list[ChampRequisDuRappel] = Field(
+        default_factory=list, description="Record fields that must be noted before the request is written."
+    )
+    call_disposition: str | None = Field(
+        default=None,
+        max_length=MAX_TRANSFER_CALL_DISPOSITION_LENGTH,
+        description="Disposition recorded when the request is written, and only then.",
+    )
+
+    @field_validator("call_disposition", mode="before")
+    @classmethod
+    def normalize_call_disposition(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+
+class NativeToolDefinition(BaseModel):
+    """[.mark] Tool definition of a built-in action (type ``native``): the call-back request."""
+
+    schema_version: int = Field(default=1, description="Schema version.")
+    type: Literal["native"] = Field(description="Tool type.")
+    config: DemandeDeRappelConfig = Field(description="Call-back request configuration.")
+
+
 ToolDefinition = Annotated[
     HttpApiToolDefinition
     | EndCallToolDefinition
@@ -732,7 +775,8 @@ ToolDefinition = Annotated[
     | TransferAgentToolDefinition
     | CalculatorToolDefinition
     | McpToolDefinition
-    | IntegrationToolDefinition,
+    | IntegrationToolDefinition
+    | NativeToolDefinition,
     Field(discriminator="type"),
 ]
 

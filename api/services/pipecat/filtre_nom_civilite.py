@@ -33,7 +33,8 @@ Ce que le module NE fait pas
 ----------------------------
 - ⛔ il ne touche **jamais** la fiche d'appel, le verbatim ni les variables
   extraites : on filtre ce qui se dit, jamais ce qui se note ;
-- ⛔ il ne filtre **pas le prénom** (hors périmètre, décision du 22/09) ;
+- le prénom noté dans la fiche est filtré comme le nom, par la MÊME case (agent-facon-tala, C6, 30/10 : « Bertin. »
+  redit seul après la prise de nom ; la décision du 22/09 qui le laissait hors périmètre est levée) ;
 - ⛔ il ne filtre **pas le nom épelé**, et c'est **voulu** : l'épellation
   confirme l'information dans les deux sens et évite la boucle sans fin quand
   un appelant corrige son nom ;
@@ -284,7 +285,11 @@ def retirer_nom_et_civilite(
         sortie = motif.sub(_remplacer, texte)
         if not retraits:
             return texte
-        return _recoudre(sortie)
+        recousue = _recoudre(sortie)
+        # 🔴 D14 (figeage-v12) : le blanc de fin de la phrase d'origine est rendu avec elle. Le découpage en phrases
+        # (``FIN_DE_PHRASE``) emporte l'espace qui suit le point ; la recouture le jetait (``strip``) et la phrase
+        # suivante, qui commence sans espace, se collait : « Je note Marc.Est-ce que… » (runs 143, 148).
+        return recousue + texte[len(texte.rstrip()) :] if recousue else recousue
     except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
         logger.warning(f"[.mark] Name filter failed, sentence kept as is: {erreur!r}")
         return texte
@@ -346,6 +351,7 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         variables: Callable[[], dict],
         mode_envoi: str = "sentence",
         champ_du_nom: str = "nom",
+        champ_du_prenom: str = "prenom",
         corriger_numeros: bool = False,
         contexte: Callable[[], dict] | None = None,
         **kwargs,
@@ -359,6 +365,7 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         self._retirer_civilite = retirer_civilite
         self._variables = variables
         self._champ_du_nom = champ_du_nom
+        self._champ_du_prenom = champ_du_prenom
         self._par_phrase = str(mode_envoi) == "sentence"
         self._tampon = ""
         # La frame qui a ouvert la phrase en cours : c'est elle qu'on réémet,
@@ -395,18 +402,35 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             logger.warning(f"[.mark] Caller name unreadable: {erreur!r}")
             return None
 
+    def _prenom_de_lappelant(self) -> str | None:
+        """[.mark] agent-facon-tala, C6 : le prénom noté dans la fiche, ou ``None``. ⛔ Ne lève jamais."""
+        try:
+            valeur = (self._variables() or {}).get(self._champ_du_prenom)
+            prenom = str(valeur).strip() if valeur else ""
+            return prenom if len(prenom) >= 2 else None
+        except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
+            logger.warning(f"[.mark] Caller first name unreadable: {erreur!r}")
+            return None
+
     def _filtrer(self, texte: str) -> str:
         if self._corriger_numeros:
             contexte = self._contexte()
             texte = corriger_relecture(texte, numero_de_reference(contexte), contexte)
         if not (self._retirer_nom or self._retirer_civilite):
             return texte
-        return retirer_nom_et_civilite(
+        filtre = retirer_nom_et_civilite(
             texte,
             self._nom_de_lappelant(),
             retirer_nom=self._retirer_nom,
             retirer_civilite=self._retirer_civilite,
         )
+        if self._retirer_nom:
+            # [.mark] C6 : le prénom de la fiche part comme le nom (même case), mêmes règles (majuscule requise,
+            # jamais une adresse, jamais épelé), sans civilité (déjà traitée avec le nom).
+            prenom = self._prenom_de_lappelant()
+            if prenom:
+                filtre = retirer_nom_et_civilite(filtre, prenom, retirer_nom=True, retirer_civilite=False)
+        return filtre
 
     async def _emettre(self, texte: str, direction: FrameDirection):
         """Pousse le texte filtré en RÉUTILISANT la frame qui a ouvert la phrase.

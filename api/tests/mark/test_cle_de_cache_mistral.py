@@ -212,7 +212,9 @@ def _appels(source: str, fonction: str) -> list[tuple[str, str]]:
         # l'agent appelé par passation (`agent_llm`, SA clé, voir plus bas) et son
         # client d'extraction (`""`), et passe la fabrique à `TextAgentFactory`
         # (`creer_llm=lambda`, qui ne pose aucune clé elle-même).
-        (text_chat_runner, {"", "llm =", "creer_llm=lambda *a, **k:"}),
+        # [.mark] agent-facon-tala (C3) : le premier agent rejoué dans le même tour reçoit des cerveaux neufs par
+        # ``agent_a_cerveaux_neufs``, qui pose SA clé lui-même (``creer(prompt_cache_key=...)``, testé à part).
+        (text_chat_runner, {"", "llm =", "creer_llm=lambda *a, **k:", "lambda **options:"}),
     ],
 )
 def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
@@ -239,8 +241,9 @@ def test_seul_lappel_de_conversation_recoit_la_cle(module, autres_attendus):
     assert {cible for cible, _ in autres} == autres_attendus
     for cible, texte in autres:
         assert "prompt_cache_key" not in texte, f"{module.__name__}: key handed to '{cible}'"
-    # Le clavier : un client d'extraction de plus (celui de l'agent appelé).
-    extra = 1 if module is text_chat_runner else 0
+    # Le clavier : un client d'extraction de plus (celui de l'agent appelé) et, depuis agent-facon-tala (C4), le
+    # client du classement de l'issue de fin (``usage_context="variable_extraction"``, sans clé de cache).
+    extra = 2 if module is text_chat_runner else 0
     assert len(appels) == 1 + len(autres_attendus) + extra
 
 

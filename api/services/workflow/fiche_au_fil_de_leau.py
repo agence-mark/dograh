@@ -4325,6 +4325,37 @@ def souffle_de_l_etape(
     return SOUFFLE_ETAPE_COMPLETE
 
 
+CLE_FICHE_FORME_COURTE = "fiche_forme_courte"
+# agent-facon-tala (C8) : l'en-tête du bloc en forme courte (il garde le début que ``DEBUT_ENTETE_FICHE`` retire si le modèle le recopie).
+ENTETE_ETAT_COURT = "[Fiche de l'appel : pour toi seulement.]"
+ENTETE_INDICES_COURT = "Lu par nos modules dans sa dernière réplique : "
+
+
+def en_forme_courte(texte: str | None) -> str | None:
+    """agent-facon-tala (C8) : le bloc de l'état sans les consignes que les prompts au gabarit de Tala portent eux-mêmes
+    (« ne redemande pas », « fais alors choisir », « elle est tenue par le greffier… ») : l'en-tête et l'en-tête des indices
+    sont réduits, les lignes de données (Noté, À confirmer, Encore attendu, Déjà connu) restent telles quelles. Le texte du
+    bloc d'avant n'est touché que par la case de l'agent. ⛔ Ne lève jamais."""
+    try:
+        if not texte:
+            return texte
+        from api.services.workflow import indices_des_modules as indices
+
+        for long in (
+            ENTETE_ETAT,
+            ENTETE_ETAT_POST_SCRIPTUM,
+            ENTETE_ETAT_GREFFIER,
+            ENTETE_ETAT_NOTE_D_ABORD,
+        ):
+            texte = texte.replace(long, ENTETE_ETAT_COURT)
+        for long in (indices.ENTETE_INDICES, indices.ENTETE_INDICES_GREFFIER):
+            texte = texte.replace(long, ENTETE_INDICES_COURT)
+        return texte
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] forme courte non appliquée : {erreur!r}")
+        return texte
+
+
 def etat_avec_les_indices(
     reglages: ReglagesFiche,
     fiche: dict,
@@ -4333,6 +4364,7 @@ def etat_avec_les_indices(
     champs_etape: Iterable[str] = (),
     a_des_portes: bool = True,
     sorties: Iterable[tuple[str, Any]] = (),
+    courte: bool = False,
 ) -> str | None:
     """L'état de la fiche, plus (S2, case allumée) les indices des modules sur la
     dernière parole de l'appelant. Les indices seuls suffisent à montrer l'état.
@@ -4384,7 +4416,7 @@ def etat_avec_les_indices(
     )
     if chiffres:
         texte = f"{texte or entete_etat(reglages)}\n{chiffres}"
-    return texte
+    return en_forme_courte(texte) if courte else texte
 
 
 def inserer_l_etat(messages: list, texte: str) -> list:
@@ -4404,6 +4436,7 @@ def montrer_la_fiche(
     champs_etape: Callable[[], Iterable[str]] | None = None,
     a_des_portes: Callable[[], bool] | None = None,
     sorties: Callable[[], Iterable[tuple[str, Any]]] | None = None,
+    forme_courte: Callable[[], bool] | None = None,
 ) -> bool:
     """Ajoute l'état de la fiche à chaque requête de CONVERSATION du modèle.
 
@@ -4416,14 +4449,35 @@ def montrer_la_fiche(
     ``get_chat_completions`` est marquée, par une variable de contexte propre à
     la tâche en cours.
     """
+    def etat_pour(messages: Iterable[dict]) -> str | None:
+        return etat_avec_les_indices(
+            reglages,
+            fiche(),
+            notices,
+            messages,
+            champs_etape() if champs_etape else (),
+            a_des_portes() if a_des_portes else True,
+            sorties() if sorties else (),
+            # agent-facon-tala (C8) : la case « fiche courte » de l'agent qui parle, lue à chaque requête.
+            bool(forme_courte()) if forme_courte else False,
+        )
+
     if not (
         hasattr(llm, "get_chat_completions")
         and hasattr(llm, "build_chat_completion_params")
     ):
+        # [.mark] figeage-v12 (D4) : une autre famille (service Pipecat générique, sans requête de chat completions) garde le
+        # constructeur de l'état, retrouvé par le processeur posé autour du cerveau (``fiche_dans_le_systeme``) : son
+        # instruction système se compose par l'API de Pipecat. Un service qui n'a pas non plus cette composition n'est pas
+        # touché (contrat de ``test_un_service_sans_requete_de_conversation_n_est_pas_touche``).
+        if hasattr(llm, "_compose_system_instruction"):
+            setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
         logger.warning(
             "[fiche] service sans requête de conversation : fiche non montrée"
         )
         return False
+    # [.mark] figeage-v12 (D4) : le constructeur du texte de l'état, quelle que soit la famille du service.
+    setattr(llm, "_mark_etat_de_la_fiche", etat_pour)
     en_conversation: ContextVar[bool] = ContextVar(
         "fiche_en_conversation", default=False
     )
@@ -4439,20 +4493,14 @@ def montrer_la_fiche(
 
     def build_chat_completion_params(params_from_context):
         params = construire(params_from_context)
-        if en_conversation.get():
+        # figeage-v12 (D4) : case « fiche dans le système » allumée et bloc rangé pour CETTE requête : l'état est déjà dans
+        # l'instruction système, il n'est pas répété comme un message de la personne.
+        if en_conversation.get() and not getattr(llm, "_mark_fiche_en_systeme", False):
             try:
                 # Lot 1 d'orchestrateur-trois-cerveaux : l'API Responses range la conversation
                 # dans ``input`` (mêmes éléments rôle + contenu) ; chat completions, dans ``messages``.
                 cle = "messages" if "messages" in params else "input"
-                texte = etat_avec_les_indices(
-                    reglages,
-                    fiche(),
-                    notices,
-                    params[cle],
-                    champs_etape() if champs_etape else (),
-                    a_des_portes() if a_des_portes else True,
-                    sorties() if sorties else (),
-                )
+                texte = etat_pour(params[cle])
                 if texte:
                     params[cle] = inserer_l_etat(list(params[cle]), texte)
             except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais l'appel
@@ -4461,4 +4509,8 @@ def montrer_la_fiche(
 
     llm.get_chat_completions = get_chat_completions
     llm.build_chat_completion_params = build_chat_completion_params
+    # agent-facon-tala (C8) : la trace photographie la requête par-dessus cette enveloppe, même posée après elle.
+    from api.services.pipecat.trace_modele import remettre_la_trace_en_dernier
+
+    remettre_la_trace_en_dernier(llm)
     return True

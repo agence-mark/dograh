@@ -134,6 +134,12 @@ from api.services.workflow.fiche_au_fil_de_leau import (
     montrer_la_fiche,
     suivre_les_tours,
 )
+from api.services.workflow.conversation_history import has_user_turns
+from api.services.workflow.issue_de_fin import issue_finale, texte_de_la_fiche
+from api.services.groupe.prechauffage_du_cache import (
+    chauffer_les_collegues,
+    prechauffer_les_collegues_actif,
+)
 from api.services.workflow.initial_context import GREETING_OVERRIDE_CONTEXT_KEY
 from api.services.workflow.mcp_tool_session import McpToolSession
 from api.services.workflow.pipecat_engine_context_composer import (
@@ -446,7 +452,9 @@ class PipecatEngine:
         # lu au banc d'apres le chantier (jamais joue pendant).
         from api.services.groupe.mesure_passation import MesureDePassation
 
-        self.mesure_passation = MesureDePassation()
+        self.mesure_passation = MesureDePassation(
+            enregistrements=lambda: getattr(self, "_transfer_outcomes", [])
+        )
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8, D12) : le collecteur de coût de
         # l'appel (posé par le circuit : le greffier et le cerveau de fond y versent leurs
         # jetons) et les cerveaux de fond des agents de l'appel (arrêtés au nettoyage).
@@ -545,6 +553,7 @@ class PipecatEngine:
                     context=self.context,
                     options=self._call_dispositions,
                     template_context=self._call_context_vars,
+                    reservees=self._issues_reservees_aux_transferts,
                 )
 
             # Helper that encapsulates custom tool management
@@ -826,6 +835,7 @@ class PipecatEngine:
         reponse: Optional[str] = None,
         relancer: bool = False,
         fin_demandee: bool = False,
+        au_revoir_dit: bool = False,
     ) -> str:
         """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
         (interruption comprise), comme ``_create_transition_func`` mais sans
@@ -838,7 +848,9 @@ class PipecatEngine:
         modèle reparle dans la nouvelle étape (comme une porte appelée en fonction).
 
         ``fin_demandee`` (lot 1, K4) : cette porte est prise pour finir l'appel (le filet de fin) ; une
-        porte ``fin`` réécrite en ``retour`` l'est aussi, d'elle-même.
+        porte ``fin`` réécrite en ``retour`` l'est aussi, d'elle-même. ``au_revoir_dit`` (agent-facon-tala, C2) : le
+        collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
+        mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
         Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
@@ -907,7 +919,7 @@ class PipecatEngine:
             )
             # [.mark] Chantier agents-specialises (A17) : un nœud de fin aux phrases
             # figées ne demande aucune réponse au modèle.
-            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin else None
+            phrase_figee = self._phrase_de_fin_figee(agent, arete.target) if fin and not au_revoir_dit else None
             # Comme `_create_transition_func` : l'attente de la réponse de fin est
             # posée avant de changer d'étape, jamais après (revue du 05/10).
             closing = (
@@ -931,7 +943,9 @@ class PipecatEngine:
                     arete.get_function_name() != nom
                     and porte_ecrite_est_une_fin(agent.workflow, nom)
                 )
-                if self._rendre_au_principal(agent, principal, fin_demandee=fin_voulue):
+                if self._rendre_au_principal(
+                    agent, principal, fin_demandee=fin_voulue, au_revoir_dit=au_revoir_dit
+                ):
                     return "prise"
             if phrase_figee is not None:
                 self._mute_pipeline = True
@@ -1258,6 +1272,7 @@ class PipecatEngine:
         context_ready=None,
         fin_demandee: bool = False,
         etape_cible: Optional[str] = None,
+        au_revoir_dit: bool = False,
     ) -> bool:
         """Le code passe la main au principal : ni annonce, ni musique, historique sans
         résumé ; le principal ne parle que si le dernier mot est à l'appelant (A1, A21).
@@ -1279,6 +1294,7 @@ class PipecatEngine:
                 etape_de_retour=True,
                 fin_demandee=fin_demandee,
                 etape_cible=etape_cible,
+                au_revoir_dit=au_revoir_dit,
             )
             if not self.transfer_coordinator.accept(request):
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
@@ -1351,12 +1367,17 @@ class PipecatEngine:
                 return False
             if self.transfer_coordinator.in_progress:
                 return False
-            arete = porte_de_retour(agent.current_node, agent.workflow)
+            # agent-facon-tala (C2) : la sortie de FIN du collègue quand son étape en offre une, sinon le retour (comme avant).
+            fin_propre = sortie_de_fin_de_l_etape(agent.current_node, agent.workflow)
+            arete = fin_propre if fin_propre is not None else porte_de_retour(agent.current_node, agent.workflow)
             if arete is None:
                 return False
             if not contient_une_formule(texte, formules_de(self._call_context_vars)):
                 return False
-            logger.info("[filet] formule de fin sans porte : le code prend la sortie retour")
+            logger.info(
+                "[filet] formule de fin sans porte : le code prend la sortie "
+                + ("fin du collègue" if fin_propre is not None else "retour")
+            )
             cible = agent.workflow.nodes[arete.target]
             self._gathered_context.setdefault("porte_reecrite", []).append(
                 {
@@ -1367,14 +1388,18 @@ class PipecatEngine:
                 }
             )
             return (
-                await self.prendre_porte_ecrite(arete.get_function_name(), fin_demandee=True)
+                await self.prendre_porte_ecrite(
+                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True
+                )
                 == "prise"
             )
         except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
             logger.error(f"[filet] fin d'appel en échec : {e!r}")
             return False
 
-    async def fin_directe_de_l_accueil(self, agent: AgentRuntime, noeud_id: str) -> bool:
+    async def fin_directe_de_l_accueil(
+        self, agent: AgentRuntime, noeud_id: str, au_revoir_dit: bool = False
+    ) -> bool:
         """[.mark] Lot 1 (K4) : le collègue a demandé la fin de l'appel ; l'accueil, arrivé sur son
         étape de retour, prend sa sortie ``fin`` SANS tour de modèle : la phrase de fin figée si le nœud
         en a une, sinon il raccroche (le collègue a déjà dit au revoir). Rend ``False`` (le tour de
@@ -1386,7 +1411,8 @@ class PipecatEngine:
                 return False
             logger.info("[groupe] fin demandée par le collègue : l'accueil prend sa sortie fin")
             await self.set_node(arete.target, origin_visit_id=agent.visit_id)
-            phrase = self._phrase_de_fin_figee(agent, arete.target)
+            # agent-facon-tala (C2) : le collègue a déjà dit au revoir (filet de fin) : l'accueil ne le redit pas.
+            phrase = None if au_revoir_dit else self._phrase_de_fin_figee(agent, arete.target)
             self._mute_pipeline = True
             if phrase is not None:
                 self._tache_du_groupe(self._dire_la_fin_figee(agent, phrase))
@@ -1767,6 +1793,9 @@ class PipecatEngine:
                     getattr(self.active_agent, "current_node", None),
                     getattr(self.active_agent, "workflow", None),
                 ),
+                # agent-facon-tala (C8) : la forme courte du bloc, case de l'agent qui parle.
+                forme_courte=lambda: (getattr(self.active_agent, "reglages", None) or {}).get("fiche_forme_courte")
+                is True,
             )
         except Exception as e:  # noqa: BLE001
             logger.error(f"[fiche] fiche non branchée sur l'agent : {e!r}")
@@ -2800,6 +2829,8 @@ class PipecatEngine:
                                 parent_context=self._get_otel_context(),
                                 organization_id=self._organization_id,
                                 workflow_run_id=self._workflow_run_id,
+                                # [.mark] agent-facon-tala, C4: the record's notes, read with the conversation.
+                                fiche=texte_de_la_fiche(self._fiche, self._gathered_context),
                             )
                         )
             except asyncio.TimeoutError:
@@ -2809,6 +2840,18 @@ class PipecatEngine:
                     f"disposition '{call_disposition}'"
                 )
             if should_extract_disposition:
+                # [.mark] agent-facon-tala, C4: an ending that is not the agent's own (hangup, inactivity)
+                # still gets a business outcome; when the reason is not clear and the person spoke, the
+                # list's "unclear call" outcome if the list has one (never invented).
+                if (
+                    extracted_disposition is None
+                    and self._disposition_extraction_service is not None
+                    and self.context is not None
+                    and has_user_turns(self.context)
+                ):
+                    extracted_disposition = issue_finale(
+                        self._call_dispositions, None, a_parle=True
+                    )
                 self.refine_call_disposition(
                     call_disposition,
                     extracted_disposition,
@@ -3202,7 +3245,9 @@ class PipecatEngine:
         chaud = self.principal_chaud_pour(workflow_id)
         if chaud is not None:
             self._pending_agent = chaud
-            self.mesure_passation.installee(0.0, "principal_chaud", memoire_du_processus_mo())
+            self.mesure_passation.installee(
+                0.0, "principal_chaud", memoire_du_processus_mo(), getattr(chaud, "visit_id", None)
+            )
             logger.info(f"[groupe] principal {workflow_id} resté chaud : rendu sans construction")
             return chaud
         debut = time.monotonic()
@@ -3627,6 +3672,24 @@ class PipecatEngine:
                     ids_a_exclure={agent.workflow_id},
                     lire_outils=db_client.get_tools_by_uuids,
                 )
+                # [.mark] agent-facon-tala, C3 bis : case « Préchauffer les collègues » (éteinte par défaut) :
+                # une requête d'un jeton par collègue, en fond, pour chauffer le cache de son prompt.
+                if precharge is not None and prechauffer_les_collegues_actif(self.reglages_appel):
+                    from api.services.workflow.workflow_graph import WorkflowGraph
+
+                    self._tache_du_groupe(
+                        chauffer_les_collegues(
+                            self,
+                            [
+                                (
+                                    identifiant,
+                                    WorkflowGraph(charge.dto, skip_instance_constraints_for={"trigger"}),
+                                    charge.user_config,
+                                )
+                                for identifiant, charge in precharge.agents.items()
+                            ],
+                        )
+                    )
                 # [.mark] fiabilite-orchestration, lot 3 (F5, F6) : puis la réserve, chaque
                 # collègue construit à l'avance (service, worker, cerveau de fond).
                 if precharge is not None:
@@ -3695,6 +3758,41 @@ class PipecatEngine:
         self._tache_du_groupe(self._mettre_en_reserve(workflow_id))
         return runtime
 
+    async def _issues_reservees_aux_transferts(self) -> set[str]:
+        """[.mark] agent-facon-tala, lot 7 (F3): the outcomes the transfer tools of EVERY agent of the group set
+        themselves on success; the final classification never returns them. ⛔ Never raises."""
+        from api.services.workflow.issue_reservee import issues_reservees_du_groupe
+
+        try:
+            async def lire_workflow(identifiant, organisation):
+                return await db_client.get_workflow(identifiant, organization_id=organisation)
+
+            # R-12 (revue 2) : les outils réservés se lisent dans ce que l'appel EXÉCUTE : le graphe de l'agent actif, et la
+            # version que l'appel utilise pour les autres (le brouillon d'un test, la publiée d'un appel : la règle de la passation).
+            from api.services.workflow.run_creation import definition_to_run
+
+            utilise_le_brouillon = bool(getattr(self.__dict__.get("_agent_factory"), "_use_draft", False))
+
+            async def lire_definition(workflow):
+                return await definition_to_run(db_client, workflow, use_draft=utilise_le_brouillon)
+
+            try:
+                uuids_de_depart = [
+                    u for noeud in self.active_agent.workflow.nodes.values() for u in (noeud.tool_uuids or []) if isinstance(u, str)
+                ]
+            except Exception:  # noqa: BLE001 -- graphe illisible : la lecture de la version du run reprend
+                uuids_de_depart = None
+            return await issues_reservees_du_groupe(
+                self.active_agent.workflow_id,
+                await self._get_organization_id(),
+                lire_workflow,
+                self.lire_outils,
+                lire_definition,
+                uuids_de_depart,
+            )
+        except Exception:  # noqa: BLE001
+            return set()
+
     async def lire_outils(self, uuids, organization_id: int) -> list:
         """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
         préchauffage les a déjà chargés, sinon en base comme avant."""
@@ -3734,6 +3832,15 @@ class PipecatEngine:
         )
 
     def _bind_call_monitor(self, runtime: AgentRuntime) -> None:
+        # [.mark] agent-facon-tala, C3 bis : le départ de chaque requête au modèle de cet agent date la
+        # décision d'une passation (agent d'origine) et l'entrée du collègue (mesure de la passation).
+        from api.services.analyse_run.requetes_modele import noter_les_departs_de_requete
+
+        visite = runtime.visit_id
+        noter_les_departs_de_requete(
+            runtime.llm,
+            lambda instant, visite=visite: self.mesure_passation.depart_de_requete(visite, instant),
+        )
         self.speech_playback.observe_responses(runtime.llm)
         self.call_monitor.bind_source(
             runtime.llm, enabled=lambda: self._response_watch_enabled(runtime)

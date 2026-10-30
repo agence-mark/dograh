@@ -22,7 +22,9 @@ CLES_DU_TRAVAIL = (CLE_ACTIF, CLE_LLM, CLE_CONSIGNE, CLE_OUTILS, CLE_DELAI)
 # Le nom technique de l'outil que le cerveau de conversation appelle (générique : aucun métier).
 NOM_OUTIL = "confier_le_travail"
 # Lot 1 de fiabilite-orchestration (F2) : l'appelant peut toujours annuler pendant l'attente.
-NOM_OUTIL_ANNULER = "annuler_le_travail"
+# Figeage (Evan, 29/10) : « annuler » dans le nom faisait prendre cet outil pour l'annulation d'un
+# rendez-vous déjà réservé (banc v12, E11) ; le nom dit ce qu'il fait : arrêter le travail en cours.
+NOM_OUTIL_ANNULER = "arreter_le_travail_en_cours"
 # Le nom sous lequel les jetons du fond entrent dans le coût de l'appel (``processor|||model``).
 NOM_DU_COUT = "travail"
 USAGE_TRAVAIL = "travail"

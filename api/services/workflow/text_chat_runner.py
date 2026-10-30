@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as _remplacer
 from datetime import UTC, datetime
 from typing import Any
 
@@ -88,6 +88,7 @@ from api.services.pipecat.pipeline_metrics_aggregator import (
 )
 from api.services.pipecat.pre_call_fetch import execute_pre_call_fetch
 from api.services.pipecat.reconnaissance_lexique import annoter_message_tape
+from api.services.workflow.issue_reservee import _uuids_d_un_graphe
 from api.services.workflow.fiche_au_fil_de_leau import (
     CLE_ETAT,
     CLE_JOURNAL,
@@ -114,6 +115,11 @@ from api.services.pipecat.worker_runner import (
 )
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.groupe.fiche import fiche_fusionnee
+from api.services.groupe.prechauffage_du_cache import (
+    chauffer_les_collegues,
+    collegues_depuis_la_base,
+    prechauffer_les_collegues_actif,
+)
 from api.services.workflow.arbitre import preparer_l_arbitre, resoudre_le_bloc_de_l_arbitre
 from api.services.pipecat.avant_la_requete import autour_du_cerveau
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
@@ -164,6 +170,43 @@ class _Passage:
     capture: Any
     sorties: list[str]
     usage: dict[str, Any]
+
+
+_TACHES_DE_FOND: set = set()
+
+
+def _tache_de_fond(coroutine) -> None:
+    """Une tâche qui vit seule (référence gardée jusqu'à sa fin) : le tour ne l'attend pas."""
+    tache = asyncio.get_running_loop().create_task(coroutine)
+    _TACHES_DE_FOND.add(tache)
+    tache.add_done_callback(_TACHES_DE_FOND.discard)
+
+
+async def _chauffer_les_collegues_du_clavier(engine, graphe_du_principal, id_du_principal: int) -> None:
+    """[.mark] agent-facon-tala, C3 bis : le préchauffage du cache des collègues, comme au début d'un
+    appel (mêmes collègues : les cibles des outils de passation du principal). ⛔ Ne lève jamais."""
+    try:
+        fabrique = engine._agent_factory
+        collegues = await collegues_depuis_la_base(
+            engine, fabrique, graphe_du_principal, ids_a_exclure={id_du_principal}
+        )
+        await chauffer_les_collegues(engine, collegues)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[prechauffage] cache du clavier abandonné : {e!r}")
+
+
+def agent_a_cerveaux_neufs(
+    agent: "_AgentDuTour", creer, cle_du_cache: str, *, avec_extraction: bool
+) -> "_AgentDuTour":
+    """[.mark] agent-facon-tala, C3 : le même agent (graphe, réglages, visite) avec des cerveaux
+    neufs. Un cerveau est un processeur du circuit d'UN passage ; une fois ce circuit arrêté, le
+    remettre dans un circuit neuf ne démarre jamais (la trame de départ ne sort pas). ``creer`` fabrique
+    un cerveau à partir des options du service (clé de cache, usage)."""
+    cerveau = creer(prompt_cache_key=cle_du_cache)
+    extraction = creer(usage_context="variable_extraction") if avec_extraction else cerveau
+    return _remplacer(
+        agent, llm=cerveau, inference_llm=cerveau, variable_extraction_llm=extraction
+    )
 
 
 async def _attendre_le_groupe(engine, *, capture_processor, response_window, runner_task) -> None:
@@ -915,6 +958,19 @@ async def execute_text_chat_pending_turn(
         reglages=dict(run_configs),
     )
 
+    agents_joues: set[int] = set()
+
+    def _premier_agent_a_neuf() -> "_AgentDuTour":
+        return agent_a_cerveaux_neufs(
+            premier_agent,
+            lambda **options: create_llm_service(
+                user_config, correlation_id=mps_correlation_id, **options
+            ),
+            cle_de_cache(workflow_id),
+            avec_extraction=needs_extraction_llm
+            and user_config.llm.provider == ServiceProviders.DOGRAH.value,
+        )
+
     async def charger_agent(actif: dict[str, Any]) -> "_AgentDuTour | None":
         """L'agent ``actif`` (après une passation), à sa définition épinglée, dans
         l'organisation de l'appel. ``None`` s'il n'est plus lisible."""
@@ -924,7 +980,13 @@ async def execute_text_chat_pending_turn(
                 None,
                 premier_agent.definition_id,
             ):
-                return premier_agent
+                if id(premier_agent) not in agents_joues:
+                    return premier_agent
+                # [.mark] agent-facon-tala, C3 : le premier agent a déjà joué un passage de ce tour
+                # (passation puis retour au même tour). Son cerveau est un processeur arrêté avec ce
+                # circuit : le remettre dans un circuit neuf, c'est un départ qui n'aboutit jamais
+                # (la trame de départ ne sort pas, le tour reste bloqué). Même agent, cerveau neuf.
+                return _premier_agent_a_neuf()
             agent_workflow = await db_client.get_workflow(
                 identifiant, organization_id=workflow.organization_id
             )
@@ -1074,6 +1136,16 @@ async def execute_text_chat_pending_turn(
                 creer_llm=lambda *a, **k: create_llm_service(*a, **k),
             )
         )
+        # [.mark] agent-facon-tala, C3 bis : « Préchauffer les collègues » (éteinte par défaut), comme au
+        # début d'un appel : une fois, au premier tour de la session, en fond (le tour ne l'attend pas).
+        if (
+            is_initial_node_opening
+            and agent is premier_agent
+            and prechauffer_les_collegues_actif(run_configs)
+        ):
+            _tache_de_fond(
+                _chauffer_les_collegues_du_clavier(engine, workflow_graph, workflow_id)
+            )
         # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D8) : le cerveau de fond de l'agent qui
         # parle, si son travail en arrière-plan est allumé. Au clavier il travaille dans le tour
         # et son résultat est remis au tour suivant (``travail/clavier.py``).
@@ -1326,6 +1398,7 @@ async def execute_text_chat_pending_turn(
     message_du_passage = pending_user_message
     ouverture_du_passage: dict[str, Any] | None = None
     for _ in range(TEXT_CHAT_MAX_PASSAGES):
+        agents_joues.add(id(agent_du_tour))
         passage = await jouer_un_passage(
             agent_du_tour, checkpoint_du_passage, message_du_passage, ouverture_du_passage
         )
@@ -1421,6 +1494,154 @@ async def execute_text_chat_pending_turn(
         ),
         is_completed=engine.is_call_disposed(),
     )
+
+
+async def issues_reservees_du_clavier(workflow_id: int, organization_id: int, workflow_run: Any = None) -> set[str]:
+    """[.mark] agent-facon-tala, lot 7 (F3): the same reading as the phone's engine (every agent of the group).
+    R-12 (revue 2): read in what the run EXECUTES -- the definition the run pinned for the starting agent, and for the others
+    the version this run uses (the draft of a keyboard test, the published one otherwise: ``definition_to_run``, the rule of
+    the handover). Without ``workflow_run``: the published versions, as before."""
+    from api.services.workflow.issue_reservee import issues_reservees_du_groupe
+    from api.services.workflow.run_creation import definition_to_run
+
+    async def lire_workflow(identifiant, organisation):
+        return await db_client.get_workflow(identifiant, organization_id=organisation)
+
+    if workflow_run is None:
+        return await issues_reservees_du_groupe(workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids)
+    utilise_le_brouillon = bool((getattr(workflow_run, "extra", None) or {}).get("use_draft"))
+
+    async def lire_definition(workflow):
+        return await definition_to_run(db_client, workflow, use_draft=utilise_le_brouillon)
+
+    pinned = getattr(workflow_run, "definition", None)
+    uuids_de_depart = (
+        _uuids_d_un_graphe((getattr(pinned, "workflow_json", None) or {}).get("nodes")) if pinned is not None else None
+    )
+    return await issues_reservees_du_groupe(
+        workflow_id, organization_id, lire_workflow, db_client.get_tools_by_uuids, lire_definition, uuids_de_depart
+    )
+
+
+async def extract_text_chat_final_disposition(
+    *,
+    workflow_run_id: int,
+    workflow_id: int,
+    organization_id: int,
+    checkpoint: dict[str, Any] | None,
+    session_data: dict[str, Any] | None = None,
+    extracted: dict[str, Any] | None = None,
+) -> str | None:
+    """[.mark] agent-facon-tala, C4: the business outcome of a chat that ends without the agent's own ending
+    (the person leaves, inactivity, the keyboard's end). The same classifier as a voice call's teardown
+    (``DispositionExtractionService``), reading the conversation AND the record (the checkpoint's, with what the
+    end-of-chat pass just wrote in ``extracted``); when the reason is not clear and the person spoke, the list's
+    "unclear call" outcome if the list has one. ``None``: nothing to say. Never raises (the caller persists the
+    completion after this)."""
+    from api.services.workflow.disposition_extraction import DispositionExtractionService
+    from api.services.workflow.issue_de_fin import issue_finale, texte_de_la_fiche
+
+    try:
+        base_checkpoint = normalize_text_chat_checkpoint(checkpoint)
+        if not base_checkpoint.get("current_node_id"):
+            return None
+        # [.mark] agent-facon-tala, lot B1 : une issue posée PAR UN OUTIL pendant la conversation (celle de la demande
+        # de rappel, réservée à son résultat réel) est celle de l'appel, comme au téléphone où le classement final ne
+        # tourne pas quand une issue est déjà posée. Seules les issues réservées comptent : rien d'autre ne change.
+        posee = str((base_checkpoint.get("gathered_context") or {}).get("call_disposition") or "").strip()
+        # R-16 (revue 2) : le groupe se lit UNE fois par fin de session, ici et pour le classement.
+        lues: set[str] | None = None
+
+        async def reservees_du_groupe(run) -> set[str]:
+            nonlocal lues
+            if lues is None:
+                lues = await issues_reservees_du_clavier(workflow_id, organization_id, run)
+            return lues
+
+        # R-19 (contre-revue) : le run se lit UNE fois par fin de session, pour l'issue posée et pour le classement.
+        run_lu: tuple | None = None
+
+        async def run_et_organisation():
+            nonlocal run_lu
+            if run_lu is None:
+                run_lu = await db_client.get_workflow_run_with_context(workflow_run_id)
+            return run_lu
+
+        if posee:
+            run_de_l_issue, org_de_l_issue = await run_et_organisation()
+            if (
+                run_de_l_issue is not None
+                and run_de_l_issue.workflow_id == workflow_id
+                and org_de_l_issue == organization_id
+                and posee.casefold() in await reservees_du_groupe(run_de_l_issue)
+            ):
+                return posee
+        messages = _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
+        pending_user_message = pending_text_chat_user_message(session_data)
+        if pending_user_message:
+            messages = [*messages, {"role": "user", "content": pending_user_message}]
+        if not any(isinstance(m, dict) and m.get("role") == "user" for m in messages):
+            return None
+        workflow_run, run_organization_id = await run_et_organisation()
+        if (
+            not workflow_run
+            or workflow_run.workflow_id != workflow_id
+            or workflow_run.definition is None
+            or run_organization_id != organization_id
+        ):
+            return None
+        run_configs = workflow_run.definition.workflow_configurations or {}
+        options = tuple(
+            WorkflowConfigurationDefaults.model_validate(
+                {"call_dispositions": run_configs.get("call_dispositions") or []}
+            ).call_dispositions
+        )
+        if not options:
+            return None
+
+        from api.services.configuration.ai_model_configuration import (
+            get_effective_ai_model_configuration_for_workflow,
+        )
+        from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
+
+        set_current_org_id(organization_id)
+        user_config = await get_effective_ai_model_configuration_for_workflow(
+            organization_id=organization_id, workflow_configurations=run_configs
+        )
+        if user_config.llm is None:
+            return None
+        initial_context = dict(workflow_run.initial_context or {})
+        llm = create_llm_service(
+            user_config,
+            correlation_id=initial_context.get(MPS_CORRELATION_ID_CONTEXT_KEY),
+            usage_context="variable_extraction",
+        )
+        context = LLMContext()
+        context.set_messages(messages)
+        fiche = {**(base_checkpoint.get("gathered_context") or {}), **(extracted or {})}
+        async def reservees() -> set[str]:
+            return await reservees_du_groupe(workflow_run)
+
+        service = DispositionExtractionService(
+            llm=llm, context=context, options=options, template_context=initial_context, reservees=reservees
+        )
+        retenue = None
+        try:
+            async with asyncio.timeout(FINAL_EXTRACTION_TIMEOUT_SECONDS):
+                retenue = await service.extract(
+                    organization_id=organization_id,
+                    workflow_run_id=workflow_run_id,
+                    fiche=texte_de_la_fiche(ReglagesFiche.depuis(run_configs), fiche),
+                )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Final text-chat disposition timed out after {FINAL_EXTRACTION_TIMEOUT_SECONDS}s "
+                f"for run {workflow_run_id}"
+            )
+        return issue_finale(options, retenue, a_parle=True)
+    except Exception as e:  # noqa: BLE001 -- best effort: a chat always completes
+        logger.error(f"Final text-chat disposition failed for run {workflow_run_id}: {e}")
+        return None
 
 
 async def extract_text_chat_final_variables(

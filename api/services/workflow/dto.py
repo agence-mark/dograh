@@ -283,7 +283,7 @@ class ConditionDeChampDTO(BaseModel):
 
 # [.mark] passages-fiables (lots A et B) : qui décide du passage d'une étape à l'autre.
 QUI_DECIDE_DU_PASSAGE = ("agent", "collecte", "choix", "libre")
-MOMENTS_DU_PASSAGE = ("apres_la_reponse", "attendre_le_dernier_champ")
+MOMENTS_DU_PASSAGE = ("apres_la_reponse", "attendre_le_dernier_champ", "attendre_a_chaque_tour")
 
 
 class _PassageNodeDataMixin(BaseModel):
@@ -313,11 +313,13 @@ class _PassageNodeDataMixin(BaseModel):
         description=(
             "After the reply (default): the code passes once the agent has answered. Wait for the last field: when "
             "a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, "
-            "and the next step speaks at once."
+            "and the next step speaks at once. Wait at every turn (collection steps): the request always waits "
+            "(briefly) for the clerk, so the record shown to the agent holds what the caller just said."
         ),
         options=[
             PropertyOption(value="apres_la_reponse", label="After the reply"),
             PropertyOption(value="attendre_le_dernier_champ", label="Wait for the last field"),
+            PropertyOption(value="attendre_a_chaque_tour", label="Wait at every turn"),
         ],
     )
     delai_du_passage: Optional[float] = spec_field(

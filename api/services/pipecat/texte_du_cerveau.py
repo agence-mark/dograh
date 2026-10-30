@@ -32,6 +32,12 @@ l'historique (téléphone et clavier) :
   crochets ordinaires. Il est retiré **quelle que soit sa longueur** ; resté ouvert jusqu'à la fin
   du flux, tout ce qui suit son ouverture est retiré (c'est la fiche, jamais une parole).
 
+- agent-facon-tala (C1, case ``reconnaitre_un_outil_ecrit``, éteinte par défaut) : une réplique qui n'est **que**
+  le nom d'un outil déclaré à ce tour (nu ou habillé : tirets bas, italiques, ponctuation, arguments
+  ``nom,{...}`` ou ``nom_demande="…"``) devient l'appel de cet outil : jamais dite, jamais gardée dans
+  l'historique (casque 2469 : le mot gardé était imité six fois). Une réplique qui contient du vrai texte en plus
+  n'est pas touchée. Voir ``lire_un_outil_ecrit`` et ``FluxOutilEcrit``.
+
 ⚠️ Latence, cas rares seulement : un « [ » ouvert retient la voix jusqu'à sa fermeture (au plus
 160 caractères) ; après un jeton d'appel, le reste de la réponse part à la fin du flux.
 
@@ -51,6 +57,10 @@ from loguru import logger
 from api.services.pipecat.balises_expression import nom_de_balise
 from api.services.workflow.porte_parlee import FLECHE
 
+# C1 : posé sur le service de l'agent (vrai/faux) à chaque requête par ``avant_la_requete``, selon la case de l'agent.
+ATTRIBUT_OUTIL_ECRIT = "_mark_outil_ecrit_reconnu"
+CLE_OUTIL_ECRIT = "reconnaitre_un_outil_ecrit"
+ATTRIBUT_DERNIERS_OUTILS = "_mark_derniers_outils"
 JETONS_D_APPEL = ("[TOOL_CALLS]", "<tool_call>")
 _LONGUEUR_MAX_CROCHETS = 160
 _NOM = re.compile(r"[A-Za-z_][A-Za-z0-9_\-]*")
@@ -395,6 +405,177 @@ class FluxSansLignesInternes:
             await fermer()
 
 
+# --- agent-facon-tala, C1 : la réplique qui n'est que le nom d'un outil -----------------------
+#
+# Casque 2447/2449/2469 et banc local S2, S4, S5, S6, S12 : le cerveau écrit « _coordonnees_ », « *retour* » ou
+# « coordonnees,{"nom": …} » AU LIEU d'appeler l'outil ; la voix le lit, et le mot resté dans l'historique est imité
+# au tour suivant. Ce n'est pas un jeton d'appel natif (``JETONS_D_APPEL``) : rien ne l'annonce, seule la réplique
+# entière, réduite à son noyau, porte le nom d'un outil déclaré à ce tour.
+
+# La flèche « → » n'en fait PAS partie : une porte écrite (« → retour ») reste une porte, lue par le lecteur de portes.
+_DECOR = " \t\r\n_*`'\"“”«»‘’.,;:!?()[]<>-–—…"
+# Le décor entre le nom et ses arguments (le tiret bas et le guillemet en sont exclus : ils appartiennent au nom ou à la valeur).
+_DECOR_APRES_LE_NOM = _DECOR.replace("_", "").replace('"', "")
+_VALEUR = re.compile(r'\s*[,;]?\s*_?(\w+)\s*=\s*"([^"]*)"')
+# Une suite d'arguments encore possible quand le flux n'est pas fini : paires ``clé="valeur"`` dont la dernière peut être ouverte.
+_SUITE_POSSIBLE = re.compile(
+    r'(?:\s*[,;]?\s*_?\w+\s*=\s*"[^"]*")*\s*[,;]?\s*(?:_?\w*(?:\s*=\s*(?:"[^"]*)?)?)?[\s_*`\'"“”.,;:!?()\]>]*'
+)
+_LONGUEUR_MAX_OUTIL_ECRIT = 400
+
+
+def _cle_de_nom(nom: str) -> str:
+    return nom.strip().lower().replace("-", "_")
+
+
+def _nom_en_tete(coeur: str, outils: Iterable[str]) -> tuple[str, str] | None:
+    """(outil déclaré, reste) quand ``coeur`` COMMENCE par le nom d'un outil (le plus long d'abord), sinon ``None``.
+    Un nom suivi d'une lettre ou d'un chiffre n'est pas ce nom (« finalement » n'est pas « fin »)."""
+    bas = coeur.lower().replace("-", "_")
+    for nom in sorted(outils, key=len, reverse=True):
+        cle = _cle_de_nom(nom)
+        if not cle or not bas.startswith(cle):
+            continue
+        reste = coeur[len(cle):]
+        if reste[:1].isalnum():
+            continue
+        return nom, reste
+    return None
+
+
+def _arguments_apres_le_nom(reste: str) -> str:
+    return reste.lstrip(_DECOR_APRES_LE_NOM).lstrip("_").lstrip(" ,;:(")
+
+
+def lire_un_outil_ecrit(texte: str, outils: Iterable[str]) -> tuple[str, str] | None:
+    """(nom de l'outil, arguments JSON) quand ``texte`` n'est QUE le nom d'un outil déclaré, nu ou habillé ; sinon ``None``.
+
+    Formes lues, entourées de tout décor (tirets bas, étoiles, guillemets, ponctuation, flèche) : ``nom`` ;
+    ``nom,{"clé": "valeur"}`` ou ``nom{…}`` ; ``nom_demande="…"`` / ``nom(demande="…")`` (une clé ou plusieurs).
+    Toute autre suite (du vrai texte) : ``None``, la réplique n'est pas touchée."""
+    outils = list(outils)
+    coeur = texte.lstrip(_DECOR)
+    trouve = _nom_en_tete(coeur, outils) if coeur else None
+    if trouve is None:
+        return None
+    nom, reste = trouve
+    reste = _arguments_apres_le_nom(reste)
+    if not reste.strip(_DECOR):
+        return nom, "{}"
+    if reste.startswith("{"):
+        try:
+            valeur, fin = json.JSONDecoder().raw_decode(reste)
+        except ValueError:
+            return None
+        if isinstance(valeur, dict) and not reste[fin:].strip(_DECOR):
+            return nom, json.dumps(valeur, ensure_ascii=False)
+        return None
+    arguments: dict[str, str] = {}
+    position = 0
+    while True:
+        m = _VALEUR.match(reste, position)
+        if m is None:
+            break
+        arguments[m.group(1)] = m.group(2)
+        position = m.end()
+    if arguments and not reste[position:].strip(_DECOR):
+        return nom, json.dumps(arguments, ensure_ascii=False)
+    return None
+
+
+def _outil_ecrit_possible(texte: str, outils: list[str]) -> bool:
+    """Le texte lu jusqu'ici peut-il encore devenir une réplique qui n'est que le nom d'un outil (le flux continue) ?"""
+    if len(texte) > _LONGUEUR_MAX_OUTIL_ECRIT:
+        return False
+    coeur = texte.lstrip(_DECOR)
+    if not coeur:
+        return True  # que du décor pour l'instant
+    bas = coeur.lower().replace("-", "_")
+    if any(_cle_de_nom(n).startswith(bas) for n in outils):
+        return True  # un début de nom
+    trouve = _nom_en_tete(coeur, outils)
+    if trouve is None:
+        return False
+    reste = _arguments_apres_le_nom(trouve[1])
+    if reste.startswith("{"):
+        try:
+            _, fin = json.JSONDecoder().raw_decode(reste)
+        except ValueError:
+            return True  # JSON pas encore fermé
+        return not reste[fin:].strip(_DECOR)
+    return _SUITE_POSSIBLE.fullmatch(reste) is not None
+
+
+def _a_un_appel(morceau: Any) -> bool:
+    choix = getattr(morceau, "choices", None) or []
+    delta = getattr(choix[0], "delta", None) if choix else None
+    return bool(getattr(delta, "tool_calls", None))
+
+
+class FluxOutilEcrit:
+    """C1 : le flux (déjà nettoyé) dont la réplique, si elle n'est QUE le nom d'un outil déclaré, devient l'appel de cet outil.
+
+    Une parole normale passe aussitôt, morceau par morceau : seul un début qui pourrait encore être un nom d'outil (ou du
+    décor seul) est retenu, au plus ``_LONGUEUR_MAX_OUTIL_ECRIT`` caractères. À la fin du flux : le texte retenu est un
+    outil écrit → appel d'outil à sa place, texte jamais rendu ; sinon il est rendu tel quel. Un vrai appel d'outil déjà
+    présent dans le flux l'emporte (le texte est alors retiré, jamais doublé)."""
+
+    def __init__(self, flux: Any, outils: Iterable[str]):
+        self._flux = flux
+        self._outils = list(outils)
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        tenus: list[Any] = []
+        texte = ""
+        retenu = False
+        parole = False  # une parole est partie : la suite passe sans retenue
+        async for morceau in self._flux:
+            contenu = _texte(morceau)
+            if parole:
+                yield morceau
+                continue
+            if not retenu:
+                if not contenu or not _outil_ecrit_possible(contenu, self._outils):
+                    parole = parole or bool(contenu)
+                    yield morceau
+                    continue
+                retenu = True
+                texte, tenus = contenu, [morceau]
+                continue
+            tenus.append(morceau)
+            if contenu:
+                texte += contenu
+                if not _outil_ecrit_possible(texte, self._outils):
+                    # une parole a commencé : le texte retenu part tel quel, la suite passe sans retenue
+                    for m in FluxNettoye._rendre_texte(tenus, texte):
+                        yield m
+                    tenus, texte, retenu, parole = [], "", False, True
+        if retenu:
+            for m in self._a_la_fin(tenus, texte):
+                yield m
+
+    def _a_la_fin(self, tenus: list[Any], texte: str) -> list[Any]:
+        lu = lire_un_outil_ecrit(texte, self._outils)
+        if lu is None:
+            return FluxNettoye._rendre_texte(tenus, texte)
+        nom, arguments = lu
+        sans_texte = [m for m in tenus if _texte(m) is None]
+        if any(_a_un_appel(m) for m in sans_texte):
+            logger.warning(f"[cerveau] nom d'outil écrit « {nom} » retiré : un vrai appel est déjà là")
+            return sans_texte
+        premier = next((m for m in tenus if _texte(m) is not None), None)
+        logger.warning(f"[cerveau] réplique qui n'est que le nom d'un outil ({texte!r}) : rendue en appel de « {nom} »")
+        return [_morceau_d_appel(premier, nom, arguments)] + FluxNettoye._fin_d_appel(sans_texte)
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
 class FluxNettoye:
     """Le flux du cerveau, sans appel écrit en texte ni passage entre crochets."""
 
@@ -404,14 +585,19 @@ class FluxNettoye:
         outils: Iterable[str],
         portes_dans_la_reponse: bool,
         balises_permises: Iterable[str] = (),
+        outil_ecrit: bool = False,
     ):
         self._flux = FluxSansLignesInternes(flux)
+        # C1 : la case « reconnaître un outil écrit en texte » (éteinte : flux d'avant, à l'octet).
+        self._outil_ecrit = bool(outil_ecrit)
         self._outils = set(outils)
         self._portes = portes_dans_la_reponse
         # Lot 5 ter (D29) : les balises d'expression que la voix de l'appel accepte (vide = aucune).
         self._balises = frozenset(nom_de_balise(b) for b in balises_permises if nom_de_balise(b))
 
     def __aiter__(self):
+        if self._outil_ecrit and self._outils:
+            return FluxOutilEcrit(self._parcourir(), self._outils).__aiter__()
         return self._parcourir()
 
     async def _parcourir(self):
@@ -565,6 +751,24 @@ class FluxNettoye:
             await fermer()
 
 
+def case_outil_ecrit(agent: Any, moteur: Any) -> bool:
+    """C1 : la case « reconnaître un outil écrit en texte » de l'agent, posée à ``True`` seulement. ⛔ Ne lève jamais."""
+    try:
+        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        return reglages.get(CLE_OUTIL_ECRIT) is True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def poser_la_case_outil_ecrit(moteur: Any, llm: Any) -> None:
+    """C1 : pose sur le service de l'agent actif la valeur de sa case (lue par ``TexteDuCerveauMixin`` à chaque requête).
+    Téléphone et clavier passent tous deux par ``preparer_la_requete``. ⛔ Ne lève jamais."""
+    try:
+        setattr(llm, ATTRIBUT_OUTIL_ECRIT, case_outil_ecrit(getattr(moteur, "active_agent", None), moteur))
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] case « outil écrit » non posée : {erreur!r}")
+
+
 def _noms_des_outils(context: Any) -> list[str]:
     try:
         outils = getattr(context, "tools", None)
@@ -579,18 +783,58 @@ class TexteDuCerveauMixin:
 
     async def get_chat_completions(self, context):  # type: ignore[override]
         flux = await super().get_chat_completions(context)  # type: ignore[misc]
-        try:
-            consigne = str(getattr(getattr(self, "_settings", None), "system_instruction", "") or "")
-            portes = FLECHE in consigne or any(
-                isinstance(m, dict) and m.get("role") == "system" and FLECHE in str(m.get("content") or "")
-                for m in (getattr(context, "messages", None) or [])
-            )
-            return FluxNettoye(
-                flux,
-                _noms_des_outils(context),
-                portes,
-                getattr(self, "balises_du_cerveau", ()) or (),
-            )
-        except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
-            logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
-            return flux
+        return nettoyer_le_flux(self, flux, context)
+
+
+def nettoyer_le_flux(llm: Any, flux: Any, context: Any) -> Any:
+    """Le flux de ``llm`` nettoyé (appel écrit en texte, crochets, nom d'outil écrit si la case de l'agent est allumée).
+    Commun au mixin de classe et à ``couvrir_le_cerveau``. ⛔ Ne lève jamais : en échec, le flux d'origine."""
+    try:
+        consigne = str(getattr(getattr(llm, "_settings", None), "system_instruction", "") or "")
+        portes = FLECHE in consigne or any(
+            isinstance(m, dict) and m.get("role") == "system" and FLECHE in str(m.get("content") or "")
+            for m in (getattr(context, "messages", None) or [])
+        )
+        outils = _noms_des_outils(context)
+        # C9 : les outils déclarés à cette requête, lus par le détecteur d'impasse (une réplique qui n'est que leur nom).
+        setattr(llm, ATTRIBUT_DERNIERS_OUTILS, tuple(outils))
+        return FluxNettoye(
+            flux,
+            outils,
+            portes,
+            getattr(llm, "balises_du_cerveau", ()) or (),
+            outil_ecrit=getattr(llm, ATTRIBUT_OUTIL_ECRIT, False) is True,
+        )
+    except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+        logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")
+        return flux
+
+
+ATTRIBUT_COUVERT = "_mark_texte_du_cerveau_couvert"
+_MIXINS_DU_TEXTE = ("TexteDuCerveauMixin", "TexteDuCerveauResponsesMixin")
+
+
+def est_couvert(llm: Any) -> bool:
+    """Le service de conversation ``llm`` nettoie-t-il le texte de son cerveau (mixin de classe, ou ``couvrir_le_cerveau``) ?"""
+    return any(c.__name__ in _MIXINS_DU_TEXTE for c in type(llm).__mro__) or getattr(llm, ATTRIBUT_COUVERT, False) is True
+
+
+def couvrir_le_cerveau(llm: Any) -> Any:
+    """agent-facon-tala (C1) : tout cerveau de conversation que la fabrique construit nettoie son texte, quelle que soit sa
+    famille de fournisseur (règle « code agnostique de la brique »). Un service qui n'a pas le mixin de classe et qui a une
+    requête de conversation en flux (``get_chat_completions``) reçoit le même nettoyage, posé sur l'instance. Un service sans
+    cette requête (Google, Bedrock, temps réel) n'est pas touché : son flux n'a pas la forme d'un flux de chat completions.
+    Idempotent. ⛔ Ne lève jamais ; rend ``llm``."""
+    try:
+        if llm is None or est_couvert(llm) or not hasattr(llm, "get_chat_completions"):
+            return llm
+        suivant = llm.get_chat_completions
+
+        async def get_chat_completions(context):
+            return nettoyer_le_flux(llm, await suivant(context), context)
+
+        llm.get_chat_completions = get_chat_completions
+        setattr(llm, ATTRIBUT_COUVERT, True)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] texte du cerveau non couvert : {erreur!r}")
+    return llm

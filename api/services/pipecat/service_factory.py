@@ -53,7 +53,7 @@ from api.services.lexique.ecoute import regles_de_prononciation
 from api.services.panne.delai_modele import DelaiModeleMixin
 from api.services.pipecat.replique_inachevee import ReflexionDeRelanceMixin
 from api.services.pipecat.main_passee import MainPasseeMixin
-from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin
+from api.services.pipecat.texte_du_cerveau import TexteDuCerveauMixin, couvrir_le_cerveau
 from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
 from api.services.pipecat.responses_llm import MarkOpenAIResponsesLLMService
 from api.services.pipecat.trace_modele import TraceModeleMixin
@@ -585,7 +585,7 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
-class DograhMistralLLMService(TraceModeleMixin, DelaiModeleMixin, MistralLLMService):
+class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModeleMixin, MistralLLMService):
     """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
 
     ⛔ Why this class exists rather than a fix upstream: the seed never left
@@ -2831,7 +2831,7 @@ def create_llm_service(
 
     # [.mark] Lot 0 bis (D17) : la case « saisie libre » du cerveau.
     with _adresse_libre_de(user_config.llm):
-        return create_llm_service_from_provider(
+        llm = create_llm_service_from_provider(
             provider,
             model,
             api_key,
@@ -2839,6 +2839,8 @@ def create_llm_service(
             usage_context=usage_context,
             **kwargs,
         )
+    # [.mark] agent-facon-tala (C1) : le texte du cerveau est nettoyé pour TOUT fournisseur de conversation.
+    return couvrir_le_cerveau(llm)
 
 
 def create_llm_service_with_model_override(

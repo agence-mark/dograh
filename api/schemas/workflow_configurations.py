@@ -905,6 +905,43 @@ class WorkflowConfigurationDefaults(BaseModel):
             "the agent. Off (default): the question is not asked."
         ),
     )
+    # [.mark] figeage-v12 (D4) : l'état de la fiche dans l'instruction système.
+    fiche_dans_le_systeme: bool = Field(
+        default=False,
+        description=(
+            "Where the record's state (what is noted, what is still expected) is shown to the model. Off (default): "
+            "as a message of the caller, just before their last words. On: at the end of the system instruction, "
+            "rebuilt for every request, which is where the model takes its orders (measured: a model that asked again "
+            "for what the record held read it there). Works with any model."
+        ),
+    )
+    # [.mark] agent-facon-tala (C8) : la forme courte du bloc de la fiche.
+    fiche_forme_courte: bool = Field(
+        default=False,
+        description=(
+            "How much the model is told along with the record's state. Off (default): the block as before, with its "
+            "instructions (\"do not ask again\", \"let the caller choose\"). On: the data lines only (what is noted, "
+            "what is still expected, what the modules read) under a one-line heading; the instructions are the prompt's "
+            "own. Works with any model."
+        ),
+    )
+    # [.mark] agent-facon-tala (C3 bis) : préchauffer le cache du prompt des collègues.
+    prechauffer_les_collegues: bool = Field(
+        default=False,
+        description=(
+            "Whether the colleagues' prompts are read ahead. Off (default): nothing changes. On: at the start of the call, one minimal request per colleague of the group (one token asked, nothing said, nothing written in the conversation) carries the colleague's entry prompt with the agent's cache key, so that the real first request finds the start of that prompt already read and the handoff is shorter. Needs the colleagues to be preloaded (on by default in a group). Works with any model; a provider without a cache just receives an ordinary small request."
+        ),
+    )
+    # [.mark] agent-facon-tala (C1) : l'outil écrit en texte.
+    reconnaitre_un_outil_ecrit: bool = Field(
+        default=False,
+        description=(
+            "What happens when the model's whole reply is only the name of one of its tools (bare or dressed up: "
+            "underscores, italics, punctuation, arguments). Off (default): the reply is kept as written. On: the reply "
+            "becomes the call of that tool, never spoken and never kept in the history. A reply that holds real text "
+            "besides the name is never touched. Works with any model."
+        ),
+    )
     # [.mark] passages-fiables (lot F) : le signalement par l'agent.
     signaler_un_probleme: bool = Field(
         default=False,

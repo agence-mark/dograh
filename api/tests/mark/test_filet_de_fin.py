@@ -43,13 +43,14 @@ from api.tests.test_agent_transfer import TransferHarness
 from pipecat.tests import MockLLMService
 
 
-def graphe_du_collegue(*, avec_retour: bool = True) -> WorkflowGraph:
-    """Un collègue : une étape de départ avec deux sorties (rendre la main, clore)."""
-    noeuds = [
-        _noeud("etape", "startCall", "Qualification", "Tu qualifies."),
-        _noeud("fin", "endCall", "Fin", "Tu remercies."),
-    ]
-    aretes = [_arete("etape", "fin", "Fin")]
+def graphe_du_collegue(*, avec_retour: bool = True, avec_fin: bool = True, fins: list | None = None) -> WorkflowGraph:
+    """Un collègue : une étape de départ avec deux sorties (rendre la main, clore). ``avec_fin`` faux : le collègue n'a que
+    le retour (agent-facon-tala, C2 : le filet prend sa fin propre quand elle existe)."""
+    noeuds = [_noeud("etape", "startCall", "Qualification", "Tu qualifies.")]
+    aretes = []
+    if avec_fin:
+        noeuds.append(_noeud("fin", "endCall", "Fin", "Tu remercies.", **({"fins": fins} if fins else {})))
+        aretes.append(_arete("etape", "fin", "Fin"))
     if avec_retour:
         noeuds.append(
             _noeud("retour", "agentNode", "Retour au principal", "Retour.", retour_au_principal=True)
@@ -124,7 +125,7 @@ async def _monter(*, filet: bool = True, collegue: WorkflowGraph | None = None, 
     await harness.build(
         source_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
         destination_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
-        source_workflow=collegue or graphe_du_collegue(),
+        source_workflow=collegue or graphe_du_collegue(avec_fin=False),
         destination_workflow=graphe_de_l_accueil(),
     )
     engine = harness.engine
@@ -208,7 +209,7 @@ async def test_les_formules_de_l_organisation_remplacent_celles_par_defaut():
 async def test_le_filet_ne_fait_rien_hors_de_son_cas(cas):
     harness = await _monter(
         filet=cas != "case éteinte",
-        collegue=graphe_du_collegue(avec_retour=cas != "pas de sortie retour"),
+        collegue=graphe_du_collegue(avec_retour=cas != "pas de sortie retour", avec_fin=False),
     )
     try:
         engine = harness.engine
@@ -300,3 +301,94 @@ async def test_un_branchement_qui_echoue_ne_coute_jamais_l_appel():
             raise RuntimeError("agrégateur inattendu")
 
     brancher_le_filet_de_fin(_Moteur(), _Casse())  # ne lève pas
+
+
+# --------------------------------------------------------------------------- #
+# agent-facon-tala, C2 : la sortie de fin du collègue, et un seul au revoir
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_c2_le_collegue_a_une_sortie_fin_le_filet_la_prend_au_lieu_du_retour():
+    harness = await _monter(collegue=graphe_du_collegue())
+    try:
+        engine = harness.engine
+        engine.end_call_with_reason = AsyncMock()
+        engine.queue_node_opening = AsyncMock()
+        depart = engine.etat_pour_le_filet()
+        assert await engine.filet_de_fin("Très bien, bonne journée.", depart) is True
+        for tache in list(engine._taches_de_porte):
+            await asyncio.wait_for(tache, 5)
+        # Pas de retour à l'accueil : le collègue clôt lui-même, l'appel raccroche.
+        assert not engine.transfer_coordinator.in_progress and not engine.transfer_coordinator.completed
+        assert engine.active_agent.workflow_id == COLLEGUE and engine.active_agent.current_node.id == "fin"
+        engine.end_call_with_reason.assert_awaited_once()
+        trace = engine._gathered_context["porte_reecrite"]
+        assert [t["ecrite"] for t in trace] == [TRACE_FILET] and trace[0]["vers"] == "Fin"
+    finally:
+        await harness.stop()
+
+
+@pytest.mark.asyncio
+async def test_c2_la_fin_figee_du_collegue_n_est_pas_redite_apres_son_au_revoir():
+    harness = await _monter(collegue=graphe_du_collegue(fins=[{"phrase": "Au revoir et merci."}]))
+    try:
+        engine = harness.engine
+        engine.end_call_with_reason = AsyncMock()
+        engine._dire_la_fin_figee = AsyncMock()
+        depart = engine.etat_pour_le_filet()
+        assert engine._phrase_de_fin_figee(engine.active_agent, "fin") is not None  # le nœud a bien une phrase figée
+        assert await engine.filet_de_fin("Bonne journée !", depart) is True
+        for tache in list(engine._taches_de_porte):
+            await asyncio.wait_for(tache, 5)
+        engine._dire_la_fin_figee.assert_not_called()
+        engine.end_call_with_reason.assert_awaited_once()
+    finally:
+        await harness.stop()
+
+
+@pytest.mark.asyncio
+async def test_c2_une_porte_fin_ordinaire_dit_toujours_sa_fin_figee():
+    harness = await _monter(collegue=graphe_du_collegue(fins=[{"phrase": "Au revoir et merci."}]))
+    try:
+        engine = harness.engine
+        engine.end_call_with_reason = AsyncMock()
+        engine._dire_la_fin_figee = AsyncMock()
+        assert await engine.prendre_porte_ecrite("fin") == "prise"
+        for tache in list(engine.__dict__.get("_taches_du_groupe", ())):
+            await asyncio.wait_for(tache, 5)
+        engine._dire_la_fin_figee.assert_called_once()
+    finally:
+        await harness.stop()
+
+
+@pytest.mark.asyncio
+async def test_c2_au_retour_filet_l_accueil_ne_redit_pas_sa_fin_figee_le_collegue_a_dit_au_revoir():
+    accueil = graphe_de_l_accueil()
+    accueil.nodes["fin"].data.fins = [{"phrase": "Au revoir et bonne journée."}]
+    harness = TransferHarness()
+    await harness.build(
+        source_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
+        destination_llm=MockLLMService(mock_steps=[], chunk_delay=0.001),
+        source_workflow=graphe_du_collegue(avec_fin=False),
+        destination_workflow=accueil,
+    )
+    try:
+        engine = harness.engine
+        engine.reglages_appel = {"agents_specialises": [COLLEGUE]}
+        engine.active_agent.reglages = {"agent_principal_id": PRINCIPAL, "filet_de_fin": True}
+        engine._fiche = ReglagesFiche.depuis(dict(FICHE_REGLAGES))
+        await harness.start()
+        await engine.set_node("etape")
+        engine.end_call_with_reason = AsyncMock()
+        engine._dire_la_fin_figee = AsyncMock()
+        engine.queue_node_opening = AsyncMock()
+        assert await engine.filet_de_fin("Bonne journée.", engine.etat_pour_le_filet()) is True
+        await _attendre_la_passation(harness)
+        for tache in list(engine._taches_de_porte) + list(engine.__dict__.get("_taches_du_groupe", ())):
+            await asyncio.wait_for(tache, 5)
+        assert engine.active_agent.workflow_id == PRINCIPAL and engine.active_agent.current_node.id == "fin"
+        engine._dire_la_fin_figee.assert_not_called()
+        engine.end_call_with_reason.assert_awaited_once()
+    finally:
+        await harness.stop()

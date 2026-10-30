@@ -18,7 +18,7 @@ le jeton de visite d'étape. Il porte aussi :
 - **la notice d'un tour** : l'étape d'arrivée d'un passage fait par le code reçoit, sur sa première requête, le compte
   rendu « ce qui vient de se passer… L'appelant a entendu : « … ». Ne la répète pas. » (dans une copie du contexte de
   CETTE requête, jamais dans l'historique) ;
-- **l'option 2** : sur une étape réglée « attendre le dernier champ », quand un seul champ manque, la requête de l'agent
+- **l'option 2** (et, figeage-v12, « attendre à chaque tour ») : sur une étape réglée « attendre le dernier champ », quand un seul champ manque, la requête de l'agent
   attend (au plus le délai) la passe du greffier sur la dernière parole ; si la condition devient vraie, le passage a
   lieu **avant** que l'agent parle, et l'étape d'arrivée parle directement. Sauf vers une fin, un retour au principal
   ou un transfert garanti : l'option 1 joue alors ;
@@ -47,6 +47,9 @@ RAISON_ARBITRE = "arbitre"
 
 AGENT, COLLECTE, CHOIX, LIBRE = "agent", "collecte", "choix", "libre"
 APRES_LA_REPONSE, ATTENDRE_LE_DERNIER_CHAMP = "apres_la_reponse", "attendre_le_dernier_champ"
+# figeage-v12 (D4) : la fiche a un tour de retard (le greffier part EN MÊME TEMPS que la requête de l'agent, jamais avant) ;
+# sur une étape de collecte réglée ainsi, la requête attend la passe du greffier sur la dernière parole à CHAQUE tour.
+ATTENDRE_A_CHAQUE_TOUR = "attendre_a_chaque_tour"
 
 # Le fait du compte rendu de la notice d'un tour (une consigne au modèle, jamais dite à l'appelant).
 FAIT_DU_PASSAGE = "le code est passé à l'étape suivante, parce que la fiche ou la conversation le demandait"
@@ -69,6 +72,15 @@ class Reglages:
     @property
     def option_2(self) -> bool:
         return self.qui == COLLECTE and self.moment == ATTENDRE_LE_DERNIER_CHAMP
+
+    @property
+    def attend_a_chaque_tour(self) -> bool:
+        return self.qui == COLLECTE and self.moment == ATTENDRE_A_CHAQUE_TOUR
+
+    @property
+    def attend_le_greffier(self) -> bool:
+        """La requête de l'agent attend la passe du greffier sur la dernière parole (option 2, ou chaque tour)."""
+        return self.option_2 or self.attend_a_chaque_tour
 
 
 def reglages_du_passage(noeud: Any) -> Reglages:
@@ -467,7 +479,7 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         noeud = agent.current_node
         r = reglages_du_passage(noeud)
         greffier = getattr(moteur, "greffier", None)
-        if not r.option_2 or greffier is None or getattr(noeud, "is_end", False):
+        if not r.attend_le_greffier or greffier is None or getattr(noeud, "is_end", False):
             return False
         if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
             return False
@@ -482,7 +494,9 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         manque = champs_attendus(
             reglages, fiche, champs_actifs(noeud, fiche), valeurs_des_traces(reglages, fiche)
         )
-        if len(manque) != 1:
+        # Option 2 : un seul champ manque. Chaque tour (D4) : à tout tour d'une étape de collecte, pour que la fiche montrée
+        # à l'agent contienne ce que la personne vient de dire.
+        if not r.attend_a_chaque_tour and len(manque) != 1:
             return False
         jeton = moteur.jeton_de_visite()
         reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))
@@ -500,4 +514,48 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         return await passer(moteur, arete, raison=RAISON_FICHE, jeton=jeton, lecture=lecture, option=2)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[passage] option 2 non jouée : {erreur!r}")
+        return False
+
+
+async def fiche_deja_vraie_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float | None = None) -> bool:
+    """D7 (figeage-v12) : une condition de la fiche déjà vraie quand la requête part se prend AVANT la requête, sans relance
+    (comme l'option 2), au lieu de « à la fin de la réplique » : l'agent répondait alors dans l'étape de départ, posait déjà
+    la question de l'étape suivante, puis l'étape d'arrivée la posait encore (deux paroles dans un tour, le doublon entrait
+    dans l'historique et se recopiait). Sans attente ajoutée quand rien n'est vrai : seule une porte déjà vraie sur la fiche
+    d'aujourd'hui attend la passe du greffier sur la dernière parole (au plus le délai de l'étape), pour que la parole
+    nouvelle (une correction) soit lue avant de passer ; la condition doit rester vraie. Délai dépassé, vers une fin, un
+    retour au principal ou un transfert garanti : rien, l'option 1 jouera en fin de réplique, comme avant. Étape qui ne lit
+    pas la fiche : rien. Rend ``True`` si la porte a été prise. ⛔ Ne lève jamais."""
+    try:
+        agent = moteur.active_agent
+        if getattr(agent, "llm", None) is not llm:
+            return False
+        noeud = agent.current_node
+        if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
+            return False
+        if not reglages_du_passage(noeud).le_code_lit_la_fiche:
+            return False
+        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+            return False
+        if porte_a_prendre_sur_la_fiche(moteur, noeud) is None:
+            return False
+        jeton = moteur.jeton_de_visite()
+        r = reglages_du_passage(noeud)
+        greffier = getattr(moteur, "greffier", None)
+        if greffier is not None:
+            reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))
+            if not await greffier.rattraper(reste):
+                tracer(moteur, etape=getattr(noeud, "name", None), option=2, resultat="delai_option_1_jouera", raison=RAISON_FICHE)
+                return False
+        if jeton != moteur.jeton_de_visite() or la_personne_parle(moteur):
+            return False
+        trouvee = porte_a_prendre_sur_la_fiche(moteur, noeud)
+        if trouvee is None:
+            return False
+        arete, lecture = trouvee
+        if not _cible_sans_relance(moteur, agent, arete):
+            return False
+        return await passer(moteur, arete, raison=RAISON_FICHE, jeton=jeton, lecture=lecture, option=2)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] fiche déjà vraie non jouée avant la requête : {erreur!r}")
         return False

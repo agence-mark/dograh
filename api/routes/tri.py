@@ -2,6 +2,8 @@
 
 - ``GET /tri`` : les signalements (de l'agent et du code) des appels des 30 derniers jours, 50 appels par page, filtre par
   agent et par statut ;
+- ``GET /tri/taux`` : par agent, sur 7 ou 30 jours, les appels, la part des impasses et la part des reprises (le modèle repris qui
+  s'est corrigé seul, sans impasse) ; lecture seule (agent-facon-tala, lot D) ;
 - ``PUT /tri/{run_id}`` : change le statut d'un signalement (``annotations["tri"]`` du run, rien d'autre ne bouge) ;
 - ``GET /alertes`` : les alertes de l'organisation (problème du client). Le portail (écran .mark, côté client) lira cette
   route plus tard ; rien du portail n'est codé ici.
@@ -127,6 +129,35 @@ async def lire_la_file_de_tri(
     return PageDeTri(
         lignes=lignes[page * par_page : (page + 1) * par_page], page=page, a_une_suite=suite, recherche_tronquee=tronquee
     )
+
+
+class LigneDeTaux(BaseModel):
+    workflow_id: int
+    workflow_nom: str
+    appels: int
+    avec_impasse: int
+    part_impasse: Optional[float] = None
+    # La part des reprises se lit sur les seuls appels qui portent le compteur ; leur nombre est rendu à côté.
+    appels_avec_compteur: int
+    avec_reprise_sans_impasse: int
+    part_reprise: Optional[float] = None
+
+
+class TauxDeSortieDImpasse(BaseModel):
+    jours: int
+    lignes: list[LigneDeTaux]
+
+
+@router.get("/tri/taux", response_model=TauxDeSortieDImpasse)
+async def lire_les_taux_de_sortie_d_impasse(
+    jours: int = Query(7, ge=1, le=donnees.JOURS_DE_LECTURE),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> TauxDeSortieDImpasse:
+    """Par agent de l'organisation de l'utilisateur : les appels, la part de ceux qui ont eu une impasse, la part de ceux où le
+    modèle s'est corrigé seul après une consigne (reprise sans impasse). Lecture seule, 7 ou 30 jours."""
+    periode = donnees.jours_des_taux(jours)
+    lignes = await db_client.taux_de_sortie_d_impasse(user.selected_organization_id, jours=periode)
+    return TauxDeSortieDImpasse(jours=periode, lignes=[LigneDeTaux(**ligne) for ligne in lignes])
 
 
 @router.put("/tri/{run_id}", response_model=StatutEcrit)

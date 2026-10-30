@@ -526,8 +526,12 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # Then 47 on 2026-10-29: letting the caller take their time, the agent's
     # silent report, the grouped alert mail (plan passages-fiables, E, F, G),
     # all three in the schema with the same value (the loop above says so).
-    assert len(ecran) == 47, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 47. "
+    # Then 51 on 2026-10-30: four switches off by default, declared on both sides
+    # with the same value (the loop above says so): the record in the system
+    # instruction (figeage-v12, D4), the colleagues' warm-up, the tool written as
+    # text and the short record block (plan agent-facon-tala, C1, C3 bis, C8).
+    assert len(ecran) == 51, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 51. "
         f"A setting added on one side only renders and is then dropped."
     )
 

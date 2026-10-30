@@ -601,4 +601,4 @@ async def test_traversant_le_specialiste_recoit_son_bloc_equipe_case_eteinte(
         )
     global_ = _prompt((await db_session.get_draft_version(workflow.id)).workflow_json, "global")
     assert "Ton rôle : un spécialiste de la mission a." in global_
-    assert "tu écris la sortie Demande" in global_ and "# Tes étapes" in global_
+    assert "tu appelles l'outil Demande" in global_ and "# Tes étapes" in global_

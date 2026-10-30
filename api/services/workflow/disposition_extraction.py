@@ -24,7 +24,7 @@ that happened to be active when it ended.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from typing import Any
 
 from loguru import logger
@@ -88,11 +88,14 @@ class DispositionExtractionService:
         context: LLMContext,
         options: Sequence[CallDispositionOption],
         template_context: Mapping[str, Any],
+        reservees: Callable[[], Awaitable[Iterable[str]]] | None = None,
     ) -> None:
         self._llm = llm
         self._context = context
         self._options = tuple(options)
         self._template_context = dict(template_context)
+        # [.mark] agent-facon-tala, lot 7 (F3): outcomes a transfer tool sets itself on success; never classified.
+        self._reservees = reservees
 
     async def extract(
         self,
@@ -100,9 +103,16 @@ class DispositionExtractionService:
         parent_context: Any = None,
         organization_id: int | None = None,
         workflow_run_id: int | None = None,
+        fiche: str | None = None,
     ) -> str | None:
-        """Return the configured disposition supported by the conversation."""
+        """Return the configured disposition supported by the conversation.
+
+        [.mark] agent-facon-tala, C4: ``fiche`` is what the call's record noted (the conversation can be cut
+        short at agent changes); the classifier reads it with the conversation. ``None``: as before."""
         if not self._options or self._llm is None or self._context is None:
+            return None
+        options = await self._options_classables()
+        if not options:
             return None
         if not has_user_turns(self._context):
             logger.debug(
@@ -111,7 +121,7 @@ class DispositionExtractionService:
             return None
 
         try:
-            messages = [{"role": "user", "content": self._build_user_prompt()}]
+            messages = [{"role": "user", "content": self._build_user_prompt(fiche, options)}]
             inference_context = LLMContext()
             inference_context.set_messages(messages)
             response = await self._run_inference(
@@ -135,7 +145,7 @@ class DispositionExtractionService:
 
             return _validate_disposition(
                 extracted.get(CALL_DISPOSITION_CONTEXT_KEY),
-                (option.code for option in self._options),
+                (option.code for option in options),
             )
         except Exception as error:
             metadata = failure_metadata_for_processor(self._llm)
@@ -152,7 +162,24 @@ class DispositionExtractionService:
             )
             return None
 
-    def _build_user_prompt(self) -> str:
+    async def _options_classables(self) -> tuple[CallDispositionOption, ...]:
+        """[.mark] lot 7 (F3): the options minus the outcomes reserved to a transfer tool's real result.
+        Never raises: on any difficulty the full list is kept, as before."""
+        if self._reservees is None:
+            return self._options
+        try:
+            from api.services.workflow.issue_reservee import sans_les_reservees
+
+            return tuple(sans_les_reservees(self._options, await self._reservees()))
+        except Exception as error:  # noqa: BLE001
+            logger.warning(f"Reserved outcomes unreadable; keeping the full list: {error!r}")
+            return self._options
+
+    def _build_user_prompt(
+        self,
+        fiche: str | None = None,
+        options_classables: Sequence[CallDispositionOption] | None = None,
+    ) -> str:
         options = [
             option.model_copy(
                 update={
@@ -162,10 +189,16 @@ class DispositionExtractionService:
                     )
                 }
             ).model_dump()
-            for option in self._options
+            for option in (self._options if options_classables is None else options_classables)
         ]
         choices = json.dumps(options, ensure_ascii=False, indent=2)
         conversation_history = build_conversation_history(self._context)
+        # [.mark] C4: what the call's record noted, after the conversation (same prompt when there is none).
+        bloc_fiche = (
+            f"\n\nWhat the call's record noted (it can be fuller than the conversation above):\n{fiche}"
+            if fiche
+            else ""
+        )
         return (
             "Set call_disposition to exactly one code from the configured options "
             "below. Return the code exactly as written, not its description. If "
@@ -173,6 +206,7 @@ class DispositionExtractionService:
             "to null. Never invent a new code.\n\n"
             f"Configured dispositions (JSON):\n{choices}\n\n"
             f"Conversation history:\n{conversation_history}"
+            f"{bloc_fiche}"
         )
 
     async def _run_inference(

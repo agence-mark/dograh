@@ -60,9 +60,9 @@ export interface StartCall {
      */
     qui_decide_du_passage?: "agent" | "collecte" | "choix" | "libre";
     /**
-     * After the reply (default): the code passes once the agent has answered. Wait for the last field: when a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, and the next step speaks at once.
+     * After the reply (default): the code passes once the agent has answered. Wait for the last field: when a single field is missing, the request waits (briefly) for the clerk to read the caller's last words, and the next step speaks at once. Wait at every turn (collection steps): the request always waits (briefly) for the clerk, so the record shown to the agent holds what the caller just said.
      */
-    moment_du_passage?: "apres_la_reponse" | "attendre_le_dernier_champ";
+    moment_du_passage?: "apres_la_reponse" | "attendre_le_dernier_champ" | "attendre_a_chaque_tour";
     /**
      * How long the agent's reply may wait for the clerk (Wait for the last field) or for the arbiter, before it leaves without them. Default 1.5.
      */

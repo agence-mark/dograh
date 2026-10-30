@@ -237,6 +237,17 @@ def test_k6b_le_greffier_sait_que_ne_pas_savoir_n_est_pas_refuser():
     assert "jamais « refusé »" in consigne
 
 
+def test_ne_pas_l_avoir_sous_la_main_n_est_pas_refuser():
+    """agent-facon-tala (banc 2, S9) : « je ne l'ai pas sous la main » donnait « refusé » ; c'est un champ vide, comme
+    « je ne sais pas »."""
+    montage = _Montage(_Modele(), _config())
+    consigne = consigne_du_greffier(montage.reglages, None)
+    regle = next(l for l in consigne.splitlines() if l.startswith("- Ne pas savoir n'est pas refuser"))
+    assert "sous la main" in regle and "jamais « refusé »" in regle
+    refus = next(l for l in consigne.splitlines() if "refuse de donner une information" in l)
+    assert "sous la main" not in refus
+
+
 # --------------------------------------------------------------------------- #
 # K6c : l'accent
 # --------------------------------------------------------------------------- #

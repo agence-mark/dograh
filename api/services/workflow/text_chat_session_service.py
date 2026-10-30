@@ -20,6 +20,7 @@ from api.services.workflow.text_chat_logs import (
 from api.services.workflow.text_chat_runner import (
     default_text_chat_checkpoint,
     execute_text_chat_pending_turn,
+    extract_text_chat_final_disposition,
     extract_text_chat_final_variables,
     merge_text_chat_usage_info,
     normalize_text_chat_checkpoint,
@@ -193,6 +194,8 @@ def _build_text_chat_completion_write(
     disposition: str,
     mapped_disposition: str,
     extracted: dict[str, Any],
+    issue: str | None = None,
+    mapped_issue: str | None = None,
 ) -> dict[str, Any]:
     """Project one session snapshot into the completion write's arguments.
 
@@ -208,6 +211,9 @@ def _build_text_chat_completion_write(
     call_tags = list(gathered_context.get("call_tags") or [])
     if disposition not in call_tags:
         call_tags.append(disposition)
+    # [.mark] C4: the business outcome is a tag too (like a voice call's refined disposition).
+    if issue and issue not in call_tags:
+        call_tags.append(issue)
     # A workflow author turns an extracted variable into a call tag by naming it
     # `tag_*`; PipecatEngine.record_call_tags does this promotion on the voice
     # path, after extraction has landed.
@@ -228,8 +234,9 @@ def _build_text_chat_completion_write(
         "usage_info": usage_info,
         "gathered_context": {
             **extracted,
-            "call_disposition": disposition,
-            "mapped_call_disposition": mapped_disposition,
+            # [.mark] C4: the business outcome when there is one; the status below stays the mechanism.
+            "call_disposition": issue or disposition,
+            "mapped_call_disposition": (mapped_issue if issue else None) or mapped_disposition,
             # Text chats end on an explicit completion reason rather than a
             # teardown Dograh observed, so mechanism and outcome coincide.
             "call_status": disposition,
@@ -294,6 +301,21 @@ async def complete_text_chat_session(
         session_data=normalize_text_chat_session_data(text_session.session_data),
     )
 
+    # [.mark] agent-facon-tala, C4: the business outcome at EVERY ending (hangup, inactivity, end of the
+    # keyboard), from the conversation and the record, like a voice call's teardown. ``None``: the list has no
+    # outcome to take, the mechanical status stays.
+    issue = await extract_text_chat_final_disposition(
+        workflow_run_id=run_id,
+        workflow_id=workflow_run.workflow_id,
+        organization_id=workflow_run.workflow.organization_id,
+        checkpoint=text_session.checkpoint,
+        session_data=normalize_text_chat_session_data(text_session.session_data),
+        extracted=extracted,
+    )
+    mapped_issue = (
+        await map_disposition(workflow_run.workflow.organization_id, issue) if issue else None
+    )
+
     # The snapshot this write is built from was read before the extraction
     # above, which waits on an LLM for a second or more. Guard the write with
     # the revision that snapshot came from even when the caller pinned none,
@@ -312,6 +334,8 @@ async def complete_text_chat_session(
                 disposition=disposition,
                 mapped_disposition=mapped_disposition,
                 extracted=extracted,
+                issue=issue,
+                mapped_issue=mapped_issue,
             ),
         )
     except WorkflowRunTextSessionRevisionConflictError as e:
@@ -340,6 +364,8 @@ async def complete_text_chat_session(
                     disposition=disposition,
                     mapped_disposition=mapped_disposition,
                     extracted=extracted,
+                    issue=issue,
+                    mapped_issue=mapped_issue,
                 ),
             )
         except WorkflowRunTextSessionRevisionConflictError as retry_error:

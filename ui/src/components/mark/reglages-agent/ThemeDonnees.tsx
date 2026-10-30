@@ -185,6 +185,26 @@ export const ThemeDonnees = ({
     const [connuEtAttendu, setConnuEtAttendu] = useState(connuEtAttenduEnregistre);
     useEffect(() => setConnuEtAttendu(connuEtAttenduEnregistre), [connuEtAttenduEnregistre]);
     const connuEtAttenduModifie = connuEtAttendu !== connuEtAttenduEnregistre;
+    // figeage-v12 (D4): the record's state at the end of the system instruction. Off by default; every note-taking mode.
+    const ficheSystemeEnregistree = resolue.fiche_dans_le_systeme ?? false;
+    const [ficheSysteme, setFicheSysteme] = useState(ficheSystemeEnregistree);
+    useEffect(() => setFicheSysteme(ficheSystemeEnregistree), [ficheSystemeEnregistree]);
+    const ficheSystemeModifiee = ficheSysteme !== ficheSystemeEnregistree;
+    // agent-facon-tala (C8): the short form of the record's block. Off by default; every note-taking mode.
+    const ficheCourteEnregistree = resolue.fiche_forme_courte ?? false;
+    const [ficheCourte, setFicheCourte] = useState(ficheCourteEnregistree);
+    useEffect(() => setFicheCourte(ficheCourteEnregistree), [ficheCourteEnregistree]);
+    const ficheCourteModifiee = ficheCourte !== ficheCourteEnregistree;
+    // agent-facon-tala (C3 bis): read the colleagues' prompts ahead (cache warm-up). Off by default; any agent.
+    const prechauffeEnregistre = resolue.prechauffer_les_collegues ?? false;
+    const [prechauffe, setPrechauffe] = useState(prechauffeEnregistre);
+    useEffect(() => setPrechauffe(prechauffeEnregistre), [prechauffeEnregistre]);
+    const prechauffeModifie = prechauffe !== prechauffeEnregistre;
+    // agent-facon-tala (C1): a reply that is only a tool name becomes the call of that tool. Off by default; any agent.
+    const outilEcritEnregistre = resolue.reconnaitre_un_outil_ecrit ?? false;
+    const [outilEcrit, setOutilEcrit] = useState(outilEcritEnregistre);
+    useEffect(() => setOutilEcrit(outilEcritEnregistre), [outilEcritEnregistre]);
+    const outilEcritModifie = outilEcrit !== outilEcritEnregistre;
     // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
     const transfertEnregistre = resolue.transfert_garanti ?? false;
     const [transfert, setTransfert] = useState(transfertEnregistre);
@@ -364,6 +384,10 @@ export const ThemeDonnees = ({
         || generalModifie
         || apresAppelModifie
         || connuEtAttenduModifie
+        || ficheSystemeModifiee
+        || outilEcritModifie
+        || prechauffeModifie
+        || ficheCourteModifiee
         || transfertModifie
         || formulationsModifiees
         || redemandeModifiee
@@ -413,6 +437,30 @@ export const ThemeDonnees = ({
                 },
                 modifie: connuEtAttenduModifie,
                 config: () => ({ etiquettes_des_etapes: connuEtAttendu, fiche_deja_connu: connuEtAttendu }),
+            },
+            {
+                // figeage-v12 (D4): its own part, sent only when changed (E6).
+                nom: { en: "Record in the system instruction", fr: "Fiche dans l'instruction système" },
+                modifie: ficheSystemeModifiee,
+                config: () => ({ fiche_dans_le_systeme: ficheSysteme }),
+            },
+            {
+                // agent-facon-tala (C8): its own part, sent only when changed (E6).
+                nom: { en: "Short record block", fr: "Bloc de fiche court" },
+                modifie: ficheCourteModifiee,
+                config: () => ({ fiche_forme_courte: ficheCourte }),
+            },
+            {
+                // agent-facon-tala (C3 bis): its own part, sent only when changed (E6).
+                nom: { en: "Warm up the colleagues", fr: "Préchauffer les collègues" },
+                modifie: prechauffeModifie,
+                config: () => ({ prechauffer_les_collegues: prechauffe }),
+            },
+            {
+                // agent-facon-tala (C1): its own part, sent only when changed (E6).
+                nom: { en: "Tool written as text", fr: "Outil écrit en texte" },
+                modifie: outilEcritModifie,
+                config: () => ({ reconnaitre_un_outil_ecrit: outilEcrit }),
             },
             {
                 nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
@@ -615,6 +663,18 @@ export const ThemeDonnees = ({
                         </ChampReglage>
                     </div>
                 )}
+                {/* figeage-v12 (D4): where the model reads the record, next to what it shows. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
+                )}
+                {/* agent-facon-tala (C8): the short form of what the model reads about the record. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_forme_courte" valeur={ficheCourte} onChange={(v) => setFicheCourte(Boolean(v))} />
+                )}
+                {/* agent-facon-tala (C1): independent of the record, so outside the record condition. */}
+                {/* agent-facon-tala (C3 bis): independent of the record. */}
+                <Reglage cle="prechauffer_les_collegues" valeur={prechauffe} onChange={(v) => setPrechauffe(Boolean(v))} />
+                <Reglage cle="reconnaitre_un_outil_ecrit" valeur={outilEcrit} onChange={(v) => setOutilEcrit(Boolean(v))} />
                 {/* Plan postscriptum-note-d-abord (Q2 bis); modules-et-cerveaux (lot 2): clerk mode too,
                     next to the known fields. */}
                 {ficheActive && (modeDeNote === "post_scriptum" || modeDeNote === "greffier") && (
