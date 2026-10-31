@@ -95,7 +95,9 @@ def test_l_adresse_d_un_fournisseur_est_en_https(monde):
 def test_seule_l_equipe_regle_le_cerveau(monde):
     reponse = client_pour(AUTRE).put("/builder/cerveau", json={**REGLAGES, "cle": CLE})
     assert reponse.status_code == 403 and not monde.credentials
-    assert client_pour(AUTRE).get("/builder/cerveau").status_code == 200  # tout le monde lit les réglages, pas la clé
+    # Revue N3 : le modèle, le plafond et la présence d'une clé sont ceux de .mark, pas ceux d'un client.
+    assert client_pour(AUTRE).get("/builder/cerveau").status_code == 403
+    assert client_pour(EQUIPE).get("/builder/cerveau").status_code == 200
 
 
 # --- la conversation en flux ----------------------------------------------------------------------------------------------
@@ -232,10 +234,12 @@ async def test_utilisee_par_n_agents_et_import_avec_comparatif_par_l_ecran(monde
     c = client_pour(EQUIPE)
     c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
     await service.enregistrer_utilisation("moules-etape", "qualifier", 1, ORG_CLIENT, AGENT)
-    assert client_pour(AUTRE).get("/builder/bibliotheque/moules-etape/qualifier/utilisation").json() == {
+    assert client_pour(EQUIPE).get("/builder/bibliotheque/moules-etape/qualifier/utilisation").json() == {
         "nombre": 1,
         "agents": [{"organisation": ORG_CLIENT, "agent": AGENT, "version": 1}],
     }
+    # Revue N3 : la liste nomme les organisations et les agents d'autres clients, elle est réservée à l'équipe .mark.
+    assert client_pour(AUTRE).get("/builder/bibliotheque/moules-etape/qualifier/utilisation").status_code == 403
     corps = {"famille": "regles-redaction", "slug": "guide", "titre": "Guide", "contenu": {"texte": "a"}, "origine": {"source": "https://x.test/g", "licence": "MIT", "date": "2026-10-31"}}
     premier = c.post("/builder/bibliotheque/import", json=corps).json()
     assert premier["cree"] is True and premier["element"]["versions"][0]["origine"]["licence"] == "MIT"
@@ -356,3 +360,27 @@ def test_la_route_de_l_essai_est_cloisonnee_par_organisation(monde, monkeypatch)
     corps = {"workflow_id": AGENT, "outil": "reserver", "donnees_test": {}}
     assert client_pour(AUTRE).post("/builder/outils/essai", json=corps).status_code == 404  # l'agent n'est pas le sien
     assert appels == []
+
+
+async def test_la_liste_des_agents_d_une_recette_est_filtree_sur_l_organisation_de_la_personne(monde):
+    """Revue N3 : l'équipe .mark voit tous les clients ; toute autre personne ne voit que les agents de sa propre organisation."""
+    from api.routes import builder_tests
+
+    c = client_pour(EQUIPE)
+    c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
+    await service.enregistrer_utilisation("moules-etape", "qualifier", 1, ORG_CLIENT, AGENT)
+    await service.enregistrer_utilisation("moules-etape", "qualifier", 1, 8, 77)  # un agent de l'organisation de AUTRE
+    await service.enregistrer_utilisation("moules-etape", "qualifier", 1, 9, 88)  # un agent d'une troisième organisation
+
+    def appeler(user):
+        app = FastAPI()
+        app.include_router(builder_tests.router)
+        app.dependency_overrides[get_user_with_selected_organization] = lambda: user
+        return TestClient(app).get("/builder/tests/recette/moules-etape/qualifier/agents")
+
+    tous = appeler(EQUIPE).json()["agents"]
+    assert {(a["organisation"], a["agent"]) for a in tous} == {(ORG_CLIENT, AGENT), (8, 77), (9, 88)}
+    chez_eux = appeler(AUTRE)
+    assert chez_eux.status_code == 200
+    assert [(a["organisation"], a["agent"]) for a in chez_eux.json()["agents"]] == [(8, 77)]
+    assert "88" not in chez_eux.text

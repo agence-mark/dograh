@@ -238,7 +238,12 @@ async def lister_les_actions(user: UserModel = Depends(get_user_with_selected_or
 
 @router.get("/cerveau", response_model=VueReglagesCerveau)
 async def lire_le_cerveau(user: UserModel = Depends(get_user_with_selected_organization)):
-    """Les réglages, jamais la clé : seulement « posée » ou non."""
+    """Les réglages, jamais la clé : seulement « posée » ou non. Réservé à l'équipe .mark (revue N3) : le modèle, le plafond et
+    la présence d'une clé sont ceux de .mark, pas une information pour l'organisation d'un client."""
+    try:
+        await droits.exiger_l_equipe(user)
+    except ErreurBibliotheque as erreur:
+        raise _refus_bibliotheque(erreur) from None
     return await reglages_cerveau.vue(await reglages_cerveau.organisation_des_reglages(user))
 
 

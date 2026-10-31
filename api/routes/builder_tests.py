@@ -74,10 +74,17 @@ class Preparer(BaseModel):
 
 @router.get("/recette/{famille}/{slug}/agents")
 async def agents_d_une_recette(famille: str, slug: str, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Les agents qui utilisent la recette. L'équipe .mark voit tous les clients ; toute autre personne ne voit QUE les agents de
+    son organisation (revue N3)."""
+    from api.services.builder.bibliotheque import droits
+
     try:
-        return await mise_a_jour.agents_qui_utilisent(famille, slug)
+        vue = await mise_a_jour.agents_qui_utilisent(famille, slug)
     except ErreurBibliotheque as erreur:
         raise HTTPException(status_code=404, detail=str(erreur)) from None
+    if not await droits.est_membre_de_l_equipe(user):
+        vue = {**vue, "agents": [a for a in vue["agents"] if a.get("organisation") == user.selected_organization_id]}
+    return vue
 
 
 @router.post("/recette/{famille}/{slug}/preparer")
