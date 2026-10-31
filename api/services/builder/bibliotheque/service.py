@@ -238,6 +238,7 @@ async def lister(famille: str | None = None, statut: Statut | None = None) -> li
         _verifier_famille(famille)
     prefixe = f"{PREFIXE_BIBLIO}{famille}:" if famille else PREFIXE_BIBLIO
     resumes: list[Resume] = []
+    nombres = await _nombres_d_agents()  # revue R4 : une seule lecture, plus une par élément
     for _cle, brut in await stock.lister(org, prefixe):
         try:
             element = Element.model_validate(brut)
@@ -257,7 +258,7 @@ async def lister(famille: str | None = None, statut: Statut | None = None) -> li
                 date=courante.date,
                 banc=courante.banc,
                 origine=courante.origine,
-                utilisee_par=await nombre_d_agents(element.famille, element.slug),
+                utilisee_par=nombres.get(_cle_usage(element.famille, element.slug), 0),
             )
         )
     return resumes
@@ -293,6 +294,14 @@ async def utilisation(famille: str, slug: str) -> list[dict[str, Any]]:
         {"organisation": int(cle.split(":")[0]), "agent": int(cle.split(":")[1]), "version": valeur.get("version")}
         for cle, valeur in sorted((ligne.get("agents") or {}).items())
     ]
+
+
+async def _nombres_d_agents() -> dict[str, int]:
+    """Le nombre d'agents de chaque élément, en UNE lecture filtrée par préfixe (clé d'usage -> nombre)."""
+    org = organisation_bibliotheque()
+    if org is None:
+        return {}
+    return {cle: len((valeur.get("agents") or {})) for cle, valeur in await stock.lister(org, PREFIXE_USAGE)}
 
 
 async def nombre_d_agents(famille: str, slug: str) -> int:

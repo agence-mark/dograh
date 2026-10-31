@@ -40,6 +40,28 @@ class OrganizationConfigurationClient(BaseDBClient):
             )
             return result.scalars().all()
 
+    async def get_configurations_by_prefix(
+        self, organization_id: int, prefix: str
+    ) -> list[OrganizationConfigurationModel]:
+        """[.mark] The configurations of an organization whose key starts with ``prefix``, sorted by key.
+
+        Filtered by the database (``key LIKE 'prefix%'``), never by loading every row: ``%``, ``_`` and the escape character
+        of the prefix are escaped, so ``MARK_X`` does not match ``MARKAX``. Always bounded by ``organization_id``.
+        """
+        motif = (
+            prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        )
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key.like(motif, escape="\\"),
+                )
+                .order_by(OrganizationConfigurationModel.key)
+            )
+            return list(result.scalars().all())
+
     async def upsert_configuration(
         self,
         organization_id: int,

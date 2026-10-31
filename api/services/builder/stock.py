@@ -27,7 +27,8 @@ async def supprimer(organization_id: int, cle: str) -> bool:
 
 async def lister(organization_id: int, prefixe: str) -> list[tuple[str, dict[str, Any]]]:
     """Les lignes dont la clé commence par ``prefixe`` (triées par clé)."""
-    lignes = await db_client.get_all_configurations(organization_id)
+    # Revue R4 : le filtre par préfixe est fait par la base (``key LIKE``), jamais en chargeant toutes les lignes de l'organisation.
+    lignes = await db_client.get_configurations_by_prefix(organization_id, prefixe)
     trouvees = [
         (ligne.key, ligne.value)
         for ligne in lignes

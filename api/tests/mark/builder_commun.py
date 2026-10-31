@@ -64,6 +64,12 @@ class FauxDb:
     async def get_all_configurations(self, organization_id):
         return [SimpleNamespace(key=k, value=v) for (o, k), v in self.configs.items() if o == organization_id]
 
+    async def get_configurations_by_prefix(self, organization_id, prefix):
+        return sorted(
+            (SimpleNamespace(key=k, value=v) for (o, k), v in self.configs.items() if o == organization_id and k.startswith(prefix)),
+            key=lambda ligne: ligne.key,
+        )
+
     # -- membres --
     async def is_user_member_of_organization(self, user_id, organization_id):
         return (user_id, organization_id) in self.membres
