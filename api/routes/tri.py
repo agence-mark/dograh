@@ -40,6 +40,10 @@ class LigneDeTri(BaseModel):
     etape: Optional[str] = None
     tour: Optional[int] = None
     statut: StatutDeTri
+    # [.mark] builder lot 6 : la personne chargée, l'origine posée (client, recette, code) et celle qu'on suggère.
+    assigne: Optional[int] = None
+    origine: Optional[Literal["client", "recette", "code"]] = None
+    origine_suggeree: Optional[Literal["client", "recette", "code"]] = None
 
 
 class PageDeTri(BaseModel):
@@ -54,13 +58,18 @@ class PageDeTri(BaseModel):
 
 class ChangementDeStatut(BaseModel):
     identifiant: str
-    statut: StatutDeTri
+    # [.mark] builder lot 6 : le statut, l'assigné (``null`` le retire) et l'origine sont chacun facultatifs ; un champ non envoyé ne bouge pas.
+    statut: Optional[StatutDeTri] = None
+    assigne: Optional[int] = None
+    origine: Optional[Literal["client", "recette", "code"]] = None
 
 
 class StatutEcrit(BaseModel):
     run_id: int
     identifiant: str
     statut: StatutDeTri
+    assigne: Optional[int] = None
+    origine: Optional[Literal["client", "recette", "code"]] = None
 
 
 class LigneDAlerte(BaseModel):
@@ -95,9 +104,10 @@ async def lire_la_file_de_tri(
     page: int = Query(0, ge=0),
     workflow_id: Optional[int] = Query(None),
     statut: Optional[StatutDeTri] = Query(None),
+    origine: Optional[Literal["client", "recette", "code"]] = Query(None),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> PageDeTri:
-    if statut is None:
+    if statut is None and origine is None:
         runs, suite = await db_client.runs_avec(
             user.selected_organization_id,
             chemin=donnees.chemin_des_runs_a_trier(),
@@ -109,7 +119,7 @@ async def lire_la_file_de_tri(
     # Le statut se lit dans les annotations du run : le filtre passe AVANT de couper la page. On lit les pages de runs
     # (bornées) jusqu'à remplir celle demandée ; la page 1 filtrée n'est jamais vide quand des lignes existent.
     par_page = donnees.RUNS_PAR_PAGE
-    voulu = (page + 1) * par_page + 1
+    voulu = (page + 1) * par_page + 1  # [.mark] le filtre par statut ou par origine passe AVANT de couper la page
     lignes: list[dict] = []
     lues, encore = 0, True
     while encore and len(lignes) < voulu and lues < MAX_PAGES_DE_RUNS_LUES:
@@ -120,7 +130,7 @@ async def lire_la_file_de_tri(
             page=lues,
             workflow_id=workflow_id,
         )
-        lignes.extend(pages.lignes_de_tri(runs, statut))
+        lignes.extend(pages.lignes_de_tri(runs, statut, origine))
         lues += 1
     # Borne atteinte avant de remplir la page : on ne promet pas une suite qu'on n'a pas lue (une page vide « avec suite »
     # renvoyait l'écran dans le vide) ; la réponse dit que la recherche est tronquée.
@@ -174,9 +184,28 @@ async def changer_le_statut_d_un_signalement(
     signalement = next((s for s in donnees.lire_les_signalements(run["gathered_context"]) if s["id"] == corps.identifiant), None)
     if signalement is None:
         raise HTTPException(status_code=404, detail="Flag not found")
-    if not await db_client.ecrire_le_tri(organisation, run_id, corps.identifiant, corps.statut, user.id):
+    # [.mark] builder lot 6 : on n'assigne qu'une personne de l'organisation (jamais un identifiant pris dans le vide).
+    champs = corps.model_fields_set
+    supplements: dict = {}
+    if "assigne" in champs:
+        if corps.assigne is not None and not await db_client.is_user_member_of_organization(corps.assigne, organisation):
+            raise HTTPException(status_code=404, detail="User not found in this organization")
+        supplements["assigne"] = corps.assigne
+    if "origine" in champs:
+        supplements["origine"] = corps.origine
+    if corps.statut is None and not supplements:
+        raise HTTPException(status_code=422, detail="Nothing to change")
+    if not await db_client.ecrire_le_tri(organisation, run_id, corps.identifiant, corps.statut, user.id, **supplements):
         raise HTTPException(status_code=404, detail="Run not found")
-    return StatutEcrit(run_id=run_id, identifiant=signalement["id"], statut=corps.statut)
+    apres = await db_client.run_de_l_organisation(organisation, run_id)
+    annotations = (apres or {}).get("annotations")
+    return StatutEcrit(
+        run_id=run_id,
+        identifiant=signalement["id"],
+        statut=donnees.statut_d_un_signalement(annotations, signalement["id"]),
+        assigne=donnees.assigne_d_un_signalement(annotations, signalement["id"]),
+        origine=donnees.origine_d_un_signalement(annotations, signalement["id"]),
+    )
 
 
 @router.get("/alertes", response_model=PageDAlertes)

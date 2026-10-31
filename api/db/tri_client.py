@@ -28,6 +28,7 @@ from api.services.tri.donnees import (
     CLE_TRI,
     JOURS_DE_LECTURE,
     RUNS_PAR_PAGE,
+    STATUT_PAR_DEFAUT,
     STATUTS,
     ligne_de_taux,
 )
@@ -40,6 +41,10 @@ class JSONPATH(UserDefinedType):
 
     def get_col_spec(self, **kw: Any) -> str:
         return "JSONPATH"
+
+
+# [.mark] builder lot 6 : « non dit » (distinct de ``None``, qui retire l'assigné).
+_NON_DIT: Any = object()
 
 
 class TriClient(BaseDBClient):
@@ -155,11 +160,20 @@ class TriClient(BaseDBClient):
         return {"run_id": ligne[0], "gathered_context": ligne[1] or {}, "annotations": ligne[2] or {}}
 
     async def ecrire_le_tri(
-        self, organization_id: int, run_id: int, identifiant: str, statut: str, par: int | None = None
+        self,
+        organization_id: int,
+        run_id: int,
+        identifiant: str,
+        statut: str | None,
+        par: int | None = None,
+        *,
+        assigne: Any = _NON_DIT,
+        origine: Any = _NON_DIT,
     ) -> bool:
         """Écrit le statut d'un signalement dans ``annotations["tri"]`` du run, sous verrou de ligne, sans toucher au reste.
-        ``False`` : run absent ou d'une autre organisation, ou statut inconnu."""
-        if statut not in STATUTS:
+        [.mark] builder lot 6 : l'ASSIGNÉ (un identifiant de personne, ``None`` pour retirer) et l'ORIGINE (client, recette, code)
+        s'y rangent aussi ; un champ non dit garde sa valeur. ``False`` : run absent ou d'une autre organisation, ou statut inconnu."""
+        if statut is not None and statut not in STATUTS:
             return False
         async with self.async_session() as session:
             resultat = await session.execute(
@@ -173,7 +187,17 @@ class TriClient(BaseDBClient):
                 return False
             annotations = copy.deepcopy(run.annotations or {})
             tri = dict(annotations.get(CLE_TRI) or {})
-            tri[identifiant] = {"statut": statut, "le": datetime.now(timezone.utc).isoformat(), "par": par}
+            avant = tri.get(identifiant) if isinstance(tri.get(identifiant), dict) else {}
+            entree = {**avant, "le": datetime.now(timezone.utc).isoformat(), "par": par}
+            if statut is not None:
+                entree["statut"] = statut
+            elif "statut" not in entree:
+                entree["statut"] = STATUT_PAR_DEFAUT
+            if assigne is not _NON_DIT:
+                entree["assigne"] = assigne
+            if origine is not _NON_DIT:
+                entree["origine"] = origine
+            tri[identifiant] = entree
             annotations[CLE_TRI] = tri
             run.annotations = annotations
             try:

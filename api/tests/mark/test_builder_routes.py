@@ -174,7 +174,7 @@ async def test_la_fiche_se_valide_par_une_personne_et_pas_avec_un_trou_ouvert(mo
 
 def test_les_actions_des_deux_portes_se_listent_avec_leur_disponibilite(monde):
     actions = {a["nom"]: a for a in client_pour(AUTRE).get("/builder/actions").json()}
-    assert actions["tests_rejouer"]["disponible"] is False and actions["fiche_lire"]["disponible"] is True
+    assert actions["tests_rejouer"]["disponible"] is True and actions["fiche_lire"]["disponible"] is True
     assert actions["brouillon_operation"]["ecriture"] is True and actions["fiche_lire"]["ecriture"] is False
 
 

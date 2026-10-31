@@ -24,6 +24,7 @@ DOMAINES_FICTIFS = (".test", ".invalid", ".example", "example.com", "example.org
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _TELEPHONE = re.compile(r"(?<![\w])(?:\+33|0033|0)\s?[1-9](?:[\s.-]?\d{2}){4}(?![\w])")
 _CHIFFRES_LONGS = re.compile(r"(?<![\w.])\d{9,}(?![\w])")
+CLES_TECHNIQUES = ("version", "organisation_id", "source", "slug", "cree_le", "cree_par", "origine", "obligatoire", "dossier", "donnees_fictives")
 _CHAMPS_DE_PERSONNE = re.compile(r"(nom|prenom|name|adresse|address|mail|email|tel|phone|mobile|portable|naissance|birth|iban|siret|rue|ville|city)")
 
 
@@ -112,8 +113,9 @@ def rendre_fictif(test: dict[str, Any]) -> dict[str, Any]:
     copie = copy.deepcopy(test)
     remplacements: dict[str, str] = {}
     _valeurs_de_personne(copie.get("fiche") or {}, remplacements, faux)
-    for cle in ("historique", "replique", "fiche", "critere", "description"):
-        if cle in copie:
+    # Tout le contenu du test est passé au crible, sauf ses repères techniques.
+    for cle in list(copie):
+        if cle not in CLES_TECHNIQUES:
             copie[cle] = _appliquer(copie[cle], remplacements, faux)
     # La source garde le numéro du run (pour retrouver l'appel), jamais son contenu.
     copie["donnees_fictives"] = True
