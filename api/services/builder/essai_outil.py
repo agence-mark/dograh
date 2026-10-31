@@ -59,14 +59,46 @@ async def _trouver(organisation_id: int, nom: str):
     return None
 
 
-async def essayer(organisation_id: int, workflow_id: int | None, nom: str, donnees_test: dict[str, Any]) -> dict[str, Any]:
-    """Essaie l'outil ``nom`` avec ``donnees_test``. Ne lève que ``ErreurEssai`` (refus normal)."""
+def methode_de(outil: Any) -> str:
+    config = (getattr(outil, "definition", None) or {}).get("config") or {}
+    return str(config.get("method") or "POST").upper()
+
+
+def carte_a_valider(outil: Any, donnees_test: dict[str, Any]) -> dict[str, Any]:
+    """Revue R5 : un essai qui ÉCRIT chez le client (toute méthode autre que GET) ne part pas sans un geste humain. Le builder rend
+    cette carte ; la personne lance l'essai (route dédiée). Rien n'a été appelé, rien n'est rangé : l'outil n'est pas « branché »."""
+    config = (getattr(outil, "definition", None) or {}).get("config") or {}
+    methode, adresse = methode_de(outil), str(config.get("url") or "")
+    message = f"{methode} {adresse} writes at the client's: a person must run this trial (button « Run the trial »). Nothing was called."
+    return {
+        "ok": True,
+        "a_valider": True,
+        "branche": False,
+        "outil": outil.name,
+        "methode": methode,
+        "adresse": adresse,
+        "donnees_test": donnees_test,
+        "raison": "Waiting for a person to run the trial.",
+        "elements": [{"statut": "avertissement", "message": f"{outil.name} : {message}"}],
+        "carte": {"type": "essai_a_valider", "outil": outil.name, "methode": methode, "adresse": adresse, "donnees_test": donnees_test},
+    }
+
+
+async def essayer(
+    organisation_id: int, workflow_id: int | None, nom: str, donnees_test: dict[str, Any], *, geste_humain: bool = False
+) -> dict[str, Any]:
+    """Essaie l'outil ``nom`` avec ``donnees_test``. Ne lève que ``ErreurEssai`` (refus normal).
+
+    ``geste_humain`` : l'essai est lancé par une personne (route dédiée). Sans lui, seul un GET part directement ; toute autre
+    méthode rend la carte « Essai à valider » (revue R5)."""
     if not est_fictive(donnees_test):
         raise ErreurEssai("The test data looks real (e-mail outside .test, phone outside the reserved ranges): use fictitious data only.")
     outil = await _trouver(organisation_id, nom)
     if outil is None:
         raise ErreurEssai(f"Unknown tool: {nom}.")
     categorie = str(getattr(outil.category, "value", outil.category))
+    if categorie == "http_api" and not geste_humain and methode_de(outil) != "GET":
+        return carte_a_valider(outil, donnees_test)
     if categorie != "http_api":
         resultat = _verdict(outil.name, False, f"A tool of category « {categorie} » cannot be tried here: it is not connected until a person tries it.", None, 0)
         await _ranger(organisation_id, workflow_id, resultat)

@@ -307,3 +307,52 @@ async def test_creer_a_partir_d_une_demande_ne_sort_plus_vers_le_service_heberge
 def test_le_sens_de_l_appel_est_toujours_controle(monde):
     reponse = client_pour(EQUIPE).post("/workflow/create/template", json={"call_type": "autre", "use_case": "x", "activity_description": "y"})
     assert reponse.status_code == 422
+
+
+# --- revue R5 : la route du geste humain « Lancer l'essai » -----------------------------------------------------------------------------
+
+
+def _systeme_simule(monde, monkeypatch, appels):
+    from types import SimpleNamespace
+
+    import httpx
+
+    from api.services.builder import essai_outil
+    from api.services.workflow.tools import custom_tool
+
+    vrai = httpx.AsyncClient
+
+    def gestionnaire(requete):
+        appels.append(requete)
+        return httpx.Response(200, json={"ok": True, "creneau": "10h"})
+
+    monkeypatch.setattr(custom_tool.httpx, "AsyncClient", lambda **o: vrai(transport=httpx.MockTransport(gestionnaire), **o))
+    outil = SimpleNamespace(
+        name="reserver", tool_uuid="u", category="http_api",
+        definition={"config": {"method": "POST", "url": "https://systeme.exemple.test/api", "timeout_ms": 1000}},
+    )
+
+    async def liste(organization_id, *a, **k):
+        return [outil] if organization_id == ORG_CLIENT else []
+
+    monkeypatch.setattr(essai_outil.db_client, "get_tools_for_organization", liste)
+
+
+def test_la_route_lance_l_essai_d_un_outil_qui_ecrit_sur_un_geste_humain(monde, monkeypatch):
+    appels = []
+    _systeme_simule(monde, monkeypatch, appels)
+    corps = {"workflow_id": AGENT, "outil": "reserver", "donnees_test": {"email": "personne1@exemple.test"}}
+    reponse = client_pour(EQUIPE).post("/builder/outils/essai", json=corps)
+    assert reponse.status_code == 200 and reponse.json()["branche"] is True
+    assert len(appels) == 1 and appels[0].method == "POST"
+    # des données qui ont l'air réelles : 422, rien n'est appelé
+    mauvais = client_pour(EQUIPE).post("/builder/outils/essai", json={**corps, "donnees_test": {"email": "marie.dupont@gmail.com"}})
+    assert mauvais.status_code == 422 and len(appels) == 1
+
+
+def test_la_route_de_l_essai_est_cloisonnee_par_organisation(monde, monkeypatch):
+    appels = []
+    _systeme_simule(monde, monkeypatch, appels)
+    corps = {"workflow_id": AGENT, "outil": "reserver", "donnees_test": {}}
+    assert client_pour(AUTRE).post("/builder/outils/essai", json=corps).status_code == 404  # l'agent n'est pas le sien
+    assert appels == []

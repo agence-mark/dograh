@@ -12,9 +12,13 @@
  * Also here: the checklist line (« Tasks ») every other action of the builder leaves in the conversation.
  */
 import { Check, CircleDashed, X } from "lucide-react";
+import { useState } from "react";
 
+import { lancerLEssaiDUnOutilApiV1BuilderOutilsEssaiPost } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
+import { Button } from "@/components/ui/button";
+import { detailFromError } from "@/lib/apiError";
 
 import { Carte } from "./Carte";
 
@@ -34,6 +38,20 @@ const T = {
     brut: { en: "Raw result", fr: "Résultat brut" },
     enCours: { en: "In progress", fr: "En cours" },
     taches: { en: "Task", fr: "Tâche" },
+    essaiTitre: { en: "Trial to validate", fr: "Essai à valider" },
+    essaiAide: {
+        en: "This tool writes at the client's. Nothing was called: a person runs the trial, with fictitious data only.",
+        fr: "Cet outil écrit chez le client. Rien n'a été appelé : une personne lance l'essai, avec des données fictives seulement.",
+    },
+    essaiOutil: { en: "Tool", fr: "Outil" },
+    essaiMethode: { en: "Method", fr: "Méthode" },
+    essaiAdresse: { en: "Address", fr: "Adresse" },
+    essaiDonnees: { en: "Test data", fr: "Données de test" },
+    lancer: { en: "Run the trial", fr: "Lancer l'essai" },
+    enEssai: { en: "Trial running...", fr: "Essai en cours..." },
+    branche: { en: "Connected: the system answered with a valid answer.", fr: "Branché : le système a répondu une réponse valide." },
+    nonBranche: { en: "Not connected:", fr: "Non branché :" },
+    essaiEchec: { en: "The trial could not run.", fr: "L'essai n'a pas pu partir." },
 } satisfies Record<string, Texte>;
 
 const CLES_DE_LISTE = ["elements", "defauts", "resultats", "outils", "tests", "items", "lignes", "scenarios"];
@@ -82,12 +100,89 @@ const ICONE = {
     inconnu: <CircleDashed className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />,
 };
 
-export function CarteResultat({ nomDeLAction, resultat, erreur }: { nomDeLAction: string; resultat?: unknown; erreur?: boolean }) {
+/** The « trial to validate » shape the server renders for a tool that writes at the client's (review R5). */
+export function essaiAValider(resultat: unknown): { outil: string; methode: string; adresse: string; donnees: Objet } | null {
+    if (!estObjet(resultat) || resultat.a_valider !== true) return null;
+    return {
+        outil: String(resultat.outil ?? ""),
+        methode: String(resultat.methode ?? ""),
+        adresse: String(resultat.adresse ?? ""),
+        donnees: estObjet(resultat.donnees_test) ? resultat.donnees_test : {},
+    };
+}
+
+/** The person's gesture: runs the trial through its own route (the builder has no way to). */
+function EssaiAValider({ essai, workflowId }: { essai: NonNullable<ReturnType<typeof essaiAValider>>; workflowId?: number }) {
+    const { t } = useLangue();
+    const [etat, setEtat] = useState<"attente" | "en-cours" | "fait">("attente");
+    const [verdict, setVerdict] = useState<{ branche: boolean; raison: string } | null>(null);
+    const [erreur, setErreur] = useState<string | null>(null);
+
+    const lancer = async () => {
+        if (workflowId === undefined) return;
+        setEtat("en-cours");
+        setErreur(null);
+        const reponse = await lancerLEssaiDUnOutilApiV1BuilderOutilsEssaiPost({
+            body: { workflow_id: workflowId, outil: essai.outil, donnees_test: essai.donnees },
+        });
+        if (reponse.error) {
+            setErreur(detailFromError(reponse.error, t(T.essaiEchec)));
+            setEtat("attente");
+            return;
+        }
+        const donnees = (reponse.data ?? {}) as Objet;
+        setVerdict({ branche: donnees.branche === true, raison: String(donnees.raison ?? "") });
+        setEtat("fait");
+    };
+
+    return (
+        <div data-essai-a-valider={essai.outil} className="mb-2 rounded-md border border-dashed p-2 text-xs">
+            <p className="mb-1 font-semibold">{t(T.essaiTitre)}</p>
+            <p className="mb-1 text-muted-foreground">{t(T.essaiAide)}</p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                <dt className="text-muted-foreground">{t(T.essaiOutil)}</dt>
+                <dd>{essai.outil}</dd>
+                <dt className="text-muted-foreground">{t(T.essaiMethode)}</dt>
+                <dd>{essai.methode}</dd>
+                <dt className="text-muted-foreground">{t(T.essaiAdresse)}</dt>
+                <dd className="break-all">{essai.adresse}</dd>
+                <dt className="text-muted-foreground">{t(T.essaiDonnees)}</dt>
+                <dd>
+                    <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-1">{JSON.stringify(essai.donnees, null, 2)}</pre>
+                </dd>
+            </dl>
+            {etat !== "fait" ? (
+                <Button type="button" size="sm" className="mt-2" disabled={etat === "en-cours" || workflowId === undefined} onClick={() => void lancer()}>
+                    {etat === "en-cours" ? t(T.enEssai) : t(T.lancer)}
+                </Button>
+            ) : (
+                <p className="mt-2" data-verdict-essai={verdict?.branche ? "branche" : "non-branche"}>
+                    {verdict?.branche ? t(T.branche) : `${t(T.nonBranche)} ${verdict?.raison ?? ""}`}
+                </p>
+            )}
+            {erreur && <p role="alert" className="mt-1 text-destructive">{erreur}</p>}
+        </div>
+    );
+}
+
+export function CarteResultat({
+    nomDeLAction,
+    resultat,
+    erreur,
+    workflowId,
+}: {
+    nomDeLAction: string;
+    resultat?: unknown;
+    erreur?: boolean;
+    workflowId?: number;
+}) {
     const { t } = useLangue();
     const titre = TITRES_DES_CARTES[nomDeLAction] ?? { en: nomDeLAction, fr: nomDeLAction };
     const elements = elementsDe(resultat);
+    const essai = essaiAValider(resultat);
     return (
         <Carte type={`resultat-${nomDeLAction}`} titre={t(titre)}>
+            {essai && <EssaiAValider essai={essai} workflowId={workflowId} />}
             {resultat === undefined ? (
                 <p className="text-xs text-muted-foreground">{t(T.enCours)}</p>
             ) : nonDisponible(resultat) ? (

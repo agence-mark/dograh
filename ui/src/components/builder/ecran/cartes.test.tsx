@@ -28,6 +28,7 @@ const m = vi.hoisted(() => ({
     rejeterBase: vi.fn(),
     contexte: vi.fn(),
     retirerDepot: vi.fn(),
+    essai: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
@@ -39,6 +40,7 @@ vi.mock("@/client", () => ({
     rejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPost: (...a: unknown[]) => m.rejeterBase(...a),
     lireLeContexteApiV1BuilderContexteWorkflowIdGet: (...a: unknown[]) => m.contexte(...a),
     retirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDelete: (...a: unknown[]) => m.retirerDepot(...a),
+    lancerLEssaiDUnOutilApiV1BuilderOutilsEssaiPost: (...a: unknown[]) => m.essai(...a),
     deposerUnFichierApiV1BuilderDepotWorkflowIdPost: vi.fn(),
     deposerUnSiteApiV1BuilderDepotWorkflowIdSitePost: vi.fn(),
 }));
@@ -285,5 +287,52 @@ describe("les cartes de résultat (contrôle, outils, tests, rapport)", () => {
     it("une action en échec montre son erreur", () => {
         render(<CarteResultat nomDeLAction="outil_essayer" resultat={{ ok: false, erreur: "no answer" }} erreur />);
         expect(screen.getByText(/The action failed:/).textContent).toContain("no answer");
+    });
+});
+
+describe("la carte « Essai à valider » (revue R5)", () => {
+    const ESSAI = {
+        ok: true,
+        a_valider: true,
+        branche: false,
+        outil: "reserver",
+        methode: "POST",
+        adresse: "https://systeme.exemple.test/api",
+        donnees_test: { email: "personne1@exemple.test" },
+        elements: [{ statut: "avertissement", message: "reserver : a person must run this trial" }],
+    };
+
+    it("montre l'outil, la méthode, l'adresse et les données, et n'appelle rien tant qu'on n'a pas cliqué", () => {
+        render(<CarteResultat nomDeLAction="outil_essayer" resultat={ESSAI} workflowId={7} />);
+        const carte = document.querySelector("[data-essai-a-valider='reserver']") as HTMLElement;
+        expect(carte.textContent).toContain("POST");
+        expect(carte.textContent).toContain("https://systeme.exemple.test/api");
+        expect(carte.textContent).toContain("personne1@exemple.test");
+        expect(screen.getByRole("button", { name: "Run the trial" })).toBeTruthy();
+        expect(m.essai).not.toHaveBeenCalled();
+    });
+
+    it("« Lancer l'essai » appelle la route dédiée avec l'agent, l'outil et les données, puis dit le verdict", async () => {
+        m.essai.mockResolvedValue({ data: { branche: true, raison: "ok" } });
+        render(<CarteResultat nomDeLAction="outil_essayer" resultat={ESSAI} workflowId={7} />);
+        fireEvent.click(screen.getByRole("button", { name: "Run the trial" }));
+        await waitFor(() => expect(document.querySelector("[data-verdict-essai='branche']")).toBeTruthy());
+        expect(m.essai).toHaveBeenCalledWith({
+            body: { workflow_id: 7, outil: "reserver", donnees_test: { email: "personne1@exemple.test" } },
+        });
+        expect(screen.queryByRole("button", { name: "Run the trial" })).toBeNull();
+    });
+
+    it("un essai refusé par le serveur reste à relancer et dit pourquoi", async () => {
+        m.essai.mockResolvedValue({ error: { detail: "The test data looks real" } });
+        render(<CarteResultat nomDeLAction="outil_essayer" resultat={ESSAI} workflowId={7} />);
+        fireEvent.click(screen.getByRole("button", { name: "Run the trial" }));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("looks real"));
+        expect(screen.getByRole("button", { name: "Run the trial" })).toBeTruthy();
+    });
+
+    it("un résultat ordinaire n'a pas de bouton", () => {
+        render(<CarteResultat nomDeLAction="outil_essayer" resultat={{ ok: true, branche: true, elements: [{ statut: "ok", message: "x" }] }} workflowId={7} />);
+        expect(screen.queryByRole("button", { name: "Run the trial" })).toBeNull();
     });
 });

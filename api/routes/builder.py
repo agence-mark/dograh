@@ -182,6 +182,28 @@ async def valider_la_fiche(workflow_id: int, user: UserModel = Depends(get_user_
     return {"fiche": fiche.model_dump(mode="json")}
 
 
+# --- l'essai d'un outil : le geste humain (revue R5) ---------------------------------------------------------------
+
+
+class LancerUnEssai(BaseModel):
+    workflow_id: int
+    outil: str = Field(min_length=1, max_length=200)
+    donnees_test: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/outils/essai")
+async def lancer_l_essai_d_un_outil(demande: LancerUnEssai, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Lance l'essai d'un outil qui écrit chez le client, après la carte « Essai à valider ». Le builder n'a pas ce chemin : seul un
+    geste de la personne le prend. Cloisonné par organisation (l'agent ET l'outil sont ceux de la personne)."""
+    from api.services.builder.essai_outil import ErreurEssai, essayer
+
+    await _agent_ou_404(user, demande.workflow_id)
+    try:
+        return await essayer(user.selected_organization_id, demande.workflow_id, demande.outil, demande.donnees_test, geste_humain=True)
+    except ErreurEssai as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+
+
 # --- les actions -------------------------------------------------------------------------------------------------
 
 

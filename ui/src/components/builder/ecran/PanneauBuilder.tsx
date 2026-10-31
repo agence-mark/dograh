@@ -111,7 +111,8 @@ function CarteDesChangements({ toolCallId }: PartieOutil) {
 }
 
 function CarteDUnResultat({ toolName, result, isError }: PartieOutil) {
-    return <CarteResultat nomDeLAction={toolName} resultat={result} erreur={isError} />;
+    const { workflowId } = useContexteDuPanneau();
+    return <CarteResultat nomDeLAction={toolName} resultat={result} erreur={isError} workflowId={workflowId} />;
 }
 
 function Tache({ toolName, result, isError }: PartieOutil) {

@@ -168,7 +168,8 @@ _remplir(
     description=(
         "Try an HTTP tool with FICTITIOUS test data (e-mails in .test, phone numbers in the reserved ranges) before calling it "
         "connected. Connected only on a valid JSON answer; otherwise not connected and the step falls back to demander_un_rappel. "
-        "Never announce a tool as connected without this proof."
+        "A tool whose method is not GET writes at the client's: it returns a « trial to validate » card (tool, method, address, "
+        "test data) and calls nothing until a person runs the trial. Never announce a tool as connected without this proof."
     ),
     parametres=_EssaiOutil,
     fonction=_outil_essayer,

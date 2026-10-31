@@ -23,12 +23,12 @@ EQUIPE = Contexte(user=utilisateur(1), workflow_id=AGENT)
 TEST = {"nom": "Camille Exemple", "email": "personne1@exemple.test", "telephone": "06 39 98 00 01"}
 
 
-def un_outil(nom="chercher_un_creneau", categorie="http_api"):
+def un_outil(nom="chercher_un_creneau", categorie="http_api", methode="GET"):
     return SimpleNamespace(
         name=nom,
         tool_uuid=f"uuid-{nom}",
         category=categorie,
-        definition={"config": {"method": "POST", "url": "https://systeme.exemple.test/api", "timeout_ms": 1000}},
+        definition={"config": {"method": methode, "url": "https://systeme.exemple.test/api", "timeout_ms": 1000}},
     )
 
 
@@ -48,7 +48,7 @@ def systeme(monkeypatch, monde):
         return s.reponse(requete)
 
     monkeypatch.setattr(custom_tool.httpx, "AsyncClient", lambda **o: vrai(transport=httpx.MockTransport(gestionnaire), **o))
-    outils = [un_outil(), un_outil("lien_externe", "mcp")]
+    outils = [un_outil(), un_outil("lien_externe", "mcp"), un_outil("reserver", methode="POST"), un_outil("annuler", methode="delete")]
 
     async def liste(organization_id, *a, **k):
         assert organization_id == ORG_CLIENT
@@ -148,3 +148,31 @@ def test_rendre_fictif_remplace_partout_la_meme_vraie_valeur_par_la_meme_fausse(
     mail = faux["replique"].split()[-1]
     assert mail in faux["historique"][0]["texte"] and est_fictive(faux)
     assert "Marie Dupont" in str(vrai)  # l'original n'est pas modifié
+
+
+# --- revue R5 : un essai qui écrit chez le client attend un geste humain ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("outil", ["reserver", "annuler"])
+async def test_un_outil_qui_ecrit_rend_une_carte_a_valider_et_rien_n_est_appele(systeme, monde, outil):
+    r = await essayer(outil=outil)
+    assert r["ok"] is True and r["a_valider"] is True and r["branche"] is False
+    assert r["carte"]["type"] == "essai_a_valider" and r["carte"]["outil"] == outil
+    assert r["carte"]["methode"] in ("POST", "DELETE") and r["carte"]["adresse"] == "https://systeme.exemple.test/api"
+    assert r["carte"]["donnees_test"] == TEST
+    assert systeme.appels == []  # le système du client n'a pas été appelé
+    assert (ORG_CLIENT, cle_builder(AGENT, "outils")) not in monde.configs  # et rien n'est dit « branché » ni « non branché »
+
+
+async def test_un_get_part_directement(systeme):
+    r = await essayer()
+    assert r.get("a_valider") is None and r["branche"] is True and len(systeme.appels) == 1
+
+
+async def test_le_geste_humain_lance_l_essai_d_un_outil_qui_ecrit(systeme, monde):
+    r = await essai_outil.essayer(ORG_CLIENT, AGENT, "reserver", TEST, geste_humain=True)
+    assert r["branche"] is True and len(systeme.appels) == 1 and systeme.appels[0].method == "POST"
+    assert monde.configs[(ORG_CLIENT, cle_builder(AGENT, "outils"))]["reserver"]["branche"] is True
+    # des données qui ont l'air réelles restent refusées, même par un geste humain
+    with pytest.raises(essai_outil.ErreurEssai):
+        await essai_outil.essayer(ORG_CLIENT, AGENT, "reserver", {"email": "marie.dupont@gmail.com"}, geste_humain=True)
