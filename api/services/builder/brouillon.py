@@ -150,8 +150,11 @@ async def valider(graphe: dict[str, Any], organization_id: int) -> list[str]:
         WorkflowGraph(dto)
     except Exception as erreur:  # noqa: BLE001 -- WorkflowGraph lève ValueError, parfois plus
         return [str(erreur)]
+    from api.services.builder.cerveau.refus_webhook import erreurs_cle_reservee_des_webhooks
+
     collisions = await validate_workflow_tool_name_collisions(graphe, organization_id)
-    return [c["message"] for c in collisions or []]
+    reservees = await erreurs_cle_reservee_des_webhooks(graphe, organization_id)
+    return [c["message"] for c in [*(collisions or []), *reservees]]
 
 
 # --- le brouillon en attente, sur le disque ---------------------------------------------------------------------

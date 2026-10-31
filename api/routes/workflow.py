@@ -66,6 +66,7 @@ from api.services.workflow.configuration_policy import (
     WorkflowConfigurationNotFoundError,
     apply_external_pbx_mapping_policy,
 )
+from api.services.builder.cerveau.refus_webhook import erreurs_cle_reservee_des_webhooks
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
 from api.services.groupe.groupe import (
     dupliquer_les_specialises,
@@ -556,6 +557,10 @@ async def create_workflow(
     )
     if tool_name_errors:
         raise _validation_errors_http_exception(tool_name_errors)
+    # [.mark] Builder, revue R2 : un webhook ne nomme pas la clé du cerveau.
+    reserved_errors = await erreurs_cle_reservee_des_webhooks(workflow_definition, user.selected_organization_id)
+    if reserved_errors:
+        raise _validation_errors_http_exception(reserved_errors)
 
     # Validate trigger path uniqueness BEFORE creating the workflow so we
     # don't leave an orphaned workflow record when the trigger conflicts.
@@ -1185,6 +1190,10 @@ async def update_workflow(
                 tool_name_errors,
                 status_code=409,
             )
+        # [.mark] Builder, revue R2 : un webhook ne nomme pas la clé du cerveau.
+        reserved_errors = await erreurs_cle_reservee_des_webhooks(workflow_definition, user.selected_organization_id)
+        if reserved_errors:
+            raise _validation_errors_http_exception(reserved_errors, status_code=409)
         if workflow_definition:
             existing_workflow = await db_client.get_workflow(
                 workflow_id, organization_id=user.selected_organization_id

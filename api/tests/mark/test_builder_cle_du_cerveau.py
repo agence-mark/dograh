@@ -115,3 +115,43 @@ async def test_la_recuperation_avant_l_appel_n_applique_pas_la_cle():
         except Exception:  # noqa: BLE001 -- seul l'en-tête compte
             pass
     assert all("SECRET" not in str(h) and "Authorization" not in (h or {}) for h in envoyes)
+
+
+# --- suite de R2 : webhook, transfert, enregistrement d'un nœud webhook -----------------------------------------------
+
+
+async def test_l_envoi_d_un_webhook_n_applique_pas_la_cle():
+    from api.tasks import webhook_delivery
+
+    livraison = SimpleNamespace(credential_uuid="cle-cerveau", organization_id=1, webhook_name="w", id=1, custom_headers=None, delivery_uuid="d", workflow_run_id=1)
+    for identifiant, attendu in ((CLE, False), (ORDINAIRE, True)):
+        with patch.object(webhook_delivery.db_client, "get_credential_by_uuid", AsyncMock(return_value=identifiant)):
+            entetes = await webhook_delivery._build_headers(livraison, 1)
+        assert ("Authorization" in entetes) is attendu
+        assert "SECRET" not in str(entetes)
+
+
+async def test_le_resolveur_de_transfert_refuse_la_cle():
+    from api.services.workflow.tools import transfer_resolver as tr
+
+    with patch.object(tr.db_client, "get_credential_by_uuid", AsyncMock(return_value=CLE)), patch.object(
+        tr, "validate_user_configured_service_url", lambda *a, **k: None
+    ):
+        with pytest.raises(tr.TransferResolutionError) as e:
+            await tr._execute_http_resolver(
+                resolver={"url": "https://x.example.test", "credential_uuid": "cle-cerveau"}, resolved_arguments={}, organization_id=1, resolution_id="r"
+            )
+    assert e.value.reason == "credential_reserved"
+
+
+async def test_un_noeud_webhook_qui_nomme_la_cle_est_refuse_a_l_enregistrement():
+    from api.services.builder.cerveau import refus_webhook
+
+    def graphe(uuid):
+        return {"nodes": [{"id": "w1", "type": "webhook", "data": {"credential_uuid": uuid}}]}
+
+    with patch.object(refus_webhook.db_client, "get_credential_by_uuid", AsyncMock(return_value=CLE)):
+        erreurs = await refus_webhook.erreurs_cle_reservee_des_webhooks(graphe("cle-cerveau"), 1)
+    assert len(erreurs) == 1 and erreurs[0]["id"] == "w1" and "SECRET" not in str(erreurs)
+    with patch.object(refus_webhook.db_client, "get_credential_by_uuid", AsyncMock(return_value=ORDINAIRE)):
+        assert await refus_webhook.erreurs_cle_reservee_des_webhooks(graphe("ordinaire"), 1) == []
