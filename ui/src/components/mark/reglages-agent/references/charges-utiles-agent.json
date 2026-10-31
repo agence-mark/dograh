@@ -65,6 +65,16 @@
     "interdire_civilite_appelant": false,
     "relecture_des_numeros": false,
     "laisser_la_parole": false,
+    "moteur_sorties_de_l_etape": true,
+    "moteur_sortie_d_impasse": true,
+    "moteur_parole_avant_outil": true,
+    "moteur_main_passee": true,
+    "moteur_ordre_outil_puis_parole": true,
+    "moteur_compte_rendu_de_phrase": true,
+    "moteur_phrases_coupees": true,
+    "moteur_replique_inachevee": true,
+    "moteur_reponse_muette": true,
+    "moteur_notes_de_passation": true,
     "fiche_dans_le_systeme": false,
     "fiche_forme_courte": false,
     "prechauffer_les_collegues": false,
@@ -163,6 +173,34 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "generer_schema_parcours": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "trace-requetes-modele": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "trace_requetes_modele": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "reflexion-de-relance": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "reflexion_de_relance": "low"
           },
           "retirees": []
         }
@@ -833,7 +871,7 @@
     },
     "relance-outil": {
       "carte": "ajout-mark",
-      "theme": "tour",
+      "theme": "interventions",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
@@ -929,6 +967,146 @@
         }
       ]
     },
+    "sorties-de-l-etape": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_sorties_de_l_etape": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "sortie-d-impasse": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_sortie_d_impasse": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "parole-avant-outil": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_parole_avant_outil": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "main-passee": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_main_passee": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "ordre-outil-puis-parole": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_ordre_outil_puis_parole": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "compte-rendu-de-phrase": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_compte_rendu_de_phrase": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-coupees": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_phrases_coupees": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "replique-inachevee": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_replique_inachevee": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "reponse-muette": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_reponse_muette": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "notes-de-passation": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_notes_de_passation": false
+          },
+          "retirees": []
+        }
+      ]
+    },
     "raccrochage-agent": {
       "carte": "speech-tuning",
       "theme": "rythme",
@@ -938,6 +1116,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "raccrochage_silence_agent_s": 40
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "laisser-la-parole": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "laisser_la_parole": true
           },
           "retirees": []
         }
@@ -1083,15 +1275,18 @@
         }
       ]
     },
-    "laisser-la-parole": {
-      "carte": "ajout-mark",
-      "theme": "rythme",
+    "prononciation": {
+      "carte": "speech-tuning",
+      "theme": "voix",
       "appels": [
         {
           "fonction": "saveWorkflowConfigurations",
           "nom": "Accueil de référence",
           "modifiees": {
-            "laisser_la_parole": true
+            "tts_replacements": [
+              "SAV:S. A. V.",
+              "RGE:R. G. E."
+            ]
           },
           "retirees": []
         }
@@ -1107,23 +1302,6 @@
           "modifiees": {
             "tts_balises_permises": [
               "warm"
-            ]
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "prononciation": {
-      "carte": "speech-tuning",
-      "theme": "voix",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "tts_replacements": [
-              "SAV:S. A. V.",
-              "RGE:R. G. E."
             ]
           },
           "retirees": []
@@ -1218,6 +1396,21 @@
         }
       ]
     },
+    "fiche-deja-connu": {
+      "carte": "ajout-mark",
+      "theme": "donnees",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "etiquettes_des_etapes": true,
+            "fiche_deja_connu": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "fiche-dans-le-systeme": {
       "carte": "ajout-mark",
       "theme": "donnees",
@@ -1274,21 +1467,6 @@
         }
       ]
     },
-    "fiche-deja-connu": {
-      "carte": "ajout-mark",
-      "theme": "donnees",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "etiquettes_des_etapes": true,
-            "fiche_deja_connu": true
-          },
-          "retirees": []
-        }
-      ]
-    },
     "transfert-garanti": {
       "carte": "ajout-mark",
       "theme": "donnees",
@@ -1330,6 +1508,117 @@
             "fiche_mode_de_note": "post_scriptum",
             "ordre_de_la_reponse": "porte_note_phrase",
             "phrase_sans_redemande": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-actif": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_actif": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-modele": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_llm": {
+              "provider": "mistral",
+              "model": "mistral-small-2603",
+              "api_key": "cle-de-reference"
+            },
+            "travail_consigne": "Fais la demande."
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-delai": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "delai_garde_modele_s": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-repli": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_de_repli": {
+              "provider": "mistral",
+              "model": "mistral-large-2512"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-repli": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_llm_repli": {
+              "provider": "mistral",
+              "model": "mistral-small-2603"
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-outils": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_outils": [
+              "outil-creneau"
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "travail-delai": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "travail_delai_max_s": 90
           },
           "retirees": []
         }
@@ -1579,6 +1868,210 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "etablissement_id": "creil"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-prechauffage": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": false,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-sans-resume": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 60,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-renvoi-unique": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": false,
+            "passations_max_par_appel": 6
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-plafond": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "prechauffage_agents": true,
+            "passation_sans_resume_jusqua": 40,
+            "un_seul_renvoi_par_appel": true,
+            "passations_max_par_appel": 8
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "agents-filet-de-fin": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "filet_de_fin": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "attente": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "attente": {
+              "duree_min_s": 2.5,
+              "passation": true,
+              "transfert_humain": false
+            }
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-groupe": {
+      "carte": "ajout-mark",
+      "theme": "phrases",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "phrases_regles": [
+              {
+                "motif": "passation_tarde",
+                "portee": "groupe",
+                "etape": null,
+                "variantes": [
+                  "Un instant."
+                ],
+                "delai_s": 3,
+                "active": true,
+                "ensuite": {
+                  "phrases": [],
+                  "noter": null,
+                  "action": null,
+                  "destination": null
+                },
+                "etape_id": null,
+                "outils": [],
+                "ordre": "tournees",
+                "redite_s": null,
+                "max_par_attente": null,
+                "max_par_appel": null,
+                "texte_de_l_agent": false
+              }
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-agent": {
+      "carte": "ajout-mark",
+      "theme": "phrases",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "phrases_regles": [
+              {
+                "motif": "appelant_se_tait",
+                "portee": "agent",
+                "etape": null,
+                "variantes": [
+                  "Êtes-vous toujours là ?"
+                ],
+                "delai_s": 10,
+                "active": false,
+                "ensuite": {
+                  "phrases": [],
+                  "noter": null,
+                  "action": null,
+                  "destination": null
+                },
+                "etape_id": null,
+                "outils": [],
+                "ordre": "tournees",
+                "redite_s": null,
+                "max_par_attente": null,
+                "max_par_appel": null,
+                "texte_de_l_agent": false
+              }
+            ]
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "phrases-pause": {
+      "carte": "ajout-mark",
+      "theme": "phrases",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "phrases_repos_s": 5
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "cerveau-propre": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_propre": true
           },
           "retirees": []
         }
@@ -1834,349 +2327,6 @@
             "embed": {
               "stub": true
             }
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "trace-requetes-modele": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "trace_requetes_modele": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "reflexion-de-relance": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "reflexion_de_relance": "low"
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "agents-prechauffage": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "prechauffage_agents": false,
-            "passation_sans_resume_jusqua": 40,
-            "un_seul_renvoi_par_appel": true,
-            "passations_max_par_appel": 6
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "agents-sans-resume": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "prechauffage_agents": true,
-            "passation_sans_resume_jusqua": 60,
-            "un_seul_renvoi_par_appel": true,
-            "passations_max_par_appel": 6
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "agents-renvoi-unique": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "prechauffage_agents": true,
-            "passation_sans_resume_jusqua": 40,
-            "un_seul_renvoi_par_appel": false,
-            "passations_max_par_appel": 6
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "agents-filet-de-fin": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "filet_de_fin": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "agents-plafond": {
-      "carte": "ajout-mark",
-      "theme": "agent",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "prechauffage_agents": true,
-            "passation_sans_resume_jusqua": 40,
-            "un_seul_renvoi_par_appel": true,
-            "passations_max_par_appel": 8
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "attente": {
-      "carte": "ajout-mark",
-      "theme": "voix",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "attente": {
-              "duree_min_s": 2.5,
-              "passation": true,
-              "transfert_humain": false
-            }
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "phrases-groupe": {
-      "carte": "ajout-mark",
-      "theme": "phrases",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "phrases_regles": [
-              {
-                "motif": "passation_tarde",
-                "portee": "groupe",
-                "etape": null,
-                "variantes": [
-                  "Un instant."
-                ],
-                "delai_s": 3,
-                "active": true,
-                "ensuite": {
-                  "phrases": [],
-                  "noter": null,
-                  "action": null,
-                  "destination": null
-                },
-                "etape_id": null,
-                "outils": [],
-                "ordre": "tournees",
-                "redite_s": null,
-                "max_par_attente": null,
-                "max_par_appel": null,
-                "texte_de_l_agent": false
-              }
-            ]
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "phrases-agent": {
-      "carte": "ajout-mark",
-      "theme": "phrases",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "phrases_regles": [
-              {
-                "motif": "appelant_se_tait",
-                "portee": "agent",
-                "etape": null,
-                "variantes": [
-                  "Êtes-vous toujours là ?"
-                ],
-                "delai_s": 10,
-                "active": false,
-                "ensuite": {
-                  "phrases": [],
-                  "noter": null,
-                  "action": null,
-                  "destination": null
-                },
-                "etape_id": null,
-                "outils": [],
-                "ordre": "tournees",
-                "redite_s": null,
-                "max_par_attente": null,
-                "max_par_appel": null,
-                "texte_de_l_agent": false
-              }
-            ]
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "cerveau-propre": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "cerveau_propre": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "travail-actif": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "travail_actif": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "travail-modele": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "travail_llm": {
-              "provider": "mistral",
-              "model": "mistral-small-2603",
-              "api_key": "cle-de-reference"
-            },
-            "travail_consigne": "Fais la demande."
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "travail-outils": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "travail_outils": [
-              "outil-creneau"
-            ]
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "travail-delai": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "travail_delai_max_s": 90
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "garde-delai": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "delai_garde_modele_s": 6
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "garde-repli": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "cerveau_de_repli": {
-              "provider": "mistral",
-              "model": "mistral-large-2512"
-            }
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "travail-repli": {
-      "carte": "ajout-mark",
-      "theme": "briques",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "travail_llm_repli": {
-              "provider": "mistral",
-              "model": "mistral-small-2603"
-            }
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "phrases-pause": {
-      "carte": "ajout-mark",
-      "theme": "phrases",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "phrases_repos_s": 5
           },
           "retirees": []
         }

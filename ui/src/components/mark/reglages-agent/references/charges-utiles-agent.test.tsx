@@ -209,7 +209,7 @@ m.saveDictionary.mockResolvedValue(undefined);
 
 const ouvrirLaPage = async () => {
     render(<WorkflowSettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11));
 };
 
 /** Opens a theme by its header (the one thing that folds, E1). */

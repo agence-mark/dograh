@@ -582,6 +582,107 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // [.mark] builder-agent-vocal, lot 8: the engine's interventions. All ON by default (an agent without the key is on).
+    moteur_sorties_de_l_etape: d({
+        type: "interrupteur",
+        libelle: { en: "Name the first missing thing behind each exit", fr: "Nommer la première chose qui manque derrière chaque sortie" },
+        aides: [
+            {
+                en: "For each exit of the step, a line tells the model the first thing still missing in the arrival step: the code picks the next question, the model words it. Needs « Show what is known and what is expected » (Call data). Off: those lines are not written.",
+                fr: "Pour chaque sortie de l'étape, une ligne dit au modèle la première chose qui manque encore dans l'étape d'arrivée : le code choisit la question suivante, le modèle la formule. Demande « Montrer ce qui est connu et ce qui est attendu » (Données de l'appel). Éteint : ces lignes ne sont pas écrites.",
+            },
+        ],
+    }),
+    moteur_sortie_d_impasse: d({
+        type: "interrupteur",
+        libelle: { en: "Dead-end guard", fr: "Garde-fou d'impasse" },
+        aides: [
+            {
+                en: "Counts the signs of a conversation going round in circles (a sentence repeated, the same request sent again, three turns with nothing new, a third entry in a step), shows the model its two notices, then at the third time says the dead-end sentence and changes step. Off: nothing is counted, shown or done.",
+                fr: "Compte les signes d'une conversation qui tourne en rond (réplique redite, même demande renvoyée, trois tours sans rien de nouveau, troisième entrée dans une étape), montre au modèle ses deux notices, puis au troisième temps dit la phrase d'impasse et change d'étape. Éteint : rien n'est compté, montré ni fait.",
+            },
+        ],
+    }),
+    moteur_parole_avant_outil: d({
+        type: "interrupteur",
+        libelle: { en: "Do not wake the model after an instant tool that already spoke", fr: "Ne pas relancer le modèle après un outil instantané déjà annoncé" },
+        aides: [
+            {
+                en: "A tool that returns at once does not wake the model again when the same answer had already spoken before calling it. Off: the model is always woken after such a tool and may repeat its sentence.",
+                fr: "Un outil qui rend tout de suite ne relance pas le modèle quand la même réponse avait déjà parlé avant de l'appeler. Éteint : le modèle est toujours relancé après un tel outil et peut redire sa phrase.",
+            },
+        ],
+    }),
+    moteur_main_passee: d({
+        type: "interrupteur",
+        libelle: { en: "Silence the agent that passed the call on", fr: "Faire taire l'agent qui a passé la main" },
+        aides: [
+            {
+                en: "Around a handover: the agent that passed the call on no longer answers, and a request that ends on the assistant's own words gets the handover note. Off: neither. ⚠️ The previous agent may then speak over the new one, and the provider may refuse the request. Groups of agents.",
+                fr: "Autour d'une passation : l'agent qui a passé la main ne répond plus, et une requête qui finit par les paroles de l'assistant reçoit la note de passation. Éteint : ni l'un ni l'autre. ⚠️ L'ancien agent peut alors parler par-dessus le nouveau, et le fournisseur peut refuser la requête. Groupes d'agents.",
+            },
+        ],
+    }),
+    moteur_ordre_outil_puis_parole: d({
+        type: "interrupteur",
+        libelle: { en: "Put the spoken sentence after the tool result", fr: "Remettre la phrase dite après le résultat de l'outil" },
+        aides: [
+            {
+                en: "In the copy of the request sent to the model, the sentence said before a tool is moved after the tool's result, so the caller's words never follow a tool result directly. Off: the order is sent as recorded; some providers refuse it (error 400).",
+                fr: "Dans la copie de la requête envoyée au modèle, la phrase dite avant un outil est replacée après le résultat de l'outil, pour que la parole de l'appelant ne suive jamais directement un résultat d'outil. Éteint : l'ordre est envoyé tel qu'enregistré ; certains fournisseurs le refusent (erreur 400).",
+            },
+        ],
+    }),
+    moteur_compte_rendu_de_phrase: d({
+        type: "interrupteur",
+        libelle: { en: "Report to the model after a sentence of the code", fr: "Compte rendu au modèle après une phrase du code" },
+        aides: [
+            {
+                en: "After a sentence said by the code, the model receives a short report in French in the tool result (what happened, what the caller heard, what is noted, what is no longer possible). Off: no report. ⚠️ Without it the model may repeat the sentence the caller has just heard.",
+                fr: "Après une phrase dite par le code, le modèle reçoit dans le résultat de l'outil un court compte rendu en français (ce qui s'est passé, ce que l'appelant a entendu, ce qui est noté, ce qui n'est plus possible). Éteint : aucun compte rendu. ⚠️ Sans lui, le modèle peut redire la phrase que l'appelant vient d'entendre.",
+            },
+        ],
+    }),
+    moteur_phrases_coupees: d({
+        type: "interrupteur",
+        libelle: { en: "Rewrite a cut sentence for the model", fr: "Réécrire pour le modèle une phrase coupée" },
+        aides: [
+            {
+                en: "When the caller cut off a sentence said by the code, the request sent to the model says what was actually heard. Off: the request carries the whole sentence. Phone only (nothing is cut on the keyboard).",
+                fr: "Quand l'appelant a coupé une phrase dite par le code, la requête envoyée au modèle dit ce qui a réellement été entendu. Éteint : la requête porte la phrase entière. Téléphone seulement (rien ne se coupe au clavier).",
+            },
+        ],
+    }),
+    moteur_replique_inachevee: d({
+        type: "interrupteur",
+        libelle: { en: "Hold back an unfinished reply", fr: "Retenir une réplique inachevée" },
+        aides: [
+            {
+                en: "Clerk mode with transitions in the reply. A reply that ends in the middle of a sentence is not spoken to its end nor kept, and the model answers once more. Off: the reply is spoken as it stands.",
+                fr: "Mode greffier avec les portes dans la réponse. Une réponse qui s'arrête en pleine phrase n'est ni dite jusqu'au bout ni gardée, et le modèle répond une fois de plus. Éteint : la réponse est dite telle quelle.",
+            },
+        ],
+    }),
+    moteur_reponse_muette: d({
+        type: "interrupteur",
+        libelle: { en: "Ask again after a silent reply", fr: "Relancer après une réponse muette" },
+        aides: [
+            {
+                en: "Clerk mode with transitions in the reply. A reply with no sentence and no transition (only a note, for instance) makes the model answer once more. Off: the turn stays silent.",
+                fr: "Mode greffier avec les portes dans la réponse. Une réponse sans phrase ni porte (une note seule, par exemple) fait répondre le modèle une fois de plus. Éteint : le tour reste muet.",
+            },
+        ],
+    }),
+    moteur_notes_de_passation: d({
+        type: "interrupteur",
+        libelle: { en: "Write the handover notes", fr: "Écrire les notes de passation" },
+        aides: [
+            {
+                en: "Groups of agents. The code writes a handover note in the prompt of the step that opens (the main agent's return, the colleague's first step). Off: the prompt is left as written. ⚠️ The colleague then no longer knows what is already noted.",
+                fr: "Groupes d'agents. Le code écrit une note de passation dans le prompt de l'étape qui s'ouvre (retour de l'agent principal, première étape du collègue). Éteint : le prompt reste tel qu'écrit. ⚠️ Le collègue ne sait alors plus ce qui est déjà noté.",
+            },
+        ],
+    }),
     // figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: d({
         type: "interrupteur",

@@ -145,7 +145,7 @@ const { default: WorkflowSettingsPage } = await import(
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     // The page shows a spinner until the workflow fetch resolves.
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10), { timeout: 3000 });
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11), { timeout: 3000 });
     return rendu;
 };
 

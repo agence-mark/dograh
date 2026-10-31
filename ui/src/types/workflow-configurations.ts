@@ -82,6 +82,17 @@ export const DEFAUTS_PIPECAT = {
     relecture_des_numeros: false,
     // [.mark] passages-fiables (lot E): off by default.
     laisser_la_parole: false,
+    // [.mark] builder-agent-vocal, lot 8: the engine's interventions, ALL ON by default (an agent without the key is on).
+    moteur_sorties_de_l_etape: true,
+    moteur_sortie_d_impasse: true,
+    moteur_parole_avant_outil: true,
+    moteur_main_passee: true,
+    moteur_ordre_outil_puis_parole: true,
+    moteur_compte_rendu_de_phrase: true,
+    moteur_phrases_coupees: true,
+    moteur_replique_inachevee: true,
+    moteur_reponse_muette: true,
+    moteur_notes_de_passation: true,
     // [.mark] figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: false,
     // [.mark] agent-facon-tala (C8): off by default.
@@ -513,6 +524,16 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     tts_balises_permises?: string[] | null;
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
+    moteur_sorties_de_l_etape?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_sortie_d_impasse?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_parole_avant_outil?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_main_passee?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_ordre_outil_puis_parole?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_compte_rendu_de_phrase?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_phrases_coupees?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_replique_inachevee?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_reponse_muette?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_notes_de_passation?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
     signaler_un_probleme?: boolean;  // [.mark] passages-fiables F: the agent can flag, silently, that it is lost
     alertes_par_mail?: boolean;  // [.mark] passages-fiables G: one grouped mail per call that raised alerts
     mute_until_first_bot_complete: boolean;

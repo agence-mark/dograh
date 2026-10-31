@@ -51,6 +51,8 @@ export const THEMES_COMMUNS_EN_LECTURE: readonly string[] = [
     "rythme",
     "donnees",
     "etablissement",
+    // builder-agent-vocal, lot 8: every key of the engine interventions is common (copied from the main agent).
+    "interventions",
 ];
 
 export const TEXTES_GROUPE = {

@@ -27,7 +27,7 @@ export const CLES_RYTHME_MARK = [
     "user_idle_max_prompts",
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
-    "laisser_la_parole",
+    // (``laisser_la_parole`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
 ] as const satisfies readonly CleCatalogue[];
 
 const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => ({
@@ -130,7 +130,6 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                 {lienSilence(silencePoseLesRelances, String(regleDuSilence?.max_par_attente ?? ""))}
                 <Reglage cle="user_idle_goodbye_prompt" valeur={brouillon.user_idle_goodbye_prompt} onChange={maj("user_idle_goodbye_prompt")} />
                 {lienSilence(silencePoseLAuRevoir, regleDuSilence?.ensuite?.phrases?.[0] ?? regleDuSilence?.ensuite?.action ?? "")}
-                <Reglage cle="laisser_la_parole" valeur={brouillon.laisser_la_parole} onChange={maj("laisser_la_parole")} />
             </Intertitre>
 
             <Intertitre id="rythme-fin" titre={{ en: "End of call", fr: "Fin d'appel" }}>

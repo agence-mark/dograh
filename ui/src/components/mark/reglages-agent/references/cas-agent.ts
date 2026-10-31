@@ -39,6 +39,7 @@ export type ThemeAgent =
     | "rythme"
     | "phrases"
     | "donnees"
+    | "interventions"
     | "etablissement";
 
 export type Geste =
@@ -168,16 +169,27 @@ export const CAS_AGENT: CasAgent[] = [
     c("attente-temps", "speech-tuning", "tour", ["incomplete_long_timeout"], [saisir("incomplete_long_timeout", "12")]),
     c("muet-accueil", "speech-tuning", "tour", ["mute_until_first_bot_complete"], [inter("mute_until_first_bot_complete")]),
     c("muet-outil", "speech-tuning", "tour", ["mute_during_function_call"], [inter("mute_during_function_call")]),
-    c("relance-outil", "ajout-mark", "tour", ["relance_apres_outil"], [inter("relance_apres_outil")]),
+    c("relance-outil", "ajout-mark", "interventions", ["relance_apres_outil"], [inter("relance_apres_outil")]),
     c("tour-vide", "ajout-mark", "tour", ["relance_tour_vide"], [inter("relance_tour_vide")]),
     c("muet-workflow", "speech-tuning", "tour", ["mute_engine_callback"], [inter("mute_engine_callback")]),
     c("muet-premiere", "speech-tuning", "tour", ["mute_first_speech"], [inter("mute_first_speech")]),
     c("muet-toujours", "speech-tuning", "tour", ["mute_always"], [inter("mute_always")]),
     c("accueil-coupable", "speech-tuning", "tour", ["accueil_interruptible"], [inter("accueil_interruptible")]),
     c("accueil-mots", "speech-tuning", "tour", ["accueil_mots_minimum"], [saisir("accueil_mots_minimum", "3")]),
+    // builder-agent-vocal, lot 8: the engine interventions (on by default; the gesture switches one OFF).
+    c("sorties-de-l-etape", "ajout-mark", "interventions", ["moteur_sorties_de_l_etape"], [inter("moteur_sorties_de_l_etape")]),
+    c("sortie-d-impasse", "ajout-mark", "interventions", ["moteur_sortie_d_impasse"], [inter("moteur_sortie_d_impasse")]),
+    c("parole-avant-outil", "ajout-mark", "interventions", ["moteur_parole_avant_outil"], [inter("moteur_parole_avant_outil")]),
+    c("main-passee", "ajout-mark", "interventions", ["moteur_main_passee"], [inter("moteur_main_passee")]),
+    c("ordre-outil-puis-parole", "ajout-mark", "interventions", ["moteur_ordre_outil_puis_parole"], [inter("moteur_ordre_outil_puis_parole")]),
+    c("compte-rendu-de-phrase", "ajout-mark", "interventions", ["moteur_compte_rendu_de_phrase"], [inter("moteur_compte_rendu_de_phrase")]),
+    c("phrases-coupees", "ajout-mark", "interventions", ["moteur_phrases_coupees"], [inter("moteur_phrases_coupees")]),
+    c("replique-inachevee", "ajout-mark", "interventions", ["moteur_replique_inachevee"], [inter("moteur_replique_inachevee")]),
+    c("reponse-muette", "ajout-mark", "interventions", ["moteur_reponse_muette"], [inter("moteur_reponse_muette")]),
+    c("notes-de-passation", "ajout-mark", "interventions", ["moteur_notes_de_passation"], [inter("moteur_notes_de_passation")]),
     c("raccrochage-agent", "speech-tuning", "rythme", ["raccrochage_silence_agent_s"], [saisir("raccrochage_silence_agent_s", "40")]),
     // passages-fiables (lot E): added after the reorganisation, frozen once.
-    c("laisser-la-parole", "ajout-mark", "rythme", ["laisser_la_parole"], [inter("laisser_la_parole")]),
+    c("laisser-la-parole", "ajout-mark", "interventions", ["laisser_la_parole"], [inter("laisser_la_parole")]),
     c("relance-texte", "speech-tuning", "rythme", ["user_idle_prompt"], [saisir("user_idle_prompt", "Relance modifiée.")]),
     c("relances-nombre", "speech-tuning", "rythme", ["user_idle_max_prompts"], [saisir("user_idle_max_prompts", "3")]),
     c("au-revoir", "speech-tuning", "rythme", ["user_idle_goodbye_prompt"], [saisir("user_idle_goodbye_prompt", "Au revoir modifié.")]),
@@ -437,6 +449,7 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     rythme: "Call pacing",
     phrases: "Phrases",
     donnees: "Call data",
+    interventions: "Engine interventions",
     etablissement: "Business",
 };
 

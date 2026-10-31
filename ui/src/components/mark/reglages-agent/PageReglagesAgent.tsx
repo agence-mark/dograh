@@ -15,7 +15,7 @@
  * The themes, in the order of a call: Agent, Services, Listening, Modules,
  * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Volume2 } from "lucide-react";
+import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -52,6 +52,7 @@ import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
 import { ID_THEME_DONNEES, ThemeDonnees, TITRE_DONNEES } from "./ThemeDonnees";
 import { ID_THEME_ECOUTE, ThemeEcoute, TITRE_ECOUTE } from "./ThemeEcoute";
 import { ID_THEME_ETABLISSEMENT, ThemeEtablissement, TITRE_ETABLISSEMENT } from "./ThemeEtablissement";
+import { ID_THEME_INTERVENTIONS, ThemeInterventions, TITRE_INTERVENTIONS } from "./ThemeInterventions";
 import { ID_THEME_MODULES, ThemeModules, TITRE_MODULES } from "./ThemeModules";
 import { ID_THEME_PHRASES, ThemePhrases, TITRE_PHRASES } from "./ThemePhrases";
 import { ID_THEME_RYTHME, ThemeRythme, TITRE_RYTHME } from "./ThemeRythme";
@@ -70,6 +71,8 @@ export const THEMES_AGENT = [
     { id: ID_THEME_RYTHME, titre: TITRE_RYTHME, icone: Clock },
     { id: ID_THEME_PHRASES, titre: TITRE_PHRASES, icone: MessageSquareText },
     { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: ClipboardList },
+    // builder-agent-vocal, lot 8: what our code does in the conversation, switch by switch.
+    { id: ID_THEME_INTERVENTIONS, titre: TITRE_INTERVENTIONS, icone: Cog },
     { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: Building2 },
 ] as const;
 
@@ -309,6 +312,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                                     etapesSansPremiereReplique={etapesSansPremiere}
                                     workflowId={workflowId}
                                 />
+                                <ThemeInterventions {...commun(ID_THEME_INTERVENTIONS)!} />
                                 <ThemeEtablissement
                                     {...commun(ID_THEME_ETABLISSEMENT)!}
                                     consignesParDefaut={defaultAnswerClassifierPrompt}

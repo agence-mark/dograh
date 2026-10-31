@@ -139,7 +139,7 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11));
 };
 
 const ouvrirLeTheme = (id: string) => {
