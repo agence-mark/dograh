@@ -129,16 +129,37 @@ def borner(conversation: dict[str, Any]) -> None:
         coupure = _coupure(messages, len(messages) - CONVERSATION_MESSAGES_MAX)
         conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
         conversation["messages"] = messages[coupure:]
+    limite = MESSAGE_OCTETS_MAX
     while _octets(conversation) > CONVERSATION_OCTETS_MAX:
         messages = conversation["messages"]
         coupure = _coupure(messages, 1)
-        if coupure == 0:  # plus de tour entier à résumer : on raccourcit ce qui reste
+        if coupure == 0:
+            # Plus de tour entier à résumer (un seul tour très long, résultats d'outils compris) : on raccourcit TOUT le texte qui
+            # reste, de plus en plus court, jusqu'à passer sous le plafond (revue N4 : octets UTF-8, contenus non textuels inclus).
+            if limite < 64:
+                break
             for m in messages:
-                if isinstance(m.get("content"), str) and len(m["content"]) > MESSAGE_OCTETS_MAX:
-                    m["content"] = m["content"][:MESSAGE_OCTETS_MAX] + "\n[... truncated]"
-            break
+                _raccourcir(m, limite)
+            limite //= 2
+            continue
         conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
         conversation["messages"] = messages[coupure:]
+
+
+def _raccourcir(valeur: Any, limite: int) -> Any:
+    """Raccourcit en place tout texte de ``valeur`` (message, blocs, résultats d'outils) à ``limite`` octets UTF-8. Rend la valeur."""
+    if isinstance(valeur, str):
+        brut = valeur.encode("utf-8")
+        if len(brut) <= limite:
+            return valeur
+        return brut[:limite].decode("utf-8", errors="ignore") + "\n[... truncated]"
+    if isinstance(valeur, dict):
+        for cle, v in valeur.items():
+            valeur[cle] = _raccourcir(v, limite)
+    elif isinstance(valeur, list):
+        for i, v in enumerate(valeur):
+            valeur[i] = _raccourcir(v, limite)
+    return valeur
 
 
 async def enregistrer(organization_id: int, workflow_id: int, conversation: dict[str, Any]) -> None:

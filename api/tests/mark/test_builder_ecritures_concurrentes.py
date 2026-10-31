@@ -279,3 +279,48 @@ async def test_une_acceptation_dont_l_effet_echoue_remet_la_proposition_en_atten
             await propositions.accepter(proposition.id, "alice")
     assert (await propositions.lire(proposition.id)).etat == "en_attente"
     assert (await propositions.accepter(proposition.id, "alice")).etat == "acceptee"
+
+
+def test_un_seul_tour_de_soixante_resultats_d_outils_de_19_ko_reste_sous_un_mega_octet():
+    messages = [{"role": "user", "content": "fais tout"}]
+    for i in range(60):
+        messages.append({"role": "tool", "tool_call_id": f"t{i}", "content": "é" * 9_500})  # 19 Ko en UTF-8 chacun
+    conv = {**contexte.conversation_vide(), "messages": messages}
+    assert len(json.dumps(conv, ensure_ascii=False).encode()) > CONVERSATION_OCTETS_MAX
+    contexte.borner(conv)
+    assert len(json.dumps(conv, ensure_ascii=False).encode()) <= CONVERSATION_OCTETS_MAX
+    assert len(conv["messages"]) == 61 and conv["messages"][0]["content"] == "fais tout"
+
+
+def test_un_contenu_non_textuel_est_raccourci_aussi():
+    blocs = [{"type": "tool_result", "content": [{"type": "text", "text": "x" * 30_000}]} for _ in range(50)]
+    conv = {**contexte.conversation_vide(), "messages": [{"role": "user", "content": blocs}]}
+    contexte.borner(conv)
+    assert len(json.dumps(conv, ensure_ascii=False).encode()) <= CONVERSATION_OCTETS_MAX
+
+
+async def test_jeter_puis_ajouter_pendant_un_enregistrement_garde_l_operation_ajoutee(entrelace, monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.services.builder import brouillon
+    from api.services.workflow import schema_du_parcours
+
+    ancienne = {"op": "ajouter_noeud", "id": "3", "type": "agentNode", "nom": "Accueil", "prompt": "Dis bonjour."}
+    ajoutee = {"op": "ajouter_noeud", "id": "4", "type": "agentNode", "nom": "Fin", "prompt": "Dis au revoir."}
+    await brouillon.ecrire_en_attente(ORG_CLIENT, AGENT, {"operations": [ancienne], "base_version": 3})
+
+    async def enregistre_pendant_ce_temps(**k):
+        # Pendant l'écriture du brouillon : on jette tout, puis une autre opération arrive.
+        await brouillon.ecrire_en_attente(ORG_CLIENT, AGENT, {"operations": [], "base_version": None})
+        await brouillon.modifier_en_attente(ORG_CLIENT, AGENT, lambda e: {"operations": [ajoutee], "base_version": 3})
+        return SimpleNamespace(version_number=4, status="draft")
+
+    monkeypatch.setattr(brouillon, "source_courante", AsyncMock(return_value=({"nodes": [], "edges": []}, 3)))
+    monkeypatch.setattr(brouillon, "valider", AsyncMock(return_value=[]))
+    monkeypatch.setattr(schema_du_parcours, "a_l_enregistrement", AsyncMock(return_value=None))
+    monkeypatch.setattr(brouillon.db_client, "save_workflow_draft", enregistre_pendant_ce_temps)
+    resultat = await brouillon.enregistrer_le_brouillon(SimpleNamespace(id=AGENT), ORG_CLIENT)
+    assert resultat["enregistre"] is True
+    etat = await brouillon.lire_en_attente(ORG_CLIENT, AGENT)
+    assert etat["operations"] == [ajoutee]

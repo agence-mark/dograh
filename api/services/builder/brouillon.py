@@ -229,11 +229,15 @@ async def enregistrer_le_brouillon(workflow: Any, organization_id: int) -> dict[
         return {"enregistre": False, "erreur": "The graph is not valid.", "erreurs": erreurs}
     nouveau = await schema_du_parcours.a_l_enregistrement(workflow.id, organization_id, nouveau, None) or nouveau
     brouillon = await db_client.save_workflow_draft(workflow_id=workflow.id, workflow_definition=nouveau)
-    deja = len(operations)
+    enregistrees = list(etat.get("operations") or [])
 
     def vider(courant):
-        # Les opérations arrivées pendant l'enregistrement restent en attente, rebasées sur la version qu'on vient d'écrire.
-        reste = list(courant.get("operations") or [])[deja:]
+        # On retire EXACTEMENT les opérations enregistrées (par contenu), pas une découpe par rang : un « jeter » puis un ajout
+        # pendant l'enregistrement laisse l'opération ajoutée en attente, rebasée sur la version qu'on vient d'écrire.
+        reste = list(courant.get("operations") or [])
+        for op in enregistrees:
+            if op in reste:
+                reste.remove(op)
         return {"operations": reste, "base_version": brouillon.version_number}
 
     await modifier_en_attente(organization_id, workflow.id, vider)
