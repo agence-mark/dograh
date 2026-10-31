@@ -150,17 +150,56 @@ async def test_une_adresse_publique_est_lue_sans_redirection_et_bornee(monde, mo
     import httpx
 
     async def publique(hote):
-        return True
+        return ["93.184.216.34"]
 
-    monkeypatch.setattr(importation, "_adresses_publiques", publique)
     transport = httpx.MockTransport(lambda requete: httpx.Response(200, text="contenu de la page"))
-    assert await importation.lire_adresse("https://exemple.test/p", transport=transport) == "contenu de la page"
-    gros = httpx.MockTransport(lambda requete: httpx.Response(200, content=b"x" * 300_000))
+    assert await importation.lire_adresse("https://exemple.test/p", transport=transport, resolveur=publique) == "contenu de la page"
+    gros = httpx.MockTransport(lambda requete: httpx.Response(200, content=b"x" * 300_000, headers={"content-type": "text/plain"}))
     with pytest.raises(ErreurBibliotheque):
-        await importation.lire_adresse("https://exemple.test/p", transport=gros)
+        await importation.lire_adresse("https://exemple.test/p", transport=gros, resolveur=publique)
     redirige = httpx.MockTransport(lambda requete: httpx.Response(302, headers={"location": "https://10.0.0.1/"}))
     with pytest.raises(ErreurBibliotheque):
-        await importation.lire_adresse("https://exemple.test/p", transport=redirige)
+        await importation.lire_adresse("https://exemple.test/p", transport=redirige, resolveur=publique)
+
+
+async def test_l_import_se_connecte_a_l_adresse_verifiee_pas_a_une_seconde_resolution(monde):
+    """Revue N1 : pas de rebond DNS. L'adresse est résolue UNE fois ; la requête part vers cette adresse, pas vers le nom."""
+    import httpx
+
+    vues = []
+    resolutions = []
+
+    async def resolveur(hote):
+        resolutions.append(hote)
+        return ["93.184.216.34"]
+
+    def repondre(requete):
+        vues.append((requete.url.host, requete.headers["host"]))
+        return httpx.Response(200, text="page")
+
+    await importation.lire_adresse("https://exemple.test/p", transport=httpx.MockTransport(repondre), resolveur=resolveur)
+    assert resolutions == ["exemple.test"] and vues == [("93.184.216.34", "exemple.test")]
+
+
+async def test_une_ipv4_privee_ecrite_en_ipv6_est_refusee_a_l_import(monde):
+    import httpx
+
+    appels = []
+    for ip in ("::ffff:10.0.0.1", "::ffff:127.0.0.1", "::1", "169.254.169.254"):
+        async def resolveur(hote, ip=ip):
+            return [ip]
+
+        with pytest.raises(ErreurBibliotheque):
+            await importation.lire_adresse(
+                "https://exemple.test/p", transport=httpx.MockTransport(lambda r: appels.append(r) or httpx.Response(200, text="x")), resolveur=resolveur
+            )
+    # un nom qui résout vers une adresse publique ET une privée est refusé en entier
+    async def mixte(hote):
+        return ["93.184.216.34", "10.0.0.1"]
+
+    with pytest.raises(ErreurBibliotheque):
+        await importation.lire_adresse("https://exemple.test/p", transport=httpx.MockTransport(lambda r: appels.append(r) or httpx.Response(200, text="x")), resolveur=mixte)
+    assert appels == []  # aucune requête n'est partie
 
 
 # --- propositions ----------------------------------------------------------------------------------------------------

@@ -12,11 +12,8 @@ texte seulement, taille bornée.
 
 from __future__ import annotations
 
-import asyncio
 import difflib
-import ipaddress
 import json
-import socket
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -26,8 +23,10 @@ from api.services.builder.bibliotheque import service
 from api.services.builder.bibliotheque.modele import Element, Origine
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
 from api.services.builder.constantes import IMPORT_MAX_OCTETS
+from api.services.builder.dossiers import site
 
 DELAI_LECTURE_S = 10.0
+TYPES_IMPORTES = ("text/plain", "text/markdown", "text/x-markdown", "application/json", "application/octet-stream")
 
 
 def comparatif(ancien: dict[str, Any], nouveau: dict[str, Any]) -> dict[str, Any]:
@@ -75,37 +74,36 @@ def _derniere_importee(element: Element, source: str):
 # --- l'adresse ----------------------------------------------------------------------------------------------
 
 
-async def _adresses_publiques(hote: str) -> bool:
-    try:
-        infos = await asyncio.get_running_loop().getaddrinfo(hote, 443, type=socket.SOCK_STREAM)
-    except OSError:
-        return False
-    if not infos:
-        return False
-    return all(ipaddress.ip_address(info[4][0]).is_global for info in infos)
+async def lire_adresse(
+    adresse: str, *, transport: httpx.AsyncBaseTransport | None = None, resolveur: site.Resolveur | None = None
+) -> str:
+    """Le texte d'une page publique. 422 pour une adresse refusée ou illisible.
 
-
-async def lire_adresse(adresse: str, *, transport: httpx.AsyncBaseTransport | None = None) -> str:
-    """Le texte d'une page publique. 422 pour une adresse refusée ou illisible."""
+    Revue N1 : la lecture passe par la requête à adresse épinglée du site d'un client (``site._requete``) : l'adresse est
+    résolue une fois, la connexion part vers elle (pas de rebond DNS entre le contrôle et la requête), une IPv4 écrite
+    en IPv6 compte comme l'IPv4. Aucune redirection n'est suivie ici."""
     morceaux = urlsplit(adresse)
     if morceaux.scheme != "https" or not morceaux.hostname:
         raise ErreurBibliotheque("Only public https addresses are imported.")
-    if not await _adresses_publiques(morceaux.hostname):
-        raise ErreurBibliotheque("This address is not public: nothing is read from it.")
     try:
-        async with httpx.AsyncClient(timeout=DELAI_LECTURE_S, follow_redirects=False, transport=transport) as client:
-            async with client.stream("GET", adresse, headers={"Accept": "text/plain, text/markdown, application/json"}) as reponse:
-                if reponse.status_code != 200:
-                    raise ErreurBibliotheque(f"The address answered {reponse.status_code}.")
-                morceaux_lus: list[bytes] = []
-                total = 0
-                async for morceau in reponse.aiter_bytes():
-                    total += len(morceau)
-                    if total > IMPORT_MAX_OCTETS:
-                        raise ErreurBibliotheque(f"The page is too large (more than {IMPORT_MAX_OCTETS} bytes).")
-                    morceaux_lus.append(morceau)
+        propre = site.normaliser(adresse)
+        async with httpx.AsyncClient(
+            transport=transport, timeout=DELAI_LECTURE_S, follow_redirects=False, trust_env=False, verify=True
+        ) as client:
+            _, reponse = await site._requete(
+                client,
+                propre,
+                resolveur or site.resoudre_par_dns,
+                redirections=0,
+                types_permis=TYPES_IMPORTES,
+                octets_max=IMPORT_MAX_OCTETS,
+                accepte="text/plain, text/markdown, application/json",
+            )
+    except site.SiteRefuse as erreur:
+        raise ErreurBibliotheque(f"This address is not read: {erreur}") from None
     except httpx.HTTPError:
         raise ErreurBibliotheque("The address could not be read.") from None
+    morceaux_lus = [reponse.content]
     try:
         return b"".join(morceaux_lus).decode("utf-8")
     except UnicodeDecodeError:

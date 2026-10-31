@@ -836,3 +836,33 @@ def test_la_base_de_connaissances_lit_un_texte_et_refuse_un_fichier_trop_gros(tm
     gros.write_bytes(un_pdf(["x" * 2000]))
     with pytest.raises(ValueError, match="too large"):
         documents_locaux.traiter_un_document(str(gros), "gros.pdf", "chunked", 128)
+
+
+# --- revue N2 : un délai total autour de la lecture du site ----------------------------------------------------------------------------------
+
+
+async def test_un_site_trop_lent_est_refuse_en_le_disant_au_bout_du_delai_total():
+    import asyncio
+
+    async def lent(requete):
+        await asyncio.sleep(5)
+        return httpx.Response(200, text="<p>trop tard</p>", headers={"content-type": "text/html"})
+
+    with pytest.raises(site.SiteRefuse, match="took more than"):
+        await site.lire_le_site("https://client.example/", resolveur=dns_public, transport=httpx.MockTransport(lent), delai_total_s=0.1)
+
+
+async def test_les_pages_deja_lues_sont_gardees_quand_le_delai_total_tombe_en_cours_de_route():
+    import asyncio
+
+    async def repondre(requete):
+        if requete.url.path == "/robots.txt":
+            return httpx.Response(404)
+        if requete.url.path == "/":
+            return httpx.Response(200, text='<p>Accueil</p><a href="/lente">suite</a>', headers={"content-type": "text/html"})
+        await asyncio.sleep(5)
+        return httpx.Response(200, text="<p>jamais</p>", headers={"content-type": "text/html"})
+
+    lecture = await site.lire_le_site("https://client.example/", resolveur=dns_public, transport=httpx.MockTransport(repondre), delai_total_s=0.3)
+    assert [p.adresse for p in lecture.pages] == ["https://client.example/"]
+    assert any("Reading stopped" in raison for _adresse, raison in lecture.refusees)

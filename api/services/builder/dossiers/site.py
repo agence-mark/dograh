@@ -33,6 +33,7 @@ PAGES_MAX = 10
 OCTETS_PAGE_MAX = 1024 * 1024
 REDIRECTIONS_MAX = 3
 DELAI = 12.0
+DELAI_TOTAL_S = 90.0  # tout le site, pas une requête (revue N2)
 AGENT = "mark-builder/1.0 (+reading public pages for a client audit)"
 PORTS = {80, 443}
 
@@ -172,10 +173,24 @@ class LectureDuSite:
         )
 
 
+TYPES_DE_PAGE = ("text/html", "application/xhtml+xml", "text/plain")
+
+
 async def _requete(
-    client: httpx.AsyncClient, adresse: str, resolveur: Resolveur, redirections: int = REDIRECTIONS_MAX
+    client: httpx.AsyncClient,
+    adresse: str,
+    resolveur: Resolveur,
+    redirections: int = REDIRECTIONS_MAX,
+    *,
+    types_permis: tuple[str, ...] = TYPES_DE_PAGE,
+    octets_max: int = OCTETS_PAGE_MAX,
+    accepte: str = "text/html,text/plain;q=0.9",
 ) -> tuple[str, httpx.Response]:
-    """GET d'UNE adresse déjà normalisée, redirections suivies à la main, chaque étape revérifiée et épinglée."""
+    """GET d'UNE adresse déjà normalisée, redirections suivies à la main, chaque étape revérifiée et épinglée.
+
+    Seule porte de lecture d'une adresse publique du builder (le site d'un client ET l'import de la bibliothèque, revue N1) :
+    la résolution est faite UNE fois, la connexion part vers l'adresse résolue (aucun rebond DNS entre le contrôle et la
+    requête), une IPv4 écrite en IPv6 (``::ffff:10.0.0.1``) compte comme l'IPv4."""
     courante = adresse
     for _ in range(redirections + 1):
         coupe = urlsplit(courante)
@@ -183,7 +198,7 @@ async def _requete(
         ips = await _adresses_publiques(hote, resolveur)
         ip = ips[0]
         cible = coupe._replace(netloc=f"[{ip}]" if ":" in ip else ip).geturl()
-        entetes = {"Host": coupe.netloc, "User-Agent": AGENT, "Accept": "text/html,text/plain;q=0.9"}
+        entetes = {"Host": coupe.netloc, "User-Agent": AGENT, "Accept": accepte}
         extensions = {"sni_hostname": hote} if coupe.scheme == "https" else {}
         async with client.stream("GET", cible, headers=entetes, extensions=extensions) as reponse:
             if reponse.status_code in (301, 302, 303, 307, 308):
@@ -195,13 +210,13 @@ async def _requete(
             type_ = reponse.headers.get("content-type", "").split(";")[0].strip().lower()
             if reponse.status_code != 200:
                 raise SiteRefuse(f"The page answered {reponse.status_code}.")
-            if type_ not in ("text/html", "application/xhtml+xml", "text/plain"):
+            if type_ not in types_permis:
                 raise SiteRefuse("Not a text page (only HTML and text are read).")
             corps = bytearray()
             async for morceau in reponse.aiter_bytes():
                 corps.extend(morceau)
-                if len(corps) > OCTETS_PAGE_MAX:
-                    raise SiteRefuse("The page is too large (more than 1 MB).")
+                if len(corps) > octets_max:
+                    raise SiteRefuse(f"The page is too large (more than {octets_max} bytes).")
             reponse_complete = httpx.Response(200, headers={"content-type": type_}, content=bytes(corps))
             return courante, reponse_complete
     raise SiteRefuse("Too many redirections.")
@@ -227,12 +242,28 @@ async def lire_le_site(
     resolveur: Resolveur = resoudre_par_dns,
     transport: httpx.AsyncBaseTransport | None = None,
     pages_max: int = PAGES_MAX,
+    delai_total_s: float = DELAI_TOTAL_S,
 ) -> LectureDuSite:
     """La page d'accueil puis les pages liées du même site, jusqu'à ``pages_max``. ``SiteRefuse`` si l'adresse
     elle-même est refusée ; une page liée refusée est notée dans ``refusees`` et la lecture continue."""
     depart = normaliser(adresse)
-    hote = urlsplit(depart).hostname
     resultat = LectureDuSite()
+    try:
+        # Revue N2 : un délai TOTAL autour de toute la lecture (chaque requête a le sien, mais vingt pages lentes à la suite
+        # tenaient la demande indéfiniment). Les pages déjà lues sont gardées ; sans aucune page, la lecture est refusée.
+        async with asyncio.timeout(delai_total_s):
+            await _lire_les_pages(depart, resultat, resolveur, transport, pages_max)
+    except TimeoutError:
+        if not resultat.pages:
+            raise SiteRefuse(f"The site took more than {delai_total_s:g} seconds to read: nothing was kept.") from None
+        resultat.refusees.append((depart, f"Reading stopped after {delai_total_s:g} seconds: the pages read so far are kept."))
+    return resultat
+
+
+async def _lire_les_pages(
+    depart: str, resultat: LectureDuSite, resolveur: Resolveur, transport: httpx.AsyncBaseTransport | None, pages_max: int
+) -> None:
+    hote = urlsplit(depart).hostname
     async with httpx.AsyncClient(
         transport=transport, timeout=DELAI, follow_redirects=False, trust_env=False, verify=True
     ) as client:
@@ -274,4 +305,3 @@ async def lire_le_site(
                     continue
                 if urlsplit(suite).hostname == hote and suite not in vues and suite not in a_lire:
                     a_lire.append(suite)
-    return resultat
