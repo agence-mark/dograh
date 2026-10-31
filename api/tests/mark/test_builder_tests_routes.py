@@ -140,6 +140,9 @@ class FauxTri:
         self.ecritures: list[dict] = []
         self.membres = {5}
 
+    async def get_organization_users(self, organization_id):
+        return [SimpleNamespace(id=5, email="a@exemple.test"), SimpleNamespace(id=6, email=None)] if organization_id == ORG_CLIENT else []
+
     async def run_de_l_organisation(self, organisation, run_id):
         if organisation != ORG_CLIENT:
             return None
@@ -194,3 +197,8 @@ def test_la_file_de_tri_montre_l_assigne_l_origine_et_se_filtre_par_origine(faux
     assert c.get("/tri", params={"origine": "client"}).json()["lignes"] == []
     assert c.get("/tri").json()["lignes"][0]["assigne"] == 5
 
+
+
+def test_les_personnes_assignables_sont_celles_de_l_organisation_seulement(faux_tri):
+    assert client_pour(EQUIPE).get("/tri/personnes").json() == [{"id": 5, "nom": "a@exemple.test"}, {"id": 6, "nom": "#6"}]
+    assert client_pour(AUTRE).get("/tri/personnes").json() == []

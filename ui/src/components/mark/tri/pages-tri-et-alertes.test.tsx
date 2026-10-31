@@ -24,6 +24,7 @@ const m = vi.hoisted(() => ({
     statut: vi.fn(),
     alertes: vi.fn(),
     taux: vi.fn(),
+    personnes: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
@@ -31,6 +32,7 @@ vi.mock("@/client", () => ({
     changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),
     lireLesAlertesApiV1AlertesGet: (options: unknown) => m.alertes(options),
     lireLesTauxDeSortieDImpasseApiV1TriTauxGet: (options: unknown) => m.taux(options),
+    lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => m.personnes(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
 
@@ -61,6 +63,7 @@ beforeEach(() => {
     m.statut.mockResolvedValue({ data: { run_id: 12, identifiant: "agent:0", statut: "résolu" } });
     m.alertes.mockResolvedValue({ data: { lignes: ALERTES, page: 0, a_une_suite: true } });
     m.taux.mockResolvedValue({ data: { jours: 7, lignes: [] } });
+    m.personnes.mockResolvedValue({ data: [{ id: 5, nom: "equipe@exemple.test" }] });
 });
 afterEach(() => {
     cleanup();
@@ -107,6 +110,32 @@ describe("[.mark] the « To triage » page", () => {
         fireEvent.change(screen.getAllByLabelText("Statut")[0], { target: { value: "fusionné" } });
         expect((await screen.findByRole("alert")).textContent).toContain("Flag not found");
         expect((screen.getAllByLabelText("Statut")[0] as HTMLSelectElement).value).toBe("ouvert");
+    });
+
+    it("assigns a flag to a person of the organization and sets its origin, then shows where the origin leads (builder, lot 6)", async () => {
+        m.statut.mockResolvedValue({ data: { run_id: 12, identifiant: "agent:0", statut: "ouvert" } });
+        render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
+        await screen.findByText("Signalé par l'agent");
+        await screen.findAllByRole("option", { name: "equipe@exemple.test", hidden: true });
+        fireEvent.change(screen.getAllByLabelText("Assigné à")[0], { target: { value: "5" } });
+        await waitFor(() => expect(m.statut).toHaveBeenCalledWith({ path: { run_id: 12 }, body: { identifiant: "agent:0", assigne: 5 } }));
+        expect((screen.getAllByLabelText("Assigné à")[0] as HTMLSelectElement).value).toBe("5");
+        fireEvent.change(screen.getAllByLabelText("Origine du signalement")[0], { target: { value: "client" } });
+        await waitFor(() => expect(m.statut).toHaveBeenCalledWith({ path: { run_id: 12 }, body: { identifiant: "agent:0", origine: "client" } }));
+        expect((await screen.findAllByTestId("suite-de-l-origine"))[0].textContent).toContain("Corriger la fiche du client");
+    });
+
+    it("filters by origin and links each flag to the creation of a test from its reply", async () => {
+        render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
+        await screen.findByText("Signalé par l'agent");
+        fireEvent.change(screen.getByLabelText("Filtrer par origine"), { target: { value: "code" } });
+        await waitFor(() => expect(m.tri).toHaveBeenLastCalledWith({ query: { page: 0, workflow_id: undefined, origine: "code" } }));
+        const liens = screen.getAllByRole("link", { name: "Créer un test" });
+        expect(liens.map((l) => l.getAttribute("href"))).toEqual([
+            "/workflow/3/run/12?creer_test=2",
+            "/workflow/3/run/12?creer_test=4",
+            "/workflow/4/run/15?creer_test=5",
+        ]);
     });
 
     it("filters by agent: the server is asked for that agent only, from the first page", async () => {

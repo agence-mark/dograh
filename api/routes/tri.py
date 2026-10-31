@@ -170,6 +170,18 @@ async def lire_les_taux_de_sortie_d_impasse(
     return TauxDeSortieDImpasse(jours=periode, lignes=[LigneDeTaux(**ligne) for ligne in lignes])
 
 
+class PersonneAssignable(BaseModel):
+    id: int
+    nom: str
+
+
+@router.get("/tri/personnes", response_model=list[PersonneAssignable])
+async def lire_les_personnes_assignables(user: UserModel = Depends(get_user_with_selected_organization)) -> list[PersonneAssignable]:
+    """[.mark] builder lot 6 : les personnes de l'organisation à qui on peut assigner un signalement (jamais d'autres organisations)."""
+    membres = await db_client.get_organization_users(user.selected_organization_id)
+    return [PersonneAssignable(id=m.id, nom=(m.email or f"#{m.id}")) for m in membres]
+
+
 @router.put("/tri/{run_id}", response_model=StatutEcrit)
 async def changer_le_statut_d_un_signalement(
     run_id: int,

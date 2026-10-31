@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
 import { dateCourte, type StatutDeLaBibliotheque,STATUTS } from "./libelles";
+import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
 
 interface Props {
     element: ElementBibliotheque;
@@ -108,6 +109,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
                 <p className="text-sm text-muted-foreground" data-testid="utilisee-par">
                     {t({ en: `Used by ${utilisePar} agent(s)`, fr: `Utilisée par ${utilisePar} agent(s)` })}
                 </p>
+                {statut === "recette" && <AgentsDeLaRecette famille={element.famille} slug={element.slug} />}
                 {statut === "candidat" && (
                     <p className="text-sm text-amber-700 dark:text-amber-300" data-testid="avertissement-candidat">
                         {t({

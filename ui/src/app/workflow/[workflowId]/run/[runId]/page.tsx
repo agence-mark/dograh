@@ -15,7 +15,7 @@ import {
     Video,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import posthog from 'posthog-js';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import {
     getWorkflowApiV1WorkflowFetchWorkflowIdGet,
     getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet,
 } from '@/client/sdk.gen';
+import { BoutonCreerUnTest } from '@/components/builder/tests/BoutonCreerUnTest';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { FenetreDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
@@ -615,6 +616,9 @@ function ContextDisplay({ title, context }: { title: string; context: Record<str
 
 export default function WorkflowRunPage() {
     const params = useParams();
+    // [.mark] builder lot 6 : la page « À trier » ouvre l'appel sur la réplique à tester (?creer_test=<rang>).
+    const demande = Number(useSearchParams()?.get('creer_test'));
+    const rangDemande = Number.isInteger(demande) && demande >= 1 ? demande : undefined;
     const [isLoading, setIsLoading] = useState(true);
     const auth = useAuth();
     const organizationTimezone = useOrganizationTimezone();
@@ -895,9 +899,18 @@ export default function WorkflowRunPage() {
                 </div>
 
                 <div className="h-full min-h-0 w-[420px] shrink-0 border-l border-border bg-background p-5">
-                    <ConversationRailFrame className="h-full">
-                        <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
-                    </ConversationRailFrame>
+                    <div className="flex h-full min-h-0 flex-col gap-3">
+                        {/* [.mark] builder lot 6 : créer un test depuis une réplique de cet appel */}
+                        <BoutonCreerUnTest
+                            workflowId={Number(params.workflowId)}
+                            runId={Number(params.runId)}
+                            evenements={workflowRun?.logs?.realtime_feedback_events as never}
+                            rangInitial={rangDemande}
+                        />
+                        <ConversationRailFrame className="min-h-0 flex-1">
+                            <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
+                        </ConversationRailFrame>
+                    </div>
                 </div>
             </div>
         );
