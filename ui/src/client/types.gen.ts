@@ -6165,6 +6165,26 @@ export type LancementSerie = {
 };
 
 /**
+ * LancerUnEssai
+ */
+export type LancerUnEssai = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Outil
+     */
+    outil: string;
+    /**
+     * Donnees Test
+     */
+    donnees_test?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * LangfuseCredentialsRequest
  */
 export type LangfuseCredentialsRequest = {
@@ -19504,6 +19524,47 @@ export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors = {
 export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostError = ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors[keyof ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostErrors];
 
 export type ValiderLaFicheApiV1BuilderFicheWorkflowIdValiderPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostData = {
+    body: LancerUnEssai;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/outils/essai';
+};
+
+export type LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostError = LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostErrors[keyof LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostErrors];
+
+export type LancerLessaiDUnOutilApiV1BuilderOutilsEssaiPostResponses = {
     /**
      * Successful Response
      */
