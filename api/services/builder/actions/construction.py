@@ -195,20 +195,20 @@ async def _operer(contexte: Contexte, parametres: _Operations) -> dict[str, Any]
     workflow = await agent_de_l_organisation(contexte, parametres.workflow_id)
     await _exiger_la_conception(contexte, workflow.id)
     org = contexte.organisation_id
-    etat = await brouillon.lire_en_attente(org, workflow.id)
     graphe, version = await brouillon.source_courante(workflow)
-    if etat["operations"] and etat.get("base_version") != version:
-        raise ErreurAction("The draft changed since the pending operations were prepared: discard them first (brouillon_jeter).")
-    en_attente = brouillon.operations_de(etat)
-    try:
-        brouillon.appliquer(graphe, [*en_attente, *parametres.operations])
-    except brouillon.ErreurOperation as erreur:
-        raise ErreurAction(str(erreur), "operation") from None
-    nouvel_etat = {
-        "operations": [*etat["operations"], *[o.model_dump(exclude_none=True) for o in parametres.operations]],
-        "base_version": version,
-    }
-    await brouillon.ecrire_en_attente(org, workflow.id, nouvel_etat)
+    nouvelles = [o.model_dump(exclude_none=True) for o in parametres.operations]
+
+    def ajouter(etat):
+        if etat["operations"] and etat.get("base_version") != version:
+            raise ErreurAction("The draft changed since the pending operations were prepared: discard them first (brouillon_jeter).")
+        try:
+            brouillon.appliquer(graphe, [*brouillon.operations_de(etat), *parametres.operations])
+        except brouillon.ErreurOperation as erreur:
+            raise ErreurAction(str(erreur), "operation") from None
+        return {"operations": [*etat["operations"], *nouvelles], "base_version": version}
+
+    # Deux appels simultanés ajoutent chacun leurs opérations : aucune ne s'écrase (revue R6).
+    nouvel_etat = await brouillon.modifier_en_attente(org, workflow.id, ajouter)
     return {
         "ok": True,
         "operations": [o.model_dump(exclude_none=True) for o in parametres.operations],

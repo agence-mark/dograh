@@ -189,6 +189,14 @@ async def ecrire_en_attente(organization_id: int, workflow_id: int, etat: dict[s
     await stock.ecrire(organization_id, cle_du_brouillon(workflow_id), etat)
 
 
+async def modifier_en_attente(organization_id: int, workflow_id: int, transformer) -> dict[str, Any]:
+    """Lecture-écriture du brouillon en attente sous condition (revue R6) : ``transformer(etat) -> etat`` est pure et rejouable."""
+    rendu = await stock.modifier(
+        organization_id, cle_du_brouillon(workflow_id), lambda brut: transformer(brut or {"operations": [], "base_version": None})
+    )
+    return rendu or {"operations": [], "base_version": None}
+
+
 def operations_de(etat: dict[str, Any]) -> list[Operation]:
     return [Operation.model_validate(o) for o in etat.get("operations") or []]
 
@@ -218,7 +226,14 @@ async def enregistrer_le_brouillon(workflow: Any, organization_id: int) -> dict[
         return {"enregistre": False, "erreur": "The graph is not valid.", "erreurs": erreurs}
     nouveau = await schema_du_parcours.a_l_enregistrement(workflow.id, organization_id, nouveau, None) or nouveau
     brouillon = await db_client.save_workflow_draft(workflow_id=workflow.id, workflow_definition=nouveau)
-    await ecrire_en_attente(organization_id, workflow.id, {"operations": [], "base_version": brouillon.version_number})
+    deja = len(operations)
+
+    def vider(courant):
+        # Les opérations arrivées pendant l'enregistrement restent en attente, rebasées sur la version qu'on vient d'écrire.
+        reste = list(courant.get("operations") or [])[deja:]
+        return {"operations": reste, "base_version": brouillon.version_number}
+
+    await modifier_en_attente(organization_id, workflow.id, vider)
     return {
         "enregistre": True,
         "version": brouillon.version_number,

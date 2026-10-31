@@ -143,7 +143,22 @@ async def accepter(identifiant: str, decideur: str, *, banc: Banc | None = None,
             raison=motif or proposition.justification,
         )
     decidee = proposition.model_copy(update={"etat": "acceptee", "decide_par": decideur, "decide_le": maintenant()})
-    await stock.ecrire(_org(), _cle(identifiant), decidee.model_dump(mode="json"))
+    return await _decider(identifiant, decidee)
+
+
+async def _decider(identifiant: str, decidee: Proposition) -> Proposition:
+    """Écrit la décision seulement si la proposition est encore en attente : deux personnes qui décident en même temps, la
+    seconde reçoit « déjà décidée » au lieu d'écraser la première (revue R6)."""
+
+    def transformer(brut):
+        if brut is not None and brut.get("etat") != "en_attente":
+            raise ErreurBibliotheque("This proposal is already decided.", 409)
+        return decidee.model_dump(mode="json")
+
+    try:
+        await stock.modifier(_org(), _cle(identifiant), transformer)
+    except stock.ConflitDEcriture:
+        raise ErreurBibliotheque("This proposal keeps changing: try again.", 409) from None
     return decidee
 
 
@@ -156,5 +171,4 @@ async def refuser(identifiant: str, decideur: str, motif: str) -> Proposition:
     decidee = proposition.model_copy(
         update={"etat": "refusee", "decide_par": decideur, "decide_le": maintenant(), "motif_refus": motif.strip()}
     )
-    await stock.ecrire(_org(), _cle(identifiant), decidee.model_dump(mode="json"))
-    return decidee
+    return await _decider(identifiant, decidee)

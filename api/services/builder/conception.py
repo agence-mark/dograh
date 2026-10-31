@@ -65,31 +65,43 @@ async def lire(organization_id: int, workflow_id: int) -> EtatConception | None:
 
 async def ecrire(organization_id: int, workflow_id: int, conception: Conception) -> EtatConception:
     """Écrit (ou réécrit) le document : toujours à l'état ``propose``, avec une révision de plus."""
-    avant = await lire(organization_id, workflow_id)
-    etat = EtatConception(conception=conception, revision=(avant.revision + 1) if avant else 1)
-    await stock.ecrire(organization_id, cle(workflow_id), etat.model_dump(mode="json"))
-    return etat
+    rendu: list[EtatConception] = []
+
+    def transformer(brut):
+        avant = EtatConception.model_validate(brut) if brut else None
+        etat = EtatConception(conception=conception, revision=(avant.revision + 1) if avant else 1)
+        rendu[:] = [etat]
+        return etat.model_dump(mode="json")
+
+    await stock.modifier(organization_id, cle(workflow_id), transformer)
+    return rendu[0]
 
 
 async def decider(
     organization_id: int, workflow_id: int, approuve: bool, auteur: str, note: str | None = None
 ) -> EtatConception:
     """Le geste d'une personne : approuver, ou renvoyer avec une note (obligatoire pour renvoyer)."""
-    etat = await lire(organization_id, workflow_id)
-    if etat is None:
-        raise ErreurConception("No design document to decide on.")
     if not approuve and not (note or "").strip():
         raise ErreurConception("Sending the document back needs a note.")
-    decide = etat.model_copy(
-        update={
-            "etat": "approuve" if approuve else "renvoye",
-            "note": (note or "").strip() or None,
-            "decide_par": auteur,
-            "decide_le": maintenant(),
-        }
-    )
-    await stock.ecrire(organization_id, cle(workflow_id), decide.model_dump(mode="json"))
-    return decide
+    rendu: list[EtatConception] = []
+    le = maintenant()
+
+    def transformer(brut):
+        if not brut:
+            raise ErreurConception("No design document to decide on.")
+        decide = EtatConception.model_validate(brut).model_copy(
+            update={
+                "etat": "approuve" if approuve else "renvoye",
+                "note": (note or "").strip() or None,
+                "decide_par": auteur,
+                "decide_le": le,
+            }
+        )
+        rendu[:] = [decide]
+        return decide.model_dump(mode="json")
+
+    await stock.modifier(organization_id, cle(workflow_id), transformer)
+    return rendu[0]
 
 
 async def exiger_approuvee(organization_id: int, workflow_id: int) -> None:

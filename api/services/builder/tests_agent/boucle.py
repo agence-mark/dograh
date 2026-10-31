@@ -101,29 +101,35 @@ async def noter_la_version_testee(
     organization_id: int, workflow_id: int, graphe: dict[str, Any], version: int | None, vert: bool, *, restaure_de: str | None = None
 ) -> dict[str, Any] | None:
     """Garde la version qu'on vient de tester si elle diffère de la dernière gardée ; sinon met à jour son résultat."""
-    entrees = await lire_les_corrections(organization_id, workflow_id)
     cle = empreinte(graphe)
-    if entrees and entrees[-1]["empreinte"] == cle:
-        entrees[-1]["vert"] = bool(vert)
-        entree = entrees[-1]
-    else:
-        brut = json.dumps(graphe, ensure_ascii=False)
-        # L'instantané précédent sert à décrire le changement ; on ne le recopie pas deux fois.
-        precedent = entrees[-1].get("instantane") if entrees else None
-        entree = {
-            "id": f"c{(int(entrees[-1]['id'][1:]) + 1) if entrees else 1}",
-            "le": stockage.maintenant(),
-            "version": version,
-            "empreinte": cle,
-            "vert": bool(vert),
-            "resume": resumer_le_changement(precedent, graphe),
-            "restaure_de": restaure_de,
-            "instantane": graphe if len(brut.encode("utf-8")) <= SNAPSHOT_MAX_OCTETS else None,
-        }
-        entrees.append(entree)
-    entrees = entrees[-CORRECTIONS_GARDEES:]
-    await stock.ecrire(organization_id, cle_corrections(workflow_id), {"entrees": entrees})
-    return entree
+    brut = json.dumps(graphe, ensure_ascii=False)
+    rendu: list[dict[str, Any]] = []
+
+    def transformer(ligne):
+        # Revue R6 : deux essais simultanés se suivent au lieu de prendre le même numéro de correction.
+        entrees = list((ligne or {}).get("entrees") or [])
+        if entrees and entrees[-1]["empreinte"] == cle:
+            entrees[-1]["vert"] = bool(vert)
+            entree = entrees[-1]
+        else:
+            # L'instantané précédent sert à décrire le changement ; on ne le recopie pas deux fois.
+            precedent = entrees[-1].get("instantane") if entrees else None
+            entree = {
+                "id": f"c{(int(entrees[-1]['id'][1:]) + 1) if entrees else 1}",
+                "le": stockage.maintenant(),
+                "version": version,
+                "empreinte": cle,
+                "vert": bool(vert),
+                "resume": resumer_le_changement(precedent, graphe),
+                "restaure_de": restaure_de,
+                "instantane": graphe if len(brut.encode("utf-8")) <= SNAPSHOT_MAX_OCTETS else None,
+            }
+            entrees.append(entree)
+        rendu[:] = [entree]
+        return {"entrees": entrees[-CORRECTIONS_GARDEES:]}
+
+    await stock.modifier(organization_id, cle_corrections(workflow_id), transformer)
+    return rendu[0]
 
 
 def sans_instantane(entree: dict[str, Any]) -> dict[str, Any]:

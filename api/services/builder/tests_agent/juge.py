@@ -115,9 +115,11 @@ def cle_des_notes(workflow_id: int) -> str:
 
 
 async def noter(organization_id: int, workflow_id: int, identifiant: str, ok: bool) -> None:
-    ligne = await stock.lire(organization_id, cle_des_notes(workflow_id)) or {"notes": []}
-    notes = [n for n in ligne.get("notes") or [] if n.get("id") != identifiant] + [{"id": identifiant, "ok": bool(ok)}]
-    await stock.ecrire(organization_id, cle_des_notes(workflow_id), {"notes": notes[-200:]})
+    def transformer(ligne):
+        notes = [n for n in (ligne or {}).get("notes") or [] if n.get("id") != identifiant] + [{"id": identifiant, "ok": bool(ok)}]
+        return {"notes": notes[-200:]}
+
+    await stock.modifier(organization_id, cle_des_notes(workflow_id), transformer)
 
 
 async def notes(organization_id: int, workflow_id: int) -> list[dict[str, Any]]:

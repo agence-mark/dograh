@@ -56,16 +56,23 @@ async def lire_contexte_agent(organization_id: int, workflow_id: int) -> dict[st
 
 
 async def ecrire_notes(organization_id: int, workflow_id: int, notes: str) -> None:
-    ligne = await lire_contexte_agent(organization_id, workflow_id)
-    await stock.ecrire(organization_id, cle_builder(workflow_id, "contexte"), {**ligne, "notes": notes[:20000]})
+    await stock.modifier(
+        organization_id,
+        cle_builder(workflow_id, "contexte"),
+        lambda ligne: {**(ligne or {"notes": "", "candidats": []}), "notes": notes[:20000]},
+    )
 
 
 async def noter_un_candidat(organization_id: int, workflow_id: int, famille: str, slug: str, version: int) -> None:
     """La mention « contient des candidats » de l'agent (B35) : ce qu'il utilise de non prouvé."""
-    ligne = await lire_contexte_agent(organization_id, workflow_id)
-    candidats = [c for c in ligne.get("candidats") or [] if (c.get("famille"), c.get("slug")) != (famille, slug)]
-    candidats.append({"famille": famille, "slug": slug, "version": version})
-    await stock.ecrire(organization_id, cle_builder(workflow_id, "contexte"), {**ligne, "candidats": candidats})
+
+    def transformer(brut):
+        ligne = brut or {"notes": "", "candidats": []}
+        candidats = [c for c in ligne.get("candidats") or [] if (c.get("famille"), c.get("slug")) != (famille, slug)]
+        candidats.append({"famille": famille, "slug": slug, "version": version})
+        return {**ligne, "candidats": candidats}
+
+    await stock.modifier(organization_id, cle_builder(workflow_id, "contexte"), transformer)
 
 
 # --- couches 1 et 3 ----------------------------------------------------------------------------------------------

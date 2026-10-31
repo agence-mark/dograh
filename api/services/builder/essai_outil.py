@@ -138,15 +138,19 @@ def _verdict(nom: str, branche: bool, raison: str, statut_http: int | None, dure
 async def _ranger(organisation_id: int, workflow_id: int | None, resultat: dict[str, Any]) -> None:
     if workflow_id is None:
         return
-    cle = cle_builder(workflow_id, "outils")
-    etat = await stock.lire(organisation_id, cle) or {}
-    etat[resultat["outil"]] = {
-        "branche": resultat["branche"],
-        "raison": resultat["raison"],
-        "repli": resultat["repli"],
-        "le": datetime.now(UTC).isoformat(),
-    }
-    await stock.ecrire(organisation_id, cle, etat)
+    maintenant = datetime.now(UTC).isoformat()
+
+    def transformer(ligne):
+        etat = dict(ligne or {})
+        etat[resultat["outil"]] = {
+            "branche": resultat["branche"],
+            "raison": resultat["raison"],
+            "repli": resultat["repli"],
+            "le": maintenant,
+        }
+        return etat
+
+    await stock.modifier(organisation_id, cle_builder(workflow_id, "outils"), transformer)
 
 
 async def etat_des_outils(organisation_id: int, workflow_id: int) -> dict[str, Any]:

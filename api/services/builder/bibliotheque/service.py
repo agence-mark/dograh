@@ -90,7 +90,7 @@ async def element_ou_none(famille: str, slug: str) -> Element | None:
         raise
 
 
-async def _ecrire(element: Element) -> Element:
+def _borner(element: Element) -> Element:
     # Au-delà du plafond, les plus anciennes partent (sauf la courante et celles qui portent un banc).
     versions = list(element.versions)
     protegees = {element.version_courante} | {v.numero for v in versions if v.banc is not None}
@@ -99,8 +99,31 @@ async def _ecrire(element: Element) -> Element:
         if ancienne is None:
             raise ErreurBibliotheque(f"Too many proven versions (more than {VERSIONS_MAX}).")
         versions.remove(ancienne)
-    element = element.model_copy(update={"versions": versions})
-    await stock.ecrire(_organisation(), cle_de(element.famille, element.slug), element.model_dump(mode="json"))
+    return element.model_copy(update={"versions": versions})
+
+
+async def _modifier(famille: str, slug: str, construire) -> Element:
+    """Lit l'élément, applique ``construire(element | None) -> Element`` (pure : elle peut être rejouée) et écrit seulement si la
+    ligne n'a pas bougé entre-temps (revue R6) : deux versions ajoutées en même temps gardent chacune leur numéro."""
+    org = _organisation()
+    rendu: list[Element] = []
+
+    def transformer(brut):
+        element = _valider(lambda: Element.model_validate(brut)) if brut is not None else None
+        nouveau = _borner(construire(element))
+        rendu[:] = [nouveau]
+        return nouveau.model_dump(mode="json")
+
+    try:
+        await stock.modifier(org, cle_de(famille, slug), transformer)
+    except stock.ConflitDEcriture:
+        raise ErreurBibliotheque("The library element keeps changing: try again.", 409) from None
+    return rendu[0]
+
+
+def _existant(element: Element | None, famille: str, slug: str) -> Element:
+    if element is None:
+        raise ErreurBibliotheque(f"Library element not found: {famille}/{slug}.", 404)
     return element
 
 
@@ -116,18 +139,21 @@ async def creer(
 ) -> Element:
     _verifier_famille(famille)
     _organisation()
-    if await element_ou_none(famille, slug) is not None:
-        raise ErreurBibliotheque(f"Library element already exists: {famille}/{slug}.", 409)
-    element = _valider(
-        lambda: Element(
-            famille=famille,
-            slug=slug,
-            titre=titre,
-            version_courante=1,
-            versions=[Version(numero=1, auteur=auteur, notes=notes, contenu=contenu, origine=origine)],
+
+    def construire(existant: Element | None) -> Element:
+        if existant is not None:
+            raise ErreurBibliotheque(f"Library element already exists: {famille}/{slug}.", 409)
+        return _valider(
+            lambda: Element(
+                famille=famille,
+                slug=slug,
+                titre=titre,
+                version_courante=1,
+                versions=[Version(numero=1, auteur=auteur, notes=notes, contenu=contenu, origine=origine)],
+            )
         )
-    )
-    return await _ecrire(element)
+
+    return await _modifier(famille, slug, construire)
 
 
 async def ajouter_version(
@@ -142,41 +168,47 @@ async def ajouter_version(
     titre: str | None = None,
 ) -> Element:
     """Une nouvelle version, toujours Candidat (ou Recette si un banc est donné ET demandé via ``marquer``)."""
-    element = await lire_element(famille, slug)
-    numero = max(v.numero for v in element.versions) + 1
-    version = _valider(
-        lambda: Version(numero=numero, auteur=auteur, notes=notes, contenu=contenu, banc=banc, origine=origine)
-    )
-    nouveau = element.model_copy(
-        update={
-            "versions": [*element.versions, version],
-            "version_courante": numero,
-            "titre": titre or element.titre,
-        }
-    )
-    return await _ecrire(nouveau)
+    _verifier_famille(famille)
+
+    def construire(brut: Element | None) -> Element:
+        element = _existant(brut, famille, slug)
+        numero = max(v.numero for v in element.versions) + 1
+        version = _valider(
+            lambda: Version(numero=numero, auteur=auteur, notes=notes, contenu=contenu, banc=banc, origine=origine)
+        )
+        return element.model_copy(
+            update={
+                "versions": [*element.versions, version],
+                "version_courante": numero,
+                "titre": titre or element.titre,
+            }
+        )
+
+    return await _modifier(famille, slug, construire)
 
 
 async def retour_arriere(famille: str, slug: str, numero: int, auteur: str) -> Element:
     """Revient à une version : en ajoute une qui reprend contenu, statut et banc de l'ancienne."""
-    element = await lire_element(famille, slug)
-    ancienne = next((v for v in element.versions if v.numero == numero), None)
-    if ancienne is None:
-        raise ErreurBibliotheque(f"Version {numero} not found.", 404)
-    nouveau_numero = max(v.numero for v in element.versions) + 1
-    restauree = ancienne.model_copy(
-        update={
-            "numero": nouveau_numero,
-            "auteur": auteur,
-            "date": maintenant(),
-            "notes": f"Retour à la version {numero}.",
-            "restaure_de": numero,
-        }
-    )
-    nouveau = element.model_copy(
-        update={"versions": [*element.versions, restauree], "version_courante": nouveau_numero}
-    )
-    return await _ecrire(nouveau)
+    _verifier_famille(famille)
+
+    def construire(brut: Element | None) -> Element:
+        element = _existant(brut, famille, slug)
+        ancienne = next((v for v in element.versions if v.numero == numero), None)
+        if ancienne is None:
+            raise ErreurBibliotheque(f"Version {numero} not found.", 404)
+        nouveau_numero = max(v.numero for v in element.versions) + 1
+        restauree = ancienne.model_copy(
+            update={
+                "numero": nouveau_numero,
+                "auteur": auteur,
+                "date": maintenant(),
+                "notes": f"Retour à la version {numero}.",
+                "restaure_de": numero,
+            }
+        )
+        return element.model_copy(update={"versions": [*element.versions, restauree], "version_courante": nouveau_numero})
+
+    return await _modifier(famille, slug, construire)
 
 
 async def marquer(
@@ -190,21 +222,26 @@ async def marquer(
     raison: str | None = None,
 ) -> Element:
     """Passe une version en Recette (banc exigé) ou Rejeté (raison exigée). Geste humain : le builder ne l'a pas."""
-    element = await lire_element(famille, slug)
-    cible = next((v for v in element.versions if v.numero == numero), None)
-    if cible is None:
-        raise ErreurBibliotheque(f"Version {numero} not found.", 404)
+    _verifier_famille(famille)
     if statut is Statut.RECETTE and banc is None:
         raise ErreurBibliotheque("A recipe is proven on a bench: give what proves it.")
     if statut is Statut.REJETE and not (raison or "").strip():
         raise ErreurBibliotheque("A rejection keeps its reason: give it.")
-    mise_a_jour = {
-        "statut": statut,
-        "banc": banc if statut is Statut.RECETTE else cible.banc,
-        "raison_rejet": (raison or "").strip() or None if statut is Statut.REJETE else None,
-    }
-    versions = [v.model_copy(update=mise_a_jour) if v.numero == numero else v for v in element.versions]
-    return await _ecrire(element.model_copy(update={"versions": versions}))
+
+    def construire(brut: Element | None) -> Element:
+        element = _existant(brut, famille, slug)
+        cible = next((v for v in element.versions if v.numero == numero), None)
+        if cible is None:
+            raise ErreurBibliotheque(f"Version {numero} not found.", 404)
+        mise_a_jour = {
+            "statut": statut,
+            "banc": banc if statut is Statut.RECETTE else cible.banc,
+            "raison_rejet": (raison or "").strip() or None if statut is Statut.REJETE else None,
+        }
+        versions = [v.model_copy(update=mise_a_jour) if v.numero == numero else v for v in element.versions]
+        return element.model_copy(update={"versions": versions})
+
+    return await _modifier(famille, slug, construire)
 
 
 async def ecrire_candidat(

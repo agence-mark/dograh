@@ -71,13 +71,17 @@ async def supprimer(organization_id: int, workflow_id: int, slug: str) -> bool:
 
 async def changer(organization_id: int, workflow_id: int, slug: str, **champs: Any) -> dict[str, Any]:
     """Change ``obligatoire`` et/ou ``dossier`` d'un test existant (le reste d'un test ne se réécrit pas)."""
-    test = await lire(organization_id, workflow_id, slug)
-    for cle, valeur in champs.items():
+    for cle in champs:
         if cle not in ("obligatoire", "dossier"):
             raise ErreurTest(f"« {cle} » cannot be changed on an existing test.")
-        if valeur is not None:
-            test[cle] = valeur
-    return await ecrire(organization_id, workflow_id, test)
+
+    def transformer(test):
+        if test is None:
+            raise ErreurTest(f"Unknown test: {slug}.")
+        return {**test, **{cle: valeur for cle, valeur in champs.items() if valeur is not None}}
+
+    # Revue R6 : deux changements simultanés (« obligatoire » et « dossier ») ne s'écrasent pas.
+    return await stock.modifier(organization_id, cle_test(workflow_id, slug), transformer) or {}
 
 
 async def resultats(organization_id: int, workflow_id: int, slug: str) -> list[dict[str, Any]]:
@@ -87,9 +91,10 @@ async def resultats(organization_id: int, workflow_id: int, slug: str) -> list[d
 
 async def ajouter_un_resultat(organization_id: int, workflow_id: int, slug: str, execution: dict[str, Any]) -> None:
     """Range une exécution en tête ; seules les 3 dernières restent."""
-    anciennes = await resultats(organization_id, workflow_id, slug)
-    await stock.ecrire(
-        organization_id, cle_resultats(workflow_id, slug), {"executions": [execution, *anciennes][:EXECUTIONS_GARDEES]}
+    await stock.modifier(
+        organization_id,
+        cle_resultats(workflow_id, slug),
+        lambda ligne: {"executions": [execution, *list((ligne or {}).get("executions") or [])][:EXECUTIONS_GARDEES]},
     )
 
 

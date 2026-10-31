@@ -122,7 +122,6 @@ async def test_deux_depots_simultanes_sont_tous_les_deux_dans_l_index(entrelace)
 async def test_deux_agents_qui_appliquent_le_meme_element_s_ajoutent_tous_les_deux(entrelace, monkeypatch):
     from api.services.builder.bibliotheque import service
 
-    monkeypatch.setattr(service, "organisation_bibliotheque", lambda: ORG_CLIENT)
     await asyncio.gather(
         service.enregistrer_utilisation("regles", "x", 1, ORG_CLIENT, 11), service.enregistrer_utilisation("regles", "x", 1, ORG_CLIENT, 12)
     )
@@ -183,3 +182,69 @@ async def test_l_enregistrement_applique_le_plafond_en_octets(entrelace):
     await contexte.enregistrer(ORG_CLIENT, AGENT, conv)
     brut = entrelace.configs[(ORG_CLIENT, f"MARK_BUILDER:{AGENT}:conversation")]
     assert len(json.dumps(brut, ensure_ascii=False).encode()) <= CONVERSATION_OCTETS_MAX
+
+
+# --- les dernières familles de stockage (revue R6, suite) ----------------------------------------------------------
+
+
+async def test_deux_candidats_notes_en_meme_temps_sont_tous_deux_gardes(entrelace):
+    await asyncio.gather(
+        contexte.noter_un_candidat(ORG_CLIENT, AGENT, "etape", "a", 1),
+        contexte.noter_un_candidat(ORG_CLIENT, AGENT, "etape", "b", 1),
+        contexte.ecrire_notes(ORG_CLIENT, AGENT, "des notes"),
+    )
+    ligne = await contexte.lire_contexte_agent(ORG_CLIENT, AGENT)
+    assert sorted(c["slug"] for c in ligne["candidats"]) == ["a", "b"]
+    assert ligne["notes"] == "des notes"
+
+
+async def test_des_resultats_et_des_notes_de_test_simultanes_ne_se_perdent_pas(entrelace):
+    from api.services.builder.tests_agent import juge, stockage
+
+    await asyncio.gather(*(stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, "t", {"n": i}) for i in range(3)))
+    assert sorted(e["n"] for e in await stockage.resultats(ORG_CLIENT, AGENT, "t")) == [0, 1, 2]
+
+    await asyncio.gather(*(juge.noter(ORG_CLIENT, AGENT, f"id{i}", True) for i in range(4)))
+    assert sorted(n["id"] for n in await juge.notes(ORG_CLIENT, AGENT)) == ["id0", "id1", "id2", "id3"]
+
+
+async def test_deux_versions_testees_en_meme_temps_prennent_deux_numeros_de_correction(entrelace):
+    from api.services.builder.tests_agent import boucle
+
+    graphes = [{"nodes": [{"id": str(i)}], "edges": []} for i in range(3)]
+    await asyncio.gather(*(boucle.noter_la_version_testee(ORG_CLIENT, AGENT, g, i + 1, True) for i, g in enumerate(graphes)))
+    ids = sorted(e["id"] for e in await boucle.lire_les_corrections(ORG_CLIENT, AGENT))
+    assert ids == ["c1", "c2", "c3"]
+
+
+async def test_la_conception_decidee_pendant_une_ecriture_garde_une_revision_coherente(entrelace):
+    from api.services.builder import conception
+
+    doc = conception.Conception(objectif="o", reussite="r")
+    await conception.ecrire(ORG_CLIENT, AGENT, doc)
+    await asyncio.gather(
+        conception.ecrire(ORG_CLIENT, AGENT, doc),
+        conception.ecrire(ORG_CLIENT, AGENT, doc),
+        conception.ecrire(ORG_CLIENT, AGENT, doc),
+    )
+    assert (await conception.lire(ORG_CLIENT, AGENT)).revision == 4
+
+
+async def test_deux_lots_d_operations_simultanes_sont_tous_deux_en_attente(entrelace):
+    from api.services.builder import brouillon
+
+    def ajouter(op):
+        return lambda etat: {"operations": [*etat["operations"], op], "base_version": 3}
+
+    await asyncio.gather(*(brouillon.modifier_en_attente(ORG_CLIENT, AGENT, ajouter({"op": f"o{i}"})) for i in range(4)))
+    etat = await brouillon.lire_en_attente(ORG_CLIENT, AGENT)
+    assert sorted(o["op"] for o in etat["operations"]) == ["o0", "o1", "o2", "o3"]
+
+
+async def test_deux_ajouts_de_version_simultanes_gardent_chacun_leur_numero(entrelace):
+    from api.services.builder.bibliotheque import service
+
+    await service.creer("moules-etape", "x", "X", {"texte": "v1"}, "moi")
+    await asyncio.gather(*(service.ajouter_version("moules-etape", "x", {"texte": f"v{i}"}, "moi") for i in (2, 3)))
+    element = await service.lire_element("moules-etape", "x")
+    assert sorted(v.numero for v in element.versions) == [1, 2, 3]
