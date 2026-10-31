@@ -17,6 +17,7 @@ vi.mock("@/client", () => ({
     lireLaFileDeTriApiV1TriGet: (options: unknown) => m.tri(options),
     changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),
     lireLesTauxDeSortieDImpasseApiV1TriTauxGet: (options: unknown) => m.taux(options),
+    lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => Promise.resolve({ data: [] }),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
 

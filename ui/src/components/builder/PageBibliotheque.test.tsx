@@ -42,6 +42,8 @@ vi.mock("@/client", () => ({
     listerLesPropositionsApiV1BuilderBibliothequePropositionsGet: (...a: unknown[]) => m.propositions(...a),
     accepterApiV1BuilderBibliothequePropositionsIdentifiantAccepterPost: (...a: unknown[]) => m.accepter(...a),
     refuserApiV1BuilderBibliothequePropositionsIdentifiantRefuserPost: (...a: unknown[]) => m.refuser(...a),
+    agentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGet: () => Promise.resolve({ data: { version: 1, agents: [] } }),
+    preparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPost: () => Promise.resolve({ data: { agents: [] } }),
 }));
 
 const FAMILLES = [

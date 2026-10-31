@@ -72,10 +72,11 @@ def test_c2_un_agent_cree_par_la_definition_a_la_relecture_allumee():
 
 
 def test_c2_un_agent_cree_par_le_gabarit_a_la_relecture_allumee():
+    # builder-agent-vocal, lot 1 : la création ne passe plus par le service hébergé ; le squelette est créé par
+    # ``api.services.builder.creation``, qui écrit la même configuration de création.
     client = _faux_client()
-    appel = AsyncMock(return_value={"name": "Gabarit", "workflow_definition": {"nodes": [], "edges": []}})
-    with patch("api.routes.workflow.db_client", client), patch(
-        "api.routes.workflow.mps_service_key_client", SimpleNamespace(call_workflow_api=appel)
+    with patch("api.services.builder.creation.db_client", client), patch(
+        "api.services.builder.creation.contexte.ecrire_notes", AsyncMock()
     ):
         reponse = TestClient(_app()).post(
             "/workflow/create/template", json={"call_type": "inbound", "use_case": "x", "activity_description": "y"}

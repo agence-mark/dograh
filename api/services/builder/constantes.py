@@ -14,6 +14,8 @@ PREFIXE_BIBLIO = "MARK_BIBLIO:"  # MARK_BIBLIO:<famille>:<slug>
 PREFIXE_PROPOSITION = "MARK_BIBLIO_PROPOSITION:"  # MARK_BIBLIO_PROPOSITION:<id>
 PREFIXE_USAGE = "MARK_BIBLIO_USAGE:"  # MARK_BIBLIO_USAGE:<famille>:<slug>
 PREFIXE_BUILDER = "MARK_BUILDER:"  # MARK_BUILDER:<workflow>:fiche | contexte | conception | conversation
+PREFIXE_TESTS = "MARK_TESTS:"  # MARK_TESTS:<workflow>:<test>  (lot 6)
+PREFIXE_RESULTATS = "MARK_TESTS_RESULTATS:"  # MARK_TESTS_RESULTATS:<workflow>:<test>  (3 dernières exécutions)
 CLE_CERVEAU = "MARK_BUILDER_CERVEAU"  # réglages du cerveau, dans l'organisation des réglages .mark
 CLE_PREFERENCES = "MARK_BUILDER_PREFERENCES"  # user_configurations (couche 3 du contexte permanent)
 
@@ -33,3 +35,11 @@ def organisation_bibliotheque() -> int | None:
 
 def cle_builder(workflow_id: int, partie: str) -> str:
     return f"{PREFIXE_BUILDER}{workflow_id}:{partie}"
+
+
+def cle_test(workflow_id: int, slug: str) -> str:
+    return f"{PREFIXE_TESTS}{workflow_id}:{slug}"
+
+
+def cle_resultats(workflow_id: int, slug: str) -> str:
+    return f"{PREFIXE_RESULTATS}{workflow_id}:{slug}"

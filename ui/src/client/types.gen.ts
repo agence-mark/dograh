@@ -2167,6 +2167,20 @@ export type ChampRequisDuRappel = {
 };
 
 /**
+ * ChangerUnTest
+ */
+export type ChangerUnTest = {
+    /**
+     * Obligatoire
+     */
+    obligatoire?: boolean | null;
+    /**
+     * Dossier
+     */
+    dossier?: string | null;
+};
+
+/**
  * ChoixTraducteurs
  */
 export type ChoixTraducteurs = {
@@ -3071,6 +3085,100 @@ export type CreerSpecialiseResponse = {
      * Workflow Id
      */
     workflow_id: number;
+};
+
+/**
+ * CreerUnTest
+ */
+export type CreerUnTest = {
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Scenario
+     *
+     * A free conversation: what the simulated caller wants. Leave empty for a test built from one reply.
+     */
+    scenario?: string | null;
+    /**
+     * Criteres
+     *
+     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, merci_en_tete, coordonnees_prises, sans_redite, sans_rigidite.
+     */
+    criteres?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Obligatoire
+     *
+     * A required test blocks the publication when it fails.
+     */
+    obligatoire?: boolean;
+    /**
+     * Run Id
+     *
+     * Build the test from a call (with rang).
+     */
+    run_id?: number | null;
+    /**
+     * Rang
+     *
+     * The faulty reply of the person in that call, counted from 1.
+     */
+    rang?: number | null;
+    /**
+     * Replique
+     *
+     * By hand: the person's reply, with historique.
+     */
+    replique?: string | null;
+    /**
+     * Historique
+     */
+    historique?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Personnage
+     *
+     * Slug of a caller character of the library.
+     */
+    personnage?: string | null;
+    /**
+     * Ouverture
+     *
+     * The caller's first words.
+     */
+    ouverture?: string | null;
+    /**
+     * Tours Max
+     */
+    tours_max?: number | null;
+    /**
+     * Dossier
+     */
+    dossier?: string;
+    /**
+     * Origine
+     *
+     * client | recette | code | manuel | fiche
+     */
+    origine?: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Questions Juge
+     *
+     * Questions for the non-blocking judge.
+     */
+    questions_juge?: Array<string>;
 };
 
 /**
@@ -6393,6 +6501,18 @@ export type LigneDeTri = {
      * Statut
      */
     statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Origine
+     */
+    origine?: 'client' | 'recette' | 'code' | null;
+    /**
+     * Origine Suggeree
+     */
+    origine_suggeree?: 'client' | 'recette' | 'code' | null;
 };
 
 /**
@@ -7738,6 +7858,20 @@ export type NoteDeSortie = {
 };
 
 /**
+ * NoteDuJuge
+ */
+export type NoteDuJuge = {
+    /**
+     * Identifiant
+     */
+    identifiant: string;
+    /**
+     * Ok
+     */
+    ok: boolean;
+};
+
+/**
  * NouvelElement
  */
 export type NouvelElement = {
@@ -8814,6 +8948,20 @@ export type Personne = {
 };
 
 /**
+ * PersonneAssignable
+ */
+export type PersonneAssignable = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * PhoneNumberCreateRequest
  *
  * Create a new phone number under a telephony configuration.
@@ -9074,6 +9222,16 @@ export type Preferences = {
      * Texte
      */
     texte?: string;
+};
+
+/**
+ * Preparer
+ */
+export type Preparer = {
+    /**
+     * Rejouer La Suite
+     */
+    rejouer_la_suite?: boolean;
 };
 
 /**
@@ -10438,6 +10596,20 @@ export type RejetDeBase = {
 };
 
 /**
+ * RejouerLaSuite
+ */
+export type RejouerLaSuite = {
+    /**
+     * Tests
+     */
+    tests?: Array<string> | null;
+    /**
+     * Repetitions
+     */
+    repetitions?: number;
+};
+
+/**
  * ResultatAction
  */
 export type ResultatAction = {
@@ -11768,6 +11940,14 @@ export type StatutEcrit = {
      * Statut
      */
     statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Origine
+     */
+    origine?: 'client' | 'recette' | 'code' | null;
 };
 
 /**
@@ -15608,7 +15788,15 @@ export type ApiRoutesTriChangementDeStatut = {
     /**
      * Statut
      */
-    statut: 'ouvert' | 'en cours' | 'résolu' | 'fusionné';
+    statut?: 'ouvert' | 'en cours' | 'résolu' | 'fusionné' | null;
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Origine
+     */
+    origine?: 'client' | 'recette' | 'code' | null;
 };
 
 /**
@@ -19479,6 +19667,628 @@ export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
 
 export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
 
+export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/recette/{famille}/{slug}/agents';
+};
+
+export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetError = AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetErrors[keyof AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetErrors];
+
+export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostData = {
+    body: Preparer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/recette/{famille}/{slug}/preparer';
+};
+
+export type PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostError = PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostErrors[keyof PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostErrors];
+
+export type PreparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLesTestsApiV1BuilderTestsWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}';
+};
+
+export type LireLesTestsApiV1BuilderTestsWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesTestsApiV1BuilderTestsWorkflowIdGetError = LireLesTestsApiV1BuilderTestsWorkflowIdGetErrors[keyof LireLesTestsApiV1BuilderTestsWorkflowIdGetErrors];
+
+export type LireLesTestsApiV1BuilderTestsWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CreerUnTestApiV1BuilderTestsWorkflowIdPostData = {
+    body: CreerUnTest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}';
+};
+
+export type CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnTestApiV1BuilderTestsWorkflowIdPostError = CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors[keyof CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors];
+
+export type CreerUnTestApiV1BuilderTestsWorkflowIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostData = {
+    body: RejouerLaSuite;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/rejouer';
+};
+
+export type RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostError = RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostErrors[keyof RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostErrors];
+
+export type RejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/publication';
+};
+
+export type EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetError = EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetErrors[keyof EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetErrors];
+
+export type EtatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/export';
+};
+
+export type ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetError = ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetErrors[keyof ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetErrors];
+
+export type ExporterLesTestsApiV1BuilderTestsWorkflowIdExportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/corrections';
+};
+
+export type HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetError = HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetErrors[keyof HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetErrors];
+
+export type HistoriqueDesCorrectionsApiV1BuilderTestsWorkflowIdCorrectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Correction Id
+         */
+        correction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/corrections/{correction_id}/retour';
+};
+
+export type RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostError = RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostErrors[keyof RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostErrors];
+
+export type RetourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostData = {
+    body: NoteDuJuge;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/juge/notes';
+};
+
+export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostError = NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors[keyof NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors];
+
+export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/{slug}';
+};
+
+export type SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteError = SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteErrors[keyof SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteErrors];
+
+export type SupprimerUnTestApiV1BuilderTestsWorkflowIdSlugDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireUnTestApiV1BuilderTestsWorkflowIdSlugGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/{slug}';
+};
+
+export type LireUnTestApiV1BuilderTestsWorkflowIdSlugGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnTestApiV1BuilderTestsWorkflowIdSlugGetError = LireUnTestApiV1BuilderTestsWorkflowIdSlugGetErrors[keyof LireUnTestApiV1BuilderTestsWorkflowIdSlugGetErrors];
+
+export type LireUnTestApiV1BuilderTestsWorkflowIdSlugGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchData = {
+    body: ChangerUnTest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/{slug}';
+};
+
+export type ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchError = ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchErrors[keyof ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchErrors];
+
+export type ChangerUnTestApiV1BuilderTestsWorkflowIdSlugPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type CreateTextChatSessionApiV1WorkflowWorkflowIdTextChatSessionsPostData = {
     body: CreateTextChatSessionRequest;
     headers?: {
@@ -20783,6 +21593,10 @@ export type LireLaFileDeTriApiV1TriGetData = {
          * Statut
          */
         statut?: 'ouvert' | 'en cours' | 'résolu' | 'fusionné' | null;
+        /**
+         * Origine
+         */
+        origine?: 'client' | 'recette' | 'code' | null;
     };
     url: '/api/v1/tri';
 };
@@ -20856,6 +21670,51 @@ export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses = {
 };
 
 export type LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponse = LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses[keyof LireLesTauxDeSortieDImpasseApiV1TriTauxGetResponses];
+
+export type LireLesPersonnesAssignablesApiV1TriPersonnesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tri/personnes';
+};
+
+export type LireLesPersonnesAssignablesApiV1TriPersonnesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesPersonnesAssignablesApiV1TriPersonnesGetError = LireLesPersonnesAssignablesApiV1TriPersonnesGetErrors[keyof LireLesPersonnesAssignablesApiV1TriPersonnesGetErrors];
+
+export type LireLesPersonnesAssignablesApiV1TriPersonnesGetResponses = {
+    /**
+     * Response Lire Les Personnes Assignables Api V1 Tri Personnes Get
+     *
+     * Successful Response
+     */
+    200: Array<PersonneAssignable>;
+};
+
+export type LireLesPersonnesAssignablesApiV1TriPersonnesGetResponse = LireLesPersonnesAssignablesApiV1TriPersonnesGetResponses[keyof LireLesPersonnesAssignablesApiV1TriPersonnesGetResponses];
 
 export type ChangerLeStatutDUnSignalementApiV1TriRunIdPutData = {
     body: ApiRoutesTriChangementDeStatut;
