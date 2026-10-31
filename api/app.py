@@ -34,6 +34,7 @@ from loguru import logger
 
 from api.constants import REDIS_URL
 from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
+from api.services.builder.stock import ConflitDEcriture
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -125,6 +126,13 @@ async def handle_mps_unavailable_error(
         status_code=503,
         content={"detail": MPS_UNAVAILABLE_PUBLIC_MESSAGE},
     )
+
+
+@app.exception_handler(ConflitDEcriture)
+async def handle_conflit_d_ecriture(_request: Request, exc: ConflitDEcriture) -> JSONResponse:
+    """[.mark] Builder, revue R6 : une ligne qui bouge sans cesse est un conflit (409), jamais une panne (500), sur toute route."""
+
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
 # Configure CORS.

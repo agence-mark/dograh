@@ -324,3 +324,24 @@ async def test_jeter_puis_ajouter_pendant_un_enregistrement_garde_l_operation_aj
     assert resultat["enregistre"] is True
     etat = await brouillon.lire_en_attente(ORG_CLIENT, AGENT)
     assert etat["operations"] == [ajoutee]
+
+
+async def test_un_conflit_d_ecriture_est_un_409_sur_toute_route(monkeypatch):
+    import httpx
+    from fastapi import APIRouter
+
+    from api.app import app
+
+    routeur = APIRouter()
+
+    @routeur.get("/__conflit_d_essai")
+    async def _conflit():
+        raise stock.ConflitDEcriture("The line keeps changing: try again.")
+
+    app.include_router(routeur)
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False), base_url="http://t") as c:
+            reponse = await c.get("/__conflit_d_essai")
+    finally:
+        app.router.routes[:] = [r for r in app.router.routes if getattr(r, "path", "") != "/__conflit_d_essai"]
+    assert reponse.status_code == 409 and "try again" in reponse.json()["detail"]
