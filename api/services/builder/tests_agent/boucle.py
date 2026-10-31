@@ -62,6 +62,12 @@ def empreinte(graphe: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(graphe, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 
+def empreinte_du_brouillon(graphe: dict[str, Any] | None, configurations: dict[str, Any] | None) -> str:
+    """L'empreinte de ce qui se publie : le graphe ET les réglages de l'agent (``workflow_configurations``). Revue R1 : le numéro
+    de version ne bouge pas quand on enregistre le brouillon, il ne prouve pas que la suite a été rejouée sur CE brouillon."""
+    return empreinte({"graphe": graphe or {}, "configurations": configurations or {}})
+
+
 def resumer_le_changement(avant: dict[str, Any] | None, apres: dict[str, Any]) -> str:
     """Une phrase sur ce qui a changé entre deux graphes (étapes ajoutées, retirées, prompts réécrits). Pur."""
     if not avant:

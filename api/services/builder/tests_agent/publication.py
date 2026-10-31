@@ -34,7 +34,11 @@ async def agent_suivi(organization_id: int, workflow_id: int) -> bool:
     return bool(await stock.lister(organization_id, f"{PREFIXE_BUILDER}{workflow_id}:"))
 
 
-async def problemes_des_tests_obligatoires(organization_id: int, workflow_id: int, version: int | None) -> list[dict[str, Any]]:
+async def problemes_des_tests_obligatoires(
+    organization_id: int, workflow_id: int, version: int | None, empreinte: str | None = None
+) -> list[dict[str, Any]]:
+    """``empreinte`` : celle du brouillon actuel (graphe + réglages). Revue R1 : une exécution rangée sans empreinte, ou avec une autre,
+    n'a pas été rejouée sur CE brouillon, même si le numéro de version n'a pas bougé."""
     problemes = []
     for test in await stockage.lister(organization_id, workflow_id):
         if not test.get("obligatoire"):
@@ -44,12 +48,20 @@ async def problemes_des_tests_obligatoires(organization_id: int, workflow_id: in
             raison = "never replayed"
         elif derniere.get("version") != version:
             raison = f"replayed on version {derniere.get('version')}, the draft is now version {version}: replay the suite"
+        elif empreinte is not None and derniere.get("empreinte") != empreinte:
+            raison = "the draft changed since the last replay (graph or settings): replay the suite"
         elif derniere.get("statut") != "ok":
             raison = f"failed ({derniere.get('reussis')}/{derniere.get('total')})"
         else:
             continue
         problemes.append({"slug": test["slug"], "nom": test["nom"], "raison": raison})
     return problemes
+
+
+def empreinte_du_brouillon_publie(brouillon: Any) -> str:
+    from api.services.builder.tests_agent import boucle
+
+    return boucle.empreinte_du_brouillon(getattr(brouillon, "workflow_json", None), getattr(brouillon, "workflow_configurations", None))
 
 
 async def verifier_avant_publication(workflow: Any, brouillon: Any, organization_id: int) -> dict[str, Any] | None:
@@ -59,7 +71,9 @@ async def verifier_avant_publication(workflow: Any, brouillon: Any, organization
     if not await agent_suivi(organization_id, workflow.id):
         return None
     controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
-    tests = await problemes_des_tests_obligatoires(organization_id, workflow.id, getattr(brouillon, "version_number", None))
+    tests = await problemes_des_tests_obligatoires(
+        organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
+    )
     if controle["ok"] and not tests:
         return None
     erreurs = [{"kind": "node", "id": None, "field": "data.prompt", "message": f"[Prompt check] {e['message']}"} for e in controle["elements"] if e["statut"] == "echec"]

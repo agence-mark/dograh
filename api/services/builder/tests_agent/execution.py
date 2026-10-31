@@ -222,6 +222,10 @@ async def rejouer_la_suite(
     complete = len(voulus) == len(tous)
     graphe, version = await brouillon.source_courante(workflow)
     graphe = graphe or {"nodes": [], "edges": []}
+    # Revue R1 : ce que la suite a rejoué = le graphe ET les réglages du brouillon, rangés avec chaque exécution.
+    from api.services.builder.tests_agent import boucle as _boucle
+
+    empreinte_rejouee = _boucle.empreinte_du_brouillon(graphe, await brouillon.configurations_courantes(workflow))
     etapes = diagnostic.noms_de_etapes(graphe)
     outils = await _noms_d_outils(workflow, organisation_id, graphe)
     cerveau = None
@@ -261,7 +265,7 @@ async def rejouer_la_suite(
             organisation_id,
             workflow.id,
             test["slug"],
-            {"le": stockage.maintenant(), "version": version, "statut": statut, "reussis": reussis, "total": len(essais), "essais": essais, "juge": avis},
+            {"le": stockage.maintenant(), "version": version, "empreinte": empreinte_rejouee, "statut": statut, "reussis": reussis, "total": len(essais), "essais": essais, "juge": avis},
         )
 
     tout_vert = all(r["statut"] == "ok" for r in resultats)

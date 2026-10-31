@@ -466,8 +466,13 @@ def brouillon_v(version, graphe=None):
     return SimpleNamespace(workflow_json=graphe or graphe_depart(), version_number=version)
 
 
-async def enregistrer_execution(slug, *, version, statut="ok"):
-    await stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": "t", "version": version, "statut": statut, "reussis": 3 if statut == "ok" else 1, "total": 3, "essais": []})
+def empreinte_de(graphe=None, configurations=None):
+    return boucle.empreinte_du_brouillon(graphe or graphe_depart(), configurations or {})
+
+
+async def enregistrer_execution(slug, *, version, statut="ok", empreinte="defaut"):
+    empreinte = empreinte_de() if empreinte == "defaut" else empreinte
+    await stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": "t", "version": version, "empreinte": empreinte, "statut": statut, "reussis": 3 if statut == "ok" else 1, "total": 3, "essais": []})
 
 
 async def test_un_agent_que_le_builder_ne_suit_pas_se_publie_comme_avant(banc):
@@ -512,6 +517,40 @@ async def test_tout_vert_sur_le_brouillon_courant_la_publication_passe_et_l_inte
     assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2), ORG_CLIENT) is not None
     monkeypatch.setenv(publication.INTERRUPTEUR, "1")
     assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2), ORG_CLIENT) is None
+
+
+async def test_un_brouillon_modifie_sans_changer_de_numero_n_est_pas_publie_avant_un_nouveau_rejeu(banc):
+    """Revue R1 : ``save_workflow_draft`` ne change pas le numéro de version ; seule l'empreinte (graphe + réglages) le voit."""
+    await un_test("a", obligatoire=True)
+    await enregistrer_execution("a", version=2)  # suite verte sur le brouillon d'origine
+    assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2), ORG_CLIENT) is None
+    # le prompt est modifié, la version reste 2 : refus
+    modifie = graphe_depart()
+    modifie["nodes"][0]["data"]["prompt"] = "Un autre prompt, jamais rejoué."
+    refus = await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2, modifie), ORG_CLIENT)
+    assert refus is not None and "changed since the last replay" in refus["tests_obligatoires"][0]["raison"]
+    # un réglage de l'agent modifié, même graphe : refus aussi
+    reglage = brouillon_v(2)
+    reglage.workflow_configurations = {"fiche_au_fil_de_leau": True}
+    assert await publication.verifier_avant_publication(banc.workflows[AGENT], reglage, ORG_CLIENT) is not None
+    # rejoué sur le nouveau brouillon : la publication passe
+    await enregistrer_execution("a", version=2, empreinte=empreinte_de(modifie))
+    assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2, modifie), ORG_CLIENT) is None
+    # une exécution rangée sans empreinte (avant ce correctif) ne prouve rien
+    await enregistrer_execution("a", version=2, empreinte=None)
+    assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2, modifie), ORG_CLIENT) is not None
+
+
+async def test_le_rejeu_range_l_empreinte_du_graphe_et_des_reglages(banc):
+    await un_test("a", obligatoire=True)
+    banc.brouillons[AGENT].workflow_configurations = {"fiche_au_fil_de_leau": True}
+    execution.DEPENDANCES.rejouer_un_tour = un_rejeu([essai(i, "Bien.") for i in (1, 2, 3)])
+    await executer("tests_rejouer", {}, EQUIPE)
+    derniere = await stockage.derniere_execution(ORG_CLIENT, AGENT, "a")
+    assert derniere["empreinte"] == empreinte_de(None, {"fiche_au_fil_de_leau": True}) != empreinte_de()
+    # la publication du MÊME brouillon (graphe + réglages) passe
+    banc.brouillons[AGENT].version_number = 2
+    assert await publication.verifier_avant_publication(banc.workflows[AGENT], banc.brouillons[AGENT], ORG_CLIENT) is None
 
 
 async def test_la_route_de_publication_applique_la_garde(banc, monkeypatch):

@@ -131,7 +131,9 @@ async def etat_de_la_publication(workflow_id: int, user: UserModel = Depends(get
     if draft is None:
         return {"brouillon": False, "bloque": False, "controle": None, "tests_obligatoires": []}
     controle = await controler_l_agent(workflow, org, graphe=draft.workflow_json)
-    tests = await publication.problemes_des_tests_obligatoires(org, workflow.id, draft.version_number)
+    tests = await publication.problemes_des_tests_obligatoires(
+        org, workflow.id, draft.version_number, publication.empreinte_du_brouillon_publie(draft)
+    )
     suivi = await publication.agent_suivi(org, workflow.id)
     return {
         "brouillon": True,

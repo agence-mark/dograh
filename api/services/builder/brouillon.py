@@ -169,6 +169,17 @@ async def source_courante(workflow: Any) -> tuple[dict[str, Any] | None, int | N
     return source.payload, source.version_number
 
 
+async def configurations_courantes(workflow: Any) -> dict[str, Any]:
+    """Les réglages de l'agent (``workflow_configurations``) de la même copie que ``source_courante`` : le brouillon s'il y en a un."""
+    draft = await db_client.get_draft_version(workflow.id)
+    if draft is not None and getattr(draft, "workflow_json", None):
+        return dict(getattr(draft, "workflow_configurations", None) or {})
+    released = getattr(workflow, "released_definition", None)
+    if released is not None and getattr(released, "workflow_json", None):
+        return dict(getattr(released, "workflow_configurations", None) or {})
+    return dict(getattr(workflow, "workflow_configurations", None) or {})
+
+
 async def lire_en_attente(organization_id: int, workflow_id: int) -> dict[str, Any]:
     brut = await stock.lire(organization_id, cle_du_brouillon(workflow_id))
     return brut or {"operations": [], "base_version": None}
