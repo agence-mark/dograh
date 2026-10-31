@@ -132,7 +132,7 @@ async def deposer_fichier(organization_id: int, workflow_id: int, nom: str, cont
     nom = nom_propre(nom)
     if any(d["nom"].casefold() == nom.casefold() for d in depots):
         raise ErreurDepot(f"« {nom} » is already deposited: remove it first to replace it.")
-    resultat = extraction.extraire(nom, contenu)
+    resultat = await extraction.extraire_hors_boucle(nom, contenu)
     depot = _nouveau(nom, "fichier", auteur)
     racine = _racine(organization_id, workflow_id, depot["id"])
     if len(contenu) <= extraction.OCTETS_MAX:  # l'original est gardé (traçabilité), même illisible

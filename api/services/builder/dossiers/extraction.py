@@ -10,6 +10,7 @@ et ne rend aucune page : on n'invente jamais ce qu'on n'a pas lu.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import zipfile
@@ -161,6 +162,20 @@ def extraire(nom: str, contenu: bytes) -> Extraction:
     else:
         return _illisible(f"Format not supported ({extension or 'no extension'}): PDF, Word (.docx), Markdown or text.")
     return borner(resultat)
+
+
+DELAI_EXTRACTION_S = 60.0
+
+
+async def extraire_hors_boucle(nom: str, contenu: bytes, delai_s: float | None = None) -> Extraction:
+    """``extraire`` dans un fil à part, avec un délai (revue R3) : une conversion PDF ou Word est du calcul pur, qui gelait la boucle
+    de l'API (et les appels du même processus) tant qu'elle durait. Au-delà du délai, le fichier est dit illisible en le disant ;
+    ⚠️ le fil lui-même ne peut pas être tué et finit seul, mais plus rien ne l'attend. Ne lève jamais."""
+    delai = DELAI_EXTRACTION_S if delai_s is None else delai_s
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(extraire, nom, contenu), timeout=delai)
+    except TimeoutError:
+        return _illisible(f"Reading the file took more than {delai:g} seconds: split it or send a simpler file.")
 
 
 def source(nom: str, page: Page) -> str:
