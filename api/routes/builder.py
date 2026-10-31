@@ -30,6 +30,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.routes.builder_bibliotheque import router as routeur_bibliotheque
+from api.routes.builder_contexte import router as routeur_contexte
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder import actions, conception, contexte, correction, fiche as service_fiche, moteur
 from api.services.builder.actions.registre import Contexte
@@ -41,6 +42,7 @@ from api.services.builder.cerveau.reglages import FormatDuFil, ReglagesCerveau, 
 
 router = APIRouter(prefix="/builder", tags=["builder"])
 router.include_router(routeur_bibliotheque)
+router.include_router(routeur_contexte)
 
 MARQUE_CLE_DU_CERVEAU = "mark_builder_cerveau"
 NOM_CLE_DU_CERVEAU = "builder-cerveau"

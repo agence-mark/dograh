@@ -278,3 +278,20 @@ svg.lucide {
 [data-sonner-toast][data-type="error"] [data-icon] {
   color: var(--destructive);
 }
+
+/* [.mark] builder-agent-vocal (lot 4): the count of changed fields on a node the builder modified. */
+.react-flow__node[data-builder-badge]::after {
+    content: attr(data-builder-badge);
+    position: absolute;
+    top: -0.75rem;
+    right: -0.5rem;
+    z-index: 5;
+    border-radius: 9999px;
+    background: var(--signal-warn);
+    color: var(--background);
+    padding: 0 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    pointer-events: none;
+}

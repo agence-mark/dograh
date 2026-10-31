@@ -14,6 +14,7 @@
     "lint:lead-flow": "bash ../../user_onboarding/scripts/check_lead_flow.sh"
   },
   "dependencies": {
+    "@assistant-ui/react": "0.15.29",
     "@calcom/embed-react": "^1.5.3",
     "@dagrejs/dagre": "^1.1.4",
     "@floating-ui/react-dom": "^2.1.9",

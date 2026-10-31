@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from api.services.builder import conception, contexte as contexte_agent, fiche as service_fiche, reglages_agent
 from api.services.builder.actions._commun import agent_verifie
 from api.services.builder.actions.registre import Action, Contexte, ErreurAction, enregistrer
+from api.services.builder.dossiers import classement, depot
 
 
 class _Agent(BaseModel):
@@ -28,7 +29,12 @@ class _Agent(BaseModel):
 async def _fiche_lire(contexte: Contexte, parametres: _Agent) -> dict[str, Any]:
     identifiant = await agent_verifie(contexte, parametres.workflow_id)
     fiche = await service_fiche.lire(contexte.organisation_id, identifiant)
-    return {"ok": True, "fiche": fiche.model_dump(mode="json"), "validee": fiche.validee}
+    return {
+        "ok": True,
+        "fiche": fiche.model_dump(mode="json"),
+        "validee": fiche.validee,
+        "classements": {n: classement.classement_effectif(n, c.classement, c.valeur) for n, c in fiche.champs.items()},
+    }
 
 
 class _FicheEcrire(BaseModel):
@@ -43,6 +49,16 @@ async def _fiche_ecrire(contexte: Contexte, parametres: _FicheEcrire) -> dict[st
     identifiant = await agent_verifie(contexte, parametres.workflow_id)
     if not parametres.champs and not parametres.trous:
         raise ErreurAction("Give lines (with their source) or gaps.")
+    # Lot 3 : dès que des dossiers sont déposés, une ligne cite l'un d'eux (ou la réponse d'une personne), pas une source inventée.
+    depots = await depot.lister(contexte.organisation_id, identifiant)
+    if depots:
+        for nom, champ in parametres.champs.items():
+            if not depot.source_deposee(depots, champ.source):
+                raise ErreurAction(
+                    f"The source of « {nom} » ({champ.source[:80]!r}) is not a deposited document: cite one of the sources "
+                    "given by fiche_tirer_des_documents, or write a gap instead.",
+                    "source_inconnue",
+                )
     try:
         fiche = await service_fiche.ecrire(contexte.organisation_id, identifiant, parametres.champs, parametres.trous)
     except service_fiche.ErreurFiche as erreur:
@@ -52,7 +68,13 @@ async def _fiche_ecrire(contexte: Contexte, parametres: _FicheEcrire) -> dict[st
         "lignes": len(fiche.champs),
         "trous_ouverts": [t.champ for t in fiche.trous],
         "validee": fiche.validee,
-        "carte": {"type": "fiche", "lignes": len(fiche.champs), "trous": len(fiche.trous), "validee": fiche.validee},
+        "carte": {
+            "type": "fiche",
+            "lignes": len(fiche.champs),
+            "trous": len(fiche.trous),
+            "validee": fiche.validee,
+            "classements": {n: classement.classement_effectif(n, c.classement, c.valeur) for n, c in fiche.champs.items()},
+        },
         "message": "A person validates the sheet; until then, nothing is built from an unvalidated line.",
     }
 

@@ -46,11 +46,8 @@ export function CreateWorkflowButton() {
     // [.mark] Lot 12 (agents-specialises): the creation menu is a centred dialog with two cards.
     const [modaleOuverte, setModaleOuverte] = useState(false);
 
-    const handleAgentBuilder = () => {
-        router.push('/workflow/create');
-    };
-
-    const handleBlankCanvas = async () => {
+    // [.mark] builder-agent-vocal (lot 4): `avecLeBuilder` opens the editor with the Builder AI panel already open.
+    const handleBlankCanvas = async (avecLeBuilder = false) => {
         if (isCreating || !user) return;
         setIsCreating(true);
 
@@ -68,7 +65,7 @@ export function CreateWorkflowButton() {
             });
 
             if (response.data?.id) {
-                router.push(`/workflow/${response.data.id}`);
+                router.push(`/workflow/${response.data.id}${avecLeBuilder ? '?builder=1' : ''}`);
             }
         } catch (err) {
             logger.error(`Error creating blank workflow: ${err}`);
@@ -87,12 +84,8 @@ export function CreateWorkflowButton() {
             <ModaleCreationAgent
                 ouvert={modaleOuverte}
                 onOuvertChange={setModaleOuverte}
-                onConstructeur={() => {
-                    setModaleOuverte(false);
-                    handleAgentBuilder();
-                }}
-                onToileVierge={async () => {
-                    await handleBlankCanvas();
+                onToileVierge={async ({ avecLeBuilder }) => {
+                    await handleBlankCanvas(avecLeBuilder);
                     setModaleOuverte(false);
                 }}
                 creationEnCours={isCreating}

@@ -13,7 +13,12 @@ from loguru import logger
 from api.db import db_client
 from api.db.models import KnowledgeBaseChunkModel
 from api.services.gen_ai import build_embedding_service
-from api.services.gen_ai.documents_locaux import est_un_texte, traiter_un_texte
+from api.services.gen_ai.documents_locaux import (
+    est_lisible_sur_place,
+    est_un_texte,
+    traiter_un_document,
+    traiter_un_texte,
+)
 from api.services.mps_service_key_client import mps_service_key_client
 from api.services.storage import storage_fs
 
@@ -184,6 +189,10 @@ async def process_knowledge_base_document(
         if est_un_texte(filename, mime_type):
             logger.info(f"Processing text document locally (mode={retrieval_mode})")
             mps_response = traiter_un_texte(temp_file_path, retrieval_mode, max_tokens)
+        elif est_lisible_sur_place(filename):
+            # [.mark] Lot 3 du builder : un PDF ou un Word est lu ici aussi (jamais envoyé à l'éditeur).
+            logger.info(f"Processing PDF/Word document locally (mode={retrieval_mode})")
+            mps_response = traiter_un_document(temp_file_path, filename, retrieval_mode, max_tokens)
         else:
             logger.info(
                 f"Delegating document processing to MPS (mode={retrieval_mode})"

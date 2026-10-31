@@ -8,17 +8,17 @@ export type StatutDeLaBibliotheque = "candidat" | "recette" | "rejete";
 export const STATUTS: Record<StatutDeLaBibliotheque, { texte: Texte; classe: string; aide: Texte }> = {
     candidat: {
         texte: { en: "Candidate", fr: "Candidat" },
-        classe: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+        classe: "bg-(--signal-warn)/15 text-(--signal-warn)",
         aide: { en: "Not proven on a bench yet.", fr: "Pas encore prouvé au banc." },
     },
     recette: {
         texte: { en: "Recipe", fr: "Recette" },
-        classe: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+        classe: "bg-(--signal-ok)/15 text-(--signal-ok)",
         aide: { en: "Proven on a bench, accepted by a person.", fr: "Prouvée au banc, acceptée par une personne." },
     },
     rejete: {
         texte: { en: "Rejected", fr: "Rejeté" },
-        classe: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200",
+        classe: "bg-(--signal-danger)/15 text-(--signal-danger)",
         aide: { en: "Kept with its reason, never applied.", fr: "Gardé avec sa raison, jamais appliqué." },
     },
 };
