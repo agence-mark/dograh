@@ -248,3 +248,34 @@ async def test_deux_ajouts_de_version_simultanes_gardent_chacun_leur_numero(entr
     await asyncio.gather(*(service.ajouter_version("moules-etape", "x", {"texte": f"v{i}"}, "moi") for i in (2, 3)))
     element = await service.lire_element("moules-etape", "x")
     assert sorted(v.numero for v in element.versions) == [1, 2, 3]
+
+
+async def test_deux_acceptations_simultanees_d_une_proposition_ajoutent_une_seule_version(entrelace):
+    from api.services.builder.bibliotheque import propositions, service
+    from api.services.builder.bibliotheque.service import ErreurBibliotheque
+
+    await service.creer("moules-etape", "p", "P", {"texte": "v1"}, "moi")
+    proposition = await propositions.creer("version", "moules-etape", "p", "mieux", "builder", contenu={"texte": "v2"})
+    resultats = await asyncio.gather(
+        propositions.accepter(proposition.id, "alice"), propositions.accepter(proposition.id, "bob"), return_exceptions=True
+    )
+    assert sum(isinstance(r, ErreurBibliotheque) and r.statut == 409 for r in resultats) == 1
+    assert [v.numero for v in (await service.lire_element("moules-etape", "p")).versions] == [1, 2]
+    assert (await propositions.lire(proposition.id)).etat == "acceptee"
+
+
+async def test_une_acceptation_dont_l_effet_echoue_remet_la_proposition_en_attente(entrelace, monkeypatch):
+    from api.services.builder.bibliotheque import propositions, service
+
+    await service.creer("moules-etape", "q", "Q", {"texte": "v1"}, "moi")
+    proposition = await propositions.creer("version", "moules-etape", "q", "mieux", "builder", contenu={"texte": "v2"})
+
+    async def casse(*a, **k):
+        raise RuntimeError("panne")
+
+    with monkeypatch.context() as m:
+        m.setattr(service, "ajouter_version", casse)
+        with pytest.raises(RuntimeError):
+            await propositions.accepter(proposition.id, "alice")
+    assert (await propositions.lire(proposition.id)).etat == "en_attente"
+    assert (await propositions.accepter(proposition.id, "alice")).etat == "acceptee"

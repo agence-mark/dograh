@@ -96,6 +96,20 @@ async def accepter(identifiant: str, decideur: str, *, banc: Banc | None = None,
     proposition = await lire(identifiant)
     if proposition.etat != "en_attente":
         raise ErreurBibliotheque("This proposal is already decided.", 409)
+    # Revue (dernière passe) : la proposition est RÉSERVÉE d'abord (en_attente -> en_cours, écriture conditionnelle). Deux
+    # acceptations simultanées : une seule passe cette porte, l'autre reçoit « déjà décidée » avant tout effet.
+    await _passer(identifiant, "en_attente", proposition.model_copy(update={"etat": "en_cours"}))
+    try:
+        await _appliquer(proposition, decideur, banc, motif)
+    except BaseException:
+        # L'effet a échoué : la proposition redevient décidable.
+        await _passer(identifiant, "en_cours", proposition)
+        raise
+    decidee = proposition.model_copy(update={"etat": "acceptee", "decide_par": decideur, "decide_le": maintenant()})
+    return await _passer(identifiant, "en_cours", decidee)
+
+
+async def _appliquer(proposition: Proposition, decideur: str, banc: Banc | None, motif: str | None) -> None:
     if proposition.type == "version":
         assert proposition.contenu is not None
         existant = await service.element_ou_none(proposition.famille, proposition.slug)
@@ -142,24 +156,22 @@ async def accepter(identifiant: str, decideur: str, *, banc: Banc | None = None,
             decideur,
             raison=motif or proposition.justification,
         )
-    decidee = proposition.model_copy(update={"etat": "acceptee", "decide_par": decideur, "decide_le": maintenant()})
-    return await _decider(identifiant, decidee)
 
 
-async def _decider(identifiant: str, decidee: Proposition) -> Proposition:
-    """Écrit la décision seulement si la proposition est encore en attente : deux personnes qui décident en même temps, la
-    seconde reçoit « déjà décidée » au lieu d'écraser la première (revue R6)."""
+async def _passer(identifiant: str, attendu: str, suivante: Proposition) -> Proposition:
+    """Écrit ``suivante`` seulement si la proposition est encore à l'état ``attendu`` : deux personnes qui décident en même temps,
+    la seconde reçoit « déjà décidée » au lieu d'écraser la première (revue R6)."""
 
     def transformer(brut):
-        if brut is not None and brut.get("etat") != "en_attente":
+        if brut is not None and brut.get("etat") != attendu:
             raise ErreurBibliotheque("This proposal is already decided.", 409)
-        return decidee.model_dump(mode="json")
+        return suivante.model_dump(mode="json")
 
     try:
         await stock.modifier(_org(), _cle(identifiant), transformer)
     except stock.ConflitDEcriture:
         raise ErreurBibliotheque("This proposal keeps changing: try again.", 409) from None
-    return decidee
+    return suivante
 
 
 async def refuser(identifiant: str, decideur: str, motif: str) -> Proposition:
@@ -171,4 +183,4 @@ async def refuser(identifiant: str, decideur: str, motif: str) -> Proposition:
     decidee = proposition.model_copy(
         update={"etat": "refusee", "decide_par": decideur, "decide_le": maintenant(), "motif_refus": motif.strip()}
     )
-    return await _decider(identifiant, decidee)
+    return await _passer(identifiant, "en_attente", decidee)

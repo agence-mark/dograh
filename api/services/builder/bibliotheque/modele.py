@@ -110,7 +110,7 @@ class Proposition(BaseModel):
     banc: Banc | None = None
     auteur: str
     date: datetime = Field(default_factory=maintenant)
-    etat: Literal["en_attente", "acceptee", "refusee"] = "en_attente"
+    etat: Literal["en_attente", "en_cours", "acceptee", "refusee"] = "en_attente"
     decide_par: str | None = None
     decide_le: datetime | None = None
     motif_refus: str | None = None

@@ -9562,7 +9562,7 @@ export type Proposition = {
     /**
      * Etat
      */
-    etat?: 'en_attente' | 'acceptee' | 'refusee';
+    etat?: 'en_attente' | 'en_cours' | 'acceptee' | 'refusee';
     /**
      * Decide Par
      */
