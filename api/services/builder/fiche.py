@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from api.services.builder import stock
 from api.services.builder.bibliotheque.modele import maintenant
 from api.services.builder.constantes import FICHE_MAX_OCTETS, cle_builder
+from api.services.builder.dossiers import classement as classement_des_faits
 
 
 class ErreurFiche(Exception):
@@ -28,6 +29,14 @@ class ErreurFiche(Exception):
 class ChampFiche(BaseModel):
     valeur: Any
     source: str = Field(min_length=1, max_length=500, description="Document and page, or site page, the line comes from.")
+    classement: Literal["objet", "base", "regle"] | None = Field(
+        default=None,
+        description=(
+            "Where the fact goes (B47): 'objet' = small, critical, may be quoted at any time, the client will edit it "
+            "(hours, area, brands, prices, numbers); 'base' = large, rarely asked (FAQ, catalogue, conditions); "
+            "'regle' = conduct rule that stays in the prompt. Empty: the standard field's default, else by size."
+        ),
+    )
 
 
 class Trou(BaseModel):
@@ -68,6 +77,9 @@ async def ecrire(
     nouveaux = dict(fiche.champs)
     change = False
     for nom, champ in champs.items():
+        refus = classement_des_faits.verifier(nom, champ.classement, champ.valeur)
+        if refus:
+            raise ErreurFiche(refus)
         if nouveaux.get(nom) != champ:
             change = True
         nouveaux[nom] = champ

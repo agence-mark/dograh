@@ -9,6 +9,8 @@ from api.services.builder.actions import (  # noqa: F401 -- l'import inscrit les
     fiche_et_reglages,
     points_d_entree,
 )
+from api.services.builder.actions import objets  # noqa: F401,E402 -- B48 : les objets de l'agent
+from api.services.builder.actions import contexte_client  # noqa: F401,E402 -- lot 3 : après points_d_entree, qu'il remplit
 from api.services.builder.actions.registre import (  # noqa: F401
     INTERDITES,
     REGISTRE,

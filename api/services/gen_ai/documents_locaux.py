@@ -7,9 +7,12 @@ n'entre dans la base de connaissances de notre fork, dans aucun des deux modes.
 Ce qu'il fait, et seulement ça : un fichier **texte** (``.txt``, ``.md``) est lu ici, sans rien
 envoyer à personne ; il rend la même forme que la réponse du MPS (``full_text``, ``chunks``,
 ``docling_metadata``), donc la suite de l'ingestion (vectorisation, rangement) ne change pas.
+Depuis le lot 3 du builder (R0-7), un **PDF** et un **Word** (``.docx``) sont lus ici aussi (``pypdf``,
+``python-docx``, via ``services/builder/dossiers/extraction.py``) : la base de connaissances accepte donc ces deux formats
+sans le service de l'éditeur. Un fichier illisible (chiffré, scanné sans texte, abîmé) échoue en le disant.
 Le découpage suit les paragraphes (un bloc séparé par une ligne vide, une question et sa
 réponse dans une FAQ), regroupés tant qu'ils tiennent sous ``max_tokens``. Un autre format
-(PDF, Word) part au MPS comme avant : coupé chez nous, il échoue en le disant.
+part au MPS comme avant : coupé chez nous, il échoue en le disant.
 
 ⛔ Aucun mot de métier : le découpage ne connaît que les lignes vides et la taille.
 """
@@ -30,6 +33,14 @@ PARAGRAPHE_MAX_FOIS = 4
 def est_un_texte(filename: str, mime_type: str | None) -> bool:
     extension = os.path.splitext(filename or "")[1].lower()
     return extension in EXTENSIONS_TEXTE or (mime_type or "").startswith("text/")
+
+
+EXTENSIONS_DOCUMENT = (".pdf", ".docx")
+
+
+def est_lisible_sur_place(filename: str) -> bool:
+    """Un PDF ou un Word : lu ici (``traiter_un_document``), pas envoyé au service de l'éditeur."""
+    return os.path.splitext(filename or "")[1].lower() in EXTENSIONS_DOCUMENT
 
 
 def jetons_estimes(texte: str) -> int:
@@ -115,5 +126,35 @@ def traiter_un_texte(chemin: str, retrieval_mode: str, max_tokens: int) -> dict:
                 "token_count": jetons_estimes(morceau),
             }
             for index, morceau in enumerate(decouper(texte, max_tokens))
+        ],
+    }
+
+
+def traiter_un_document(chemin: str, filename: str, retrieval_mode: str, max_tokens: int) -> dict:
+    """La même réponse que ``traiter_un_texte`` pour un PDF ou un Word. Chaque morceau garde sa page (ou sa section)
+    dans ``chunk_metadata``. Illisible : ``ValueError`` avec la raison (la tâche l'inscrit sur le document)."""
+    from api.services.builder.dossiers.extraction import extraire
+
+    with open(chemin, "rb") as fichier:
+        resultat = extraire(filename, fichier.read())
+    if resultat.illisible:
+        raise ValueError(resultat.illisible)
+    metadonnees = {"processed_by": TRAITE_PAR}
+    if retrieval_mode != "chunked":
+        texte = "\n\n".join(p.texte for p in resultat.pages)
+        return {"full_text": texte, "chunks": [], "docling_metadata": metadonnees}
+    morceaux = [(p, m) for p in resultat.pages for m in decouper(p.texte, max_tokens)]
+    return {
+        "full_text": None,
+        "docling_metadata": metadonnees,
+        "chunks": [
+            {
+                "chunk_text": morceau,
+                "contextualized_text": morceau,
+                "chunk_index": index,
+                "chunk_metadata": {"processed_by": TRAITE_PAR, "page": page.numero},
+                "token_count": jetons_estimes(morceau),
+            }
+            for index, (page, morceau) in enumerate(morceaux)
         ],
     }
