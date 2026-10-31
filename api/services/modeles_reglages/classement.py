@@ -31,6 +31,7 @@ from api.services.groupe.reglages import (
     CLES_THEME_DONNEES,
     CLES_THEME_ECOUTE,
     CLES_THEME_ETABLISSEMENT,
+    CLES_THEME_INTERVENTIONS,
     CLES_THEME_MODULES,
     CLES_THEME_RYTHME,
     CLES_THEME_TOUR,
@@ -50,6 +51,8 @@ SECTIONS: dict[str, tuple[str, ...]] = {
     "rythme": CLES_THEME_RYTHME,
     "donnees": CLES_THEME_DONNEES,
     "etablissement": CLES_THEME_ETABLISSEMENT,
+    # Lot 8 de builder-agent-vocal : les interventions du moteur.
+    "interventions": CLES_THEME_INTERVENTIONS,
 }
 
 # M6: the keys the group copies (so "common") that a template nevertheless leaves to the agent.

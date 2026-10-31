@@ -33,6 +33,7 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.interventions_du_moteur import brancher_les_interventions
 from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
@@ -311,6 +312,8 @@ class AgentRuntimeFactory:
             self._voix_de_l_appel if self._voix_de_l_appel is not None else user_config.tts,
             run_configs,
         )
+        # [.mark] Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur, ceux de CET agent.
+        brancher_les_interventions(llm, run_configs)
         # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
         # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
         if self._moteur_de_l_appel is not None:

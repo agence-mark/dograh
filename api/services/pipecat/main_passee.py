@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.groupe.passations import NOTE_DE_PASSATION
+from api.services.interventions_du_moteur import CLE_MAIN_PASSEE, intervention_du_service
 
 ATTRIBUT = "_mark_main_passee"
 
@@ -77,7 +78,7 @@ class MainPasseeMixin:
     agent muet ne déclenche ni relance ni phrase de repli."""
 
     async def get_chat_completions(self, context):  # type: ignore[override]
-        if getattr(self, ATTRIBUT, False):
+        if getattr(self, ATTRIBUT, False) and intervention_du_service(self, CLE_MAIN_PASSEE):
             logger.info("[passation] l'agent a passé la main : sa réponse n'est pas demandée")
             return _FluxVide()
         return await super().get_chat_completions(context)  # type: ignore[misc]
@@ -85,7 +86,7 @@ class MainPasseeMixin:
     def build_chat_completion_params(self, params_from_context):  # type: ignore[override]
         params = super().build_chat_completion_params(params_from_context)  # type: ignore[misc]
         messages = params.get("messages")
-        if isinstance(messages, list):
+        if isinstance(messages, list) and intervention_du_service(self, CLE_MAIN_PASSEE):
             complete = avec_la_note(messages)
             if complete is not messages:
                 logger.info("[passation] requête finie par l'assistant : note ajoutée")

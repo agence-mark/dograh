@@ -110,6 +110,7 @@ from api.services.pipecat.greffier import (
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.replique_inachevee import brancher_la_relance
+from api.services.interventions_du_moteur import brancher_les_interventions
 from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.reconnaissance_lexique import (
@@ -1477,6 +1478,7 @@ async def _run_pipeline_impl(
     # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau (case allumée
     # seulement) et la réflexion de secours de la relance d'une réplique inachevée.
     # D20 (voix-soniox) : avant la trace, qui photographie la requête telle qu'elle part.
+    brancher_les_interventions(llm, run_configs)  # lot 8 de builder-agent-vocal
     brancher_les_coupures(engine, llm)
     brancher_la_trace(engine, llm, run_configs, getattr(workflow, "name", None))
     brancher_la_relance(engine, llm, run_configs)

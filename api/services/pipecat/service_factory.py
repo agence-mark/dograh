@@ -648,7 +648,7 @@ class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModele
                 "prompt_cache_key": self._prompt_cache_key,
             }
         # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
-        return ordre_outil_puis_parole(params)
+        return ordre_outil_puis_parole(params, self)
 
 
 class DograhOpenAILLMService(
@@ -688,7 +688,7 @@ class DograhOpenAILLMService(
         # part avec la réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
         # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
-        return ordre_outil_puis_parole(params)
+        return ordre_outil_puis_parole(params, self)
 
 
 def cle_de_cache(workflow_id: int) -> str:

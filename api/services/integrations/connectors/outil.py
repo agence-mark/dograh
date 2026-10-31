@@ -251,6 +251,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         # place de la consigne anglaise d'avant ; la phrase est déjà dans l'historique.
         if probleme is not None and (phrase or probleme.issue is not None):
             from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+            from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
             from api.services.phrases.compte_rendu import compte_rendu
 
             issue = probleme.issue
@@ -261,8 +262,11 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                     dit=phrase,
                     notes=probleme.notes,
                     interdits=issue.interdit if issue is not None else (),
+                    actif=intervention_du_moteur(engine, CLE_COMPTE_RENDU_DE_PHRASE),
                 ),
             }
+            if not retour["compte_rendu"]:
+                del retour["compte_rendu"]
             if phrase:
                 retour["said_to_caller"] = phrase
             if issue is not None and issue.prise_en_main:

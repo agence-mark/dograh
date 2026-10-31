@@ -54,7 +54,7 @@ def lignes_des_sorties(
     """Une ligne par sortie dont l'étape d'arrivée déclare ses champs. ``sorties`` : (nom de la sortie, étape d'arrivée).
     Vide sans étiquettes (la case éteinte). ⛔ Ne lève jamais."""
     try:
-        if not getattr(reglages, "etiquettes", False):
+        if not getattr(reglages, "etiquettes", False) or not getattr(reglages, "sorties_de_l_etape", True):
             return []
         from api.services.groupe.notes import nom_lisible
 

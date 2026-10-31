@@ -38,6 +38,11 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.interventions_du_moteur import (
+    CLE_REPLIQUE_INACHEVEE,
+    CLE_REPONSE_MUETTE,
+    intervention_du_moteur,
+)
 from api.services.pipecat.post_scriptum import PostScriptumProcessor, sans_json
 from api.services.pipecat.replique_inachevee import (
     ATTRIBUT_RELANCE,
@@ -127,7 +132,10 @@ class LecteurDePortes(PostScriptumProcessor):
         reste = ""
         if not self._apres and self._attente.strip(" \t\n|"):
             coupe = fin_de_la_derniere_phrase(self._attente)
-            inachevee = bool(self._attente[coupe:].strip(" \t\n|  "))
+            # Lot 8 de builder-agent-vocal : interrupteur éteint = la fin de réplique inachevée est dite comme elle est.
+            inachevee = bool(self._attente[coupe:].strip(" \t\n|  ")) and intervention_du_moteur(
+                self._moteur, CLE_REPLIQUE_INACHEVEE
+            )
             if inachevee and self._deja_relancee():
                 # Revue du 14/10, retenue par Evan : deuxième coupure à la même réplique de
                 # l'appelant, le reste est dit plutôt qu'un silence jusqu'à ce qu'elle reparle.
@@ -149,6 +157,7 @@ class LecteurDePortes(PostScriptumProcessor):
             and not self._portes_lues
             and self._attendu()
             and not reste
+            and intervention_du_moteur(self._moteur, CLE_REPONSE_MUETTE)
         )
         self._dit = self._a_dit
         portes = bool(self._portes_lues)

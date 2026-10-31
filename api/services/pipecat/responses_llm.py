@@ -78,6 +78,7 @@ from api.services.groupe.passations import NOTE_DE_PASSATION
 from api.services.panne.delai_modele import DelaiModeleDepasse, DelaiModeleMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
+from api.services.interventions_du_moteur import CLE_MAIN_PASSEE, intervention_du_service
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
 from api.services.pipecat.reponse_avalee import (
     ATTRIBUT_DECLENCHEUR,
@@ -302,7 +303,7 @@ class MainPasseeResponsesMixin:
     phrase de repli."""
 
     async def get_chat_completions(self, context):  # type: ignore[override]
-        if getattr(self, ATTRIBUT_MAIN_PASSEE, False):
+        if getattr(self, ATTRIBUT_MAIN_PASSEE, False) and intervention_du_service(self, CLE_MAIN_PASSEE):
             logger.info("[passation] l'agent a passé la main : sa réponse n'est pas demandée")
             return _FluxVide()
         return await super().get_chat_completions(context)  # type: ignore[misc]
@@ -310,7 +311,7 @@ class MainPasseeResponsesMixin:
     def build_chat_completion_params(self, invocation_params):  # type: ignore[override]
         params = super().build_chat_completion_params(invocation_params)  # type: ignore[misc]
         entrees = params.get("input")
-        if isinstance(entrees, list):
+        if isinstance(entrees, list) and intervention_du_service(self, CLE_MAIN_PASSEE):
             complete = avec_la_note(entrees)
             if complete is not entrees:
                 logger.info("[passation] requête finie par l'assistant : note ajoutée")
@@ -788,4 +789,4 @@ class MarkOpenAIResponsesLLMService(
         # réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
         # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
-        return ordre_outil_puis_parole(params)
+        return ordre_outil_puis_parole(params, self)

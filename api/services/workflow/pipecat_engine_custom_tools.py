@@ -1542,6 +1542,7 @@ class CustomToolManager:
             propriete = None
             if probleme is not None and (probleme.dit or probleme.issue is not None):
                 from api.services.phrases.catalogue import MOTIFS, TRANSFERT_ECHOUE
+                from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
                 from api.services.phrases.compte_rendu import compte_rendu
 
                 issue = probleme.issue
@@ -1553,12 +1554,15 @@ class CustomToolManager:
                     interdits.append("transférer")
                 if probleme.dit:
                     echec["said_to_caller"] = probleme.dit
-                echec["compte_rendu"] = compte_rendu(
+                compte = compte_rendu(
                     MOTIFS[TRANSFERT_ECHOUE].fait_fr,
                     dit=probleme.dit,
                     notes=notes,
                     interdits=interdits,
+                    actif=intervention_du_moteur(self, CLE_COMPTE_RENDU_DE_PHRASE),
                 )
+                if compte:
+                    echec["compte_rendu"] = compte
                 if issue is not None and issue.prise_en_main:
                     propriete = FunctionCallResultProperties(run_llm=False)
                 elif probleme.dit and issue is None:

@@ -80,6 +80,7 @@ from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.reglages_tour_de_parole import (
     collecter_reglages_tour_de_parole,
 )
+from api.services.interventions_du_moteur import brancher_les_interventions
 from api.services.pipecat.replique_inachevee import brancher_la_relance
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.travail.clavier import remettre_les_travaux_termines
@@ -1159,6 +1160,8 @@ async def execute_text_chat_pending_turn(
             engine, agent.llm, agent.reglages, getattr(agent, "workflow_name", None)
         )
         brancher_la_relance(engine, agent.llm, agent.reglages)
+        # Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur, comme au téléphone.
+        brancher_les_interventions(agent.llm, agent.reglages)
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
         # [.mark] actions-sures-et-parite-clavier (A2) : les refus et reprises du modèle de conversation, comme au
         # téléphone ; au clavier ils vont aux événements du tour (pas de journal d'appel).

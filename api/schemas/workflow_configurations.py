@@ -1134,6 +1134,68 @@ class WorkflowConfigurationDefaults(BaseModel):
             "('note, sentence' order), off otherwise."
         ),
     )
+    # [.mark] Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur. Chacun est ALLUMÉ par défaut
+    # (clé absente = comportement d'avant) ; seul `false` éteint. Voir `services/interventions_du_moteur.py`.
+    moteur_sorties_de_l_etape: bool = Field(
+        default=True,
+        description=(
+            "For each exit of the step, a line tells the model the first thing still missing in the arrival step (the code picks the next question, the model words it). Needs the « known and expected » box. Off: those lines are not written."
+        ),
+    )
+    moteur_sortie_d_impasse: bool = Field(
+        default=True,
+        description=(
+            "The dead-end guard: counts the signs of a conversation going round in circles, shows the model its two notices, then at the third time says the dead-end sentence and changes step. Off: nothing is counted, shown or done."
+        ),
+    )
+    moteur_parole_avant_outil: bool = Field(
+        default=True,
+        description=(
+            "A tool that returns at once does not wake the model again when the same answer had already spoken before calling it. Off: the model is always woken after such a tool (it may repeat its sentence)."
+        ),
+    )
+    moteur_main_passee: bool = Field(
+        default=True,
+        description=(
+            "Around a handover: the agent that passed the call on stops answering, and a request that ends on the assistant gets the handover note. Off: neither. ⚠️ Depends on the handover: the previous agent may speak over the new one, and the provider may refuse the request."
+        ),
+    )
+    moteur_ordre_outil_puis_parole: bool = Field(
+        default=True,
+        description=(
+            "In the copy of the request sent to the model, the sentence said before a tool is moved after the result of the tool, so the caller never follows a tool result directly. Off: the order is sent as recorded (some providers refuse it)."
+        ),
+    )
+    moteur_compte_rendu_de_phrase: bool = Field(
+        default=True,
+        description=(
+            "After a sentence said by the code, the model receives in the tool result a short report in French (what happened, what the caller heard, what is noted, what is no longer possible). Off: no report. ⚠️ Without it the model may repeat the sentence the caller just heard."
+        ),
+    )
+    moteur_phrases_coupees: bool = Field(
+        default=True,
+        description=(
+            "A sentence of the code the caller cut off is rewritten in the request sent to the model, so it knows what was actually heard. Off: the request carries the full sentence."
+        ),
+    )
+    moteur_replique_inachevee: bool = Field(
+        default=True,
+        description=(
+            "Clerk mode with transitions in the reply. A reply that ends in the middle of a sentence is not spoken to its end nor kept, and the model answers once more. Off: the reply is spoken as it stands."
+        ),
+    )
+    moteur_reponse_muette: bool = Field(
+        default=True,
+        description=(
+            "Clerk mode with transitions in the reply. A reply with no sentence and no transition (only a note, for instance) makes the model answer once more. Off: the turn stays silent."
+        ),
+    )
+    moteur_notes_de_passation: bool = Field(
+        default=True,
+        description=(
+            "Group of agents. The code writes a handover note in the prompt of the step that opens (return of the main agent, first step of a colleague). Off: the prompt is left as written. ⚠️ The colleague no longer knows what is already noted."
+        ),
+    )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son
     # modèle, au format d'une surcharge de modèle (`model_overrides.llm`) : clé
     # absente = celle de la conversation ; clé masquée dans les réponses de l'API

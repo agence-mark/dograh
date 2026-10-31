@@ -573,6 +573,7 @@ async def _signaler_la_panne(
     n'est pas relancé. ⛔ Ne lève jamais : sans règle posée, le résultat part tel quel."""
     try:
         from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+        from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
         from api.services.phrases.compte_rendu import compte_rendu
         from api.services.phrases.diseur import DiseurDePhrases
 
@@ -593,6 +594,7 @@ async def _signaler_la_panne(
             dit=probleme.dit,
             notes=probleme.notes,
             interdits=issue.interdit if issue is not None else (),
+            actif=intervention_du_moteur(moteur, CLE_COMPTE_RENDU_DE_PHRASE),
         )
         resultat = _avec_le_compte_rendu(resultat, compte)
         if issue is not None and issue.prise_en_main:

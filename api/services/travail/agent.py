@@ -46,6 +46,11 @@ from pipecat.pipeline.job_context import JobParams
 from pipecat.workers.llm.backend_llm_worker import BACKEND_JOB_NAME
 
 from api.services.phrases.catalogue import MOTIFS, TRAVAIL_DURE, TRAVAIL_ECHOUE
+from api.services.interventions_du_moteur import (
+    CLE_COMPTE_RENDU_DE_PHRASE,
+    CLE_PAROLE_AVANT_OUTIL,
+    intervention_du_moteur,
+)
 from api.services.phrases.compte_rendu import compte_rendu
 from api.services.pipecat.greffier import versement_du_cout
 from api.services.pipecat.parole_avant_outil import suivre_la_parole
@@ -793,6 +798,7 @@ class TravailDeLAgent:
                 notes=probleme.notes,
                 interdits=issue.interdit if issue is not None else (),
                 crochets=False,
+                actif=intervention_du_moteur(self.moteur, CLE_COMPTE_RENDU_DE_PHRASE),
             )
             message = entree.get("message")
             if lignes and isinstance(message, str) and message.endswith("]"):
@@ -905,7 +911,7 @@ def brancher_confier_le_travail(
     gestionnaire rend tout de suite (``run_llm`` par défaut : le modèle reparle) ; la garde
     ``agent_can_act`` est celle de tous les outils de l'agent."""
 
-    proprietes = _proprietes_du_resultat(agent.llm)
+    proprietes = _proprietes_du_resultat(agent.llm, moteur, agent)
 
     async def gestionnaire(params) -> None:
         # Lot B (B4) : « confier » compte dans le plafond d'appels d'outil du tour de l'appelant.
@@ -956,7 +962,7 @@ def brancher_annuler_le_travail(
 ) -> FunctionSchema:
     """F2 : l'outil « annuler », offert avec « confier » et à toute étape où un travail est en
     cours. Sans travail en cours, il ne fait rien."""
-    proprietes = _proprietes_du_resultat(agent.llm)
+    proprietes = _proprietes_du_resultat(agent.llm, moteur, agent)
 
     async def annulation(params) -> None:
         await params.result_callback(await travail.annuler(), properties=proprietes(params))
@@ -965,12 +971,17 @@ def brancher_annuler_le_travail(
     return schema_de_l_annulation()
 
 
-def _proprietes_du_resultat(llm: Any) -> Callable[[Any], FunctionCallResultProperties | None]:
+def _proprietes_du_resultat(
+    llm: Any, moteur: Any = None, agent: Any = None
+) -> Callable[[Any], FunctionCallResultProperties | None]:
     """R15 : un outil qui rend tout de suite ne relance pas le modèle quand la même réponse a déjà
     parlé ; sinon le comportement d'avant (le modèle parle : la phrase d'attente, F1)."""
     suivi = suivre_la_parole(llm)
 
     def proprietes(params: Any) -> FunctionCallResultProperties | None:
+        # Lot 8 de builder-agent-vocal : interrupteur éteint = le comportement d'avant R15 (le modèle est toujours relancé).
+        if not intervention_du_moteur(moteur, CLE_PAROLE_AVANT_OUTIL, agent):
+            return None
         if suivi is not None and suivi.a_parle_avant(getattr(params, "tool_call_id", None)):
             return FunctionCallResultProperties(run_llm=False)
         return None

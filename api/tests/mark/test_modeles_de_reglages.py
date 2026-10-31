@@ -581,7 +581,8 @@ def test_un_cerveau_propre_garde_les_cles_qui_suivent_le_cerveau():
     # Every section is made of common settings: all greyed with the brain attached, the ones holding only
     # brain-following settings are not once it is detached.
     assert sections_reglees_par_le_principal({"agent_principal_id": 7}) == SECTIONS_AVEC_REGLAGES
-    assert "tour" not in sections_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
+    # (``relance_apres_outil`` suit le cerveau ; depuis le lot 8 de builder-agent-vocal elle vit dans « Interventions du moteur ».)
+    assert "interventions" not in sections_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
 
 
 async def test_appliquer_a_un_specialise_n_ecrit_aucune_cle_commune(monde, test_client_factory, db_session):

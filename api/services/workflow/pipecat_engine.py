@@ -66,6 +66,7 @@ from api.services.groupe.postes import memoire_du_processus_mo
 from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
 from api.services.equipe.transferts_humains import un_renvoi_a_echoue
 from api.services.phrases.catalogue import MISE_EN_RELATION
+from api.services.interventions_du_moteur import CLE_NOTES_DE_PASSATION, intervention_de_l_appel
 from api.services.groupe.reglages_passation import (
     LIGNE_RENVOI_DEJA_ECHOUE,
     prechauffage_actif,
@@ -2256,6 +2257,9 @@ class PipecatEngine:
         clavier, chaque tour refait le moteur). ⛔ Ne lève jamais."""
         try:
             if node.is_end or not est_un_groupe(self.__dict__.get("reglages_appel")):
+                return None
+            # Lot 8 de builder-agent-vocal : interrupteur éteint = le prompt de l'étape reste tel qu'écrit.
+            if not intervention_de_l_appel(self, CLE_NOTES_DE_PASSATION):
                 return None
             gathered = self.__dict__.get("_gathered_context")
             if not isinstance(gathered, dict):

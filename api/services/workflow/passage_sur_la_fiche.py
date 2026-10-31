@@ -373,12 +373,18 @@ def poser_la_notice(moteur: Any, agent: Any, dit: str, arrivee: tuple | None = N
     """La notice du tour d'arrivée : le compte rendu standard, montré sur la prochaine requête de conversation.
     ``arrivee`` = (visite de l'agent, étape d'arrivée) : à la consommation, une notice dont l'étape n'est plus celle
     où l'on est (retour au principal, autre passage) est jetée, jamais montrée plus tard."""
+    from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
     from api.services.phrases.compte_rendu import compte_rendu
 
-    notice = compte_rendu(FAIT_DU_PASSAGE, dit=(dit or "").strip() or None, crochets=True)
+    notice = compte_rendu(
+        FAIT_DU_PASSAGE,
+        dit=(dit or "").strip() or None,
+        crochets=True,
+        actif=intervention_du_moteur(moteur, CLE_COMPTE_RENDU_DE_PHRASE),
+    )
     # Option 1 (relance) : l'étape d'arrivée reparle ; sa première réplique est donnée avec le compte rendu.
     consigne = _la_premiere_replique(moteur, cible)
-    moteur._notice_de_passage = "\n".join([notice, consigne]) if consigne else notice
+    moteur._notice_de_passage = "\n".join(p for p in (notice, consigne) if p)
     moteur._notice_cle = arrivee
 
 

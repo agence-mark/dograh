@@ -40,9 +40,14 @@ def compte_rendu(
     interdits: Iterable[str] | None = None,
     detail: str | None = None,
     crochets: bool = True,
+    actif: bool = True,
 ) -> str:
     """Le compte rendu standard. ``fait`` : le fait du motif ; ``detail`` : sa raison courte, s'il y en a
-    une (déjà écrite par le code, jamais par le modèle)."""
+    une (déjà écrite par le code, jamais par le modèle). ``actif`` faux (interrupteur
+    ``moteur_compte_rendu_de_phrase`` éteint, lot 8 de builder-agent-vocal) : rien n'est écrit, chaîne vide ;
+    chaque appelant sait déjà ne rien ajouter à un compte rendu vide."""
+    if not actif:
+        return ""
     lignes: list[str] = []
     fait = (fait or "").strip().rstrip(".")
     if fait:

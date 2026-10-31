@@ -47,6 +47,7 @@ from pipecat.services.llm_service import FunctionCallParams
 from rapidfuzz import fuzz
 
 from api.services.groupe.passations import est_la_note_de_passation
+from api.services.interventions_du_moteur import CLE_SORTIES_DE_L_ETAPE, est_allumee
 from api.schemas.fiche_agent import (
     ChampFiche,
     OrigineChamp,
@@ -268,6 +269,8 @@ class ReglagesFiche:
     formulations_d_action: tuple[str, ...] = ()
     # Le parcours lisible (greffier, portes dans la réponse), piloté par la case du schéma.
     parcours_lisible: bool = False
+    # Lot 8 de builder-agent-vocal : les lignes « Sortie X : là-bas… » (``moteur_sorties_de_l_etape``), allumées par défaut.
+    sorties_de_l_etape: bool = True
 
     @property
     def note_d_abord(self) -> bool:
@@ -352,6 +355,7 @@ class ReglagesFiche:
                 and ordre == ORDRE_NOTE_PUIS_PHRASE
             ),
             portes_dans_la_reponse=_portes_dans_la_reponse(run_configs, mode),
+            sorties_de_l_etape=est_allumee(run_configs, CLE_SORTIES_DE_L_ETAPE),
             ordre=ordre,
             noms_du_lexique=frozenset(
                 t.terme
