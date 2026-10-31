@@ -134,6 +134,19 @@ def cles_de_la_section(section: str) -> list[str]:
     return [c for c in SECTIONS.get(section, ()) if c not in EXCLUES_DU_MODELE]
 
 
+# Lot 8 de builder-agent-vocal : deux réglages sont passés dans « Interventions du moteur ». Un ancien modèle qui les contient et
+# qu'on applique sur leur ancienne section les pose quand même (le comportement d'avant).
+CLES_DEPLACEES: dict[str, tuple[str, ...]] = {
+    "tour": ("relance_apres_outil",),
+    "rythme": ("laisser_la_parole",),
+}
+
+
+def cles_a_appliquer(section: str) -> list[str]:
+    """Les réglages que l'application d'une section pose : ceux de la section, plus ceux qu'elle abritait avant leur déplacement."""
+    return [*cles_de_la_section(section), *(c for c in CLES_DEPLACEES.get(section, ()) if c not in EXCLUES_DU_MODELE)]
+
+
 def cles_du_modele() -> list[str]:
     """Every setting a template can hold, in screen order."""
     return [c for section in SECTIONS for c in cles_de_la_section(section)]
@@ -263,6 +276,8 @@ __all__ = [
     "CHAMPS_SECRETS",
     "section_de",
     "cles_de_la_section",
+    "cles_a_appliquer",
+    "CLES_DEPLACEES",
     "cles_du_modele",
     "est_classee",
     "cles_sans_classement",

@@ -329,7 +329,7 @@ def calculer_l_application(
     vues: set[str] = set()
 
     for section in choisies:
-        for cle in cl.cles_de_la_section(section):
+        for cle in cl.cles_a_appliquer(section):
             if cle in vues:
                 continue
             if cle in reglees_par_le_principal:

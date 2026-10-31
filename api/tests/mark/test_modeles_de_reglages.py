@@ -609,3 +609,13 @@ async def test_appliquer_a_un_specialise_n_ecrit_aucune_cle_commune(monde, test_
     assert resultat["non_appliquees"] and {r["raison"] for r in resultat["non_appliquees"]} == {"reglee-par-le-principal"}
     apres = await _active(db_session, monde.agent_a2.id)
     assert apres == avant, "nothing common was written on the specialised agent"
+
+
+def test_un_ancien_modele_applique_sur_tour_ou_rythme_pose_encore_les_deux_reglages_deplaces():
+    valeurs = {"relance_apres_outil": True, "laisser_la_parole": False}
+    nouveau, resultat = calculer_l_application(valeurs, ["tour", "rythme"], {})
+    assert nouveau["relance_apres_outil"] is True and nouveau["laisser_la_parole"] is False
+    assert {"relance_apres_outil", "laisser_la_parole"} <= set(resultat.posees)
+    # appliqué sur « tour » seul : seul celui de « tour » est posé
+    seul, _ = calculer_l_application(valeurs, ["tour"], {})
+    assert "relance_apres_outil" in seul and "laisser_la_parole" not in seul
