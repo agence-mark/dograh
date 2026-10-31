@@ -9,6 +9,8 @@ import httpx
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import REFUS as REFUS_CLE_RESERVEE
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.errors.failure import (
     DograhFailure,
     ErrorSource,
@@ -351,12 +353,17 @@ async def execute_http_tool(
     # Add auth header if credential is configured. Keep track of which headers
     # came from the credential so only those values are masked in test previews.
     credential_headers: dict[str, str] = {}
+    cle_reservee = False
     credential_uuid = config.get("credential_uuid")
     if credential_uuid and organization_id:
         try:
             credential = await db_client.get_credential_by_uuid(
                 credential_uuid, organization_id
             )
+            if credential and est_la_cle_du_cerveau(credential):
+                # [.mark] Builder, revue R2 : la clé du cerveau du builder ne part par aucun outil.
+                cle_reservee = True
+                credential = None
             if credential:
                 credential_headers = build_auth_header(credential)
                 headers.update(credential_headers)
@@ -413,6 +420,9 @@ async def execute_http_tool(
                 "request_body_preview": _request_body_preview,
             }
         return result
+
+    if cle_reservee:
+        return build_result({"status": "error", "error": REFUS_CLE_RESERVEE})
 
     # Get timeout
     timeout_ms = config.get("timeout_ms", 5000)

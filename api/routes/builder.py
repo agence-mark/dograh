@@ -38,13 +38,13 @@ from api.services.builder.bibliotheque import droits
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau, fabriquer
+from api.services.builder.cerveau.marque import MARQUE_CLE_DU_CERVEAU
 from api.services.builder.cerveau.reglages import FormatDuFil, ReglagesCerveau, VueReglagesCerveau
 
 router = APIRouter(prefix="/builder", tags=["builder"])
 router.include_router(routeur_bibliotheque)
 router.include_router(routeur_contexte)
 
-MARQUE_CLE_DU_CERVEAU = "mark_builder_cerveau"
 NOM_CLE_DU_CERVEAU = "builder-cerveau"
 CLE_LONGUEUR = (8, 500)
 

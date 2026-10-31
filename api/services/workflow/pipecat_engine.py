@@ -79,6 +79,7 @@ from api.errors.failure import (
     log_failure,
 )
 from api.schemas.workflow_configurations import CallDispositionOption
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.services.pipecat.audio_playback import play_audio
 from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
 from api.services.pipecat.greeting import GreetingController
@@ -3964,6 +3965,10 @@ class PipecatEngine:
                         credential = await db_client.get_credential_by_uuid(
                             cfg["credential_uuid"], organization_id
                         )
+                        if credential is not None and est_la_cle_du_cerveau(credential):
+                            # [.mark] Builder, revue R2 : la clé du cerveau du builder ne sert à aucun outil MCP.
+                            logger.warning(f"Skipping MCP tool '{tool.name}': reserved credential")
+                            continue
                     except Exception as e:
                         logger.warning(
                             f"MCP tool '{tool.name}': credential fetch failed: {e}"

@@ -13,6 +13,8 @@ from typing import Any, Optional
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import REFUS as REFUS_CLE_RESERVEE
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.db.models import UserModel
 from api.enums import PostHogEvent, ToolCategory
 from api.schemas.tool import (
@@ -115,6 +117,9 @@ async def validate_tool_references(
         credential = await db_client.get_credential_by_uuid(
             credential_uuid, organization_id
         )
+        if credential is not None and est_la_cle_du_cerveau(credential):
+            # [.mark] Builder, revue R2 : la clé du cerveau du builder n'est attachée à aucun outil.
+            raise ToolManagementError("credential_reserved", REFUS_CLE_RESERVEE, status_code=403)
         if not credential:
             raise ToolManagementError(
                 "credential_not_found",

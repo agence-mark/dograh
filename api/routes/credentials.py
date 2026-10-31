@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.sdk_expose import sdk_expose
@@ -150,6 +151,8 @@ async def list_credentials(
         build_credential_response(cred)
         for cred in credentials
         if fournisseur_de(cred) is None
+        # [.mark] Builder, revue R2 : la clé du cerveau du builder n'est jamais proposée à un outil.
+        and not est_la_cle_du_cerveau(cred)
     ]
 
 
