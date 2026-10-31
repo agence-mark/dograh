@@ -64,12 +64,20 @@ def methode_de(outil: Any) -> str:
     return str(config.get("method") or "POST").upper()
 
 
+def demande_un_geste(outil: Any) -> bool:
+    """Un essai part sans geste humain seulement s'il est un GET SANS identifiant : un GET qui porte un identifiant du client
+    agit en son nom (revue R5, limite)."""
+    config = (getattr(outil, "definition", None) or {}).get("config") or {}
+    return methode_de(outil) != "GET" or bool(config.get("credential_uuid"))
+
+
 def carte_a_valider(outil: Any, donnees_test: dict[str, Any]) -> dict[str, Any]:
     """Revue R5 : un essai qui ÉCRIT chez le client (toute méthode autre que GET) ne part pas sans un geste humain. Le builder rend
     cette carte ; la personne lance l'essai (route dédiée). Rien n'a été appelé, rien n'est rangé : l'outil n'est pas « branché »."""
     config = (getattr(outil, "definition", None) or {}).get("config") or {}
     methode, adresse = methode_de(outil), str(config.get("url") or "")
-    message = f"{methode} {adresse} writes at the client's: a person must run this trial (button « Run the trial »). Nothing was called."
+    raison_du_geste = "writes at the client's" if methode != "GET" else "uses the client's credential"
+    message = f"{methode} {adresse} {raison_du_geste}: a person must run this trial (button « Run the trial »). Nothing was called."
     return {
         "ok": True,
         "a_valider": True,
@@ -89,7 +97,7 @@ async def essayer(
 ) -> dict[str, Any]:
     """Essaie l'outil ``nom`` avec ``donnees_test``. Ne lève que ``ErreurEssai`` (refus normal).
 
-    ``geste_humain`` : l'essai est lancé par une personne (route dédiée). Sans lui, seul un GET part directement ; toute autre
+    ``geste_humain`` : l'essai est lancé par une personne (route dédiée). Sans lui, seul un GET sans identifiant part directement ; toute autre
     méthode rend la carte « Essai à valider » (revue R5)."""
     if not est_fictive(donnees_test):
         raise ErreurEssai("The test data looks real (e-mail outside .test, phone outside the reserved ranges): use fictitious data only.")
@@ -97,7 +105,7 @@ async def essayer(
     if outil is None:
         raise ErreurEssai(f"Unknown tool: {nom}.")
     categorie = str(getattr(outil.category, "value", outil.category))
-    if categorie == "http_api" and not geste_humain and methode_de(outil) != "GET":
+    if categorie == "http_api" and not geste_humain and demande_un_geste(outil):
         return carte_a_valider(outil, donnees_test)
     if categorie != "http_api":
         resultat = _verdict(outil.name, False, f"A tool of category « {categorie} » cannot be tried here: it is not connected until a person tries it.", None, 0)

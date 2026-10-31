@@ -176,3 +176,18 @@ async def test_le_geste_humain_lance_l_essai_d_un_outil_qui_ecrit(systeme, monde
     # des données qui ont l'air réelles restent refusées, même par un geste humain
     with pytest.raises(essai_outil.ErreurEssai):
         await essai_outil.essayer(ORG_CLIENT, AGENT, "reserver", {"email": "marie.dupont@gmail.com"}, geste_humain=True)
+
+
+async def test_un_get_qui_porte_un_identifiant_rend_la_carte_et_rien_n_est_appele(systeme, monkeypatch):
+    avec = un_outil("lire_avec_cle")
+    avec.definition["config"]["credential_uuid"] = "cle-du-client"
+
+    async def liste(organization_id, *a, **k):
+        return [avec, un_outil()]
+
+    monkeypatch.setattr(essai_outil.db_client, "get_tools_for_organization", liste)
+    r = await essayer(outil="lire_avec_cle")
+    assert r["a_valider"] is True and r["carte"]["type"] == "essai_a_valider" and systeme.appels == []
+    assert "cle-du-client" not in str(r)
+    direct = await essayer()  # un GET sans identifiant reste direct
+    assert direct.get("a_valider") is None and len(systeme.appels) == 1
