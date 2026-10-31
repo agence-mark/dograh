@@ -9,6 +9,11 @@
  *   groupe dans la liste. Le nom du groupe est demandé ici.
  *
  * La carte « Monoprompt » viendra avec son chantier. Modale CENTRÉE, jamais un panneau latéral.
+ *
+ * Chantier builder-agent-vocal, lot 4 (B3) : une case « Démarrer avec le Builder IA » (cochée par défaut) ouvre
+ * l'éditeur de l'agent avec le panneau du builder déjà ouvert (`?builder=1`). L'ancien « assistant de création »
+ * (générateur de modèle du service hébergé) n'est plus proposé : le builder le remplace ; la carte ne le montre
+ * que si l'appelant fournit encore `onConstructeur`.
  */
 import { Bot, LayoutTemplate, Network } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -35,6 +40,11 @@ const TEXTES = {
     constructeur: { en: "Use the agent builder", fr: "Utiliser l'assistant de création" },
     constructeurAide: { en: "AI generates a workflow from your description", fr: "L'IA génère un workflow à partir de votre description" },
     vierge: { en: "Blank canvas", fr: "Page blanche" },
+    demarrerAvecLeBuilder: { en: "Start with the Builder AI", fr: "Démarrer avec le Builder IA" },
+    demarrerAvecLeBuilderAide: {
+        en: "Opens the editor with the Builder AI panel: it reads your documents and builds the draft with you.",
+        fr: "Ouvre l'éditeur avec le panneau Builder IA : il lit vos documents et construit le brouillon avec vous.",
+    },
     viergeAide: { en: "Start from scratch with an empty workflow", fr: "Partir d'un workflow vide" },
     groupe: { en: "Graph with specialised agents", fr: "Graphe avec agents spécialisés" },
     groupeAide: {
@@ -57,8 +67,10 @@ export const ModaleCreationAgent = ({
 }: {
     ouvert: boolean;
     onOuvertChange: (ouvert: boolean) => void;
-    onConstructeur: () => void;
-    onToileVierge: () => void;
+    /** Absent: the card does not offer the former template generator (replaced by the Builder AI). */
+    onConstructeur?: () => void;
+    /** `avecLeBuilder`: the box « Start with the Builder AI » is ticked. */
+    onToileVierge: (options: { avecLeBuilder: boolean }) => void;
     creationEnCours?: boolean;
     /** Le dossier dans lequel le groupe prend son sous-dossier (absent : premier niveau). */
     dossierParentId?: number | null;
@@ -67,6 +79,7 @@ export const ModaleCreationAgent = ({
     const router = useRouter();
     const [nom, setNom] = useState("");
     const [enCours, setEnCours] = useState(false);
+    const [avecLeBuilder, setAvecLeBuilder] = useState(true);
 
     const creerLeGroupe = async () => {
         const propre = nom.trim();
@@ -83,7 +96,8 @@ export const ModaleCreationAgent = ({
             onOuvertChange(false);
             setNom("");
             // Ouvre le groupe : la liste, avec le sous-dossier du groupe déplié.
-            router.push(`/workflow?dossier=${reponse.data.folder_id}`);
+            // Avec le Builder IA : on ouvre l'agent principal, panneau ouvert.
+            router.push(avecLeBuilder ? `/workflow/${reponse.data.workflow_id}?builder=1` : `/workflow?dossier=${reponse.data.folder_id}`);
             router.refresh();
         } catch {
             toast.error(t(TEXTES.echec));
@@ -107,21 +121,23 @@ export const ModaleCreationAgent = ({
                         </h3>
                         <p className="text-xs text-muted-foreground">{t(TEXTES.noeudsAide)}</p>
                         <div className="space-y-2">
-                            <Button type="button" variant="outline" className="h-auto w-full justify-start py-2 text-left" onClick={onConstructeur}>
-                                <Bot className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-                                <span>
-                                    <span className="block text-sm font-medium">{t(TEXTES.constructeur)}</span>
-                                    <span className="block whitespace-normal text-xs font-normal text-muted-foreground">
-                                        {t(TEXTES.constructeurAide)}
+                            {onConstructeur && (
+                                <Button type="button" variant="outline" className="h-auto w-full justify-start py-2 text-left" onClick={onConstructeur}>
+                                    <Bot className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                                    <span>
+                                        <span className="block text-sm font-medium">{t(TEXTES.constructeur)}</span>
+                                        <span className="block whitespace-normal text-xs font-normal text-muted-foreground">
+                                            {t(TEXTES.constructeurAide)}
+                                        </span>
                                     </span>
-                                </span>
-                            </Button>
+                                </Button>
+                            )}
                             <Button
                                 type="button"
                                 variant="outline"
                                 className="h-auto w-full justify-start py-2 text-left"
                                 disabled={creationEnCours}
-                                onClick={onToileVierge}
+                                onClick={() => onToileVierge({ avecLeBuilder })}
                             >
                                 <LayoutTemplate className="mr-2 h-4 w-4 shrink-0" aria-hidden />
                                 <span>
@@ -161,6 +177,19 @@ export const ModaleCreationAgent = ({
                         </div>
                     </section>
                 </div>
+                <label className="flex items-start gap-2 rounded-lg border p-3 text-sm" htmlFor="demarrer-avec-le-builder">
+                    <input
+                        id="demarrer-avec-le-builder"
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4"
+                        checked={avecLeBuilder}
+                        onChange={(e) => setAvecLeBuilder(e.target.checked)}
+                    />
+                    <span>
+                        <span className="block font-medium">{t(TEXTES.demarrerAvecLeBuilder)}</span>
+                        <span className="block text-xs text-muted-foreground">{t(TEXTES.demarrerAvecLeBuilderAide)}</span>
+                    </span>
+                </label>
             </DialogContent>
         </Dialog>
     );

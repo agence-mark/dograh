@@ -344,6 +344,16 @@ export type ActiveCallsResponse = {
 };
 
 /**
+ * AdresseDuSite
+ */
+export type AdresseDuSite = {
+    /**
+     * Adresse
+     */
+    adresse: string;
+};
+
+/**
  * AdresseEtablissement
  *
  * [.mark] The business's address: organization-wide, overridable per agent.
@@ -1401,6 +1411,16 @@ export type BilanDuPassage = {
      * Audio Duree Mois
      */
     audio_duree_mois: number;
+};
+
+/**
+ * Body_deposer_un_fichier_api_v1_builder_depot__workflow_id__post
+ */
+export type BodyDeposerUnFichierApiV1BuilderDepotWorkflowIdPost = {
+    /**
+     * Fichier
+     */
+    fichier: Blob | File;
 };
 
 /**
@@ -6266,6 +6286,24 @@ export type LigneDAlerte = {
 };
 
 /**
+ * LigneDeLaFiche
+ */
+export type LigneDeLaFiche = {
+    /**
+     * Champ
+     */
+    champ: string;
+    /**
+     * Valeur
+     */
+    valeur: string;
+    /**
+     * Classement
+     */
+    classement?: 'objet' | 'base' | 'regle' | null;
+};
+
+/**
  * LigneDeTaux
  */
 export type LigneDeTaux = {
@@ -10390,6 +10428,16 @@ export type ReglePhrase = {
 };
 
 /**
+ * RejetDeBase
+ */
+export type RejetDeBase = {
+    /**
+     * Motif
+     */
+    motif?: string | null;
+};
+
+/**
  * ResultatAction
  */
 export type ResultatAction = {
@@ -13912,6 +13960,34 @@ export type VueConservationAppels = {
 };
 
 /**
+ * VueContexte
+ */
+export type VueContexte = {
+    /**
+     * Depots
+     */
+    depots: Array<VueDepot>;
+    /**
+     * Fiche
+     */
+    fiche: {
+        [key: string]: unknown;
+    };
+    /**
+     * Classements
+     */
+    classements: {
+        [key: string]: string;
+    };
+    /**
+     * Base
+     */
+    base: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * VueConversation
  */
 export type VueConversation = {
@@ -13935,6 +14011,62 @@ export type VueConversation = {
      * En Cours
      */
     en_cours: boolean;
+};
+
+/**
+ * VueDepot
+ */
+export type VueDepot = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Genre
+     */
+    genre: 'fichier' | 'site';
+    /**
+     * Statut
+     */
+    statut: 'lu' | 'illisible';
+    /**
+     * Raison
+     */
+    raison?: string | null;
+    /**
+     * Pages
+     */
+    pages?: number;
+    /**
+     * Caracteres
+     */
+    caracteres?: number;
+    /**
+     * Tronque
+     */
+    tronque?: boolean;
+    /**
+     * Octets
+     */
+    octets?: number | null;
+    /**
+     * Ajoute Par
+     */
+    ajoute_par?: string;
+    /**
+     * Ajoute Le
+     */
+    ajoute_le?: string;
+    /**
+     * Refusees
+     */
+    refusees?: Array<{
+        [key: string]: string;
+    }>;
 };
 
 /**
@@ -18470,6 +18602,346 @@ export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponse
 };
 
 export type ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponse = ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponses[keyof ChangerLeStatutApiV1BuilderBibliothequeFamilleSlugStatutPostResponses];
+
+export type LireLeContexteApiV1BuilderContexteWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/contexte/{workflow_id}';
+};
+
+export type LireLeContexteApiV1BuilderContexteWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeContexteApiV1BuilderContexteWorkflowIdGetError = LireLeContexteApiV1BuilderContexteWorkflowIdGetErrors[keyof LireLeContexteApiV1BuilderContexteWorkflowIdGetErrors];
+
+export type LireLeContexteApiV1BuilderContexteWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueContexte;
+};
+
+export type LireLeContexteApiV1BuilderContexteWorkflowIdGetResponse = LireLeContexteApiV1BuilderContexteWorkflowIdGetResponses[keyof LireLeContexteApiV1BuilderContexteWorkflowIdGetResponses];
+
+export type DeposerUnFichierApiV1BuilderDepotWorkflowIdPostData = {
+    body: BodyDeposerUnFichierApiV1BuilderDepotWorkflowIdPost;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/depot/{workflow_id}';
+};
+
+export type DeposerUnFichierApiV1BuilderDepotWorkflowIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeposerUnFichierApiV1BuilderDepotWorkflowIdPostError = DeposerUnFichierApiV1BuilderDepotWorkflowIdPostErrors[keyof DeposerUnFichierApiV1BuilderDepotWorkflowIdPostErrors];
+
+export type DeposerUnFichierApiV1BuilderDepotWorkflowIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueDepot;
+};
+
+export type DeposerUnFichierApiV1BuilderDepotWorkflowIdPostResponse = DeposerUnFichierApiV1BuilderDepotWorkflowIdPostResponses[keyof DeposerUnFichierApiV1BuilderDepotWorkflowIdPostResponses];
+
+export type DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostData = {
+    body: AdresseDuSite;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/depot/{workflow_id}/site';
+};
+
+export type DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostError = DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostErrors[keyof DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostErrors];
+
+export type DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueDepot;
+};
+
+export type DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostResponse = DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostResponses[keyof DeposerUnSiteApiV1BuilderDepotWorkflowIdSitePostResponses];
+
+export type RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Depot Id
+         */
+        depot_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/depot/{workflow_id}/{depot_id}';
+};
+
+export type RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteError = RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteErrors[keyof RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteErrors];
+
+export type RetirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutData = {
+    body: LigneDeLaFiche;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fiche/{workflow_id}/ligne';
+};
+
+export type EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutError = EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutErrors[keyof EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutErrors];
+
+export type EcrireUneLigneDeLaFicheApiV1BuilderFicheWorkflowIdLignePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Document Id
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/base/{workflow_id}/{document_id}/valider';
+};
+
+export type ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostError = ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostErrors[keyof ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostErrors];
+
+export type ValiderUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostData = {
+    body: RejetDeBase;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Document Id
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/base/{workflow_id}/{document_id}/rejeter';
+};
+
+export type RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostError = RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostErrors[keyof RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostErrors];
+
+export type RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;

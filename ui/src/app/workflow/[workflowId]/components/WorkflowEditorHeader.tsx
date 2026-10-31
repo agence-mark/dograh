@@ -11,6 +11,7 @@ import {
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost,
 } from "@/client/sdk.gen";
 import { WorkflowError } from "@/client/types.gen";
+import { BarreDuBuilder } from "@/components/builder/ecran/BarreDuBuilder";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { GitHubStarBadge } from "@/components/layout/GitHubStarBadge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,13 @@ interface WorkflowEditorHeaderProps {
     hasDraft: boolean;
     onPublished: () => void;
     renameWorkflow: (newName: string) => Promise<void>;
+    /** [.mark] builder-agent-vocal (lot 4): the « Builder AI » and « Tests » buttons, and why « Publish » is greyed. */
+    builder?: {
+        ouvert: boolean;
+        onToggle: () => void;
+        testsHref: string;
+        raisonDeBlocage: string | null;
+    };
 }
 
 export const WorkflowEditorHeader = ({
@@ -66,6 +74,7 @@ export const WorkflowEditorHeader = ({
     workflowId,
     workflowUuid,
     renameWorkflow,
+    builder,
 }: WorkflowEditorHeaderProps) => {
     const router = useRouter();
     const { toggleSidebar } = useSidebar();
@@ -386,11 +395,20 @@ export const WorkflowEditorHeader = ({
                     </Popover>
                 )}
 
+                {/* [.mark] Lot 4 du builder : « Builder AI » et « Tests » */}
+                {builder && !isViewingHistoricalVersion && <BarreDuBuilder {...builder} />}
+
                 {/* Publish button (only when on draft with no unsaved changes) */}
+                {!isViewingHistoricalVersion && hasDraft && builder?.raisonDeBlocage && (
+                    <span className="max-w-40 truncate text-xs text-muted-foreground" data-raison-publication title={builder.raisonDeBlocage}>
+                        {builder.raisonDeBlocage}
+                    </span>
+                )}
                 {!isViewingHistoricalVersion && hasDraft && (
                     <Button
                         onClick={handlePublish}
-                        disabled={isDirty || publishing || hasValidationErrors}
+                        title={builder?.raisonDeBlocage ?? undefined}
+                        disabled={isDirty || publishing || hasValidationErrors || Boolean(builder?.raisonDeBlocage)}
                         variant="outline"
                         className="border-border px-4"
                     >

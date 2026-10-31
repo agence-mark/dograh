@@ -109,7 +109,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
                     {t({ en: `Used by ${utilisePar} agent(s)`, fr: `Utilisée par ${utilisePar} agent(s)` })}
                 </p>
                 {statut === "candidat" && (
-                    <p className="text-sm text-amber-700 dark:text-amber-300" data-testid="avertissement-candidat">
+                    <p className="text-sm text-(--signal-warn)" data-testid="avertissement-candidat">
                         {t({
                             en: "Candidate: the builder may use it but must say it is not proven. An agent that uses it carries the mention.",
                             fr: "Candidat : le builder peut l'utiliser mais doit dire qu'il n'est pas prouvé. Un agent qui l'utilise porte la mention.",

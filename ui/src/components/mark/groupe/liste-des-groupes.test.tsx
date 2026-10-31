@@ -282,7 +282,6 @@ describe("[.mark] la modale de création d'un agent", () => {
         const props = {
             ouvert: true,
             onOuvertChange: vi.fn(),
-            onConstructeur: vi.fn(),
             onToileVierge: vi.fn(),
             ...extra,
         };
@@ -297,18 +296,27 @@ describe("[.mark] la modale de création d'un agent", () => {
         expect(modale.querySelectorAll("[data-carte]")).toHaveLength(2);
         const noeuds = modale.querySelector('[data-carte="graphe-de-noeuds"]') as HTMLElement;
         expect(within(noeuds).getByText("Node graph")).toBeTruthy();
-        expect(within(noeuds).getByText("Use the agent builder")).toBeTruthy();
+        expect(within(noeuds).queryByText("Use the agent builder")).toBeNull(); // remplacé par le Builder IA (lot 4)
         expect(within(noeuds).getByText("Blank canvas")).toBeTruthy();
+        expect((screen.getByLabelText(/Start with the Builder AI/) as HTMLInputElement).checked).toBe(true);
         const groupe = modale.querySelector('[data-carte="graphe-avec-agents-specialises"]') as HTMLElement;
         expect(within(groupe).getByText("Graph with specialised agents")).toBeTruthy();
     });
 
-    it("la carte « Graphe de nœuds » garde ses deux chemins", () => {
+    it("la page blanche dit si le Builder IA démarre avec elle (case cochée par défaut)", () => {
         const props = ouvrir();
-        fireEvent.click(screen.getByText("Use the agent builder"));
-        expect(props.onConstructeur).toHaveBeenCalledTimes(1);
         fireEvent.click(screen.getByText("Blank canvas"));
-        expect(props.onToileVierge).toHaveBeenCalledTimes(1);
+        expect(props.onToileVierge).toHaveBeenLastCalledWith({ avecLeBuilder: true });
+        fireEvent.click(screen.getByLabelText(/Start with the Builder AI/));
+        fireEvent.click(screen.getByText("Blank canvas"));
+        expect(props.onToileVierge).toHaveBeenLastCalledWith({ avecLeBuilder: false });
+    });
+
+    it("l'ancien assistant de création n'apparaît que si l'appelant le fournit encore", () => {
+        const onConstructeur = vi.fn();
+        ouvrir({ onConstructeur });
+        fireEvent.click(screen.getByText("Use the agent builder"));
+        expect(onConstructeur).toHaveBeenCalledTimes(1);
     });
 
     it("la carte « Graphe avec agents spécialisés » crée le groupe et l'ouvre dans la liste", async () => {
@@ -319,7 +327,16 @@ describe("[.mark] la modale de création d'un agent", () => {
         fireEvent.click(screen.getByRole("button", { name: "Create the group" }));
         await waitFor(() => expect(m.appels.map((a) => a.nom)).toContain("creerUnGroupe"));
         expect((m.appels.find((a) => a.nom === "creerUnGroupe")!.options as { body: unknown }).body).toEqual({ name: "Accueil du client", folder_id: null });
-        await waitFor(() => expect(m.push).toHaveBeenCalledWith("/workflow?dossier=8"));
+        // Case « Démarrer avec le Builder IA » cochée par défaut : on ouvre l'agent principal, panneau ouvert.
+        await waitFor(() => expect(m.push).toHaveBeenCalledWith(expect.stringMatching(/^\/workflow\/\d+\?builder=1$/)));
         expect(props.onOuvertChange).toHaveBeenCalledWith(false);
+    });
+
+    it("sans le Builder IA, le groupe s'ouvre dans la liste comme avant", async () => {
+        ouvrir();
+        fireEvent.click(screen.getByLabelText(/Start with the Builder AI/));
+        fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Autre groupe" } });
+        fireEvent.click(screen.getByRole("button", { name: "Create the group" }));
+        await waitFor(() => expect(m.push).toHaveBeenCalledWith("/workflow?dossier=8"));
     });
 });

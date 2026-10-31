@@ -3,6 +3,7 @@ import '@xyflow/react/dist/style.css';
 import {
     Background,
     BackgroundVariant,
+    type NodeChange,
     Panel,
     ReactFlow,
 } from "@xyflow/react";
@@ -11,12 +12,19 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet } from '@/client';
+import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet,updateWorkflowApiV1WorkflowWorkflowIdPut } from '@/client';
 import type { DocumentResponseSchema, RecordingResponseSchema, ToolResponse, WorkflowVersionResponse } from '@/client/types.gen';
+// [.mark] builder-agent-vocal (lot 4): the « Builder AI » panel, its highlighting of the graph, the node menu.
+import { appliquerLesOperations, grapheAAfficher, instantane, retirerLeSurlignage } from "@/components/builder/ecran/graphe";
+import { MenuDuNoeud, type MenuOuvert } from "@/components/builder/ecran/MenuDuNoeud";
+import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
+import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
 import { HireExpertNudge } from "@/components/lead-forms/HireExpertNudge";
+import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
+import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -33,10 +41,9 @@ import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester
 import { WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
 import { WorkflowTesterPanel } from './components/WorkflowTesterPanel';
 import { WorkflowVersionDiffDialog } from './components/WorkflowVersionDiffDialog';
-import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
-
 import { WorkflowProvider } from "./contexts/WorkflowContext";
 import { useWorkflowState } from "./hooks/useWorkflowState";
+import { useWorkflowStore } from "./stores/workflowStore";
 import { layoutNodes } from './utils/layoutNodes';
 
 const edgeTypes = {
@@ -102,6 +109,23 @@ function RenderWorkflow({
         selectedVersion: WorkflowVersionResponse;
     } | null>(null);
     const hasAutoOpenedTester = useRef(false);
+    // [.mark] builder-agent-vocal (lot 4): what the builder panel needs from this editor.
+    const { t: tBuilder } = useLangue();
+    const builderOuvert = useBuilderEcran((s) => s.ouvert);
+    const builderAvant = useBuilderEcran((s) => s.avant);
+    const builderOperations = useBuilderEcran((s) => s.operationsVives);
+    const builderBascule = useBuilderEcran((s) => s.bascule);
+    const [menuDuNoeud, setMenuDuNoeud] = useState<MenuOuvert | null>(null);
+    // The panel and the tester rail share the right side: opening the builder leaves the room to it.
+    useEffect(() => {
+        if (builderOuvert) setIsTesterRailOpen(false);
+    }, [builderOuvert]);
+    // A new editor starts with a clean builder state; `?builder=1` (« Start with the Builder AI ») opens the panel.
+    useEffect(() => {
+        useBuilderEcran.getState().reinitialiser();
+        if (searchParams.get('builder') === '1') useBuilderEcran.getState().ouvrir();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workflowId]);
     // Version info that updates immediately from the GET/save/publish responses.
     const [currentVersionNumber, setCurrentVersionNumber] = useState<number | null>(initialVersionNumber ?? null);
     const [currentVersionStatus, setCurrentVersionStatus] = useState<string | null>(initialVersionStatus ?? null);
@@ -502,6 +526,83 @@ function RenderWorkflow({
         [activeRuntimeNodeId, nodes],
     );
 
+    // [.mark] builder-agent-vocal (lot 4) -----------------------------------------------------------------------------
+    const lireLeGrapheDuBuilder = useCallback(() => {
+        const etat = useWorkflowStore.getState();
+        return instantane(etat.nodes, etat.edges);
+    }, []);
+
+    // Reads the agent's draft again (the builder saved it on the server) and puts it on the canvas.
+    const rechargerLeBrouillon = useCallback(async () => {
+        const reponse = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({ path: { workflow_id: workflowId } });
+        const definition = reponse.data?.workflow_definition;
+        if (reponse.error || !definition) return false;
+        setNodes((definition.nodes ?? []) as FlowNode[]);
+        setEdges((definition.edges ?? []) as FlowEdge[]);
+        setIsDirty(false);
+        setCurrentVersionNumber(reponse.data?.version_number ?? null);
+        setCurrentVersionStatus(reponse.data?.version_status ?? null);
+        void fetchVersions(true);
+        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 300, maxZoom: 0.75 }), 100);
+        return true;
+    }, [workflowId, setNodes, setEdges, setIsDirty, fetchVersions, rfInstance]);
+
+    // « Refuse »: the graph from before becomes the draft again (a normal save, then read back).
+    const restaurerLeGraphe = useCallback(async (graphe: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
+        const reponse = await updateWorkflowApiV1WorkflowWorkflowIdPut({
+            path: { workflow_id: workflowId },
+            body: {
+                name: workflowName,
+                workflow_definition: { ...graphe, viewport: rfInstance.current?.getViewport() ?? { x: 0, y: 0, zoom: 0.75 } },
+            },
+        });
+        if (reponse.error) return false;
+        return rechargerLeBrouillon();
+    }, [workflowId, workflowName, rfInstance, rechargerLeBrouillon]);
+
+    const contexteDuBuilder = useMemo(
+        () => ({
+            workflowId,
+            lireLeGraphe: lireLeGrapheDuBuilder,
+            recharger: rechargerLeBrouillon,
+            restaurer: restaurerLeGraphe,
+            appelerLAgent: () => setIsPhoneCallDialogOpen(true),
+            essayerAuClavier: handleOpenTester,
+        }),
+        [workflowId, lireLeGrapheDuBuilder, rechargerLeBrouillon, restaurerLeGraphe, handleOpenTester],
+    );
+
+    // What the canvas shows while the builder has changes to review: Sim-style highlighting, or the graph from before.
+    const affichageDuBuilder = useMemo(() => {
+        if (!builderAvant) return null;
+        const apres = builderOperations.length ? appliquerLesOperations(builderAvant, builderOperations) : { nodes, edges };
+        return grapheAAfficher(builderAvant, apres, builderBascule, {
+            champs: (n) => `${n} ${tBuilder({ en: "field(s)", fr: "champ(s)" })}`,
+        });
+    }, [builderAvant, builderOperations, builderBascule, nodes, edges, tBuilder]);
+    // React Flow reports « replace » changes built from the nodes it DISPLAYS (the highlighted copies): none of that may
+    // reach the editor's own nodes, which are saved. A ghost (a node the builder removed, kept on screen) is not stored.
+    const onNodesChangeDuBuilder = useCallback(
+        (changes: NodeChange<FlowNode>[]) => {
+            const connus = new Set(useWorkflowStore.getState().nodes.map((n) => n.id));
+            const propres = (changes as { type: string; id?: string; item?: FlowNode }[]).flatMap((c) => {
+                if (c.type !== 'replace') return [c];
+                return c.id && c.item && connus.has(c.id) ? [{ ...c, item: retirerLeSurlignage(c.item) }] : [];
+            });
+            onNodesChange(propres as unknown as NodeChange<FlowNode>[]);
+        },
+        [onNodesChange],
+    );
+    const noeudsAffiches = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
+    const liaisonsAffichees = affichageDuBuilder ? affichageDuBuilder.edges : edges;
+
+    // The nodes appear one by one: keep the whole graph in view while the operations arrive.
+    useEffect(() => {
+        if (builderOperations.length === 0) return;
+        const minuteur = setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.75 }), 60);
+        return () => clearTimeout(minuteur);
+    }, [builderOperations.length, rfInstance]);
+
     const handleRuntimeNodeTransition = useCallback(
         (transition: WorkflowRuntimeNodeTransition) => {
             const nodeId = transition.nodeId;
@@ -676,6 +777,14 @@ function RenderWorkflow({
                     hasDraft={hasDraft}
                     onPublished={handlePublished}
                     renameWorkflow={renameWorkflow}
+                    builder={{
+                        ouvert: builderOuvert,
+                        onToggle: () => useBuilderEcran.getState().basculerLePanneau(),
+                        testsHref: `/workflow/${workflowId}/tests`,
+                        raisonDeBlocage: builderAvant
+                            ? tBuilder({ en: "Review the builder's changes first.", fr: "Relisez d'abord les changements du builder." })
+                            : null,
+                    }}
                 />
 
                 {/* Workflow Canvas */}
@@ -684,9 +793,18 @@ function RenderWorkflow({
                         <div className="relative min-w-0 flex-1">
                             <ReactFlow
                                 key={activeVersionId ?? 'current'}
-                                nodes={displayNodes}
-                                edges={edges}
-                                onNodesChange={onNodesChange}
+                                nodes={noeudsAffiches}
+                                edges={liaisonsAffichees}
+                                onNodeContextMenu={(evenement, noeud) => {
+                                    evenement.preventDefault();
+                                    setMenuDuNoeud({
+                                        x: evenement.clientX,
+                                        y: evenement.clientY,
+                                        id: noeud.id,
+                                        nom: String((noeud.data as { name?: string }).name ?? noeud.id),
+                                    });
+                                }}
+                                onNodesChange={onNodesChangeDuBuilder}
                                 onEdgesChange={onEdgesChange}
                                 onDelete={onDelete}
                                 nodeTypes={nodeTypes}
@@ -832,6 +950,8 @@ function RenderWorkflow({
                             </div>
                         </div>
 
+                        {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
+
                         {isTesterRailOpen && (
                             <aside className="hidden h-full w-[400px] shrink-0 border-l border-border xl:block">
                                 <WorkflowTesterPanel
@@ -864,6 +984,8 @@ function RenderWorkflow({
                         </SheetContent>
                     </Sheet>
                 </div>
+
+                <MenuDuNoeud menu={menuDuNoeud} onFermer={() => setMenuDuNoeud(null)} />
 
                 <AddNodePanel
                     isOpen={isAddNodePanelOpen}
