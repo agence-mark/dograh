@@ -659,13 +659,19 @@ def client_pour(user) -> TestClient:
 
 @pytest.fixture
 def document_cree(monkeypatch):
-    crees = []
+    class Crees(list):
+        modes: list[str]
 
-    async def creer(user, titre, contenu):
+    crees = Crees()
+    modes = []
+
+    async def creer(user, titre, contenu, mode="chunked"):
         crees.append((user.selected_organization_id, titre, contenu))
+        modes.append(mode)
         return f"uuid-{len(crees)}"
 
     monkeypatch.setattr(base, "creer_le_document_de_base", creer)
+    crees.modes = modes
     return crees
 
 
@@ -765,3 +771,68 @@ def test_un_pdf_illisible_echoue_en_le_disant_dans_la_base_de_connaissances(tmp_
     casse.write_bytes(b"%PDF-1.4 abime")
     with pytest.raises(ValueError, match="could not be read"):
         traiter_un_document(str(casse), "scan.pdf", "chunked", 128)
+
+
+# --- 8. le mode de lecture proposé (B27) et la brique de conversion unique -----------------------------------------------------
+
+
+def _document_de(jetons: int) -> str:
+    """Un texte qui pèse à peu près ``jetons`` jetons estimés (1,3 jeton par mot)."""
+    return " ".join(["mot"] * round(jetons / 1.3))
+
+
+def test_le_mode_de_lecture_se_decide_de_part_et_d_autre_du_seuil_de_4000_jetons():
+    from api.services.gen_ai.documents_locaux import jetons_estimes
+
+    assert base.SEUIL_DOCUMENT_ENTIER_JETONS == 4000
+    petit, grand = _document_de(3900), _document_de(4100)
+    assert jetons_estimes(petit) < 4000 <= jetons_estimes(grand)
+    assert base.mode_de_lecture(petit) == "full_document"
+    assert base.mode_de_lecture(grand) == "chunked"
+
+
+async def test_le_mode_propose_est_celui_du_document_cree_dans_la_base_du_fork(monde, document_cree):
+    texte_court = "Le devis est réalisé sur place et il est gratuit."
+    await depot.deposer_fichier(ORG_CLIENT, AGENT, "faq.md", texte_court.encode(), "M")
+    court = (await executer("base_proposer", {"titre": "Court", "contenu": texte_court, "sources": [{"document": "faq.md", "extrait": texte_court}]}, EQUIPE))
+    assert court["ok"], court
+    (document,) = await base.lister(ORG_CLIENT, AGENT)
+    assert document.mode == "full_document"
+    assert client_pour(utilisateur(1)).post(f"/builder/base/{AGENT}/{court['id']}/valider").status_code == 200
+    assert document_cree.modes == ["full_document"]
+
+
+async def test_un_long_document_part_en_recherche_par_passages(monde, document_cree):
+    long = _document_de(4500)
+    await depot.deposer_fichier(ORG_CLIENT, AGENT, "gros.md", long.encode(), "M")
+    resultat = await executer("base_proposer", {"titre": "Long", "contenu": long, "sources": [{"document": "gros.md", "extrait": long[:200]}]}, EQUIPE)
+    assert resultat["ok"], resultat
+    assert client_pour(utilisateur(1)).post(f"/builder/base/{AGENT}/{resultat['id']}/valider").status_code == 200
+    assert document_cree.modes == ["chunked"]
+
+
+def test_une_seule_conversion_sert_au_depot_du_builder_et_a_la_base_de_connaissances(tmp_path, monkeypatch):
+    """La base de connaissances n'a pas sa propre copie : elle appelle ``extraction.extraire`` (preuve : on la remplace)."""
+    from api.services.builder.dossiers import extraction as module
+    from api.services.gen_ai import documents_locaux
+
+    appels = []
+    vrai = module.extraire
+    monkeypatch.setattr(module, "extraire", lambda nom, contenu: appels.append(nom) or vrai(nom, contenu))
+    pdf = tmp_path / "audit.pdf"
+    pdf.write_bytes(un_pdf([AUDIT]))
+    documents_locaux.traiter_un_document(str(pdf), "audit.pdf", "chunked", 128)
+    assert appels == ["audit.pdf"]
+
+
+def test_la_base_de_connaissances_lit_un_texte_et_refuse_un_fichier_trop_gros(tmp_path, monkeypatch):
+    from api.services.gen_ai import documents_locaux
+
+    texte = tmp_path / "faq.txt"
+    texte.write_text("Q : Ouvert ?\nR : Oui.\n", encoding="utf-8")
+    assert documents_locaux.traiter_un_texte(str(texte), "chunked", 128)["chunks"]
+    monkeypatch.setattr(documents_locaux, "TAILLE_MAX_OCTETS", 1000)
+    gros = tmp_path / "gros.pdf"
+    gros.write_bytes(un_pdf(["x" * 2000]))
+    with pytest.raises(ValueError, match="too large"):
+        documents_locaux.traiter_un_document(str(gros), "gros.pdf", "chunked", 128)

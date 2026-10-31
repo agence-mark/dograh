@@ -135,6 +135,13 @@ def traiter_un_document(chemin: str, filename: str, retrieval_mode: str, max_tok
     dans ``chunk_metadata``. Illisible : ``ValueError`` avec la raison (la tâche l'inscrit sur le document)."""
     from api.services.builder.dossiers.extraction import extraire
 
+    # UNE seule conversion pour tout le fork : celle du dépôt des dossiers d'audit du builder (mêmes formats, mêmes
+    # refus). Le plafond de taille est celui de la base de connaissances.
+    taille = os.path.getsize(chemin)
+    if taille > TAILLE_MAX_OCTETS:
+        raise ValueError(
+            f"Document too large ({taille // 1024} KB, at most {TAILLE_MAX_OCTETS // 1024} KB): split it before uploading."
+        )
     with open(chemin, "rb") as fichier:
         resultat = extraire(filename, fichier.read())
     if resultat.illisible:

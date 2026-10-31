@@ -31,6 +31,10 @@ from api.services.builder.dossiers import depot
 
 PROPOSITIONS_MAX = 30
 CONTENU_MAX = 20000
+# B27 : sous ce nombre de jetons estimés, le document est lu EN ENTIER par l'agent ; au-delà, par recherche de passages.
+SEUIL_DOCUMENT_ENTIER_JETONS = 4000
+MODE_DOCUMENT_ENTIER = "full_document"
+MODE_PASSAGES = "chunked"
 
 # Des mots qui engagent l'entreprise : permis dans un document de base seulement s'ils viennent de l'audit.
 MOTS_DE_PROMESSE = (
@@ -52,11 +56,19 @@ class SourceCitee(BaseModel):
     extrait: str = Field(min_length=8, max_length=600, description="A passage copied WORD FOR WORD from that page.")
 
 
+def mode_de_lecture(contenu: str) -> str:
+    """« Document entier » sous ``SEUIL_DOCUMENT_ENTIER_JETONS`` jetons estimés, « recherche par passages » au-delà."""
+    from api.services.gen_ai.documents_locaux import jetons_estimes
+
+    return MODE_DOCUMENT_ENTIER if jetons_estimes(contenu) < SEUIL_DOCUMENT_ENTIER_JETONS else MODE_PASSAGES
+
+
 class DocumentPropose(BaseModel):
     id: str
     titre: str = Field(min_length=1, max_length=200)
     contenu: str = Field(min_length=1, max_length=CONTENU_MAX)
     sources: list[SourceCitee] = Field(min_length=1, max_length=20)
+    mode: Literal["full_document", "chunked"] = MODE_PASSAGES
     etat: Literal["propose", "valide", "rejete"] = "propose"
     propose_par: str = ""
     propose_le: str = ""
@@ -166,6 +178,7 @@ async def proposer(
         titre=titre,
         contenu=contenu,
         sources=sources,
+        mode=mode_de_lecture(contenu),
         propose_par=auteur,
         propose_le=maintenant().isoformat(),
     )
@@ -185,7 +198,7 @@ def nom_de_fichier(titre: str) -> str:
     return (re.sub(r"[^a-z0-9]+", "-", ascii_).strip("-") or "document")[:80] + ".md"
 
 
-async def creer_le_document_de_base(user: Any, titre: str, contenu: str) -> str:
+async def creer_le_document_de_base(user: Any, titre: str, contenu: str, mode: str = MODE_PASSAGES) -> str:
     """Crée le document dans la base de connaissances EXISTANTE du fork (stockage, enregistrement, vectorisation en
     tâche de fond) et rend son identifiant. Une couture : les tests la remplacent."""
     from api.db import db_client
@@ -208,14 +221,14 @@ async def creer_le_document_de_base(user: Any, titre: str, contenu: str) -> str:
         mime_type="text/markdown",
         custom_metadata={"s3_key": s3_key, "origine": "builder"},
         document_uuid=identifiant,
-        retrieval_mode="chunked",
+        retrieval_mode=mode,
     )
     await enqueue_document_processing(
         document_id=document.id,
         s3_key=s3_key,
         organization_id=organisation,
         created_by_provider_id=str(user.provider_id),
-        retrieval_mode="chunked",
+        retrieval_mode=mode,
     )
     logger.info(f"[builder] document de base créé pour l'agent (org {organisation})")
     return identifiant
@@ -232,7 +245,7 @@ async def valider(user: Any, workflow_id: int, identifiant: str, auteur: str) ->
         raise ErreurBase("This proposal was rejected: propose it again.")
     # Revérifié au moment de valider : un dépôt retiré depuis ne laisse pas passer une proposition sans source.
     verifier(document.contenu, document.sources, await textes_deposes(organisation, workflow_id))
-    uuid_ = await creer_le_document_de_base(user, document.titre, document.contenu)
+    uuid_ = await creer_le_document_de_base(user, document.titre, document.contenu, document.mode)
     valide = document.model_copy(update={"etat": "valide", "valide_par": auteur, "valide_le": maintenant().isoformat(), "document_uuid": uuid_})
     await _ecrire(organisation, workflow_id, [valide if d.id == identifiant else d for d in documents])
     return valide
