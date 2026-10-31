@@ -15,6 +15,7 @@ sont mises en cache chez le fournisseur qui le permet (``cerveau/appel.py``).
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from loguru import logger
@@ -28,6 +29,8 @@ from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.constantes import (
     CLE_PREFERENCES,
     CONVERSATION_MESSAGES_MAX,
+    CONVERSATION_OCTETS_MAX,
+    MESSAGE_OCTETS_MAX,
     cle_builder,
 )
 
@@ -101,15 +104,69 @@ async def charger(organization_id: int, workflow_id: int) -> dict[str, Any]:
     return {**conversation_vide(), **brut}
 
 
-async def enregistrer(organization_id: int, workflow_id: int, conversation: dict[str, Any]) -> None:
+class ConflitDeRevision(Exception):
+    """La conversation a été écrite par un autre depuis qu'on l'a lue : cette écriture est refusée (rien n'est écrasé)."""
+
+
+def _octets(conversation: dict[str, Any]) -> int:
+    return len(json.dumps(conversation, ensure_ascii=False, default=str).encode("utf-8"))
+
+
+def borner(conversation: dict[str, Any]) -> None:
+    """Le plafond de la conversation enregistrée : ``CONVERSATION_MESSAGES_MAX`` lignes ET ``CONVERSATION_OCTETS_MAX`` octets (revue N4).
+    Les plus vieux messages passent au résumé, à une frontière de message utilisateur ; un message seul plus gros que le plafond
+    est raccourci. Modifie ``conversation`` en place."""
     messages = conversation["messages"]
     if len(messages) > CONVERSATION_MESSAGES_MAX:
         # Au-delà du plafond de lignes : les plus vieux passent au résumé, à une frontière de message utilisateur.
         coupure = _coupure(messages, len(messages) - CONVERSATION_MESSAGES_MAX)
         conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
         conversation["messages"] = messages[coupure:]
-    conversation["revision"] = int(conversation.get("revision", 0)) + 1
-    await stock.ecrire(organization_id, cle_builder(workflow_id, "conversation"), conversation)
+    while _octets(conversation) > CONVERSATION_OCTETS_MAX:
+        messages = conversation["messages"]
+        coupure = _coupure(messages, 1)
+        if coupure == 0:  # plus de tour entier à résumer : on raccourcit ce qui reste
+            for m in messages:
+                if isinstance(m.get("content"), str) and len(m["content"]) > MESSAGE_OCTETS_MAX:
+                    m["content"] = m["content"][:MESSAGE_OCTETS_MAX] + "\n[... truncated]"
+            break
+        conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
+        conversation["messages"] = messages[coupure:]
+
+
+async def enregistrer(organization_id: int, workflow_id: int, conversation: dict[str, Any]) -> None:
+    """Écrit la conversation si personne ne l'a écrite depuis qu'on l'a lue (condition sur ``revision``, revue R6)."""
+    borner(conversation)
+    lue = int(conversation.get("revision", 0))
+
+    def ecrire(courant: dict[str, Any] | None) -> dict[str, Any]:
+        if courant is not None and int(courant.get("revision", 0)) != lue:
+            raise ConflitDeRevision("The conversation was written by someone else in the meantime.")
+        return {**conversation, "revision": lue + 1}
+
+    ecrite = await stock.modifier(organization_id, cle_builder(workflow_id, "conversation"), ecrire)
+    conversation["revision"] = int((ecrite or {}).get("revision", lue + 1))
+
+
+async def prendre_le_verrou(organization_id: int, workflow_id: int, delai_s: float, maintenant: float | None = None) -> dict[str, Any] | None:
+    """Prend le verrou de la conversation EN UNE ÉCRITURE ATOMIQUE (revue R6) : la conversation à jour avec ``en_cours_depuis``, ou ``None``
+    si une autre tourne déjà (verrou plus récent que ``delai_s``). Deux demandes simultanées : une seule l'obtient."""
+    instant = time.time() if maintenant is None else maintenant
+    prise: dict[str, Any] = {}
+
+    def prendre(courant: dict[str, Any] | None) -> dict[str, Any] | None:
+        conversation = {**conversation_vide(), **(courant or {})}
+        depuis = conversation.get("en_cours_depuis")
+        if depuis and instant - float(depuis) < delai_s:
+            prise["conversation"] = None
+            return None
+        conversation["en_cours_depuis"] = instant
+        conversation["revision"] = int(conversation.get("revision", 0)) + 1
+        prise["conversation"] = conversation
+        return conversation
+
+    await stock.modifier(organization_id, cle_builder(workflow_id, "conversation"), prendre)
+    return prise["conversation"]
 
 
 def tronquer(contenu: str) -> str:

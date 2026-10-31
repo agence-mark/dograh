@@ -97,6 +97,21 @@ async def _ecrire_index(organization_id: int, workflow_id: int, depots: list[dic
     await stock.ecrire(organization_id, cle(workflow_id), {"depots": depots})
 
 
+async def _ajouter_a_l_index(organization_id: int, workflow_id: int, depot: dict[str, Any]) -> None:
+    """Ajoute un dépôt à l'index SOUS CONDITION (revue R6) : deux dépôts simultanés s'ajoutent tous les deux, et les plafonds sont
+    revérifiés sur l'index tel qu'il est au moment d'écrire."""
+
+    def ajouter(brut: dict[str, Any] | None) -> dict[str, Any]:
+        depots = list((brut or {}).get("depots") or [])
+        if len(depots) >= DEPOTS_MAX:
+            raise ErreurDepot(f"At most {DEPOTS_MAX} deposits per agent: remove one first.")
+        if any(d["nom"].casefold() == depot["nom"].casefold() for d in depots):
+            raise ErreurDepot(f"« {depot['nom']} » is already deposited: remove it first.")
+        return {"depots": [*depots, depot]}
+
+    await stock.modifier(organization_id, cle(workflow_id), ajouter)
+
+
 def vue(depot: dict[str, Any]) -> dict[str, Any]:
     """Ce que l'écran et le cerveau voient d'un dépôt (jamais les clés de stockage)."""
     return {k: v for k, v in depot.items() if not k.startswith("cle_")}
@@ -116,8 +131,7 @@ async def _enregistrer(
         depot.update(
             statut="lu", pages=len(resultat.pages), caracteres=resultat.caracteres, tronque=resultat.tronque, cle_texte=texte_cle
         )
-    depots.append(depot)
-    await _ecrire_index(organization_id, workflow_id, depots)
+    await _ajouter_a_l_index(organization_id, workflow_id, depot)
     return depot
 
 
@@ -168,7 +182,10 @@ async def retirer(organization_id: int, workflow_id: int, depot_id: str) -> bool
     for clef in ("cle_fichier", "cle_texte"):
         if depot.get(clef):
             await supprimer_octets(depot[clef])
-    await _ecrire_index(organization_id, workflow_id, [d for d in depots if d["id"] != depot_id])
+    def retirer_de_l_index(brut: dict[str, Any] | None) -> dict[str, Any]:
+        return {"depots": [d for d in (brut or {}).get("depots") or [] if d["id"] != depot_id]}
+
+    await stock.modifier(organization_id, cle(workflow_id), retirer_de_l_index)
     return True
 
 

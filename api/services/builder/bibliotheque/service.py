@@ -279,10 +279,15 @@ async def enregistrer_utilisation(
     org = organisation_bibliotheque()
     if org is None:
         return
-    ligne = await stock.lire(org, _cle_usage(famille, slug)) or {"agents": {}}
-    agents = dict(ligne.get("agents") or {})
-    agents[f"{organization_id}:{workflow_id}"] = {"version": version, "date": maintenant().isoformat()}
-    await stock.ecrire(org, _cle_usage(famille, slug), {"agents": agents})
+    date = maintenant().isoformat()
+
+    def noter(ligne: dict[str, Any] | None) -> dict[str, Any]:
+        # Revue R6 : lu et réécrit sous condition, deux agents qui appliquent le même élément ensemble s'ajoutent tous les deux.
+        agents = dict((ligne or {}).get("agents") or {})
+        agents[f"{organization_id}:{workflow_id}"] = {"version": version, "date": date}
+        return {"agents": agents}
+
+    await stock.modifier(org, _cle_usage(famille, slug), noter)
 
 
 async def utilisation(famille: str, slug: str) -> list[dict[str, Any]]:

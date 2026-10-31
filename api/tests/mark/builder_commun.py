@@ -61,6 +61,13 @@ class FauxDb:
     async def delete_configuration(self, organization_id, key):
         return self.configs.pop((organization_id, key), None) is not None
 
+    async def compare_and_set_configuration(self, organization_id, key, expected, value):
+        """Comme la vraie : écrit seulement si la valeur est celle qu'on a lue (aucun ``await`` entre la lecture et l'écriture)."""
+        if self.configs.get((organization_id, key)) != expected:
+            return False
+        self.configs[(organization_id, key)] = value
+        return True
+
     async def get_all_configurations(self, organization_id):
         return [SimpleNamespace(key=k, value=v) for (o, k), v in self.configs.items() if o == organization_id]
 

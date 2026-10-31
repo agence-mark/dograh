@@ -73,44 +73,52 @@ async def ecrire(
     trous: list[Trou] | None = None,
 ) -> Fiche:
     """Ajoute ou remplace des lignes sourcées et pose les trous demandés. Une ligne change = validation retirée."""
-    fiche = await lire(organization_id, workflow_id)
-    nouveaux = dict(fiche.champs)
-    change = False
     for nom, champ in champs.items():
         refus = classement_des_faits.verifier(nom, champ.classement, champ.valeur)
         if refus:
             raise ErreurFiche(refus)
-        if nouveaux.get(nom) != champ:
-            change = True
-        nouveaux[nom] = champ
-    # Un trou comblé par une ligne sourcée se ferme ; les nouveaux s'ajoutent (un par champ).
-    ouverts = {t.champ: t for t in fiche.trous if t.champ not in champs}
-    for trou in trous or []:
-        if trou.champ not in nouveaux:
-            if trou.champ not in ouverts or ouverts[trou.champ] != trou:
+
+    def ajouter(brut: dict[str, Any] | None) -> dict[str, Any]:
+        # Revue R6 : relue et réécrite sous condition (rejouée sur la valeur la plus récente si une autre écriture est passée).
+        fiche = Fiche.model_validate(brut) if brut else Fiche()
+        nouveaux = dict(fiche.champs)
+        change = False
+        for nom, champ in champs.items():
+            if nouveaux.get(nom) != champ:
                 change = True
-            ouverts[trou.champ] = trou
-    mise_a_jour = fiche.model_copy(
-        update={
-            "champs": nouveaux,
-            "trous": list(ouverts.values()),
-            "revision": fiche.revision + 1,
-            **({"valide_par": None, "valide_le": None} if change else {}),
-        }
-    )
-    if len(json.dumps(mise_a_jour.model_dump(mode="json"), ensure_ascii=False).encode("utf-8")) > FICHE_MAX_OCTETS:
-        raise ErreurFiche(f"The client sheet is too large (more than {FICHE_MAX_OCTETS} bytes).")
-    await stock.ecrire(organization_id, cle(workflow_id), mise_a_jour.model_dump(mode="json"))
-    return mise_a_jour
+            nouveaux[nom] = champ
+        # Un trou comblé par une ligne sourcée se ferme ; les nouveaux s'ajoutent (un par champ).
+        ouverts = {t.champ: t for t in fiche.trous if t.champ not in champs}
+        for trou in trous or []:
+            if trou.champ not in nouveaux:
+                if trou.champ not in ouverts or ouverts[trou.champ] != trou:
+                    change = True
+                ouverts[trou.champ] = trou
+        mise_a_jour = fiche.model_copy(
+            update={
+                "champs": nouveaux,
+                "trous": list(ouverts.values()),
+                "revision": fiche.revision + 1,
+                **({"valide_par": None, "valide_le": None} if change else {}),
+            }
+        )
+        donnees = mise_a_jour.model_dump(mode="json")
+        if len(json.dumps(donnees, ensure_ascii=False).encode("utf-8")) > FICHE_MAX_OCTETS:
+            raise ErreurFiche(f"The client sheet is too large (more than {FICHE_MAX_OCTETS} bytes).")
+        return donnees
+
+    ecrite = await stock.modifier(organization_id, cle(workflow_id), ajouter)
+    return Fiche.model_validate(ecrite)
 
 
 async def valider(organization_id: int, workflow_id: int, auteur: str) -> Fiche:
     """Le geste d'une personne. Refusé s'il reste un trou ouvert ou si la fiche est vide."""
-    fiche = await lire(organization_id, workflow_id)
-    if not fiche.champs:
-        raise ErreurFiche("The client sheet is empty: nothing to validate.")
-    if fiche.trous:
-        raise ErreurFiche(f"{len(fiche.trous)} gap(s) are still open: answer them before validating.")
-    validee = fiche.model_copy(update={"valide_par": auteur, "valide_le": maintenant()})
-    await stock.ecrire(organization_id, cle(workflow_id), validee.model_dump(mode="json"))
-    return validee
+    def valider_la_fiche(brut: dict[str, Any] | None) -> dict[str, Any]:
+        fiche = Fiche.model_validate(brut) if brut else Fiche()
+        if not fiche.champs:
+            raise ErreurFiche("The client sheet is empty: nothing to validate.")
+        if fiche.trous:
+            raise ErreurFiche(f"{len(fiche.trous)} gap(s) are still open: answer them before validating.")
+        return fiche.model_copy(update={"valide_par": auteur, "valide_le": maintenant()}).model_dump(mode="json")
+
+    return Fiche.model_validate(await stock.modifier(organization_id, cle(workflow_id), valider_la_fiche))

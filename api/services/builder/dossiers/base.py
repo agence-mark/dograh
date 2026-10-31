@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 import unicodedata
 import uuid
+from collections.abc import Callable
 from typing import Any, Literal
 
 from loguru import logger
@@ -157,8 +158,17 @@ async def lister(organization_id: int, workflow_id: int) -> list[DocumentPropose
     return [DocumentPropose.model_validate(d) for d in (brut or {}).get("documents") or []]
 
 
-async def _ecrire(organization_id: int, workflow_id: int, documents: list[DocumentPropose]) -> None:
-    await stock.ecrire(organization_id, cle(workflow_id), {"documents": [d.model_dump(mode="json") for d in documents]})
+async def _modifier(
+    organization_id: int, workflow_id: int, transformer: Callable[[list[DocumentPropose]], list[DocumentPropose]]
+) -> None:
+    """Lit les propositions, applique ``transformer`` (pure, rejouable) et écrit SOUS CONDITION (revue R6) : deux gestes simultanés
+    (proposer, valider, rejeter, rattacher) ne s'écrasent plus."""
+
+    def appliquer(brut: dict[str, Any] | None) -> dict[str, Any]:
+        documents = [DocumentPropose.model_validate(d) for d in (brut or {}).get("documents") or []]
+        return {"documents": [d.model_dump(mode="json") for d in transformer(documents)]}
+
+    await stock.modifier(organization_id, cle(workflow_id), appliquer)
 
 
 async def proposer(
@@ -167,23 +177,30 @@ async def proposer(
     """Range une proposition APRÈS vérification. Une proposition du même titre encore « proposé » est remplacée ;
     un document déjà validé ou rejeté ne se réécrit pas (on en propose un autre titre)."""
     verifier(contenu, sources, await textes_deposes(organization_id, workflow_id))
-    documents = await lister(organization_id, workflow_id)
-    existant = next((d for d in documents if d.titre.casefold() == titre.casefold()), None)
-    if existant is not None and existant.etat != "propose":
-        raise ErreurBase(f"« {titre} » is already {existant.etat}: propose another title.")
-    if existant is None and len(documents) >= PROPOSITIONS_MAX:
-        raise ErreurBase(f"At most {PROPOSITIONS_MAX} proposals per agent.")
-    nouveau = DocumentPropose(
-        id=existant.id if existant else uuid.uuid4().hex[:10],
-        titre=titre,
-        contenu=contenu,
-        sources=sources,
-        mode=mode_de_lecture(contenu),
-        propose_par=auteur,
-        propose_le=maintenant().isoformat(),
-    )
-    await _ecrire(organization_id, workflow_id, [*(d for d in documents if d is not existant), nouveau])
-    return nouveau
+    propose_le = maintenant().isoformat()
+    identifiant_neuf = uuid.uuid4().hex[:10]
+    resultat: list[DocumentPropose] = []
+
+    def ajouter(documents: list[DocumentPropose]) -> list[DocumentPropose]:
+        existant = next((d for d in documents if d.titre.casefold() == titre.casefold()), None)
+        if existant is not None and existant.etat != "propose":
+            raise ErreurBase(f"« {titre} » is already {existant.etat}: propose another title.")
+        if existant is None and len(documents) >= PROPOSITIONS_MAX:
+            raise ErreurBase(f"At most {PROPOSITIONS_MAX} proposals per agent.")
+        nouveau = DocumentPropose(
+            id=existant.id if existant else identifiant_neuf,
+            titre=titre,
+            contenu=contenu,
+            sources=sources,
+            mode=mode_de_lecture(contenu),
+            propose_par=auteur,
+            propose_le=propose_le,
+        )
+        resultat[:] = [nouveau]
+        return [*(d for d in documents if d is not existant), nouveau]
+
+    await _modifier(organization_id, workflow_id, ajouter)
+    return resultat[0]
 
 
 def _trouver(documents: list[DocumentPropose], identifiant: str) -> DocumentPropose:
@@ -247,7 +264,14 @@ async def valider(user: Any, workflow_id: int, identifiant: str, auteur: str) ->
     verifier(document.contenu, document.sources, await textes_deposes(organisation, workflow_id))
     uuid_ = await creer_le_document_de_base(user, document.titre, document.contenu, document.mode)
     valide = document.model_copy(update={"etat": "valide", "valide_par": auteur, "valide_le": maintenant().isoformat(), "document_uuid": uuid_})
-    await _ecrire(organisation, workflow_id, [valide if d.id == identifiant else d for d in documents])
+
+    def marquer(courants: list[DocumentPropose]) -> list[DocumentPropose]:
+        actuel = _trouver(courants, identifiant)
+        if actuel.etat != "propose":  # une autre demande l'a déjà validé ou rejeté pendant ce temps
+            raise ErreurBase(f"This proposal is already {actuel.etat}.", "deja_decidee")
+        return [valide if d.id == identifiant else d for d in courants]
+
+    await _modifier(organisation, workflow_id, marquer)
     return valide
 
 
@@ -257,16 +281,26 @@ async def rejeter(organization_id: int, workflow_id: int, identifiant: str, aute
     if document.etat == "valide":
         raise ErreurBase("This document is already in the knowledge base: remove it there.")
     rejete = document.model_copy(update={"etat": "rejete", "valide_par": auteur, "valide_le": maintenant().isoformat(), "motif_de_rejet": motif})
-    await _ecrire(organization_id, workflow_id, [rejete if d.id == identifiant else d for d in documents])
+
+    def marquer(courants: list[DocumentPropose]) -> list[DocumentPropose]:
+        actuel = _trouver(courants, identifiant)
+        if actuel.etat == "valide":
+            raise ErreurBase("This document is already in the knowledge base: remove it there.")
+        return [rejete if d.id == identifiant else d for d in courants]
+
+    await _modifier(organization_id, workflow_id, marquer)
     return rejete
 
 
 async def noter_le_rattachement(organization_id: int, workflow_id: int, identifiant: str, noeud: str) -> None:
-    documents = await lister(organization_id, workflow_id)
-    document = _trouver(documents, identifiant)
-    if noeud not in document.rattache_a:
-        document = document.model_copy(update={"rattache_a": [*document.rattache_a, noeud]})
-    await _ecrire(organization_id, workflow_id, [document if d.id == identifiant else d for d in documents])
+
+    def rattacher(documents: list[DocumentPropose]) -> list[DocumentPropose]:
+        document = _trouver(documents, identifiant)
+        if noeud not in document.rattache_a:
+            document = document.model_copy(update={"rattache_a": [*document.rattache_a, noeud]})
+        return [document if d.id == identifiant else d for d in documents]
+
+    await _modifier(organization_id, workflow_id, rattacher)
 
 
 async def pour_rattacher(organization_id: int, workflow_id: int, identifiant: str) -> DocumentPropose:

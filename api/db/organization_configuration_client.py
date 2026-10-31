@@ -62,6 +62,53 @@ class OrganizationConfigurationClient(BaseDBClient):
             )
             return list(result.scalars().all())
 
+    async def compare_and_set_configuration(
+        self, organization_id: int, key: str, expected: Any, value: Any
+    ) -> bool:
+        """[.mark] Write ``value`` only if the stored value is still ``expected`` (``None`` = no row yet). True if written.
+
+        The row is read under ``SELECT ... FOR UPDATE`` in the same transaction as the write, so two writers that read the
+        same value cannot both win: the second gets False and starts again from the new value (review R6). A row created
+        in between is detected by the insert (``ON CONFLICT DO NOTHING``), not overwritten.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key == key,
+                )
+                .with_for_update()
+            )
+            config = result.scalars().first()
+            if config is None:
+                if expected is not None:
+                    return False
+                inserted = await session.execute(
+                    insert(OrganizationConfigurationModel)
+                    .values(
+                        organization_id=organization_id,
+                        key=key,
+                        value=value,
+                        updated_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_nothing(index_elements=["organization_id", "key"])
+                )
+                if inserted.rowcount == 0:
+                    await session.rollback()
+                    return False
+            else:
+                if config.value != expected:
+                    return False
+                config.value = value
+                config.updated_at = datetime.now(UTC)
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            return True
+
     async def upsert_configuration(
         self,
         organization_id: int,

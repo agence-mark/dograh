@@ -5,6 +5,8 @@ Un seul point d'accès à la base pour tout le builder (les tests le remplacent 
 
 from __future__ import annotations
 
+import copy
+from collections.abc import Callable
 from typing import Any
 
 from api.db import db_client
@@ -15,6 +17,32 @@ async def lire(organization_id: int, cle: str) -> dict[str, Any] | None:
     if ligne is None or not isinstance(ligne.value, dict):
         return None
     return ligne.value
+
+
+class ConflitDEcriture(Exception):
+    """Trop d'écritures simultanées sur la même ligne : rien n'a été perdu en silence, l'appelant peut recommencer."""
+
+
+ESSAIS_MAX = 8
+
+
+async def modifier(
+    organization_id: int, cle: str, transformer: Callable[[dict[str, Any] | None], dict[str, Any] | None]
+) -> dict[str, Any] | None:
+    """Lit la ligne, applique ``transformer`` (PURE et rapide : elle peut être rejouée) et écrit seulement si la ligne n'a pas bougé
+    entre-temps (revue R6). Deux écritures simultanées ne se perdent plus : la seconde repart de la valeur de la première.
+    ``transformer`` rend la nouvelle valeur, ou ``None`` pour ne rien écrire ; ce qu'elle lève (un refus normal) remonte tel quel.
+    ``ConflitDEcriture`` si la ligne bouge sans cesse."""
+    for _ in range(ESSAIS_MAX):
+        ligne = await db_client.get_configuration(organization_id, cle)
+        attendu = ligne.value if ligne is not None else None
+        courant = attendu if isinstance(attendu, dict) else None
+        nouveau = transformer(copy.deepcopy(courant))
+        if nouveau is None:
+            return courant
+        if await db_client.compare_and_set_configuration(organization_id, cle, attendu, nouveau):
+            return nouveau
+    raise ConflitDEcriture(f"The line {cle!r} keeps changing: try again.")
 
 
 async def ecrire(organization_id: int, cle: str, valeur: dict[str, Any]) -> None:

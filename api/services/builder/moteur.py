@@ -18,7 +18,6 @@ est injecté : les tests passent un cerveau factice, rien n'est dépensé.
 from __future__ import annotations
 
 import json
-import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -77,14 +76,6 @@ def _sans_carte(resultat: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in resultat.items() if k != "carte"}
 
 
-async def _prendre_le_verrou(conversation: dict[str, Any]) -> bool:
-    depuis = conversation.get("en_cours_depuis")
-    if depuis and time.time() - float(depuis) < DELAI_DU_VERROU_S:
-        return False
-    conversation["en_cours_depuis"] = time.time()
-    return True
-
-
 async def conversation(
     ctx: Contexte,
     message: str,
@@ -95,18 +86,21 @@ async def conversation(
         yield {"type": "erreur", "code": "agent", "message": "A builder conversation belongs to an agent."}
         return
     org, agent = ctx.organisation_id, ctx.workflow_id
-    conv = await contexte.charger(org, agent)
-    if not await _prendre_le_verrou(conv):
+    # Le verrou est pris et écrit EN UNE FOIS (revue R6) : deux demandes simultanées, une seule le reçoit.
+    conv = await contexte.prendre_le_verrou(org, agent, DELAI_DU_VERROU_S)
+    if conv is None:
         yield {"type": "erreur", "code": "en_cours", "message": "The builder is already working on this agent."}
         return
-    # Le verrou est écrit tout de suite : un second appel le verra.
-    await contexte.enregistrer(org, agent, conv)
     try:
         async for evenement in _tours(ctx, message, cerveau, reglages, conv):
             yield evenement
     finally:
         conv.pop("en_cours_depuis", None)
-        await contexte.enregistrer(org, agent, conv)
+        try:
+            await contexte.enregistrer(org, agent, conv)
+        except contexte.ConflitDeRevision:
+            # Le verrou périmé a été repris par une autre demande : on ne piétine pas sa conversation.
+            logger.warning(f"[builder] agent {agent}: la conversation a été reprise par une autre demande, rien n'est écrasé")
 
 
 async def _tours(

@@ -62,7 +62,7 @@ async def test_le_depot_d_un_fichier_utilise_la_lecture_hors_boucle(monkeypatch)
     monkeypatch.setattr(depot.extraction, "extraire_hors_boucle", hors_boucle)
     monkeypatch.setattr(depot, "lister", AsyncMock(return_value=[]))
     monkeypatch.setattr(depot, "ecrire_octets", AsyncMock())
-    monkeypatch.setattr(depot, "_ecrire_index", AsyncMock())
+    monkeypatch.setattr(depot, "_ajouter_a_l_index", AsyncMock())
     resultat = await depot.deposer_fichier(1, 2, "gros.pdf", b"%PDF", "evan")
     assert appels == ["gros.pdf"] and resultat["statut"] == "illisible" and "took more than" in resultat["raison"]
 

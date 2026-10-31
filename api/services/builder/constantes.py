@@ -24,6 +24,8 @@ VERSIONS_MAX = 20
 CONTENU_MAX_OCTETS = 10_000
 FICHE_MAX_OCTETS = 100_000
 CONVERSATION_MESSAGES_MAX = 200
+CONVERSATION_OCTETS_MAX = 1_000_000  # 1 Mo : la conversation enregistrée, vérifiée en octets (revue N4)
+MESSAGE_OCTETS_MAX = 20_000  # un message seul plus long est raccourci quand plus rien d'autre ne se résume
 IMPORT_MAX_OCTETS = 200_000
 
 
