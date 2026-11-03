@@ -11,7 +11,6 @@
  * `provisoire` : entrée gardée le temps que son écran de destination existe (E109), à retirer ensuite.
  */
 import {
-    AudioLines,
     BellRing,
     Bot,
     ChartLine,
@@ -94,7 +93,6 @@ const CONVERSATIONS = e("conversations", { en: "Conversations", fr: "Conversatio
 });
 const REGLAGES = e("reglages", { en: "Settings", fr: "Réglages" }, Settings2, "reglages", "/settings");
 const ALERTES = e("alertes", { en: "Alerts", fr: "Alertes" }, BellRing, "alertes", "/alertes", { provisoire: true });
-const SONS = e("sons", { en: "Sounds", fr: "Sons" }, AudioLines, "sons", "/recordings", { provisoire: true });
 const DEVELOPPEURS = e("developpeurs", { en: "Developers", fr: "Développeurs" }, Code, "developpeurs", "/api-keys", { provisoire: true });
 
 /** Espace Labo (E3, E31) : toutes les rubriques d'un client, plus l'atelier. */
@@ -110,7 +108,7 @@ export const MENU_LABO: GroupeMenu[] = [
     },
     { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, CLES, TELEPHONIE] },
     { id: "mesurer", label: { en: "MEASURE", fr: "MESURER" }, entrees: [QUALITE, CONVERSATIONS, ALERTES] },
-    { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES, SONS, DEVELOPPEURS] },
+    { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES, DEVELOPPEURS] },
 ];
 
 /** Espace Client (E3, E57) : le même ensemble, sans l'atelier, avec l'accueil du client. */
@@ -133,7 +131,7 @@ export const MENU_CLIENT: GroupeMenu[] = [
     {
         id: "organisation",
         label: { en: "ORGANIZATION", fr: "ORGANISATION" },
-        entrees: [REGLAGES, SONS, DEVELOPPEURS],
+        entrees: [REGLAGES, DEVELOPPEURS],
     },
 ];
 

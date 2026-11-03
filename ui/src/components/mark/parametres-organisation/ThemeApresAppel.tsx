@@ -95,6 +95,7 @@ export const ThemeApresAppel = ({
     ouvrir,
     signaler,
     apresAppel,
+    plat,
 }: ProprietesThemeOrganisation & { apresAppel: ReturnType<typeof useApresAppel> }) => {
     const { t } = useLangue();
     const { ecran, setEcran, erreur } = apresAppel;
@@ -185,6 +186,7 @@ export const ThemeApresAppel = ({
     return (
         <Theme
             id="apres-appel"
+            plat={plat}
             icone={Mail}
             titre={TITRE_APRES_APPEL}
             description={{
@@ -247,7 +249,7 @@ export const ThemeApresAppel = ({
                     cle="synthese_consigne"
                     idControle="apres-appel-consigne"
                     libelle={{ en: "Instructions", fr: "Consigne" }}
-                    aides={[{ en: "Empty: the generic instructions written in the code (the lab's version 6).", fr: "Vide : la consigne générique écrite dans le code (la version 6 du labo)." }]}
+                    aides={[{ en: "Empty: the default instructions of the library (family After-call, element consigne-synthese).", fr: "Vide : la consigne par défaut de la bibliothèque (famille Après-appel, élément consigne-synthese)." }]}
                 >
                     <Textarea id="apres-appel-consigne" rows={3} value={synthese.consigne ?? ""} onChange={(e) => poser("synthese", "consigne", vide(e.target.value))} />
                 </ChampReglage>

@@ -102,6 +102,13 @@ describe("redirections (U1)", () => {
         expect(destinationDe("/workflow/create")).toBe("/labo");
     });
 
+    it("les enregistrements sont dans Entreprise › Écoute et sons, ancienne et première adresse comprises (E56)", () => {
+        expect(destinationDe("/recordings")).toBe("/labo/entreprise?onglet=ecoute");
+        expect(destinationDe("/labo/sons")).toBe("/labo/entreprise?onglet=ecoute");
+        expect(destinationDe("/clients/acme/sons")).toBe("/clients/acme/entreprise?onglet=ecoute");
+        expect(existsSync(join(APP, "labo", "sons", "page.tsx"))).toBe(false);
+    });
+
     it("une adresse nouvelle n'est pas redirigée", () => {
         for (const a of ["/labo", "/labo/agents", "/agents/12", "/conversations/9", "/clients/acme/agents"]) {
             expect(destinationDe(a), a).toBeNull();

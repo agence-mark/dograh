@@ -94,6 +94,7 @@ export const ThemeDonneesClient = ({
     onBasculer,
     signaler,
     base,
+    plat,
 }: ProprietesThemeOrganisation & { base: ReturnType<typeof useBaseClient> }) => {
     const { t } = useLangue();
     const { etat, erreur, enCours, agir } = base;
@@ -130,6 +131,7 @@ export const ThemeDonneesClient = ({
     return (
         <Theme
             id="donnees"
+            plat={plat}
             icone={Database}
             titre={TITRE_DONNEES}
             description={{

@@ -96,7 +96,7 @@ export const charge_utile_verification = (r: ReglagesVerification): ReglagesVeri
 const basculer = (liste: string[], cle: string, present: boolean) =>
     present ? [...liste.filter((x) => x !== cle), cle] : liste.filter((x) => x !== cle);
 
-export const ThemeVerification = ({ ouvert, onBasculer, signaler }: ProprietesThemeOrganisation) => {
+export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: ProprietesThemeOrganisation) => {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
     const [enregistre, setEnregistre] = useState<ReglagesVerification | null>(null);
@@ -165,6 +165,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler }: ProprietesTh
     return (
         <Theme
             id="verification"
+            plat={plat}
             icone={ShieldCheck}
             titre={TITRE_VERIFICATION}
             description={{

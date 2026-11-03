@@ -27,7 +27,7 @@ import {
     SlidersHorizontal,
     Users,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
 
 import type { AdresseEtablissement, OrganizationPreferences } from "@/client/types.gen";
@@ -43,6 +43,7 @@ import { ChampEtiquettes } from "../ChampEtiquettes";
 import { BlocTraducteurs } from "../connecteurs/BlocTraducteurs";
 import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
+import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
@@ -90,6 +91,8 @@ export interface ProprietesThemeOrganisation {
     ouvrir: () => void;
     /** Tells the page this theme's dots (the navigation shows them too). */
     signaler: (id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => void;
+    /** [.mark] U2 bis / U2 (E116) : le thème posé à plat dans un sous-onglet (voir `Theme`). */
+    plat?: boolean;
 }
 
 const CHARGEMENT: Texte = { en: "Loading...", fr: "Chargement..." };
@@ -304,7 +307,14 @@ export const ThemeEtablissementOrganisation = ({
     onBasculer,
     ouvrir,
     signaler,
-}: ProprietesThemeOrganisation & { preferences: EtatPreferences; annonce: EtatAnnonceOuverture }) => {
+    plat,
+    sansObjets,
+}: ProprietesThemeOrganisation & {
+    preferences: EtatPreferences;
+    annonce: EtatAnnonceOuverture;
+    /** [.mark] U2 bis : les objets ont leur sous-onglet (`ThemeObjets`), le thème ne les montre plus. */
+    sansObjets?: boolean;
+}) => {
     const { t } = useLangue();
     const adresseEnregistree = preferences.enregistrees.adresse_etablissement ?? null;
     const [adresse, setAdresse] = useState<AdresseEtablissement | null>(adresseEnregistree);
@@ -364,10 +374,12 @@ export const ThemeEtablissementOrganisation = ({
     // Lot 11: the takeover of the fiches and agents (trial run first), a window of its own.
     const [modaleReprise, setModaleReprise] = useState(false);
     const nombre = etablissements.liste?.length ?? 0;
+    const modifications = useDernieresModifications();
 
     return (
         <Theme
             id="etablissement"
+            plat={plat}
             icone={Building2}
             titre={titre("etablissement").titre}
             description={{
@@ -427,7 +439,8 @@ export const ThemeEtablissementOrganisation = ({
                                             : (e.horaires_ouverture ?? "").trim()
                                               ? t({ en: "hours set", fr: "horaires renseignés" })
                                               : t({ en: "no hours", fr: "aucun horaire" })}
-                                    </span>
+                                    </span>{" "}
+                                    <DerniereModificationFiche modification={modifications.parFiche[e.id]} />
                                 </li>
                             ))}
                         </ul>
@@ -482,7 +495,10 @@ export const ThemeEtablissementOrganisation = ({
                     ouverte={modaleEtablissements}
                     onFermer={(enregistre) => {
                         setModaleEtablissements(false);
-                        if (enregistre) void etablissements.relire();
+                        if (enregistre) {
+                            void etablissements.relire();
+                            void modifications.relire();
+                        }
                     }}
                     adresseOrganisation={adresseEnregistree}
                     annonceOrganisation={annonce.enregistre}
@@ -490,7 +506,7 @@ export const ThemeEtablissementOrganisation = ({
             </Intertitre>
 
             {/* [.mark] cloture-code, F7 (D116): the agent's objects, next to the fiches and the sentences. */}
-            <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
+            {!sansObjets && <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />}
 
             <Intertitre id="etablissement-adresse" titre={{ en: "Address", fr: "Adresse" }}>
                 {preferences.chargement ? (
@@ -548,9 +564,18 @@ export const ThemeEtablissementOrganisation = ({
 // 3. Listening: the trade vocabulary, reused as it is (its own buttons)
 // --------------------------------------------------------------------------- //
 
-export const ThemeEcouteOrganisation = ({ ouvert, onBasculer }: ProprietesThemeOrganisation) => (
+export const ThemeEcouteOrganisation = ({
+    ouvert,
+    onBasculer,
+    plat,
+    sons,
+}: ProprietesThemeOrganisation & {
+    /** [.mark] U2 bis : les enregistrements et le cache de la voix, sous le lexique (sous-onglet « Écoute et sons »). */
+    sons?: ReactNode;
+}) => (
     <Theme
         id="ecoute"
+        plat={plat}
         icone={Ear}
         titre={titre("ecoute").titre}
         description={{
@@ -566,6 +591,7 @@ export const ThemeEcouteOrganisation = ({ ouvert, onBasculer }: ProprietesThemeO
         <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
             <SectionLexiqueMetier />
         </Intertitre>
+        {sons}
     </Theme>
 );
 

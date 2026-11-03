@@ -401,12 +401,14 @@ export const ThemeEquipe = ({
     ouvert,
     onBasculer,
     baseRattachee,
+    plat,
 }: ProprietesThemeOrganisation & { baseRattachee: boolean | null }) => {
     const { t } = useLangue();
     const [modale, setModale] = useState(false);
     return (
         <Theme
             id="equipe"
+            plat={plat}
             icone={Users}
             titre={TITRE_EQUIPE}
             description={{

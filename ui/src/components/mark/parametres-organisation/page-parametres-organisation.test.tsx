@@ -119,7 +119,11 @@ vi.mock("@/components/MCPSection", () => ({ MCPSection: () => <div data-testid="
 vi.mock("@/components/TelemetrySection", () => ({ TelemetrySection: () => <div data-testid="telemetrie" /> }));
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
-const { default: SettingsPage } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: SettingsPage } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 const OBJETS = {
     plafond_caracteres: 3000,
@@ -157,11 +161,12 @@ afterEach(() => {
 
 const ouvrirLaPage = async (enveloppe?: (n: ReactNode) => ReactNode) => {
     render(<>{enveloppe ? enveloppe(<SettingsPage />) : <SettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
 };
 
 const ouvrirLeTheme = async (id: string) => {
-    const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
+    ouvrirOnglet(id);
+    const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded], [data-theme="${id}"][data-plat]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     await waitFor(() => {
         if (/Loading|Chargement/.test(document.getElementById(id)?.textContent ?? "")) throw new Error("still loading");
@@ -219,7 +224,8 @@ describe("[.mark] the Platform Settings page in themes", () => {
         m.getPreferences.mockReset().mockImplementation(() => new Promise(() => undefined));
         await ouvrirLaPage();
         for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Establishments"]]) {
-            const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+            ouvrirOnglet(theme);
+            const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
             fireEvent.click(entete);
             expect(bouton(`Save ${titre}`).disabled, theme).toBe(true);
         }
@@ -234,7 +240,7 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(alerte.textContent).toContain("adresse_etablissement");
         expect(alerte.textContent).toContain("Choose the town for this postal code before saving.");
         expect(bouton("Save Establishments").disabled).toBe(true);
-        expect(document.querySelector('[data-navigation="etablissement"] [data-pastille="erreur"]')).not.toBeNull();
+        expect(document.querySelector('[data-onglet="etablissements"] [data-pastille="erreur"]')).not.toBeNull();
     });
 
     it("never overwrites an announcement it could not read, and still saves the address", async () => {
@@ -275,7 +281,11 @@ describe("[.mark] the Platform Settings page in themes", () => {
 
     it("speaks French until the user chooses", async () => {
         await ouvrirLaPage((page) => <FournisseurLangue>{page}</FournisseurLangue>);
-        expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Paramètres de la plateforme");
+        // Deux écrans montés ensemble : Entreprise, puis les réglages (dont le titre est testé ici).
+        expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
+            "Entreprise!",
+            "Paramètres de la plateforme",
+        ]);
         expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Établissements");
         const theme = await ouvrirLeTheme("etablissement");
         expect(theme.textContent).toContain("Quand l'entreprise est fermée");
@@ -421,7 +431,9 @@ describe("[.mark] cloture-code F7: the « Objects » section of « Establishment
         const { CHAMPS_OBJET } = await import("./ModaleObjet");
         const { CHAMPS_REGLAGES_OBJETS } = await import("./SectionObjets");
         await ouvrirLaPage();
-        const theme = await ouvrirLeTheme("etablissement");
+        // U2 bis : les objets ont leur sous-onglet de l'écran Entreprise.
+        ouvrirOnglet("objets");
+        const theme = document.querySelector('[data-theme="objets"]') as HTMLElement;
         await waitFor(() => expect(theme.querySelectorAll("[data-objet]").length).toBe(2));
         expect(theme.querySelector("#etablissement-objets")).not.toBeNull();
         const marques = theme.querySelector('[data-objet="marques"]') as HTMLElement;

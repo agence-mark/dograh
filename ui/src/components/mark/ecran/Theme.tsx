@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 import { THEMES_COMMUNS_EN_LECTURE, useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import { type Texte, useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 
 export interface ErreurNommee {
     /** The technical name of the setting (convention E5). */
@@ -59,6 +60,12 @@ export interface ProprietesTheme {
     erreurs: ErreurNommee[];
     /** Absent: the theme keeps the buttons of what it contains (E6 exceptions). */
     enregistrement?: EnregistrementTheme;
+    /**
+     * [.mark] U2 bis / U2 (E116) : le thème posé À PLAT dans un sous-onglet de page (Entreprise, Base et
+     * automatisations) : ni carte ni repli, un titre avec son « ! » (la description), tout son contenu, le même
+     * bouton d'enregistrement en pied. Les pastilles de changement restent à côté du titre.
+     */
+    plat?: boolean;
     children: ReactNode;
 }
 
@@ -108,6 +115,7 @@ export const Theme = ({
     modifie,
     erreurs,
     enregistrement,
+    plat = false,
     children,
 }: ProprietesTheme) => {
     const { t } = useLangue();
@@ -122,6 +130,53 @@ export const Theme = ({
         || enregistrement.enCours
         || erreurs.length > 0
         || (!modifie && !enregistrement.actifSansModification);
+
+    const pied =
+        enregistrement && !enLecture ? (
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
+                {erreurs.length > 0 && (
+                    <div role="alert" className="mr-auto space-y-1 text-xs text-destructive">
+                        <p>{t(TEXTES_THEME.aCorriger)}</p>
+                        <ul className="space-y-0.5">
+                            {erreurs.map((erreur) => (
+                                <li key={erreur.cle} data-erreur={erreur.cle}>
+                                    <span className="font-medium">{erreur.libelle}</span>{" "}
+                                    <code className="text-[11px] opacity-70">{erreur.cle}</code> : {erreur.message}{" "}
+                                    <button type="button" className="underline" onClick={erreur.afficher}>
+                                        {t(TEXTES_THEME.afficher)}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {erreurs.length === 0 && modifie && (
+                    <span className="text-xs text-muted-foreground">{t(TEXTES_THEME.modifie)}</span>
+                )}
+                <Button
+                    type="button"
+                    aria-label={`${t(TEXTES_THEME.enregistrer)} ${t(titre)}`}
+                    onClick={enregistrement.onEnregistrer}
+                    disabled={bloque}
+                >
+                    {enregistrement.enCours ? t(TEXTES_THEME.enregistrement) : t(TEXTES_THEME.enregistrer)}
+                </Button>
+            </div>
+        ) : null;
+
+    if (plat) {
+        return (
+            <section id={id} data-theme={id} data-plat className="space-y-6">
+                <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold">{t(titre)}</h2>
+                    <Info>{t(description)}</Info>
+                    <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
+                </div>
+                <div className="space-y-6">{enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}</div>
+                {pied}
+            </section>
+        );
+    }
 
     return (
         <section id={id} data-theme={id} className="scroll-mt-20 rounded-lg border bg-card">
@@ -158,37 +213,7 @@ export const Theme = ({
                 <div id={idContenu} className="space-y-6 border-t px-5 py-5">
                     {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
 
-                    {enregistrement && !enLecture && (
-                        <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
-                            {erreurs.length > 0 && (
-                                <div role="alert" className="mr-auto space-y-1 text-xs text-destructive">
-                                    <p>{t(TEXTES_THEME.aCorriger)}</p>
-                                    <ul className="space-y-0.5">
-                                        {erreurs.map((erreur) => (
-                                            <li key={erreur.cle} data-erreur={erreur.cle}>
-                                                <span className="font-medium">{erreur.libelle}</span>{" "}
-                                                <code className="text-[11px] opacity-70">{erreur.cle}</code> : {erreur.message}{" "}
-                                                <button type="button" className="underline" onClick={erreur.afficher}>
-                                                    {t(TEXTES_THEME.afficher)}
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {erreurs.length === 0 && modifie && (
-                                <span className="text-xs text-muted-foreground">{t(TEXTES_THEME.modifie)}</span>
-                            )}
-                            <Button
-                                type="button"
-                                aria-label={`${t(TEXTES_THEME.enregistrer)} ${t(titre)}`}
-                                onClick={enregistrement.onEnregistrer}
-                                disabled={bloque}
-                            >
-                                {enregistrement.enCours ? t(TEXTES_THEME.enregistrement) : t(TEXTES_THEME.enregistrer)}
-                            </Button>
-                        </div>
-                    )}
+                    {pied}
                 </div>
             )}
         </section>
