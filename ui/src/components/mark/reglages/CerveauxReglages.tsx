@@ -327,7 +327,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         {actions === null || actions.length === 0 ? (
                             <p className="text-sm text-muted-foreground">{t(T.aucun)}</p>
                         ) : (
-                            <ul className="list-disc space-y-1 pl-5 text-sm" data-liste="outils-du-builder">
+                            <ul className="max-h-72 list-disc space-y-1 overflow-y-auto pl-5 text-sm" data-liste="outils-du-builder">
                                 {actions
                                     .filter((a) => a.disponible)
                                     .map((a) => (
