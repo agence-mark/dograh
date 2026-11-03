@@ -9735,6 +9735,10 @@ export type ModificationDuCerveau = {
      */
     plafond_jetons?: number;
     /**
+     * Plafond Mois
+     */
+    plafond_mois?: number;
+    /**
      * Prix Entree Par Million
      */
     prix_entree_par_million?: number;
@@ -16125,6 +16129,16 @@ export type TimeSlotResponse = {
 };
 
 /**
+ * TitreDuFil
+ */
+export type TitreDuFil = {
+    /**
+     * Titre
+     */
+    titre: string;
+};
+
+/**
  * ToolParameter
  *
  * A parameter that the tool accepts from the model at call time.
@@ -17758,6 +17772,40 @@ export type VueAction = {
 };
 
 /**
+ * VueCerveauLu
+ */
+export type VueCerveauLu = {
+    prompt: VuePrompt;
+    /**
+     * Recoit
+     */
+    recoit: Array<VueRecu>;
+};
+
+/**
+ * VueCerveaux
+ */
+export type VueCerveaux = {
+    builder: VueCerveauLu;
+    appelant: VueCerveauLu;
+    juge: VueCerveauLu;
+    /**
+     * Builder Actif
+     */
+    builder_actif: boolean;
+    portes: VuePortes;
+    /**
+     * Depense Du Mois
+     */
+    depense_du_mois: number;
+    /**
+     * Plafond Du Mois
+     */
+    plafond_du_mois: number;
+    limites_du_juge: VueLimitesDuJuge;
+};
+
+/**
  * VueConservationAppels
  *
  * What the screen reads: the settings, the installation's ceiling and the last passage.
@@ -18041,6 +18089,28 @@ export type VueFil = {
 };
 
 /**
+ * VueLimitesDuJuge
+ */
+export type VueLimitesDuJuge = {
+    /**
+     * Passes Max
+     */
+    passes_max: number;
+    /**
+     * Seuil De Confiance
+     */
+    seuil_de_confiance: number;
+    /**
+     * Notes Min
+     */
+    notes_min: number;
+    /**
+     * Accord Min
+     */
+    accord_min: number;
+};
+
+/**
  * VueOptions
  */
 export type VueOptions = {
@@ -18049,9 +18119,77 @@ export type VueOptions = {
      */
     sauvegarde_avant_modification?: boolean;
     /**
+     * Builder Coupe
+     */
+    builder_coupe?: boolean;
+    /**
+     * Porte Ecran Coupee
+     */
+    porte_ecran_coupee?: boolean;
+    /**
+     * Porte Claude Code Coupee
+     */
+    porte_claude_code_coupee?: boolean;
+    /**
      * Recette Par Defaut
      */
     recette_par_defaut?: string;
+};
+
+/**
+ * VuePorte
+ */
+export type VuePorte = {
+    /**
+     * Ouverte
+     */
+    ouverte: boolean;
+    /**
+     * Actions
+     */
+    actions: number;
+};
+
+/**
+ * VuePortes
+ */
+export type VuePortes = {
+    ecran: VuePorte;
+    claude_code: VuePorte;
+    /**
+     * Source Du Builder
+     */
+    source_du_builder: string;
+};
+
+/**
+ * VuePrompt
+ */
+export type VuePrompt = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Libelle Famille
+     */
+    libelle_famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Statut
+     */
+    statut?: string | null;
 };
 
 /**
@@ -18091,6 +18229,20 @@ export type VueRecettes = {
 };
 
 /**
+ * VueRecu
+ */
+export type VueRecu = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Present
+     */
+    present?: boolean | null;
+};
+
+/**
  * VueReglagesCerveau
  *
  * Ce que l'écran lit : les mêmes réglages, et SEULEMENT si une clé est posée.
@@ -18120,6 +18272,10 @@ export type VueReglagesCerveau = {
      * Plafond Jetons
      */
     plafond_jetons?: number;
+    /**
+     * Plafond Mois
+     */
+    plafond_mois?: number;
     /**
      * Prix Entree Par Million
      */
@@ -24332,6 +24488,54 @@ export type OuvrirUnFilApiV1BuilderFilsPostResponses = {
 
 export type OuvrirUnFilApiV1BuilderFilsPostResponse = OuvrirUnFilApiV1BuilderFilsPostResponses[keyof OuvrirUnFilApiV1BuilderFilsPostResponses];
 
+export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}';
+};
+
+export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteError = SupprimerUnFilApiV1BuilderFilsFilIdDeleteErrors[keyof SupprimerUnFilApiV1BuilderFilsFilIdDeleteErrors];
+
+export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteResponse = SupprimerUnFilApiV1BuilderFilsFilIdDeleteResponses[keyof SupprimerUnFilApiV1BuilderFilsFilIdDeleteResponses];
+
 export type LireUnFilApiV1BuilderFilsFilIdGetData = {
     body?: never;
     headers?: {
@@ -24626,6 +24830,54 @@ export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResp
 };
 
 export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponse = ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses[keyof ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses];
+
+export type RenommerUnFilApiV1BuilderFilsFilIdTitrePutData = {
+    body: TitreDuFil;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/titre';
+};
+
+export type RenommerUnFilApiV1BuilderFilsFilIdTitrePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenommerUnFilApiV1BuilderFilsFilIdTitrePutError = RenommerUnFilApiV1BuilderFilsFilIdTitrePutErrors[keyof RenommerUnFilApiV1BuilderFilsFilIdTitrePutErrors];
+
+export type RenommerUnFilApiV1BuilderFilsFilIdTitrePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type RenommerUnFilApiV1BuilderFilsFilIdTitrePutResponse = RenommerUnFilApiV1BuilderFilsFilIdTitrePutResponses[keyof RenommerUnFilApiV1BuilderFilsFilIdTitrePutResponses];
 
 export type LireLesChangementsApiV1BuilderFilsFilIdChangementsGetData = {
     body?: never;
@@ -25797,6 +26049,49 @@ export type SuivreLesModificationsApiV1BuilderLiveGetResponses = {
      */
     200: unknown;
 };
+
+export type LireLesCerveauxApiV1BuilderCerveauxGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/cerveaux';
+};
+
+export type LireLesCerveauxApiV1BuilderCerveauxGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesCerveauxApiV1BuilderCerveauxGetError = LireLesCerveauxApiV1BuilderCerveauxGetErrors[keyof LireLesCerveauxApiV1BuilderCerveauxGetErrors];
+
+export type LireLesCerveauxApiV1BuilderCerveauxGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueCerveaux;
+};
+
+export type LireLesCerveauxApiV1BuilderCerveauxGetResponse = LireLesCerveauxApiV1BuilderCerveauxGetResponses[keyof LireLesCerveauxApiV1BuilderCerveauxGetResponses];
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;
