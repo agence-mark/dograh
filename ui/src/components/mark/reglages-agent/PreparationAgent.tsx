@@ -8,7 +8,7 @@
  * étape est dite dans le « ! ». Une ligne cliquable ouvre le thème qui règle l'étape. Une étape « sans objet » n'est pas
  * montrée ; une lecture qui échoue le dit, sans inventer d'état.
  */
-import { Check } from "lucide-react";
+import { Circle, CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet } from "@/client/sdk.gen";
@@ -68,23 +68,6 @@ export const TEXTES_ETAPES: Record<string, { titre: Texte; source: Texte }> = {
     },
 };
 
-const Cercle = ({ etape }: { etape: EtapeDePreparation }) => {
-    if (etape.etat === "fait") {
-        return (
-            <span data-cercle="fait" className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-(--point-fini) text-white">
-                <Check className="size-3" />
-            </span>
-        );
-    }
-    const requis = etape.niveau === "requis";
-    return (
-        <span
-            data-cercle={requis ? "requis" : "conseille"}
-            className={cn("inline-block size-4 shrink-0 rounded-full border-2", requis ? "border-destructive" : "border-(--acc)")}
-        />
-    );
-};
-
 export const PreparationAgent = ({ workflowId, versTheme }: { workflowId: number; versTheme: (theme: string) => void }) => {
     const { t } = useLangue();
     const [etapes, setEtapes] = useState<EtapeDePreparation[] | null>(null);
@@ -117,41 +100,79 @@ export const PreparationAgent = ({ workflowId, versTheme }: { workflowId: number
     if (!etapes) return null;
     const visibles = etapes.filter((e) => e.etat !== "sans_objet");
     const restantes = visibles.filter((e) => e.etat !== "fait" && e.niveau === "requis").length;
+    const faites = visibles.filter((e) => e.etat === "fait").length;
+    // L'anneau de la maquette (`VuePreparation`) : la part des étapes faites.
+    const rayon = 52;
+    const tour = 2 * Math.PI * rayon;
+    const part = visibles.length === 0 ? 0 : faites / visibles.length;
 
     return (
-        <section aria-label={t({ en: "Preparation", fr: "Préparation" })} data-preparation="liste" className="space-y-1">
-            <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold">{t({ en: "Preparation", fr: "Préparation" })}</h2>
-                <span className="text-xs text-muted-foreground" data-preparation="restantes">
+        <section
+            aria-label={t({ en: "Preparation", fr: "Préparation" })}
+            data-preparation="liste"
+            className="grid items-center gap-6 rounded-2xl border bg-card p-6 md:grid-cols-[180px_1fr]"
+        >
+            <div className="relative mx-auto size-[120px]" role="img" aria-label={`${faites}/${visibles.length}`}>
+                <svg width="120" height="120" className="-rotate-90">
+                    <circle cx="60" cy="60" r={rayon} fill="none" stroke="currentColor" className="text-foreground/10" strokeWidth="8" />
+                    <circle
+                        cx="60"
+                        cy="60"
+                        r={rayon}
+                        fill="none"
+                        stroke="currentColor"
+                        className="text-foreground"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={tour}
+                        strokeDashoffset={tour * (1 - part)}
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-semibold tabular-nums">
+                        {faites}/{visibles.length}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{t({ en: "steps done", fr: "étapes faites" })}</span>
+                </div>
+            </div>
+            <div className="space-y-1">
+                <span className="sr-only" data-preparation="restantes">
                     {restantes === 0
                         ? t({ en: "Nothing required is missing", fr: "Rien d'obligatoire ne manque" })
                         : t({ en: `${restantes} required to do`, fr: `${restantes} obligatoire${restantes > 1 ? "s" : ""} à faire` })}
                 </span>
-            </div>
-            <ul className="divide-y">
                 {visibles.map((etape) => {
                     const textes = TEXTES_ETAPES[etape.id];
                     if (!textes) return null;
+                    const fait = etape.etat === "fait";
+                    const requis = etape.niveau === "requis";
+                    const manquants = fait ? [] : (etape.manquants ?? []);
                     return (
-                        <li key={etape.id} data-etape={etape.id} data-etat={etape.etat}>
+                        <div key={etape.id} data-etape={etape.id} data-etat={etape.etat}>
                             <button
                                 type="button"
                                 onClick={() => versTheme(etape.theme)}
-                                className="flex w-full cursor-pointer items-center gap-3 py-2 text-left text-sm hover:font-semibold"
+                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-muted/50"
                             >
-                                <Cercle etape={etape} />
-                                <span className="min-w-0 flex-1 truncate">
+                                {fait ? (
+                                    <CircleCheck data-cercle="fait" className="size-4 shrink-0 text-(--point-fini)" />
+                                ) : (
+                                    <Circle
+                                        data-cercle={requis ? "requis" : "conseille"}
+                                        className={cn("size-4 shrink-0", requis ? "text-destructive" : "text-(--acc)")}
+                                    />
+                                )}
+                                <span className={cn("flex flex-1 items-center gap-1.5 text-sm", fait ? "text-muted-foreground" : "font-medium")}>
                                     {t(textes.titre)}
-                                    {etape.etat !== "fait" && (etape.manquants ?? []).length > 0 && (
-                                        <span className="ml-2 text-xs font-normal text-muted-foreground">{(etape.manquants ?? []).join(", ")}</span>
-                                    )}
+                                    {!requis && <span className="text-[11px] font-normal text-muted-foreground">{t({ en: "advised", fr: "conseillé" })}</span>}
+                                    <Info>{t(textes.source)}</Info>
                                 </span>
-                                <Info>{t(textes.source)}</Info>
+                                {manquants.length > 0 && <span className="text-xs text-muted-foreground">{manquants.join(", ")}</span>}
                             </button>
-                        </li>
+                        </div>
                     );
                 })}
-            </ul>
+            </div>
         </section>
     );
 };

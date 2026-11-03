@@ -15,7 +15,7 @@
  * The themes, in the order of a call: Agent, Services, Listening, Modules,
  * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Search, Volume2 } from "lucide-react";
+import { Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Search, ShieldCheck, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
@@ -55,6 +55,7 @@ import {
     NIVEAUX_REGLAGES,
     propresParTheme,
 } from "./niveaux-et-recherche";
+import { INVENTAIRE_AGENT } from "./inventaire-agent";
 import { JugeDesVraisAppels } from "./JugeDesVraisAppels";
 import { PreparationAgent } from "./PreparationAgent";
 import { ContexteErreursThemes } from "./theme-commun";
@@ -66,6 +67,7 @@ import { ID_THEME_ETABLISSEMENT, ThemeEtablissement, TITRE_ETABLISSEMENT } from 
 import { ID_THEME_INTERVENTIONS, ThemeInterventions, TITRE_INTERVENTIONS } from "./ThemeInterventions";
 import { ID_THEME_MODULES, ThemeModules, TITRE_MODULES } from "./ThemeModules";
 import { ID_THEME_PHRASES, ThemePhrases, TITRE_PHRASES } from "./ThemePhrases";
+import { ID_THEME_SECURITE, ThemeSecurite, TITRE_SECURITE } from "./ThemeSecurite";
 import { ID_THEME_RYTHME, ThemeRythme, TITRE_RYTHME } from "./ThemeRythme";
 import { ID_THEME_TOUR, ThemeTourDeParole, TITRE_TOUR } from "./ThemeTourDeParole";
 import { ID_THEME_VOIX, ThemeVoix, TITRE_VOIX } from "./ThemeVoix";
@@ -83,6 +85,7 @@ export const THEMES_AGENT = [
     { id: ID_THEME_PHRASES, titre: TITRE_PHRASES, icone: MessageSquareText },
     { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: ClipboardList },
     // builder-agent-vocal, lot 8: what our code does in the conversation, switch by switch.
+    { id: ID_THEME_SECURITE, titre: TITRE_SECURITE, icone: ShieldCheck },
     { id: ID_THEME_INTERVENTIONS, titre: TITRE_INTERVENTIONS, icone: Cog },
     { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: Building2 },
 ] as const;
@@ -386,6 +389,8 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                         workflowId={workflowId}
                     />
                 );
+            case ID_THEME_SECURITE:
+                return <ThemeSecurite key={cle} {...propres} />;
             case ID_THEME_INTERVENTIONS:
                 return <ThemeInterventions key={cle} {...propres} />;
             case ID_THEME_ETABLISSEMENT:
@@ -403,21 +408,24 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
             <ContexteGroupe.Provider value={valeurGroupe}>
             <ContexteErreursThemes.Provider value={signalerErreur}>
             <ContexteCartes.Provider value={valeurCartes}>
-                <div className="mx-auto max-w-5xl space-y-8 px-6 py-6" key={versionEcran}>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative min-w-60 flex-1">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <div className="mx-auto max-w-6xl space-y-6 px-6 py-6" key={versionEcran}>
+                    {/* [.mark] K3 (maquette `ReglagesAgent`) : « Modèle : <nom> ⌄ » à gauche, la recherche à droite. */}
+                    <div className="flex items-center gap-4">
+                        <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
+                        <div className="relative ml-auto w-72">
+                            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 type="search"
                                 value={recherche}
                                 onChange={(e) => setRecherche(e.target.value)}
                                 aria-label={t({ en: "Search all settings", fr: "Chercher dans tous les réglages" })}
-                                placeholder={t({ en: "Search all settings", fr: "Chercher dans tous les réglages" })}
-                                className="pl-9"
+                                placeholder={t({
+                                    en: `Search among the ${Object.keys(INVENTAIRE_AGENT).length} settings`,
+                                    fr: `Chercher parmi les ${Object.keys(INVENTAIRE_AGENT).length} réglages`,
+                                })}
+                                className="h-8 border-transparent bg-muted/50 pl-8 shadow-none focus-visible:bg-background"
                             />
                         </div>
-                        {/* [.mark] cloture-code, lot 5 (M11): the settings templates, next to the search. */}
-                        <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
                     </div>
 
                     {resultats.length > 0 && (
@@ -452,15 +460,18 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
 
                     <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
 
-                    <JugeDesVraisAppels workflowId={workflowId} />
+                    {resolue && (
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            {niveauxVisibles.map((niveau) => (
+                                <section key={niveau.id} data-niveau={niveau.id} className="contents">
+                                    <h2 className="sr-only">{t(niveau.titre)}</h2>
+                                    {niveau.themes.map((id) => dessiner(id))}
+                                </section>
+                            ))}
+                        </div>
+                    )}
 
-                    {resolue &&
-                        niveauxVisibles.map((niveau) => (
-                            <section key={niveau.id} data-niveau={niveau.id} className="space-y-3">
-                                <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">{t(niveau.titre)}</h2>
-                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{niveau.themes.map((id) => dessiner(id))}</div>
-                            </section>
-                        ))}
+                    <JugeDesVraisAppels workflowId={workflowId} />
                 </div>
             </ContexteCartes.Provider>
             </ContexteErreursThemes.Provider>

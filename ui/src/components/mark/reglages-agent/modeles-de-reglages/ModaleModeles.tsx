@@ -15,7 +15,7 @@
  * ⛔ Les sections sont celles que le serveur envoie, nommees comme les themes de l'ecran : une section nouvelle cote
  * serveur sans titre ici s'affiche sous son identifiant (le test le releve).
  */
-import { ChevronDown, Download, FileUp, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileUp, Layers, Pencil, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
@@ -79,10 +79,10 @@ const TITRE: Texte = { en: "Settings templates", fr: "Modèles de réglages" };
  * (tout : renommer, exporter, supprimer, importer).
  */
 export type ModeModeles = "appliquer" | "enregistrer" | "gerer";
-const ENTREES_DU_MENU: Array<{ mode: ModeModeles; texte: Texte }> = [
-    { mode: "appliquer", texte: { en: "Apply a template…", fr: "Appliquer un modèle…" } },
-    { mode: "enregistrer", texte: { en: "Save as a template…", fr: "Enregistrer comme modèle…" } },
-    { mode: "gerer", texte: { en: "Manage templates", fr: "Gérer les modèles" } },
+const ENTREES_DU_MENU: Array<{ mode: ModeModeles; texte: Texte; icone: typeof Layers }> = [
+    { mode: "appliquer", texte: { en: "Apply a template…", fr: "Appliquer un modèle…" }, icone: Layers },
+    { mode: "enregistrer", texte: { en: "Save as a template…", fr: "Enregistrer comme modèle…" }, icone: Save },
+    { mode: "gerer", texte: { en: "Manage templates", fr: "Gérer les modèles" }, icone: Pencil },
 ];
 
 type Vue = { type: "liste" } | { type: "appliquer"; modele: ResumeDuModele };
@@ -111,42 +111,72 @@ export const BoutonModeles = ({
     /** Une fois un modele applique, la page se recharge pour montrer les nouvelles valeurs (M11). */
     apresApplication?: () => void;
 }) => {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [mode, setMode] = useState<ModeModeles | null>(null);
     const [menu, setMenu] = useState(false);
+    // [.mark] K3 (maquette `MenuModele`) : « Modèle : <dernier modèle appliqué> ⌄ », puis un « ! » qui dit ce que c'est.
+    const [mention, setMention] = useState<MentionApplication | null>(null);
+    useEffect(() => {
+        let annule = false;
+        (async () => {
+            try {
+                const derniere = await mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet({ path: { workflow_id: workflowId } });
+                if (!annule) setMention(derniere.data?.mention ?? null);
+            } catch {
+                /* le nom du dernier modèle est un confort : le menu marche sans lui */
+            }
+        })();
+        return () => {
+            annule = true;
+        };
+    }, [workflowId]);
+    const dateMention = mention ? new Date(mention.applique_le).toLocaleDateString(langue === "fr" ? "fr-FR" : "en-GB", { day: "2-digit", month: "2-digit" }) : "";
     return (
-        <div className="relative">
-            <Button
+        <div className="relative flex items-center gap-1.5 text-sm text-muted-foreground">
+            {t({ en: "Template:", fr: "Modèle :" })}
+            <button
                 type="button"
-                variant="outline"
-                size="sm"
                 data-bouton-modeles
                 aria-haspopup="menu"
                 aria-expanded={menu}
                 onClick={() => setMenu((v) => !v)}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-foreground hover:bg-muted hover:font-medium"
             >
-                <LayoutTemplate className="mr-1.5 h-4 w-4" />
-                {t({ en: "Template", fr: "Modèle" })}
-                <ChevronDown className="ml-1.5 h-4 w-4" />
-            </Button>
+                {mention ? mention.nom : t({ en: "None applied", fr: "Aucun appliqué" })}
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+            </button>
+            <Info>
+                {mention
+                    ? t({
+                          en: `Last template applied to this agent, on ${dateMention}: a copy, not a link. Settings changed afterwards stay the agent's own; editing or deleting the template does not change this agent.`,
+                          fr: `Dernier modèle appliqué à cet agent, le ${dateMention} : une copie, pas un lien. Les réglages changés ensuite restent propres à l'agent ; modifier ou supprimer le modèle ne change pas cet agent.`,
+                      })
+                    : t({
+                          en: "No template applied to this agent yet. A template is a copy of settings, not a link.",
+                          fr: "Aucun modèle appliqué à cet agent pour l'instant. Un modèle est une copie de réglages, pas un lien.",
+                      })}
+            </Info>
             {menu && (
                 <>
                     <div className="fixed inset-0 z-40" aria-hidden onClick={() => setMenu(false)} />
-                    <div role="menu" className="absolute right-0 z-50 mt-1 w-60 rounded-md border bg-popover p-1 shadow-md" data-menu-modeles>
+                    <div role="menu" className="absolute top-full left-12 z-50 mt-1 w-64 rounded-md border bg-popover p-1 text-foreground shadow-md" data-menu-modeles>
                         {ENTREES_DU_MENU.map((entree) => (
-                            <button
-                                key={entree.mode}
-                                type="button"
-                                role="menuitem"
-                                data-entree-modeles={entree.mode}
-                                className="flex w-full cursor-pointer rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted hover:font-medium"
-                                onClick={() => {
-                                    setMenu(false);
-                                    setMode(entree.mode);
-                                }}
-                            >
-                                {t(entree.texte)}
-                            </button>
+                            <div key={entree.mode}>
+                                {entree.mode === "gerer" && <div role="separator" className="-mx-1 my-1 h-px bg-border" />}
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-entree-modeles={entree.mode}
+                                    className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted hover:font-medium"
+                                    onClick={() => {
+                                        setMenu(false);
+                                        setMode(entree.mode);
+                                    }}
+                                >
+                                    <entree.icone className="size-4" />
+                                    {t(entree.texte)}
+                                </button>
+                            </div>
                         ))}
                     </div>
                 </>
