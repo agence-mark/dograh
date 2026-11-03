@@ -2947,6 +2947,14 @@ export type ConnecteurVue = {
      * Gestionnaire Propre
      */
     gestionnaire_propre?: boolean;
+    /**
+     * Etat
+     */
+    etat?: string;
+    /**
+     * Editeur
+     */
+    editeur?: string | null;
 };
 
 /**
@@ -3015,6 +3023,14 @@ export type ConnexionVue = {
      * Utilise Par
      */
     utilise_par?: Array<OutilVu>;
+    /**
+     * Compte
+     */
+    compte?: string | null;
+    /**
+     * Autorise Par
+     */
+    autorise_par?: string | null;
 };
 
 /**
@@ -4497,6 +4513,20 @@ export type DemandeLien = {
      * Connecteurs
      */
     connecteurs: Array<string>;
+    /**
+     * Compte
+     */
+    compte?: string | null;
+};
+
+/**
+ * DemandeLienProposition
+ */
+export type DemandeLienProposition = {
+    /**
+     * Autorise Par
+     */
+    autorise_par?: string | null;
 };
 
 /**
@@ -10019,43 +10049,6 @@ export type NouvelleFamille = {
 };
 
 /**
- * NouvelleProposition
- */
-export type NouvelleProposition = {
-    /**
-     * Type
-     */
-    type: 'version' | 'passage_recette' | 'rejet' | 'fiche' | 'famille';
-    /**
-     * Famille
-     */
-    famille: string;
-    /**
-     * Slug
-     */
-    slug: string;
-    /**
-     * Justification
-     */
-    justification: string;
-    /**
-     * Titre
-     */
-    titre?: string;
-    /**
-     * Contenu
-     */
-    contenu?: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * Version
-     */
-    version?: number | null;
-    banc?: Banc | null;
-};
-
-/**
  * NouvelleValeur
  */
 export type NouvelleValeur = {
@@ -11862,6 +11855,52 @@ export type Proposition = {
      * Motif Refus
      */
     motif_refus?: string | null;
+};
+
+/**
+ * PropositionConnecteur
+ */
+export type PropositionConnecteur = {
+    /**
+     * Identifiant
+     */
+    identifiant: string;
+    /**
+     * Connecteur
+     */
+    connecteur: string;
+    /**
+     * Compte
+     */
+    compte: string;
+    /**
+     * Message
+     */
+    message?: string;
+    /**
+     * Etat
+     */
+    etat?: 'a_autoriser' | 'autorisee';
+    /**
+     * Propose Par
+     */
+    propose_par?: string | null;
+    /**
+     * Propose Le
+     */
+    propose_le: string;
+    /**
+     * Relances
+     */
+    relances?: number;
+    /**
+     * Relance Le
+     */
+    relance_le?: string | null;
+    /**
+     * Autorise Par
+     */
+    autorise_par?: string | null;
 };
 
 /**
@@ -19165,6 +19204,43 @@ export type ApiRoutesBuilderBibliothequeChangementDeStatut = {
 };
 
 /**
+ * NouvelleProposition
+ */
+export type ApiRoutesBuilderBibliothequeNouvelleProposition = {
+    /**
+     * Type
+     */
+    type: 'version' | 'passage_recette' | 'rejet' | 'fiche' | 'famille';
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Justification
+     */
+    justification: string;
+    /**
+     * Titre
+     */
+    titre?: string;
+    /**
+     * Contenu
+     */
+    contenu?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    banc?: Banc | null;
+};
+
+/**
  * ResultatImport
  */
 export type ApiRoutesBuilderBibliothequeResultatImport = {
@@ -19287,6 +19363,24 @@ export type ApiSchemasLexiqueMetierResultatImport = {
      * Terms left untouched: one of their spellings was already there.
      */
     deja_presents: number;
+};
+
+/**
+ * NouvelleProposition
+ */
+export type ApiServicesIntegrationsConnectorsPropositionsNouvelleProposition = {
+    /**
+     * Connecteur
+     */
+    connecteur: string;
+    /**
+     * Compte
+     */
+    compte: string;
+    /**
+     * Message
+     */
+    message?: string;
 };
 
 /**
@@ -22654,7 +22748,7 @@ export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponse
 export type ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponse = ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponses[keyof ListerLesPropositionsApiV1BuilderBibliothequePropositionsGetResponses];
 
 export type ProposerApiV1BuilderBibliothequePropositionsPostData = {
-    body: NouvelleProposition;
+    body: ApiRoutesBuilderBibliothequeNouvelleProposition;
     headers?: {
         /**
          * Authorization
@@ -40688,7 +40782,12 @@ export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteData = {
          */
         integration: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Compte
+         */
+        compte?: string | null;
+    };
     url: '/api/v1/connecteurs/connexions/{integration}';
 };
 
@@ -40756,6 +40855,241 @@ export type PostLienApiV1ConnecteursLienPostResponses = {
 };
 
 export type PostLienApiV1ConnecteursLienPostResponse = PostLienApiV1ConnecteursLienPostResponses[keyof PostLienApiV1ConnecteursLienPostResponses];
+
+export type GetPropositionsApiV1ConnecteursPropositionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/propositions';
+};
+
+export type GetPropositionsApiV1ConnecteursPropositionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPropositionsApiV1ConnecteursPropositionsGetError = GetPropositionsApiV1ConnecteursPropositionsGetErrors[keyof GetPropositionsApiV1ConnecteursPropositionsGetErrors];
+
+export type GetPropositionsApiV1ConnecteursPropositionsGetResponses = {
+    /**
+     * Response Get Propositions Api V1 Connecteurs Propositions Get
+     *
+     * Successful Response
+     */
+    200: Array<PropositionConnecteur>;
+};
+
+export type GetPropositionsApiV1ConnecteursPropositionsGetResponse = GetPropositionsApiV1ConnecteursPropositionsGetResponses[keyof GetPropositionsApiV1ConnecteursPropositionsGetResponses];
+
+export type PostPropositionApiV1ConnecteursPropositionsPostData = {
+    body: ApiServicesIntegrationsConnectorsPropositionsNouvelleProposition;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/connecteurs/propositions';
+};
+
+export type PostPropositionApiV1ConnecteursPropositionsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostPropositionApiV1ConnecteursPropositionsPostError = PostPropositionApiV1ConnecteursPropositionsPostErrors[keyof PostPropositionApiV1ConnecteursPropositionsPostErrors];
+
+export type PostPropositionApiV1ConnecteursPropositionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PropositionConnecteur;
+};
+
+export type PostPropositionApiV1ConnecteursPropositionsPostResponse = PostPropositionApiV1ConnecteursPropositionsPostResponses[keyof PostPropositionApiV1ConnecteursPropositionsPostResponses];
+
+export type PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/connecteurs/propositions/{identifiant}/relancer';
+};
+
+export type PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostError = PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostErrors[keyof PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostErrors];
+
+export type PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PropositionConnecteur;
+};
+
+export type PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostResponse = PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostResponses[keyof PostRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPostResponses];
+
+export type PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostData = {
+    /**
+     * Demande
+     */
+    body?: DemandeLienProposition | null;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/connecteurs/propositions/{identifiant}/lien';
+};
+
+export type PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostError = PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostErrors[keyof PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostErrors];
+
+export type PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Lien;
+};
+
+export type PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostResponse = PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostResponses[keyof PostLienPropositionApiV1ConnecteursPropositionsIdentifiantLienPostResponses];
+
+export type DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Identifiant
+         */
+        identifiant: string;
+    };
+    query?: never;
+    url: '/api/v1/connecteurs/propositions/{identifiant}';
+};
+
+export type DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteError = DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteErrors[keyof DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteErrors];
+
+export type DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiServicesIntegrationsConnectorsRoutesSuppression;
+};
+
+export type DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteResponse = DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteResponses[keyof DeletePropositionApiV1ConnecteursPropositionsIdentifiantDeleteResponses];
 
 export type GetTraducteursApiV1ConnecteursTraducteursGetData = {
     body?: never;
