@@ -7,6 +7,7 @@ from api.db.equipe_client import EquipeClient
 from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
 from api.db.builder_fil_client import BuilderFilClient
+from api.db.relation_client import RelationClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
@@ -75,6 +76,8 @@ class DBClient(
     SiteClient,
     # [.mark] builder partie 2, U5: the builder conversations and events in tables.
     BuilderFilClient,
+    # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
+    RelationClient,
 ):
     """
     Unified database client that combines all specialized database operations.
