@@ -12,7 +12,7 @@ export const BaseHandle = forwardRef<HTMLDivElement, BaseHandleProps>(
                 ref={ref}
                 type={type}
                 {...props}
-                className={cn("!size-2 !rounded-full !border !border-solid !border-border !bg-background transition-all hover:!border-primary", className)}
+                className={cn("!size-2 !rounded-full !border !border-solid !border-black/20 !bg-white dark:!border-white/20 dark:!bg-card transition-all hover:!border-primary", className)}
                 style={{ ...props.style }}
             >
                 {children}
