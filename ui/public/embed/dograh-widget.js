@@ -1,2374 +1,1246 @@
 /**
- * Dograh Widget
- * Embeddable voice & chat widget for Dograh agents
- * Version: 1.1.0
+ * Widget .mark (U10 / lot S4) : l'assistant vocal posé sur le site d'un client.
+ *
+ * Un seul script par site :  <script async src=".../embed/dograh-widget.js?site={cle}&apiEndpoint=..."></script>
+ * La page du client n'a rien d'autre à faire : l'agent qui sert la page (chemin le plus précis, sinon « tout le
+ * site ») et toute l'apparence viennent du serveur, relus à chaque chargement de la page.
+ *
+ * Compatibilité : une adresse qui porte ?token= (script par jeton posé avant) charge le script historique
+ * `dograh-widget-jeton.js`, inchangé, avec la même adresse et les mêmes attributs : il marche comme avant.
+ *
+ * Règles tenues ici (plan du portail v4, lot S4) :
+ *  - rien n'est stocké avant le clic, ni cookie, ni stockage du navigateur (jamais) ; toutes les requêtes sont
+ *    sans identifiants (credentials: omit) ;
+ *  - polices hébergées chez nous (même origine que ce script), jamais celles d'un site tiers ;
+ *  - le texte de la conversation ne s'affiche jamais, sauf le secours écrit (micro refusé ou voix impossible) ;
+ *  - tous les textes lus par le visiteur viennent de l'apparence (18 textes), sauf les questions de l'avis liées
+ *    aux colonnes de la table « avis » ;
+ *  - repères data-zone sur chaque élément réglable : invisibles, ils servent à l'éditeur du portail, qui monte
+ *    ce même widget dans son aperçu (window.MarkWidget.apercu), jamais une deuxième copie du rendu.
  */
-
-(function() {
+(function () {
   'use strict';
 
-  // Widget configuration defaults
-  const DEFAULT_CONFIG = {
-    position: 'bottom-right',
-    autoStart: false,
-    apiBaseUrl: window.location.hostname === 'localhost'
-      ? 'http://localhost:8000'
-      : 'https://api.dograh.com'
-  };
+  if (window.MarkWidget) return;
 
-  // Widget state
-  const state = {
-    config: {},
-    isInitialized: false,
-    isOpen: false,
-    pc: null,
-    ws: null,
-    stream: null,
-    sessionToken: null,
-    workflowRunId: null,
-    pcId: null,
-    connectionStatus: 'idle', // idle, connecting, connected, failed
-    audioElement: null,
-    turnCredentials: null, // TURN server credentials
-    callStartedAt: null, // Timestamp when call connected (for duration tracking)
-    gracefulDisconnect: false,
-    // Chat widget state (widgetType === 'chat'). The server transcript is the
-    // source of truth: every successful response full-replaces turns/revision.
-    chat: {
-      status: 'idle', // idle | starting | ready | waiting | ended | expired | error
-      panelOpen: false,
-      revision: null,
-      turns: [],
-      pendingUserText: null, // optimistic bubble while a POST is in flight
-      ending: false,
-      confirmingEnd: false,
-      draft: '',
-      banner: null,
-      seenAssistantTurnIds: new Set() // for onMessage diffing
-    },
-    chatEls: null, // { panel, messages, banner, input, sendBtn, endBtn, endConfirmation, confirmEndBtn } — null in headless
-    callbacks: {
-      onReady: null,
-      onCallStart: null,
-      onCallConnected: null,
-      onCallDisconnected: null,
-      onCallEnd: null,
-      onError: null,
-      onStatusChange: null,
-      onMessage: null,
-      onChatStateChange: null
-    }
-  };
+  // ---------------------------------------------------------------------------------------------------------------
+  // Ce script, son origine, ses paramètres
+  // ---------------------------------------------------------------------------------------------------------------
+  var script = document.currentScript || document.querySelector('script[src*="dograh-widget.js"]');
 
-  // Initialization is single-flight so API calls made while configuration is
-  // loading can await the same request instead of guessing the widget type.
-  let initializationPromise = null;
-
-  /**
-   * Initialize the widget once and expose the in-flight work to public APIs.
-   */
-  function init() {
-    if (state.isInitialized) return Promise.resolve();
-    if (!initializationPromise) {
-      initializationPromise = initializeWidget().finally(() => {
-        if (!state.isInitialized) {
-          initializationPromise = null;
-        }
-      });
-    }
-    return initializationPromise;
-  }
-
-  async function initializeWidget() {
-    // Get token from script URL
-    const script = document.currentScript || document.querySelector('script[src*="dograh-widget.js"]');
-    if (!script) {
-      console.error('Dograh Widget: Script not found');
-      return;
-    }
-
-    // Extract parameters from URL
-    const scriptUrl = new URL(script.src);
-    const token = scriptUrl.searchParams.get('token');
-    const apiEndpoint = scriptUrl.searchParams.get('apiEndpoint');
-    const environment = scriptUrl.searchParams.get('environment');
-
-    if (!token) {
-      console.error('Dograh Widget: No token found in script URL');
-      return;
-    }
-
-    // Determine API base URL
-    let apiBaseUrl = DEFAULT_CONFIG.apiBaseUrl;
-    if (apiEndpoint) {
-      // Use the apiEndpoint from URL parameter if provided
-      // Ensure it has a protocol
-      if (!apiEndpoint.startsWith('http://') && !apiEndpoint.startsWith('https://')) {
-        // Default to https for production endpoints
-        apiBaseUrl = 'https://' + apiEndpoint.replace(/\/+$/, '');
-      } else {
-        apiBaseUrl = apiEndpoint.replace(/\/+$/, ''); // Remove trailing slashes
-      }
-    } else if (scriptUrl.origin.includes('localhost')) {
-      apiBaseUrl = 'http://localhost:8000';
-    } else {
-      apiBaseUrl = scriptUrl.origin.replace(/:\d+$/, ':8000');
-    }
-
-    // Store base configuration
-    state.config = {
-      ...DEFAULT_CONFIG,
-      token: token,
-      apiBaseUrl: apiBaseUrl,
-      environment: environment || 'production',
-      // Visitor context the host page attached to the script tag. It lands in
-      // the run's initial_context, addressable from prompts as
-      // {{initial_context.<name>}}. setContext() can run before this config
-      // assignment (init awaits a fetch), so anything already set is merged
-      // back on top rather than overwritten.
-      contextVariables: {
-        ...parseContextVariables(script.getAttribute('data-dograh-context')),
-        ...(state.config.contextVariables || {})
-      }
-    };
-
+  function parametresDe(el) {
     try {
-      // Fetch configuration from API
-      const configResponse = await fetch(`${state.config.apiBaseUrl}/api/v1/public/embed/config/${token}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        }
-      });
-
-      if (!configResponse.ok) {
-        throw new Error(`Failed to fetch config: ${configResponse.status}`);
-      }
-
-      const configData = await configResponse.json();
-
-      const widgetType = configData.settings?.widgetType === 'chat' ? 'chat' : 'voice';
-
-      // Merge fetched configuration with defaults
-      state.config = {
-        ...state.config,
-        // Visitor-facing copy, resolved server-side from the agent owner's
-        // settings. api/schemas/widget_texts.py owns the defaults; this file
-        // deliberately carries none so the two can never drift.
-        texts: configData.texts || {},
-        workflowId: configData.workflow_id,
-        widgetType: widgetType,
-        embedMode: configData.settings?.embedMode || 'floating',
-        containerId: configData.settings?.containerId || 'dograh-inline-container',
-        position: configData.position || DEFAULT_CONFIG.position,
-        buttonColor: configData.settings?.buttonColor || '#10b981',
-        buttonText: configData.settings?.buttonText || (widgetType === 'chat' ? 'Chat with Agent' : 'Talk to Agent'),
-        callToActionText: configData.settings?.callToActionText || (widgetType === 'chat' ? 'Click to start chatting' : 'Click to start voice conversation'),
-        autoStart: configData.auto_start || false,
-        // WebRTC transport hints from the server. Left undefined by older
-        // backends that don't send them, in which case we keep the previous
-        // behaviour: attempt the TURN fetch and don't force relay.
-        turnEnabled: configData.turn_enabled,
-        forceTurnRelay: Boolean(configData.force_turn_relay)
+      var url = new URL(el.src);
+      return {
+        url: url,
+        site: url.searchParams.get('site'),
+        token: url.searchParams.get('token'),
+        apiEndpoint: url.searchParams.get('apiEndpoint'),
       };
-    } catch (error) {
-      console.error('Dograh Widget: Failed to fetch configuration', error);
-      return;
-    }
-
-    state.isInitialized = true;
-
-    // Create widget UI based on widget type and mode
-    if (isChatWidget()) {
-      if (state.config.embedMode === 'inline') {
-        injectStyles();
-        injectChatStyles();
-        createInlineChatWidget();
-      } else if (state.config.embedMode === 'headless') {
-        // No UI — the host page drives chat via the window.DograhWidget API.
-      } else {
-        injectStyles();
-        injectChatStyles();
-        createFloatingChatWidget();
-      }
-    } else if (state.config.embedMode === 'inline') {
-      injectStyles();
-      createInlineWidget();
-    } else if (state.config.embedMode === 'headless') {
-      createHeadlessWidget();
-    } else {
-      injectStyles();
-      createFloatingWidget();
-    }
-
-    // Trigger ready callback
-    if (state.callbacks.onReady) {
-      state.callbacks.onReady();
-    }
-
-    // Auto-start if configured
-    if (state.config.autoStart) {
-      setTimeout(() => (isChatWidget() ? startChat() : startCall()), 1000);
-    }
-  }
-
-  /**
-   * Generic public start alias. Widget type comes from async server config, so
-   * never dispatch to voice/chat until initialization has resolved.
-   */
-  async function startWidget(...args) {
-    await init();
-    if (!state.isInitialized) {
-      console.warn('Dograh Widget: Cannot start before initialization succeeds');
-      return;
-    }
-    return isChatWidget() ? startChat() : startCall(...args);
-  }
-
-  /**
-   * Generic public end alias. In chat mode this ends the server session; stop()
-   * remains the non-destructive way to hide a floating chat panel.
-   */
-  async function endWidget(...args) {
-    await init();
-    if (!state.isInitialized) {
-      console.warn('Dograh Widget: Cannot end before initialization succeeds');
-      return;
-    }
-    return isChatWidget() ? endChatSession() : stopCall(...args);
-  }
-
-  /**
-   * Parse context variables from JSON string
-   */
-  function parseContextVariables(contextStr) {
-    if (!contextStr) return {};
-    try {
-      return JSON.parse(contextStr);
     } catch (e) {
-      console.warn('Dograh Widget: Invalid context variables', e);
-      return {};
+      return null;
     }
   }
 
-  /**
-   * Look up a visitor-facing label. The server always sends the full set, so a
-   * miss means the API is older than this script — warn rather than render
-   * "undefined" into the panel.
-   */
-  function widgetText(key) {
-    const value = state.config.texts && state.config.texts[key];
-    if (typeof value !== 'string') {
-      console.warn(`Dograh Widget: no text supplied for "${key}"`);
-      return '';
+  var P = script ? parametresDe(script) : null;
+
+  /** L'ancien script par jeton : même adresse (autre fichier), mêmes attributs data-*. */
+  function chargerLeScriptParJeton(el, url) {
+    var cible = new URL(url.href);
+    cible.pathname = cible.pathname.replace(/dograh-widget\.js$/, 'dograh-widget-jeton.js');
+    var s = document.createElement('script');
+    s.src = cible.href;
+    s.async = true;
+    for (var i = 0; i < el.attributes.length; i += 1) {
+      var a = el.attributes[i];
+      if (a.name.indexOf('data-') === 0) s.setAttribute(a.name, a.value);
     }
-    return value;
+    (document.head || document.documentElement).appendChild(s);
   }
 
-  /**
-   * True while a conversation is live and its context is already fixed
-   */
-  function isConversationActive() {
-    if (isChatWidget()) {
-      return ['starting', 'ready', 'waiting'].indexOf(state.chat.status) !== -1;
-    }
-    return ['connecting', 'connected'].indexOf(state.connectionStatus) !== -1;
+  // ---------------------------------------------------------------------------------------------------------------
+  // Textes fixes : uniquement ce que la table « avis » impose (D199) et les libellés d'accessibilité
+  // ---------------------------------------------------------------------------------------------------------------
+  var FIXE = {
+    mention: 'Assistant IA conçu par .mark',
+    obtenu_question: 'Avez-vous obtenu ce que vous cherchiez ?',
+    obtenus: [['oui', 'Oui'], ['en_partie', 'En partie'], ['non', 'Non']],
+    raisons_decu: ['Pas compris ma demande', 'Réponse fausse', 'Trop lent', 'Je voulais parler à quelqu’un'],
+    raisons_content: ['Rapide', 'Réponses claires', 'Disponible à toute heure', 'Rendez-vous facile à prendre'],
+    raisons_question_decu: 'Qu’est-ce qui n’a pas été ?',
+    raisons_question_content: 'Qu’avez-vous le plus apprécié ?',
+    case_rappel: 'Je souhaite qu’un conseiller me rappelle',
+    case_publication: 'J’accepte que mon avis soit affiché',
+    commentaire: 'Un commentaire ? (facultatif)',
+    nom: 'Votre nom',
+    contact: 'Téléphone ou mail',
+    etoile: function (n) { return n + ' étoile' + (n > 1 ? 's' : ''); },
+    couper_micro: 'Couper le micro',
+    retablir_micro: 'Rétablir le micro',
+    assistant: 'Assistant virtuel',
+    indisponible: 'Le service est momentanément indisponible. Réessayez dans un instant.',
+    confidentialite: 'Confidentialité',
+    envoye: 'Envoyé.',
+  };
+
+  var COULEUR_MARK = '#1b5fb0';
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Couleurs
+  // ---------------------------------------------------------------------------------------------------------------
+  function rvb(hex) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    h = (h + '000000').slice(0, 6);
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
-
-  /**
-   * Merge visitor context supplied by the host page after the script loaded.
-   *
-   * The context is read when a conversation starts, so this applies to the next
-   * one — a conversation already under way keeps what it was created with.
-   */
-  function setContextVariables(vars) {
-    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) {
-      console.warn('Dograh Widget: setContext expects a plain object');
-      return { ...(state.config.contextVariables || {}) };
-    }
-
-    state.config.contextVariables = {
-      ...(state.config.contextVariables || {}),
-      ...vars
-    };
-
-    if (isConversationActive()) {
-      console.warn('Dograh Widget: context set during a conversation applies to the next one');
-    }
-
-    return { ...state.config.contextVariables };
-  }
-
-  /**
-   * Inject widget styles
-   */
-  function injectStyles() {
-    if (document.getElementById('dograh-widget-styles')) return;
-
-    const styles = `
-      .dograh-widget-container {
-        position: fixed;
-        z-index: 999999;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      }
-
-      .dograh-widget-container.bottom-right {
-        bottom: 20px;
-        right: 20px;
-      }
-
-      .dograh-widget-container.bottom-left {
-        bottom: 20px;
-        left: 20px;
-      }
-
-      .dograh-widget-container.top-right {
-        top: 20px;
-        right: 20px;
-      }
-
-      .dograh-widget-container.top-left {
-        top: 20px;
-        left: 20px;
-      }
-
-      .dograh-widget-cta {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
-        border: none;
-        border-radius: 9999px;
-        color: #ffffff;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        max-width: calc(100vw - 40px);
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-        transition: filter 150ms ease, transform 100ms ease, box-shadow 200ms ease;
-        animation: dograh-cta-in 220ms ease-out;
-      }
-
-      .dograh-widget-cta:hover {
-        color: #ffffff !important;
-        filter: brightness(1.08);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-      }
-      .dograh-widget-cta:active { transform: scale(0.98); }
-
-      .dograh-widget-cta.dograh-state-connecting { background: #f59e0b !important; animation: dograh-pulse 1.6s infinite; }
-      .dograh-widget-cta.dograh-state-connected  { background: #ef4444 !important; }
-      .dograh-widget-cta.dograh-state-failed     { background: #ef4444 !important; opacity: 0.85; }
-
-      @keyframes dograh-pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-      }
-
-      @keyframes dograh-cta-in {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `;
-
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'dograh-widget-styles';
-    styleSheet.textContent = styles;
-    document.head.appendChild(styleSheet);
-  }
-
-  function ctaLabelForStatus(status) {
-    switch (status) {
-      case 'connecting': return widgetText('voiceConnectingText');
-      case 'connected':  return widgetText('voiceEndCallText');
-      case 'failed':     return widgetText('voiceRetryText');
-      default:           return state.config.buttonText || 'Talk to Agent';
-    }
-  }
-
-  /**
-   * Create floating widget UI — a single CTA pill button anchored to the
-   * configured corner of the viewport.
-   */
-  function createFloatingWidget() {
-    const container = document.createElement('div');
-    container.className = `dograh-widget-container ${state.config.position}`;
-    container.id = 'dograh-widget-root';
-
-    const audio = document.createElement('audio');
-    audio.id = 'dograh-widget-audio';
-    audio.autoplay = true;
-    audio.style.display = 'none';
-    container.appendChild(audio);
-    state.audioElement = audio;
-
-    document.body.appendChild(container);
-    renderFloating();
-  }
-
-  /**
-   * Render the floating CTA pill. Re-renders preserve the hidden audio
-   * element so an in-progress call is not interrupted on status changes.
-   */
-  function renderFloating() {
-    const container = document.getElementById('dograh-widget-root');
-    if (!container) return;
-
-    Array.from(container.children).forEach((child) => {
-      if (child !== state.audioElement) container.removeChild(child);
+  function luminance(hex) {
+    var c = rvb(hex).map(function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     });
-
-    const status = state.connectionStatus || 'idle';
-
-    const button = document.createElement('button');
-    button.id = 'dograh-widget-cta';
-    button.type = 'button';
-    button.className = `dograh-widget-cta dograh-state-${status}`;
-    // Idle uses configured color; status states use CSS-defined colors.
-    if (status === 'idle') {
-      button.style.backgroundColor = state.config.buttonColor;
-    }
-    button.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="23"/>
-        <line x1="8" y1="23" x2="16" y2="23"/>
-      </svg>
-      <span></span>
-    `;
-    button.querySelector('span').textContent = ctaLabelForStatus(status);
-    button.onclick = toggleCall;
-
-    container.appendChild(button);
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
+  /** Texte noir ou blanc, le plus lisible sur ce fond (contraste). */
+  function surFond(hex) {
+    return luminance(hex) > 0.4 ? '#0f1c2e' : '#ffffff';
+  }
+  function eclaircir(hex, part) {
+    var c = rvb(hex).map(function (v) { return Math.round(v + (255 - v) * part); });
+    return '#' + c.map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+  }
+  function sRgb(hex) {
+    return rvb(hex).map(function (v) { return v / 255; });
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // L'orbe « nuage » (D200) : WebGL seul, repris de maquette/components/orbes/orbe-nuage.tsx (sans React).
+  // Sans WebGL : un disque de la couleur, sans animation.
+  // ---------------------------------------------------------------------------------------------------------------
+  var VERTEX = 'attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }';
+  var FRAGMENT = [
+    'precision highp float;',
+    'uniform vec2 uRes; uniform float uTemps; uniform float uRayon; uniform vec3 uCouleur; uniform vec3 uClaire; uniform float uDouceur;',
+    'float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }',
+    'float bruit(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y); }',
+    'float fbm(vec2 p) { float v = 0.0, a = 0.5; mat2 m = mat2(0.8, 0.6, -0.6, 0.8);',
+    '  for (int i = 0; i < 4; i++) { v += a * bruit(p); p = m * p * 2.02; a *= 0.5; } return v; }',
+    'void main() {',
+    '  vec2 p = (gl_FragCoord.xy * 2.0 - uRes) / min(uRes.x, uRes.y) * (1.0 + 1.6 * uDouceur);',
+    '  float r = length(p);',
+    '  float bord = 1.5 / min(uRes.x, uRes.y);',
+    '  float adouci = uDouceur > 0.0 ? 0.03 * uRayon : bord;',
+    '  float alpha = 1.0 - smoothstep(uRayon - adouci, uRayon + bord, r);',
+    '  float halo = 0.0;',
+    '  if (uDouceur > 0.0 && r > uRayon - adouci) { float d = (r - (uRayon - adouci)) / (uDouceur * uRayon); halo = 0.55 * exp(-d * d * 2.2); }',
+    '  vec3 couleurHalo = mix(uCouleur, uClaire, 0.45);',
+    '  if (alpha <= 0.0) { gl_FragColor = vec4(couleurHalo * halo, halo); return; }',
+    '  vec2 q = p / uRayon * 0.95;',
+    '  float t = uTemps * 0.09;',
+    '  vec2 w = vec2(fbm(q + vec2(t, -0.6 * t)), fbm(q + vec2(-0.8 * t, t) + 4.3));',
+    '  float n = fbm(q + 1.7 * w + vec2(0.0, 1.3 * t));',
+    '  float haut = clamp(0.5 + 0.5 * p.y / uRayon, 0.0, 1.0);',
+    '  vec3 ciel = mix(uCouleur, uClaire, 0.1 + 0.6 * haut);',
+    '  float nuages = smoothstep(0.36, 0.8, n + 0.12 * haut);',
+    '  vec3 c = mix(ciel, mix(uClaire, vec3(1.0), 0.8), nuages);',
+    '  c *= 1.0 - 0.12 * smoothstep(0.55 * uRayon, uRayon, r);',
+    '  float a = alpha + halo * (1.0 - alpha);',
+    '  vec3 sortie = c * alpha + couleurHalo * halo * (1.0 - alpha);',
+    '  gl_FragColor = vec4(sortie, a);',
+    '}',
+  ].join('\n');
+  var HALO_ORBE = 0.04;
+
+  function vers(a, b, k) { return a + (b - a) * k; }
 
   /**
-   * Create headless widget (no UI — host page drives everything via window.DograhWidget API)
+   * Une orbe dans un élément. États : repos, ecoute, reflexion, parole. ``fige`` : immobile.
+   * Rend { setEtat, setVolume, setFige, detruire, webgl }.
    */
-  function createHeadlessWidget() {
-    const audio = document.createElement('audio');
-    audio.id = 'dograh-widget-audio';
-    audio.autoplay = true;
-    audio.style.display = 'none';
-    document.body.appendChild(audio);
-    state.audioElement = audio;
-  }
-
-  /**
-   * Toggle call (start or stop based on current state)
-   */
-  function toggleCall() {
-    if (state.connectionStatus === 'idle' || state.connectionStatus === 'failed') {
-      startCall();
-    } else {
-      stopCall();
-    }
-  }
-
-  function updateFloatingButton(status) {
-    state.connectionStatus = status;
-    renderFloating();
-  }
-
-  /**
-   * Create inline widget UI
-   */
-  function createInlineWidget() {
-    // Find container element
-    const container = document.getElementById(state.config.containerId);
-    if (!container) {
-      console.error(`Dograh Widget: Container element with id "${state.config.containerId}" not found`);
-      if (state.callbacks.onError) {
-        state.callbacks.onError(new Error('Container element not found'));
-      }
-      return;
-    }
-
-    // Clear container
-    container.innerHTML = '';
-    container.className = 'dograh-inline-container';
-
-    // Add minimal inline styles
-    const inlineStyles = `
-      .dograh-inline-container {
-        min-height: 200px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .dograh-inline-status {
-        text-align: center;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      }
-
-      .dograh-inline-status-icon {
-        width: 64px;
-        height: 64px;
-        margin: 0 auto 20px;
-      }
-
-      /* Inherit the host page's text color: this panel sits directly in their
-         content, so a hardcoded near-black heading disappears on a dark site. */
-      .dograh-inline-status-text {
-        font-size: 18px;
-        font-weight: 500;
-        margin: 0 0 8px;
-        color: inherit;
-      }
-
-      .dograh-inline-status-subtext {
-        font-size: 14px;
-        color: #6b7280;
-        margin: 0 0 20px;
-      }
-
-      .dograh-inline-button-container {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        margin-top: 20px;
-      }
-
-      .dograh-inline-btn {
-        padding: 12px 32px;
-        border-radius: 8px;
-        border: none;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        color: white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      }
-
-      /* Host pages commonly style button:hover, which out-specifies the color
-         above and can repaint the label to match its own background — the same
-         reason .dograh-widget-cta:hover pins its color. */
-      .dograh-inline-btn:hover {
-        color: #ffffff !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-
-      .dograh-inline-btn:active {
-        transform: translateY(0);
-      }
-
-      .dograh-inline-btn-start {
-        background: #10b981;
-      }
-
-      /* The start button carries the owner's configured color as an inline
-         style, so a fixed hover background would never apply — brighten
-         whatever color it has instead. */
-      .dograh-inline-btn-start:hover {
-        filter: brightness(1.08);
-      }
-
-      .dograh-inline-btn-end {
-        background: #ef4444;
-      }
-
-      .dograh-inline-btn-end:hover {
-        background: #dc2626;
-      }
-
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-
-      .dograh-inline-pulse {
-        animation: pulse 2s infinite;
-      }
-    `;
-
-    // Add inline styles if not already added
-    if (!document.getElementById('dograh-inline-styles')) {
-      const styleSheet = document.createElement('style');
-      styleSheet.id = 'dograh-inline-styles';
-      styleSheet.textContent = inlineStyles;
-      document.head.appendChild(styleSheet);
-    }
-
-    // Create initial status display
-    updateInlineStatus('idle');
-
-    // Store audio element (hidden)
-    state.audioElement = document.createElement('audio');
-    state.audioElement.autoplay = true;
-    state.audioElement.style.display = 'none';
-    container.appendChild(state.audioElement);
-
-    // Mark widget as open (for inline mode, it's always "open")
-    state.isOpen = true;
-  }
-
-  /**
-   * Update inline widget status
-   */
-  function updateInlineStatus(status, text, subtext) {
-    const container = document.getElementById(state.config.containerId);
-    if (!container) return;
-
-    // Update state
-    state.connectionStatus = status;
-
-    // Determine display text
-    const displayText = text || {
-      idle: widgetText('voiceReadyTitle'),
-      connecting: widgetText('voiceConnectingText'),
-      connected: widgetText('voiceConnectedTitle'),
-      failed: widgetText('voiceConnectionFailedTitle')
-    }[status];
-
-    const displaySubtext = subtext || {
-      idle: state.config.callToActionText,
-      connecting: widgetText('voiceConnectingSubtext'),
-      connected: widgetText('voiceConnectedSubtext'),
-      failed: widgetText('voiceConnectionFailedSubtext')
-    }[status];
-
-    // Simple button design: green to start, red to end. Labels and colors are
-    // agent-owner configured, so they are assigned as text/style properties
-    // below rather than interpolated into this markup.
-    let buttonHTML = '';
-    if (status === 'idle' || status === 'failed') {
-      buttonHTML = '<button class="dograh-inline-btn dograh-inline-btn-start" id="dograh-inline-start-btn"></button>';
-    } else if (status === 'connecting' || status === 'connected') {
-      buttonHTML = '<button class="dograh-inline-btn dograh-inline-btn-end" id="dograh-inline-end-btn"></button>';
-    }
-
-    // Update container content (preserve audio element)
-    const audioElement = state.audioElement;
-    container.innerHTML = `
-      <div class="dograh-inline-status">
-        <div class="dograh-inline-status-icon ${status === 'connecting' ? 'dograh-inline-pulse' : ''}">
-          ${getStatusIcon(status)}
-        </div>
-        <p class="dograh-inline-status-text"></p>
-        <p class="dograh-inline-status-subtext"></p>
-        <div class="dograh-inline-button-container">
-          ${buttonHTML}
-        </div>
-      </div>
-    `;
-
-    // XSS boundary: configured copy only ever flows through textContent
-    container.querySelector('.dograh-inline-status-text').textContent = displayText;
-    container.querySelector('.dograh-inline-status-subtext').textContent = displaySubtext;
-
-    // Re-append audio element
-    if (audioElement) {
-      container.appendChild(audioElement);
-    }
-
-    // Attach event handlers
-    const startBtn = document.getElementById('dograh-inline-start-btn');
-    if (startBtn) {
-      startBtn.textContent = status === 'failed' ? widgetText('voiceRetryText') : state.config.buttonText;
-      startBtn.style.background = state.config.buttonColor;
-      startBtn.onclick = startCall;
-    }
-
-    const endBtn = document.getElementById('dograh-inline-end-btn');
-    if (endBtn) {
-      endBtn.textContent = widgetText('voiceEndCallText');
-      endBtn.onclick = stopCall;
-    }
-
-    // Trigger status change callback
-    if (state.callbacks.onStatusChange) {
-      state.callbacks.onStatusChange(status, displayText, displaySubtext);
-    }
-  }
-
-  /**
-   * Get status icon SVG
-   */
-  function getStatusIcon(status) {
-    const icons = {
-      idle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="23"/>
-        <line x1="8" y1="23" x2="16" y2="23"/>
-      </svg>`,
-      connecting: `<svg class="dograh-widget-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2v4"/>
-        <path d="M12 18v4"/>
-        <path d="M4.93 4.93l2.83 2.83"/>
-        <path d="M16.24 16.24l2.83 2.83"/>
-        <path d="M2 12h4"/>
-        <path d="M18 12h4"/>
-        <path d="M4.93 19.07l2.83-2.83"/>
-        <path d="M16.24 7.76l2.83-2.83"/>
-      </svg>`,
-      connected: `<svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/>
-        <path d="M15 7a2 2 0 0 1 2 2"/>
-        <path d="M15 3a6 6 0 0 1 6 6"/>
-      </svg>`,
-      failed: `<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>`
-    };
-    return icons[status] || icons.idle;
-  }
-
-  /**
-   * Update widget status
-   */
-  function updateStatus(status, text, subtext) {
-    state.connectionStatus = status;
-
-    // Use appropriate update function based on mode
-    if (state.config.embedMode === 'inline') {
-      updateInlineStatus(status, text, subtext);
-    } else if (state.config.embedMode === 'headless') {
-      if (state.callbacks.onStatusChange) {
-        state.callbacks.onStatusChange(status, text, subtext);
-      }
-    } else {
-      updateFloatingButton(status);
-    }
-  }
-
-  /**
-   * Open widget (deprecated - kept for backwards compatibility)
-   */
-  function openWidget() {
-    // No-op since we removed the modal
-  }
-
-  /**
-   * Close widget (deprecated - kept for backwards compatibility)
-   */
-  function closeWidget() {
-    // Stop call if active
-    if (state.connectionStatus === 'connected' || state.connectionStatus === 'connecting') {
-      stopCall();
-    }
-  }
-
-  /**
-   * Start voice call
-   */
-  async function startCall() {
-    state.gracefulDisconnect = false;
-    updateStatus('connecting', widgetText('voiceConnectingText'), widgetText('voiceConnectingSubtext'));
-
-    if (state.callbacks.onCallStart) {
-      state.callbacks.onCallStart();
-    }
-
+  function creerOrbe(taille, couleur, options) {
+    options = options || {};
+    var etat = options.etat || 'repos';
+    var volume = 0;
+    var fige = !!options.fige;
+    var hote = document.createElement('span');
+    hote.setAttribute('data-zone', 'orbe');
+    hote.style.cssText = 'display:inline-flex;width:' + taille + 'px;height:' + taille + 'px;border-radius:50%;flex:none';
+    hote.setAttribute('role', 'img');
+    hote.setAttribute('aria-hidden', 'true');
+    var canvas = document.createElement('canvas');
+    canvas.style.cssText = 'width:' + taille + 'px;height:' + taille + 'px;display:block';
+    var gl = null;
     try {
-      // Initialize session if using embed token
-      if (state.config.token) {
-        await initializeEmbedSession();
-      } else {
-        // Direct mode with workflow and run IDs
-        state.sessionToken = 'direct-mode';
-        state.workflowRunId = state.config.runId;
-      }
+      gl = canvas.getContext && canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
+    } catch (e) {
+      gl = null;
+    }
+    if (!gl) {
+      // Repli sans WebGL : un disque de la couleur, sans animation.
+      var disque = document.createElement('span');
+      disque.style.cssText = 'display:block;width:100%;height:100%;border-radius:50%;background:' + couleur +
+        ';box-shadow:0 6px 20px rgba(0,0,0,.14)';
+      hote.appendChild(disque);
+      return { element: hote, setEtat: function () {}, setVolume: function () {}, setFige: function () {}, detruire: function () {}, webgl: false };
+    }
+    hote.appendChild(canvas);
+    function shader(type, src) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, shader(gl.VERTEX_SHADER, VERTEX));
+    gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FRAGMENT));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+    var tampon = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tampon);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var u = {};
+    ['uRes', 'uTemps', 'uRayon', 'uCouleur', 'uClaire', 'uDouceur'].forEach(function (n) { u[n] = gl.getUniformLocation(prog, n); });
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    var cCiel = new Float32Array(sRgb(couleur));
+    var cClaire = new Float32Array(sRgb(eclaircir(couleur, 0.55)));
+    var calme = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var temps = 0, vitesse = 0.5, rayon = 0.86, voix = 0, avant = performance.now(), image = 0, vivant = true;
+    function tour(maintenant) {
+      if (!vivant) return;
+      var dt = Math.min((maintenant - avant) / 1000, 0.05);
+      avant = maintenant;
+      var s = maintenant / 1000;
+      voix = vers(voix, etat === 'parole' ? volume : 0, 0.25);
+      var cible =
+        etat === 'repos' ? { v: 0.35, r: 0.84 + 0.006 * Math.sin(s * 0.9) } :
+        etat === 'ecoute' ? { v: 0.7, r: 0.86 + 0.022 * Math.sin(s * 3.2) } :
+        etat === 'reflexion' ? { v: 2.2, r: 0.83 + 0.008 * Math.sin(s * 6.0) } :
+        { v: 1.1 + 1.6 * voix, r: 0.84 + 0.11 * voix };
+      vitesse = fige ? 0 : vers(vitesse, calme ? 0.2 : cible.v, 0.06);
+      rayon = vers(rayon, calme || fige ? 0.86 : cible.r, 0.18);
+      temps += dt * vitesse;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var l = Math.round(canvas.clientWidth * dpr) || taille, h = Math.round(canvas.clientHeight * dpr) || taille;
+      if (canvas.width !== l || canvas.height !== h) { canvas.width = l; canvas.height = h; }
+      gl.viewport(0, 0, l, h);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform2f(u.uRes, l, h);
+      gl.uniform1f(u.uTemps, temps);
+      gl.uniform1f(u.uRayon, rayon);
+      gl.uniform3fv(u.uCouleur, cCiel);
+      gl.uniform3fv(u.uClaire, cClaire);
+      gl.uniform1f(u.uDouceur, HALO_ORBE);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      image = requestAnimationFrame(tour);
+    }
+    image = requestAnimationFrame(tour);
+    return {
+      element: hote,
+      setEtat: function (e) { etat = e; },
+      setVolume: function (v) { volume = Math.max(0, Math.min(1, v)); },
+      setFige: function (f) { fige = !!f; },
+      detruire: function () { vivant = false; cancelAnimationFrame(image); },
+      webgl: true,
+    };
+  }
 
-      // Request microphone permission
+  // ---------------------------------------------------------------------------------------------------------------
+  // Polices : hébergées chez nous (même origine que ce script). Jamais un site tiers.
+  // ---------------------------------------------------------------------------------------------------------------
+  var POLICES = {
+    switzer: "'Mark Switzer', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    // Inter n'est pas hébergée (fichier non livré) : la police installée chez le visiteur si elle y est, sinon le système.
+    inter: "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif",
+    systeme: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    site: 'inherit',
+  };
+  var policesChargees = false;
+  function chargerLesPolices(origine) {
+    if (policesChargees || typeof FontFace === 'undefined' || !document.fonts) return;
+    policesChargees = true;
+    [[400, 'Switzer-400'], [600, 'Switzer-600']].forEach(function (p) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Release any stream still held from a prior attempt before retaining
-        // the new one, so a re-entrant start can't leak the microphone.
-        if (state.stream) {
-          state.stream.getTracks().forEach(track => track.stop());
-        }
-        state.stream = stream;
-      } catch (micError) {
-        // Handle specific microphone permission errors
-        let errorMessage = widgetText('voiceConnectionFailedSubtext');
-
-        if (micError.name === 'NotAllowedError' || micError.name === 'PermissionDeniedError') {
-          errorMessage = 'Microphone permission denied. Please allow microphone access to start the call.';
-        } else if (micError.name === 'NotFoundError' || micError.name === 'DevicesNotFoundError') {
-          errorMessage = 'No microphone found. Please connect a microphone and try again.';
-        } else if (micError.name === 'NotReadableError' || micError.name === 'TrackStartError') {
-          errorMessage = 'Microphone is already in use by another application.';
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      // Create WebRTC connection
-      await createWebRTCConnection();
-
-      // Connect WebSocket
-      await connectWebSocket();
-
-      // Start negotiation
-      await negotiate();
-
-    } catch (error) {
-      console.error('Dograh Widget: Failed to start call', error);
-
-      // Release anything acquired before the failure so a retry starts clean.
-      // getUserMedia may have succeeded before a later step (WebSocket /
-      // negotiation) threw, which would otherwise leave the mic held and block
-      // the next getUserMedia(). Null the refs before close() so the peer/ws
-      // state handlers short-circuit instead of re-entering teardown.
-      if (state.stream) {
-        state.stream.getTracks().forEach(track => track.stop());
-        state.stream = null;
-      }
-      if (state.pc) {
-        const pc = state.pc;
-        state.pc = null;
-        if (pc.signalingState !== 'closed') {
-          pc.close();
-        }
-      }
-      if (state.ws) {
-        const ws = state.ws;
-        state.ws = null;
-        if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-          ws.close();
-        }
-      }
-
-      updateStatus(
-        'failed',
-        widgetText('voiceConnectionFailedTitle'),
-        error.message || widgetText('voiceConnectionFailedSubtext')
-      );
-
-      // Trigger error callback
-      if (state.callbacks.onError) {
-        state.callbacks.onError(error);
-      }
-    }
-  }
-
-  /**
-   * Initialize embed session
-   */
-  async function initializeEmbedSession() {
-    const response = await fetch(`${state.config.apiBaseUrl}/api/v1/public/embed/init`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': window.location.origin
-      },
-      body: JSON.stringify({
-        token: state.config.token,
-        context_variables: state.config.contextVariables
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to initialize session');
-    }
-
-    const data = await response.json();
-    state.sessionToken = data.session_token;
-    state.workflowRunId = data.workflow_run_id;
-    state.workflowId = data.config.workflow_id;
-
-    // Fetch TURN credentials after session initialization
-    await fetchTurnCredentials();
-  }
-
-  /**
-   * Fetch TURN credentials for WebRTC connection
-   */
-  async function fetchTurnCredentials() {
-    // Skip the request entirely when the server reports no TURN server is
-    // configured — it would only 503. Deployments without coturn (OSS/local)
-    // fall back to STUN.
-    if (state.config.turnEnabled === false) {
-      console.log('Dograh Widget: TURN server disabled in server config, using STUN only');
-      return;
-    }
-
-    if (!state.sessionToken) {
-      console.warn('Dograh Widget: No session token available for TURN credentials');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${state.config.apiBaseUrl}/api/v1/public/embed/turn-credentials/${state.sessionToken}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        }
-      });
-
-      if (response.ok) {
-        state.turnCredentials = await response.json();
-        console.log(`TURN credentials obtained, TTL: ${state.turnCredentials.ttl}s`);
-      } else if (response.status === 503) {
-        // TURN not configured on server - this is OK, we'll use STUN only
-        console.log('TURN server not configured, using STUN only');
-      } else {
-        console.warn(`Failed to fetch TURN credentials: ${response.status}`);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch TURN credentials, continuing without TURN:', error);
-    }
-  }
-
-  /**
-   * Create WebRTC peer connection
-   */
-  function createWebRTCConnection() {
-    // A `stun:` entry can only yield srflx, never relay — and srflx has been
-    // seen leaking through iceTransportPolicy: 'relay', so skip it entirely.
-    // Same skip as the main app's useWebSocketRTC hook.
-    const iceServers = state.config.forceTurnRelay
-      ? []
-      : [{ urls: ['stun:stun.l.google.com:19302'] }];
-
-    // Add TURN server if credentials are available
-    if (state.turnCredentials && state.turnCredentials.uris && state.turnCredentials.uris.length > 0) {
-      iceServers.push({
-        urls: state.turnCredentials.uris,
-        username: state.turnCredentials.username,
-        credential: state.turnCredentials.password
-      });
-      console.log(`TURN server configured with ${state.turnCredentials.uris.length} URIs`);
-    }
-
-    // Reachable: turn_enabled and force_turn_relay are independent, so
-    // FORCE_TURN_RELAY=true with TURN_SECRET unset (or a failed credentials
-    // fetch) leaves no ICE servers at all — no candidates, and no clue why.
-    if (state.config.forceTurnRelay && iceServers.length === 0) {
-      console.error(
-        'Dograh Widget: FORCE_TURN_RELAY is on but no TURN credentials are ' +
-        'available — ICE has no candidates to gather and this call cannot connect.'
-      );
-    }
-
-    const config = {
-      iceServers: iceServers
-    };
-
-    // Diagnostic: when the backend runs with FORCE_TURN_RELAY=true, restrict the
-    // browser to relay-only candidates so media must traverse TURN. A TURN
-    // misconfiguration then surfaces as an ICE failure instead of silently
-    // falling back to host/srflx.
-    if (state.config.forceTurnRelay) {
-      config.iceTransportPolicy = 'relay';
-      console.log('Dograh Widget: FORCE_TURN_RELAY is on — restricting ICE to relay candidates only');
-    }
-
-    state.pc = new RTCPeerConnection(config);
-
-    // Add audio track
-    if (state.stream) {
-      state.stream.getTracks().forEach(track => {
-        state.pc.addTrack(track, state.stream);
-      });
-    }
-
-    // Handle incoming audio
-    state.pc.ontrack = (event) => {
-      if (event.track.kind === 'audio' && state.audioElement) {
-        state.audioElement.srcObject = event.streams[0];
-      }
-    };
-
-    // Monitor connection state
-    state.pc.oniceconnectionstatechange = handlePeerConnectionStateChange;
-    state.pc.onconnectionstatechange = handlePeerConnectionStateChange;
-    state.pc.onicecandidate = sendIceCandidate;
-  }
-
-  function handlePeerConnectionStateChange() {
-    const pc = state.pc;
-    if (!pc) return;
-
-    console.log('Peer connection state:', pc.connectionState, 'ICE:', pc.iceConnectionState);
-
-    if (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-      const wasAlreadyConnected = state.callStartedAt !== null;
-      updateStatus('connected', widgetText('voiceConnectedTitle'), widgetText('voiceConnectedSubtext'));
-      if (!wasAlreadyConnected) {
-        state.callStartedAt = Date.now();
-        if (state.callbacks.onCallConnected) {
-          state.callbacks.onCallConnected({
-            agentId: state.config.workflowId || null,
-            token: state.config.token || null,
-            workflowRunId: state.workflowRunId || null
-          });
-        }
-      }
-      return;
-    }
-
-    if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
-      stopCall({
-        graceful: false,
-        status: 'failed',
-        text: widgetText('voiceConnectionLostTitle'),
-        subtext: widgetText('voiceConnectionLostSubtext')
-      });
-      return;
-    }
-
-    if (
-      pc.connectionState === 'closed' ||
-      pc.connectionState === 'disconnected' ||
-      pc.iceConnectionState === 'closed' ||
-      pc.iceConnectionState === 'disconnected'
-    ) {
-      stopCall({ graceful: true });
-    }
-  }
-
-  function sendIceCandidate(event) {
-    // Handle ICE candidates for trickling
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-      const message = {
-        type: 'ice-candidate',
-        payload: {
-          candidate: event.candidate ? {
-            candidate: event.candidate.candidate,
-            sdpMid: event.candidate.sdpMid,
-            sdpMLineIndex: event.candidate.sdpMLineIndex
-          } : null,
-          pc_id: state.pcId
-        }
-      };
-      state.ws.send(JSON.stringify(message));
-    }
-  }
-
-  /**
-   * Connect WebSocket for signaling
-   */
-  async function connectWebSocket() {
-    return new Promise((resolve, reject) => {
-      // Use public signaling endpoint for embed tokens
-      const wsUrl = `${state.config.apiBaseUrl.replace('http', 'ws')}/api/v1/ws/public/signaling/${state.sessionToken}`;
-
-      state.ws = new WebSocket(wsUrl);
-      state.pcId = generatePeerId();
-
-      state.ws.onopen = () => {
-        console.log('WebSocket connected');
-        resolve();
-      };
-
-      state.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        reject(error);
-      };
-
-      state.ws.onclose = (event) => {
-        console.log('WebSocket closed');
-        state.ws = null;
-
-        if (event.reason === 'call ended') {
-          stopCall({ graceful: true, closeWebSocket: false });
-          return;
-        }
-
-        if (state.connectionStatus === 'connected' && !state.gracefulDisconnect) {
-          updateStatus('failed', widgetText('voiceConnectionLostTitle'), widgetText('voiceConnectionLostSubtext'));
-        }
-      };
-
-      state.ws.onmessage = async (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          await handleWebSocketMessage(message);
-        } catch (e) {
-          console.error('Failed to handle WebSocket message:', e);
-        }
-      };
-    });
-  }
-
-  /**
-   * Handle WebSocket messages
-   */
-  async function handleWebSocketMessage(message) {
-    switch (message.type) {
-      case 'answer':
-        const answer = message.payload;
-        console.log('Received answer from server');
-
-        await state.pc.setRemoteDescription({
-          type: 'answer',
-          sdp: answer.sdp
+        var f = new FontFace('Mark Switzer', 'url(' + origine + '/embed/fonts/' + p[1] + '.woff2) format("woff2")', {
+          weight: String(p[0]), display: 'swap',
         });
-        break;
-
-      case 'ice-candidate':
-        const candidate = message.payload.candidate;
-        if (candidate) {
-          try {
-            await state.pc.addIceCandidate({
-              candidate: candidate.candidate,
-              sdpMid: candidate.sdpMid,
-              sdpMLineIndex: candidate.sdpMLineIndex
-            });
-            console.log('Added remote ICE candidate');
-          } catch (e) {
-            console.error('Failed to add ICE candidate:', e);
-          }
-        }
-        break;
-
-      case 'error':
-        console.error('Server error:', message.payload);
-        updateStatus('failed', 'Server error', message.payload.message || 'An error occurred');
-        break;
-
-      case 'call-ended':
-        console.log('Call ended by server:', message.payload);
-        stopCall({ graceful: true });
-        break;
-
-      default:
-        console.warn('Unknown message type:', message.type);
-    }
+        f.load().then(function (ok) { document.fonts.add(ok); }, function () {});
+      } catch (e) { /* la police du système prend le relais */ }
+    });
   }
 
-  /**
-   * Negotiate WebRTC connection
-   */
-  async function negotiate() {
-    const offer = await state.pc.createOffer();
-    await state.pc.setLocalDescription(offer);
-
-    const message = {
-      type: 'offer',
-      payload: {
-        sdp: offer.sdp,
-        type: 'offer',
-        pc_id: state.pcId,
-        workflow_id: parseInt(state.config.workflowId),
-        workflow_run_id: parseInt(state.workflowRunId)
-      }
-    };
-
-    state.ws.send(JSON.stringify(message));
-    console.log('Sent offer via WebSocket');
-  }
-
-  /**
-   * Stop voice call
-   */
-  function stopCall(options = {}) {
-    const graceful = options.graceful !== false;
-    const closeWebSocket = options.closeWebSocket !== false;
-    const status = options.status || 'idle';
-    const text = options.text || widgetText('voiceCallEndedTitle');
-    const subtext = options.subtext || widgetText('voiceCallEndedSubtext');
-
-    state.gracefulDisconnect = graceful;
-
-    // Fire onCallDisconnected only if the call had actually connected, with
-    // identifiers and duration. Must run before we clear callStartedAt.
-    if (state.callStartedAt && state.callbacks.onCallDisconnected) {
-      const durationSeconds = Math.round((Date.now() - state.callStartedAt) / 1000);
-      state.callbacks.onCallDisconnected({
-        agentId: state.config.workflowId || null,
-        token: state.config.token || null,
-        workflowRunId: state.workflowRunId || null,
-        durationSeconds
+  // ---------------------------------------------------------------------------------------------------------------
+  // Petits outils d'élément
+  // ---------------------------------------------------------------------------------------------------------------
+  function el(nom, attrs, enfants) {
+    var e = document.createElement(nom);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        var v = attrs[k];
+        if (v === null || v === undefined || v === false) return;
+        if (k === 'texte') e.textContent = v;
+        else if (k === 'style') e.style.cssText = v;
+        else if (k.indexOf('on') === 0 && typeof v === 'function') e.addEventListener(k.slice(2), v);
+        else e.setAttribute(k, v === true ? '' : String(v));
       });
     }
-    state.callStartedAt = null;
-
-    updateStatus(status, text, subtext);
-
-    if (state.callbacks.onCallEnd) {
-      state.callbacks.onCallEnd();
-    }
-
-    // Close WebSocket
-    if (closeWebSocket && state.ws) {
-      const ws = state.ws;
-      state.ws = null;
-      if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-        ws.close();
-      }
-    } else if (!closeWebSocket) {
-      state.ws = null;
-    }
-
-    // Stop media tracks
-    if (state.stream) {
-      state.stream.getTracks().forEach(track => track.stop());
-      state.stream = null;
-    }
-
-    // Close peer connection
-    if (state.pc) {
-      const pc = state.pc;
-      state.pc = null;
-      if (pc.signalingState !== 'closed') {
-        pc.close();
-      }
-    }
-
-    // Clear audio
-    if (state.audioElement) {
-      state.audioElement.srcObject = null;
-    }
+    (enfants || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
   }
+  var SVG = {
+    ferme: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    micro: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+    microCoupe: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.3 5.5M19 11a7 7 0 0 1-.6 2.8M12 18v3"/></svg>',
+    raccrocher: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15.5c5-4.7 13-4.7 18 0l-2.4 2.4a1 1 0 0 1-1.2.2l-2.3-1.2a1 1 0 0 1-.5-1.1l.2-1a12 12 0 0 0-5.6 0l.2 1a1 1 0 0 1-.5 1.1l-2.3 1.2a1 1 0 0 1-1.2-.2z"/></svg>',
+    envoi: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 20.85 12.92a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>',
+    etoile: '<svg viewBox="0 0 24 24" width="32" height="32" fill="CURRENT_FILL" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',
+    valide: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  };
+  function icone(nom, remplissage) {
+    var s = document.createElement('span');
+    s.style.cssText = 'display:inline-flex;align-items:center;justify-content:center';
+    s.innerHTML = (SVG[nom] || '').replace('CURRENT_FILL', remplissage || 'none'); // SVG fixes écrits ici, jamais du texte reçu
+    return s;
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Le widget
+  // ---------------------------------------------------------------------------------------------------------------
+  var BASE_CSS = [
+    ':host{all:initial}',
+    '*,*::before,*::after{box-sizing:border-box}',
+    '.mk{font-size:15px;line-height:1.35;-webkit-font-smoothing:antialiased}',
+    'button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;padding:0}',
+    'button:disabled{cursor:not-allowed;opacity:.4}',
+    'button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--mk-focus);outline-offset:2px}',
+    'input,textarea{font:inherit;color:inherit}',
+    '.mk-ancre{position:fixed;z-index:2147483000}',
+    '.mk-rond{width:56px;height:56px;border-radius:50%;transition:transform .15s}',
+    '.mk-rond:hover{transform:scale(1.05)}',
+    '.mk-accroche{width:max-content;max-width:calc(100vw - 72px);white-space:pre-wrap;border-radius:16px;padding:12px 16px;text-align:left;font-size:15px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.14);animation:mk-entre .3s ease both}',
+    '.mk-x{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.92);color:#444;box-shadow:0 1px 4px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;flex:none}',
+    '.mk-voile{position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.35)}',
+    '.mk-fenetre{position:fixed;z-index:2147483002;border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.06);overflow:hidden;animation:mk-entre .3s ease both;display:flex;flex-direction:column;max-height:calc(100vh - 32px)}',
+    '.mk-fenetre.mk-plein{inset:0!important;border-radius:0;max-height:none;width:auto!important;transform:none!important}',
+    '.mk-entete{display:flex;align-items:center;justify-content:flex-end;padding:12px 16px 4px}',
+    '.mk-fermer{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:.7}',
+    '.mk-fermer:hover{background:rgba(0,0,0,.06);opacity:1}',
+    '.mk-corps{padding:4px 20px 16px;overflow:auto;display:flex;flex-direction:column;gap:16px}',
+    '.mk-plein .mk-corps{flex:1;justify-content:center}',
+    '.mk-centre{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}',
+    '.mk-btn{display:flex;align-items:center;justify-content:center;height:46px;padding:0 30px;border-radius:999px;font-weight:600;margin:0 auto;width:max-content}',
+    '.mk-rond-btn{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center}',
+    '.mk-ligne{display:flex;gap:16px;justify-content:center;align-items:center}',
+    '.mk-champ{display:flex;align-items:center;gap:8px;border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:0 6px 0 16px;height:44px}',
+    '.mk-champ input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14px;color:inherit}',
+    '.mk-champ button{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}',
+    '.mk-saisie{width:100%;height:44px;border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:0 12px;background:transparent;font-size:14px}',
+    '.mk-fil{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto}',
+    '.mk-bulle{max-width:85%;padding:8px 14px;border-radius:16px;font-size:14px;white-space:pre-wrap;word-break:break-word}',
+    '.mk-etoiles{display:flex;gap:6px;justify-content:center}',
+    '.mk-etoiles button{padding:0;border-radius:6px;transition:transform .12s}',
+    '.mk-etoiles button:hover{transform:scale(1.1)}',
+    '.mk-puces{display:flex;flex-wrap:wrap;gap:8px}',
+    '.mk-puce{height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(0,0,0,.15);font-size:14px}',
+    '.mk-case{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}',
+    '.mk-case input{margin-top:3px}',
+    '.mk-petit{font-size:13px;opacity:.75}',
+    '.mk-etat{font-size:14px;opacity:.75;min-height:20px}',
+    '.mk-mention{text-align:center;font-size:11px;opacity:.5;padding:0 0 12px}',
+    '.mk-erreur{font-size:13px;border-radius:12px;padding:8px 12px;background:rgba(0,0,0,.05)}',
+    '.mk-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+    '@keyframes mk-entre{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}',
+    '@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}',
+  ].join('\n');
 
   /**
-   * Retry connection
+   * Crée un widget. ``options`` :
+   *  - hote            : élément où monter (défaut document.body)
+   *  - conteneur       : true = aperçu du portail (positionné dans son cadre, aucune requête)
+   *  - apparence, couleurs : l'apparence reçue du serveur (ou celle de l'aperçu)
+   *  - api             : { base, site, token, chemin, origineStatique, turnActif, relaisForce, contexte }
+   *  - etat, etoiles, microRefuse, plafondAtteint : états forcés (aperçu seulement)
    */
-  function retryCall() {
-    updateStatus('idle', widgetText('voiceReadyTitle'), state.config.callToActionText);
-    setTimeout(() => startCall(), 500);
-  }
+  function creerWidget(options) {
+    var ap = options.apparence;
+    var k = options.couleurs;
+    var textes = ap.textes;
+    var apercu = !!options.conteneur;
+    var api = options.api || {};
+    var largeurCadre = options.largeurCadre;
 
-  /**
-   * Generate unique peer ID
-   */
-  function generatePeerId() {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return 'PC-' + Array.from(array)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
+    var etat = options.etat || 'repos';
+    var accrocheFermee = false;
+    var ouvert = false;
+    var conv = {
+      mode: null, // voix | ecrit
+      sessionToken: null, workflowRunId: null, workflowId: null,
+      pc: null, ws: null, stream: null, pcId: null, turn: null,
+      microCoupe: false, phase: 'ecoute', revision: null, tours: [], attente: false,
+      erreur: null, termine: false, aMonte: false,
+    };
+    var avis = { etoiles: options.etoiles || 0, obtenu: null, raisons: [], rappel: false, publication: false, commentaire: '', nom: '', contact: '' };
+    var orbes = [];
+    var minuteurs = [];
+    var analyse = null;
+    var detruit = false;
 
-  // ===========================================================================
-  // Chat widget (widgetType === 'chat')
-  //
-  // Chat speaks plain REST to the public embed chat endpoints — no WebRTC, no
-  // WebSocket, no microphone. One blocking POST per turn (the server caps a
-  // turn at 60s, so no client timeout below that); the typing indicator covers
-  // the wait. XSS boundary: message text only ever flows through textContent.
-  // ===========================================================================
+    var hote = document.createElement('div');
+    hote.setAttribute('data-mark-widget', apercu ? 'apercu' : 'site');
+    var racine = hote.attachShadow ? hote.attachShadow({ mode: 'open' }) : hote;
+    var style = document.createElement('style');
+    style.textContent = BASE_CSS;
+    racine.appendChild(style);
+    var scene = el('div', { class: 'mk' });
+    scene.style.cssText =
+      '--mk-focus:' + k.boutons + ';font-family:' + (POLICES[ap.police] || POLICES.switzer) + ';color:' + ap.texte_fenetre;
+    racine.appendChild(scene);
+    (options.hote || document.body).appendChild(hote);
 
-  const CHAT_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  </svg>`;
+    var audio = document.createElement('audio');
+    audio.autoplay = true;
+    audio.setAttribute('playsinline', '');
+    audio.style.display = 'none';
+    scene.appendChild(audio);
 
-  const SEND_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13"/>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-  </svg>`;
+    var live = el('div', { class: 'mk-vh', 'aria-live': 'polite', role: 'status' });
+    scene.appendChild(live);
+    function annoncer(texte) { live.textContent = texte; }
 
-  function isChatWidget() {
-    return state.config.widgetType === 'chat';
-  }
+    function temporiser(fn, ms) {
+      var id = setTimeout(fn, ms);
+      minuteurs.push(id);
+      return id;
+    }
 
-  /**
-   * Inject chat widget styles
-   */
-  function injectChatStyles() {
-    if (document.getElementById('dograh-chat-styles')) return;
+    // ----------------------------------------------------------------- requêtes
+    function http(methode, chemin, corps) {
+      var init = {
+        method: methode,
+        credentials: 'omit',
+        headers: { 'Content-Type': 'application/json' },
+      };
+      if (corps !== undefined) init.body = JSON.stringify(corps);
+      return fetch(api.base + '/api/v1/public/embed' + chemin, init);
+    }
+    function evenement(nom) {
+      if (apercu) return;
+      var corps = { evenement: nom, chemin: api.chemin };
+      if (api.site) corps.cle = api.site; else corps.token = api.token;
+      try {
+        http('POST', '/evenement', corps).catch(function () {});
+      } catch (e) { /* compteur anonyme : jamais bloquant */ }
+    }
 
-    const styles = `
-      .dograh-chat-panel {
-        display: flex;
-        flex-direction: column;
-        width: 360px;
-        height: min(520px, calc(100vh - 120px));
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-        overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    // ----------------------------------------------------------------- dessin
+    function mobile() {
+      if (apercu) return (largeurCadre || 999) < 500;
+      return window.innerWidth < 500;
+    }
+    function vider(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+    function nettoyerOrbes() { orbes.forEach(function (o) { o.detruire(); }); orbes = []; }
+    function nouvelleOrbe(taille, options2) {
+      var o = creerOrbe(taille, k.orbe, options2);
+      orbes.push(o);
+      return o;
+    }
+    function bouton(texte, zone, onclick, extra) {
+      return el('button', Object.assign({
+        type: 'button', 'data-zone': zone, class: 'mk-btn', texte: texte, onclick: onclick,
+        style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+      }, extra || {}));
+    }
+    function cote() { return ap.position === 'bas-gauche' ? 'left:20px' : 'right:20px'; }
+    function positionner(n) {
+      n.style.position = apercu ? 'absolute' : '';
+    }
+
+    function emblemeRond(taille, anime) {
+      if (ap.embleme === 'logo' && ap.logo_url) {
+        var img = el('img', { src: ap.logo_url, alt: '', width: taille, height: taille, referrerpolicy: 'no-referrer', loading: 'lazy' });
+        img.style.cssText = 'width:' + taille + 'px;height:' + taille + 'px;border-radius:50%;object-fit:cover;background:' + k.rond_accroche;
+        return img;
       }
+      var o = nouvelleOrbe(taille, { etat: 'repos', fige: !anime });
+      return o.element;
+    }
 
-      .dograh-widget-container.bottom-right .dograh-chat-panel { position: absolute; bottom: 60px; right: 0; }
-      .dograh-widget-container.bottom-left  .dograh-chat-panel { position: absolute; bottom: 60px; left: 0; }
-      .dograh-widget-container.top-right    .dograh-chat-panel { position: absolute; top: 60px; right: 0; }
-      .dograh-widget-container.top-left     .dograh-chat-panel { position: absolute; top: 60px; left: 0; }
+    function dessiner() {
+      if (detruit) return;
+      nettoyerOrbes();
+      Array.prototype.slice.call(scene.children).forEach(function (c) { if (c !== audio && c !== live) scene.removeChild(c); });
+      if (!ouvert && etat !== 'information' && ['information', 'conversation', 'avis', 'merci', 'plafond'].indexOf(etat) === -1) {
+        dessinerRepli();
+      } else {
+        dessinerFenetre();
+      }
+    }
 
-      @media (max-width: 480px) {
-        .dograh-widget-container .dograh-chat-panel {
-          position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          top: auto;
-          width: 100%;
-          height: min(75vh, 560px);
-          border-radius: 12px 12px 0 0;
+    function dessinerRepli() {
+      var ancre = el('div', { class: 'mk-ancre', style: 'bottom:20px;' + cote() + ';display:flex;align-items:flex-end;gap:8px;' +
+        (ap.position === 'bas-gauche' ? '' : 'flex-direction:row-reverse') });
+      if (apercu) ancre.style.position = 'absolute';
+      var libelle = textes.accroche;
+      if (etat === 'accroche') {
+        ancre.appendChild(el('button', {
+          type: 'button', class: 'mk-accroche', 'data-zone': 'accroche', texte: textes.accroche,
+          style: 'white-space:pre-wrap;width:max-content;background:' + k.rond_accroche + ';color:' + surFond(k.rond_accroche) + (largeurCadre ? ';max-width:' + (largeurCadre - 72) + 'px' : ''),
+          onclick: ouvrir,
+        }));
+        if (!apercu) {
+          ancre.appendChild(el('button', {
+            type: 'button', class: 'mk-x', 'aria-label': textes.fermer, onclick: function () {
+              accrocheFermee = true; etat = 'repos'; dessiner();
+            },
+          }, [icone('ferme')]));
+        }
+      } else {
+        var rond = el('button', {
+          type: 'button', class: 'mk-rond', 'data-zone': 'rond', 'aria-label': libelle.replace(/\n/g, ' '),
+          'aria-haspopup': 'dialog',
+          onclick: ouvrir,
+          onmouseenter: function () {
+            if (!apercu && ap.declenchement === 'clic' && !accrocheFermee && etat === 'repos') { etat = 'accroche'; dessiner(); }
+          },
+        }, [emblemeRond(56, ap.orbe_animee !== false)]);
+        ancre.appendChild(rond);
+      }
+      scene.appendChild(ancre);
+    }
+
+    function dessinerFenetre() {
+      var plein = mobile();
+      var centree = ap.fenetre === 'centree';
+      if (centree && !plein) {
+        var voile = el('div', { class: 'mk-voile', onclick: function () { if (etat !== 'conversation') fermer(); } });
+        if (apercu) voile.style.position = 'absolute';
+        scene.appendChild(voile);
+      }
+      var pos = plein ? '' : centree
+        ? 'top:50%;left:50%;transform:translate(-50%,-50%);width:min(400px,calc(100vw - 32px))'
+        : 'bottom:20px;' + cote() + ';width:min(380px,calc(100vw - 32px))';
+      var fenetre = el('div', {
+        class: 'mk-fenetre' + (plein ? ' mk-plein' : ''), role: 'dialog', 'aria-modal': centree || plein ? 'true' : 'false',
+        'aria-label': FIXE.assistant, 'data-zone': 'fenetre', tabindex: '-1',
+        style: 'background:' + k.fenetre + ';color:' + ap.texte_fenetre + ';' + pos + (apercu ? ';position:absolute' : ''),
+        onkeydown: function (ev) {
+          if (ev.key === 'Escape' && etat !== 'conversation') { ev.stopPropagation(); fermer(); }
+        },
+      });
+      var entete = el('div', { class: 'mk-entete' }, [
+        el('button', { type: 'button', class: 'mk-fermer', 'aria-label': textes.fermer, onclick: fermer }, [icone('ferme')]),
+      ]);
+      fenetre.appendChild(entete);
+      var corps = el('div', { class: 'mk-corps' });
+      fenetre.appendChild(corps);
+      if (etat === 'information') vueInformation(corps);
+      else if (etat === 'plafond') vuePlafond(corps);
+      else if (etat === 'conversation') vueConversation(corps);
+      else if (etat === 'avis') vueAvis(corps);
+      else if (etat === 'merci') vueMerci(corps);
+      fenetre.appendChild(el('p', { class: 'mk-mention', texte: FIXE.mention }));
+      scene.appendChild(fenetre);
+      var premier = fenetre.querySelector('button[data-zone="demarrer"],input,button[data-zone="avisEnvoyer"],button[data-zone="fermer"],button[data-zone="plafondBouton"]');
+      try { (premier && !premier.disabled ? premier : fenetre).focus({ preventScroll: true }); } catch (e) { /* aperçu hors page */ }
+    }
+
+    function vueInformation(corps) {
+      var c = el('div', { class: 'mk-centre' });
+      c.appendChild(nouvelleOrbe(130, { etat: 'repos' }).element);
+      corps.appendChild(c);
+      corps.appendChild(el('p', { 'data-zone': 'information', class: 'mk-petit', texte: textes.annonce_ia }));
+      var caseConf = el('input', { type: 'checkbox', id: 'mk-c1' });
+      var caseMicro = el('input', { type: 'checkbox', id: 'mk-c2' });
+      var libConf = el('span', null, [textes.case_confidentialite + ' ']);
+      if (ap.lien_confidentialite) {
+        libConf.appendChild(el('a', { href: ap.lien_confidentialite, target: '_blank', rel: 'noopener noreferrer', texte: FIXE.confidentialite, style: 'text-decoration:underline' }));
+      }
+      var go = bouton(textes.bouton_demarrer, 'demarrer', function () { demarrer(); });
+      function maj() { go.disabled = !(caseConf.checked && caseMicro.checked); }
+      caseConf.addEventListener('change', maj);
+      caseMicro.addEventListener('change', maj);
+      corps.appendChild(el('label', { class: 'mk-case', 'data-zone': 'caseConfidentialite' }, [caseConf, libConf]));
+      corps.appendChild(el('label', { class: 'mk-case', 'data-zone': 'caseMicro' }, [caseMicro, el('span', { texte: textes.case_micro })]));
+      if (conv.erreur) corps.appendChild(el('p', { class: 'mk-erreur', role: 'alert', texte: conv.erreur }));
+      go.disabled = true;
+      corps.appendChild(go);
+    }
+
+    function vuePlafond(corps) {
+      corps.appendChild(el('p', { 'data-zone': 'plafond', class: 'mk-petit', style: mobile() ? 'text-align:center' : '', texte: textes.plafond_message }));
+      var nom = el('input', { class: 'mk-saisie', placeholder: FIXE.nom, 'aria-label': FIXE.nom, autocomplete: 'name', maxlength: '200' });
+      var coord = el('input', { class: 'mk-saisie', placeholder: FIXE.contact, 'aria-label': FIXE.contact, autocomplete: 'email', maxlength: '254' });
+      var erreur = el('p', { class: 'mk-erreur', role: 'alert', style: 'display:none' });
+      corps.appendChild(nom);
+      corps.appendChild(coord);
+      corps.appendChild(erreur);
+      var b = bouton(textes.plafond_bouton, 'plafondBouton', function () {
+        var contact = contactDe(nom.value, coord.value);
+        if (!contact) { erreur.textContent = FIXE.contact; erreur.style.display = ''; coord.focus(); return; }
+        b.disabled = true;
+        envoyerRappel(contact).then(function (ok) {
+          if (ok) { etat = 'merci'; dessiner(); } else { erreur.textContent = FIXE.indisponible; erreur.style.display = ''; b.disabled = false; }
+        });
+      });
+      corps.appendChild(b);
+    }
+
+    /** « 06 12 34 56 78 » ou « a@b.fr » dans un seul champ → { nom, telephone | mail }, ou null. */
+    function contactDe(nom, coord) {
+      var texte = String(coord || '').trim();
+      if (!texte) return null;
+      var c = {};
+      if (nom && nom.trim()) c.nom = nom.trim();
+      if (texte.indexOf('@') !== -1) c.mail = texte; else c.telephone = texte;
+      return c;
+    }
+
+    function vueConversation(corps) {
+      if (conv.mode === 'ecrit') {
+        corps.appendChild(el('p', { 'data-zone': 'microRefuse', class: 'mk-erreur', texte: textes.erreur_micro }));
+        var fil = el('div', { class: 'mk-fil', role: 'log', 'aria-live': 'polite', 'data-fil': '1' });
+        corps.appendChild(fil);
+        conv.tours.forEach(function (t) { ajouterBulles(fil, t); });
+        if (conv.attente) fil.appendChild(bulle('…', 'agent'));
+        fil.scrollTop = fil.scrollHeight;
+      } else {
+        var c = el('div', { class: 'mk-centre', style: 'padding:8px 0' });
+        var o = nouvelleOrbe(170, { etat: apercu ? 'ecoute' : 'ecoute' });
+        conv.orbe = o;
+        c.appendChild(o.element);
+        c.appendChild(el('p', { class: 'mk-etat', 'data-etat': '1', texte: libelleEtat() }));
+        corps.appendChild(c);
+        if (conv.erreur) corps.appendChild(el('p', { class: 'mk-erreur', role: 'alert', texte: conv.erreur }));
+      }
+      var ligne = el('div', { class: 'mk-ligne' });
+      if (conv.mode !== 'ecrit') {
+        ligne.appendChild(el('button', {
+          type: 'button', class: 'mk-rond-btn', style: 'border:1px solid rgba(0,0,0,.12)',
+          'aria-label': conv.microCoupe ? FIXE.retablir_micro : FIXE.couper_micro, 'aria-pressed': conv.microCoupe ? 'true' : 'false',
+          onclick: function () { basculerMicro(); },
+        }, [icone(conv.microCoupe ? 'microCoupe' : 'micro')]));
+      }
+      ligne.appendChild(el('button', {
+        type: 'button', class: 'mk-rond-btn', 'data-zone': 'raccrocher', 'aria-label': textes.raccrocher, title: textes.raccrocher,
+        style: 'background:' + k.raccrocher + ';color:' + surFond(k.raccrocher), onclick: function () { raccrocher(); },
+      }, [icone('raccrocher')]));
+      corps.appendChild(ligne);
+      if (conv.mode === 'ecrit') {
+        var champ = el('input', { placeholder: textes.champ_saisie, 'aria-label': textes.champ_saisie, maxlength: '4000', autocomplete: 'off' });
+        var envoyer = el('button', {
+          type: 'button', 'data-zone': 'envoyer', 'aria-label': textes.envoyer, title: textes.envoyer,
+          style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+        }, [icone('envoi')]);
+        var soumettre = function () {
+          var t = champ.value.trim();
+          if (!t || conv.attente) return;
+          champ.value = '';
+          envoyerTexte(t);
+        };
+        envoyer.addEventListener('click', soumettre);
+        champ.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); soumettre(); } });
+        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieEcrite', style: 'background:' + k.champ_saisie + ';color:' + surFond(k.champ_saisie) }, [champ, envoyer]));
+      }
+    }
+
+    function libelleEtat() {
+      if (conv.microCoupe) return '';
+      return conv.phase === 'parole' ? textes.parle : conv.phase === 'reflexion' ? textes.reflexion : textes.ecoute;
+    }
+    function bulle(texte, qui) {
+      var agent = qui === 'agent';
+      var b = el('div', { style: 'display:flex;justify-content:' + (agent ? 'flex-start' : 'flex-end') }, [
+        el('p', {
+          class: 'mk-bulle', 'data-zone': agent ? 'bulleAgent' : 'bulleVisiteur', texte: texte,
+          style: agent ? 'background:rgba(0,0,0,.06);color:' + ap.texte_fenetre : 'background:' + k.bulles_ecrit + ';color:' + surFond(k.bulles_ecrit),
+        }),
+      ]);
+      return b;
+    }
+    function ajouterBulles(fil, tour) {
+      if (tour.user_message && tour.user_message.text) fil.appendChild(bulle(tour.user_message.text, 'visiteur'));
+      if (tour.assistant_message && tour.assistant_message.text) fil.appendChild(bulle(tour.assistant_message.text, 'agent'));
+    }
+
+    function vueAvis(corps) {
+      var tete = el('div', { class: 'mk-centre', style: 'gap:8px' });
+      tete.appendChild(el('p', { 'data-zone': 'avisQuestion', style: 'font-weight:600', texte: textes.avis_question }));
+      var etoiles = el('div', { class: 'mk-etoiles', role: 'group', 'aria-label': textes.avis_question, 'data-zone': 'etoiles' });
+      for (var n = 1; n <= 5; n += 1) {
+        (function (n2) {
+          var plein = n2 <= avis.etoiles;
+          var b = el('button', {
+            type: 'button', 'aria-label': FIXE.etoile(n2), 'aria-pressed': avis.etoiles === n2 ? 'true' : 'false',
+            style: 'color:' + (plein ? k.etoiles : '#d4d4d8'),
+            onclick: function () { avis.etoiles = n2; dessiner(); },
+          }, [icone('etoile', plein ? k.etoiles : 'none')]);
+          etoiles.appendChild(b);
+        })(n);
+      }
+      tete.appendChild(etoiles);
+      corps.appendChild(tete);
+
+      if (avis.etoiles > 0) {
+        var decu = avis.etoiles <= 3;
+        var choixObtenu = el('div', { class: 'mk-puces' });
+        FIXE.obtenus.forEach(function (o) { choixObtenu.appendChild(puce(o[1], avis.obtenu === o[0], function () { avis.obtenu = o[0]; dessiner(); })); });
+        corps.appendChild(el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, [
+          el('p', { class: 'mk-petit', texte: FIXE.obtenu_question }), choixObtenu,
+        ]));
+        var puces = el('div', { class: 'mk-puces' });
+        (decu ? FIXE.raisons_decu : FIXE.raisons_content).forEach(function (r) {
+          puces.appendChild(puce(r, avis.raisons.indexOf(r) !== -1, function () {
+            avis.raisons = avis.raisons.indexOf(r) !== -1 ? avis.raisons.filter(function (x) { return x !== r; }) : avis.raisons.concat([r]);
+            dessiner();
+          }));
+        });
+        corps.appendChild(el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, [
+          el('p', { class: 'mk-petit', texte: decu ? FIXE.raisons_question_decu : FIXE.raisons_question_content }), puces,
+        ]));
+        var caseAvis = el('input', { type: 'checkbox' });
+        caseAvis.checked = decu ? avis.rappel : avis.publication;
+        caseAvis.addEventListener('change', function () {
+          if (decu) avis.rappel = caseAvis.checked; else avis.publication = caseAvis.checked;
+          dessiner();
+        });
+        corps.appendChild(el('label', { class: 'mk-case', 'data-zone': decu ? 'caseRappel' : 'casePublication' }, [
+          caseAvis, el('span', { texte: decu ? FIXE.case_rappel : FIXE.case_publication }),
+        ]));
+        if (decu && avis.rappel) {
+          var nom = el('input', { class: 'mk-saisie', placeholder: FIXE.nom, 'aria-label': FIXE.nom, value: avis.nom, autocomplete: 'name', maxlength: '200' });
+          var coord = el('input', { class: 'mk-saisie', placeholder: FIXE.contact, 'aria-label': FIXE.contact, value: avis.contact, autocomplete: 'email', maxlength: '254' });
+          nom.addEventListener('input', function () { avis.nom = nom.value; });
+          coord.addEventListener('input', function () { avis.contact = coord.value; });
+          corps.appendChild(nom);
+          corps.appendChild(coord);
+        }
+        var commentaire = el('textarea', {
+          rows: '2', class: 'mk-saisie', style: 'height:auto;padding:8px 12px;resize:none', placeholder: FIXE.commentaire,
+          'aria-label': FIXE.commentaire, maxlength: '2000',
+        });
+        commentaire.value = avis.commentaire;
+        commentaire.addEventListener('input', function () { avis.commentaire = commentaire.value; });
+        corps.appendChild(commentaire);
+      }
+      var erreur = el('p', { class: 'mk-erreur', role: 'alert', style: 'display:none' });
+      corps.appendChild(erreur);
+      var ligne = el('div', { class: 'mk-ligne' });
+      ligne.appendChild(el('button', {
+        type: 'button', 'data-zone': 'avisPasser', texte: textes.fermer, style: 'height:44px;padding:0 16px;opacity:.7',
+        onclick: function () { etat = 'merci'; dessiner(); },
+      }));
+      var envoyer = bouton(textes.avis_envoyer, 'avisEnvoyer', function () {
+        var contact = avis.rappel ? contactDe(avis.nom, avis.contact) : null;
+        if (avis.rappel && !contact) { erreur.textContent = FIXE.contact; erreur.style.display = ''; return; }
+        envoyer.disabled = true;
+        envoyerAvis(contact).then(function (ok) {
+          if (ok) { etat = 'merci'; dessiner(); } else { erreur.textContent = FIXE.indisponible; erreur.style.display = ''; envoyer.disabled = false; }
+        });
+      });
+      envoyer.style.margin = '0';
+      envoyer.disabled = avis.etoiles === 0;
+      ligne.appendChild(envoyer);
+      corps.appendChild(ligne);
+    }
+    function puce(texte, actif, onclick) {
+      return el('button', {
+        type: 'button', class: 'mk-puce', 'data-zone': 'choix', texte: texte, 'aria-pressed': actif ? 'true' : 'false', onclick: onclick,
+        style: actif ? 'background:' + k.reponses_choisies + ';color:' + surFond(k.reponses_choisies) + ';border-color:' + k.reponses_choisies : '',
+      });
+    }
+
+    function vueMerci(corps) {
+      corps.appendChild(el('div', { class: 'mk-centre', style: 'padding:8px 0' }, [
+        el('span', {
+          'data-zone': 'merciIcone', style: 'width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + k.boutons + ';color:' + surFond(k.boutons),
+        }, [icone('valide')]),
+        el('p', { 'data-zone': 'merci', style: 'font-weight:600;font-size:18px', texte: textes.merci }),
+      ]));
+      corps.appendChild(el('button', {
+        type: 'button', 'data-zone': 'fermer', class: 'mk-btn', texte: textes.fermer, onclick: fermer,
+        style: 'border:1px solid rgba(0,0,0,.12)',
+      }));
+      annoncer(textes.merci);
+    }
+
+    // ----------------------------------------------------------------- les gestes
+    function ouvrir() {
+      if (ouvert && etat !== 'repos' && etat !== 'accroche') return;
+      ouvert = true;
+      etat = 'information';
+      evenement('ouvert');
+      dessiner();
+    }
+    function fermer() {
+      if (conv.mode && !conv.termine) arreterTout();
+      ouvert = false;
+      accrocheFermee = true;
+      etat = 'repos';
+      conv.mode = null; conv.termine = false; conv.sessionToken = null; conv.erreur = null; conv.tours = [];
+      avis = { etoiles: 0, obtenu: null, raisons: [], rappel: false, publication: false, commentaire: '', nom: '', contact: '' };
+      dessiner();
+      var rond = scene.querySelector('[data-zone="rond"]');
+      if (rond && rond.focus) try { rond.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+
+    function messageDeRefus(reponse, detail) {
+      var code = detail && detail.code;
+      return code || (reponse && reponse.status);
+    }
+
+    /** Ouvre la session : voix (micro accordé) ou écrit (secours). Rend 'ok' | 'plafond' | 'erreur'. */
+    async function ouvrirSession(mode) {
+      var corps = { token: api.token, context_variables: api.contexte || {} };
+      if (mode === 'ecrit') corps.mode = 'ecrit';
+      var reponse;
+      try {
+        reponse = await http('POST', '/init', corps);
+      } catch (e) {
+        return 'erreur';
+      }
+      if (!reponse.ok) {
+        var detail = null;
+        try { detail = (await reponse.json()).detail; } catch (e) { detail = null; }
+        var code = detail && typeof detail === 'object' ? detail.code : null;
+        if (code === 'monthly_cap_reached' || code === 'address_rate_limited') return 'plafond';
+        return 'erreur';
+      }
+      var d = await reponse.json();
+      conv.sessionToken = d.session_token;
+      conv.workflowRunId = d.workflow_run_id;
+      conv.workflowId = d.config && d.config.workflow_id;
+      conv.mode = d.widget_type === 'chat' ? 'ecrit' : 'voix';
+      if (d.chat_session) {
+        conv.revision = d.chat_session.revision;
+        conv.tours = d.chat_session.turns || [];
+      }
+      return 'ok';
+    }
+
+    async function demarrer() {
+      conv.erreur = null;
+      conv.termine = false;
+      var micro = null;
+      var microOk = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof RTCPeerConnection !== 'undefined');
+      if (microOk) {
+        try {
+          micro = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          micro = null;
         }
       }
-
-      .dograh-chat-panel--inline {
-        position: static;
-        width: 100%;
-        height: 100%;
-        min-height: 320px;
-        box-shadow: none;
-        border: 1px solid #e5e7eb;
+      if (!micro) return demarrerALEcrit();
+      conv.stream = micro;
+      var r = await ouvrirSession('voix');
+      if (r === 'plafond') { arreterMicro(); etat = 'plafond'; dessiner(); return; }
+      if (r !== 'ok') { arreterMicro(); conv.erreur = FIXE.indisponible; dessiner(); return; }
+      if (conv.mode === 'ecrit') { arreterMicro(); etat = 'conversation'; dessiner(); return; }
+      etat = 'conversation';
+      conv.phase = 'ecoute';
+      dessiner();
+      try {
+        await connecterVoix();
+      } catch (e) {
+        // Voix impossible (réseau, ICE, signalisation) : l'écrit avec le même agent, une nouvelle session.
+        arreterTout(true);
+        return demarrerALEcrit();
       }
-
-      .dograh-chat-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        color: #ffffff;
-        font-size: 14px;
-        font-weight: 600;
-        flex: 0 0 auto;
-      }
-
-      .dograh-chat-header-title {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .dograh-chat-header-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-left: 12px;
-      }
-
-      .dograh-chat-end {
-        display: none;
-        border: 1px solid rgba(255, 255, 255, 0.55);
-        border-radius: 6px;
-        background: rgba(0, 0, 0, 0.12);
-        color: #ffffff;
-        font: inherit;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1;
-        cursor: pointer;
-        padding: 6px 8px;
-        white-space: nowrap;
-      }
-      .dograh-chat-end:hover { background: rgba(0, 0, 0, 0.22); }
-      .dograh-chat-end:disabled { cursor: default; opacity: 0.55; }
-
-      .dograh-chat-end-confirmation {
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 8px 12px;
-        color: #7f1d1d;
-        background: #fef2f2;
-        border-bottom: 1px solid #fecaca;
-        font-size: 12px;
-        font-weight: 500;
-        flex: 0 0 auto;
-      }
-      .dograh-chat-end-confirm-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        flex: 0 0 auto;
-      }
-      .dograh-chat-end-confirm-cancel,
-      .dograh-chat-end-confirm-submit {
-        border-radius: 6px;
-        font: inherit;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1;
-        cursor: pointer;
-        padding: 6px 8px;
-        white-space: nowrap;
-      }
-      .dograh-chat-end-confirm-cancel {
-        border: 1px solid #d1d5db;
-        background: #ffffff;
-        color: #374151;
-      }
-      .dograh-chat-end-confirm-cancel:hover { background: #f9fafb; }
-      .dograh-chat-end-confirm-submit {
-        border: 1px solid #dc2626;
-        background: #dc2626;
-        color: #ffffff;
-      }
-      .dograh-chat-end-confirm-submit:hover {
-        border-color: #b91c1c;
-        background: #b91c1c;
-        color: #ffffff;
-      }
-
-      .dograh-chat-close {
-        background: none;
-        border: none;
-        color: #ffffff;
-        font-size: 20px;
-        line-height: 1;
-        cursor: pointer;
-        padding: 0 2px;
-        opacity: 0.85;
-      }
-      .dograh-chat-close:hover { opacity: 1; }
-
-      .dograh-chat-messages {
-        flex: 1 1 auto;
-        overflow-y: auto;
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        background: #f9fafb;
-      }
-
-      .dograh-chat-bubble {
-        max-width: 80%;
-        padding: 8px 12px;
-        border-radius: 12px;
-        font-size: 14px;
-        line-height: 1.45;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      .dograh-chat-bubble--user {
-        align-self: flex-end;
-        color: #ffffff;
-        border-bottom-right-radius: 4px;
-      }
-      .dograh-chat-bubble--assistant {
-        align-self: flex-start;
-        background: #e5e7eb;
-        color: #111827;
-        border-bottom-left-radius: 4px;
-      }
-      .dograh-chat-bubble--failed { opacity: 0.55; }
-
-      .dograh-chat-typing {
-        align-self: flex-start;
-        display: inline-flex;
-        gap: 4px;
-        padding: 10px 14px;
-        background: #e5e7eb;
-        border-radius: 12px;
-        border-bottom-left-radius: 4px;
-      }
-      .dograh-chat-typing span {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #6b7280;
-        animation: dograh-typing 1.2s infinite;
-      }
-      .dograh-chat-typing span:nth-child(2) { animation-delay: 0.15s; }
-      .dograh-chat-typing span:nth-child(3) { animation-delay: 0.3s; }
-
-      @keyframes dograh-typing {
-        0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
-        30% { opacity: 1; transform: translateY(-3px); }
-      }
-
-      .dograh-chat-banner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 8px 12px;
-        font-size: 12px;
-        color: #991b1b;
-        background: #fef2f2;
-        border-top: 1px solid #fecaca;
-        flex: 0 0 auto;
-      }
-      .dograh-chat-banner--info {
-        color: #374151;
-        background: #f3f4f6;
-        border-top: 1px solid #e5e7eb;
-      }
-      .dograh-chat-restart {
-        border: none;
-        background: none;
-        color: #1d4ed8;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        padding: 0;
-        white-space: nowrap;
-      }
-
-      .dograh-chat-composer {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        padding: 10px 12px;
-        border-top: 1px solid #e5e7eb;
-        background: #ffffff;
-        flex: 0 0 auto;
-      }
-      /* The input and the send button must be the same height at rest, so pin
-         every box metric the host page could otherwise decide for us:
-         box-sizing (a host content-box reset inflates the textarea) and
-         line-height (font: inherit picks up the host's, which is what makes
-         the two sides disagree). 20 + 8*2 padding + 1*2 border = 38, the
-         shared height below. */
-      .dograh-chat-input {
-        flex: 1;
-        box-sizing: border-box;
-        resize: none;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        padding: 8px 10px;
-        font: inherit;
-        font-size: 14px;
-        line-height: 20px;
-        min-height: 38px;
-        max-height: 96px;
-        outline: none;
-        background: #ffffff;
-        color: #111827;
-      }
-      .dograh-chat-input:focus { border-color: #9ca3af; }
-      .dograh-chat-input:disabled { background: #f9fafb; color: #9ca3af; }
-      .dograh-chat-send {
-        box-sizing: border-box;
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        border: none;
-        border-radius: 8px;
-        color: #ffffff;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-      }
-      .dograh-chat-send svg {
-        display: block;
-        width: 16px;
-        height: 16px;
-        flex: 0 0 auto;
-      }
-      .dograh-chat-send:disabled { opacity: 0.5; cursor: default; }
-
-      .dograh-chat-inline-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 420px;
-      }
-      .dograh-chat-inline-cta {
-        text-align: center;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      }
-      .dograh-chat-inline-icon { color: #9ca3af; margin-bottom: 16px; }
-      .dograh-chat-inline-icon svg { width: 56px; height: 56px; }
-      .dograh-chat-inline-subtext {
-        font-size: 14px;
-        color: #6b7280;
-        margin: 0 0 20px;
-      }
-      .dograh-chat-inline-start {
-        padding: 12px 32px;
-        border-radius: 8px;
-        border: none;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      }
-      .dograh-chat-inline-start:hover { filter: brightness(1.08); }
-
-      /* A host page's own button:hover rule out-specifies the colors set above
-         and can repaint a label to match its background, hiding it. Pin every
-         button color we own against that. */
-      .dograh-chat-end:hover,
-      .dograh-chat-close:hover,
-      .dograh-chat-send:hover,
-      .dograh-chat-inline-start:hover { color: #ffffff !important; }
-      .dograh-chat-end-confirm-cancel:hover { color: #374151 !important; }
-      .dograh-chat-restart:hover { color: #1d4ed8 !important; }
-    `;
-
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'dograh-chat-styles';
-    styleSheet.textContent = styles;
-    document.head.appendChild(styleSheet);
-  }
-
-  /**
-   * Build the chat panel skeleton once; renders update its parts in place so
-   * the composer keeps focus while typing.
-   */
-  function buildChatPanel(options) {
-    const withClose = Boolean(options && options.withClose);
-
-    const panel = document.createElement('div');
-    panel.className = 'dograh-chat-panel';
-
-    const header = document.createElement('div');
-    header.className = 'dograh-chat-header';
-    header.style.backgroundColor = state.config.buttonColor;
-    const title = document.createElement('span');
-    title.className = 'dograh-chat-header-title';
-    title.textContent = state.config.buttonText || 'Chat with Agent';
-    header.appendChild(title);
-
-    const headerActions = document.createElement('div');
-    headerActions.className = 'dograh-chat-header-actions';
-
-    const endBtn = document.createElement('button');
-    endBtn.className = 'dograh-chat-end';
-    endBtn.type = 'button';
-    endBtn.textContent = widgetText('endChatText');
-    endBtn.setAttribute('aria-controls', 'dograh-chat-end-confirmation');
-    endBtn.setAttribute('aria-expanded', 'false');
-    endBtn.onclick = () => {
-      state.chat.confirmingEnd = true;
-      renderChat();
-      if (state.chatEls) state.chatEls.confirmEndBtn.focus();
-    };
-    headerActions.appendChild(endBtn);
-
-    if (withClose) {
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'dograh-chat-close';
-      closeBtn.type = 'button';
-      closeBtn.setAttribute('aria-label', widgetText('closeChatLabel'));
-      closeBtn.textContent = '×';
-      closeBtn.onclick = closeChatPanel;
-      headerActions.appendChild(closeBtn);
-    }
-    header.appendChild(headerActions);
-    panel.appendChild(header);
-
-    const endConfirmation = document.createElement('div');
-    endConfirmation.id = 'dograh-chat-end-confirmation';
-    endConfirmation.className = 'dograh-chat-end-confirmation';
-    endConfirmation.setAttribute('role', 'group');
-    endConfirmation.setAttribute('aria-label', 'Confirm ending chat');
-
-    const endConfirmationText = document.createElement('span');
-    endConfirmationText.textContent = widgetText('endChatConfirmText');
-    endConfirmation.appendChild(endConfirmationText);
-
-    const endConfirmActions = document.createElement('div');
-    endConfirmActions.className = 'dograh-chat-end-confirm-actions';
-
-    const cancelEndBtn = document.createElement('button');
-    cancelEndBtn.className = 'dograh-chat-end-confirm-cancel';
-    cancelEndBtn.type = 'button';
-    cancelEndBtn.textContent = widgetText('endChatCancelText');
-    cancelEndBtn.onclick = () => {
-      state.chat.confirmingEnd = false;
-      renderChat();
-      if (state.chatEls && state.chat.panelOpen && state.chat.status === 'ready') {
-        state.chatEls.input.focus();
-      }
-    };
-    endConfirmActions.appendChild(cancelEndBtn);
-
-    const confirmEndBtn = document.createElement('button');
-    confirmEndBtn.className = 'dograh-chat-end-confirm-submit';
-    confirmEndBtn.type = 'button';
-    confirmEndBtn.textContent = widgetText('endChatText');
-    confirmEndBtn.onclick = () => {
-      state.chat.confirmingEnd = false;
-      endChatSession();
-    };
-    endConfirmActions.appendChild(confirmEndBtn);
-    endConfirmation.appendChild(endConfirmActions);
-    panel.appendChild(endConfirmation);
-
-    const messages = document.createElement('div');
-    messages.className = 'dograh-chat-messages';
-    panel.appendChild(messages);
-
-    const banner = document.createElement('div');
-    banner.className = 'dograh-chat-banner';
-    banner.style.display = 'none';
-    panel.appendChild(banner);
-
-    const composer = document.createElement('div');
-    composer.className = 'dograh-chat-composer';
-    const input = document.createElement('textarea');
-    input.className = 'dograh-chat-input';
-    input.rows = 1;
-    input.placeholder = widgetText('chatInputPlaceholder');
-    input.oninput = () => {
-      state.chat.draft = input.value;
-      autoGrowChatInput(input);
-    };
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        submitChatComposer();
-      }
-    };
-    const sendBtn = document.createElement('button');
-    sendBtn.className = 'dograh-chat-send';
-    sendBtn.type = 'button';
-    sendBtn.style.backgroundColor = state.config.buttonColor;
-    sendBtn.setAttribute('aria-label', widgetText('sendMessageLabel'));
-    sendBtn.innerHTML = SEND_ICON_SVG; // static markup, never user data
-    sendBtn.onclick = submitChatComposer;
-    composer.appendChild(input);
-    composer.appendChild(sendBtn);
-    panel.appendChild(composer);
-
-    state.chatEls = {
-      panel,
-      messages,
-      banner,
-      input,
-      sendBtn,
-      endBtn,
-      endConfirmation,
-      confirmEndBtn
-    };
-    return panel;
-  }
-
-  function autoGrowChatInput(input) {
-    // scrollHeight covers content + padding but not borders, and the input is
-    // border-box — without adding them back the first keystroke shrinks the
-    // box by 2px and clips the text.
-    const BORDER_Y = 2; // 1px top + 1px bottom, matches .dograh-chat-input
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight + BORDER_Y, 96) + 'px';
-  }
-
-  /**
-   * Create floating chat widget — CTA pill toggling an anchored chat panel.
-   */
-  function createFloatingChatWidget() {
-    const container = document.createElement('div');
-    container.className = `dograh-widget-container ${state.config.position}`;
-    container.id = 'dograh-widget-root';
-    document.body.appendChild(container);
-
-    const panel = buildChatPanel({ withClose: true });
-    panel.style.display = 'none';
-    container.appendChild(panel);
-
-    const button = document.createElement('button');
-    button.id = 'dograh-widget-cta';
-    button.type = 'button';
-    button.className = 'dograh-widget-cta';
-    button.style.backgroundColor = state.config.buttonColor;
-    button.innerHTML = `${CHAT_ICON_SVG}<span></span>`;
-    button.querySelector('span').textContent = state.config.buttonText || 'Chat with Agent';
-    button.onclick = toggleChatPanel;
-    container.appendChild(button);
-  }
-
-  /**
-   * Create inline chat widget — pre-chat CTA screen in the host container; the
-   * CTA, autoStart, and public API all open the same panel/session lifecycle.
-   */
-  function createInlineChatWidget() {
-    const container = document.getElementById(state.config.containerId);
-    if (!container) {
-      console.error(`Dograh Widget: Container element with id "${state.config.containerId}" not found`);
-      if (state.callbacks.onError) {
-        state.callbacks.onError(new Error('Container element not found'));
-      }
-      return;
     }
 
-    container.innerHTML = '';
-    container.className = 'dograh-chat-inline-container';
+    async function demarrerALEcrit() {
+      var r = await ouvrirSession('ecrit');
+      if (r === 'plafond') { etat = 'plafond'; dessiner(); return; }
+      if (r !== 'ok') { conv.erreur = FIXE.indisponible; etat = 'information'; dessiner(); return; }
+      conv.mode = 'ecrit';
+      etat = 'conversation';
+      dessiner();
+    }
 
-    const cta = document.createElement('div');
-    cta.className = 'dograh-chat-inline-cta';
+    // ----------------------------------------------------------------- voix (WebRTC)
+    function arreterMicro() {
+      if (conv.stream) { conv.stream.getTracks().forEach(function (t) { t.stop(); }); conv.stream = null; }
+    }
+    function arreterAnalyse() {
+      if (analyse) {
+        if (analyse.image) cancelAnimationFrame(analyse.image);
+        try { analyse.ctx.close(); } catch (e) { /* ignore */ }
+        analyse = null;
+      }
+    }
+    function arreterTout(silencieux) {
+      conv.termine = true;
+      arreterAnalyse();
+      if (conv.ws) { var w = conv.ws; conv.ws = null; try { w.close(); } catch (e) { /* ignore */ } }
+      if (conv.pc) { var p = conv.pc; conv.pc = null; try { p.close(); } catch (e) { /* ignore */ } }
+      arreterMicro();
+      audio.srcObject = null;
+      if (!silencieux) annoncer('');
+    }
 
-    const icon = document.createElement('div');
-    icon.className = 'dograh-chat-inline-icon';
-    icon.innerHTML = CHAT_ICON_SVG; // static markup
-    cta.appendChild(icon);
+    async function turnCredentials() {
+      if (api.turnActif === false || !conv.sessionToken) return null;
+      try {
+        var r = await http('GET', '/turn-credentials/' + conv.sessionToken);
+        return r.ok ? await r.json() : null;
+      } catch (e) {
+        return null;
+      }
+    }
 
-    const subtext = document.createElement('p');
-    subtext.className = 'dograh-chat-inline-subtext';
-    subtext.textContent = state.config.callToActionText || 'Click to start chatting';
-    cta.appendChild(subtext);
+    async function connecterVoix() {
+      var creds = await turnCredentials();
+      var serveurs = [];
+      if (creds && creds.uris && creds.uris.length) {
+        serveurs.push({ urls: creds.uris, username: creds.username, credential: creds.password });
+      } else if (!api.relaisForce) {
+        // Sans serveur TURN chez nous, le serveur STUN public de Google, comme le script historique.
+        serveurs.push({ urls: ['stun:stun.l.google.com:19302'] });
+      }
+      var config = { iceServers: serveurs };
+      if (api.relaisForce) config.iceTransportPolicy = 'relay';
+      var pc = new RTCPeerConnection(config);
+      conv.pc = pc;
+      conv.stream.getTracks().forEach(function (t) { pc.addTrack(t, conv.stream); });
+      pc.ontrack = function (ev) {
+        if (ev.track.kind === 'audio') { audio.srcObject = ev.streams[0]; demarrerAnalyse(ev.streams[0]); }
+      };
+      var pcId = 'PC-' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      conv.pcId = pcId;
+      var verdict = new Promise(function (resolve, reject) {
+        pc.onconnectionstatechange = function () {
+          if (pc.connectionState === 'connected') { conv.aMonte = true; resolve(); }
+          if (pc.connectionState === 'failed' && !conv.aMonte) reject(new Error('ice'));
+          if ((pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') && conv.aMonte && !conv.termine) {
+            terminerLaConversation();
+          }
+        };
+        temporiser(function () { if (!conv.aMonte) reject(new Error('delai')); }, 20000);
+      });
+      pc.onicecandidate = function (ev) {
+        if (conv.ws && conv.ws.readyState === 1) {
+          conv.ws.send(JSON.stringify({
+            type: 'ice-candidate',
+            payload: {
+              candidate: ev.candidate ? { candidate: ev.candidate.candidate, sdpMid: ev.candidate.sdpMid, sdpMLineIndex: ev.candidate.sdpMLineIndex } : null,
+              pc_id: pcId,
+            },
+          }));
+        }
+      };
+      await new Promise(function (resolve, reject) {
+        var url = api.base.replace(/^http/, 'ws') + '/api/v1/ws/public/signaling/' + conv.sessionToken;
+        var ws = new WebSocket(url);
+        conv.ws = ws;
+        ws.onopen = function () { resolve(); };
+        ws.onerror = function () { reject(new Error('ws')); };
+        ws.onclose = function (ev) {
+          conv.ws = null;
+          if (ev && ev.reason === 'call ended') terminerLaConversation();
+        };
+        ws.onmessage = async function (ev) {
+          try {
+            var m = JSON.parse(ev.data);
+            if (m.type === 'answer') await pc.setRemoteDescription({ type: 'answer', sdp: m.payload.sdp });
+            else if (m.type === 'ice-candidate' && m.payload.candidate) {
+              await pc.addIceCandidate({ candidate: m.payload.candidate.candidate, sdpMid: m.payload.candidate.sdpMid, sdpMLineIndex: m.payload.candidate.sdpMLineIndex });
+            } else if (m.type === 'call-ended') terminerLaConversation();
+          } catch (e) { /* un message illisible ne coupe pas la conversation */ }
+        };
+      });
+      var offre = await pc.createOffer();
+      await pc.setLocalDescription(offre);
+      conv.ws.send(JSON.stringify({
+        type: 'offer',
+        payload: { sdp: offre.sdp, type: 'offer', pc_id: pcId, workflow_id: parseInt(conv.workflowId, 10), workflow_run_id: parseInt(conv.workflowRunId, 10) },
+      }));
+      await verdict;
+    }
 
-    const startBtn = document.createElement('button');
-    startBtn.className = 'dograh-chat-inline-start';
-    startBtn.type = 'button';
-    startBtn.style.backgroundColor = state.config.buttonColor;
-    startBtn.textContent = state.config.buttonText || 'Chat with Agent';
-    startBtn.onclick = () => startChat();
-    cta.appendChild(startBtn);
+    /** L'orbe suit le son : la voix de l'agent (flux distant) et la parole du visiteur (micro). */
+    function demarrerAnalyse(flux) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC || analyse) return;
+      try {
+        var ctx = new AC();
+        var dist = ctx.createAnalyser(); dist.fftSize = 256;
+        ctx.createMediaStreamSource(flux).connect(dist);
+        var loc = null;
+        if (conv.stream) { loc = ctx.createAnalyser(); loc.fftSize = 256; ctx.createMediaStreamSource(conv.stream).connect(loc); }
+        var tampon = new Uint8Array(128);
+        var derniereParole = 0;
+        analyse = { ctx: ctx, image: 0 };
+        var niveau = function (a) {
+          a.getByteTimeDomainData(tampon);
+          var s = 0;
+          for (var i = 0; i < tampon.length; i += 1) { var v = (tampon[i] - 128) / 128; s += v * v; }
+          return Math.sqrt(s / tampon.length);
+        };
+        var boucle = function () {
+          if (!analyse) return;
+          var vd = niveau(dist);
+          var vl = loc && !conv.microCoupe ? niveau(loc) : 0;
+          var maintenant = Date.now();
+          if (vl > 0.04) derniereParole = maintenant;
+          var phase = vd > 0.02 ? 'parole' : (maintenant - derniereParole < 4000 && derniereParole ? 'reflexion' : 'ecoute');
+          if (conv.orbe) { conv.orbe.setEtat(phase); conv.orbe.setVolume(Math.min(1, vd * 6)); }
+          if (phase !== conv.phase) {
+            conv.phase = phase;
+            var t = scene.querySelector('[data-etat]');
+            if (t) t.textContent = libelleEtat();
+          }
+          analyse.image = requestAnimationFrame(boucle);
+        };
+        analyse.image = requestAnimationFrame(boucle);
+      } catch (e) { analyse = null; }
+    }
 
-    container.appendChild(cta);
-    state.isOpen = true;
-  }
+    function basculerMicro() {
+      conv.microCoupe = !conv.microCoupe;
+      if (conv.stream) conv.stream.getAudioTracks().forEach(function (t) { t.enabled = !conv.microCoupe; });
+      dessiner();
+    }
 
-  /**
-   * Replace the inline CTA with the chat panel. Keeping this in the shared
-   * startChat path ensures autoStart and the public API never create a hidden
-   * session behind the CTA.
-   */
-  function openInlineChatPanel() {
-    const container = document.getElementById(state.config.containerId);
-    if (!container) {
-      console.error(`Dograh Widget: Container element with id "${state.config.containerId}" not found`);
+    function terminerLaConversation() {
+      if (conv.termine) return;
+      arreterTout(true);
+      if (etat === 'conversation') { etat = ap.avis === false ? 'merci' : 'avis'; dessiner(); }
+    }
+
+    async function raccrocher() {
+      if (apercu) { etat = ap.avis === false ? 'merci' : 'avis'; dessiner(); return; }
+      var ecrit = conv.mode === 'ecrit';
+      if (ecrit && conv.sessionToken && !conv.termine) {
+        try {
+          var r = await http('POST', '/chat/' + conv.sessionToken + '/end', { expected_revision: conv.revision });
+          if (r.ok) { var d = await r.json(); conv.revision = d.revision; }
+        } catch (e) { /* la conversation se ferme côté serveur à son expiration */ }
+      }
+      conv.termine = true;
+      arreterTout(true);
+      etat = ap.avis === false ? 'merci' : 'avis';
+      dessiner();
+    }
+
+    // ----------------------------------------------------------------- écrit
+    async function envoyerTexte(texte) {
+      conv.attente = true;
+      conv.tours = conv.tours.concat([{ id: 'local', status: 'pending', user_message: { text: texte } }]);
+      dessiner();
+      try {
+        var r = await http('POST', '/chat/' + conv.sessionToken + '/messages', { text: texte, expected_revision: conv.revision });
+        if (r.ok) {
+          var d = await r.json();
+          conv.revision = d.revision;
+          conv.tours = d.turns || conv.tours;
+        } else {
+          conv.erreur = FIXE.indisponible;
+        }
+      } catch (e) {
+        conv.erreur = FIXE.indisponible;
+      }
+      conv.attente = false;
+      dessiner();
+      var champ = scene.querySelector('.mk-champ input');
+      if (champ && champ.focus) champ.focus();
+    }
+
+    // ----------------------------------------------------------------- avis, rappel
+    async function envoyerAvis(contact) {
+      if (apercu) return true;
+      if (!conv.sessionToken) return true; // aucune conversation à noter
+      var corps = {
+        etoiles: avis.etoiles, raisons: avis.raisons,
+        rappel_demande: !!(avis.rappel && contact), publication_acceptee: avis.etoiles > 3 && avis.publication,
+      };
+      if (avis.obtenu) corps.obtenu = avis.obtenu;
+      if (avis.commentaire.trim()) corps.commentaire = avis.commentaire.trim();
+      if (contact) corps.contact = contact;
+      // La conversation se termine côté serveur quelques instants après le raccroché : on réessaie.
+      for (var essai = 0; essai < 6; essai += 1) {
+        try {
+          var r = await http('POST', '/avis/' + conv.sessionToken, corps);
+          if (r.ok) return true;
+          var detail = null;
+          try { detail = (await r.json()).detail; } catch (e) { detail = null; }
+          var code = detail && detail.code;
+          if (code === 'review_already_given') return true;
+          if (code !== 'conversation_not_finished') return false;
+        } catch (e) {
+          return false;
+        }
+        await new Promise(function (ok) { temporiser(ok, 1500); });
+      }
       return false;
     }
-
-    const cta = container.querySelector('.dograh-chat-inline-cta');
-    if (cta) {
-      cta.remove();
+    async function envoyerRappel(contact) {
+      if (apercu) return true;
+      try {
+        var r = await http('POST', '/rappel/' + api.site, { chemin: api.chemin, contact: contact });
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
     }
 
-    if (!state.chatEls || !state.chatEls.panel || !container.contains(state.chatEls.panel)) {
-      const panel = buildChatPanel({ withClose: false });
-      panel.classList.add('dograh-chat-panel--inline');
-      container.appendChild(panel);
+    // ----------------------------------------------------------------- cycle de vie
+    function detruire() {
+      detruit = true;
+      arreterTout(true);
+      nettoyerOrbes();
+      minuteurs.forEach(clearTimeout);
+      if (hote.parentNode) hote.parentNode.removeChild(hote);
     }
 
-    return true;
+    function afficher() {
+      // Le déclenchement de l'accroche, réglé par le client : tout de suite (délai 0), après un délai, ou au survol.
+      dessiner();
+      if (apercu) return;
+      evenement('affiche');
+      if (ap.declenchement === 'delai') {
+        temporiser(function () {
+          if (!accrocheFermee && etat === 'repos' && !ouvert) { etat = 'accroche'; dessiner(); }
+        }, Math.max(0, ap.delai_s || 0) * 1000);
+      }
+    }
+    if (apercu) {
+      if (options.etat === 'plafond' || options.plafondAtteint) etat = 'plafond';
+      if (etat !== 'repos' && etat !== 'accroche') ouvert = true;
+      if (etat === 'conversation') conv.mode = options.microRefuse ? 'ecrit' : 'voix';
+    }
+    afficher();
+
+    return {
+      detruire: detruire,
+      element: hote,
+      racine: racine,
+      etat: function () { return etat; },
+      ouvrir: ouvrir,
+      fermer: fermer,
+      majApercu: function (opts) {
+        if (!apercu) return;
+        if (opts.apparence) { ap = opts.apparence; textes = ap.textes; }
+        if (opts.couleurs) k = opts.couleurs;
+        if (opts.etat) { etat = opts.etat; ouvert = ['repos', 'accroche'].indexOf(etat) === -1; }
+        if (typeof opts.etoiles === 'number') avis.etoiles = opts.etoiles;
+        if (opts.microRefuse !== undefined) conv.mode = opts.microRefuse ? 'ecrit' : 'voix';
+        scene.style.fontFamily = POLICES[ap.police] || POLICES.switzer;
+        scene.style.color = ap.texte_fenetre;
+        dessiner();
+      },
+    };
   }
 
-  function toggleChatPanel() {
-    if (state.chat.panelOpen) {
-      closeChatPanel();
-    } else {
-      startChat();
-    }
+  // ---------------------------------------------------------------------------------------------------------------
+  // Apparence par défaut (l'aperçu et les champs absents) : le bleu .mark
+  // ---------------------------------------------------------------------------------------------------------------
+  var TEXTES_DEFAUT = {
+    accroche: 'Une question ?\nParlez-moi.', bouton_demarrer: 'Parler',
+    annonce_ia: 'Vous parlez à un assistant virtuel (intelligence artificielle).',
+    case_confidentialite: 'J’ai lu la politique de confidentialité.',
+    case_micro: 'J’accepte que ma voix soit transmise pour cette conversation.',
+    ecoute: 'Je vous écoute', reflexion: 'Je réfléchis', parle: 'Je vous réponds',
+    champ_saisie: 'Écrire un message', envoyer: 'Envoyer', raccrocher: 'Raccrocher', fermer: 'Fermer',
+    erreur_micro: 'Le micro n’est pas disponible. Vous pouvez m’écrire.',
+    avis_question: 'Cette conversation vous a-t-elle aidé ?', avis_envoyer: 'Envoyer mon avis', merci: 'Merci, à bientôt.',
+    plafond_message: 'Je ne suis pas disponible pour le moment. Laissez vos coordonnées, vous serez rappelé.',
+    plafond_bouton: 'Être rappelé',
+  };
+  function apparenceComplete(brute) {
+    var a = brute || {};
+    var textes = Object.assign({}, TEXTES_DEFAUT, a.textes || {});
+    return Object.assign({
+      couleur_base: COULEUR_MARK, fond_fenetre: '#ffffff', texte_fenetre: '#0f1c2e', police: 'switzer', embleme: 'orbe',
+      logo_url: null, orbe_animee: true, position: 'bas-droite', fenetre: 'ancree', declenchement: 'clic', delai_s: 0,
+      lien_confidentialite: null, avis: true,
+    }, a, { textes: textes });
+  }
+  function couleursCompletes(ap, brutes) {
+    var base = ap.couleur_base;
+    return Object.assign({
+      rond_accroche: base, fenetre: ap.fond_fenetre, orbe: base, boutons: base, raccrocher: base, champ_saisie: ap.fond_fenetre,
+      bulles_ecrit: base, etoiles: base, reponses_choisies: base, icones: base,
+    }, brutes || {});
   }
 
-  function closeChatPanel() {
-    state.chat.panelOpen = false;
-    state.chat.confirmingEnd = false;
-    if (state.chatEls && state.chatEls.panel) {
-      state.chatEls.panel.style.display = 'none';
-    }
+  // ---------------------------------------------------------------------------------------------------------------
+  // Démarrage sur une page du client
+  // ---------------------------------------------------------------------------------------------------------------
+  function baseDeLApi(p) {
+    var ep = p.apiEndpoint;
+    if (ep) return /^https?:\/\//.test(ep) ? ep.replace(/\/+$/, '') : 'https://' + ep.replace(/\/+$/, '');
+    if (p.url.origin.indexOf('localhost') !== -1) return 'http://localhost:8000';
+    return p.url.origin.replace(/:\d+$/, ':8000');
   }
-
-  /**
-   * Open the chat (public API). Shows the panel (if any) and starts the
-   * session on first open, including an open requested by autoStart.
-   */
-  async function startChat() {
-    if (!isChatWidget()) {
-      console.warn('Dograh Widget: startChat() called on a voice widget');
-      return;
-    }
-    if (state.config.embedMode === 'inline' && !openInlineChatPanel()) {
-      return;
-    }
-    state.chat.panelOpen = true;
-    if (state.chatEls && state.chatEls.panel) {
-      state.chatEls.panel.style.display = 'flex';
-    }
-    if (state.chat.status === 'idle' || state.chat.status === 'error') {
-      await startChatSession();
-    } else {
-      renderChat();
-    }
-  }
-
-  function resetChatSession() {
-    state.sessionToken = null;
-    state.workflowRunId = null;
-    state.chat.revision = null;
-    state.chat.turns = [];
-    state.chat.pendingUserText = null;
-    state.chat.ending = false;
-    state.chat.confirmingEnd = false;
-    state.chat.seenAssistantTurnIds = new Set();
-  }
-
-  async function startNewChatSession() {
-    resetChatSession();
-    await startChatSession();
-
-    if (state.chatEls && state.chat.panelOpen && state.chat.status === 'ready') {
-      state.chatEls.input.focus();
-    }
-  }
-
-  /**
-   * Initialize the embed session for chat. The server derives the run type
-   * from the token settings and returns the greeting transcript inline.
-   */
-  async function startChatSession() {
-    if (state.chat.status === 'starting') return;
-    updateChatStatus('starting');
-
+  function contexteDeLaPage(el2) {
+    var c = {
+      // Le chemin seulement : jamais les paramètres ni l'ancre (ils peuvent porter des identifiants).
+      page_url: location.origin + location.pathname,
+      page_title: String(document.title || '').slice(0, 200),
+      today: new Date().toISOString().slice(0, 10),
+      referrer: document.referrer ? (function () { try { return new URL(document.referrer).origin; } catch (e) { return ''; } })() : '',
+      langue: navigator.language || 'fr',
+    };
     try {
-      const response = await fetch(`${state.config.apiBaseUrl}/api/v1/public/embed/init`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({
-          token: state.config.token,
-          context_variables: state.config.contextVariables
-        })
+      var perso = el2 && el2.getAttribute && el2.getAttribute('data-dograh-context');
+      if (perso) Object.assign(c, JSON.parse(perso));
+    } catch (e) { /* un attribut mal écrit n'empêche pas le widget */ }
+    return c;
+  }
+
+  var instance = null;
+  async function demarrerSurLaPage(p, el2) {
+    var base = baseDeLApi(p);
+    var chemin = location.pathname || '/';
+    var reponse;
+    try {
+      reponse = await fetch(base + '/api/v1/public/embed/site/' + encodeURIComponent(p.site) + '/config?chemin=' + encodeURIComponent(chemin), {
+        method: 'GET', credentials: 'omit',
       });
-
-      if (!response.ok) {
-        if (response.status === 402) {
-          updateChatStatus('ended', 'The agent is unavailable right now.');
-          return;
-        }
-        throw new Error(`Failed to start chat: ${response.status}`);
-      }
-
-      const data = await response.json();
-      state.sessionToken = data.session_token;
-      state.workflowRunId = data.workflow_run_id;
-      const completed = applyChatSession(data.chat_session);
-      updateChatStatus(completed ? 'ended' : 'ready', completed ? widgetText('conversationEndedText') : null);
-    } catch (error) {
-      console.error('Dograh Widget: Failed to start chat', error);
-      updateChatStatus('error', 'Could not start the chat.');
-      if (state.callbacks.onError) {
-        state.callbacks.onError(error);
-      }
+    } catch (e) {
+      return; // le site du client reste intact : pas de widget
     }
-  }
-
-  /**
-   * Replace local transcript state from a server chat_session payload.
-   * Returns true when the conversation is completed server-side.
-   */
-  function applyChatSession(chatSession) {
-    if (!chatSession) return false;
-    state.chat.revision = chatSession.revision;
-    state.chat.turns = chatSession.turns || [];
-    state.chat.pendingUserText = null;
-    notifyNewAssistantMessages();
-    return Boolean(chatSession.is_completed);
-  }
-
-  function notifyNewAssistantMessages() {
-    state.chat.turns.forEach((turn) => {
-      if (turn.status !== 'completed' || !turn.assistant_message || !turn.assistant_message.text) return;
-      if (state.chat.seenAssistantTurnIds.has(turn.id)) return;
-      state.chat.seenAssistantTurnIds.add(turn.id);
-      if (state.callbacks.onMessage) {
-        state.callbacks.onMessage(turn.assistant_message.text, turn);
-      }
+    if (!reponse.ok) return;
+    var config = await reponse.json();
+    if (!config || config.actif === false) return; // aucune agent pour cette page
+    var ap = apparenceComplete(config.apparence);
+    var couleurs = couleursCompletes(ap, config.couleurs);
+    chargerLesPolices(p.url.origin);
+    instance = creerWidget({
+      apparence: ap, couleurs: couleurs,
+      api: {
+        base: base, site: p.site, token: config.token, chemin: chemin,
+        turnActif: config.turn_enabled, relaisForce: !!config.force_turn_relay, contexte: contexteDeLaPage(el2),
+      },
     });
   }
 
-  /**
-   * Send a visitor message. Resolves with the updated turns array, or null if
-   * the message could not be delivered.
-   */
-  async function sendChatMessage(text) {
-    const trimmed = (text || '').trim();
-    if (!trimmed) return null;
-    if (!isChatWidget()) {
-      console.warn('Dograh Widget: sendMessage() called on a voice widget');
-      return null;
-    }
-    if (!state.sessionToken || state.chat.status === 'ended' || state.chat.status === 'expired') {
-      console.warn('Dograh Widget: no active chat session');
-      return null;
-    }
-    if (state.chat.status === 'waiting' || state.chat.status === 'starting') {
-      return null; // one turn at a time; the composer is disabled anyway
-    }
-
-    state.chat.pendingUserText = trimmed;
-    updateChatStatus('waiting');
-
-    try {
-      const response = await fetch(
-        `${state.config.apiBaseUrl}/api/v1/public/embed/chat/${state.sessionToken}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin
-          },
-          body: JSON.stringify({ text: trimmed, expected_revision: state.chat.revision })
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const completed = applyChatSession(data);
-        updateChatStatus(completed ? 'ended' : 'ready', completed ? widgetText('conversationEndedText') : null);
-        return state.chat.turns;
-      }
-
-      state.chat.pendingUserText = null;
-
-      if (response.status === 409) {
-        // Someone else advanced the session (e.g. a second tab). Resync the
-        // transcript and hand the text back as a draft.
-        const resynced = await resyncChatSession();
-        if (!resynced && state.chat.status === 'expired') {
-          updateChatStatus('expired');
-          return null;
-        }
-        state.chat.draft = trimmed;
-        updateChatStatus('ready', 'Message not sent — please try again.');
-        return null;
-      }
-      if (response.status === 402) {
-        updateChatStatus('ended', 'The agent is unavailable right now.');
-        return null;
-      }
-      if (response.status === 429) {
-        updateChatStatus('ended', 'Message limit reached for this conversation.');
-        return null;
-      }
-      if (response.status === 403 || response.status === 404) {
-        // The 1-hour embed session expired (or the token was deactivated).
-        updateChatStatus('expired');
-        return null;
-      }
-      if (response.status === 400) {
-        // Conversation completed server-side (e.g. reached an end node).
-        updateChatStatus('ended', widgetText('conversationEndedText'));
-        return null;
-      }
-      throw new Error(`Chat message failed: ${response.status}`);
-    } catch (error) {
-      console.error('Dograh Widget: Failed to send message', error);
-      state.chat.pendingUserText = null;
-      state.chat.draft = trimmed;
-      updateChatStatus('ready', 'Message not sent — please try again.');
-      if (state.callbacks.onError) {
-        state.callbacks.onError(error);
-      }
-      return null;
-    }
-  }
-
-  /**
-   * End the active chat and persist completion before updating local UI state.
-   * The endpoint is revision-guarded, and one resync/retry handles a session
-   * advanced from another browser tab.
-   */
-  async function endChatSession(retryOnConflict = true) {
-    if (!state.isInitialized) {
-      await init();
-    }
-    if (!state.isInitialized) {
-      return null;
-    }
-    if (!isChatWidget()) {
-      console.warn('Dograh Widget: endChat() called on a voice widget');
-      return null;
-    }
-    if (!state.sessionToken || state.chat.status === 'ended' || state.chat.status === 'expired') {
-      return state.chat.turns.slice();
-    }
-    if (state.chat.status === 'starting' || state.chat.status === 'waiting' || state.chat.ending) {
-      return null;
-    }
-
-    state.chat.confirmingEnd = false;
-    state.chat.ending = true;
-    renderChat();
-
-    try {
-      const response = await fetch(
-        `${state.config.apiBaseUrl}/api/v1/public/embed/chat/${state.sessionToken}/end`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin
-          },
-          body: JSON.stringify({ expected_revision: state.chat.revision })
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        applyChatSession(data);
-        state.chat.ending = false;
-        updateChatStatus('ended', widgetText('conversationEndedText'));
-        return state.chat.turns.slice();
-      }
-
-      if (response.status === 409 && retryOnConflict) {
-        const resynced = await resyncChatSession();
-        state.chat.ending = false;
-        if (resynced) {
-          return endChatSession(false);
-        }
-        if (state.chat.status === 'expired') {
-          updateChatStatus('expired');
-          return null;
-        }
-      }
-      if (response.status === 403 || response.status === 404) {
-        state.chat.ending = false;
-        updateChatStatus('expired');
-        return null;
-      }
-      throw new Error(`Failed to end chat: ${response.status}`);
-    } catch (error) {
-      console.error('Dograh Widget: Failed to end chat', error);
-      state.chat.ending = false;
-      updateChatStatus('ready', 'Could not end the chat. Please try again.');
-      if (state.callbacks.onError) {
-        state.callbacks.onError(error);
-      }
-      return null;
-    }
-  }
-
-  /**
-   * Refetch the transcript (409 recovery). Marks the session expired on
-   * 403/404 so the caller can surface the restart UI.
-   */
-  async function resyncChatSession() {
-    try {
-      const response = await fetch(
-        `${state.config.apiBaseUrl}/api/v1/public/embed/chat/${state.sessionToken}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin
-          }
-        }
-      );
-      if (response.ok) {
-        applyChatSession(await response.json());
-        return true;
-      }
-      if (response.status === 403 || response.status === 404) {
-        state.chat.status = 'expired';
-      }
-    } catch (error) {
-      console.warn('Dograh Widget: chat resync failed', error);
-    }
-    return false;
-  }
-
-  async function submitChatComposer() {
-    const text = (state.chat.draft || '').trim();
-    if (!text || state.chat.status !== 'ready') return;
-    state.chat.draft = '';
-    if (state.chatEls) {
-      state.chatEls.input.value = '';
-      autoGrowChatInput(state.chatEls.input);
-    }
-    await sendChatMessage(text);
-
-    if (state.chatEls && state.chat.panelOpen && state.chat.status === 'ready') {
-      state.chatEls.input.focus();
-    }
-  }
-
-  function updateChatStatus(status, banner) {
-    if (status !== 'ready') state.chat.confirmingEnd = false;
-    state.chat.status = status;
-    state.chat.banner = banner || null;
-    renderChat();
-    if (state.callbacks.onChatStateChange) {
-      state.callbacks.onChatStateChange(status);
-    }
-  }
-
-  /**
-   * Update the panel in place from chat state. No-op in headless mode.
-   */
-  function renderChat() {
-    if (!state.chatEls) return;
-    renderChatMessages();
-    renderChatBanner();
-    updateChatEndConfirmationState();
-    updateChatComposerState();
-    updateChatEndButtonState();
-  }
-
-  function renderChatMessages() {
-    const messages = state.chatEls.messages;
-    // Keep autoscroll only when the viewer is already pinned to the bottom.
-    const pinned = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 40;
-    messages.textContent = '';
-
-    state.chat.turns.forEach((turn) => {
-      if (turn.user_message && turn.user_message.text) {
-        messages.appendChild(buildChatBubble(turn.user_message.text, 'user', turn.status === 'failed'));
-      }
-      if (turn.assistant_message && turn.assistant_message.text) {
-        messages.appendChild(buildChatBubble(turn.assistant_message.text, 'assistant', false));
-      }
-    });
-
-    if (state.chat.pendingUserText) {
-      messages.appendChild(buildChatBubble(state.chat.pendingUserText, 'user', false));
-    }
-    if (state.chat.status === 'waiting' || state.chat.status === 'starting') {
-      const typing = document.createElement('div');
-      typing.className = 'dograh-chat-typing';
-      typing.innerHTML = '<span></span><span></span><span></span>';
-      messages.appendChild(typing);
-    }
-
-    if (pinned) {
-      messages.scrollTop = messages.scrollHeight;
-    }
-  }
-
-  function buildChatBubble(text, role, failed) {
-    const bubble = document.createElement('div');
-    bubble.className = `dograh-chat-bubble dograh-chat-bubble--${role}${failed ? ' dograh-chat-bubble--failed' : ''}`;
-    if (role === 'user') {
-      bubble.style.backgroundColor = state.config.buttonColor;
-    }
-    bubble.textContent = text; // XSS boundary: never innerHTML for message text
-    return bubble;
-  }
-
-  function renderChatBanner() {
-    const banner = state.chatEls.banner;
-    banner.textContent = '';
-
-    let text = state.chat.banner;
-    if (state.chat.status === 'expired') {
-      text = 'This chat session has expired.';
-    }
-    if (!text) {
-      banner.style.display = 'none';
-      return;
-    }
-
-    banner.style.display = 'flex';
-    banner.className = `dograh-chat-banner${state.chat.status === 'ended' ? ' dograh-chat-banner--info' : ''}`;
-
-    const span = document.createElement('span');
-    span.textContent = text;
-    banner.appendChild(span);
-
-    if (state.chat.status === 'expired' || state.chat.status === 'ended') {
-      const restart = document.createElement('button');
-      restart.type = 'button';
-      restart.className = 'dograh-chat-restart';
-      restart.textContent = widgetText('startNewChatText');
-      restart.onclick = startNewChatSession;
-      banner.appendChild(restart);
-    } else if (state.chat.status === 'error') {
-      const retry = document.createElement('button');
-      retry.type = 'button';
-      retry.className = 'dograh-chat-restart';
-      retry.textContent = widgetText('chatRetryText');
-      retry.onclick = () => startChatSession();
-      banner.appendChild(retry);
-    }
-  }
-
-  function updateChatComposerState() {
-    const input = state.chatEls.input;
-    const sendBtn = state.chatEls.sendBtn;
-    const canType = state.chat.status === 'ready' && !state.chat.ending && !state.chat.confirmingEnd;
-    input.disabled = !canType && state.chat.status !== 'idle';
-    sendBtn.disabled = !canType;
-    if (document.activeElement !== input) {
-      input.value = state.chat.draft || '';
-    }
-  }
-
-  function updateChatEndConfirmationState() {
-    const showConfirmation = state.chat.confirmingEnd
-      && state.chat.status === 'ready'
-      && !state.chat.ending;
-    state.chatEls.endConfirmation.style.display = showConfirmation ? 'flex' : 'none';
-    state.chatEls.endBtn.setAttribute('aria-expanded', showConfirmation ? 'true' : 'false');
-  }
-
-  function updateChatEndButtonState() {
-    const endBtn = state.chatEls.endBtn;
-    const hasActiveSession = Boolean(
-      state.sessionToken && state.chat.status !== 'ended' && state.chat.status !== 'expired'
-    );
-    endBtn.style.display = hasActiveSession ? 'inline-flex' : 'none';
-    endBtn.disabled = state.chat.ending || state.chat.confirmingEnd || state.chat.status !== 'ready';
-    endBtn.textContent = state.chat.ending ? widgetText('endingChatText') : widgetText('endChatText');
-  }
-
-  // Public API
-  window.DograhWidget = {
-    // Core methods. In chat mode start() opens the chat, stop() only hides a
-    // floating panel, and end() completes the server-side session.
-    init: init,
-    start: startWidget,
-    stop: (...args) => (isChatWidget() ? closeChatPanel() : stopCall(...args)),
-    end: endWidget,
-    retry: retryCall,
-
-    // Visitor context (voice and chat, every embed mode). Merges into whatever
-    // data-dograh-context supplied; applies to the next conversation started.
-    setContext: setContextVariables,
-    getContext: () => ({ ...(state.config.contextVariables || {}) }),
-
-    // Floating widget specific
-    open: openWidget,
-    close: closeWidget,
-
-    // Chat API (widgetType === 'chat')
-    startChat: startChat,
-    endChat: endChatSession,
-    sendMessage: sendChatMessage,
-    getMessages: () => state.chat.turns.slice(),
-    isChatMode: () => isChatWidget(),
-    onMessage: (callback) => { state.callbacks.onMessage = callback; },
-    onChatStateChange: (callback) => { state.callbacks.onChatStateChange = callback; },
-
-    // State and callbacks
-    getState: () => state,
-    onReady: (callback) => { state.callbacks.onReady = callback; },
-    onCallStart: (callback) => { state.callbacks.onCallStart = callback; },
-    onCallConnected: (callback) => { state.callbacks.onCallConnected = callback; },
-    onCallDisconnected: (callback) => { state.callbacks.onCallDisconnected = callback; },
-    onCallEnd: (callback) => { state.callbacks.onCallEnd = callback; },
-    onError: (callback) => { state.callbacks.onError = callback; },
-    onStatusChange: (callback) => { state.callbacks.onStatusChange = callback; },
-
-    // Check if inline mode
-    isInlineMode: () => state.config.embedMode === 'inline',
-
-    // Re-render the inline widget (useful when React component remounts)
-    refresh: () => {
-      if (state.config.embedMode === 'inline') {
-        // Re-render inline widget with current status
-        updateInlineStatus(state.connectionStatus);
-      }
+  // Pour l'éditeur du portail : le même widget, dans un cadre, sans requête.
+  window.MarkWidget = {
+    apercu: function (conteneur, options) {
+      options = options || {};
+      var ap = apparenceComplete(options.apparence);
+      var couleurs = couleursCompletes(ap, options.couleurs);
+      chargerLesPolices(options.origineStatique || (P && P.url.origin) || location.origin);
+      return creerWidget({
+        hote: conteneur, conteneur: true, apparence: ap, couleurs: couleurs, etat: options.etat || 'accroche',
+        etoiles: options.etoiles, microRefuse: !!options.microRefuse, plafondAtteint: !!options.plafondAtteint, largeurCadre: options.largeurCadre,
+      });
     },
-
-    // Initialize inline mode manually (for advanced use cases)
-    initInline: (options) => {
-      if (options.container) {
-        state.config.containerId = options.container.id || 'dograh-inline-container';
-      }
-      state.config.embedMode = 'inline';
-
-      // Set callbacks if provided
-      if (options.onReady) state.callbacks.onReady = options.onReady;
-      if (options.onCallStart) state.callbacks.onCallStart = options.onCallStart;
-      if (options.onCallConnected) state.callbacks.onCallConnected = options.onCallConnected;
-      if (options.onCallDisconnected) state.callbacks.onCallDisconnected = options.onCallDisconnected;
-      if (options.onCallEnd) state.callbacks.onCallEnd = options.onCallEnd;
-      if (options.onError) state.callbacks.onError = options.onError;
-      if (options.onStatusChange) state.callbacks.onStatusChange = options.onStatusChange;
-
-      // Initialize
-      if (!state.isInitialized) {
-        init();
-      }
-    }
+    instance: function () { return instance; },
   };
 
-  // Auto-initialize on DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  if (P && P.site) {
+    var lancer = function () { demarrerSurLaPage(P, script); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lancer); else lancer();
+  } else if (P && P.token) {
+    chargerLeScriptParJeton(script, P.url);
+  } else if (script) {
+    // Ni site ni jeton : rien à afficher (le script sert aussi à l'aperçu du portail).
   }
-
 })();

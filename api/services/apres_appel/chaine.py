@@ -39,6 +39,7 @@ from api.services.apres_appel.modules import (
     ModuleSansObjet,
 )
 from api.services.apres_appel.notification import notifier
+from api.services.site_mark.conversations import est_du_widget
 from api.services.apres_appel.reglages import (
     CleManquante,
     lire_reglages,
@@ -124,6 +125,10 @@ async def _etapes_a_jouer(
 
 
 def est_un_essai_exclu(run, agent: ApresAppelAgent) -> bool:
+    # [.mark] U10 / S3 : une conversation du widget d'un site est une vraie conversation (canal « site »), jamais un
+    # essai ; seuls les essais de l'écran de Dograh restent des essais.
+    if est_du_widget(run):
+        return False
     return getattr(run, "mode", None) in MODES_ESSAI and not agent.essais
 
 

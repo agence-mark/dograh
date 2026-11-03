@@ -11,6 +11,8 @@ des routes) ; le portail décide lui-même qui, chez le client, a le droit de pe
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.constants import BACKEND_API_ENDPOINT, ENVIRONMENT, UI_APP_URL
@@ -18,6 +20,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.db.site_client import CheminDejaPris, mois_de
 from api.schemas.apparence_widget import ApparenceWidget
+from api.schemas.site_conversations import EvenementJour
 from api.schemas.site_widget import (
     ApparenceLue,
     CouleurDuSite,
@@ -177,6 +180,25 @@ async def _emplacement_lu(workflow, organization_id: int) -> EmplacementLu:
         lu.site_id, lu.site_cle = lignes["site_id"], lignes["site_cle"]
         lu.chemins, lu.dernier_chargement = lignes["chemins"], lignes["dernier_chargement"]
     return lu
+
+
+@router.get("/agents-site/evenements", response_model=list[EvenementJour])
+async def get_evenements_des_agents_de_site(
+    du: date | None = None,
+    au: date | None = None,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] S3 : les compteurs anonymes (rond affiché, rond ouvert) par jour et par agent de site, des agents de
+    CETTE organisation seulement. Par défaut les 30 derniers jours ; au plus 366 jours demandés d'un coup."""
+    fin = au or datetime.now(UTC).date()
+    debut = du or fin - timedelta(days=29)
+    if debut > fin or (fin - debut).days > 366:
+        raise HTTPException(status_code=422, detail="Invalid period")
+    lignes = await db_client.lire_evenements(user.selected_organization_id, debut, fin)
+    return [
+        EvenementJour(workflow_id=l["workflow_id"], jour=l["jour"].isoformat(), affiche=l["affiche"], ouvert=l["ouvert"])
+        for l in lignes
+    ]
 
 
 @router.get("/agents-site/{workflow_id}", response_model=EmplacementLu)

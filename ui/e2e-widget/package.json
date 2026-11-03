@@ -1,0 +1,13 @@
+{
+  "name": "mark-widget-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Playwright sur trois moteurs pour le widget du site (lot S4). Separe du paquet principal : rien n'est installe pour le build de l'ecran.",
+  "scripts": {
+    "installer-navigateurs": "playwright install chromium firefox webkit",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.52.0"
+  }
+}

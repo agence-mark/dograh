@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page d'essai du widget .mark</title>
+</head>
+<body>
+  <h1>Page d'essai du widget</h1>
+  <p>Cette page sert aux essais du widget : elle charge le script du site depuis ce serveur local.</p>
+  <script>
+    // Le scenario se choisit dans l'adresse : ?site=site_OK | site_AUCUN | site_PLAFOND.
+    const q = new URLSearchParams(location.search);
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = '/embed/dograh-widget.js?site=' + encodeURIComponent(q.get('site') || 'site_OK') + '&apiEndpoint=' + encodeURIComponent(location.origin);
+    document.body.appendChild(s);
+  </script>
+</body>
+</html>

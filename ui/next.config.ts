@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
   experimental: {
     serverSourceMaps: true,
   },
+  // [.mark] U10 / S4 : le widget (script, polices) se charge depuis la page d'un autre site : lisible de partout, sans
+  // identifiants. Les polices portent un nom versionné (Switzer-400.woff2) : elles se gardent un an.
+  async headers() {
+    const ouvert = [
+      { key: "Access-Control-Allow-Origin", value: "*" },
+      { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+    ];
+    return [
+      { source: "/embed/:path*", headers: ouvert },
+      { source: "/embed/fonts/:path*", headers: [...ouvert, { key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+    ];
+  },
   // [.mark] La table unique des anciennes adresses (src/lib/redirections.ts).
   async redirects() {
     return REDIRECTIONS.map((r) => ({ ...r, permanent: false }));

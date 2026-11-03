@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const widgetSource = readFileSync(
-    resolve(process.cwd(), 'public/embed/dograh-widget.js'),
+    resolve(process.cwd(), 'public/embed/dograh-widget-jeton.js'),
     'utf8',
 );
 

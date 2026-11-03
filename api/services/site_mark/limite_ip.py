@@ -26,3 +26,16 @@ async def autoriser_session(embed_token_id: int, adresse: str | None, par_heure:
         scope_key=f"public_embed:ip:{embed_token_id}:{_empreinte(embed_token_id, adresse)}",
         window_seconds=FENETRE_S,
     )
+
+
+RAPPELS_PAR_HEURE_ET_IP = 5
+
+
+async def autoriser_rappel(embed_token_id: int, adresse: str | None, par_heure: int = RAPPELS_PAR_HEURE_ET_IP) -> bool:
+    """Lot S3 : au plus ``par_heure`` demandes de rappel par jeton et par adresse (autre seau que les sessions)."""
+    return await rate_limiter.acquire_token(
+        embed_token_id,
+        par_heure,
+        scope_key=f"public_embed:rappel:{embed_token_id}:{_empreinte(embed_token_id, adresse)}",
+        window_seconds=FENETRE_S,
+    )

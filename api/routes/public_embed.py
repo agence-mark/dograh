@@ -6,7 +6,7 @@ They handle CORS, domain validation, and session management for embedded workflo
 
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -81,6 +81,9 @@ class InitEmbedRequest(BaseModel):
 
     token: str
     context_variables: Optional[dict] = None
+    # [.mark] S4 : « ecrit » = la conversation passe à l'écrit avec le même agent (micro refusé ou voix impossible).
+    # Admis seulement pour un jeton rattaché à un site ; un jeton hors site ne change jamais de modalité.
+    mode: Optional[Literal["voix", "ecrit"]] = None
 
 
 class InitEmbedResponse(BaseModel):
@@ -224,6 +227,30 @@ async def build_public_embed_preflight_response(
         cle = path[len(site_prefix) :].split("/", 1)[0]
         return await _site_preflight_response(cle, origin)
 
+    # [.mark] S3 : l'avis (jeton de session), la demande de rappel (clé du site) et l'événement anonyme.
+    avis_prefix = f"{public_embed_prefix}/avis/"
+    if path.startswith(avis_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        session_token = path[len(avis_prefix) :].split("/", 1)[0]
+        return await _session_preflight_response(session_token, origin, "POST, OPTIONS")
+
+    rappel_prefix = f"{public_embed_prefix}/rappel/"
+    if path.startswith(rappel_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        cle = path[len(rappel_prefix) :].split("/", 1)[0]
+        site = await db_client.lire_site_par_cle(cle)
+        if site is None or not validate_embed_origin(origin, site.allowed_domains or []):
+            return Response(status_code=403)
+        return _cors_response(origin, "POST, OPTIONS")
+
+    if path == f"{public_embed_prefix}/evenement":
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        # Comme /init : la clé ou le jeton sont dans le corps, le domaine est vérifié par la route.
+        return _cors_response(origin, "POST, OPTIONS")
+
     turn_credentials_prefix = f"{public_embed_prefix}/turn-credentials/"
     if path.startswith(turn_credentials_prefix):
         if requested_method.upper() != "GET":
@@ -343,6 +370,11 @@ async def initialize_embed_session(
     widget_type = (
         "chat" if (embed_token.settings or {}).get("widgetType") == "chat" else "voice"
     )
+    # [.mark] S4 (D162) : le secours écrit d'un agent de site. La modalité ne vient JAMAIS de la requête pour un jeton
+    # sans site (un visiteur ne transforme pas un jeton vocal en chat) ; pour un agent de site, « ecrit » est la
+    # bascule voulue quand le micro est refusé. Mêmes plafonds, mêmes limites, même seau de greffe que le chat.
+    if init_request.mode == "ecrit" and widget_type == "voice" and getattr(embed_token, "site_id", None):
+        widget_type = "chat"
     is_chat = widget_type == "chat"
 
     # Chat initialization immediately performs billable greeting work. Keep it

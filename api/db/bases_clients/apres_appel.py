@@ -171,3 +171,21 @@ async def a_le_journal_des_taches(connexion: asyncpg.Connection) -> bool:
             "SELECT to_regclass('mark.execution_tache') IS NOT NULL"
         )
     )
+
+
+async def noter_avis(connexion: asyncpg.Connection, run_id: int, avis: dict) -> dict:
+    """[.mark] U10 / S3 : l'avis du visiteur du site. ``{ecrit, nouveau}`` : ``ecrit`` est faux tant que la
+    conversation n'est pas dans la base (l'avis entre alors avec elle, par ``recevoir_appel``) ; un second avis
+    pour la même conversation n'écrit rien."""
+    brut = await connexion.fetchval(
+        "SELECT mark.noter_avis($1::integer, $2::jsonb)", run_id, json.dumps(avis, default=str)
+    )
+    return json.loads(brut) if isinstance(brut, str) else dict(brut)
+
+
+async def demander_rappel_site(connexion: asyncpg.Connection, demande: dict) -> dict:
+    """[.mark] U10 / S3 : la demande « à rappeler » d'un visiteur du site dont l'agent a atteint son plafond du mois."""
+    brut = await connexion.fetchval(
+        "SELECT mark.demander_rappel_site($1::jsonb)", json.dumps(demande, default=str)
+    )
+    return json.loads(brut) if isinstance(brut, str) else dict(brut)

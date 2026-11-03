@@ -343,16 +343,23 @@ async def test_une_base_en_version_14_monte_en_15_et_la_015_se_rejoue(base_essai
         corps_016 = suivante.sql[: suivante.sql.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps_016)
-        # La 017 (les lectures du portail) monte depuis la 16, puis se rejoue sans rien casser.
-        assert await schema.appliquer_migrations(proprietaire) == list(
-            range(17, schema.version_attendue() + 1)
-        )
-        assert await schema.version_de(proprietaire) == schema.version_attendue()
-        assert await schema.appliquer_migrations(proprietaire) == []
+        # La 017 (les lectures du portail) monte depuis la 16, puis se rejoue sans rien casser. Rejouée AVANT la
+        # 022 : celle-ci ajoute des colonnes à v_portail_kpi, la 017 ne se rejoue donc plus une fois la 022 montée.
+        assert await _appliquer_jusqua(proprietaire, 21) == list(range(17, 22))
         corps_017 = next(m for m in schema.migrations() if m.version == 17).sql
         corps_017 = corps_017[: corps_017.index("INSERT INTO schema_version")]
         async with proprietaire.transaction():
             await proprietaire.execute(corps_017)
+        # La 022 monte depuis la 21 et se rejoue elle aussi.
+        assert await schema.appliquer_migrations(proprietaire) == list(
+            range(22, schema.version_attendue() + 1)
+        )
+        assert await schema.version_de(proprietaire) == schema.version_attendue()
+        assert await schema.appliquer_migrations(proprietaire) == []
+        corps_022 = next(m for m in schema.migrations() if m.version == 22).sql
+        corps_022 = corps_022[: corps_022.index("INSERT INTO schema_version")]
+        async with proprietaire.transaction():
+            await proprietaire.execute(corps_022)
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_motif") == 1
         assert await proprietaire.fetchval("SELECT count(*) FROM mark.appel_agent") == 1
         assert (
