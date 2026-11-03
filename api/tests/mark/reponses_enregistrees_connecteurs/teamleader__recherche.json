@@ -1,0 +1,21 @@
+{
+ "data": [
+  {
+   "id": "uuid-1",
+   "first_name": "Jeanne",
+   "last_name": "Martin",
+   "emails": [
+    {
+     "type": "primary",
+     "email": "j@exemple.fr"
+    }
+   ],
+   "telephones": [
+    {
+     "type": "mobile",
+     "number": "+33612345678"
+    }
+   ]
+  }
+ ]
+}
