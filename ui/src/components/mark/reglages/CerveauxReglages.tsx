@@ -126,7 +126,7 @@ const T = {
     },
     depenseDuMois: { en: "Spent this month:", fr: "Dépensé ce mois-ci :" },
     secours: { en: "Not in the library: the code's text is used.", fr: "Absent de la bibliothèque : le texte du code sert." },
-    statutRecette: { en: "Trial", fr: "Recette" },
+    statutRecette: { en: "Proven", fr: "Recette" },
     statutRejete: { en: "Rejected", fr: "Rejeté" },
     statutCandidat: { en: "Candidate", fr: "Candidat" },
     recoit: { en: "What it receives", fr: "Ce qu'il reçoit" },
