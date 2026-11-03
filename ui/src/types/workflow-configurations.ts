@@ -381,6 +381,13 @@ export interface ConsigneDeSecurite {
     phrase?: string;
 }
 
+/** [.mark] U11: see `api/schemas/publication.py`. */
+export type PositionControle = "eteint" | "previent" | "bloque";
+export interface PublicationAgent {
+    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous", PositionControle>>;
+    deploiement?: { actif?: boolean };
+}
+
 /** [.mark] U3 quinquies (E68): see `api/schemas/securite_conversation.py`. */
 export interface SecuriteConversation {
     manipulation?: ConsigneDeSecurite;
@@ -547,6 +554,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     // [.mark] U3 quinquies (E68): the safety of the conversation, three layers, all off by default.
     securite_conversation?: SecuriteConversation | null;
+    publication?: PublicationAgent | null;  // [.mark] U11: the checks before publishing, the progressive deployment
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
     moteur_sorties_de_l_etape?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
     moteur_sortie_d_impasse?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false

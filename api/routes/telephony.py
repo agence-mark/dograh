@@ -498,7 +498,9 @@ async def _create_inbound_workflow_run(
     )
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    run_inputs = await prepare_workflow_run_inputs(db_client, workflow)
+    run_inputs = await prepare_workflow_run_inputs(
+        db_client, workflow, appelant=normalized_data.from_number or ""
+    )
 
     workflow_run = await db_client.create_workflow_run(
         workflow_run_name,

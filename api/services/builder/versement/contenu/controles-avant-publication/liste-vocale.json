@@ -1,0 +1,51 @@
+{
+  "titre": "Liste de contrôle vocale avant publication",
+  "contenu": {
+    "points": [
+      {"id": "session_vocale", "libelle": "Réglages de la voix en premier", "equivalent": null,
+       "raison": "Sans équivalent chez nous : les réglages de la voix sont rangés par agent, il n'y a pas de nœud de session à placer en premier."},
+      {"id": "interruption", "libelle": "Interruption de l'agent par la voix et par touche coupée", "equivalent": null,
+       "raison": "Sans équivalent chez nous : couper l'interruption (mute_always) est le plus souvent un mauvais réglage au téléphone, notre méthode garde l'interruption possible. Jamais corrigé."},
+      {"id": "ecoute_continue", "libelle": "Écoute continue coupée", "equivalent": null,
+       "raison": "Sans équivalent chez nous : l'écoute continue n'existe pas dans notre moteur."},
+      {"id": "silence_appelant", "libelle": "Silence de l'appelant : 5 à 7 secondes, au moins 5 relances",
+       "regles": [
+         {"cle": "max_user_idle_timeout", "type": "plage", "min": 5, "max": 7, "unite": "s", "correction": 6},
+         {"cle": "user_idle_max_prompts", "type": "min", "min": 5, "correction": 5}
+       ], "corrige_seul": true},
+      {"id": "phrase_attente", "libelle": "Phrase d'attente quand l'agent tarde : 1 à 2,5 secondes",
+       "regles": [
+         {"motif": "modele_tarde", "type": "motif_actif"},
+         {"cle": "delai_garde_modele_s", "type": "plage", "min": 1, "max": 2.5, "unite": "s", "defaut_effectif": 4}
+       ], "corrige_seul": false,
+       "raison": "Chez nous ce délai est celui de la garde du modèle : au-delà, la phrase est dite puis le modèle est réessayé. Le raccourcir à 2,5 secondes ferait réessayer trop souvent : conseil seulement, à régler au banc."},
+      {"id": "echec_flux_silence", "libelle": "Échec du flux sur silence coupé", "equivalent": null,
+       "raison": "Sans équivalent chez nous : notre flux ne s'arrête pas sur un silence."},
+      {"id": "reponse_en_flux", "libelle": "Réponse en flux continu", "equivalent": null,
+       "raison": "Sans équivalent chez nous : la réponse est toujours envoyée à la voix en flux, phrase par phrase."},
+      {"id": "erreur_continuer", "libelle": "Erreur de l'agent : continuer, pas s'arrêter", "equivalent": null,
+       "raison": "Sans équivalent chez nous : le moteur continue toujours (mode panne), il n'y a rien à régler."},
+      {"id": "message_d_erreur", "libelle": "Message d'erreur vocal jamais vide",
+       "regles": [
+         {"motif": "outil_echoue", "type": "motif_non_vide"},
+         {"motif": "reponse_perdue", "type": "motif_non_vide"}
+       ], "corrige_seul": false,
+       "raison": "Une règle de phrase allumée sans aucune variante serait dite vide : à remplir ou à éteindre par une personne."},
+      {"id": "journal_de_latence", "libelle": "Journal de latence du modèle allumé", "equivalent": null,
+       "raison": "Sans équivalent chez nous en production : la trace des requêtes (trace_requetes_modele) est réservée aux agents de test, environ 20 Ko par réponse."},
+      {"id": "fond_sonore", "libelle": "Délai du fond sonore à 0", "equivalent": null,
+       "raison": "Sans équivalent chez nous : notre fond sonore n'a pas de délai."},
+      {"id": "mots_du_metier", "libelle": "Mots du métier donnés à la transcription",
+       "regles": [{"cle": "lexique_metier", "type": "vrai", "ou_non_vide": "dictionary"}], "corrige_seul": false,
+       "raison": "Conseil : le lexique se remplit depuis l'agent, jamais à l'aveugle."},
+      {"id": "filtre_de_sortie", "libelle": "Filtre de sortie (formatage retiré avant la voix)",
+       "regles": [{"cle": "tts_markdown_filter_enabled", "type": "vrai", "correction": true}], "corrige_seul": true},
+      {"id": "modele_de_secours", "libelle": "Modèle de secours présent",
+       "regles": [{"cle": "cerveau_de_repli", "type": "non_vide"}], "corrige_seul": false,
+       "raison": "Conseil : chez nous le modèle de secours est un outil de dépannage, jamais corrigé seul (il faut choisir un modèle)."}
+    ],
+    "explication": "Valeurs reprises du constructeur de Cognigy (MIT, relevé du 03/11/2026), chacune traduite en réglage de notre fork ou marquée sans équivalent. Simulation d'abord, correction seulement sur accord, puis nouveau contrôle complet."
+  },
+  "notes": "Candidat. Source : code libre du constructeur de Cognigy, licence MIT, relevé du 03/11/2026 (plans/etude-cognigy).",
+  "origine": {"source": "Cognigy, constructeur d'agents, voiceChecklist", "licence": "MIT", "date": "2026-11-03"}
+}

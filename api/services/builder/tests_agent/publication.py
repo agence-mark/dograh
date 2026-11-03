@@ -77,24 +77,39 @@ async def verifier_avant_publication(
             f"version {getattr(brouillon, 'version_number', None)}, personne {user_id}"
         )
         return None
-    tests = await problemes_des_tests_obligatoires(
-        organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
-    )
-    if await agent_suivi(organization_id, workflow.id):
+    # [.mark] U11 : chaque contrôle a trois positions (``publication.controles``) ; les défauts sont la garde d'avant. Seule la
+    # position « bloque » refuse ici ; « prévient » et « éteint » se lisent dans la fenêtre « Publier » (``publication/controles``).
+    from api.services.publication import controles as fenetre
+    from api.services.publication import reglages as reglages_publication
+
+    positions = reglages_publication.lire(getattr(brouillon, "workflow_configurations", None)).controles
+    tests = []
+    if positions.tests_obligatoires == "bloque":
+        tests = await problemes_des_tests_obligatoires(
+            organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
+        )
+    if positions.bilan_du_prompt == "bloque" and await agent_suivi(organization_id, workflow.id):
         controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
     else:
         controle = {"ok": True, "elements": [], "bloquants": []}
+    autres = []
+    if "bloque" in (positions.liste_vocale, positions.attaques, positions.garde_fous):
+        vue = await fenetre.evaluer(workflow, brouillon, organization_id)
+        autres = [c for c in vue["controles"] if c["statut"] == fenetre.ECHEC and c["cle"] in ("liste_vocale", "attaques", "garde_fous")]
     # [.mark] U3 bis (E62) : une clé citée que le catalogue ne connaît pas bloque la publication.
     from api.services.variables_agent.garde import cles_inconnues_du_brouillon
 
     variables = await cles_inconnues_du_brouillon(workflow, brouillon, organization_id)
-    if controle["ok"] and not tests and not variables:
+    if controle["ok"] and not tests and not variables and not autres:
         return None
     erreurs = [{"kind": "node", "id": None, "field": "data.prompt", "message": f"[Prompt check] {e['message']}"} for e in controle["elements"] if e["statut"] == "echec"]
     erreurs += [{"kind": "node", "id": None, "field": None, "message": f"[Required test] {t['nom']}: {t['raison']}"} for t in tests]
     erreurs += [
         {"kind": "node", "id": None, "field": v["champ"], "message": f"[Unknown variable] {{{{{v['cle']}}}}} is not in the catalogue ({v['etape'] or 'settings'})"}
         for v in variables
+    ]
+    erreurs += [
+        {"kind": "node", "id": None, "field": None, "message": f"[{c['libelle']}] {p}"} for c in autres for p in c["problemes"]
     ]
     return {
         "is_valid": False,
@@ -103,4 +118,5 @@ async def verifier_avant_publication(
         "controle": controle["bloquants"],
         "tests_obligatoires": tests,
         "variables_inconnues": variables,
+        "controles_publication": [{"cle": c["cle"], "problemes": c["problemes"]} for c in autres],
     }

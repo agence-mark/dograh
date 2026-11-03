@@ -11,6 +11,7 @@ from api.routes.analyse_run import router as analyse_run_router
 from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
 from api.routes.builder import router as builder_router
+from api.routes.builder_publication import router as builder_publication_router
 from api.routes.builder_tests import router as builder_tests_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
@@ -83,6 +84,7 @@ router.include_router(groupe_router)
 router.include_router(reglages_agent_router)
 # [.mark] builder-agent-vocal : le builder d'agent vocal (conversation, bibliothèque, cerveau)
 router.include_router(builder_router)
+router.include_router(builder_publication_router)  # [.mark] U11 : fenetre Publier, attaques
 router.include_router(builder_tests_router)  # [.mark] builder lot 6 : tests et boucle d'amelioration
 router.include_router(workflow_text_chat_router)
 # [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
