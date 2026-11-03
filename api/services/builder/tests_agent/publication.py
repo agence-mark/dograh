@@ -84,14 +84,23 @@ async def verifier_avant_publication(
         controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
     else:
         controle = {"ok": True, "elements": [], "bloquants": []}
-    if controle["ok"] and not tests:
+    # [.mark] U3 bis (E62) : une clé citée que le catalogue ne connaît pas bloque la publication.
+    from api.services.variables_agent.garde import cles_inconnues_du_brouillon
+
+    variables = await cles_inconnues_du_brouillon(workflow, brouillon, organization_id)
+    if controle["ok"] and not tests and not variables:
         return None
     erreurs = [{"kind": "node", "id": None, "field": "data.prompt", "message": f"[Prompt check] {e['message']}"} for e in controle["elements"] if e["statut"] == "echec"]
     erreurs += [{"kind": "node", "id": None, "field": None, "message": f"[Required test] {t['nom']}: {t['raison']}"} for t in tests]
+    erreurs += [
+        {"kind": "node", "id": None, "field": v["champ"], "message": f"[Unknown variable] {{{{{v['cle']}}}}} is not in the catalogue ({v['etape'] or 'settings'})"}
+        for v in variables
+    ]
     return {
         "is_valid": False,
         "errors": erreurs,
         "garde": "builder",
         "controle": controle["bloquants"],
         "tests_obligatoires": tests,
+        "variables_inconnues": variables,
     }

@@ -10,7 +10,8 @@ import type { ReactNode } from "react";
 
 import { useLangue } from "@/components/mark/langue/langue";
 
-import { adresseOnglet, type OngletAgent,ONGLETS_AGENT } from "./onglets-agent";
+import { useAgentDeSite } from "../site/useAgentDeSite";
+import { adresseOnglet, ONGLET_SITE, type OngletAgent, ONGLETS_AGENT } from "./onglets-agent";
 
 export function OngletsAgent({
     agentId,
@@ -24,11 +25,14 @@ export function OngletsAgent({
     droite?: ReactNode;
 }) {
     const { t } = useLangue();
+    // [.mark] U3 quater (E65) : l'onglet « Site » n'existe que pour un agent dont le canal est le site.
+    const agentDeSite = useAgentDeSite(agentId);
+    const onglets = agentDeSite ? [...ONGLETS_AGENT, ONGLET_SITE] : ONGLETS_AGENT;
     return (
         <div className="flex items-center gap-3 border-b bg-background px-4" data-ligne-onglets>
             {debut}
             <nav role="tablist" className="flex flex-1 items-center gap-1">
-                {ONGLETS_AGENT.map((o) => (
+                {onglets.map((o) => (
                     <Link
                         key={o.id}
                         href={adresseOnglet(agentId, o.id)}

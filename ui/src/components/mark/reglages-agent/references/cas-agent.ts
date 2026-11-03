@@ -461,8 +461,8 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
 export const AUTOUR_DU_CAS: Record<string, { avant: Geste[]; apres: Geste[] }> = {
     "pbx-correspondance": { avant: [{ type: "cliquer", nom: "Edit field mappings" }], apres: [{ type: "cliquer", nom: "Done" }] },
     "pbx-prospect": { avant: [{ type: "cliquer", nom: "Edit lead fields" }], apres: [{ type: "cliquer", nom: "Done" }] },
-    "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
-    "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage test values" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage test values" }], apres: [{ type: "cliquer", nom: "Done" }] },
     // cloture-code, F8 (M4): a card moved to « Modules » sits in its module's sub-menu, opened first.
     ...Object.fromEntries(
         CAS_AGENT.filter((cas) => cas.theme === "modules").map((cas) => [
