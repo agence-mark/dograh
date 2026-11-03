@@ -94,6 +94,15 @@ async def get_upload_url(
     * All authenticated users can upload documents scoped to their organization.
     """
 
+    # [.mark] Constat C9 : un format que la base ne sait pas lire est refusé AVANT l'envoi, avec un message clair.
+    from api.services.gen_ai.documents_locaux import (
+        MESSAGE_FORMAT_REFUSE,
+        format_accepte,
+    )
+
+    if not format_accepte(request.filename, request.mime_type):
+        raise HTTPException(status_code=422, detail=MESSAGE_FORMAT_REFUSE)
+
     try:
         # Generate unique document UUID for S3 organization
         document_uuid = str(uuid.uuid4())

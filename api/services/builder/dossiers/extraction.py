@@ -10,7 +10,6 @@ et ne rend aucune page : on n'invente jamais ce qu'on n'a pas lu.
 
 from __future__ import annotations
 
-import asyncio
 import io
 import os
 import zipfile
@@ -168,14 +167,22 @@ DELAI_EXTRACTION_S = 60.0
 
 
 async def extraire_hors_boucle(nom: str, contenu: bytes, delai_s: float | None = None) -> Extraction:
-    """``extraire`` dans un fil à part, avec un délai (revue R3) : une conversion PDF ou Word est du calcul pur, qui gelait la boucle
-    de l'API (et les appels du même processus) tant qu'elle durait. Au-delà du délai, le fichier est dit illisible en le disant ;
-    ⚠️ le fil lui-même ne peut pas être tué et finit seul, mais plus rien ne l'attend. Ne lève jamais."""
+    """``extraire`` dans un PROCESSUS à part, avec un délai (revue R3, constat C11) : une conversion PDF ou Word est du calcul
+    pur, qui gelait la boucle de l'API ; au-delà du délai, le processus est ARRÊTÉ et le fichier est dit illisible en le
+    disant. Ne lève jamais."""
+    from api.services.builder.dossiers.processus import (
+        DelaiDepasse,
+        executer_arretable_async,
+    )
+
     delai = DELAI_EXTRACTION_S if delai_s is None else delai_s
     try:
-        return await asyncio.wait_for(asyncio.to_thread(extraire, nom, contenu), timeout=delai)
-    except TimeoutError:
+        return await executer_arretable_async(extraire, nom, contenu, delai_s=delai)
+    except DelaiDepasse:
         return _illisible(f"Reading the file took more than {delai:g} seconds: split it or send a simpler file.")
+    except (RuntimeError, ValueError, OSError) as erreur:
+        logger.info(f"[builder] conversion hors processus en échec : {type(erreur).__name__}")
+        return _illisible("The file could not be read (the conversion stopped).")
 
 
 def source(nom: str, page: Page) -> str:

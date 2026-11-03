@@ -43,6 +43,17 @@ def est_lisible_sur_place(filename: str) -> bool:
     return os.path.splitext(filename or "")[1].lower() in EXTENSIONS_DOCUMENT
 
 
+# Constat C9 : la base de connaissances n'accepte que ce qu'elle sait lire ici (le service de l'éditeur est coupé, patch n° 60).
+MESSAGE_FORMAT_REFUSE = (
+    "Format not supported by the knowledge base: PDF, Word (.docx), Markdown or text only. "
+    "Images and presentations are not read: export the content as PDF or text."
+)
+
+
+def format_accepte(filename: str, mime_type: str | None = None) -> bool:
+    return est_un_texte(filename, mime_type) or est_lisible_sur_place(filename)
+
+
 def jetons_estimes(texte: str) -> int:
     """Une estimation, pas un compte : environ 1,3 jeton par mot en français."""
     return max(1, round(len(texte.split()) * 1.3))
