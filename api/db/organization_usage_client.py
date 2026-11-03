@@ -1,12 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Date, and_, cast, func, select
+from sqlalchemy import Date, and_, cast, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload
 
+from api.db import appels_liste
 from api.db.base_client import BaseDBClient
 from api.db.filters import (
     apply_workflow_run_filters,
@@ -19,7 +20,7 @@ from api.db.models import (
     WorkflowModel,
     WorkflowRunModel,
 )
-from api.enums import OrganizationConfigurationKey
+from api.enums import WORKFLOW_RUN_MODES_BY_CHANNEL, OrganizationConfigurationKey
 from api.utils.recording_artifacts import get_recording_storage_key
 
 # Filters the org-wide usage surfaces accept. Anything else in the request is
@@ -36,12 +37,51 @@ USAGE_ALLOWED_FILTERS = frozenset(
         "campaignId",
         "callDirection",
         "callChannel",
+        # [.mark] C4
+        "judgeNote",
+        "agentVersion",
+        "callReason",
+        "callClient",
     }
 )
 
 
+def _nom_du_client(fiche: Optional[dict]) -> Optional[str]:
+    fiche = fiche or {}
+    nom = " ".join(str(fiche.get(c) or "").strip() for c in ("prenom", "nom")).strip()
+    return nom or None
+
+
+def _motif_de_la_fiche(fiche: Optional[dict]) -> Optional[str]:
+    fiche = fiche or {}
+    for champ in appels_liste.CHAMPS_MOTIF:
+        valeur = str(fiche.get(champ) or "").strip()
+        if valeur:
+            return valeur
+    return None
+
+
+def _canal_du_run(mode: Optional[str], annotations: Optional[dict]) -> str:
+    """Le canal d'un appel : « site » (widget), sinon téléphone, web, chat ou appelant simulé d'après son mode."""
+    embed = (annotations or {}).get("embed")
+    if isinstance(embed, dict) and embed.get("source") == "embed_widget":
+        return "site"
+    for canal, modes in WORKFLOW_RUN_MODES_BY_CHANNEL.items():
+        if mode in modes:
+            return canal
+    return "telephony"
+
+
 class OrganizationUsageClient(BaseDBClient):
     """Client for managing organization usage reporting aggregates."""
+
+    async def ecrire_note_juge(self, run_id: int, note: Optional[float]) -> None:
+        """[.mark] C4 : la note du juge d'un appel (``None`` l'efface). Idempotent : rejuger remplace."""
+        async with self.async_session() as session:
+            await session.execute(
+                update(WorkflowRunModel).where(WorkflowRunModel.id == run_id).values(note_juge=note)
+            )
+            await session.commit()
 
     async def get_or_create_current_cycle(
         self, organization_id: int, session=None
@@ -152,6 +192,7 @@ class OrganizationUsageClient(BaseDBClient):
         filters: Optional[list[dict]] = None,
         sort_by: Optional[str] = None,
         sort_order: str = "desc",
+        recherche: Optional[str] = None,
     ) -> tuple[list[dict], int, float, int]:
         """Get paginated workflow runs with usage for an organization.
 
@@ -190,6 +231,28 @@ class OrganizationUsageClient(BaseDBClient):
             # Apply filters using the common filter function
             query = apply_workflow_run_filters(query, sanitized_filters)
 
+            # [.mark] C4 : recherche dans les transcriptions, bornée. Seuls les appels les plus récents de
+            # l'organisation dans la période sont lus (jamais toute la table), et le terme doit avoir 3 lettres.
+            terme = appels_liste.terme_de_recherche(recherche)
+            if terme is not None:
+                debut = start_date or (
+                    datetime.now(timezone.utc) - timedelta(days=appels_liste.RECHERCHE_JOURS_PAR_DEFAUT)
+                )
+                candidats = (
+                    select(WorkflowRunModel.id)
+                    .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                    .where(
+                        WorkflowModel.organization_id == organization_id,
+                        WorkflowRunModel.created_at >= debut,
+                    )
+                    .order_by(WorkflowRunModel.created_at.desc())
+                    .limit(appels_liste.RECHERCHE_APPELS_MAX)
+                )
+                query = query.where(
+                    WorkflowRunModel.id.in_(candidats.scalar_subquery()),
+                    appels_liste.contient_dans_la_transcription(terme),
+                )
+
             # Get total count
             count_result = await session.execute(
                 select(func.count()).select_from(query.subquery())
@@ -201,7 +264,10 @@ class OrganizationUsageClient(BaseDBClient):
             # skipped across pages.
             order_clause = get_workflow_run_order_clause(sort_by, sort_order)
             results = await session.execute(
-                query.options(joinedload(WorkflowRunModel.workflow))
+                query.options(
+                    joinedload(WorkflowRunModel.workflow),
+                    joinedload(WorkflowRunModel.definition),
+                )
                 .order_by(order_clause, WorkflowRunModel.id.desc())
                 .limit(limit)
                 .offset(offset)
@@ -257,6 +323,12 @@ class OrganizationUsageClient(BaseDBClient):
                     "disposition": disposition,
                     "initial_context": run.initial_context,
                     "gathered_context": run.gathered_context,
+                    # [.mark] C4 : colonnes de Conversations, lues du run (aucune requête de plus).
+                    "client": _nom_du_client(run.gathered_context),
+                    "motif": _motif_de_la_fiche(run.gathered_context),
+                    "note_juge": run.note_juge,
+                    "version": run.definition.version_number if run.definition else None,
+                    "canal": _canal_du_run(run.mode, run.annotations),
                 }
 
                 # Add USD cost if available in cost_info

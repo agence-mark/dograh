@@ -22,7 +22,7 @@ from api.services.builder import consignes
 from api.services.builder.cerveau import independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
-from api.services.juge import a_ameliorer, file, passes
+from api.services.juge import a_ameliorer, file, note, passes
 from api.services.juge import verdicts as v
 
 
@@ -51,7 +51,9 @@ def est_un_appel_d_essai(run: Any) -> bool:
 
 
 async def ecrire_dans_le_run(run_id: int, resultat: dict[str, Any]) -> None:
+    """Le résultat du juge ET sa note (C4), au même endroit pour les deux portes ; rejuger remplace les deux."""
     await db_client.update_workflow_run(run_id, annotations={"juge": resultat})
+    await db_client.ecrire_note_juge(run_id, note.de_un_resultat(resultat))
 
 
 async def _modele_de_l_agent(run: Any, organisation: int) -> str | None:

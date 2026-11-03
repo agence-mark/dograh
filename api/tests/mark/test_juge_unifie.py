@@ -141,8 +141,10 @@ def _run(identifiant=5, **champs):
 def mondes(monde, monkeypatch):
     """Le monde + la base des runs (écritures d'annotations) + les réglages du Labo, tous simulés."""
     ecrits: list[tuple[int, dict]] = []
+    notes: list[tuple[int, float | None]] = []
     base = SimpleNamespace(
         update_workflow_run=AsyncMock(side_effect=lambda run_id, annotations=None, **_: ecrits.append((run_id, annotations))),
+        ecrire_note_juge=AsyncMock(side_effect=lambda run_id, note: notes.append((run_id, note))),
         get_workflow_run_with_context=AsyncMock(return_value=(_run(), ORG_CLIENT)),
     )
     for module in (appels, actions_juge):
@@ -150,6 +152,7 @@ def mondes(monde, monkeypatch):
     monkeypatch.setattr(reglages_cerveau, "lire", AsyncMock(return_value=ReglagesCerveau(modele="builder-m")))
     monkeypatch.setattr(appels, "_modele_de_l_agent", AsyncMock(return_value="agent-m"))
     base.ecrits = ecrits
+    base.notes = notes
     return base
 
 
@@ -179,6 +182,20 @@ async def test_sur_cle_l_appel_est_juge_et_ecrit_fusionne_sous_la_cle_juge(monde
     (run_id, annotations), = mondes.ecrits
     assert run_id == 5 and list(annotations) == ["juge"]  # seule la clé « juge » : QA et « À trier » gardent la leur
     assert annotations["juge"]["etat"] == "juge" and len(annotations["juge"]["verdicts"]) == len(grille) == 6 and sorties == []
+
+
+async def test_la_note_du_juge_est_gardee_avec_le_resultat_sur_cle_et_effacee_hors_juge(mondes, monkeypatch):
+    await file.regler(ORG_CLIENT, AGENT, True)
+    _juge(monkeypatch, modele="openai/juge-m", identifiant="k")
+    grille = await appels.grille()
+    cerveau = CerveauFactice(*[tour(_json()) for _ in grille])
+    monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=cerveau))
+    await appels.apres_appel(_run(), ORG_CLIENT)
+    assert mondes.notes == [(5, 5.0)]  # 6 critères réussis sur 6
+    # Claude Code : l'appel attend, la note est effacée (un ancien jugement ne reste pas)
+    _juge(monkeypatch, source="claude_code")
+    await appels.apres_appel(_run(), ORG_CLIENT)
+    assert mondes.notes[-1] == (5, None)
 
 
 async def test_sur_claude_code_l_appel_reste_a_juger_sans_aucun_appel_de_fournisseur(mondes, monkeypatch):
@@ -233,6 +250,7 @@ async def test_le_cycle_a_faire_lire_ecrire_d_un_vrai_appel(mondes):
     (run_id, annotations), = mondes.ecrits
     assert run_id == 5 and annotations["juge"]["source"] == "claude_code" and annotations["juge"]["etat"] == "juge"
     assert (await executer("juge_a_faire", {}, MCP))["total"] == 0  # jugé : il sort de la file
+    assert mondes.notes == [(5, 5.0)]  # la même fonction d'écriture que le juge sur clé : la note suit
 
 
 async def test_un_verdict_sans_replique_citee_est_refuse_et_l_element_reste_a_juger(mondes):
