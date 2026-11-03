@@ -16,10 +16,12 @@ import { ChampVariables } from "@/components/mark/variables/ChampVariables";
 import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ChoixCoteACote } from "./ChoixCoteACote";
 import { evaluateDisplayOptions } from "./displayOptions";
 import {
     getPropertyColumnSpan,
@@ -154,17 +156,14 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
 
 // ─── Layout helpers ──────────────────────────────────────────────────────
 
+// [.mark] K2b : le libellé d'un champ, son explication dans un « ! » (jamais en note dessous), comme la maquette
+// (`modale-noeud.tsx`). Pas d'astérisque : le serveur refuse l'enregistrement d'un champ obligatoire vide.
 function StackedLabel({ spec }: { spec: PropertySpec }) {
     return (
-        <>
-            <Label>
-                {spec.display_name}
-                {spec.required && <span className="text-destructive ml-1">*</span>}
-            </Label>
-            {spec.description && (
-                <Label className="text-xs text-muted-foreground">{spec.description}</Label>
-            )}
-        </>
+        <Label className="flex items-center gap-1.5">
+            {spec.display_name}
+            {spec.description && <Info>{spec.description}</Info>}
+        </Label>
     );
 }
 
@@ -182,7 +181,7 @@ function StringWidget({ spec, value, onChange }: WidgetProps) {
     const catalogue = useCatalogueVariables();
     return (
         <div className="grid gap-2">
-            <StackedLabel spec={spec} />
+            {spec.name !== "greeting" && <StackedLabel spec={spec} />}
             {spec.name === "greeting" ? (
                 // [.mark] U3 bis (E62) : le moteur rend les variables de l'accueil, le champ les montre en étiquettes.
                 <ChampVariables
@@ -245,19 +244,35 @@ function NumberWidget({ spec, value, onChange }: WidgetProps) {
 function BooleanWidget({ spec, value, onChange }: WidgetProps) {
     const v = !!value;
     return (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between gap-3">
+            <Label htmlFor={`prop-${spec.name}`} className="flex items-center gap-1.5">
+                {spec.display_name}
+                {spec.description && <Info>{spec.description}</Info>}
+            </Label>
             <Switch id={`prop-${spec.name}`} checked={v} onCheckedChange={onChange} />
-            <Label htmlFor={`prop-${spec.name}`}>{spec.display_name}</Label>
-            {spec.description && (
-                <Label className="text-xs text-muted-foreground ml-2">
-                    {spec.description}
-                </Label>
-            )}
         </div>
     );
 }
 
+/** [.mark] K2b : jusqu'à ce nombre de choix, ils se montrent côte à côte (maquette `Choix`), au-delà dans une liste. */
+const CHOIX_COTE_A_COTE_MAX = 4;
+
 function OptionsWidget({ spec, value, onChange }: WidgetProps) {
+    const options = spec.options ?? [];
+    if (options.length > 0 && options.length <= CHOIX_COTE_A_COTE_MAX) {
+        const actif = String((value as string | number | undefined) ?? "");
+        return (
+            <div className="grid gap-2">
+                <StackedLabel spec={spec} />
+                <ChoixCoteACote
+                    libelle={spec.display_name}
+                    valeur={options.find((o) => String(o.value) === actif)?.value as string | number | undefined}
+                    options={options.map((o) => ({ value: o.value as string | number, label: o.label }))}
+                    onChange={onChange}
+                />
+            </div>
+        );
+    }
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />

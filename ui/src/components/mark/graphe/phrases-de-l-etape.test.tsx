@@ -116,7 +116,7 @@ describe("[.mark] section « Phrases fixes à cette étape » de la fenêtre d'u
 
     it("adds a rule at this step with the node identifier and saves it at once", async () => {
         const dialogue = await monter("agentNode", []);
-        fireEvent.click(within(dialogue).getByRole("button", { name: "Add to this step" }));
+        fireEvent.click(within(dialogue).getByRole("button", { name: "Sentence" }));
         const ajout = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
         fireEvent.click(within(ajout).getByRole("button", { name: "A tool is working" }));
         const endroit = await waitFor(() => document.getElementById("phrase_endroit") as HTMLSelectElement);

@@ -11,7 +11,7 @@
  * sur une étape qui le porte. La fenêtre d'une étape n'est jamais traduite (T3), mais ce composant est le nôtre :
  * ses textes sont dans les deux langues. ⛔ Aucun mot de métier.
  */
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChoixCoteACote } from "@/components/flow/renderer/ChoixCoteACote";
 import { Textarea } from "@/components/ui/textarea";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -42,17 +42,17 @@ const TEXTES = {
         en: "This step lists no field (Step field labels): Retry and Forced do nothing here. Only Automatic acts, once, when the step starts.",
         fr: "Cette étape ne liste aucun champ (Step field labels) : Relance et Obligatoire ne font rien ici. Seul Automatique agit, une fois, à l'entrée de l'étape.",
     },
-    libre: { en: "Free (default)", fr: "Libre (par défaut)" },
-    relance: { en: "Retry (recommended)", fr: "Relance (recommandée)" },
+    libre: { en: "Free", fr: "Libre" },
+    relance: { en: "Retry", fr: "Relance" },
     obligatoire: { en: "Forced", fr: "Obligatoire" },
     automatique: { en: "Automatic", fr: "Automatique" },
     aideLibre: {
-        en: "The model decides when to call the action, as before.",
-        fr: "Le modèle décide quand appeler l'action, comme avant.",
+        en: "The model decides when to call the action, as before (default).",
+        fr: "Le modèle décide quand appeler l'action, comme avant (par défaut).",
     },
     aideRelance: {
-        en: "When every field of the step is known, nothing is running and the reply has no question and no call, the reply is held back and the model is asked once more with the call forced. The reply then leaves once the model has finished writing it, not word by word. For most models.",
-        fr: "Quand tous les champs de l'étape sont connus, qu'aucun travail n'est en cours et que la réplique n'a ni question ni appel, la réplique est retenue et le modèle est relancé une fois avec l'appel obligatoire. La réplique part alors quand le modèle a fini de l'écrire, et non mot à mot. Pour la plupart des modèles.",
+        en: "When every field of the step is known, nothing is running and the reply has no question and no call, the reply is held back and the model is asked once more with the call forced. The reply then leaves once the model has finished writing it, not word by word. Recommended for most models.",
+        fr: "Quand tous les champs de l'étape sont connus, qu'aucun travail n'est en cours et que la réplique n'a ni question ni appel, la réplique est retenue et le modèle est relancé une fois avec l'appel obligatoire. La réplique part alors quand le modèle a fini de l'écrire, et non mot à mot. Recommandée pour la plupart des modèles.",
     },
     aideObligatoire: {
         en: "Same conditions, but the turn is sent straight away with the call forced (for that turn only). For a model that often misses its calls. While a field is still missing and a note is being written, the turn waits for it, 1.5 seconds at most.",
@@ -101,20 +101,16 @@ export const DeclenchementDeLAction = ({
                 idControle={MARQUEUR_DECLENCHEMENT}
                 libelle={TEXTES.libelle}
                 aides={[TEXTES.aide, aides[position]]}
+                variante="noeud"
                 note={position !== "libre" && position !== "automatique" && !champsDeclares ? TEXTES.sansChamp : null}
             >
-                <Select value={position} onValueChange={(v: string) => onChange(positionLue(v))}>
-                    <SelectTrigger id={MARQUEUR_DECLENCHEMENT} className="w-64" aria-label={t(TEXTES.libelle)}>
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {proposees.map((p) => (
-                            <SelectItem key={p} value={p}>
-                                {t(TEXTES[p])}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <ChoixCoteACote
+                    id={MARQUEUR_DECLENCHEMENT}
+                    libelle={t(TEXTES.libelle)}
+                    valeur={position}
+                    options={proposees.map((p) => ({ value: p, label: t(TEXTES[p]) }))}
+                    onChange={(v) => onChange(positionLue(v))}
+                />
             </ChampReglage>
             {position === "automatique" && (
                 <ChampReglage
@@ -122,6 +118,7 @@ export const DeclenchementDeLAction = ({
                     idControle={MARQUEUR_DEMANDE_TYPE}
                     libelle={TEXTES.demandeLibelle}
                     aides={[TEXTES.demandeAide]}
+                    variante="noeud"
                 >
                     <Textarea
                         id={MARQUEUR_DEMANDE_TYPE}

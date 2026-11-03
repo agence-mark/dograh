@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
         rfInstance: { current: null },
         nodes: [], edges: [], workflowValidationErrors: [],
         workflowName: 'Agent', isDirty: false, templateContextVariables: {},
-        setNodes: vi.fn(), setEdges: vi.fn(), setIsDirty: vi.fn(), setIsAddNodePanelOpen: vi.fn(),
+        setNodes: vi.fn(), setEdges: vi.fn(), setIsDirty: vi.fn(),
     },
 }));
 vi.mock('@xyflow/react/dist/style.css', () => ({}));
@@ -33,7 +33,6 @@ vi.mock('@/client', () => ({
 vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save }) }));
 vi.mock('@/components/flow/renderer', () => ({ useNodeSpecs: () => ({ specs: [] }) }));
 vi.mock('@/context/OnboardingContext', () => ({ useOnboarding: () => ({ hasCompletedAction: () => true }) }));
-vi.mock('@/components/flow/AddNodePanel', () => ({ default: () => null, specsProposees: (specs: unknown[]) => specs }));
 vi.mock('@/components/mark/graphe/GroupeSurCanevas', () => ({ GroupeSurCanevas: () => null, FilGroupe: () => null }));
 vi.mock('@/components/flow/edges/CustomEdge', () => ({ default: () => null }));
 vi.mock('@/components/flow/nodes/GenericNode', () => ({ GenericNode: () => null }));

@@ -44,7 +44,6 @@ import {
 } from "@/components/mark/graphe/VeriteDesActions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { useAppConfig } from "@/context/AppConfigContext";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
@@ -88,16 +87,6 @@ const HANDLES_BY_SPEC: Record<string, { source: boolean; target: boolean }> = {
     trigger: { source: false, target: false },
     webhook: { source: false, target: false },
     qa: { source: false, target: false },
-};
-
-const DOC_URL_BY_SPEC: Record<string, string | undefined> = {
-    startCall: NODE_DOCUMENTATION_URLS.startCall,
-    agentNode: NODE_DOCUMENTATION_URLS.agent,
-    endCall: NODE_DOCUMENTATION_URLS.endCall,
-    globalNode: NODE_DOCUMENTATION_URLS.global,
-    trigger: NODE_DOCUMENTATION_URLS.apiTrigger,
-    webhook: NODE_DOCUMENTATION_URLS.webhook,
-    qa: NODE_DOCUMENTATION_URLS.qaAnalysis,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -200,6 +189,11 @@ function getBadgeForSpec(spec: NodeSpec | undefined, variant: NodeStyleVariant, 
         case "integration":
             return { label: spec.display_name };
     }
+}
+
+/** Le type d'un nœud, dit comme la carte le dit (« Étape », « Fin », « Contrôle qualité »…) : le menu « Nœud » le reprend. */
+export function libelleDuType(spec: NodeSpec, langue: "fr" | "en"): string {
+    return getBadgeForSpec(spec, STYLE_VARIANT_BY_SPEC[spec.name] ?? "integration", langue).label;
 }
 
 /** Le texte de la carte : le prompt sans ses titres, tel que l'étape le dit (la maquette en montre deux lignes). */
@@ -680,7 +674,6 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     const { langue } = useLangue();
     const badge = getBadgeForSpec(spec, styleVariant, langue);
     const Icon = styleVariant === "start" ? Play : styleVariant === "agent" ? Square : styleVariant === "end" ? Flag : spec ? resolveIcon(spec.icon) : Circle;
-    const docUrl = spec?.docs_url ?? DOC_URL_BY_SPEC[type];
 
     const fallbackTitle = spec?.display_name ?? "Node";
 
@@ -721,7 +714,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         };
         if (etapeAgit) {
             poser(
-                "outils",
+                "agents",
                 <BriqueAgent
                     key="brique"
                     outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
@@ -752,7 +745,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         }
         if (etapeAgit && travailActif) {
             poser(
-                "agents",
+                "outils",
                 <TravailDeFond
                     key="travail"
                     coche={values.travail_de_fond === true}
@@ -876,7 +869,6 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 title={data.name || fallbackTitle}
                 onSave={handleSave}
                 isDirty={isDirty}
-                documentationUrl={docUrl}
                 typeLabel={badge.label}
                 nom={String(values.name ?? data.name ?? "")}
                 onNomChange={spec?.properties.some((p) => p.name === PROPRIETE_DU_NOM) ? (nom) => setValues((prev) => ({ ...prev, name: nom })) : undefined}

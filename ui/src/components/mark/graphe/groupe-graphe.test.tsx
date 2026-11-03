@@ -96,6 +96,25 @@ interface Contexte {
 // son onglet. Un bloc de test dit son sujet une fois (`ongletAOuvrir`), `monter` ouvre l'onglet avant de rendre la main.
 let ongletAOuvrir: string | null = null;
 
+// K2b : l'explication d'un champ est dans son « ! » (jamais en note dessous) : le champ doit le porter.
+const exigerAide = async (champ: Element | null | undefined, _texte: string) => {
+    expect(champ?.querySelector('[role="button"][aria-label]')).not.toBeNull();
+};
+
+// K2b : le déclenchement de l'action se choisit côte à côte (un groupe de boutons radio), plus dans une liste.
+const POSITIONS_EN: Record<string, string> = { Free: "libre", Retry: "relance", Forced: "obligatoire", Automatic: "automatique" };
+const positionChoisie = () => {
+    const actif = document.getElementById("declenchement_de_l_action")?.querySelector('[aria-checked="true"]');
+    return POSITIONS_EN[actif?.textContent ?? ""];
+};
+const positionsProposees = () =>
+    Array.from(document.getElementById("declenchement_de_l_action")?.querySelectorAll('[role="radio"]') ?? []).map((o) => POSITIONS_EN[o.textContent ?? ""]);
+const choisirPosition = (position: string) => {
+    const nom = Object.keys(POSITIONS_EN).find((k) => POSITIONS_EN[k] === position) as string;
+    const radios = Array.from(document.getElementById("declenchement_de_l_action")?.querySelectorAll('[role="radio"]') ?? []);
+    fireEvent.click(radios.find((o) => o.textContent === nom) as HTMLElement);
+};
+
 const monter = async (
     type: "agentNode" | "endCall" | "startCall",
     data: Record<string, unknown>,
@@ -174,7 +193,7 @@ describe("[.mark] case « Retour au principal » d'une étape", () => {
         const dialogue = await monter("agentNode", {}, { agentPrincipalId: 5 });
         const champ = dialogue.querySelector('[data-reglage="retour_au_principal"]');
         expect(champ).not.toBeNull();
-        expect(champ?.textContent).toContain("At the end of this step, the call goes back to the main agent");
+        await exigerAide(champ, "At the end of this step, the call goes back to the main agent");
         expect(donneesDeLEtape().retour_au_principal).toBeUndefined();
         fireEvent.click(document.getElementById("retour_au_principal") as HTMLElement);
         await enregistrerEtape(dialogue);
@@ -207,7 +226,7 @@ describe("[.mark] case « Étape de retour » d'une étape de l'accueil", () => 
         const champ = dialogue.querySelector('[data-reglage="etape_de_retour"]');
         expect(champ).not.toBeNull();
         expect(champ?.textContent).toContain("Return step");
-        expect(champ?.textContent).toContain("the call comes here instead of the start step");
+        await exigerAide(champ, "the call comes here instead of the start step");
         expect(donneesDeLEtape().etape_de_retour).toBeUndefined();
         fireEvent.click(document.getElementById("etape_de_retour") as HTMLElement);
         await enregistrerEtape(dialogue);
@@ -374,7 +393,7 @@ describe("[.mark] menu « Déclenchement de l'action » d'une étape (correctifs
         const dialogue = await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
         const champ = dialogue.querySelector('[data-reglage="declenchement_de_l_action"]');
         expect(champ?.textContent).toContain("Action trigger");
-        expect((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).value).toBe("libre");
+        expect(positionChoisie()).toBe("libre");
         expect(dialogue.querySelector('[data-reglage="demande_type"]')).toBeNull();
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().declenchement_de_l_action).toBeUndefined();
@@ -383,41 +402,39 @@ describe("[.mark] menu « Déclenchement de l'action » d'une étape (correctifs
 
     it("propose Libre, Relance et Obligatoire, pas Automatique sans travail en arrière-plan sur l'étape", async () => {
         await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
-        const options = Array.from((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).options).map((o) => o.value);
-        expect(options).toEqual(["libre", "relance", "obligatoire"]);
+        expect(positionsProposees()).toEqual(["libre", "relance", "obligatoire"]);
     });
 
     it("écrit la position choisie dans l'étape, et Libre efface le marqueur", async () => {
         const dialogue = await monter("agentNode", AVEC_OUTIL, { tools: [OUTIL_EXISTANT] });
-        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "relance" } });
-        expect(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]')?.textContent).toContain("held back");
+        choisirPosition("relance");
+        await exigerAide(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]'), "held back");
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().declenchement_de_l_action).toBe("relance");
         cleanup();
         const rouvert = await monter("agentNode", { ...AVEC_OUTIL, declenchement_de_l_action: "relance" }, { tools: [OUTIL_EXISTANT] });
-        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "libre" } });
+        choisirPosition("libre");
         await enregistrerEtape(rouvert);
         expect(donneesDeLEtape().declenchement_de_l_action).toBeUndefined();
     });
 
     it("se lit sur la position de l'étape, et rend l'étape modifiée quand on la change", async () => {
         await monter("agentNode", { ...AVEC_OUTIL, declenchement_de_l_action: "obligatoire" }, { tools: [OUTIL_EXISTANT] });
-        expect((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).value).toBe("obligatoire");
+        expect(positionChoisie()).toBe("obligatoire");
         const bouton = screen.getByRole("button", { name: /^save$/i }) as HTMLButtonElement;
-        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "relance" } });
+        choisirPosition("relance");
         expect(bouton.disabled).toBe(false);
     });
 
     it("dit que Relance et Obligatoire ne font rien sur une étape sans champ listé", async () => {
         const dialogue = await monter("agentNode", { tool_uuids: ["outil-existant"], declenchement_de_l_action: "relance" }, { tools: [OUTIL_EXISTANT] });
-        expect(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]')?.textContent).toContain("lists no field");
+        await exigerAide(dialogue.querySelector('[data-reglage="declenchement_de_l_action"]'), "lists no field");
     });
 
     it("propose Automatique sur une étape en travail en arrière-plan, avec sa demande type, enregistrée", async () => {
         const dialogue = await monter("agentNode", { travail_de_fond: true }, { travailActif: true });
-        const options = Array.from((document.getElementById("declenchement_de_l_action") as HTMLSelectElement).options).map((o) => o.value);
-        expect(options).toContain("automatique");
-        fireEvent.change(document.getElementById("declenchement_de_l_action") as HTMLElement, { target: { value: "automatique" } });
+        expect(positionsProposees()).toContain("automatique");
+        choisirPosition("automatique");
         const demande = document.getElementById("demande_type") as HTMLTextAreaElement;
         expect(dialogue.querySelector('[data-reglage="demande_type"]')?.textContent).toContain("Request template");
         fireEvent.change(demande, { target: { value: "Réserve pour {{degre_urgence}}." } });
@@ -573,7 +590,7 @@ describe("[.mark] phrases de fin du nœud de fin", () => {
 
 describe("[.mark] brique « Agent » sous une étape", () => {
     beforeEach(() => {
-        ongletAOuvrir = "outils";
+        ongletAOuvrir = "agents";
     });
 
     const crees: ToolResponse[] = [];
@@ -602,7 +619,7 @@ describe("[.mark] brique « Agent » sous une étape", () => {
 
     it("propose les agents du groupe d'abord, puis les autres, l'agent courant exclu, dans une modale", async () => {
         const dialogue = await monter("agentNode", {}, { tools: [] });
-        fireEvent.click(within(dialogue).getByRole("button", { name: "Add an agent" }));
+        fireEvent.click(within(dialogue).getByRole("button", { name: "Attach an agent" }));
         const modale = await waitFor(() => {
             const el = document.querySelector('[data-modale="choisir-un-agent"]');
             expect(el).not.toBeNull();
@@ -622,7 +639,7 @@ describe("[.mark] brique « Agent » sous une étape", () => {
 
     it("crée l'outil de passation (annonce, accueil) et le rattache à l'étape", async () => {
         const dialogue = await monter("agentNode", {}, { tools: [] });
-        fireEvent.click(within(dialogue).getByRole("button", { name: "Add an agent" }));
+        fireEvent.click(within(dialogue).getByRole("button", { name: "Attach an agent" }));
         const modale = await waitFor(() => {
             const el = document.querySelector('[data-modale="choisir-un-agent"]');
             expect(el).not.toBeNull();

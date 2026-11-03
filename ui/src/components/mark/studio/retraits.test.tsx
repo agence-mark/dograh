@@ -13,7 +13,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TOOL_CATEGORIES } from "@/app/tools/config";
 import type { NodeSpec } from "@/client/types.gen";
-import { specsProposees } from "@/components/flow/AddNodePanel";
+import { specsProposees } from "@/components/flow/menu-noeuds";
 
 import { FournisseurLangue } from "../langue/langue";
 import { ShellStudio } from "./shell-studio";

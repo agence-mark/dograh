@@ -11,7 +11,8 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { useNodeSpecs } from "@/components/flow/renderer";
-import { specsProposees } from "@/components/flow/AddNodePanel";
+import { specsDuMenu } from "@/components/flow/menu-noeuds";
+import { libelleDuType } from "@/components/flow/nodes/GenericNode";
 import type { FlowNode, NodeType } from "@/components/flow/types";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { Info } from "@/components/mark/studio/marques";
@@ -61,14 +62,14 @@ export function BarreCanevas({
     /** Présent seulement au Labo. */
     bibliothequeHref?: string;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { specs } = useNodeSpecs();
     const comptes = useMemo(() => {
         const c = new Map<string, number>();
         noeuds.forEach((n) => c.set(n.type, (c.get(n.type) ?? 0) + 1));
         return c;
     }, [noeuds]);
-    const proposes = useMemo(() => specsProposees(specs), [specs]);
+    const proposes = useMemo(() => specsDuMenu(specs), [specs]);
 
     return (
         <div
@@ -94,10 +95,10 @@ export function BarreCanevas({
                                     <DropdownMenuItem
                                         key={spec.name}
                                         disabled={atteint}
-                                        title={atteint ? `${spec.display_name} : ${t(T.limite)}` : undefined}
+                                        title={atteint ? `${libelleDuType(spec, langue)} : ${t(T.limite)}` : undefined}
                                         onClick={() => onAjouter(spec.name as NodeType)}
                                     >
-                                        {spec.display_name}
+                                        {libelleDuType(spec, langue)}
                                     </DropdownMenuItem>
                                 );
                             })}

@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 
 import { Label } from "@/components/ui/label";
+import { Info } from "@/components/mark/studio/marques";
 import { cn } from "@/lib/utils";
 
 import { BORNES } from "../bornes-reglages";
@@ -55,6 +56,7 @@ export const ChampReglage = ({
     erreur = null,
     disposition = "colonne",
     note = null,
+    variante = "reglage",
     children,
 }: {
     /** The technical name of the setting, shown in grey. */
@@ -69,9 +71,47 @@ export const ChampReglage = ({
     disposition?: "ligne" | "colonne";
     /** A notice above the help (a setting shown only to be fixed, for instance). */
     note?: Texte | null;
+    /**
+     * « noeud » (K2b) : la forme de la fenêtre d'un nœud (maquette `modale-noeud.tsx`) : le libellé et, dans un « ! », ses
+     * explications, ses bornes et sa note ; ni le nom technique, ni la pastille d'origine. Le repère `data-reglage` reste.
+     */
+    variante?: "reglage" | "noeud";
     children: ReactNode;
 }) => {
     const { t } = useLangue();
+    if (variante === "noeud") {
+        const explications = [note, ...aides, bornes].filter((x): x is Texte => x !== null);
+        const etiquetteNoeud = (
+            <Label htmlFor={idControle} className="flex items-center gap-1.5 text-sm">
+                {t(libelle)}
+                {explications.length > 0 && (
+                    <Info>
+                        <span className="grid gap-1.5">
+                            {explications.map((e, i) => (
+                                <span key={i}>{t(e)}</span>
+                            ))}
+                        </span>
+                    </Info>
+                )}
+            </Label>
+        );
+        return (
+            <div id={`reglage-${cle}`} data-reglage={cle} className="scroll-mt-24 space-y-1.5">
+                {disposition === "ligne" ? (
+                    <div className="flex items-center justify-between gap-4">
+                        {etiquetteNoeud}
+                        {children}
+                    </div>
+                ) : (
+                    <>
+                        {etiquetteNoeud}
+                        {children}
+                    </>
+                )}
+                {erreur && <p className="text-xs text-destructive">{t(erreur)}</p>}
+            </div>
+        );
+    }
     const etiquette = (
         <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <Label htmlFor={idControle} className={disposition === "ligne" ? "text-sm" : "text-xs"}>

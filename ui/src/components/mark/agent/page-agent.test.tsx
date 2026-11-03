@@ -208,7 +208,7 @@ describe("la barre du canevas", () => {
         expect(screen.getByText("80 %")).toBeTruthy();
         expect(screen.getByRole("link", { name: "Library" }).getAttribute("href")).toBe("/labo/bibliotheque");
         // Le menu « Nœud » liste les types que le serveur sait poser, et range les nœuds.
-        fireEvent.click(within(await ouvrirNoeud()).getByText("Agent Step"));
+        fireEvent.click(within(await ouvrirNoeud()).getByText("Step"));
         expect(a.onAjouter).toHaveBeenCalledWith("agentNode");
         fireEvent.click(within(await ouvrirNoeud()).getByText("Tidy up the nodes"));
         expect(a.onRanger).toHaveBeenCalledTimes(1);

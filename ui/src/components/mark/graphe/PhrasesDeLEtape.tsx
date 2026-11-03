@@ -13,7 +13,6 @@ import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { ReglePhrase } from "@/types/workflow-configurations";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -87,16 +86,9 @@ export const PhrasesDeLEtape = ({ etapeId, etapeNom }: { etapeId: string; etapeN
                     fr: "Celles qui valent ici : propres à l'étape, puis celles de l'agent et du groupe. Même fenêtre de réglage que le thème Phrases des réglages de l'agent.",
                 },
             ]}
+            variante="noeud"
         >
             <div className="space-y-3" data-section-phrases-etape>
-                <div className="flex justify-end">
-                    <Button size="sm" variant="outline" onClick={() => setAjout(true)}>
-                        <Plus className="h-3.5 w-3.5" /> {t({ en: "Add to this step", fr: "Ajouter à cette étape" })}
-                    </Button>
-                </div>
-                {deLEtape.length === 0 && (
-                    <p className="text-xs text-muted-foreground">{t({ en: "No sentence of its own at this step.", fr: "Aucune phrase propre à cette étape." })}</p>
-                )}
                 {deLEtape.map(({ r, index }) => {
                     const motif = motifDe(r.motif);
                     if (!motif) return null;
@@ -116,6 +108,13 @@ export const PhrasesDeLEtape = ({ etapeId, etapeNom }: { etapeId: string; etapeN
                         />
                     );
                 })}
+                <button
+                    type="button"
+                    onClick={() => setAjout(true)}
+                    className="flex w-full cursor-pointer items-center gap-1.5 border-y py-2 text-left text-sm text-muted-foreground hover:font-medium hover:text-foreground"
+                >
+                    <Plus className="size-3.5" /> {t({ en: "Sentence", fr: "Phrase" })}
+                </button>
                 {vautAussiIci.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-vaut-aussi-ici>
                         {t({ en: "Also apply here, with no step rule:", fr: "Valent aussi ici, sans règle d'étape :" })}
