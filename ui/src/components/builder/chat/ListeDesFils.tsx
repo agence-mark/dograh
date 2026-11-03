@@ -10,6 +10,8 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { useAuth } from "@/lib/auth";
 
+import { useAdressesDuBuilder } from "./adresses";
+
 const T = {
     vide: { en: "No conversation yet", fr: "Aucune conversation" },
     changements: { en: "change(s) to validate", fr: "changement(s) à valider" },
@@ -23,6 +25,7 @@ const T = {
 export function ListeDesFils({ limite, workflowId }: { limite?: number; workflowId?: number }) {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
+    const adresses = useAdressesDuBuilder();
     const [fils, setFils] = useState<VueFil[] | null>(null);
     const [erreur, setErreur] = useState(false);
 
@@ -41,7 +44,7 @@ export function ListeDesFils({ limite, workflowId }: { limite?: number; workflow
         <ul className="divide-y">
             {fils.slice(0, limite).map((f) => (
                 <li key={f.id}>
-                    <Link href={`/labo/builder/${f.id}`} className="flex cursor-pointer items-center justify-between gap-3 py-2 hover:font-semibold">
+                    <Link href={adresses.fil(f.id)} className="flex cursor-pointer items-center justify-between gap-3 py-2 hover:font-semibold">
                         <span className="truncate text-sm">{f.titre}</span>
                         <span className="shrink-0 text-xs text-muted-foreground">
                             {f.changements > 0 ? `${f.changements} ${t(T.changements)} · ` : ""}

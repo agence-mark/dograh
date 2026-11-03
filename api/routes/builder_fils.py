@@ -24,6 +24,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder import demarrages, fil as service_fil
+from api.services.builder.constantes import organisation_bibliotheque
 from api.services.mark_evenements import flux_sse, suivre
 
 router = APIRouter(tags=["builder"])
@@ -98,6 +99,11 @@ def _refus(erreur: service_fil.ErreurFil) -> HTTPException:
     return HTTPException(status_code=erreur.statut, detail=str(erreur))
 
 
+def _dans_le_labo(user: UserModel) -> bool:
+    """L'espace de la requête est-il le Labo ? Un client ne voit pas les cartes « proposées dans le Labo seulement » (E57)."""
+    return user.selected_organization_id == organisation_bibliotheque()
+
+
 class VueDemarrage(BaseModel):
     slug: str
     titre: str
@@ -107,11 +113,12 @@ class VueDemarrage(BaseModel):
     icone: str
     statut: str
     utilisations: int
+    proposee_dans: str = "labo_et_clients"
 
 
 @router.get("/demarrages", response_model=list[VueDemarrage])
 async def lire_les_demarrages(user: UserModel = Depends(get_user_with_selected_organization)):
-    return await demarrages.plus_utilises()
+    return await demarrages.plus_utilises(dans_le_labo=_dans_le_labo(user))
 
 
 @router.get("/fils", response_model=list[VueFil])
@@ -132,7 +139,7 @@ async def ouvrir_un_fil(demande: NouveauFil, user: UserModel = Depends(get_user_
     workflow = await _agent_ou_404(user, demande.workflow_id) if demande.workflow_id is not None else None
     carte = None
     if demande.demarrage:
-        carte = await demarrages.lire(demande.demarrage)
+        carte = await demarrages.lire(demande.demarrage, dans_le_labo=_dans_le_labo(user))
         if carte is None:
             raise HTTPException(status_code=404, detail="Starter not found")
         if (manque := demarrages.manque(carte, demande.workflow_id)) is not None:

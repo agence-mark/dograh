@@ -6,6 +6,7 @@
  * qui manque (un agent, des fichiers texte) et « Envoyer » reste grisé, raison au survol, tant qu'il manque quelque chose.
  */
 import { Bot, FileText, FlaskConical, Sparkles, Wrench, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -24,10 +25,12 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { FenetreFichier } from "../fichier/FenetreFichier";
+import { useAdressesDuBuilder } from "./adresses";
 import { ListeDesFils } from "./ListeDesFils";
 
 const T = {
     titre: { en: "Builder", fr: "Builder" },
+    titreClient: { en: "What do we build for", fr: "Que construit-on pour" },
     ecrire: { en: "Describe what to build or improve...", fr: "Décrivez ce qu'il faut construire ou améliorer..." },
     envoyer: { en: "Send", fr: "Envoyer" },
     agent: { en: "Agent", fr: "Agent" },
@@ -53,6 +56,7 @@ type Agent = { id: number; name: string };
 export function AccueilDuBuilder() {
     const { t } = useLangue();
     const router = useRouter();
+    const adresses = useAdressesDuBuilder();
     const { user, loading: authLoading } = useAuth();
     const [cartes, setCartes] = useState<VueDemarrage[]>([]);
     const [agents, setAgents] = useState<Agent[]>([]);
@@ -112,12 +116,12 @@ export function AccueilDuBuilder() {
             setErreur(detailFromError(r.error, t(T.echec)));
             return;
         }
-        router.push(`/labo/builder/${r.data.id}`);
+        router.push(adresses.fil(r.data.id));
     };
 
     return (
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
-            <TitrePage titre={t(T.titre)} />
+            <TitrePage titre={adresses.client ? `${t(T.titreClient)} ${adresses.nomDuClient ?? "…"} ?` : t(T.titre)} />
             <div className="space-y-2 rounded-xl bg-card p-3 shadow-sm">
                 {choisi && (
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -167,11 +171,16 @@ export function AccueilDuBuilder() {
                         </span>
                     ))}
                     <span className="ml-auto" />
-                    {modele && (
-                        <a href="/labo/reglages" className="text-xs text-muted-foreground hover:font-semibold">
-                            {modele.modele || "-"} · {t(T.plafond)} ${modele.plafond.toFixed(2)}
-                        </a>
-                    )}
+                    {modele &&
+                        (adresses.reglages ? (
+                            <Link href={adresses.reglages} className="text-xs text-muted-foreground hover:font-semibold">
+                                {modele.modele || "-"} · {t(T.plafond)} ${modele.plafond.toFixed(2)}
+                            </Link>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">
+                                {modele.modele || "-"} · {t(T.plafond)} ${modele.plafond.toFixed(2)}
+                            </span>
+                        ))}
                     <Button size="sm" disabled={manque !== null} title={manque ?? undefined} onClick={() => void envoyer()}>
                         {t(T.envoyer)}
                     </Button>

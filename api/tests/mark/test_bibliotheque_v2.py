@@ -29,9 +29,11 @@ from api.services.builder.bibliotheque import fiches, propositions, service
 from api.services.builder.bibliotheque.modele import Statut
 from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, ORG_MARK, utilisateur
 
-EQUIPE = utilisateur(1, ORG_CLIENT)
+EQUIPE = utilisateur(1, ORG_MARK)  # la personne de l'équipe travaille DEPUIS le Labo (U2 quater : dans l'espace d'un client, la bibliothèque est en lecture)
 AUTRE = utilisateur(2, 8)
-CONTEXTE = Contexte(user=EQUIPE, workflow_id=AGENT)
+EQUIPE_CHEZ_UN_CLIENT = utilisateur(1, ORG_CLIENT)  # la même personne, dans l'espace d'un client
+CONTEXTE = Contexte(user=EQUIPE_CHEZ_UN_CLIENT, workflow_id=AGENT)  # le builder d'un client lit la bibliothèque
+CONTEXTE_DU_LABO = Contexte(user=EQUIPE, workflow_id=None)  # le builder du Labo l'écrit
 B = "/builder/bibliotheque"
 
 
@@ -238,7 +240,7 @@ def test_supprimer_une_etiquette_la_retire_de_ses_elements_sans_en_supprimer_un(
 
 async def test_le_builder_range_et_cherche(monde):
     await service.creer("moules-etape", "q", "Qualifier", {"texte": "poser la question du chauffage"}, "alice")
-    ok = await executer("bibliotheque_ranger", {"famille": "moules-etape", "slug": "q", "dossier": "rdv", "etiquettes": ["urgence"]}, CONTEXTE)
+    ok = await executer("bibliotheque_ranger", {"famille": "moules-etape", "slug": "q", "dossier": "rdv", "etiquettes": ["urgence"]}, CONTEXTE_DU_LABO)
     assert ok["ok"] and ok["dossier"] == "rdv" and ok["etiquettes"] == ["urgence"]
     trouve = await executer("bibliotheque_chercher", {"recherche": "chauffage", "etiquettes": ["urgence"]}, CONTEXTE)
     assert trouve["total"] == 1 and trouve["elements"][0]["extrait"]
@@ -360,12 +362,12 @@ async def test_une_fiche_ou_une_famille_proposee_par_le_builder_attend_une_perso
     p1 = await executer(
         "bibliotheque_proposer",
         {"type": "fiche", "famille": "moules-etape", "slug": "moules-etape", "justification": "plus clair", "contenu": {"description": "D", "quand": "Q", "comment": "C"}},
-        CONTEXTE,
+        CONTEXTE_DU_LABO,
     )
     p2 = await executer(
         "bibliotheque_proposer",
         {"type": "famille", "famille": "metiers", "slug": "metiers", "justification": "il manque un rayon", "contenu": {"libelle": "Métiers", "groupe": "guide"}},
-        CONTEXTE,
+        CONTEXTE_DU_LABO,
     )
     assert p1["ok"] and p2["ok"]
     assert (await fiches.lire("moules-etape")).description != "D"  # rien n'est écrit tant que personne n'a accepté

@@ -71,6 +71,8 @@ class Demarrage(_Forme):
     demande: str = Field(min_length=1, max_length=4000)
     besoin: Literal["rien", "agent", "fichiers", "agent et fichiers"] = "rien"
     icone: Literal["agent", "amelioration", "test", "fichier", "etincelle"] = "etincelle"
+    # U2 quater (E57) : où la carte est proposée. « labo » : seulement dans le Labo (ex. « Verser à la bibliothèque »).
+    proposee_dans: Literal["labo_et_clients", "labo"] = "labo_et_clients"
 
 
 class PieceDeRecette(BaseModel):

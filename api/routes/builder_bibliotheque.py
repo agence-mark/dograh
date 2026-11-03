@@ -40,10 +40,11 @@ def _refus(erreur: ErreurBibliotheque) -> HTTPException:
     return HTTPException(status_code=erreur.statut, detail=str(erreur))
 
 
-async def _equipe(user: UserModel) -> str:
-    """Exige l'équipe .mark ; rend le nom d'auteur pour l'historique."""
+async def _equipe(user: UserModel, *, ecrit: bool = True) -> str:
+    """Exige l'équipe .mark ; rend le nom d'auteur pour l'historique. ``ecrit`` : écrire la bibliothèque se fait depuis le Labo
+    seulement (U2 quater, E57) ; une LECTURE réservée à l'équipe (qui utilise l'élément) reste ouverte depuis un client."""
     try:
-        await droits.exiger_l_equipe(user)
+        await (droits.exiger_l_equipe_au_labo(user) if ecrit else droits.exiger_l_equipe(user))
     except ErreurBibliotheque as erreur:
         raise _refus(erreur) from None
     return droits.nom_de_l_auteur(user)
@@ -195,7 +196,7 @@ async def lire_un_element(famille: str, slug: str, user: UserModel = Depends(get
 async def lire_l_utilisation(famille: str, slug: str, user: UserModel = Depends(get_user_with_selected_organization)):
     """Les agents qui utilisent l'élément (organisation, agent, version). Les noms restent à l'écran de chaque client.
     Réservé à l'équipe .mark (revue N3) : la liste nomme les organisations et les agents d'AUTRES clients."""
-    await _equipe(user)
+    await _equipe(user, ecrit=False)
     try:
         await service.lire_element(famille, slug)
         liste = await service.utilisation(famille, slug)

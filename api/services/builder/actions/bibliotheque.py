@@ -131,7 +131,7 @@ class _Ranger(BaseModel):
 
 async def _ranger(contexte: Contexte, parametres: _Ranger) -> dict[str, Any]:
     try:
-        await droits.exiger_l_equipe(contexte.user)
+        await droits.exiger_l_equipe_au_labo(contexte.user)
         element = await rangement.ranger(
             parametres.famille, parametres.slug, dossier=parametres.dossier, etiquettes_posees=parametres.etiquettes
         )
@@ -252,7 +252,7 @@ class _Candidat(BaseModel):
 
 async def _ecrire_candidat(contexte: Contexte, parametres: _Candidat) -> dict[str, Any]:
     try:
-        await droits.exiger_l_equipe(contexte.user)
+        await droits.exiger_l_equipe_au_labo(contexte.user)
         element = await service.ecrire_candidat(
             parametres.famille,
             parametres.slug,
@@ -282,7 +282,7 @@ class _Proposer(BaseModel):
 
 async def _proposer(contexte: Contexte, parametres: _Proposer) -> dict[str, Any]:
     try:
-        await droits.exiger_l_equipe(contexte.user)
+        await droits.exiger_l_equipe_au_labo(contexte.user)
         proposition = await propositions.creer(
             parametres.type,
             parametres.famille,
