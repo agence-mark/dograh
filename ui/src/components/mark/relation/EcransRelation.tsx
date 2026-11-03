@@ -79,6 +79,9 @@ function AccueilInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
                 </div>
                 <div>
                     <TitreTableau titre="Clients" />
+                    {clients.donnees?.length === 0 && (
+                        <EtatVide cas="premier" compact icone={Users} titre={t({ en: "No client yet", fr: "Aucun client pour l'instant" })} />
+                    )}
                     {clients.donnees?.map((c) => (
                         <Link key={c.id} href={`/relation/clients/${c.id}`} className="flex cursor-pointer items-center justify-between border-b py-2 text-sm hover:font-medium">
                             <span className="truncate">{c.nom}</span>

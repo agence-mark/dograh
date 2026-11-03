@@ -118,6 +118,17 @@ describe("[.mark] le tableau des outils", () => {
         monter();
         expect(await screen.findByText("Aucun outil")).toBeTruthy();
     });
+
+    it("J (E102) : une recherche sans résultat dit « Aucun résultat pour », même sans aucun outil, et s'efface", async () => {
+        m.liste.mockResolvedValue({ data: [] });
+        monter();
+        await screen.findByText("Aucun outil");
+        fireEvent.change(screen.getByPlaceholderText(/Rechercher/), { target: { value: "zzzz" } });
+        expect(await screen.findByText(/Aucun résultat pour/)).toBeTruthy();
+        expect(screen.queryByText("Aucun outil")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+        expect(await screen.findByText("Aucun outil")).toBeTruthy();
+    });
 });
 
 describe("[.mark] la fenêtre d'un outil HTTP", () => {

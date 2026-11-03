@@ -201,7 +201,7 @@ export function PageOutils() {
                 </Paginee>
             )}
             {!erreur && outils !== null && liste.length === 0 &&
-                (tous.length === 0 ? (
+                (tous.length === 0 && !q && !type ? (
                     <EtatVide cas="premier" icone={Wrench} titre={t({ en: "No tool", fr: "Aucun outil" })} />
                 ) : (
                     <EtatVide
