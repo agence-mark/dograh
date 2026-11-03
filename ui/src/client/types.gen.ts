@@ -5434,6 +5434,36 @@ export type EtapeApresAppel = {
 };
 
 /**
+ * EtapeDePreparation
+ */
+export type EtapeDePreparation = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Niveau
+     */
+    niveau: string;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Theme
+     */
+    theme: string;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Manquants
+     */
+    manquants?: Array<string>;
+};
+
+/**
  * EtatBaseClient
  */
 export type EtatBaseClient = {
@@ -6179,6 +6209,18 @@ export type HealthResponse = {
      * Stack Publishable Client Key
      */
     stack_publishable_client_key?: string | null;
+};
+
+/**
+ * HeritageReglagesResponse
+ */
+export type HeritageReglagesResponse = {
+    /**
+     * Reglages
+     */
+    reglages: {
+        [key: string]: ReglageHerite;
+    };
 };
 
 /**
@@ -10174,6 +10216,16 @@ export type Preferences = {
 };
 
 /**
+ * PreparationResponse
+ */
+export type PreparationResponse = {
+    /**
+     * Etapes
+     */
+    etapes: Array<EtapeDePreparation>;
+};
+
+/**
  * Preparer
  */
 export type Preparer = {
@@ -10967,6 +11019,36 @@ export type RefusOutput = {
      * Detail
      */
     detail: string;
+};
+
+/**
+ * ReglageHerite
+ */
+export type ReglageHerite = {
+    /**
+     * Origine
+     */
+    origine: string;
+    /**
+     * Valeur
+     */
+    valeur?: unknown;
+    /**
+     * Valeur Heritee
+     */
+    valeur_heritee?: unknown;
+    /**
+     * Propre
+     */
+    propre: boolean;
+    /**
+     * Modifiable
+     */
+    modifiable: boolean;
+    /**
+     * Masquee
+     */
+    masquee: boolean;
 };
 
 /**
@@ -11972,6 +12054,14 @@ export type ResumeDuModele = {
      * Nombre De Reglages
      */
     nombre_de_reglages: number;
+    /**
+     * Statut
+     */
+    statut?: string;
+    /**
+     * Version
+     */
+    version?: number;
 };
 
 /**
@@ -19452,6 +19542,102 @@ export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses = {
 };
 
 export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponse = PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses[keyof PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostResponses];
+
+export type LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/preparation';
+};
+
+export type LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetError = LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetErrors[keyof LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetErrors];
+
+export type LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PreparationResponse;
+};
+
+export type LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetResponse = LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetResponses[keyof LireLaPreparationApiV1WorkflowWorkflowIdPreparationGetResponses];
+
+export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/heritage-reglages';
+};
+
+export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetError = LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetErrors[keyof LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetErrors];
+
+export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: HeritageReglagesResponse;
+};
+
+export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponse = LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponses[keyof LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponses];
 
 export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetData = {
     body?: never;
