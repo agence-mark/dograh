@@ -162,6 +162,8 @@ describe("[.mark] l'écran Entreprise (U2 bis, E56)", () => {
         });
         expect(nord.textContent).toContain("Modifiée en dernier par Camille Dupont depuis le portail");
         expect(nord.textContent).toContain("02/11/2026");
+        // V2 : sa propre ligne, jamais collée au texte qui la précède (« …horairesModifiée en dernier… »).
+        expect(nord.className).toContain("block");
         const sud = document.querySelector('[data-derniere-modification="sud"]')!;
         expect(sud.textContent).toContain("depuis Dograh");
         expect(sud.textContent).not.toContain(" par ");

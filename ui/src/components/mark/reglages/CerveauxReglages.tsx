@@ -126,6 +126,9 @@ const T = {
     },
     depenseDuMois: { en: "Spent this month:", fr: "Dépensé ce mois-ci :" },
     secours: { en: "Not in the library: the code's text is used.", fr: "Absent de la bibliothèque : le texte du code sert." },
+    statutRecette: { en: "Proven", fr: "Recette" },
+    statutRejete: { en: "Rejected", fr: "Rejeté" },
+    statutCandidat: { en: "Candidate", fr: "Candidat" },
     recoit: { en: "What it receives", fr: "Ce qu'il reçoit" },
     recoitInfo: { en: "Injected by the code, every time.", fr: "Injecté par le code, à chaque fois." },
     vide: { en: "empty", fr: "vide" },
@@ -250,7 +253,7 @@ function CartePrompt({ lu }: { lu: VueCerveauLu | null }) {
                     <span className="flex-1">{p.titre ?? p.libelle_famille}</span>
                     {p.version !== null && p.version !== undefined ? (
                         <span className="text-xs text-muted-foreground">
-                            v{p.version} · {p.statut === "recette" ? "Recette" : p.statut === "rejete" ? "Rejeté" : "Candidat"}
+                            v{p.version} · {p.statut === "recette" ? t(T.statutRecette) : p.statut === "rejete" ? t(T.statutRejete) : t(T.statutCandidat)}
                         </span>
                     ) : (
                         <span className="text-xs text-muted-foreground">{t(T.secours)}</span>
@@ -377,7 +380,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                     <Carte>
                         <div className="flex items-center gap-2">
                             <Bot className="size-5 text-(--acc)" aria-hidden />
-                            <p className="font-medium">Builder IA</p>
+                            <p className="font-medium">{t({ en: "Builder AI", fr: "Builder IA" })}</p>
                             <Info>{`${t(T.builderRole)} ${t(T.interrupteurInfo)}`}</Info>
                             <Switch
                                 className="ml-auto"

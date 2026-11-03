@@ -230,13 +230,25 @@ describe("[.mark] the « Alerts » page", () => {
         cleanup();
         m.alertes.mockResolvedValue({ data: { lignes: [], page: 0, a_une_suite: false } });
         render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
-        expect((await screen.findByTestId("alertes-vide")).textContent).toBe("Aucune alerte.");
+        expect(await screen.findByText("Aucune alerte.")).toBeTruthy();
+        expect(document.querySelector("table")).toBeNull();
     });
 
-    it("shows the server's refusal instead of an empty list", async () => {
+    it("says it could not load, with a retry, and never shows the server's text (V2)", async () => {
         m.alertes.mockResolvedValue({ error: { detail: "Not allowed" } });
         render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
-        expect((await screen.findByRole("alert")).textContent).toContain("Not allowed");
+        expect(await screen.findByText("Impossible de charger")).toBeTruthy();
+        expect(screen.queryByText(/Not allowed/)).toBeNull();
+        m.alertes.mockResolvedValue({ data: { lignes: ALERTES, page: 0, a_une_suite: false } });
+        fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+        expect(await screen.findByText("Outil en échec")).toBeTruthy();
+    });
+
+    it("lists the alerts in a bare table, never in framed cards (V2)", async () => {
+        render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
+        await screen.findByText("Outil en échec");
+        expect(document.querySelectorAll("tbody tr").length).toBe(ALERTES.length);
+        expect(document.querySelector(".rounded.border")).toBeNull();
     });
 });
 

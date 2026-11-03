@@ -100,7 +100,7 @@ describe("Réglages du Labo, onglet Builder IA", () => {
 describe("Réglages du Labo, onglet Builder IA : les vraies données (K7)", () => {
     it("montre le prompt système avec sa version et son statut, et ce qu'il reçoit avec les blocs vides ou absents", async () => {
         render(<OngletBuilderIA aller={vi.fn()} />);
-        expect(await screen.findByText(/v3 · Recette/)).toBeTruthy();
+        expect(await screen.findByText(/v3 · Proven/)).toBeTruthy();
         const liste = screen.getByText(/Conventions .mark|\.mark conventions/).closest("li") as HTMLElement;
         expect(liste.textContent).toMatch(/absent|missing/);
         expect((screen.getByText(/Vos préférences|Your preferences/).closest("li") as HTMLElement).textContent).not.toMatch(/vide|empty/);

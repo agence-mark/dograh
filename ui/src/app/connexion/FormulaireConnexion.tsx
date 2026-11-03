@@ -53,7 +53,7 @@ export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean 
                         id="email"
                         type="email"
                         autoComplete="username"
-                        placeholder="prenom@agence-mark.com"
+                        placeholder={t({ en: "first.last@company.com", fr: "prenom@agence-mark.com" })}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required

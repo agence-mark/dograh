@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDate } from "@/lib/dateTime";
 
 import { configParDefaut, type Connecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -74,7 +75,7 @@ function useEtatLogiciel() {
                 : t({ en: "To try", fr: "À essayer" });
 }
 
-const jour = (iso?: string | null) => (iso ? iso.slice(0, 10) : "–");
+const jour = (iso: string | null | undefined, langue: "fr" | "en") => (iso ? formatDate(iso, null, langue) : "–");
 
 /** Une ligne du tableau des comptes : un compte branché, ou une proposition qui attend le client. */
 type LigneCompte = {
@@ -90,7 +91,7 @@ type LigneCompte = {
 const POINT = { connecte: "publie", a_verifier: "panne", a_autoriser: "attente" } as const;
 
 function useLignes(connecteurs: Connecteurs, propositions: Propositions): LigneCompte[] {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const catalogue = connecteurs.catalogue ?? [];
     const lignes: LigneCompte[] = [];
     for (const x of connecteurs.etat?.connexions ?? []) {
@@ -103,7 +104,7 @@ function useLignes(connecteurs: Connecteurs, propositions: Propositions): LigneC
             etat: x.erreurs ? "a_verifier" : "connecte",
             par: x.autorise_par ?? "–",
             outils: (x.utilise_par ?? []).length,
-            le: jour(x.creee_le),
+            le: jour(x.creee_le, langue),
         });
     }
     for (const p of propositions.liste ?? []) {
@@ -117,7 +118,7 @@ function useLignes(connecteurs: Connecteurs, propositions: Propositions): LigneC
             etat: "a_autoriser",
             par: p.propose_par ? t({ en: `proposed by ${p.propose_par}`, fr: `proposé par ${p.propose_par}` }) : t({ en: "proposed", fr: "proposé" }),
             outils: 0,
-            le: jour(p.propose_le),
+            le: jour(p.propose_le, langue),
         });
     }
     return lignes;

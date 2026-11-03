@@ -518,7 +518,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     return (
         <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer(aCopie.current))}>
             <DialogContent
-                className={`flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 ${modeFiche ? "sm:max-w-xl" : "sm:max-w-5xl"}`}
+                className={`flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 ${modeFiche ? "sm:max-w-2xl" : "sm:max-w-5xl"}`}
                 data-testid="modale-etablissements"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >

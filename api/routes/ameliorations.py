@@ -258,8 +258,11 @@ async def rejouer_la_suite_de_l_agent(
 
 @router.get("/qualite")
 async def lire_la_qualite(
-    jours: Literal[7, 30] = Query(7),
+    jours: int = Query(7),
     workflow_id: int | None = Query(None),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> dict[str, Any]:
+    # Une adresse envoie « 7 » ou « 30 » en texte : un `Literal[7, 30]` le refusait toujours (422), la page Qualité restait en erreur.
+    if jours not in (7, 30):
+        raise HTTPException(status_code=422, detail="jours doit valoir 7 ou 30")
     return await qualite.calculer(user.selected_organization_id, jours=jours, workflow_id=workflow_id)

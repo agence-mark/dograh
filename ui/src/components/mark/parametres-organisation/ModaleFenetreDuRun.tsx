@@ -188,11 +188,11 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
         <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer())}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl" data-testid="modale-fenetre-du-run">
                 <DialogHeader>
-                    <DialogTitle>{t({ en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" })}</DialogTitle>
+                    <DialogTitle>{t({ en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" })}</DialogTitle>
                     <DialogDescription>
                         {t({
                             en: "One line per provider model, with the date of the rate. The run window multiplies each call's consumption by these prices. A model without a price is shown as unpriced, never guessed.",
-                            fr: "Une ligne par modèle de fournisseur, avec la date du tarif. La fenêtre du run multiplie la consommation de chaque appel par ces prix. Un modèle sans prix est affiché « sans prix », jamais deviné.",
+                            fr: "Une ligne par modèle de fournisseur, avec la date du tarif. La fenêtre d'appel multiplie la consommation de chaque appel par ces prix. Un modèle sans prix est affiché « sans prix », jamais deviné.",
                         })}
                     </DialogDescription>
                 </DialogHeader>

@@ -148,7 +148,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
                             <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
                                 {espace === "client" ? t({ en: "Client", fr: "Client" }) : t({ en: "Space", fr: "Espace" })}
                             </span>
-                            <span className="block truncate text-sm font-medium">{nomEspace ?? (org ? "" : "Labo")}</span>
+                            <span className="block truncate text-sm font-medium">{nomEspace ?? (org ? "" : t({ en: "Labo", fr: "Labo" }))}</span>
                         </span>
                     </div>
                 )}

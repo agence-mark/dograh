@@ -94,7 +94,7 @@ export function SectionApresAppelAgent({
                 aides={[
                     {
                         en: "After each call, in the background: write it in the client's database (call, contact, request, record), summarise it, mail the request to the people of its routing, then run the modules ticked below. Failures show in « After the call » of the run window and go to the notification addresses.",
-                        fr: "Après chaque appel, en tâche de fond : l'écrire dans la base du client (appel, contact, demande, fiche), le résumer, envoyer la demande par mail aux personnes de son routage, puis lancer les modules cochés dessous. Les échecs s'affichent dans « Après l'appel » de la fenêtre du run et partent aux adresses de notification.",
+                        fr: "Après chaque appel, en tâche de fond : l'écrire dans la base du client (appel, contact, demande, fiche), le résumer, envoyer la demande par mail aux personnes de son routage, puis lancer les modules cochés dessous. Les échecs s'affichent dans « Après l'appel » de la fenêtre d'appel et partent aux adresses de notification.",
                     },
                     {
                         en: "The summary key, the mail server and the modules' settings are the organization's (Platform Settings, « After the call »).",

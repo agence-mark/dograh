@@ -468,7 +468,7 @@ function SplitTracksSection({
                     onClick={() => playbackMode !== 'both' && handleTrackButtonClick(playbackMode === 'user' ? 'user' : 'bot')}
                     className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'both' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
                 >
-                    Les deux pistes
+                    Both tracks
                 </button>
                 <button
                     type="button"
@@ -477,7 +477,7 @@ function SplitTracksSection({
                     onClick={() => handleTrackButtonClick('user')}
                     className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'user' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
                 >
-                    Appelant
+                    Caller
                 </button>
                 <button
                     type="button"
@@ -490,10 +490,10 @@ function SplitTracksSection({
                 </button>
             </span>
             <span className="flex items-center">
-                <Button type="button" variant="ghost" size="icon" className="size-8" title="Télécharger la piste de l'appelant" aria-label="Télécharger la piste de l'appelant" onClick={() => downloadFile(userRecordingUrl)}>
+                <Button type="button" variant="ghost" size="icon" className="size-8" title="Download the caller track" aria-label="Download the caller track" onClick={() => downloadFile(userRecordingUrl)}>
                     <Download className="size-4" />
                 </Button>
-                <Button type="button" variant="ghost" size="icon" className="size-8" title="Télécharger la piste de l'agent" aria-label="Télécharger la piste de l'agent" onClick={() => downloadFile(botRecordingUrl)}>
+                <Button type="button" variant="ghost" size="icon" className="size-8" title="Download the agent track" aria-label="Download the agent track" onClick={() => downloadFile(botRecordingUrl)}>
                     <Bot className="size-4" />
                 </Button>
             </span>
@@ -700,16 +700,16 @@ export default function WorkflowRunPage() {
                 <div data-page-conversation>
                     <EnteteStudio
                         nom={
-                            <nav aria-label="Fil d'Ariane" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+                            <nav aria-label={tp({ en: 'Breadcrumb', fr: "Fil d'Ariane" })} className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
                                 <Link href="/labo" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
-                                    {nomEspace ?? 'Labo'}
+                                    {nomEspace ?? tp({ en: 'Labo', fr: 'Labo' })}
                                 </Link>
                                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
                                 <Link href="/labo/conversations" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
-                                    Conversations
+                                    {tp({ en: 'Conversations', fr: 'Conversations' })}
                                 </Link>
                                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                                <span className="truncate font-medium">Appel n° {runId}</span>
+                                <span className="truncate font-medium">{tp({ en: 'Call no.', fr: 'Appel n°' })} {runId}</span>
                             </nav>
                         }
                         actions={
@@ -724,7 +724,7 @@ export default function WorkflowRunPage() {
                                         onClick={() => downloadFile(workflowRun?.transcript_url ?? null)}
                                         disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
                                     >
-                                        <Download className="size-3.5" /> Transcription
+                                        <Download className="size-3.5" /> {tp({ en: 'Transcript', fr: 'Transcription' })}
                                     </Button>
                                 )}
                             </>

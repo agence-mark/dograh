@@ -407,6 +407,16 @@ async def test_la_qualite_agrege_les_chiffres_les_motifs_les_agents_et_les_versi
     assert q["versions"] == []  # une seule version dans la fenêtre : rien à comparer
 
 
+async def test_la_qualite_accepte_la_fenetre_envoyee_par_l_ecran_en_texte(sans_preparation_des_organisations):
+    """L'écran envoie `?jours=7` ou `?jours=30` : un `Literal[7, 30]` refusait toujours le texte (la page restait en erreur)."""
+    org, user, jeton, agent = await decor("qualitefenetre")
+    async with client_http() as c:
+        for jours in (7, 30):
+            r = await c.get(f"/api/v1/qualite?jours={jours}", headers=entetes(jeton, org))
+            assert r.status_code == 200, (jours, r.text)
+        assert (await c.get("/api/v1/qualite?jours=14", headers=entetes(jeton, org))).status_code == 422
+
+
 def test_la_comparaison_avant_apres_garde_les_versions_vues_par_agent():
     def ligne(wf, version, issue):
         return {"workflow_id": wf, "workflow_nom": f"A{wf}", "version": version, "annotations": bilan(issue, version=version)}
