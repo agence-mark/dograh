@@ -3,35 +3,38 @@
 /**
  * [.mark] U3 sexies point 1 (E73) : « Connecteurs » devient « Intégrations », trois onglets : Logiciels, Serveurs MCP,
  * Identifiants. L'adresse `/labo/connecteurs` reste valable. Une intégration est le branchement d'un logiciel une fois
- * pour l'organisation ; elle met des actions à disposition, que les Outils utilisent.
+ * pour l'organisation ; elle met des actions à disposition, que les Outils utilisent. K5 : cadre de page (`PageStudio`).
  */
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
 import { OngletsPage } from "../studio/onglets-page";
+import { PageStudio } from "../studio/shell-studio";
 import { TitrePage } from "../studio/titre-page";
 import { OngletIdentifiants } from "./OngletIdentifiants";
 import { OngletLogiciels } from "./OngletLogiciels";
 import { OngletServeursMcp } from "./OngletServeursMcp";
+import { usePropositions } from "./usePropositions";
 
 export function PageIntegrations() {
     const { t } = useLangue();
     const connecteurs = useConnecteurs();
+    const propositions = usePropositions();
     return (
-        <div className="space-y-6">
-            <TitrePage
-                titre={t({ en: "Integrations", fr: "Intégrations" })}
-                info={t({
-                    en: "A software is connected once for the organization (Nango account, key, MCP server); it makes actions available, which the Tools use.",
-                    fr: "Un logiciel se branche une fois pour l'organisation (compte Nango, clé, serveur MCP) ; il met des actions à disposition, que les Outils utilisent.",
-                })}
-            />
-            <OngletsPage
-                onglets={[
-                    { id: "logiciels", titre: t({ en: "Software", fr: "Logiciels" }), contenu: <OngletLogiciels connecteurs={connecteurs} /> },
-                    { id: "mcp", titre: t({ en: "MCP servers", fr: "Serveurs MCP" }), contenu: <OngletServeursMcp /> },
-                    { id: "identifiants", titre: t({ en: "Credentials", fr: "Identifiants" }), contenu: <OngletIdentifiants /> },
-                ]}
-            />
-        </div>
+        <PageStudio>
+                <TitrePage
+                    titre={t({ en: "Integrations", fr: "Intégrations" })}
+                    info={t({
+                        en: "What is connected once for the organization: the client's software, the MCP servers and the credentials (keys, tokens, passwords) of the HTTP requests, the MCP servers and the software connected by a key. The tools rely on them. The model providers' keys are in Models and keys.",
+                        fr: "Ce qui est branché une fois pour l'organisation : les logiciels du client, les serveurs MCP et les identifiants (clés, jetons, mots de passe) des requêtes HTTP, des serveurs MCP et des logiciels branchés par clé. Les outils s'appuient dessus. Les clés des fournisseurs de modèles sont dans Modèles et clés.",
+                    })}
+                />
+                <OngletsPage
+                    onglets={[
+                        { id: "logiciels", titre: t({ en: "Software", fr: "Logiciels" }), contenu: <OngletLogiciels connecteurs={connecteurs} propositions={propositions} /> },
+                        { id: "mcp", titre: t({ en: "MCP servers", fr: "Serveurs MCP" }), contenu: <OngletServeursMcp /> },
+                        { id: "identifiants", titre: t({ en: "Credentials", fr: "Identifiants" }), contenu: <OngletIdentifiants /> },
+                    ]}
+                />
+        </PageStudio>
     );
 }

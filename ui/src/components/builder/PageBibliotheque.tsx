@@ -1,52 +1,63 @@
 "use client";
 
 /**
- * [.mark] builder-agent-vocal (lot 2) then builder partie 2, E1 (U7, E49): the « Library » page.
+ * [.mark] builder-agent-vocal (lot 2), builder partie 2 E1 (U7, E49), puis K5 (fidélité à la maquette) : la page « Bibliothèque ».
  *
- * Left, the column: « New family », the families by group, and the sub-folders of the chosen family. On the right, a search in
- * the whole library, the status and label filters, then the elements in a bare table, 25 per page (server side, E61). A click
- * on a row opens the element: where it sits (sub-folder, labels), its versions, the human gestures. Everyone reads; only members
- * of the .mark organization write (the server says no to the others).
+ * À gauche, la colonne : « Nouvelle famille », les familles par groupe, les sous-dossiers de la famille choisie. À droite,
+ * le nom de la famille (son « !», son crayon qui ouvre sa fiche), « Propositions » et « Nouvel élément » ; la recherche dans
+ * toute la bibliothèque, les statuts en pastilles, le menu « Étiquettes » ; le tableau nu, 25 par page (côté serveur, E61).
+ * Un clic sur une ligne ouvre la fiche de l'élément dans une fenêtre. Tout le monde lit ; seuls les membres de
+ * l'organisation .mark écrivent (le serveur dit non aux autres).
  */
-import { Search } from "lucide-react";
+import { BookOpen, Pencil, Plus, Search, Tag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost,
+    creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost,
     lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet,
     lireUnElementApiV1BuilderBibliothequeFamilleSlugGet,
     listerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGet,
     listerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGet,
     listerLesFamillesApiV1BuilderBibliothequeFamillesGet,
+    listerLesPropositionsApiV1BuilderBibliothequePropositionsGet,
     parcourirApiV1BuilderBibliothequeParcourirGet,
     supprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDelete,
 } from "@/client";
 import type { Element as ElementBibliotheque, Resume, VueEtiquette, VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
-import { Liste } from "@/components/mark/studio/liste";
-import { Etiquette } from "@/components/mark/studio/marques";
+import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { FenetreLarge } from "@/components/mark/studio/fenetre-large";
+import { Info, Pastille, PointEtat } from "@/components/mark/studio/marques";
 import { Paginee } from "@/components/mark/studio/pagination";
 import { Tableau } from "@/components/mark/studio/tableau";
+import { TitrePage } from "@/components/mark/studio/titre-page";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
 import { ColonneDesFamilles } from "./ColonneDesFamilles";
-import { DepotDeDocument } from "./DepotDeDocument";
-import { ElementDeLaBibliotheque } from "./ElementDeLaBibliotheque";
+import { FenetreElement } from "./FenetreElement";
+import { FenetreNouvelElement } from "./FenetreNouvelElement";
 import { FenetreFiche, FenetreNouvelleFamille } from "./FenetresDeFamille";
-import { FormulaireImport } from "./FormulaireImport";
 import { GestionDesEtiquettes } from "./GestionDesEtiquettes";
 import { type StatutDeLaBibliotheque, STATUTS } from "./libelles";
 import { PropositionsDeLaBibliotheque } from "./PropositionsDeLaBibliotheque";
-import { RangementDeLElement } from "./RangementDeLElement";
 
-type Onglet = "elements" | "propositions" | "ajouter";
 const PAR_PAGE = 25;
+const POINT = { recette: "publie", rejete: "panne", candidat: "brouillon" } as const;
 
 export function PageBibliotheque() {
     const { t } = useLangue();
-    const [onglet, setOnglet] = useState<Onglet>("elements");
     const [familles, setFamilles] = useState<VueFamille[]>([]);
     const [famille, setFamille] = useState("");
     const [dossier, setDossier] = useState<string | null>(null);
@@ -64,8 +75,11 @@ export function PageBibliotheque() {
     const [utilisePar, setUtilisePar] = useState(0);
     const [erreur, setErreur] = useState<string | null>(null);
     const [nouvelleFamille, setNouvelleFamille] = useState(false);
+    const [nouvelElement, setNouvelElement] = useState(false);
     const [ficheDe, setFicheDe] = useState<string | null>(null);
     const [gestion, setGestion] = useState(false);
+    const [propositionsOuvertes, setPropositionsOuvertes] = useState(false);
+    const [enAttente, setEnAttente] = useState(0);
 
     const chargerLesFamilles = useCallback(async () => {
         const reponse = await listerLesFamillesApiV1BuilderBibliothequeFamillesGet();
@@ -74,11 +88,18 @@ export function PageBibliotheque() {
             return;
         }
         setFamilles(reponse.data);
+        // Une famille est toujours choisie (la maquette n'a pas de « toutes les familles ») : la première, au début.
+        setFamille((actuelle) => (actuelle && reponse.data.some((f) => f.slug === actuelle) ? actuelle : (reponse.data[0]?.slug ?? "")));
     }, []);
 
     const chargerLesEtiquettes = useCallback(async () => {
         const reponse = await listerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGet();
         if (!reponse.error && reponse.data) setEtiquettes(reponse.data);
+    }, []);
+
+    const chargerLesPropositions = useCallback(async () => {
+        const reponse = await listerLesPropositionsApiV1BuilderBibliothequePropositionsGet();
+        if (!reponse.error && Array.isArray(reponse.data)) setEnAttente(reponse.data.filter((p) => p.etat === "en_attente").length);
     }, []);
 
     const chargerLesDossiers = useCallback(async (f: string) => {
@@ -90,10 +111,12 @@ export function PageBibliotheque() {
         setDossiers(!reponse.error && reponse.data ? reponse.data : []);
     }, []);
 
+    // Les trois lectures de la page partent ensemble, jamais en chaîne.
     useEffect(() => {
         void chargerLesFamilles();
         void chargerLesEtiquettes();
-    }, [chargerLesFamilles, chargerLesEtiquettes]);
+        void chargerLesPropositions();
+    }, [chargerLesFamilles, chargerLesEtiquettes, chargerLesPropositions]);
 
     useEffect(() => {
         void chargerLesDossiers(famille);
@@ -109,11 +132,12 @@ export function PageBibliotheque() {
     }, [saisie]);
 
     const chargerLaListe = useCallback(async () => {
+        // Une recherche porte sur toute la bibliothèque ; sans elle, la famille choisie.
         const reponse = await parcourirApiV1BuilderBibliothequeParcourirGet({
             query: {
-                famille: famille || undefined,
+                famille: recherche ? undefined : famille || undefined,
                 statut: statut || undefined,
-                dossier: dossier || undefined,
+                dossier: recherche ? undefined : dossier || undefined,
                 etiquette: filtre.length ? filtre : undefined,
                 q: recherche || undefined,
                 limite: PAR_PAGE,
@@ -150,6 +174,8 @@ export function PageBibliotheque() {
     const choisirLaFamille = (slug: string) => {
         setFamille(slug);
         setDossier(null);
+        setSaisie("");
+        setRecherche("");
         setPage(0);
     };
     const nomDeFamille = (slug: string) => familles.find((f) => f.slug === slug)?.libelle ?? slug;
@@ -164,208 +190,282 @@ export function PageBibliotheque() {
         void chargerLesDossiers(famille);
     };
 
-    return (
-        <div className="space-y-4" data-testid="page-bibliotheque">
-            <div role="tablist" className="flex gap-2 border-b">
-                {(
-                    [
-                        ["elements", { en: "Elements", fr: "Éléments" }],
-                        ["propositions", { en: "Proposals", fr: "Propositions" }],
-                        ["ajouter", { en: "Add", fr: "Ajouter" }],
-                    ] as const
-                ).map(([id, texte]) => (
-                    <button
-                        key={id}
-                        role="tab"
-                        aria-selected={onglet === id}
-                        className={`cursor-pointer px-3 py-2 text-sm ${onglet === id ? "border-b-2 border-primary font-medium" : "text-muted-foreground hover:font-medium"}`}
-                        onClick={() => setOnglet(id)}
-                    >
-                        {t(texte)}
-                    </button>
-                ))}
-            </div>
+    const aFiltrer = Boolean(recherche || statut || dossier || filtre.length);
+    const familleCourante = familles.find((f) => f.slug === famille);
 
+    return (
+        <div className="space-y-6" data-testid="page-bibliotheque">
+            <TitrePage
+                titre={t({ en: "Library", fr: "Bibliothèque" })}
+                info={t({
+                    en: "What the builder draws from to build an agent: structures, prompts, sentences, templates, tests. A Candidate is not proven; a Recipe is proven on a bench and accepted by a person.",
+                    fr: "Ce que le builder utilise pour construire un agent : structures, prompts, phrases, modèles, tests. Un Candidat n'est pas prouvé ; une Recette est prouvée au banc et acceptée par une personne.",
+                })}
+            />
             {erreur && (
                 <p role="alert" className="text-sm text-destructive">
                     {erreur}
                 </p>
             )}
+            <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
+                <ColonneDesFamilles
+                    familles={familles}
+                    famille={famille}
+                    dossier={dossier}
+                    dossiers={dossiers}
+                    onFamille={choisirLaFamille}
+                    onDossier={(d) => {
+                        setDossier(d);
+                        setPage(0);
+                    }}
+                    onNouvelleFamille={() => setNouvelleFamille(true)}
+                    onNouveauDossier={async (chemin) => {
+                        const reponse = await creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost({
+                            path: { famille },
+                            body: { chemin },
+                        });
+                        if (reponse.error) notifier.echec({ fr: "Dossier non créé. Réessayez.", en: "Folder not created. Try again." }, { erreur: reponse.error });
+                        else void chargerLesDossiers(famille);
+                    }}
+                    onSupprimerDossier={async (chemin) => {
+                        const reponse = await supprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDelete({
+                            path: { famille },
+                            query: { chemin },
+                        });
+                        if (reponse.error) notifier.echec({ fr: "Dossier non retiré. Réessayez.", en: "Folder not removed. Try again." }, { erreur: reponse.error });
+                        else {
+                            if (dossier === chemin) setDossier(null);
+                            void chargerLesDossiers(famille);
+                        }
+                    }}
+                />
 
-            {onglet === "propositions" && <PropositionsDeLaBibliotheque onDecision={() => void chargerLaListe()} />}
-
-            {onglet === "ajouter" && (
-                <div className="space-y-8">
-                    <FormulaireImport
-                        familles={familles}
-                        familleChoisie={famille}
-                        onCree={(f, slug, garderLEcran) => {
-                            void chargerLaListe();
-                            void ouvrir(f, slug);
-                            if (!garderLEcran) setOnglet("elements");
-                        }}
-                    />
-                    <DepotDeDocument
-                        familles={familles}
-                        familleChoisie={famille}
-                        onDepose={(f, slug) => {
-                            void chargerLaListe();
-                            void ouvrir(f, slug);
-                        }}
-                    />
-                </div>
-            )}
-
-            {onglet === "elements" && (
-                <div className="grid gap-6 md:grid-cols-[15rem_1fr]">
-                    <ColonneDesFamilles
-                        familles={familles}
-                        famille={famille}
-                        dossier={dossier}
-                        dossiers={dossiers}
-                        onFamille={choisirLaFamille}
-                        onDossier={(d) => {
-                            setDossier(d);
-                            setPage(0);
-                        }}
-                        onNouvelleFamille={() => setNouvelleFamille(true)}
-                        onNouveauDossier={async (chemin) => {
-                            const reponse = await creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost({
-                                path: { famille },
-                                body: { chemin },
-                            });
-                            if (reponse.error) notifier.echec({ fr: "Dossier non créé. Réessayez.", en: "Folder not created. Try again." }, { erreur: reponse.error });
-                            else void chargerLesDossiers(famille);
-                        }}
-                        onSupprimerDossier={async (chemin) => {
-                            const reponse = await supprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDelete({
-                                path: { famille },
-                                query: { chemin },
-                            });
-                            if (reponse.error) notifier.echec({ fr: "Dossier non retiré. Réessayez.", en: "Folder not removed. Try again." }, { erreur: reponse.error });
-                            else {
-                                if (dossier === chemin) setDossier(null);
-                                void chargerLesDossiers(famille);
-                            }
-                        }}
-                        onFiche={setFicheDe}
-                    />
-
-                    <div className="min-w-0 space-y-4">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="relative min-w-64 flex-1">
-                                <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-                                <Input
-                                    value={saisie}
-                                    className="pl-8"
-                                    aria-label={t({ en: "Search the whole library", fr: "Rechercher dans toute la bibliothèque" })}
-                                    placeholder={t({ en: "Search the whole library", fr: "Rechercher dans toute la bibliothèque" })}
-                                    onChange={(e) => setSaisie(e.target.value)}
-                                />
-                            </div>
-                            <Liste
-                                valeur={statut}
-                                changer={(v) => {
-                                    setStatut(v as StatutDeLaBibliotheque | "");
-                                    setPage(0);
-                                }}
-                                vide={t({ en: "All statuses", fr: "Tous les statuts" })}
-                                options={(Object.keys(STATUTS) as StatutDeLaBibliotheque[]).map((s) => ({ valeur: s, libelle: t(STATUTS[s].texte) }))}
-                                className="w-44"
+                <div className="min-w-0 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <p className="font-medium">
+                            {recherche ? t({ en: "The whole library", fr: "Toute la bibliothèque" }) : nomDeFamille(famille)}
+                            {dossier && !recherche && <span className="text-muted-foreground"> › {dossier}</span>}
+                        </p>
+                        {!recherche && familleCourante && (
+                            <>
+                                <Info>{[familleCourante.fiche?.description, familleCourante.fiche?.quand].filter(Boolean).join(" ")}</Info>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8 text-muted-foreground"
+                                    title={t({ en: "Sheet of the family", fr: "Fiche de la famille" })}
+                                    aria-label={t({ en: "Sheet of the family", fr: "Fiche de la famille" })}
+                                    onClick={() => setFicheDe(famille)}
+                                >
+                                    <Pencil className="size-4" />
+                                </Button>
+                            </>
+                        )}
+                        <div className="ml-auto flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setPropositionsOuvertes(true)}>
+                                {t({ en: "Proposals", fr: "Propositions" })}
+                                {enAttente > 0 && <Pastille n={enAttente} />}
+                            </Button>
+                            <Button size="sm" onClick={() => setNouvelElement(true)}>
+                                <Plus className="size-4" /> {t({ en: "New element", fr: "Nouvel élément" })}
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative w-full max-w-72">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={saisie}
+                                className="h-9 border-transparent bg-muted/50 pl-9 shadow-none focus-visible:bg-background"
+                                aria-label={t({ en: "Search the whole library", fr: "Rechercher dans toute la bibliothèque" })}
+                                placeholder={t({ en: "Search the whole library", fr: "Rechercher dans toute la bibliothèque" })}
+                                onChange={(e) => setSaisie(e.target.value)}
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="filtre-etiquettes">
-                            <span className="text-muted-foreground">{t({ en: "Labels", fr: "Étiquettes" })}</span>
-                            {etiquettes.map((e) => (
-                                <button
-                                    key={e.nom}
-                                    type="button"
-                                    aria-pressed={filtre.includes(e.nom)}
-                                    className={`cursor-pointer rounded-full ${filtre.includes(e.nom) ? "font-semibold ring-1 ring-(--acc)" : "hover:font-medium"}`}
-                                    onClick={() => basculerEtiquette(e.nom)}
+                        {(Object.keys(STATUTS) as StatutDeLaBibliotheque[]).map((s) => (
+                            <Button
+                                key={s}
+                                variant="outline"
+                                size="sm"
+                                aria-pressed={statut === s}
+                                onClick={() => {
+                                    setStatut(statut === s ? "" : s);
+                                    setPage(0);
+                                }}
+                                className={`rounded-full ${statut === s ? "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background" : ""}`}
+                            >
+                                {t(STATUTS[s].texte)}
+                            </Button>
+                        ))}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={`rounded-full ${filtre.length ? "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background" : ""}`}
                                 >
-                                    <Etiquette>{e.nom}</Etiquette>
-                                </button>
-                            ))}
-                            <button type="button" className="cursor-pointer text-(--acc) hover:font-medium" onClick={() => setGestion(true)}>
-                                {t({ en: "Manage labels…", fr: "Gérer les étiquettes…" })}
-                            </button>
-                        </div>
+                                    <Tag className="size-3.5" /> {t({ en: "Labels", fr: "Étiquettes" })}
+                                    {filtre.length ? ` (${filtre.length})` : ""}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56" data-testid="filtre-etiquettes">
+                                {etiquettes.map((e) => (
+                                    <DropdownMenuCheckboxItem key={e.nom} checked={filtre.includes(e.nom)} onCheckedChange={() => basculerEtiquette(e.nom)} onSelect={(ev) => ev.preventDefault()}>
+                                        {e.nom}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                                {etiquettes.length > 0 && <DropdownMenuSeparator />}
+                                <DropdownMenuItem onSelect={() => setGestion(true)}>
+                                    <Pencil className="size-3.5" /> {t({ en: "Manage labels…", fr: "Gérer les étiquettes…" })}
+                                </DropdownMenuItem>
+                                <div className="p-1">
+                                    <Input
+                                        placeholder={t({ en: "New label", fr: "Nouvelle étiquette" })}
+                                        aria-label={t({ en: "New label", fr: "Nouvelle étiquette" })}
+                                        className="h-8 text-sm"
+                                        onKeyDown={(e) => {
+                                            e.stopPropagation();
+                                            if (e.key !== "Enter") return;
+                                            const champ = e.currentTarget;
+                                            const nom = champ.value.trim();
+                                            if (!nom) return;
+                                            champ.value = "";
+                                            void creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost({ body: { nom } }).then((r) => {
+                                                if (r.error) notifier.echec({ fr: "Étiquette non créée. Réessayez.", en: "Label not created. Try again." }, { erreur: r.error });
+                                                else void chargerLesEtiquettes();
+                                            });
+                                        }}
+                                    />
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
 
-                        {elements !== null && elements.length === 0 && (
-                            <p className="py-8 text-center text-sm text-muted-foreground" data-testid="bibliotheque-vide">
-                                {t({ en: "Nothing in the library for this filter.", fr: "Rien dans la bibliothèque pour ce filtre." })}
-                            </p>
-                        )}
-                        {elements !== null && elements.length > 0 && (
-                            <Paginee total={total} page={page} changerPage={setPage}>
-                                <Tableau
-                                    colonnes={[
-                                        { titre: t({ en: "Element", fr: "Élément" }) },
-                                        { titre: t({ en: "Status", fr: "Statut" }) },
-                                        { titre: t({ en: "Family", fr: "Famille" }) },
-                                        { titre: t({ en: "Version", fr: "Version" }) },
-                                        { titre: t({ en: "Labels", fr: "Étiquettes" }) },
-                                        { titre: t({ en: "Used by", fr: "Utilisée par" }), droite: true },
-                                    ]}
-                                >
-                                    {elements.map((e) => {
-                                        const ouvert = choisi?.famille === e.famille && choisi.slug === e.slug;
-                                        return (
-                                            <tr
-                                                key={`${e.famille}/${e.slug}`}
-                                                data-testid={`element-${e.famille}-${e.slug}`}
-                                                className={`cursor-pointer hover:bg-muted/40 hover:font-medium ${ouvert ? "bg-muted/40" : ""}`}
-                                                onClick={() => void ouvrir(e.famille, e.slug)}
-                                            >
-                                                <td className="py-3">
-                                                    <span className="font-medium">{e.titre}</span>
-                                                    {e.dossier && <span className="block text-xs text-muted-foreground">{e.dossier}</span>}
-                                                    {e.extrait && <span className="block text-xs text-muted-foreground">{e.extrait}</span>}
-                                                    {e.banc && <span className="block text-xs text-muted-foreground">{e.banc.description}</span>}
-                                                </td>
-                                                <td className="pl-4">
-                                                    <span className={`rounded px-2 py-0.5 text-xs ${STATUTS[e.statut as StatutDeLaBibliotheque].classe}`}>
-                                                        {t(STATUTS[e.statut as StatutDeLaBibliotheque].texte)}
-                                                    </span>
-                                                </td>
-                                                <td className="pl-4 text-muted-foreground">{nomDeFamille(e.famille)}</td>
-                                                <td className="pl-4 text-muted-foreground">{`v${e.version_courante} · ${e.auteur}`}</td>
-                                                <td className="pl-4 text-xs text-muted-foreground">{(e.etiquettes ?? []).join(", ")}</td>
-                                                <td className="pl-4 text-right text-muted-foreground tabular-nums">
-                                                    {t({ en: `Used by ${e.utilisee_par ?? 0} agent(s)`, fr: `Utilisée par ${e.utilisee_par ?? 0} agent(s)` })}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </Tableau>
-                            </Paginee>
-                        )}
-
-                        {detail && choisi && (
-                            <div className="space-y-4">
-                                <RangementDeLElement
-                                    key={`rangement-${detail.famille}/${detail.slug}`}
-                                    element={detail}
-                                    dossiers={detail.famille === famille ? dossiers : [...new Set([detail.dossier ?? "", ...dossiers].filter(Boolean))]}
-                                    etiquettes={etiquettes}
-                                    onChange={apresRangement}
-                                />
-                                <ElementDeLaBibliotheque
-                                    key={`${detail.famille}/${detail.slug}`}
-                                    element={detail}
-                                    utilisePar={utilisePar}
-                                    onChange={(nouveau) => {
-                                        setDetail(nouveau);
-                                        void chargerLaListe();
+                    {elements === null && !erreur && <EtatVide cas="chargement" />}
+                    {elements !== null && elements.length === 0 && (
+                        <div data-testid="bibliotheque-vide">
+                            {aFiltrer ? (
+                                <EtatVide
+                                    cas="filtre"
+                                    recherche={recherche || [dossier, statut && t(STATUTS[statut].texte), ...filtre].filter(Boolean).join(", ")}
+                                    effacer={() => {
+                                        setSaisie("");
+                                        setRecherche("");
+                                        setDossier(null);
+                                        setStatut("");
+                                        setFiltre([]);
+                                        setPage(0);
                                     }}
                                 />
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                <EtatVide cas="premier" icone={BookOpen} titre={t({ en: "No element", fr: "Aucun élément" })} />
+                            )}
+                        </div>
+                    )}
+                    {elements !== null && elements.length > 0 && (
+                        <Paginee total={total} page={page} changerPage={setPage}>
+                            <Tableau
+                                colonnes={[
+                                    { titre: t({ en: "Element", fr: "Élément" }) },
+                                    { titre: t({ en: "Status", fr: "Statut" }) },
+                                    { titre: t({ en: "Version", fr: "Version" }) },
+                                    { titre: t({ en: "Agents", fr: "Agents" }), droite: true },
+                                ]}
+                            >
+                                {elements.map((e) => {
+                                    const sous = [recherche ? nomDeFamille(e.famille) : null, e.dossier, ...(e.etiquettes ?? [])].filter(Boolean).join(" · ");
+                                    const s = e.statut as StatutDeLaBibliotheque;
+                                    return (
+                                        <tr
+                                            key={`${e.famille}/${e.slug}`}
+                                            data-testid={`element-${e.famille}-${e.slug}`}
+                                            className="cursor-pointer hover:bg-muted/40 hover:font-medium"
+                                            onClick={() => void ouvrir(e.famille, e.slug)}
+                                        >
+                                            <td className="py-3">
+                                                <span className="font-medium">{e.titre}</span>
+                                                {sous && <span className="block text-xs text-muted-foreground">{sous}</span>}
+                                                {e.extrait && <span className="block text-xs text-muted-foreground">{e.extrait}</span>}
+                                                {e.banc && <span className="block text-xs text-muted-foreground">{e.banc.description}</span>}
+                                            </td>
+                                            <td className="pl-4">
+                                                <PointEtat etat={POINT[s]}>{t(STATUTS[s].texte)}</PointEtat>
+                                            </td>
+                                            <td className="pl-4 text-muted-foreground">{`v${e.version_courante}`}</td>
+                                            <td className="pl-4 text-right text-muted-foreground tabular-nums" data-testid="nb-agents">
+                                                {e.utilisee_par ? e.utilisee_par : "–"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </Tableau>
+                        </Paginee>
+                    )}
                 </div>
-            )}
+            </div>
 
+            {detail && choisi && (
+                <FenetreElement
+                    key={`${detail.famille}/${detail.slug}`}
+                    element={detail}
+                    nomDeFamille={nomDeFamille(detail.famille)}
+                    utilisePar={utilisePar}
+                    dossiers={detail.famille === famille ? dossiers : [...new Set([detail.dossier ?? "", ...dossiers].filter(Boolean))]}
+                    etiquettes={etiquettes}
+                    fermer={() => {
+                        setDetail(null);
+                        setChoisi(null);
+                    }}
+                    onChange={(nouveau) => {
+                        setDetail(nouveau);
+                        void chargerLaListe();
+                    }}
+                    onRangement={apresRangement}
+                />
+            )}
+            {nouvelElement && (
+                <FenetreNouvelElement
+                    familles={familles}
+                    famille={famille}
+                    dossier={dossier}
+                    etiquettes={etiquettes}
+                    fermer={() => setNouvelElement(false)}
+                    onRelire={() => {
+                        void chargerLaListe();
+                        void chargerLesEtiquettes();
+                    }}
+                    onCree={(f, slug) => {
+                        setNouvelElement(false);
+                        void chargerLaListe();
+                        void chargerLesEtiquettes();
+                        void chargerLesDossiers(famille);
+                        void ouvrir(f, slug);
+                    }}
+                />
+            )}
+            {propositionsOuvertes && (
+                <FenetreLarge
+                    liste
+                    testid="propositions-bibliotheque"
+                    fermer={() => setPropositionsOuvertes(false)}
+                    titre={t({ en: "Proposals", fr: "Propositions" })}
+                    sous={t({ en: "What the builder offers: a person accepts or refuses.", fr: "Ce que le builder propose : une personne accepte ou refuse." })}
+                    pied={
+                        <>
+                            <span className="flex-1" />
+                            <Button onClick={() => setPropositionsOuvertes(false)}>{t({ en: "Close", fr: "Fermer" })}</Button>
+                        </>
+                    }
+                >
+                    <PropositionsDeLaBibliotheque
+                        onDecision={() => {
+                            void chargerLaListe();
+                            void chargerLesPropositions();
+                            void chargerLesFamilles();
+                        }}
+                    />
+                </FenetreLarge>
+            )}
             <FenetreNouvelleFamille
                 ouverte={nouvelleFamille}
                 fermer={() => setNouvelleFamille(false)}
@@ -374,7 +474,7 @@ export function PageBibliotheque() {
                     choisirLaFamille(slug);
                 }}
             />
-            <FenetreFiche famille={familles.find((f) => f.slug === ficheDe) ?? null} fermer={() => setFicheDe(null)} apres={() => void chargerLesFamilles()} />
+            <FenetreFiche key={ficheDe ?? "aucune"} famille={familles.find((f) => f.slug === ficheDe) ?? null} fermer={() => setFicheDe(null)} apres={() => void chargerLesFamilles()} />
             {gestion && (
                 <GestionDesEtiquettes
                     etiquettes={etiquettes}

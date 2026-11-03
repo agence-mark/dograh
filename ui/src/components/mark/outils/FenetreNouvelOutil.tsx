@@ -145,11 +145,11 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
                     <Input value={nom} onChange={(e) => setNom(e.target.value)} aria-label={t({ en: "Name", fr: "Nom" })} />
                 </BlocChamp>
                 <BlocChamp libelle={t({ en: "Description for the model", fr: "Description pour le modèle" })}>
-                    <Input value={description} onChange={(e) => setDescription(e.target.value)} aria-label="Description" />
+                    <Input value={description} onChange={(e) => setDescription(e.target.value)} aria-label={t({ en: "Description", fr: "Description" })} />
                 </BlocChamp>
                 {type === "integration" && (
                     <BlocChamp libelle={t({ en: "Software and action", fr: "Logiciel et action" })}>
-                        <ChampsCreationIntegration onChange={setIntegration} />
+                        <ChampsCreationIntegration onChange={setIntegration} avecCompte />
                     </BlocChamp>
                 )}
                 {type === "transfer_agent" && (
