@@ -48,7 +48,7 @@ export function DerniereModificationFiche({ modification }: { modification: Dern
         ? t({ en: `Last changed by ${modification.auteur}`, fr: `Modifiée en dernier par ${modification.auteur}` })
         : t({ en: "Last changed", fr: "Modifiée en dernier" });
     return (
-        <span data-derniere-modification={modification.id} className="text-xs text-muted-foreground">
+        <span data-derniere-modification={modification.id} className="block text-xs text-muted-foreground">
             {qui} {t(ORIGINES[modification.origine])}, {t({ en: "on", fr: "le" })} {quand}
         </span>
     );
