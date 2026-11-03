@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { BORNES } from "../bornes-reglages";
+import { PastilleOrigine } from "./heritage";
 import { type Texte, useLangue } from "../langue/langue";
 
 /** « > 0 · ≤ 10 · optional », from the bounds the server enforces. */
@@ -79,6 +80,7 @@ export const ChampReglage = ({
             <code className="text-[11px] text-muted-foreground/80" data-cle-technique={cle}>
                 {cle}
             </code>
+            <PastilleOrigine cle={cle} />
         </span>
     );
     return (

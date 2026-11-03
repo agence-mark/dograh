@@ -17,12 +17,14 @@
  */
 import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmbedDialog } from "@/app/workflow/[workflowId]/components/EmbedDialog";
 import { useWorkflowState } from "@/app/workflow/[workflowId]/hooks/useWorkflowState";
 import {
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get,
+    lireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGet,
     getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet,
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet,
 } from "@/client/sdk.gen";
@@ -40,12 +42,14 @@ import { detailFromError } from "@/lib/apiError";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
 import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { ContexteHeritage, type ReglageHerite } from "../ecran/heritage";
 import { NavigationThemes } from "../ecran/NavigationThemes";
 import { useThemesOuverts } from "../ecran/useThemesOuverts";
 import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
 import { ContexteGroupe, type ValeurGroupe } from "../groupe/contexte-groupe";
 import { useLangue } from "../langue/langue";
 import { BoutonModeles } from "./modeles-de-reglages/ModaleModeles";
+import { PreparationAgent } from "./PreparationAgent";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
 import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
@@ -212,6 +216,49 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
         [resolue?.agent_principal_id, resolue?.cerveau_propre, groupeLu],
     );
 
+    // [.mark] U4 (F3): where each setting's value comes from, read once per save; « back to the inherited value » saves
+    // the inherited value at once (a deliberate gesture), then the themes are drawn again from what the server stored.
+    const [heritage, setHeritage] = useState<Record<string, ReglageHerite>>({});
+    const [versionEcran, setVersionEcran] = useState(0);
+    const lireHeritage = useCallback(async () => {
+        try {
+            const reponse = await lireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGet({ path: { workflow_id: workflowId } });
+            if (reponse.data) setHeritage(reponse.data.reglages as Record<string, ReglageHerite>);
+        } catch {
+            // Without it the settings show no origin: never a false one.
+        }
+    }, [workflowId]);
+    useEffect(() => {
+        void lireHeritage();
+    }, [lireHeritage, workflowConfigurations]);
+    const revenirALaValeurHeritee = useCallback(
+        async (cle: string) => {
+            if (!resolue) return;
+            if (dirtySections.size > 0) {
+                toast.error(
+                    t({
+                        en: "Save or cancel the pending changes first.",
+                        fr: "Enregistrez ou annulez d'abord les changements en cours.",
+                    }),
+                );
+                return;
+            }
+            const heritee = heritage[cle]?.valeur_heritee ?? null;
+            try {
+                await saveWorkflowConfigurations({ ...resolue, [cle]: heritee } as WorkflowConfigurations, nom);
+                setVersionEcran((v) => v + 1);
+                toast.success(`${t({ en: "Inherited value restored.", fr: "Valeur héritée rétablie." })} ${t({ en: "Publish the agent to apply the changes.", fr: "Publiez l'agent pour appliquer les changements." })}`);
+            } catch (erreur) {
+                toast.error(detailFromError(erreur, t({ en: "Not saved.", fr: "Non enregistré." })));
+            }
+        },
+        [resolue, dirtySections, heritage, saveWorkflowConfigurations, nom, t],
+    );
+    const valeurHeritage = useMemo(
+        () => ({ reglages: heritage, revenir: revenirALaValeurHeritee }),
+        [heritage, revenirALaValeurHeritee],
+    );
+
     useEffect(() => {
         if (hasFetchedModelConfiguration.current) return;
         hasFetchedModelConfiguration.current = true;
@@ -275,10 +322,12 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 </div>
             </header>
 
+            <ContexteHeritage.Provider value={valeurHeritage}>
             <ContexteGroupe.Provider value={valeurGroupe}>
             <ContexteErreursThemes.Provider value={signalerErreur}>
                 <div className="mx-auto flex max-w-5xl gap-8 px-6 py-8">
-                    <div className="min-w-0 flex-1 space-y-4">
+                    <div className="min-w-0 flex-1 space-y-4" key={versionEcran}>
+                        <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
                         {resolue && (
                             <>
                                 <ThemeAgent
@@ -334,6 +383,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 </div>
             </ContexteErreursThemes.Provider>
             </ContexteGroupe.Provider>
+            </ContexteHeritage.Provider>
 
             {resolue && (
                 <EmbedDialog

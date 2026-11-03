@@ -116,7 +116,8 @@ def _bloc_de_modele_valide(
     return value
 
 
-DEFAULT_MAX_CALL_DURATION_SECONDS = 300
+# [.mark] D5 (03/11) : 600 s, ce que l'aide de l'écran a toujours dit ; code, écran et aide disent la même chose.
+DEFAULT_MAX_CALL_DURATION_SECONDS = 600
 # Hard ceiling on configurable call duration. Must stay <= the concurrency
 # rate limiter's stale_call_timeout (20 min): a call running past that has
 # its slot purged as stale and the org concurrency limit under-counts.
