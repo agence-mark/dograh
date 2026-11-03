@@ -356,3 +356,19 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* Mode nuit (N4) : la mention de React Flow en bas du canevas prend les jetons, pas son fond blanc d'origine. */
+.dark .react-flow__attribution {
+  background-color: var(--card);
+}
+.dark .react-flow__attribution a {
+  color: var(--muted-foreground);
+}
+
+/* Mode nuit (N4) : le logo .mark (carré et mot en bleu nuit) passe à ses versions claires, sinon il disparaît sur le noir. */
+.dark img[src="/mark-lockup.svg"] {
+  content: url("/mark-lockup-nuit.svg");
+}
+.dark img[src="/mark-symbol.svg"] {
+  content: url("/mark-symbol-nuit.svg");
+}

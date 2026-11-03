@@ -69,6 +69,16 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(outline).toMatch(/(^|\s)bg-background(\s|$)/);
     });
 
+    it("le mode nuit (N4) change le logo .mark et la mention de React Flow, et les deux logos existent", () => {
+        const css = sansCommentaires(theme());
+        expect(css).toMatch(/\.dark img\[src="\/mark-lockup\.svg"\]\s*\{\s*content:\s*url\("\/mark-lockup-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark img\[src="\/mark-symbol\.svg"\]\s*\{\s*content:\s*url\("\/mark-symbol-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark \.react-flow__attribution\s*\{\s*background-color:\s*var\(--card\)/);
+        for (const nom of ["mark-lockup-nuit.svg", "mark-symbol-nuit.svg"]) {
+            expect(readFileSync(join(APP, "..", "..", "public", nom), "utf8")).not.toMatch(/#0f1c2e|#111a26/);
+        }
+    });
+
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {
         expect(sansCommentaires(theme())).not.toMatch(/@layer\b/);
     });
