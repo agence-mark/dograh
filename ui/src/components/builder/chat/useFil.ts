@@ -12,6 +12,7 @@ import {
     envoyerUnMessageApiV1BuilderFilsFilIdMessagesPost,
     lireUnFilApiV1BuilderFilsFilIdGet,
     modifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPost,
+    repondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPost,
     reprendreUnFilApiV1BuilderFilsFilIdReprendrePost,
     suivreUnFilApiV1BuilderFilsFilIdEvenementsGet,
     type VueFil,
@@ -107,6 +108,9 @@ export function useFil(filId: number) {
         envoyer: async (message: string) =>
             apres(await envoyerUnMessageApiV1BuilderFilsFilIdMessagesPost({ path: { fil_id: filId }, body: { message } })),
         arreter: async () => apres(await arreterUnFilApiV1BuilderFilsFilIdArreterPost({ path: { fil_id: filId } })),
+        rafraichir,
+        repondreDepense: async (depenseId: string, accord: boolean) =>
+            apres({ error: (await repondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPost({ path: { fil_id: filId, depense_id: depenseId }, body: { accord } })).error }),
         reprendre: async () => apres(await reprendreUnFilApiV1BuilderFilsFilIdReprendrePost({ path: { fil_id: filId } })),
         modifierDernier: async (message: string) =>
             apres(await modifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPost({ path: { fil_id: filId }, body: { message } })),

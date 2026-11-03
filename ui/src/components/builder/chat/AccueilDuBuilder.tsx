@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
+import { FenetreFichier } from "../fichier/FenetreFichier";
 import { ListeDesFils } from "./ListeDesFils";
 
 const T = {
@@ -59,7 +60,8 @@ export function AccueilDuBuilder() {
     const [choisi, setChoisi] = useState<VueDemarrage | null>(null);
     const [saisie, setSaisie] = useState("");
     const [agentId, setAgentId] = useState<number | null>(null);
-    const [fichiers, setFichiers] = useState<{ nom: string; texte: string }[]>([]);
+    const [fichiers, setFichiers] = useState<{ nom: string; texte: string; fichier: File }[]>([]);
+    const [ouvert, setOuvert] = useState<File | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
     const entree = useRef<HTMLInputElement>(null);
 
@@ -99,7 +101,7 @@ export function AccueilDuBuilder() {
     };
     const joindre = async (liste: FileList | null) => {
         if (!liste) return;
-        const lus = await Promise.all(Array.from(liste).map(async (f) => ({ nom: f.name, texte: (await f.text()).slice(0, TAILLE_FICHIERS_MAX) })));
+        const lus = await Promise.all(Array.from(liste).map(async (f) => ({ nom: f.name, texte: (await f.text()).slice(0, TAILLE_FICHIERS_MAX), fichier: f })));
         setFichiers((avant) => [...avant, ...lus]);
     };
     const envoyer = async () => {
@@ -156,7 +158,9 @@ export function AccueilDuBuilder() {
                     </Button>
                     {fichiers.map((f) => (
                         <span key={f.nom} className="flex items-center gap-1 text-sm text-muted-foreground">
-                            {f.nom}
+                            <button type="button" className="cursor-pointer hover:font-semibold" onClick={() => setOuvert(f.fichier)}>
+                                {f.nom}
+                            </button>
                             <button type="button" className="cursor-pointer" aria-label={t(T.retirer)} onClick={() => setFichiers((l) => l.filter((x) => x !== f))}>
                                 <X className="size-3.5" />
                             </button>
@@ -172,6 +176,7 @@ export function AccueilDuBuilder() {
                         {t(T.envoyer)}
                     </Button>
                 </div>
+                {ouvert && <FenetreFichier nom={ouvert.name} fichier={ouvert} fermer={() => setOuvert(null)} />}
                 {erreur && <p className="text-sm text-destructive">{erreur}</p>}
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

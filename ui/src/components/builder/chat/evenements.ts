@@ -48,6 +48,17 @@ export function appliquer(lignes: LigneDuFil[], id: number, e: EvenementDuFil): 
             }
             return [...lignes, { genre: "carte", carte }];
         }
+        case "depense_reponse":
+            // La personne a répondu à l'annonce d'une dépense : la carte garde sa place et change d'état.
+            return lignes.map((l) =>
+                l.genre === "carte" && l.carte.type === "depense" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, statut: e.statut } } : l,
+            );
+        case "delegation":
+            return [...lignes, { genre: "carte", carte: { type: "delegation", id: e.id, usage: e.usage, total: e.total, modele: e.modele, fini: false } }];
+        case "delegation_fin":
+            return lignes.map((l) =>
+                l.genre === "carte" && l.carte.type === "delegation" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, fini: true, cout: e.cout } } : l,
+            );
         case "erreur":
             return [...lignes, { genre: "erreur", message: String(e.message ?? "") }];
         case "fin":
