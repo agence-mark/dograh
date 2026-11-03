@@ -3,7 +3,6 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
-import posthog from "posthog-js";
 
 // Drop errors originating from browser extensions (MetaMask's inpage.js,
 // injected widgets, etc.) by matching their URL scheme.
@@ -53,53 +52,5 @@ const initSentry = () => {
 if (process.env.NEXT_PUBLIC_NODE_ENV !== 'development') {
   initSentry();
 }
-
-// Initialize PostHog - prioritize NEXT_PUBLIC env vars, fallback to API
-const initPostHog = () => {
-  const hasPublicConfig = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-
-
-  if (hasPublicConfig) {
-    // Use client-side environment variables
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest',
-      ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://us.posthog.com',
-      capture_pageview: 'history_change',
-      capture_pageleave: true,
-      capture_exceptions: true,
-      cross_subdomain_cookie: true,
-      debug: process.env.NEXT_PUBLIC_NODE_ENV === 'development',
-    });
-    console.log('PostHog initialized from NEXT_PUBLIC config');
-  } else {
-    // Fallback to API-based configuration
-    fetch('/api/config/posthog')
-      .then(res => res.json())
-      .then(config => {
-        if (config.enabled && config.key) {
-          posthog.init(config.key, {
-            api_host: config.host,
-            ui_host: config.uiHost,
-            capture_pageview: 'history_change',
-            capture_pageleave: true,
-            capture_exceptions: true,
-            cross_subdomain_cookie: true,
-            debug: process.env.NEXT_PUBLIC_NODE_ENV === 'development',
-          });
-          console.log('PostHog initialized from API config');
-        } else {
-          console.log('PostHog disabled (not enabled or key not configured)');
-        }
-      })
-      .catch(err => {
-        console.error('Failed to fetch PostHog configuration:', err);
-      });
-  }
-};
-
-if (process.env.NEXT_PUBLIC_NODE_ENV !== 'development') {
-  initPostHog();
-}
-
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

@@ -18,8 +18,8 @@ import { useEffect, useState } from "react";
 import { useLangue } from "@/components/mark/langue/langue";
 import { SidebarInset, SidebarProvider, SidebarRail, SidebarTrigger } from "@/components/ui/sidebar";
 
-import { type CompteurMenu, SidebarStudio } from "./sidebar-studio";
 import { entreeActive, espaceDe, menuDe } from "./navigation-studio";
+import { type CompteurMenu, SidebarStudio } from "./sidebar-studio";
 
 export type Miette = { libelle: string; href?: string };
 

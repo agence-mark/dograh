@@ -18,7 +18,6 @@ vi.mock("@/client/sdk.gen", () => ({
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost: vi.fn(),
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost: vi.fn(),
 }));
-vi.mock("@/components/layout/GitHubStarBadge", () => ({ GitHubStarBadge: () => null }));
 vi.mock("@/components/ui/sidebar", () => ({ useSidebar: () => ({ toggleSidebar: vi.fn() }) }));
 
 afterEach(cleanup);

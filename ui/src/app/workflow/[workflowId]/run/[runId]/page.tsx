@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import posthog from 'posthog-js';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -36,7 +35,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConversationRailFrame, RealtimeFeedback, WorkflowRunLogs } from '@/components/workflow/conversation';
-import { PostHogEvent } from '@/constants/posthog-events';
 import { WORKFLOW_RUN_MODES } from '@/constants/workflowRunModes';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
@@ -675,15 +673,6 @@ export default function WorkflowRunPage() {
                     annotations: runResponse.data?.annotations as Record<string, unknown> | null ?? null,
                 };
                 setWorkflowRun(runData);
-                posthog.capture(PostHogEvent.WORKFLOW_RUN_DETAILS_VIEWED, {
-                    workflow_id: workflowId,
-                    workflow_name: workflowResponse.data?.name ?? null,
-                    run_id: runId,
-                    is_completed: runData.is_completed,
-                    has_recording: !!runData.recording_url,
-                    has_split_recordings: !!runData.user_recording_url && !!runData.bot_recording_url,
-                    has_transcript: !!runData.transcript_url,
-                });
             } finally {
                 setIsLoading(false);
             }

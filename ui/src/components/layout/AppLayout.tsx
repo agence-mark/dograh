@@ -7,7 +7,6 @@ import React, { ReactNode } from "react";
 import { ShellStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
 import { useAppConfig } from "@/context/AppConfigContext";
-import { LeadFormsProvider } from "@/context/LeadFormsContext";
 
 function BackendStatusBanner() {
   const { config, loading, refresh } = useAppConfig();
@@ -65,12 +64,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // [.mark] U1: the frame of the studio replaces Dograh's sidebar and header.
   if (shouldShowSidebar) {
     return (
-      <LeadFormsProvider>
         <ShellStudio replie={isWorkflowEditor} sansEntete={isWorkflowEditor}>
           <BackendStatusBanner />
           {children}
         </ShellStudio>
-      </LeadFormsProvider>
     );
   }
 

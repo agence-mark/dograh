@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-import { Liste } from "./liste";
 import { BlocChamp, LigneChamp } from "./fenetre-onglets";
+import { Liste } from "./liste";
 import { Info } from "./marques";
 
 /**

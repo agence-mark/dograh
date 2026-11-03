@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Calculator, Cog, Globe, type LucideIcon, PhoneForwarded, PhoneOff, Puzzle } from "lucide-react";
+import { ArrowLeftRight, Calculator, Globe, type LucideIcon, PhoneForwarded, PhoneOff, Puzzle } from "lucide-react";
 import { type ReactNode } from "react";
 
 import type {
@@ -21,7 +21,7 @@ import type {
 } from "@/client/types.gen";
 import { createUuid } from "@/lib/uuid";
 
-export type ToolCategory = "http_api" | "end_call" | "transfer_call" | "transfer_agent" | "calculator" | "native" | "integration" | "mcp";
+export type ToolCategory = "http_api" | "end_call" | "transfer_call" | "transfer_agent" | "calculator" | "integration" | "mcp";
 
 export type EndCallMessageType = "none" | "custom" | "audio";
 export type TransferDestinationSource = "static" | "dynamic" | "context_mapping";
@@ -161,15 +161,6 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         iconColor: "#2a2a2a",
     },
     {
-        value: "native",
-        label: "Native (Coming Soon)",
-        description: "Built-in tools like call transfer, DTMF input",
-        icon: Cog,
-        iconName: "cog",
-        iconColor: "#2a2a2a",
-        disabled: true,
-    },
-    {
         value: "integration",
         // [.mark] On since chantier l-agent-travaille (L5): an action of a connector of the
         // catalogue, through the installation's Nango (components/mark/connecteurs).
@@ -212,8 +203,6 @@ export function getToolTypeLabel(category: string): string {
             return "HTTP API Tool";
         case "calculator":
             return "Calculator Tool";
-        case "native":
-            return "Native Tool";
         case "integration":
             return "Integration Tool";
         case "mcp":

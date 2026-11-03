@@ -1,6 +1,5 @@
 import { StackHandler, StackTheme } from "@stackframe/stack";
 
-import { AuthEnterpriseCTA } from "@/components/auth/AuthEnterpriseCTA";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { getAuthProvider } from "@/lib/auth/config";
 
@@ -28,7 +27,7 @@ export default async function Handler(props: unknown) {
 
   if (authProvider === "local") {
     return (
-      <AuthShell enterpriseSlot={<AuthEnterpriseCTA />}>
+      <AuthShell>
         <div className="space-y-2 text-center text-foreground">
           <h1 className="text-xl font-semibold">Local Auth Mode</h1>
           <p className="text-sm text-muted-foreground">
@@ -65,7 +64,7 @@ export default async function Handler(props: unknown) {
 
   if (isAuthForm) {
     return (
-      <AuthShell enterpriseSlot={<AuthEnterpriseCTA />}>
+      <AuthShell>
         {showBackButton && <BackButton />}
         {handler}
       </AuthShell>

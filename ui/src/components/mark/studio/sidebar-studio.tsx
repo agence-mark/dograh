@@ -8,7 +8,7 @@
  * - Les compteurs de la barre ne sont PAS branchés ici : l'emplacement existe (`compteurs`), sans fausse valeur.
  * - Aucun champ de recherche (E60).
  */
-import { AlertTriangle, ChevronsUpDown, FlaskConical, LogOut, Building2 } from "lucide-react";
+import { AlertTriangle, Building2,ChevronsUpDown, FlaskConical, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -43,7 +43,7 @@ import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 
 import { Pastille } from "./marques";
-import { type EntreeMenu, entreeActive, espaceDe, lienDe, menuDe } from "./navigation-studio";
+import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
 
 /** Un compteur de la barre : fourni par la page qui le sait (ordre 18), jamais inventé ici. */
 export type CompteurMenu = { n: number; urgent?: boolean };
@@ -113,9 +113,9 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
             <SidebarHeader className="p-3 pb-0 group-data-[collapsible=icon]:px-1 lg:p-4">
                 <div className="flex items-center gap-2 px-2 pb-3 group-data-[collapsible=icon]:justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/mark-lockup.svg" alt=".mark" className="h-6 group-data-[collapsible=icon]:hidden" />
+                    <img src="/mark-lockup.svg" alt={t({ en: ".mark logo", fr: "Logo .mark" })} className="h-6 group-data-[collapsible=icon]:hidden" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/mark-symbol.svg" alt=".mark" className="hidden h-6 group-data-[collapsible=icon]:block" />
+                    <img src="/mark-symbol.svg" alt={t({ en: ".mark logo", fr: "Logo .mark" })} className="hidden h-6 group-data-[collapsible=icon]:block" />
                 </div>
                 {/* Sélecteur d'espace : le Labo ou le client dont l'adresse porte l'organisation. */}
                 <div

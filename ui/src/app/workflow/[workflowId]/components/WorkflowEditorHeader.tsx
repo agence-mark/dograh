@@ -13,7 +13,6 @@ import {
 import { WorkflowError } from "@/client/types.gen";
 import { BarreDuBuilder } from "@/components/builder/ecran/BarreDuBuilder";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
-import { GitHubStarBadge } from "@/components/layout/GitHubStarBadge";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -513,11 +512,6 @@ export const WorkflowEditorHeader = ({
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-
-                {/* GitHub star badge - desktop only */}
-                <div className="hidden md:block">
-                    <GitHubStarBadge className="border-border bg-muted text-foreground [&_span]:bg-transparent" source="workflow_editor_header" />
-                </div>
             </div>
         </div>
     );

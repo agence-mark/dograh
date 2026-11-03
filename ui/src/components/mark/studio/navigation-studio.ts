@@ -10,12 +10,16 @@
  * `provisoire` : entrée gardée le temps que son écran de destination existe (E109), à retirer ensuite.
  */
 import {
+    AudioLines,
+    BellRing,
     Bot,
     ChartLine,
+    Code,
     Database,
     Folder,
     Inbox,
     KeyRound,
+    LayoutGrid,
     Library,
     type LucideIcon,
     Megaphone,
@@ -26,10 +30,6 @@ import {
     Sparkles,
     Store,
     Wrench,
-    AudioLines,
-    LayoutGrid,
-    Code,
-    BellRing,
 } from "lucide-react";
 
 import type { Texte } from "@/components/mark/langue/langue";

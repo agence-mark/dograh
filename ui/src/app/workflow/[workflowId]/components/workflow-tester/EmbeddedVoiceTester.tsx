@@ -38,7 +38,6 @@ export function EmbeddedVoiceTester({
         apiKeyModalOpen,
         setApiKeyModalOpen,
         apiKeyError,
-        apiKeyErrorCode,
         workflowConfigError,
         workflowConfigModalOpen,
         setWorkflowConfigModalOpen,
@@ -218,9 +217,6 @@ export function EmbeddedVoiceTester({
                 open={apiKeyModalOpen}
                 onOpenChange={setApiKeyModalOpen}
                 error={apiKeyError}
-                errorCode={apiKeyErrorCode}
-                onNavigateToBilling={() => router.push("/billing")}
-                onNavigateToDevelopers={() => router.push("/api-keys")}
                 onNavigateToModelConfig={() => router.push("/model-configurations")}
             />
 

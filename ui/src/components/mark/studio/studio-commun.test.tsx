@@ -15,7 +15,7 @@ import { FenetreChamps } from "./fenetre-champs";
 import { FenetreOnglets, Segmente } from "./fenetre-onglets";
 import { Liste } from "./liste";
 import { Etiquette, Gravite, Marque, NoteJuge, Pastille, PointEtat } from "./marques";
-import { fenetrePage, PAR_PAGE, Paginee } from "./pagination";
+import { fenetrePage, Paginee,PAR_PAGE } from "./pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "./tableau";
 
 const pousser = vi.fn();

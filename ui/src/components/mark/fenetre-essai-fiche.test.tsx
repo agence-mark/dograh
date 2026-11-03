@@ -21,7 +21,6 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-facti
     getEtablissementsApiV1OrganizationsEtablissementsGet: m.fiches,
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("@/lib/auth", () => {
     const auth = { isAuthenticated: true, loading: false, user: { id: "u-1" }, getAccessToken: async () => "jeton" };
     return { useAuth: () => auth };

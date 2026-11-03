@@ -1,7 +1,6 @@
 "use client";
 
 import { Bot, Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
-import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,7 +11,6 @@ import { OnboardingTooltip } from "@/components/onboarding/OnboardingTooltip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PostHogEvent } from "@/constants/posthog-events";
 import { WORKFLOW_RUN_MODES } from "@/constants/workflowRunModes";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useAuth } from "@/lib/auth";
@@ -130,11 +128,6 @@ export function WorkflowTesterPanel({
             }
 
             markActionCompleted("web_call_started");
-            posthog.capture(PostHogEvent.WEB_CALL_INITIATED, {
-                workflow_id: workflowId,
-                workflow_run_id: response.data.id,
-                source: "workflow_editor",
-            });
             setVoiceRunId(response.data.id);
             setActiveMode("audio");
         } catch (error) {

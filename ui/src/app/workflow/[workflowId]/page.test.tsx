@@ -17,7 +17,6 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => mocks.auth }));
 vi.mock('@/lib/logger', () => ({ default: { error: vi.fn() } }));
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }));
 vi.mock('@/client/sdk.gen', () => ({
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: mocks.workflow,
     getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet: mocks.versions,
