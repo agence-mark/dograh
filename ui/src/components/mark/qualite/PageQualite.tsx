@@ -10,6 +10,8 @@ import { OngletsPage } from "@/components/mark/studio/onglets-page";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { OngletAlertes } from "@/components/mark/tri/OngletAlertes";
 
+import { OngletIndicateurs } from "./OngletIndicateurs";
+
 export function PageQualite() {
     const { t } = useLangue();
     return (
@@ -17,6 +19,7 @@ export function PageQualite() {
             <TitrePage titre={t({ en: "Quality", fr: "Qualité" })} />
             <OngletsPage
                 onglets={[
+                    { id: "indicateurs", titre: t({ en: "Indicators", fr: "Indicateurs" }), contenu: <OngletIndicateurs /> },
                     { id: "rapport", titre: t({ en: "Daily report", fr: "Rapport quotidien" }), contenu: <ReportsPage /> },
                     { id: "alertes", titre: t({ en: "Alerts", fr: "Alertes" }), contenu: <OngletAlertes /> },
                 ]}
