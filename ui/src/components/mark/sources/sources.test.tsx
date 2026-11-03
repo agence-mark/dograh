@@ -73,8 +73,8 @@ vi.mock("@/components/builder/chat/RevueChampParChamp", () => ({ RevueChampParCh
 
 import { FilDuBuilder } from "@/components/builder/chat/FilDuBuilder";
 
-import { OngletSources } from "./OngletSources";
 import { AvertissementClaudeCode } from "./marques";
+import { OngletSources } from "./OngletSources";
 import { LigneLive } from "./useModifications";
 
 afterEach(() => {

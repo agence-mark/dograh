@@ -13,46 +13,27 @@ import {
     reglerUneSourceApiV1BuilderSourcesBriquePut,
 } from "@/client";
 import { useAuth } from "@/lib/auth";
+import { creerLecturePartagee } from "@/lib/lecture-partagee";
 
 export type Brique = "builder" | "appelant" | "juge_tests" | "juge_appels" | "analyse";
 export type Source = "claude_code" | "cle_api";
 export const BRIQUES: Brique[] = ["builder", "appelant", "juge_tests", "juge_appels", "analyse"];
 
-const EVENEMENT = "mark-sources-modifiees";
-const prevenir = () => window.dispatchEvent(new Event(EVENEMENT));
+/** [.mark] C4 : UNE lecture des sources par page (l'onglet « Sources » et les rappels « Source actuelle » des autres onglets). */
+const lectureSources = creerLecturePartagee(() => lireLesSourcesApiV1BuilderSourcesGet());
 
 export function useSources() {
     const { user, loading: authLoading } = useAuth();
-    const [sources, setSources] = useState<Record<string, Source> | null>(null);
-    const [erreur, setErreur] = useState(false);
-
-    const lire = useCallback(async () => {
-        const r = await lireLesSourcesApiV1BuilderSourcesGet();
-        if (r.error || !r.data) {
-            setErreur(true);
-            return;
-        }
-        setErreur(false);
-        setSources(r.data.sources as Record<string, Source>);
-    }, []);
-
-    useEffect(() => {
-        if (authLoading || !user) return;
-        void lire();
-        window.addEventListener(EVENEMENT, lire);
-        return () => window.removeEventListener(EVENEMENT, lire);
-    }, [authLoading, user, lire]);
+    const { valeur, erreur, relire, poser } = lectureSources.useLecture(!authLoading && Boolean(user));
+    const sources = valeur ? (valeur.sources as Record<string, Source>) : null;
 
     const regler = useCallback(async (brique: Brique, source: Source): Promise<unknown> => {
         const r = await reglerUneSourceApiV1BuilderSourcesBriquePut({ path: { brique }, body: { source } });
-        if (!r.error && r.data) {
-            setSources(r.data.sources as Record<string, Source>);
-            prevenir();
-        }
+        if (!r.error && r.data) poser(r.data);
         return r.error;
-    }, []);
+    }, [poser]);
 
-    return { sources, erreur, regler, relire: lire };
+    return { sources, erreur, regler, relire };
 }
 
 /** L'interrupteur du miroir de la personne (éteint par défaut). */

@@ -42,6 +42,9 @@ vi.mock("@/client", () => ({
     ecrireLesPreferencesApiV1BuilderPreferencesPut: (...a: unknown[]) => m.prefsEcrire(...a),
     getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet: (...a: unknown[]) => m.versions(...a),
     lireLaConceptionApiV1BuilderConceptionWorkflowIdGet: vi.fn().mockResolvedValue({ data: { conception: null } }),
+    // C4 : les options sont lues par le partage des Réglages (aucune ici : la section des options reste cachée).
+    lireLesOptionsApiV1BuilderOptionsGet: vi.fn().mockResolvedValue({}),
+    lireLesCerveauxApiV1BuilderCerveauxGet: vi.fn().mockResolvedValue({}),
     deposerUnFichierApiV1BuilderDepotWorkflowIdPost: vi.fn(),
     deposerUnSiteApiV1BuilderDepotWorkflowIdSitePost: vi.fn(),
     retirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDelete: vi.fn(),

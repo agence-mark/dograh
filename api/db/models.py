@@ -657,6 +657,8 @@ class WorkflowRunModel(Base):
     gathered_context = Column(JSON, nullable=False, default=dict)
     logs = Column(JSON, nullable=False, default=dict, server_default=text("'{}'::json"))
     annotations = Column(JSON, nullable=False, default=dict)
+    # [.mark] C4 : note sur 5 du juge pour cet appel (nulle tant qu'il n'est pas jugé).
+    note_juge = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     campaign = relationship("CampaignModel")
@@ -685,6 +687,15 @@ class WorkflowRunModel(Base):
         ),
         Index("idx_workflow_runs_workflow_id", "workflow_id"),
         Index("idx_workflow_runs_campaign_id", "campaign_id"),
+        # [.mark] C4 : filtres et tris de la liste des appels.
+        Index("idx_workflow_runs_definition_id", "definition_id"),
+        Index("idx_workflow_runs_workflow_created", "workflow_id", "created_at"),
+        Index(
+            "idx_workflow_runs_note_juge",
+            "workflow_id",
+            "note_juge",
+            postgresql_where=text("note_juge IS NOT NULL"),
+        ),
     )
 
 

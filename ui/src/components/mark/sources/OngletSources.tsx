@@ -10,8 +10,8 @@ import { Lock } from "lucide-react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
-import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Info } from "@/components/mark/studio/marques";
 
 import { type Brique, BRIQUES, type Source, useMiroir, useSources } from "./useSources";

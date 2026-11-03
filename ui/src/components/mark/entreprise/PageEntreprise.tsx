@@ -12,6 +12,7 @@ import { useCallback, useState } from "react";
 
 import { FormeMaquette } from "../ecran/forme-maquette";
 import { useLangue } from "../langue/langue";
+import { FournisseurEtablissements } from "../parametres-organisation/etablissements-partages";
 import { usePreferencesOrganisation } from "../parametres-organisation/preferences";
 import type { ThemeOrganisation } from "../parametres-organisation/references/cas-organisation";
 import { useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
@@ -50,6 +51,7 @@ export function PageEntreprise() {
 
     return (
         <PageStudio>
+            <FournisseurEtablissements>
             <FormeMaquette>
             <TitrePage
                 titre={t({ en: "Company", fr: "Entreprise" })}
@@ -95,6 +97,7 @@ export function PageEntreprise() {
             />
             </div>
             </FormeMaquette>
+            </FournisseurEtablissements>
         </PageStudio>
     );
 }
