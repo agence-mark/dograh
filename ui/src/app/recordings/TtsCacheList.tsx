@@ -11,6 +11,13 @@ import {
     previewTtsCacheApiV1TtsCacheEntryIdAudioGet,
 } from "@/client/sdk.gen";
 import type { ListTtsCacheApiV1TtsCacheGetData, TtsCacheEntry } from "@/client/types.gen";
+import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
+import { useLangue } from "@/components/mark/langue/langue";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Liste } from "@/components/mark/studio/liste";
+import { Info } from "@/components/mark/studio/marques";
+import { BarrePagination } from "@/components/mark/studio/pagination";
+import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +37,8 @@ const SORT_OPTIONS = [
 
 export default function TtsCacheList() {
     const { user, loading: authLoading } = useAuth();
+    const maquette = useFormeMaquette();
+    const { t } = useLangue();
     const timezone = useOrganizationTimezone();
     const [entries, setEntries] = useState<TtsCacheEntry[]>([]);
     const [total, setTotal] = useState(0);
@@ -152,6 +161,113 @@ export default function TtsCacheList() {
             setRemoving(null);
         }
     };
+
+    // [.mark] K4b : la forme de la maquette (`OngletEcouteSons`) : titre + « ! », « Actualiser » et « Vider le cache » à droite,
+    // un tableau nu. Les filtres du fork (recherche, tri, durées) restent sur une ligne au-dessus du tableau.
+    if (maquette) {
+        return (
+            <section id="ecoute-cache-voix" data-testid="cache-voix">
+                <TitreTableau
+                    titre={t({ en: "Voice cache", fr: "Cache de la voix" })}
+                    info={
+                        <Info>
+                            {t({
+                                en: "Speech already said, kept to be replayed without going through the voice again. Invalidating a phrase has it redone at the next call that says it. Listening here does not count as a reuse.",
+                                fr: "Les phrases déjà dites, gardées pour être rejouées sans repasser par la voix. Invalider une phrase la fait refaire au prochain appel qui la dit. Écouter ici ne compte pas comme une reprise.",
+                            })}
+                        </Info>
+                    }
+                    action={
+                        <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" disabled={loading} onClick={() => setRefresh((value) => value + 1)}>
+                                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+                                {t({ en: "Refresh", fr: "Actualiser" })}
+                            </Button>
+                            <Button variant="outline" size="sm" disabled={loading || removing !== null} onClick={() => handleInvalidate()}>
+                                {t({ en: "Clear the cache", fr: "Vider le cache" })}
+                            </Button>
+                        </div>
+                    }
+                />
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1 pb-2">
+                    <div className="relative">
+                        <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            aria-label={t({ en: "Search cached speech", fr: "Chercher une phrase" })}
+                            placeholder={t({ en: "A phrase, a model, a voice…", fr: "Une phrase, un modèle, une voix…" })}
+                            maxLength={200}
+                            className="h-8 w-64 pl-8"
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
+                        />
+                    </div>
+                    <Liste
+                        valeur={sortValue}
+                        changer={(v) => { setSortValue(v); setOffset(0); }}
+                        options={SORT_OPTIONS.map((o) => ({ valeur: o.value, libelle: o.label }))}
+                        className="w-44"
+                    />
+                    <Input id="tts-min-duration" aria-label={t({ en: "Min seconds", fr: "Durée minimale (secondes)" })} type="number" min="0" step="0.1" value={minDuration}
+                        onChange={(e) => { setMinDuration(e.target.value); setOffset(0); }} placeholder={t({ en: "Min s", fr: "Min s" })} className="h-8 w-20 text-right" />
+                    <Input id="tts-max-duration" aria-label={t({ en: "Max seconds", fr: "Durée maximale (secondes)" })} type="number" min="0" step="0.1" value={maxDuration}
+                        onChange={(e) => { setMaxDuration(e.target.value); setOffset(0); }} placeholder={t({ en: "Max s", fr: "Max s" })} className="h-8 w-20 text-right" />
+                </div>
+                {error ? (
+                    <EtatVide cas="erreur" reessayer={() => setRefresh((value) => value + 1)} />
+                ) : loading ? (
+                    <EtatVide cas="chargement" lignes={3} />
+                ) : entries.length === 0 ? (
+                    search ? (
+                        <EtatVide cas="filtre" recherche={search} effacer={() => setSearch("")} />
+                    ) : (
+                        <EtatVide cas="premier" icone={AudioLines} titre={t({ en: "No cached speech yet", fr: "Aucune phrase en cache pour l'instant" })} info={t({ en: "Speech appears here after a successful synthesis in an agent with speech caching on.", fr: "Les phrases apparaissent ici après une synthèse réussie, chez un agent dont le cache de la voix est allumé." })} />
+                    )
+                ) : (
+                    <>
+                        <Tableau
+                            colonnes={[
+                                { titre: t({ en: "Phrase", fr: "Phrase" }) },
+                                { titre: t({ en: "Voice", fr: "Voix" }) },
+                                { titre: t({ en: "Length", fr: "Durée" }), droite: true },
+                                { titre: t({ en: "Replayed", fr: "Rejouée" }), droite: true },
+                                { titre: t({ en: "Last time", fr: "Dernière fois" }), droite: true },
+                                { titre: "", droite: true },
+                            ]}
+                        >
+                            {entries.map((entry) => (
+                                <Ligne key={entry.id}>
+                                    <Cellule principale>
+                                        <span className="font-normal whitespace-pre-wrap break-words">{entry.text_preview || t({ en: "Cached speech", fr: "Phrase en cache" })}</span>
+                                        {preview?.id === entry.id && (
+                                            <audio ref={audioRef} controls autoPlay src={preview.url} className="mt-2 w-full max-w-sm" aria-label={t({ en: "Cached speech preview", fr: "Écoute de la phrase" })}
+                                                onError={() => notifier.echec({ fr: "Lecture impossible. Réessayez.", en: "Could not play. Try again." })} />
+                                        )}
+                                    </Cellule>
+                                    <Cellule>{[entry.provider, entry.model, entry.voice_id].filter(Boolean).join(" · ")}</Cellule>
+                                    <Cellule droite>{entry.duration_seconds.toFixed(2)} s</Cellule>
+                                    <Cellule droite>{entry.hit_count.toLocaleString()} {t({ en: "times", fr: "fois" })}</Cellule>
+                                    <Cellule droite>{formatDateTime(entry.last_used_at, timezone)}</Cellule>
+                                    <td className="pl-4 text-right">
+                                        <span className="inline-flex gap-1">
+                                            <Button variant="ghost" size="icon" className="size-7" disabled={previewLoading === entry.id || removing !== null}
+                                                aria-label={`${t({ en: "Listen to", fr: "Écouter" })} ${entry.text_preview || ""}`} onClick={() => handlePreview(entry)}>
+                                                {previewLoading === entry.id ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                                            </Button>
+                                            <Button variant="ghost" size="sm" className="h-7" disabled={removing !== null}
+                                                aria-label={`${t({ en: "Invalidate", fr: "Invalider" })} ${entry.text_preview || ""}`} onClick={() => handleInvalidate(entry)}>
+                                                {removing === entry.id ? t({ en: "Invalidating…", fr: "Invalidation…" }) : t({ en: "Invalidate", fr: "Invalider" })}
+                                            </Button>
+                                        </span>
+                                    </td>
+                                </Ligne>
+                            ))}
+                        </Tableau>
+                        <BarrePagination total={total} page={Math.floor(offset / PAGE_SIZE)} parPage={PAGE_SIZE} changerPage={(page) => setOffset(page * PAGE_SIZE)} />
+                    </>
+                )}
+            </section>
+        );
+    }
 
     return (
         <div className="space-y-4">

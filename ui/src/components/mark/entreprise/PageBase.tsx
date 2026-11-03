@@ -12,25 +12,16 @@
  */
 import { useCallback, useState } from "react";
 
+import { FormeMaquette } from "../ecran/forme-maquette";
 import { useLangue } from "../langue/langue";
 import type { ThemeOrganisation } from "../parametres-organisation/references/cas-organisation";
 import { ThemeApresAppel, useApresAppel } from "../parametres-organisation/ThemeApresAppel";
 import { ThemeDonneesClient, useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
-import { Info } from "../studio/marques";
+import { GroupePage as Groupe } from "../studio/groupe-page";
 import { PageStudio } from "../studio/shell-studio";
 import { TitrePage } from "../studio/titre-page";
 
 type Etat = { modifie: boolean; enErreur: boolean };
-
-/** Un intertitre de la maquette : petites capitales grises, son « ! » à côté. */
-function Groupe({ titre, info }: { titre: string; info?: string }) {
-    return (
-        <h2 className="flex items-center gap-1.5 pt-8 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            {titre}
-            {info && <Info>{info}</Info>}
-        </h2>
-    );
-}
 
 export function PageBase() {
     const { t } = useLangue();
@@ -46,6 +37,7 @@ export function PageBase() {
 
     return (
         <PageStudio>
+            <FormeMaquette>
             <TitrePage
                 titre={t({ en: "Data and automations", fr: "Base et automatisations" })}
                 info={t({
@@ -67,6 +59,7 @@ export function PageBase() {
                 />
                 <ThemeApresAppel {...commun} apresAppel={apresAppel} />
             </section>
+            </FormeMaquette>
         </PageStudio>
     );
 }

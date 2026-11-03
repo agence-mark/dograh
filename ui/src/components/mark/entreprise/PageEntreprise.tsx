@@ -8,8 +8,9 @@
  * routage, Rendez-vous, Objets, Vérification de l'appelant, Écoute et sons. Chaque thème garde son composant, ses
  * champs et son enregistrement ; il est posé à plat dans son onglet (`plat`).
  */
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 
+import { FormeMaquette } from "../ecran/forme-maquette";
 import { useLangue } from "../langue/langue";
 import { usePreferencesOrganisation } from "../parametres-organisation/preferences";
 import type { ThemeOrganisation } from "../parametres-organisation/references/cas-organisation";
@@ -54,8 +55,11 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
     const etat = (id: ThemeOrganisation) => etats[id] ?? { modifie: false, enErreur: false };
     const baseRattachee = base.etat ? Boolean(base.etat.nom_base) : null;
 
+    // Les anciens thèmes (tests d'inventaire) gardent leur forme d'avant, tous réglages visibles.
+    const Forme = anciensThemes ? Fragment : FormeMaquette;
     return (
         <PageStudio>
+            <Forme>
             <TitrePage
                 titre={t({ en: "Company", fr: "Entreprise" })}
                 info={t({
@@ -113,6 +117,7 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                 ]}
             />
             </div>
+            </Forme>
         </PageStudio>
     );
 }

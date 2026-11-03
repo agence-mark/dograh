@@ -15,7 +15,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
+import { useFormeMaquette } from "./ecran/forme-maquette";
 import { type Texte, useLangue } from "./langue/langue";
+import { Liste } from "./studio/liste";
+import { Info } from "./studio/marques";
 
 /**
  * [.mark] What the agents say at pick-up when the business is closed, and the
@@ -202,8 +205,111 @@ export type EtatAnnonceOuverture = ReturnType<typeof useAnnonceOuverture>;
 export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuverture }) {
   const { t } = useLangue();
   const { reglages, modifier } = annonce;
+  const maquette = useFormeMaquette();
   const force = reglages.etat_force ?? null;
   const parle = force === "FERME" || force === "PAUSE";
+
+  // [.mark] K4b : dans la fenêtre de la maquette, aucune phrase d'aide visible : chaque explication est dans le « ! » de son
+  // champ. Les aperçus (la phrase telle qu'elle sera dite) restent : ce sont des données, pas des notes.
+  if (maquette) {
+    const etiquette = (htmlFor: string, libelle: Texte, info: React.ReactNode) => (
+      <Label htmlFor={htmlFor} className="flex items-center gap-1.5 text-sm font-medium">
+        {t(libelle)}
+        <Info>{info}</Info>
+      </Label>
+    );
+    const infoEtat = (
+      <span className="grid gap-1.5">
+        <span>
+          {t({
+            en: "This moment lifts the forced state by itself: after it the agents go back to their opening hours.",
+            fr: "Ce moment lève l'état forcé tout seul : après lui, les agents reviennent à leurs horaires.",
+          })}
+        </span>
+        <span>
+          {parle
+            ? t({
+                en: "The reopening announced is the first opening of the agent's own hours at or after this moment. Left empty, the forced state holds until someone comes back here, and no reopening is announced.",
+                fr: "La réouverture annoncée est la première ouverture des horaires de l'agent à partir de ce moment. Vide, l'état forcé tient jusqu'à ce que quelqu'un revienne ici, et aucune réouverture n'est annoncée.",
+              })
+            : t({ en: "Left empty, the forced state holds until someone comes back here.", fr: "Vide, l'état forcé tient jusqu'à ce que quelqu'un revienne ici." })}
+        </span>
+        {force === "PAUSE" && (
+          <span>
+            {t({
+              en: "A break means « open earlier today, back later today »: for a longer closing, force Closed.",
+              fr: "Une pause veut dire « ouvert plus tôt aujourd'hui, de retour plus tard aujourd'hui » : pour une fermeture plus longue, forcez Fermé.",
+            })}
+          </span>
+        )}
+      </span>
+    );
+    const options = [
+      { valeur: ETAT_CALCULE, libelle: t({ en: "Computed from each agent's opening hours", fr: "Calculé depuis les horaires de chaque agent" }) },
+      ...ETATS.map((etat) => ({ valeur: etat.valeur, libelle: `${t({ en: "Forced:", fr: "Forcé :" })} ${t(etat.libelle)}` })),
+    ];
+    return (
+      <div className="divide-y">
+        <div className="space-y-2 py-3.5" id="reglage-annonce_fermeture" data-reglage="annonce_fermeture">
+          {etiquette(
+            "annonce_fermeture",
+            { en: "When the business is closed", fr: "Quand l'entreprise est fermée" },
+            <span className="grid gap-1.5">
+              <span>
+                {t({
+                  en: "Said at pick-up, before the greeting, when the business is not reachable. An open business says nothing extra. An empty sentence announces nothing. Nothing is ever announced on an outbound call.",
+                  fr: "Dite au décroché, avant l'accueil, quand l'entreprise n'est pas joignable. Une entreprise ouverte ne dit rien de plus. Une phrase vide n'annonce rien. Rien n'est jamais annoncé sur un appel sortant.",
+                })}
+              </span>
+              <span>
+                {"{reouverture}"}{" "}
+                {t({ en: "is the reopening the agent announces; what is inside [ ] is said only when that reopening is known.", fr: "est la réouverture que l'agent annonce ; ce qui est entre [ ] n'est dit que si cette réouverture est connue." })}
+              </span>
+              <span>
+                {t({ en: "These are the starting values of a new establishment: a call that serves one says its own sentences.", fr: "Ce sont les valeurs de départ d'un nouvel établissement : un appel qui en sert un dit ses propres phrases." })}
+              </span>
+            </span>,
+          )}
+          <Textarea id="annonce_fermeture" rows={2} maxLength={300} value={reglages.annonce_fermeture ?? ""} onChange={(e) => modifier({ annonce_fermeture: e.target.value })} />
+          <Apercu modele={reglages.annonce_fermeture ?? ""} titre={{ en: "Closed, as it will be said", fr: "Fermé, tel que ce sera dit" }} />
+        </div>
+        <div className="space-y-2 py-3.5" id="reglage-annonce_pause" data-reglage="annonce_pause">
+          {etiquette(
+            "annonce_pause",
+            { en: "When the business is on a break", fr: "Quand l'entreprise est en pause" },
+            t({ en: "A break means already open today and reopening today, not lunch.", fr: "Une pause veut dire déjà ouvert aujourd'hui et réouverture aujourd'hui, pas le déjeuner." }),
+          )}
+          <Textarea id="annonce_pause" rows={2} maxLength={300} value={reglages.annonce_pause ?? ""} onChange={(e) => modifier({ annonce_pause: e.target.value })} />
+          <Apercu modele={reglages.annonce_pause ?? ""} titre={{ en: "On a break, as it will be said", fr: "En pause, tel que ce sera dit" }} />
+        </div>
+        <div className="space-y-2 py-3.5" id="reglage-etat_force" data-reglage="etat_force">
+          {etiquette(
+            "etat_force",
+            { en: "Close everything", fr: "Tout fermer" },
+            t({
+              en: "« Close everything » applies to EVERY agent of this organization, except those whose fiche has an immediate closing of its own. To close one establishment only, use the immediate closing of its fiche (Establishments).",
+              fr: "« Tout fermer » s'applique à TOUS les agents de l'organisation, sauf ceux dont la fiche a sa propre fermeture immédiate. Pour fermer un seul établissement, utilisez la fermeture immédiate de sa fiche (Établissements).",
+            }),
+          )}
+          <Liste
+            valeur={force ?? ETAT_CALCULE}
+            changer={(v) =>
+              modifier(v === ETAT_CALCULE ? { etat_force: null, etat_force_jusqu_a: null } : { etat_force: v as ReglagesAnnonceOuverture["etat_force"] })
+            }
+            options={options}
+            taille="default"
+            className="w-full"
+          />
+        </div>
+        {force !== null && (
+          <div className="space-y-2 py-3.5" id="reglage-etat_force_jusqu_a" data-reglage="etat_force_jusqu_a">
+            {etiquette("etat_force_jusqu_a", { en: "Until (Paris time)", fr: "Jusqu'au (heure de Paris)" }, infoEtat)}
+            <Input id="etat_force_jusqu_a" type="datetime-local" value={versChamp(reglages.etat_force_jusqu_a)} onChange={(e) => modifier({ etat_force_jusqu_a: e.target.value || null })} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

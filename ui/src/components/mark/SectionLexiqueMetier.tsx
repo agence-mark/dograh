@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Download, Plus, Square, Trash2, Upload } from "lucide-react";
+import { BookOpen, Check, Download, Plus, Search, Square, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
@@ -11,6 +11,13 @@ import {
   saveLexiqueApiV1OrganizationsLexiquePut,
 } from "@/client/sdk.gen";
 import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.gen";
+import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
+import { useLangue } from "@/components/mark/langue/langue";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { Info } from "@/components/mark/studio/marques";
+import { Paginee } from "@/components/mark/studio/pagination";
+import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -105,6 +112,10 @@ function correspond(terme: TermeLexique, recherche: string): boolean {
 }
 
 export function SectionLexiqueMetier() {
+  const maquette = useFormeMaquette();
+  const { t } = useLangue();
+  const [terme, setTerme] = useState<number | "nouveau" | null>(null);
+  const [seuilOuvert, setSeuilOuvert] = useState(false);
   const [lexique, setLexique] = useState<LexiqueMetier>({ termes: [] });
   const [chargement, setChargement] = useState(true);
   const [enregistrement, setEnregistrement] = useState(false);
@@ -192,7 +203,7 @@ export function SectionLexiqueMetier() {
     };
   }, [brouillon, ouvert]);
 
-  async function enregistrer(suivant: LexiqueMetier) {
+  async function enregistrer(suivant: LexiqueMetier, muet = false) {
     setEnregistrement(true);
     setErreur(null);
     try {
@@ -203,7 +214,7 @@ export function SectionLexiqueMetier() {
         return false;
       }
       setLexique(reponse.data ?? suivant);
-      notifier.succes({ fr: "Lexique enregistré.", en: "Vocabulary saved." });
+      if (!muet) notifier.succes({ fr: "Lexique enregistré.", en: "Vocabulary saved." });
       return true;
     } catch {
       setErreur("Failed to save the trade vocabulary");
@@ -319,6 +330,205 @@ export function SectionLexiqueMetier() {
 
   if (chargement) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  // [.mark] K4b : la forme de la maquette (`OngletEcouteSons`) : titre + « ! », recherche, Importer, + Terme à droite, un
+  // tableau nu ; un clic sur un terme ouvre sa fenêtre (la route remplace tout le lexique : il part avec le terme changé).
+  if (maquette) {
+    const termesLus = lexique.termes ?? [];
+    const cherche = sansAccent(recherche.trim());
+    const vus = termesLus.map((terme, rang) => ({ terme, rang })).filter(({ terme }) => correspond(terme, cherche));
+    const courant = typeof terme === "number" ? termesLus[terme] : undefined;
+    const nature = (type: TermeLexique["type"]) => (type === "mot" ? t({ en: "Word", fr: "Mot" }) : t({ en: "Name", fr: "Nom" }));
+    const oui = t({ en: "yes", fr: "oui" });
+    const non = t({ en: "no", fr: "non" });
+    const retirer = (rang: number) => {
+      const avant = lexique;
+      const apres: LexiqueMetier = { ...lexique, termes: termesLus.filter((_, i) => i !== rang) };
+      setLexique(apres);
+      notifier.annulable(
+        { fr: "Terme retiré.", en: "Term removed." },
+        {
+          restaurer: () => setLexique(avant),
+          executer: async () => {
+            if (!(await enregistrer(apres, true))) setLexique(avant);
+          },
+        },
+      );
+    };
+    return (
+      <section id="ecoute-lexique" data-testid="lexique-metier">
+        <TitreTableau
+          titre={t({ en: "Trade vocabulary", fr: "Lexique métier" })}
+          info={
+            <Info>
+              {t({
+                en: "The names and words of this business: recognised before the model reads them, listened for by the transcription, and pronounced the way you write them.",
+                fr: "Les noms et les mots de l'entreprise : reconnus avant que le modèle ne les lise, écoutés par la transcription, et prononcés comme vous les écrivez.",
+              })}
+            </Info>
+          }
+          action={
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label={t({ en: "Search the vocabulary", fr: "Chercher dans le lexique" })}
+                  value={recherche}
+                  onChange={(e) => setRecherche(e.target.value)}
+                  placeholder={t({ en: "A name, a spelling, a category…", fr: "Un nom, une orthographe, une catégorie…" })}
+                  className="h-8 w-64 pl-8"
+                />
+              </div>
+              <Button variant="ghost" size="sm" disabled={!lu} onClick={() => setSeuilOuvert(true)}>
+                {t({ en: "Common words", fr: "Mots courants" })}
+              </Button>
+              <Button variant="ghost" size="sm" disabled={!lu} onClick={() => fichier.current?.click()}>
+                <Upload className="size-3.5" />
+                {t({ en: "Import", fr: "Importer" })}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={exporter}>
+                <Download className="size-3.5" />
+                {t({ en: "Export", fr: "Exporter" })}
+              </Button>
+              <Button variant="outline" size="sm" disabled={!lu} onClick={() => setTerme("nouveau")}>
+                <Plus className="size-3.5" />
+                {t({ en: "Term", fr: "Terme" })}
+              </Button>
+              <input ref={fichier} type="file" accept="application/json,.json" className="hidden" aria-label={t({ en: "Import template", fr: "Importer un modèle" })} onChange={importer} />
+            </div>
+          }
+        />
+        {erreur && terme === null && (
+          <p className="text-xs text-destructive" role="alert">
+            {erreur}
+          </p>
+        )}
+        <BudgetDeLaTranscription budget={budget} />
+        {!lu ? (
+          <EtatVide cas="erreur" reessayer={() => void charger()} />
+        ) : termesLus.length === 0 ? (
+          <EtatVide cas="premier" icone={BookOpen} titre={t({ en: "No term yet", fr: "Aucun terme pour l'instant" })} />
+        ) : vus.length === 0 ? (
+          <EtatVide cas="filtre" recherche={recherche} effacer={() => setRecherche("")} />
+        ) : (
+          <Paginee liste={vus}>
+            {(page) => (
+              <Tableau
+                colonnes={[
+                  { titre: t({ en: "Term", fr: "Terme" }) },
+                  { titre: t({ en: "Other spellings", fr: "Autres orthographes" }) },
+                  { titre: t({ en: "Said as", fr: "Se dit" }) },
+                  { titre: t({ en: "Category", fr: "Catégorie" }) },
+                  { titre: t({ en: "Listened for", fr: "Écouté" }), droite: true },
+                  { titre: t({ en: "Offered", fr: "Proposé" }), droite: true },
+                ]}
+              >
+                {page.map(({ terme: l, rang }) => (
+                  <Ligne key={rang} onClick={() => setTerme(rang)}>
+                    <Cellule principale sous={nature(l.type)}>
+                      {l.terme}
+                    </Cellule>
+                    <Cellule>{versTexte(l.variantes) || "—"}</Cellule>
+                    <Cellule>{l.prononciation || t({ en: "as written", fr: "comme écrit" })}</Cellule>
+                    <Cellule>{l.categorie || "—"}</Cellule>
+                    <Cellule droite>{l.a_ecouter ? oui : non}</Cellule>
+                    <Cellule droite>{l.propose ? oui : non}</Cellule>
+                  </Ligne>
+                ))}
+              </Tableau>
+            )}
+          </Paginee>
+        )}
+        {terme !== null && (
+          <FenetreChamps
+            ouverte
+            fermer={() => setTerme(null)}
+            titre={terme === "nouveau" ? t({ en: "New term", fr: "Nouveau terme" }) : (courant?.terme ?? "")}
+            valider={t({ en: "Save", fr: "Enregistrer" })}
+            pied={
+              courant ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    const rang = terme as number;
+                    setTerme(null);
+                    retirer(rang);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                  {t({ en: "Remove", fr: "Retirer" })}
+                </Button>
+              ) : undefined
+            }
+            sections={[
+              {
+                champs: [
+                  { id: "terme", t: "texte", l: t({ en: "Term", fr: "Terme" }), v: courant?.terme ?? "", info: t({ en: "Written the way the business writes it.", fr: "Écrit comme l'entreprise l'écrit." }) },
+                  {
+                    id: "variantes",
+                    t: "texte",
+                    l: t({ en: "Other spellings", fr: "Autres orthographes" }),
+                    v: versTexte(courant?.variantes),
+                    info: t({ en: "What the transcription sometimes hears instead, separated by commas: replaced by the term before the model reads it.", fr: "Ce que la transcription entend parfois à la place, séparé par des virgules : remplacé par le terme avant que le modèle ne lise." }),
+                  },
+                  { id: "prononciation", t: "texte", l: t({ en: "Said as", fr: "Se dit" }), v: courant?.prononciation ?? "", info: t({ en: "Empty: pronounced as written.", fr: "Vide : prononcé comme écrit." }) },
+                  { id: "type", t: "choix", l: t({ en: "Kind", fr: "Nature" }), o: [t({ en: "Name", fr: "Nom" }), t({ en: "Word", fr: "Mot" })], v: nature(courant?.type ?? TERME_VIDE.type) },
+                  { id: "categorie", t: "texte", l: t({ en: "Category", fr: "Catégorie" }), v: courant?.categorie ?? "" },
+                  { id: "a_ecouter", t: "inter", l: t({ en: "Listen for it", fr: "À écouter" }), v: courant?.a_ecouter ?? TERME_VIDE.a_ecouter, info: t({ en: "Sent to the transcription so that it hears it better.", fr: "Envoyé à la transcription pour qu'elle l'entende mieux." }) },
+                  { id: "propose", t: "inter", l: t({ en: "The business offers it", fr: "L'entreprise le propose" }), v: courant?.propose ?? TERME_VIDE.propose, info: t({ en: "The agent may say that the business does or sells it.", fr: "L'agent peut dire que l'entreprise le fait ou le vend." }) },
+                ],
+              },
+            ]}
+            verifier={(v) => (String(v.terme ?? "").trim() ? null : { terme: t({ en: "A term cannot be empty.", fr: "Un terme ne peut pas être vide." }) })}
+            onValider={(v) => {
+              const fait: TermeLexique = {
+                terme: String(v.terme).trim(),
+                variantes: versVariantes(String(v.variantes ?? "")),
+                prononciation: String(v.prononciation ?? "").trim() || null,
+                type: v.type === t({ en: "Word", fr: "Mot" }) ? "mot" : "nom",
+                categorie: String(v.categorie ?? "").trim() || null,
+                a_ecouter: v.a_ecouter === true,
+                propose: v.propose === true,
+              };
+              void enregistrer({
+                ...lexique,
+                termes: terme === "nouveau" ? [...termesLus, fait] : termesLus.map((x, i) => (i === terme ? fait : x)),
+              });
+            }}
+          />
+        )}
+        {seuilOuvert && (
+          <FenetreChamps
+            ouverte
+            fermer={() => setSeuilOuvert(false)}
+            titre={t({ en: "Common words never read as a name", fr: "Mots courants jamais lus comme un nom" })}
+            info={t({
+              en: `The ${SEUIL_MOTS_COURANTS_DEFAUT.toLocaleString("en")} most frequent French words (the default) are never read as a name of this vocabulary, nor a name made of them. Raise it if everyday words are read as names; lower it if names that sound like words are missed.`,
+              fr: `Les ${SEUIL_MOTS_COURANTS_DEFAUT.toLocaleString("fr")} mots français les plus fréquents (le défaut) ne sont jamais lus comme un nom de ce lexique, ni un nom qui en est fait. Montez-le si des mots du quotidien sont lus comme des noms ; baissez-le si des noms qui sonnent comme des mots sont manqués.`,
+            })}
+            valider={t({ en: "Save", fr: "Enregistrer" })}
+            sections={[
+              {
+                champs: [
+                  {
+                    id: "seuil",
+                    t: "nombre",
+                    l: t({ en: "Frequency threshold", fr: "Seuil de fréquence" }),
+                    v: String(lexique.seuil_mots_courants ?? SEUIL_MOTS_COURANTS_DEFAUT),
+                    min: SEUIL_MOTS_COURANTS_MIN,
+                    max: SEUIL_MOTS_COURANTS_MAX,
+                  },
+                ],
+              },
+            ]}
+            onValider={(v) => void enregistrer({ ...lexique, seuil_mots_courants: Number(v.seuil) || SEUIL_MOTS_COURANTS_DEFAUT })}
+          />
+        )}
+      </section>
+    );
   }
 
   return (
@@ -583,6 +793,7 @@ export function SectionLexiqueMetier() {
  * organization's provider.
  */
 function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
+  const { t } = useLangue();
   if (!budget) return null;
   const nonEnvoyes = budget.non_envoyes ?? [];
   const parTermes = budget.plafond_termes !== null && budget.plafond_termes !== undefined;
@@ -590,8 +801,8 @@ function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
   if (!budget.nom_du_plafond || (!parTermes && !parJetons)) {
     return (
       <p className="text-xs text-muted-foreground" data-testid="budget-lexique">
-        No term is sent to the transcription: its provider
-        {budget.fournisseur ? ` (${budget.fournisseur})` : ""} declares no limit for the list.
+        {t({ en: "No term is sent to the transcription: its provider", fr: "Aucun terme n'est envoyé à la transcription : son fournisseur" })}
+        {budget.fournisseur ? ` (${budget.fournisseur})` : ""} {t({ en: "declares no limit for the list.", fr: "ne déclare aucune limite pour la liste." })}
       </p>
     );
   }
@@ -600,16 +811,15 @@ function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
       <p className="text-muted-foreground">
         <span className="font-medium text-foreground">
           {parTermes
-            ? `${(budget.envoyes ?? []).length} / ${budget.plafond_termes} terms`
-            : `${budget.jetons} / ${budget.plafond_jetons} tokens`}{" "}
+            ? `${(budget.envoyes ?? []).length} / ${budget.plafond_termes} ${t({ en: "terms", fr: "termes" })}`
+            : `${budget.jetons} / ${budget.plafond_jetons} ${t({ en: "tokens", fr: "jetons" })}`}{" "}
           ({budget.nom_du_plafond})
         </span>{" "}
-        sent to the transcription. Each agent&apos;s own Dictionary is sent first and takes from
-        the same limit.
+        {t({ en: "sent to the transcription. Each agent's own Dictionary is sent first and takes from the same limit.", fr: "envoyés à la transcription. Le dictionnaire propre à chaque agent part en premier et prend sur la même limite." })}
       </p>
       {nonEnvoyes.length > 0 && (
         <p className="text-destructive">
-          Not sent ({nonEnvoyes.length}): {nonEnvoyes.join(", ")}
+          {t({ en: `Not sent (${nonEnvoyes.length}): `, fr: `Non envoyés (${nonEnvoyes.length}) : ` })}{nonEnvoyes.join(", ")}
         </p>
       )}
     </div>
