@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getWorkflowRunsApiV1WorkflowWorkflowIdRunsGet } from "@/client/sdk.gen";
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
+import { useLangue } from "@/components/mark/langue/langue";
 import { WorkflowRunsTable } from "@/components/workflow-runs";
 import { useDispositionCodes } from "@/hooks/useDispositionCodes";
 import { useAuth } from '@/lib/auth';
@@ -20,6 +21,7 @@ interface WorkflowExecutionsProps {
 }
 
 export function WorkflowExecutions({ workflowId, searchParams, forme }: WorkflowExecutionsProps) {
+    const { t } = useLangue();
     const router = useRouter();
     const [workflowRuns, setWorkflowRuns] = useState<WorkflowRunResponseSchema[]>([]);
     const [loading, setLoading] = useState(true);
@@ -184,7 +186,7 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
         <div className={forme === "agent" ? "mx-auto max-w-5xl px-6 py-6" : "container mx-auto py-8"}>
             <WorkflowRunsTable
                 forme={forme}
-                emptyMessage={forme === "agent" ? "Aucun appel encore" : undefined}
+                emptyMessage={forme === "agent" ? t({ en: "No calls yet", fr: "Aucun appel encore" }) : undefined}
                 runs={workflowRuns}
                 loading={loading}
                 error={error}
