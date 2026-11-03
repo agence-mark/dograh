@@ -18551,6 +18551,22 @@ export type WorkflowListResponse = {
      * Workflow Uuid
      */
     workflow_uuid?: string | null;
+    /**
+     * Version Numero
+     */
+    version_numero?: number | null;
+    /**
+     * Version Etat
+     */
+    version_etat?: string | null;
+    /**
+     * Modifie Le
+     */
+    modifie_le?: string | null;
+    /**
+     * Appels 7J
+     */
+    appels_7j?: number;
 };
 
 /**
