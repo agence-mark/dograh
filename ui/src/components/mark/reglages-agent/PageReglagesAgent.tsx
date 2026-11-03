@@ -15,17 +15,16 @@
  * The themes, in the order of a call: Agent, Services, Listening, Modules,
  * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { ArrowLeft, Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Volume2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Search, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { EmbedDialog } from "@/app/workflow/[workflowId]/components/EmbedDialog";
 import { useWorkflowState } from "@/app/workflow/[workflowId]/hooks/useWorkflowState";
 import {
     getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get,
-    lireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGet,
     getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet,
+    lireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGet,
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet,
 } from "@/client/sdk.gen";
 import type {
@@ -36,19 +35,26 @@ import type {
 } from "@/client/types.gen";
 import type { ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
 import type { FlowEdge, FlowNode } from "@/components/flow/types";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
 import { detailFromError } from "@/lib/apiError";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
 import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ContexteHeritage, type ReglageHerite } from "../ecran/heritage";
-import { NavigationThemes } from "../ecran/NavigationThemes";
+import { ContexteCartes } from "../ecran/Theme";
 import { useThemesOuverts } from "../ecran/useThemesOuverts";
 import { etapesSansPremiereReplique } from "../graphe/premiere-replique";
 import { ContexteGroupe, type ValeurGroupe } from "../groupe/contexte-groupe";
 import { useLangue } from "../langue/langue";
 import { BoutonModeles } from "./modeles-de-reglages/ModaleModeles";
+import {
+    chercherReglages,
+    dansUnEspaceClient,
+    NIVEAU_DU_THEME,
+    NIVEAUX_REGLAGES,
+    propresParTheme,
+} from "./niveaux-et-recherche";
 import { PreparationAgent } from "./PreparationAgent";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
@@ -87,9 +93,8 @@ interface ProprietesPage {
 
 /** Mounted inside Dograh's `UnsavedChangesProvider`, which their page already renders. */
 export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
-    const router = useRouter();
     const { t } = useLangue();
-    const { dirtySections, confirmNavigate } = useUnsavedChangesContext();
+    const { dirtySections } = useUnsavedChangesContext();
     const themes = useThemesOuverts();
     // [.mark] lot 5: a link from a sentence rule opens the theme that sets what it reads (`?theme=briques`).
     useEffect(() => {
@@ -97,7 +102,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
         if (theme && THEMES_AGENT.some((x) => x.id === theme)) themes.choisir(theme);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    const [themesEnErreur, setThemesEnErreur] = useState<Set<string>>(() => new Set());
+    const [, setThemesEnErreur] = useState<Set<string>>(() => new Set());
     const signalerErreur = useCallback((id: string, enErreur: boolean) => {
         setThemesEnErreur((avant) => {
             if (avant.has(id) === enErreur) return avant;
@@ -288,6 +293,34 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
         loadModelConfiguration();
     }, []);
 
+    // [.mark] U4 (E42, E44): the themes are cards; a card opens its window. « Cancel » forgets the draft of the theme
+    // (the theme is drawn again from what the server stored) and closes the window.
+    const [clesThemes, setClesThemes] = useState<Record<string, number>>({});
+    const annulerTheme = useCallback(
+        (id: string) => {
+            themes.fermer(id);
+            setClesThemes((avant) => ({ ...avant, [id]: (avant[id] ?? 0) + 1 }));
+        },
+        [themes],
+    );
+    // The Engine level is the team's: a client's space does not show it. Unknown space: shown.
+    const [espaceClient, setEspaceClient] = useState(false);
+    useEffect(() => {
+        setEspaceClient(dansUnEspaceClient(window.location.pathname));
+    }, []);
+    const niveauxVisibles = NIVEAUX_REGLAGES.filter((n) => !(n.laboSeulement && espaceClient));
+    const themesVisibles = useMemo(() => new Set(niveauxVisibles.flatMap((n) => n.themes)), [niveauxVisibles]);
+    const valeurCartes = useMemo(
+        () => ({
+            annuler: annulerTheme,
+            niveaux: NIVEAU_DU_THEME,
+            propres: propresParTheme((cle) => heritage[cle]?.propre === true),
+        }),
+        [annulerTheme, heritage],
+    );
+    const [recherche, setRecherche] = useState("");
+    const resultats = useMemo(() => chercherReglages(recherche, themesVisibles), [recherche, themesVisibles]);
+
     const commun = (id: string) =>
         resolue
             ? {
@@ -301,86 +334,136 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
               }
             : null;
 
+    // Each theme, drawn by its identifier; a theme the level hides is not drawn at all.
+    const dessiner = (id: string) => {
+        const propres = commun(id);
+        if (!propres) return null;
+        const cle = `${id}-${clesThemes[id] ?? 0}`;
+        switch (id) {
+            case ID_THEME_AGENT:
+                return (
+                    <ThemeAgent
+                        key={cle}
+                        {...propres}
+                        workflowId={workflowId}
+                        workflowUuid={workflow.workflow_uuid}
+                        variablesEnregistrees={templateContextVariables}
+                        enregistrerVariables={saveTemplateContextVariables}
+                        ouvrirModuleSite={() => setModuleSiteOuvert(true)}
+                    />
+                );
+            case ID_THEME_BRIQUES:
+                return (
+                    <ThemeBriques
+                        key={cle}
+                        {...propres}
+                        workflowName={workflowName}
+                        modeles={{
+                            defaults: modelConfigurationDefaults,
+                            organisation: organizationModelConfiguration,
+                            tarifs: modelConfigurationPricing,
+                            chargement: modelConfigurationLoading,
+                            erreur: modelConfigurationError,
+                        }}
+                    />
+                );
+            case ID_THEME_ECOUTE:
+                return <ThemeEcoute key={cle} {...propres} dictionnaire={dictionary} enregistrerDictionnaire={saveDictionary} />;
+            case ID_THEME_MODULES:
+                return <ThemeModules key={cle} {...propres} workflowId={workflowId} />;
+            case ID_THEME_TOUR:
+                return <ThemeTourDeParole key={cle} {...propres} />;
+            case ID_THEME_VOIX:
+                return <ThemeVoix key={cle} {...propres} workflowId={workflowId} />;
+            case ID_THEME_RYTHME:
+                return <ThemeRythme key={cle} {...propres} />;
+            case ID_THEME_PHRASES:
+                return <ThemePhrases key={cle} {...propres} etapes={etapesDuGraphe} outilsUuids={outilsUuids} workflowId={workflowId} />;
+            case ID_THEME_DONNEES:
+                return (
+                    <ThemeDonnees
+                        key={cle}
+                        {...propres}
+                        issuesParDefaut={defaultCallDispositions}
+                        etapesSansPremiereReplique={etapesSansPremiere}
+                        workflowId={workflowId}
+                    />
+                );
+            case ID_THEME_INTERVENTIONS:
+                return <ThemeInterventions key={cle} {...propres} />;
+            case ID_THEME_ETABLISSEMENT:
+                return (
+                    <ThemeEtablissement key={cle} {...propres} consignesParDefaut={defaultAnswerClassifierPrompt} workflowId={workflowId} />
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="min-h-screen">
-            <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t({ en: "Back to the agent", fr: "Retour à l'agent" })}
-                    onClick={() => confirmNavigate(() => router.push(`/workflow/${workflowId}`))}
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <p className="text-xs text-muted-foreground">{t({ en: "Workflow Settings", fr: "Réglages de l'agent" })}</p>
-                    <h1 className="text-sm font-semibold">{nom}</h1>
-                </div>
-                {/* [.mark] cloture-code, lot 5 (M11) : les modèles de réglages, dans l'en-tête fixe, à côté du nom de l'agent. */}
-                <div className="ml-auto">
-                    <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
-                </div>
-            </header>
-
             <ContexteHeritage.Provider value={valeurHeritage}>
             <ContexteGroupe.Provider value={valeurGroupe}>
             <ContexteErreursThemes.Provider value={signalerErreur}>
-                <div className="mx-auto flex max-w-5xl gap-8 px-6 py-8">
-                    <div className="min-w-0 flex-1 space-y-4" key={versionEcran}>
-                        <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
-                        {resolue && (
-                            <>
-                                <ThemeAgent
-                                    {...commun(ID_THEME_AGENT)!}
-                                    workflowId={workflowId}
-                                    workflowUuid={workflow.workflow_uuid}
-                                    variablesEnregistrees={templateContextVariables}
-                                    enregistrerVariables={saveTemplateContextVariables}
-                                    ouvrirModuleSite={() => setModuleSiteOuvert(true)}
-                                />
-                                <ThemeBriques
-                                    {...commun(ID_THEME_BRIQUES)!}
-                                    workflowName={workflowName}
-                                    modeles={{
-                                        defaults: modelConfigurationDefaults,
-                                        organisation: organizationModelConfiguration,
-                                        tarifs: modelConfigurationPricing,
-                                        chargement: modelConfigurationLoading,
-                                        erreur: modelConfigurationError,
-                                    }}
-                                />
-                                <ThemeEcoute {...commun(ID_THEME_ECOUTE)!} dictionnaire={dictionary} enregistrerDictionnaire={saveDictionary} />
-                                <ThemeModules {...commun(ID_THEME_MODULES)!} workflowId={workflowId} />
-                                <ThemeTourDeParole {...commun(ID_THEME_TOUR)!} />
-                                <ThemeVoix {...commun(ID_THEME_VOIX)!} workflowId={workflowId} />
-                                <ThemeRythme {...commun(ID_THEME_RYTHME)!} />
-                                <ThemePhrases {...commun(ID_THEME_PHRASES)!} etapes={etapesDuGraphe} outilsUuids={outilsUuids} workflowId={workflowId} />
-                                <ThemeDonnees
-                                    {...commun(ID_THEME_DONNEES)!}
-                                    issuesParDefaut={defaultCallDispositions}
-                                    etapesSansPremiereReplique={etapesSansPremiere}
-                                    workflowId={workflowId}
-                                />
-                                <ThemeInterventions {...commun(ID_THEME_INTERVENTIONS)!} />
-                                <ThemeEtablissement
-                                    {...commun(ID_THEME_ETABLISSEMENT)!}
-                                    consignesParDefaut={defaultAnswerClassifierPrompt}
-                                    workflowId={workflowId}
-                                />
-                            </>
-                        )}
+            <ContexteCartes.Provider value={valeurCartes}>
+                <div className="mx-auto max-w-5xl space-y-8 px-6 py-6" key={versionEcran}>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative min-w-60 flex-1">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                value={recherche}
+                                onChange={(e) => setRecherche(e.target.value)}
+                                aria-label={t({ en: "Search all settings", fr: "Chercher dans tous les réglages" })}
+                                placeholder={t({ en: "Search all settings", fr: "Chercher dans tous les réglages" })}
+                                className="pl-9"
+                            />
+                        </div>
+                        {/* [.mark] cloture-code, lot 5 (M11): the settings templates, next to the search. */}
+                        <BoutonModeles workflowId={workflowId} modifie={dirtySections.size > 0} />
                     </div>
 
-                    <NavigationThemes
-                        actif={null}
-                        onChoisir={themes.choisir}
-                        entrees={THEMES_AGENT.map((theme) => ({
-                            ...theme,
-                            modifie: dirtySections.has(theme.id),
-                            enErreur: themesEnErreur.has(theme.id),
-                        }))}
-                    />
+                    {resultats.length > 0 && (
+                        <ul className="divide-y" data-recherche="resultats">
+                            {resultats.map((r) => {
+                                const theme = THEMES_AGENT.find((x) => x.id === r.theme);
+                                return (
+                                    <li key={r.cle}>
+                                        <button
+                                            type="button"
+                                            data-resultat={r.cle}
+                                            onClick={() => {
+                                                themes.afficher(r.theme, r.cle);
+                                                setRecherche("");
+                                            }}
+                                            className="flex w-full cursor-pointer items-baseline gap-3 py-2 text-left text-sm hover:font-semibold"
+                                        >
+                                            <span className="min-w-0 flex-1 truncate">{r.libelle ? t(r.libelle) : r.cle}</span>
+                                            <code className="text-[11px] text-muted-foreground">{r.cle}</code>
+                                            {theme && <span className="text-xs text-muted-foreground">{t(theme.titre)}</span>}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                    {recherche.trim().length >= 2 && resultats.length === 0 && (
+                        <p className="text-sm text-muted-foreground" data-recherche="aucun">
+                            {t({ en: `No setting for « ${recherche.trim()} ».`, fr: `Aucun réglage pour « ${recherche.trim()} ».` })}
+                        </p>
+                    )}
+
+                    <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
+
+                    {resolue &&
+                        niveauxVisibles.map((niveau) => (
+                            <section key={niveau.id} data-niveau={niveau.id} className="space-y-3">
+                                <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">{t(niveau.titre)}</h2>
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{niveau.themes.map((id) => dessiner(id))}</div>
+                            </section>
+                        ))}
                 </div>
+            </ContexteCartes.Provider>
             </ContexteErreursThemes.Provider>
             </ContexteGroupe.Provider>
             </ContexteHeritage.Provider>

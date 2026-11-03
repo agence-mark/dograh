@@ -80,7 +80,7 @@ const Cercle = ({ etape }: { etape: EtapeDePreparation }) => {
     return (
         <span
             data-cercle={requis ? "requis" : "conseille"}
-            className={cn("inline-block size-4 shrink-0 rounded-full border-2", requis ? "border-destructive" : "border-[#3d8fe6]")}
+            className={cn("inline-block size-4 shrink-0 rounded-full border-2", requis ? "border-destructive" : "border-(--acc)")}
         />
     );
 };

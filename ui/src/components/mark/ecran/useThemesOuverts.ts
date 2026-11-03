@@ -44,6 +44,15 @@ export const useThemesOuverts = (initiaux: string[] = []) => {
         setOuverts((avant) => (avant.has(id) ? avant : new Set(avant).add(id)));
     }, []);
 
+    const fermer = useCallback((id: string) => {
+        setOuverts((avant) => {
+            if (!avant.has(id)) return avant;
+            const apres = new Set(avant);
+            apres.delete(id);
+            return apres;
+        });
+    }, []);
+
     const afficher = useCallback(
         (theme: string, cle: string) => {
             ouvrir(theme);
@@ -60,5 +69,5 @@ export const useThemesOuverts = (initiaux: string[] = []) => {
         [ouvrir],
     );
 
-    return { estOuvert: (id: string) => ouverts.has(id), basculer, ouvrir, afficher, choisir };
+    return { estOuvert: (id: string) => ouverts.has(id), basculer, ouvrir, fermer, afficher, choisir };
 };
