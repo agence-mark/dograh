@@ -1,0 +1,26 @@
+{
+  "titre": "Capture : numéro relu par paires",
+  "contenu": {
+    "but": "Laisser un numéro de téléphone dicté de façon inhabituelle, et obtenir qu'il soit noté exactement.",
+    "personnage": "numero-en-desordre",
+    "ouverture": "Je voudrais qu'on me rappelle.",
+    "criteres": [
+      {
+        "type": "coordonnees_prises",
+        "champs": [
+          "telephone"
+        ]
+      }
+    ],
+    "questions_juge": [
+      "Le numéro a-t-il été relu par groupes de deux chiffres avant d'être validé ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la politique de capture du domaine intake de tau2-bench (MIT) : épeler, relire, confirmer, puis comparer la fiche finale à la valeur exacte. Ce n'est pas une traduction ligne à ligne des tâches du corpus (non relu mot à mot). La mention de copyright du dépôt est à garder dans la fiche de l'élément : à compléter depuis son fichier LICENSE avant tout usage en production.",
+  "origine": {
+    "source": "sierra-research/tau2-bench, domaine intake (méthode de capture : épeler, relire, confirmer)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "capture"
+}

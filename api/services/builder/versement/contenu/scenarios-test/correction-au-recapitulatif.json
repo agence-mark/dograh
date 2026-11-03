@@ -1,0 +1,26 @@
+{
+  "titre": "Service : correction au récapitulatif",
+  "contenu": {
+    "but": "Prendre un rendez-vous, puis corriger la date quand l'agent récapitule.",
+    "personnage": "numero-en-desordre",
+    "criteres": [
+      {
+        "type": "outil",
+        "nom": "reserver_creneau"
+      },
+      {
+        "type": "sans_redite"
+      }
+    ],
+    "questions_juge": [
+      "La date finalement réservée est-elle celle de la correction ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la forme de test d'ABCD (MIT, Copyright 2021 ASAPP Research) : une politique écrite, une action attendue. Adapté à nos motifs ; ce n'est pas une traduction d'un dialogue du corpus.",
+  "origine": {
+    "source": "asappresearch/abcd (Copyright 2021 ASAPP Research)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "service"
+}

@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Épelle mal",
+  "contenu": {
+    "description": "Un appelant dont le nom est difficile et qui l'épelle mal.",
+    "but": "Faire noter son nom correctement.",
+    "fin": "Confirme seulement quand les lettres relues sont justes.",
+    "comportements": [
+      "Épelle à moitié",
+      "Hésite entre deux lettres proches"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

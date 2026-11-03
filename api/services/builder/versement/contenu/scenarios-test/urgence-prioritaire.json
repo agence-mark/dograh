@@ -1,0 +1,23 @@
+{
+  "titre": "Service : urgence traitée en premier",
+  "contenu": {
+    "but": "Décrire une situation urgente dès le début de l'appel.",
+    "personnage": "agace",
+    "criteres": [
+      {
+        "type": "issue",
+        "attendue": "urgence"
+      }
+    ],
+    "questions_juge": [
+      "L'urgence a-t-elle été reconnue avant les autres questions ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la forme de test d'ABCD (MIT, Copyright 2021 ASAPP Research) : une politique écrite, une action attendue. Adapté à nos motifs ; ce n'est pas une traduction d'un dialogue du corpus.",
+  "origine": {
+    "source": "asappresearch/abcd (Copyright 2021 ASAPP Research)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "service"
+}

@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Numéro en désordre",
+  "contenu": {
+    "description": "Un appelant qui dicte son numéro de téléphone de façon inhabituelle.",
+    "but": "Laisser un numéro exact pour être rappelé.",
+    "fin": "Corrige le numéro relu jusqu'à ce qu'il soit exact.",
+    "comportements": [
+      "Dicte son numéro par paquets inhabituels",
+      "Se corrige en cours de phrase"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

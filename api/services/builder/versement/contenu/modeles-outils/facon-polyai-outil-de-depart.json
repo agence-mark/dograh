@@ -1,0 +1,11 @@
+{
+  "titre": "Outil de départ par tâche (façon PolyAI)",
+  "contenu": {
+    "texte": "# Outil de départ par tâche (recette façon PolyAI)\n\nUn outil par tâche, appelé avant toute question. Il écrit l'état de la tâche, note une métrique de démarrage et bascule sur le prompt de la tâche.\n\n- Nom : `commencer_⟦tache⟧`\n- Paramètres : aucun, ou le motif si l'appelant l'a déjà donné.\n- Retour : un verdict, puis la consigne. Exemple de forme : `DÉMARRÉ. Suivre les objectifs de la tâche, en utilisant ce que l'appelant a déjà dit. Question du téléphone : ⟦question calculée par le code selon qu'un numéro s'affiche ou non⟧`.\n- Effets : état de la tâche déclaré, métrique de démarrage, journal sans donnée personnelle.\n\nLa question du téléphone vient du code dès l'ouverture de la tâche : le modèle ne devine pas si un numéro s'affiche.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

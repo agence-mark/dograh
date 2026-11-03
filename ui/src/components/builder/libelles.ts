@@ -23,8 +23,10 @@ export const STATUTS: Record<StatutDeLaBibliotheque, { texte: Texte; classe: str
     },
 };
 
-export const TYPES_DE_PROPOSITION: Record<"version" | "passage_recette" | "rejet", Texte> = {
+export const TYPES_DE_PROPOSITION: Record<"version" | "passage_recette" | "rejet" | "fiche" | "famille", Texte> = {
     version: { en: "New version", fr: "Nouvelle version" },
+    fiche: { en: "Sheet of a family", fr: "Fiche d'une famille" },
+    famille: { en: "New family", fr: "Nouvelle famille" },
     passage_recette: { en: "Move to Recipe", fr: "Passage en Recette" },
     rejet: { en: "Rejection", fr: "Rejet" },
 };

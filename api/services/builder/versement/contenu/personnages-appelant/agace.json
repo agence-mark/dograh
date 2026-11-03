@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Agacé",
+  "contenu": {
+    "description": "Un appelant agacé par une panne ou une attente.",
+    "but": "Obtenir une réponse concrète, pas des excuses.",
+    "fin": "Termine sèchement mais poliment si on a agi.",
+    "comportements": [
+      "Impatient ou agacé",
+      "Soupire quand on se répète"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

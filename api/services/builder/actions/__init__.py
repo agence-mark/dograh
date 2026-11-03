@@ -13,6 +13,7 @@ from api.services.builder.actions import (  # noqa: F401 -- l'import inscrit les
 from api.services.builder.actions import objets  # noqa: F401,E402 -- B48 : les objets de l'agent
 from api.services.builder.actions import etiquettes  # noqa: F401,E402 -- U3 (E30) : les étiquettes des agents
 from api.services.builder.actions import contexte_client  # noqa: F401,E402 -- lot 3 : après points_d_entree, qu'il remplit
+from api.services.builder.actions import methode  # noqa: F401,E402 -- U7 (M2) : builder_methode et builder_conventions pour Claude Code
 from api.services.builder.actions.registre import (  # noqa: F401
     INTERDITES,
     REGISTRE,

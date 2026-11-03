@@ -5,7 +5,9 @@ bibliothèque (méthode du builder, consigne de synthèse, fiches de famille, re
 juge) est un fichier ``contenu/<famille>/<slug>.json``, versionné, relu en revue, testé sur la base locale, et versé au
 démarrage du serveur (``scripts/start_services_docker.sh``, après les migrations) par ``python -m api.scripts.mark.verser``.
 
-Forme d'un fichier : ``{"titre": str, "contenu": {...}, "notes": str?, "origine": {"source", "licence", "date"}?}``.
+Forme d'un fichier : ``{"titre": str, "contenu": {...}, "notes": str?, "origine": {"source", "licence", "date"}?,
+"dossier": str?, "etiquettes": [str]?}``. Le sous-dossier et les étiquettes (U7) rangent l'élément À SA CRÉATION, ou plus tard
+tant qu'il n'a ni l'un ni l'autre : une personne qui l'a déplacé ou étiqueté n'est jamais défaite.
 
 Idempotent, et jamais contre une personne :
 
@@ -28,7 +30,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.builder.bibliotheque import service
+from api.services.builder.bibliotheque import fiches, rangement, service
 from api.services.builder.bibliotheque.familles import FAMILLES
 from api.services.builder.bibliotheque.modele import Origine
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
@@ -45,6 +47,7 @@ class Rapport:
     inchanges: list[str] = field(default_factory=list)
     gardes: list[str] = field(default_factory=list)  # modifiés par une personne : non écrasés
     erreurs: list[str] = field(default_factory=list)
+    fiches: list[str] = field(default_factory=list)  # familles dont la fiche de départ vient d'être écrite
     non_configure: bool = False
 
     def en_json(self) -> dict[str, Any]:
@@ -54,6 +57,7 @@ class Rapport:
             "inchanges": self.inchanges,
             "gardes": self.gardes,
             "erreurs": self.erreurs,
+            "fiches": self.fiches,
             "non_configure": self.non_configure,
         }
 
@@ -66,6 +70,8 @@ class Fichier:
     contenu: dict[str, Any]
     notes: str
     origine: Origine | None
+    dossier: str = ""
+    etiquettes: tuple[str, ...] = ()
 
     @property
     def empreinte(self) -> str:
@@ -88,7 +94,18 @@ def lire_les_fichiers(dossier: Path = CONTENU) -> list[Fichier]:
         if not isinstance(brut.get("contenu"), dict) or not str(brut.get("titre") or "").strip():
             raise ValueError(f"{famille}/{slug} : « titre » et « contenu » (objet) sont obligatoires")
         origine = Origine.model_validate(brut["origine"]) if brut.get("origine") else None
-        fichiers.append(Fichier(famille, slug, brut["titre"].strip(), brut["contenu"], str(brut.get("notes") or ""), origine))
+        fichiers.append(
+            Fichier(
+                famille,
+                slug,
+                brut["titre"].strip(),
+                brut["contenu"],
+                str(brut.get("notes") or ""),
+                origine,
+                str(brut.get("dossier") or ""),
+                tuple(str(e) for e in brut.get("etiquettes") or ()),
+            )
+        )
     return fichiers
 
 
@@ -99,9 +116,11 @@ async def verser_un(fichier: Fichier, rapport: Rapport) -> None:
         await service.creer(
             fichier.famille, fichier.slug, fichier.titre, fichier.contenu, fichier.auteur, notes=fichier.notes, origine=fichier.origine
         )
+        await _ranger(fichier, "", [])
         rapport.crees.append(nom)
         return
     if any(v.auteur == fichier.auteur for v in element.versions):
+        await _ranger(fichier, element.dossier, element.etiquettes)
         rapport.inchanges.append(nom)
         return
     if not element.courante.auteur.startswith(PREFIXE_AUTEUR):
@@ -116,7 +135,16 @@ async def verser_un(fichier: Fichier, rapport: Rapport) -> None:
         origine=fichier.origine,
         titre=fichier.titre,
     )
+    await _ranger(fichier, element.dossier, element.etiquettes)
     rapport.mis_a_jour.append(nom)
+
+
+async def _ranger(fichier: Fichier, dossier_actuel: str, etiquettes_actuelles: list[str]) -> None:
+    """Le sous-dossier et les étiquettes du fichier, seulement si l'élément n'est pas encore rangé (jamais contre une personne)."""
+    if (fichier.dossier or fichier.etiquettes) and not dossier_actuel and not etiquettes_actuelles:
+        await rangement.ranger(
+            fichier.famille, fichier.slug, dossier=fichier.dossier or None, etiquettes_posees=list(fichier.etiquettes) or None
+        )
 
 
 async def verser(dossier: Path = CONTENU) -> Rapport:
@@ -130,5 +158,7 @@ async def verser(dossier: Path = CONTENU) -> Rapport:
             await verser_un(fichier, rapport)
         except ErreurBibliotheque as erreur:
             rapport.erreurs.append(f"{fichier.famille}/{fichier.slug} : {erreur}")
+    # Les fiches de famille (E49) : écrites au départ, jamais remplacées une fois qu'une personne les a corrigées.
+    rapport.fiches = await fiches.verser_celles_de_depart()
     logger.info(f"[.mark] versement de la bibliothèque : {rapport.en_json()}")
     return rapport
