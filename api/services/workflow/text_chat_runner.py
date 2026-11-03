@@ -126,6 +126,7 @@ from api.services.pipecat.avant_la_requete import autour_du_cerveau
 from api.services.workflow.decideur_de_fin_de_tour import brancher_le_decideur_de_fin_de_tour
 from api.services.analyse_run.requetes_modele import brancher_le_journal_des_requetes
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.securite.contexte import depuis_le_moteur as securite_du_moteur
 from api.services.workflow.text_agent_factory import TextAgentFactory
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import (
@@ -1225,6 +1226,7 @@ async def execute_text_chat_pending_turn(
             lambda: engine._gathered_context,
             # La voix de l'appel, comme au téléphone (``agent_runtime_factory`` : ``_voix_de_l_appel``).
             voix=getattr(user_config, "tts", None),
+            securite=securite_du_moteur(engine),  # [.mark] U3 quinquies : la même sécurité qu'au téléphone
         )
         # [.mark] passages-fiables : l'option 2 et la notice d'un tour, par les trames autour du cerveau, comme au
         # téléphone (``AgentRuntimeFactory.attach``). ``(None, None)`` pour un agent tout éteint.

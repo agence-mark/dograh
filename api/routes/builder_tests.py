@@ -59,8 +59,20 @@ class RejouerLaSuite(BaseModel):
 
 
 class ChangerUnTest(BaseModel):
+    """U3 : la modification complète d'un test (champs absents = inchangés). MÊME fonction que l'action ``tests_modifier``."""
+
+    nom: str | None = Field(default=None, max_length=200)
+    description: str | None = None
+    criteres: list[dict[str, Any]] | None = None
     obligatoire: bool | None = None
     dossier: str | None = Field(default=None, max_length=80)
+    scenario: str | None = Field(default=None, max_length=4000)
+    replique: str | None = None
+    historique: list[dict[str, str]] | None = None
+    personnage: str | None = None
+    ouverture: str | None = None
+    tours_max: int | None = Field(default=None, ge=2, le=40)
+    questions_juge: list[str] | None = None
 
 
 class NoteDuJuge(BaseModel):
@@ -185,6 +197,55 @@ async def noter_le_juge(workflow_id: int, corps: NoteDuJuge, user: UserModel = D
     return {"ok": True, "notes": len(await juge.notes(user.selected_organization_id, workflow_id))}
 
 
+@router.get("/{workflow_id}/executions")
+async def executions_passees(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Onglet Tests, « Exécutions passées » : les exécutions gardées de tous les tests (les 3 dernières de chacun), les plus récentes d'abord."""
+    await _agent_ou_404(user, workflow_id)
+    org = user.selected_organization_id
+    lignes = []
+    for test in await stockage.lister(org, workflow_id):
+        for execution in await stockage.resultats(org, workflow_id, test["slug"]):
+            lignes.append(
+                {
+                    "test": test["slug"],
+                    "nom": test["nom"],
+                    "obligatoire": bool(test.get("obligatoire")),
+                    **{k: execution.get(k) for k in ("le", "version", "statut", "reussis", "total")},
+                }
+            )
+    lignes.sort(key=lambda ligne: ligne.get("le") or "", reverse=True)
+    return {"executions": lignes}
+
+
+@router.get("/{workflow_id}/ressources")
+async def ressources_de_l_agent(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Les listes de la fenêtre d'un test, LUES dans l'agent et la bibliothèque (rien en dur à l'écran, E47) : étapes, outils, issues,
+    champs de la fiche, personnages d'appelant et scénarios types."""
+    from api.services.builder.bibliotheque import scenarios_types, service
+    from api.services.builder.controle import service as controle
+
+    workflow = await _agent_ou_404(user, workflow_id)
+    graphe = await controle.graphe_de_travail(workflow)
+    etapes = [str((n.get("data") or {}).get("name") or n.get("id")) for n in graphe.get("nodes") or [] if isinstance(n, dict)]
+    outils = sorted({o.nom for o in (await controle._outils(graphe, user.selected_organization_id)).values()})
+    champs: set[str] = set(getattr(workflow, "template_context_variables", None) or {})
+    for noeud in graphe.get("nodes") or []:
+        for v in (noeud.get("data") or {}).get("extraction_variables") or []:
+            if isinstance(v, dict) and v.get("name"):
+                champs.add(str(v["name"]))
+    issues = [str(c) for c in (getattr(workflow, "call_disposition_codes", None) or [])]
+    personnages = [{"slug": r.slug, "titre": r.titre} for r in await service.lister(scenarios_types.FAMILLE_PERSONNAGES)]
+    scenarios = [{"slug": r.slug, "titre": r.titre, "statut": r.statut.value} for r in await service.lister(scenarios_types.FAMILLE)]
+    return {
+        "etapes": [e for e in dict.fromkeys(etapes) if e],
+        "outils": outils,
+        "issues": issues,
+        "champs": sorted(champs),
+        "personnages": personnages,
+        "scenarios_types": scenarios,
+    }
+
+
 @router.get("/{workflow_id}/{slug}")
 async def lire_un_test(workflow_id: int, slug: str, user: UserModel = Depends(get_user_with_selected_organization)):
     await _agent_ou_404(user, workflow_id)
@@ -200,10 +261,17 @@ async def lire_un_test(workflow_id: int, slug: str, user: UserModel = Depends(ge
 async def changer_un_test(workflow_id: int, slug: str, corps: ChangerUnTest, user: UserModel = Depends(get_user_with_selected_organization)):
     await _agent_ou_404(user, workflow_id)
     try:
-        test = await stockage.changer(user.selected_organization_id, workflow_id, slug, obligatoire=corps.obligatoire, dossier=corps.dossier)
+        await stockage.lire(user.selected_organization_id, workflow_id, slug)
     except stockage.ErreurTest as erreur:
         raise HTTPException(status_code=404, detail=str(erreur)) from None
-    return creation.en_resume(test)
+    resultat = _ou_http(
+        await executer(
+            "tests_modifier",
+            {"workflow_id": workflow_id, "test": slug, **corps.model_dump(exclude_unset=True)},
+            Contexte(user=user, workflow_id=workflow_id),
+        )
+    )
+    return resultat["test"]
 
 
 @router.delete("/{workflow_id}/{slug}")

@@ -17,6 +17,7 @@ from api.constants import (
 )
 from api.schemas.fiche_agent import ChampFiche, verifier_champs
 from api.schemas.phrases_du_code import MAX_REGLES, ReglePhrase, verifier_regles
+from api.schemas.securite_conversation import SecuriteConversation
 from api.schemas.organization_preferences import AdresseEtablissement
 
 
@@ -877,6 +878,16 @@ class WorkflowConfigurationDefaults(BaseModel):
             "-- this filters what is spoken, never what is noted. A SPELLED "
             "name is deliberately left alone, so have the agent confirm a name "
             "by spelling it, never by saying it."
+        ),
+    )
+    securite_conversation: SecuriteConversation | None = Field(
+        default=None,
+        description=(
+            "[.mark] The safety of the conversation, three layers, all generic and each with a switch, all off by default: "
+            "safety instructions added after the prompt (manipulation, confidentiality, role, vital emergency); two guards on the reply "
+            "before the voice (a tool name, braces, brackets and {{...}} removed; a reply that copies N consecutive words of the "
+            "agent's own instructions replaced); a classifier of the caller, in parallel, never awaited. Same behaviour by phone "
+            "and by keyboard."
         ),
     )
     interdire_civilite_appelant: bool = Field(

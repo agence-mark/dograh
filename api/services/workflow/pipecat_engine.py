@@ -2232,6 +2232,11 @@ class PipecatEngine:
         note = self._note_de_passation(agent, node)
         if note:
             texte = f"{texte}\n\n{note}"
+        # [.mark] U3 quinquies (E68) : les consignes de sécurité, à la toute fin du prompt, au téléphone comme au clavier
+        # (ce composeur est celui des deux). Aucun bloc tant qu'aucun interrupteur n'est allumé.
+        from api.services.securite.consignes import ajouter_au_prompt as _avec_la_securite
+
+        texte = _avec_la_securite(texte, getattr(agent, "reglages", None) or self.__dict__.get("reglages_appel"))
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:

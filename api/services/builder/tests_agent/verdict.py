@@ -5,7 +5,7 @@ du run (``realtime_feedback_events`` + fiche), le même pour une session clavier
 (``observation_depuis_un_run``). Un test joué par l'un ou l'autre suit donc exactement les mêmes critères.
 
 Critères (champ ``type``) : les quatre de ``tests_rejouables`` (``etape``, ``outil``, ``texte_present``, ``texte_absent``) et,
-pour une conversation entière : ``issue``, ``appel_clos_par_l_agent``, ``mecanique_dite``, ``merci_en_tete``,
+pour une conversation entière : ``issue``, ``appel_clos_par_l_agent``, ``mecanique_dite``, ``texte_en_tete``,
 ``coordonnees_prises``, ``sans_redite``, ``sans_rigidite``.
 
 B40 : chaque critère raté rend aussi le ``rang`` de la RÉPLIQUE DE L'AGENT fautive (de 0) et la ``raison`` écrite pour elle.
@@ -34,12 +34,15 @@ TYPES_DE_CONVERSATION = (
     "issue",
     "appel_clos_par_l_agent",
     "mecanique_dite",
-    "merci_en_tete",
+    "texte_en_tete",
     "coordonnees_prises",
     "sans_redite",
     "sans_rigidite",
 )
 TYPES = TYPES_DE_BASE + TYPES_DE_CONVERSATION
+# U3 (E47) : l'ancien critère ``merci_en_tete`` (le mot « merci » écrit dans le code) est LU comme ``texte_en_tete`` avec ses mots en
+# paramètre : zéro perte pour les tests déjà écrits, plus aucun mot du métier dans le code.
+ANCIEN_MERCI = {"type": "texte_en_tete", "mots": ["merci"], "sauf": ["de votre appel"]}
 MAX_CRITERES = 12
 # Le champ « critere » du format v1 est obligatoire : un test sans critère de base porte celui-ci, toujours vrai.
 CRITERE_NEUTRE = {"type": "texte_absent", "texte": "§§aucun§§"}
@@ -81,6 +84,13 @@ class ResultatCritere:
 # --- validation -------------------------------------------------------------------------------------------------------
 
 
+def lire_critere(critere: dict[str, Any]) -> dict[str, Any]:
+    """Un critère tel que le code l'évalue : ``merci_en_tete`` devient ``texte_en_tete`` (mots « merci », comme avant)."""
+    if critere.get("type") == "merci_en_tete":
+        return {**ANCIEN_MERCI, "max": int(critere.get("max", 0))}
+    return critere
+
+
 def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
     """Les critères, validés ; ``ErreurTestRejouable`` avec la raison. Au moins un, 12 au plus."""
     if not isinstance(criteres, list) or not criteres:
@@ -91,6 +101,7 @@ def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
     for c in criteres:
         if not isinstance(c, dict):
             raise ErreurTestRejouable("a criterion is an object")
+        c = lire_critere(c)
         genre = c.get("type")
         if genre in TYPES_DE_BASE:
             propres.append(valider_critere(c))
@@ -101,6 +112,12 @@ def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
             raise ErreurTestRejouable("criterion « issue » : « attendue » is empty")
         if genre == "mecanique_dite" and not (isinstance(c.get("noms"), list) and c["noms"]):
             raise ErreurTestRejouable("criterion « mecanique_dite » : « noms » (the names that must never be said) is empty")
+        if genre == "texte_en_tete":
+            mots = [str(m).strip() for m in c.get("mots") or [] if str(m).strip()]
+            if not mots:
+                raise ErreurTestRejouable("criterion « texte_en_tete » : « mots » (the words a reply must not start with) is empty")
+            sauf = [str(m).strip() for m in c.get("sauf") or [] if str(m).strip()]
+            c = {"type": "texte_en_tete", "mots": mots[:20], "max": max(0, int(c.get("max", 0))), **({"sauf": sauf[:20]} if sauf else {})}
         if genre == "coordonnees_prises" and not (isinstance(c.get("champs"), list) and c["champs"]):
             raise ErreurTestRejouable("criterion « coordonnees_prises » : « champs » is empty")
         propres.append(c)
@@ -175,6 +192,7 @@ def _derniere(obs: ObservationConversation) -> int | None:
 
 
 def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> ResultatCritere:
+    critere = lire_critere(critere)
     genre = critere["type"]
     derniere = _derniere(obs)
     if genre in TYPES_DE_BASE:
@@ -202,12 +220,16 @@ def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> Resulta
             if rang is not None:
                 return ResultatCritere(critere, False, f"dit : {nom}", rang, f"The agent said « {nom} » aloud: a tool name or a mechanic must stay silent.")
         return ResultatCritere(critere, True, "aucun nom d'outil ou de mécanique dit")
-    if genre == "merci_en_tete":
+    if genre == "texte_en_tete":
         maxi = int(critere.get("max", 0))
-        tetes = [i for i, t in enumerate(obs.repliques_de_l_agent()) if re.match(r"\s*merci\b(?! de votre appel)", normaliser(t))]
+        mots = [re.escape(normaliser(m)) for m in critere["mots"]]
+        sauf = [re.escape(normaliser(m)) for m in critere.get("sauf") or []]
+        motif = rf"\s*(?:{'|'.join(mots)})\b" + (rf"(?! (?:{'|'.join(sauf)}))" if sauf else "")
+        tetes = [i for i, t in enumerate(obs.repliques_de_l_agent()) if re.match(motif, normaliser(t))]
+        libelle = " / ".join(f"« {m} »" for m in critere["mots"])
         if len(tetes) > maxi:
-            return ResultatCritere(critere, False, f"{len(tetes)} réplique(s) commencent par « Merci »", tetes[maxi], "The reply starts with « Merci »: a tic.")
-        return ResultatCritere(critere, True, f"{len(tetes)} réplique(s) commencent par « Merci »")
+            return ResultatCritere(critere, False, f"{len(tetes)} réplique(s) commencent par {libelle}", tetes[maxi], f"The reply starts with {libelle}: a tic.")
+        return ResultatCritere(critere, True, f"{len(tetes)} réplique(s) commencent par {libelle}")
     if genre == "coordonnees_prises":
         manquants = [c for c in critere["champs"] if obs.fiche.get(c) in (None, "", [])]
         return _fin(critere, not manquants, f"champs pris : {len(critere['champs']) - len(manquants)}/{len(critere['champs'])}", derniere, f"Not taken: {', '.join(map(str, manquants))}.")
