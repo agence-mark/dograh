@@ -1,0 +1,21 @@
+[
+  {"nom": "cle anthropic", "entree": "voici sk-ant-api03-AbCdEfGhIjKlMnOp merci", "absents": ["sk-ant-api03", "AbCdEfGhIjKlMnOp"], "presents": ["voici", "merci"]},
+  {"nom": "cle sk generique", "entree": "OPENAI sk-proj_ABCDEFGHIJKLMNOPQRSTUV fin", "absents": ["ABCDEFGHIJKLMNOPQRSTUV"], "presents": ["fin"]},
+  {"nom": "cle aws", "entree": "acces AKIAIOSFODNN7EXAMPLE ok", "absents": ["AKIAIOSFODNN7EXAMPLE"], "presents": ["acces", "ok"]},
+  {"nom": "jeton github", "entree": "ghp_1234567890abcdefghijklmnopqrstuvwxyz12 et github_pat_11ABCDEFG0123456789_abcdefghijklmnop", "absents": ["ghp_1234567890", "github_pat_11ABCDEFG"], "presents": ["et"]},
+  {"nom": "cle google", "entree": "AIzaSyA1234567890abcdefghijklmnopqrstuv", "absents": ["AIzaSyA1234567890"], "presents": []},
+  {"nom": "jeton slack", "entree": "xoxb-1234567890-abcdefghij", "absents": ["xoxb-1234567890"], "presents": []},
+  {"nom": "cle dograh", "entree": "ma cle dgr_abcdef0123456789xyz pour le MCP", "absents": ["dgr_abcdef0123456789xyz"], "presents": ["pour le MCP"]},
+  {"nom": "jwt", "entree": "token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdEFGH", "absents": ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIx"], "presents": []},
+  {"nom": "bearer", "entree": "Authorization: Bearer abcdefghijklmnop1234 fin", "absents": ["abcdefghijklmnop1234"], "presents": ["Bearer", "fin"]},
+  {"nom": "cle privee", "entree": "avant\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\nzzzz\n-----END RSA PRIVATE KEY-----\naprès", "absents": ["MIIEowIBAAKCAQEA", "zzzz"], "presents": ["avant", "après"]},
+  {"nom": "mot de passe dans une adresse", "entree": "postgresql://admin:Sup3rS3cret@db.local:5432/x", "absents": ["Sup3rS3cret"], "presents": ["db.local", "admin"]},
+  {"nom": "valeur d'un nom secret", "entree": "password: hunter2xyz et api_key=\"abc 123\" et mot_de_passe=zorglub", "absents": ["hunter2xyz", "abc 123", "zorglub"], "presents": ["password", "api_key"]},
+  {"nom": "une ligne d'environnement", "entree": "voici MA_VAR=valeurordinaire fin", "absents": [], "presents": ["fin"]},
+  {"nom": "une ligne d'environnement seule", "entree": "MA_VAR=valeurordinaire", "absents": ["valeurordinaire"], "presents": ["MA_VAR"]},
+  {"nom": "un bloc d'environnement", "entree": "APP_NAME=mark\nDEBUG=true\nPORT=3000\nREGION=euwest", "absents": ["mark\n", "3000", "euwest"], "presents": ["fichier d'environnement"]},
+  {"nom": "un bloc d'environnement avec secrets", "entree": "DATABASE_URL=postgres://u:pw1@h/db\nOPENAI_API_KEY=abc123def\nREDIS_URL=redis://x\nPORT=3000", "absents": ["pw1", "abc123def", "redis://x", "3000"], "presents": []},
+  {"nom": "long bloc de code", "entree": "voici le fichier\n```python\n__LIGNES__```\nfin", "repeter": {"__LIGNES__": "ligne de code numero 20\n", "fois": 35}, "absents": ["ligne de code numero 20"], "presents": ["voici le fichier", "bloc de code de 35 lignes", "fin"]},
+  {"nom": "court bloc de code gardé", "entree": "```bash\nnpm run build\n```", "absents": [], "presents": ["npm run build"]},
+  {"nom": "texte ordinaire intact", "entree": "Utilise agent_lire avec workflow_id=42 puis rejoue les tests. Le token expire demain.", "absents": [], "presents": ["workflow_id=42", "rejoue les tests", "Le token expire demain."]}
+]
