@@ -256,6 +256,16 @@ export type AccepterRequest = {
 };
 
 /**
+ * Accord
+ */
+export type Accord = {
+    /**
+     * Accord
+     */
+    accord: boolean;
+};
+
+/**
  * ActionEquipe
  *
  * l-agent-collegue, L8: what the agent did for the team during the call, read in the record.
@@ -445,6 +455,20 @@ export type AdressesNotification = {
      * Installation
      */
     installation?: Array<string>;
+};
+
+/**
+ * AgentConsultantSchema
+ */
+export type AgentConsultantSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -7624,6 +7648,16 @@ export type IntegrationToolDefinition = {
 };
 
 /**
+ * Interrupteur
+ */
+export type Interrupteur = {
+    /**
+     * Actif
+     */
+    actif: boolean;
+};
+
+/**
  * InvitationCreeeResponse
  */
 export type InvitationCreeeResponse = {
@@ -10935,6 +10969,36 @@ export type PageDElements = {
 };
 
 /**
+ * PageDeTexte
+ */
+export type PageDeTexte = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Type Mime
+     */
+    type_mime: string | null;
+    /**
+     * Genre
+     */
+    genre: string;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Pages
+     */
+    pages: number;
+    /**
+     * Texte
+     */
+    texte: string;
+};
+
+/**
  * PageDeTri
  */
 export type PageDeTri = {
@@ -11955,6 +12019,18 @@ export type Rangement = {
 };
 
 /**
+ * Rangs
+ */
+export type Rangs = {
+    /**
+     * Rangs
+     *
+     * Vide : tous les changements en attente.
+     */
+    rangs?: Array<number>;
+};
+
+/**
  * RappelPublic
  */
 export type RappelPublic = {
@@ -12741,6 +12817,36 @@ export type ReglagesSmtp = {
 };
 
 /**
+ * ReglagesSousAgents
+ *
+ * Réglages du Labo › Builder IA › Sous-agents.
+ */
+export type ReglagesSousAgents = {
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Usages
+     */
+    usages?: Array<'analyser' | 'tester' | 'attaquer' | 'comparer' | 'controler'>;
+    /**
+     * Modele
+     */
+    modele?: string;
+    /**
+     * En Meme Temps
+     */
+    en_meme_temps?: number;
+    /**
+     * Plafond Delegation
+     *
+     * Dollars par délégation (0 = sans plafond de dépense).
+     */
+    plafond_delegation?: number;
+};
+
+/**
  * ReglagesSynthese
  */
 export type ReglagesSynthese = {
@@ -12979,6 +13085,20 @@ export type RejouerLaSuite = {
      * Repetitions
      */
     repetitions?: number;
+};
+
+/**
+ * RemplacerFichierRequestSchema
+ *
+ * [.mark] U10: the new file of an existing document (uploaded with /upload-url first).
+ */
+export type RemplacerFichierRequestSchema = {
+    /**
+     * S3 Key
+     *
+     * S3 key of the new file, as returned by /upload-url
+     */
+    s3_key: string;
 };
 
 /**
@@ -16537,6 +16657,32 @@ export type UserResponse = {
 };
 
 /**
+ * UtilisationDocumentSchema
+ */
+export type UtilisationDocumentSchema = {
+    /**
+     * Document Uuid
+     */
+    document_uuid: string;
+    /**
+     * Agents
+     */
+    agents: Array<AgentConsultantSchema>;
+};
+
+/**
+ * UtilisationDocumentsResponseSchema
+ *
+ * [.mark] U10: used-by, calculated from the published agents, never declared.
+ */
+export type UtilisationDocumentsResponseSchema = {
+    /**
+     * Documents
+     */
+    documents: Array<UtilisationDocumentSchema>;
+};
+
+/**
  * UtilisationObjets
  *
  * ``{{nom}}`` looked for in every agent's published texts, at the time of asking (D118).
@@ -17341,6 +17487,18 @@ export type VueFil = {
      * En Cours
      */
     en_cours: boolean;
+    /**
+     * Genre
+     */
+    genre?: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+    /**
+     * Sous Agents Actifs
+     */
+    sous_agents_actifs?: boolean;
 };
 
 /**
@@ -17409,6 +17567,110 @@ export type VueReglagesCerveau = {
      * Cle Posee
      */
     cle_posee?: boolean;
+};
+
+/**
+ * VueSousAgent
+ */
+export type VueSousAgent = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Delegation
+     */
+    delegation: string | null;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Usage
+     */
+    usage: string | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Modele
+     */
+    modele: string | null;
+    /**
+     * Tache
+     */
+    tache: string | null;
+    /**
+     * Jetons
+     */
+    jetons: number;
+    /**
+     * Cout
+     */
+    cout: number;
+    /**
+     * Resume
+     */
+    resume: string | null;
+    /**
+     * Actions
+     */
+    actions: number | null;
+    /**
+     * En Cours
+     */
+    en_cours: boolean;
+};
+
+/**
+ * VueSousAgents
+ */
+export type VueSousAgents = {
+    /**
+     * Actif
+     */
+    actif: boolean;
+    /**
+     * Sous Agents
+     */
+    sous_agents: Array<VueSousAgent>;
+};
+
+/**
+ * VueVersion
+ */
+export type VueVersion = {
+    /**
+     * Numero
+     */
+    numero: number;
+    /**
+     * Cause
+     */
+    cause: string;
+    /**
+     * Date
+     */
+    date: string;
+    /**
+     * Fil Id
+     */
+    fil_id: number | null;
+    /**
+     * Version Avant
+     */
+    version_avant: number | null;
+    /**
+     * Version Apres
+     */
+    version_apres: number | null;
+    /**
+     * Operations
+     */
+    operations: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -23678,6 +23940,582 @@ export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResp
 };
 
 export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponse = ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses[keyof ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses];
+
+export type LireLesChangementsApiV1BuilderFilsFilIdChangementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/changements';
+};
+
+export type LireLesChangementsApiV1BuilderFilsFilIdChangementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesChangementsApiV1BuilderFilsFilIdChangementsGetError = LireLesChangementsApiV1BuilderFilsFilIdChangementsGetErrors[keyof LireLesChangementsApiV1BuilderFilsFilIdChangementsGetErrors];
+
+export type LireLesChangementsApiV1BuilderFilsFilIdChangementsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostData = {
+    body: Rangs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/changements/accepter';
+};
+
+export type AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostError = AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostErrors[keyof AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostErrors];
+
+export type AccepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostData = {
+    body: Rangs;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/changements/refuser';
+};
+
+export type RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostError = RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostErrors[keyof RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostErrors];
+
+export type RefuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: {
+        /**
+         * Fil Id
+         */
+        fil_id?: number | null;
+    };
+    url: '/api/v1/builder/agents/{workflow_id}/versions';
+};
+
+export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetError = ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetErrors[keyof ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetErrors];
+
+export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses = {
+    /**
+     * Response Lister Les Versions Api V1 Builder Agents  Workflow Id  Versions Get
+     *
+     * Successful Response
+     */
+    200: Array<VueVersion>;
+};
+
+export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponse = ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses[keyof ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses];
+
+export type RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Numero
+         */
+        numero: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/versions/{numero}/restaurer';
+};
+
+export type RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostError = RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostErrors[keyof RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostErrors];
+
+export type RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostData = {
+    body: Accord;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+        /**
+         * Depense Id
+         */
+        depense_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/depenses/{depense_id}';
+};
+
+export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostError = RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors[keyof RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors];
+
+export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/sous-agents';
+};
+
+export type ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetError = ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetErrors[keyof ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetErrors];
+
+export type ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueSousAgents;
+};
+
+export type ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetResponse = ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetResponses[keyof ListerLesSousAgentsApiV1BuilderFilsFilIdSousAgentsGetResponses];
+
+export type ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutData = {
+    body: Interrupteur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/sous-agents/interrupteur';
+};
+
+export type ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutError = ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutErrors[keyof ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutErrors];
+
+export type ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueSousAgents;
+};
+
+export type ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutResponse = ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutResponses[keyof ReglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPutResponses];
+
+export type ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/sous-agents/arreter';
+};
+
+export type ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostError = ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostErrors[keyof ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostErrors];
+
+export type ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueSousAgents;
+};
+
+export type ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostResponse = ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostResponses[keyof ArreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPostResponses];
+
+export type LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/sous-agents/reglages';
+};
+
+export type LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetError = LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetErrors[keyof LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetErrors];
+
+export type LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesSousAgents;
+};
+
+export type LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetResponse = LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetResponses[keyof LireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGetResponses];
+
+export type ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutData = {
+    body: ReglagesSousAgents;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/sous-agents/reglages';
+};
+
+export type ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutError = ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutErrors[keyof ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutErrors];
+
+export type ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesSousAgents;
+};
+
+export type ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutResponse = ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutResponses[keyof ReglerLesSousAgentsApiV1BuilderSousAgentsReglagesPutResponses];
+
+export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Document Uuid
+         */
+        document_uuid: string;
+    };
+    query?: {
+        /**
+         * Page
+         */
+        page?: number;
+    };
+    url: '/api/v1/builder/fichiers/{document_uuid}/texte';
+};
+
+export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetError = LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetErrors[keyof LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetErrors];
+
+export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDeTexte;
+};
+
+export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponse = LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponses[keyof LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponses];
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;
@@ -38471,6 +39309,97 @@ export type ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses = {
 };
 
 export type ListDocumentsApiV1KnowledgeBaseDocumentsGetResponse = ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses[keyof ListDocumentsApiV1KnowledgeBaseDocumentsGetResponses];
+
+export type DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/knowledge-base/utilisation';
+};
+
+export type DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetError = DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetErrors[keyof DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetErrors];
+
+export type DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UtilisationDocumentsResponseSchema;
+};
+
+export type DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetResponse = DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetResponses[keyof DocumentsUtilisationApiV1KnowledgeBaseUtilisationGetResponses];
+
+export type RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostData = {
+    body: RemplacerFichierRequestSchema;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Document Uuid
+         */
+        document_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/knowledge-base/documents/{document_uuid}/remplacer';
+};
+
+export type RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostError = RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostErrors[keyof RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostErrors];
+
+export type RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: DocumentResponseSchema;
+};
+
+export type RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostResponse = RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostResponses[keyof RemplacerFichierDuDocumentApiV1KnowledgeBaseDocumentsDocumentUuidRemplacerPostResponses];
 
 export type DeleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDeleteData = {
     body?: never;
