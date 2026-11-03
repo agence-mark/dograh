@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * [.mark] Réglages › Affichage (K1, forme provisoire E117) : la langue de l'écran et le passage jour / nuit, sortis du
+ * [.mark] Réglages › Affichage (K1, forme provisoire E-K1-1) : la langue de l'écran et le passage jour / nuit, sortis du
  * pied de la barre latérale (décision d'Evan, 04/11). Aucun réglage nouveau : ce sont les deux d'avant.
  */
 import { useEffect, useState } from "react";

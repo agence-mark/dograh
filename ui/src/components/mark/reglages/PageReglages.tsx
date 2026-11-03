@@ -3,7 +3,7 @@
 /**
  * [.mark] Réglages du Labo (K1) : la page de la maquette (`app/labo/reglages`), un titre, des onglets. Les onglets des
  * trois cerveaux de l'atelier (Builder IA, Appelant simulé, Juge, Sources) sont ceux de leur lot ; ici : Équipe et rôles,
- * Organisation, et Affichage (langue et thème, sortis de la barre latérale, forme provisoire E117).
+ * Organisation, et Affichage (langue et thème, sortis de la barre latérale, forme provisoire E-K1-1).
  */
 import { EquipeEtRoles } from "@/components/mark/equipe/PageEquipe";
 import { useLangue } from "@/components/mark/langue/langue";
