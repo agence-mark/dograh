@@ -51,6 +51,9 @@ class ModeleDeReglages(BaseModel):
     commit: str | None = Field(default=None, description="The commit of the fork that produced it, when known.")
     sections: list[str] = Field(default_factory=list, description="The sections that hold at least one setting.")
     valeurs: dict[str, Any] = Field(default_factory=dict)
+    # D1 (E45): a template is an element of the library; its status and version are the library's.
+    statut: str = Field(default="candidat", description="candidat, recette or rejete (library status of the current version).")
+    version: int = Field(default=1, ge=1)
 
 
 class MentionApplication(BaseModel):
@@ -76,6 +79,8 @@ class ResumeDuModele(BaseModel):
     origine: OrigineDuModele | None = None
     sections: list[str]
     nombre_de_reglages: int
+    statut: str = "candidat"
+    version: int = 1
 
 
 class ListeDesModeles(BaseModel):

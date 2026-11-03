@@ -10,9 +10,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FournisseurLangue } from "../langue/langue";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { ContexteHeritage, type ReglageHerite } from "../ecran/heritage";
+import { FournisseurLangue } from "../langue/langue";
 import { PreparationAgent } from "./PreparationAgent";
 
 const m = vi.hoisted(() => ({

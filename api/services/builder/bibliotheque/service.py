@@ -267,6 +267,40 @@ async def ecrire_candidat(
     return await ajouter_version(famille, slug, contenu, auteur, notes=notes, titre=titre)
 
 
+async def elements_de(famille: str) -> list[Element]:
+    """Tous les éléments d'une famille, entiers (contenu compris), dans l'ordre des identifiants. Un élément illisible est sauté.
+    Pour les familles dont l'écran lit le contenu de chaque ligne (modèles de réglages) ; la liste courante ne le rend pas."""
+    _verifier_famille(famille)
+    org = organisation_bibliotheque()
+    if org is None:
+        return []
+    elements: list[Element] = []
+    for _cle, brut in await stock.lister(org, f"{PREFIXE_BIBLIO}{famille}:"):
+        try:
+            elements.append(Element.model_validate(brut))
+        except ValidationError:
+            continue
+    return elements
+
+
+async def renommer(famille: str, slug: str, titre: str) -> Element:
+    """Change le TITRE seul : ni nouvelle version ni changement de statut (renommer ne défait pas une recette)."""
+    _verifier_famille(famille)
+
+    def construire(brut: Element | None) -> Element:
+        return _valider(lambda: _existant(brut, famille, slug).model_copy(update={"titre": titre}))
+
+    return await _modifier(famille, slug, construire)
+
+
+async def supprimer(famille: str, slug: str) -> None:
+    """Retire l'élément et son historique. Geste volontaire d'une personne, confirmé à l'écran ; 404 s'il n'existe pas."""
+    _verifier_famille(famille)
+    org = _organisation()
+    if not await stock.supprimer(org, cle_de(famille, slug)):
+        raise ErreurBibliotheque(f"Library element not found: {famille}/{slug}.", 404)
+
+
 async def lister(famille: str | None = None, statut: Statut | None = None) -> list[Resume]:
     org = organisation_bibliotheque()
     if org is None:

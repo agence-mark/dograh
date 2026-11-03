@@ -16,8 +16,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { BORNES } from "../bornes-reglages";
-import { PastilleOrigine } from "./heritage";
 import { type Texte, useLangue } from "../langue/langue";
+import { PastilleOrigine } from "./heritage";
 
 /** « > 0 · ≤ 10 · optional », from the bounds the server enforces. */
 export const texteBornes = (cle: string, facultatif = false): Texte | null => {

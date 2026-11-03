@@ -38,6 +38,13 @@ from api.services.modeles_reglages import service
 router = APIRouter(prefix="/organizations/modeles-de-reglages", tags=["organizations"])
 
 
+def _auteur(user: UserModel) -> str:
+    """Le nom écrit dans l'historique de la bibliothèque : l'identifiant du compte, jamais un nom ni une adresse."""
+    from api.services.builder.bibliotheque.droits import nom_de_l_auteur
+
+    return nom_de_l_auteur(user)
+
+
 def _refus(erreur: service.ModeleRefuse) -> HTTPException:
     detail: object = erreur.message
     if erreur.statut == 422 and erreur.cle:
@@ -61,6 +68,8 @@ def _resume(modele: ModeleDeReglages) -> ResumeDuModele:
         origine=modele.origine,
         sections=modele.sections,
         nombre_de_reglages=len(modele.valeurs),
+        statut=modele.statut,
+        version=modele.version,
     )
 
 
@@ -80,7 +89,11 @@ async def creer_un_modele(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     try:
-        return _resume(await service.creer_un_modele(user.selected_organization_id, demande.nom, demande.workflow_id))
+        return _resume(
+            await service.creer_un_modele(
+                user.selected_organization_id, demande.nom, demande.workflow_id, _auteur(user)
+            )
+        )
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:
@@ -93,7 +106,7 @@ async def importer_un_modele(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     try:
-        return _resume(await service.importer_un_fichier(user.selected_organization_id, fichier))
+        return _resume(await service.importer_un_fichier(user.selected_organization_id, fichier, _auteur(user)))
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:

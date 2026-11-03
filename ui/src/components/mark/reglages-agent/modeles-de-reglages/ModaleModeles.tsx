@@ -15,7 +15,7 @@
  * ⛔ Les sections sont celles que le serveur envoie, nommees comme les themes de l'ecran : une section nouvelle cote
  * serveur sans titre ici s'affiche sous son identifiant (le test le releve).
  */
-import { Download, FileUp, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileUp, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,16 +41,19 @@ import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../../langue/langue";
+import { Info } from "../../studio/marques";
 import { CadreModale } from "../phrases/cadre";
 import { TITRE_AGENT } from "../ThemeAgent";
 import { TITRE_BRIQUES } from "../ThemeBriques";
 import { TITRE_DONNEES } from "../ThemeDonnees";
 import { TITRE_ECOUTE } from "../ThemeEcoute";
 import { TITRE_ETABLISSEMENT } from "../ThemeEtablissement";
+import { TITRE_INTERVENTIONS } from "../ThemeInterventions";
 import { TITRE_MODULES } from "../ThemeModules";
 import { TITRE_RYTHME } from "../ThemeRythme";
 import { TITRE_TOUR } from "../ThemeTourDeParole";
 import { TITRE_VOIX } from "../ThemeVoix";
+import { MarqueStatut } from "./marque-statut";
 
 /** Les sections d'un modele : l'identifiant du theme de l'ecran et son titre (`classement.py`, `SECTIONS`). */
 export const TITRES_DES_SECTIONS: Record<string, Texte> = {
@@ -64,9 +67,23 @@ export const TITRES_DES_SECTIONS: Record<string, Texte> = {
     rythme: TITRE_RYTHME,
     donnees: TITRE_DONNEES,
     etablissement: TITRE_ETABLISSEMENT,
+    // builder-agent-vocal, lot 8: what the engine does in the conversation.
+    interventions: TITRE_INTERVENTIONS,
 };
 
 const TITRE: Texte = { en: "Settings templates", fr: "Modèles de réglages" };
+
+/**
+ * [.mark] U4 (E45 A) : le menu « Modèle ▾ » de l'onglet Réglages. Trois gestes, une seule fenêtre :
+ * appliquer un modèle (la liste, avec « Appliquer »), enregistrer les réglages actifs comme modèle (le nom), gérer les modèles
+ * (tout : renommer, exporter, supprimer, importer).
+ */
+export type ModeModeles = "appliquer" | "enregistrer" | "gerer";
+const ENTREES_DU_MENU: Array<{ mode: ModeModeles; texte: Texte }> = [
+    { mode: "appliquer", texte: { en: "Apply a template…", fr: "Appliquer un modèle…" } },
+    { mode: "enregistrer", texte: { en: "Save as a template…", fr: "Enregistrer comme modèle…" } },
+    { mode: "gerer", texte: { en: "Manage templates", fr: "Gérer les modèles" } },
+];
 
 type Vue = { type: "liste" } | { type: "appliquer"; modele: ResumeDuModele };
 
@@ -95,33 +112,68 @@ export const BoutonModeles = ({
     apresApplication?: () => void;
 }) => {
     const { t } = useLangue();
-    const [ouvert, setOuvert] = useState(false);
+    const [mode, setMode] = useState<ModeModeles | null>(null);
+    const [menu, setMenu] = useState(false);
     return (
-        <>
-            <Button type="button" variant="outline" size="sm" data-bouton-modeles onClick={() => setOuvert(true)}>
+        <div className="relative">
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-bouton-modeles
+                aria-haspopup="menu"
+                aria-expanded={menu}
+                onClick={() => setMenu((v) => !v)}
+            >
                 <LayoutTemplate className="mr-1.5 h-4 w-4" />
-                {t(TITRE)}
+                {t({ en: "Template", fr: "Modèle" })}
+                <ChevronDown className="ml-1.5 h-4 w-4" />
             </Button>
-            {ouvert && (
+            {menu && (
+                <>
+                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setMenu(false)} />
+                    <div role="menu" className="absolute right-0 z-50 mt-1 w-60 rounded-md border bg-popover p-1 shadow-md" data-menu-modeles>
+                        {ENTREES_DU_MENU.map((entree) => (
+                            <button
+                                key={entree.mode}
+                                type="button"
+                                role="menuitem"
+                                data-entree-modeles={entree.mode}
+                                className="flex w-full cursor-pointer rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted hover:font-medium"
+                                onClick={() => {
+                                    setMenu(false);
+                                    setMode(entree.mode);
+                                }}
+                            >
+                                {t(entree.texte)}
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+            {mode && (
                 <ModaleModeles
                     workflowId={workflowId}
                     modifie={modifie}
+                    mode={mode}
                     apresApplication={apresApplication}
-                    onFermer={() => setOuvert(false)}
+                    onFermer={() => setMode(null)}
                 />
             )}
-        </>
+        </div>
     );
 };
 
 export const ModaleModeles = ({
     workflowId,
     modifie,
+    mode = "gerer",
     apresApplication,
     onFermer,
 }: {
     workflowId: number;
     modifie: boolean;
+    mode?: ModeModeles;
     apresApplication: () => void;
     onFermer: () => void;
 }) => {
@@ -265,7 +317,7 @@ export const ModaleModeles = ({
             onFermer={onFermer}
             pied={
                 <>
-                    <code className="text-[11px] text-muted-foreground">MODELES_REGLAGES</code>
+                    <code className="text-[11px] text-muted-foreground">modeles-reglages</code>
                     <Button type="button" variant="outline" onClick={onFermer}>
                         {t({ en: "Close", fr: "Fermer" })}
                     </Button>
@@ -302,6 +354,7 @@ export const ModaleModeles = ({
                     </p>
                 )}
 
+                {mode !== "appliquer" && (
                 <section className="space-y-2">
                     <h3 className="text-sm font-semibold">{t({ en: "Create from the active settings", fr: "Créer depuis les réglages actifs" })}</h3>
                     <div className="flex gap-2">
@@ -317,11 +370,21 @@ export const ModaleModeles = ({
                         </Button>
                     </div>
                 </section>
+                )}
 
+                {mode !== "enregistrer" && (
                 <section className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold">{t({ en: "Templates of this organization", fr: "Modèles de cette organisation" })}</h3>
-                        <div>
+                        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                            {t({ en: "Templates of the library", fr: "Modèles de la bibliothèque" })}
+                            <Info>
+                                {t({
+                                    en: "The templates are the library's, shared by every space. Their status (candidate, proven, rejected) is set from the library.",
+                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, recette, rejeté) se règle depuis la bibliothèque.",
+                                })}
+                            </Info>
+                        </h3>
+                        <div hidden={mode === "appliquer"}>
                             <input
                                 ref={fichierImport}
                                 type="file"
@@ -362,7 +425,10 @@ export const ModaleModeles = ({
                                 ) : (
                                     <div className="flex flex-wrap items-start justify-between gap-2">
                                         <div className="min-w-0 space-y-0.5">
-                                            <p className="truncate text-sm font-medium">{modele.nom}</p>
+                                            <p className="flex items-center gap-2 truncate text-sm font-medium">
+                                                {modele.nom}
+                                                <MarqueStatut statut={modele.statut ?? "candidat"} />
+                                            </p>
                                             <p className="text-xs text-muted-foreground">
                                                 {date(modele.cree_le)} · {origine(modele, t)} · {modele.nombre_de_reglages}{" "}
                                                 {t({ en: "settings", fr: "réglages" })}
@@ -421,6 +487,7 @@ export const ModaleModeles = ({
                         ))}
                     </ul>
                 </section>
+                )}
             </div>
         </CadreModale>
     );

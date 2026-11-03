@@ -245,6 +245,7 @@ describe("[.mark] the agent page in themes", () => {
         expect(bouton, "the button is in the toolbar").not.toBeNull();
         expect(document.querySelector("[data-theme] [data-bouton-modeles]")).toBeNull();
         fireEvent.click(bouton);
+        fireEvent.click(document.querySelector('[data-entree-modeles="gerer"]') as HTMLElement);
         await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
     });
 
