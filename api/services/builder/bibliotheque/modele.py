@@ -66,12 +66,20 @@ class Version(BaseModel):
         return verifier_contenu(valeur)
 
 
+DOSSIER_MOTIF = r"^$|^[a-z0-9][a-z0-9-]{0,39}(/[a-z0-9][a-z0-9-]{0,39}){0,3}$"
+ETIQUETTES_PAR_ELEMENT_MAX = 12
+
+
 class Element(BaseModel):
     famille: str
     slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
     titre: str = Field(min_length=1, max_length=200)
     version_courante: int = Field(ge=1)
     versions: list[Version] = Field(min_length=1)
+    # U7 : le rangement d'un élément (sous-dossier de sa famille, étiquettes libres). Hors version : classer ne change ni
+    # le contenu ni le statut.
+    dossier: str = Field(default="", pattern=DOSSIER_MOTIF)
+    etiquettes: list[str] = Field(default_factory=list, max_length=ETIQUETTES_PAR_ELEMENT_MAX)
 
     @property
     def courante(self) -> Version:
@@ -95,11 +103,14 @@ class Resume(BaseModel):
     banc: Banc | None
     origine: Origine | None
     utilisee_par: int = 0
+    dossier: str = ""
+    etiquettes: list[str] = Field(default_factory=list)
+    extrait: str | None = None  # recherche : le passage qui correspond
 
 
 class Proposition(BaseModel):
     id: str
-    type: Literal["version", "passage_recette", "rejet"]
+    type: Literal["version", "passage_recette", "rejet", "fiche", "famille"]
     famille: str
     slug: str
     titre: str = Field(default="", max_length=200)

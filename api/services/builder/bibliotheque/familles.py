@@ -72,6 +72,7 @@ FAMILLES: dict[str, Famille] = dict(
 
 FAMILLE_METHODE = "methode-builder"
 FAMILLE_CONVENTIONS = "conventions-mark"
+FAMILLE_REDACTION = "regles-redaction"
 
 
 def famille(slug: str) -> Famille | None:

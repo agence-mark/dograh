@@ -55,3 +55,11 @@ def cle_test(workflow_id: int, slug: str) -> str:
 
 def cle_resultats(workflow_id: int, slug: str) -> str:
     return f"{PREFIXE_RESULTATS}{workflow_id}:{slug}"
+
+# U7 (bibliothèque v2) : trois lignes de l'organisation .mark, aucune migration. Leur clé ne commence pas par PREFIXE_BIBLIO
+# (« MARK_BIBLIO: ») : elles ne se confondent jamais avec un élément.
+CLE_FICHES = "MARK_BIBLIO_FICHES"  # {"fiches": {famille: {description, quand, comment}}}
+CLE_FAMILLES = "MARK_BIBLIO_FAMILLES"  # {"familles": {slug: {libelle, groupe, cible}}} : les familles créées à l'écran
+CLE_ETIQUETTES = "MARK_BIBLIO_ETIQUETTES"  # {"etiquettes": [nom, ...]}
+CLE_DOSSIERS = "MARK_BIBLIO_DOSSIERS"  # {"dossiers": {famille: [chemin, ...]}} : les sous-dossiers déclarés (même vides)
+DEPOT_MAX_OCTETS = 15 * 1024 * 1024

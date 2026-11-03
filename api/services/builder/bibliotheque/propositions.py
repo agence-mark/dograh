@@ -5,7 +5,9 @@ au builder ; l'accepter ou la refuser est un geste d'une personne de l'équipe (
 
 * ``version``         : crée l'élément ou ajoute une version Candidat avec le contenu proposé ;
 * ``passage_recette`` : exige un banc (celui de la proposition, ou donné à l'acceptation) ;
-* ``rejet``           : exige une raison (le motif donné à l'acceptation, sinon la justification).
+* ``rejet``           : exige une raison (le motif donné à l'acceptation, sinon la justification) ;
+* ``fiche``           : la fiche d'une famille (``contenu`` = description, quand, comment ; ``slug`` = la famille) ;
+* ``famille``         : une famille nouvelle créée à l'écran (``contenu`` = libelle, groupe, cible ; ``slug`` = son identifiant).
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import uuid
 from pydantic import ValidationError
 
 from api.services.builder import stock
-from api.services.builder.bibliotheque import service
+from api.services.builder.bibliotheque import familles_libres, fiches, service
 from api.services.builder.bibliotheque.modele import Banc, Proposition, Statut, maintenant
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
 from api.services.builder.constantes import PREFIXE_PROPOSITION, organisation_bibliotheque
@@ -44,8 +46,10 @@ async def creer(
     version: int | None = None,
     banc: Banc | None = None,
 ) -> Proposition:
-    if famille not in service.FAMILLES:
-        raise ErreurBibliotheque(f"Unknown family: {famille}.", 404)
+    if type_ == "famille":
+        famille = slug  # la famille proposée n'existe pas encore : son identifiant est le slug
+    else:
+        await service._verifier_famille(famille)
     try:
         proposition = Proposition(
             id=uuid.uuid4().hex[:12],
@@ -64,10 +68,24 @@ async def creer(
         raise ErreurBibliotheque(f"Invalid proposal: {premier}") from None
     if type_ == "version" and not contenu:
         raise ErreurBibliotheque("A proposed version carries its content.")
+    if type_ == "fiche":
+        _fiche_de(contenu)
+    if type_ == "famille":
+        if not contenu or not str(contenu.get("libelle") or "").strip():
+            raise ErreurBibliotheque("A proposed family carries its name (« libelle »).")
     if type_ in ("passage_recette", "rejet") and version is None:
         raise ErreurBibliotheque("Say which version the proposal aims at.")
     await stock.ecrire(_org(), _cle(proposition.id), proposition.model_dump(mode="json"))
     return proposition
+
+
+def _fiche_de(contenu: dict | None) -> fiches.Fiche:
+    if not contenu:
+        raise ErreurBibliotheque("A proposed sheet carries its content (description, quand, comment).")
+    try:
+        return fiches.Fiche.model_validate({k: contenu.get(k, "") for k in ("description", "quand", "comment")})
+    except ValidationError as erreur:
+        raise ErreurBibliotheque(f"Invalid sheet: {erreur.errors()[0].get('msg', 'invalid')}") from None
 
 
 async def lire(identifiant: str) -> Proposition:
@@ -136,6 +154,22 @@ async def _appliquer(proposition: Proposition, decideur: str, banc: Banc | None,
             await service.marquer(
                 proposition.famille, proposition.slug, courant.version_courante, Statut.RECETTE, decideur, banc=banc
             )
+    elif proposition.type == "fiche":
+        try:
+            await fiches.ecrire(proposition.slug, _fiche_de(proposition.contenu))
+        except fiches.ErreurFiche as erreur:
+            raise ErreurBibliotheque(str(erreur), erreur.statut) from None
+    elif proposition.type == "famille":
+        assert proposition.contenu is not None
+        try:
+            await familles_libres.creer(
+                proposition.slug,
+                str(proposition.contenu.get("libelle") or ""),
+                str(proposition.contenu.get("groupe") or "guide"),
+                str(proposition.contenu.get("cible") or "builder"),
+            )
+        except familles_libres.ErreurFamille as erreur:
+            raise ErreurBibliotheque(str(erreur), erreur.statut) from None
     elif proposition.type == "passage_recette":
         assert proposition.version is not None
         await service.marquer(

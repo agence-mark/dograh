@@ -18,11 +18,13 @@ Règles tenues ici, pas dans la route :
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import ValidationError
 
 from api.services.builder import stock
+from api.services.builder.bibliotheque import familles_libres, schemas
 from api.services.builder.bibliotheque.familles import FAMILLES
 from api.services.builder.bibliotheque.modele import (
     Banc,
@@ -58,9 +60,15 @@ def _organisation() -> int:
     return org
 
 
-def _verifier_famille(famille: str) -> None:
-    if famille not in FAMILLES:
+async def _verifier_famille(famille: str) -> None:
+    """Une famille du code, ou créée à l'écran (``familles_libres``). 404 sinon."""
+    if famille not in FAMILLES and famille not in await familles_libres.libres():
         raise ErreurBibliotheque(f"Unknown family: {famille}.", 404)
+
+
+def _contenu_de_la_famille(famille: str, contenu: dict[str, Any]) -> dict[str, Any]:
+    """Le contenu doit avoir la forme de sa famille (``schemas``) : un contenu hors schéma est refusé avec la raison."""
+    return _valider(lambda: schemas.verifier(famille, contenu))
 
 
 def _valider(construire):
@@ -73,7 +81,7 @@ def _valider(construire):
 
 async def lire_element(famille: str, slug: str) -> Element:
     """L'élément entier (toutes ses versions). 404 s'il n'existe pas ; vide si la bibliothèque n'est pas réglée."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
     org = organisation_bibliotheque()
     brut = await stock.lire(org, cle_de(famille, slug)) if org is not None else None
     if brut is None:
@@ -136,9 +144,12 @@ async def creer(
     *,
     notes: str = "",
     origine: Origine | None = None,
+    dossier: str = "",
+    etiquettes: list[str] | None = None,
 ) -> Element:
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
     _organisation()
+    _contenu_de_la_famille(famille, contenu)
 
     def construire(existant: Element | None) -> Element:
         if existant is not None:
@@ -150,6 +161,8 @@ async def creer(
                 titre=titre,
                 version_courante=1,
                 versions=[Version(numero=1, auteur=auteur, notes=notes, contenu=contenu, origine=origine)],
+                dossier=dossier,
+                etiquettes=list(etiquettes or []),
             )
         )
 
@@ -168,7 +181,8 @@ async def ajouter_version(
     titre: str | None = None,
 ) -> Element:
     """Une nouvelle version, toujours Candidat (ou Recette si un banc est donné ET demandé via ``marquer``)."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
+    _contenu_de_la_famille(famille, contenu)
 
     def construire(brut: Element | None) -> Element:
         element = _existant(brut, famille, slug)
@@ -189,7 +203,7 @@ async def ajouter_version(
 
 async def retour_arriere(famille: str, slug: str, numero: int, auteur: str) -> Element:
     """Revient à une version : en ajoute une qui reprend contenu, statut et banc de l'ancienne."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
 
     def construire(brut: Element | None) -> Element:
         element = _existant(brut, famille, slug)
@@ -222,7 +236,7 @@ async def marquer(
     raison: str | None = None,
 ) -> Element:
     """Passe une version en Recette (banc exigé) ou Rejeté (raison exigée). Geste humain : le builder ne l'a pas."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
     if statut is Statut.RECETTE and banc is None:
         raise ErreurBibliotheque("A recipe is proven on a bench: give what proves it.")
     if statut is Statut.REJETE and not (raison or "").strip():
@@ -270,7 +284,7 @@ async def ecrire_candidat(
 async def elements_de(famille: str) -> list[Element]:
     """Tous les éléments d'une famille, entiers (contenu compris), dans l'ordre des identifiants. Un élément illisible est sauté.
     Pour les familles dont l'écran lit le contenu de chaque ligne (modèles de réglages) ; la liste courante ne le rend pas."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
     org = organisation_bibliotheque()
     if org is None:
         return []
@@ -285,7 +299,7 @@ async def elements_de(famille: str) -> list[Element]:
 
 async def renommer(famille: str, slug: str, titre: str) -> Element:
     """Change le TITRE seul : ni nouvelle version ni changement de statut (renommer ne défait pas une recette)."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
 
     def construire(brut: Element | None) -> Element:
         return _valider(lambda: _existant(brut, famille, slug).model_copy(update={"titre": titre}))
@@ -295,18 +309,99 @@ async def renommer(famille: str, slug: str, titre: str) -> Element:
 
 async def supprimer(famille: str, slug: str) -> None:
     """Retire l'élément et son historique. Geste volontaire d'une personne, confirmé à l'écran ; 404 s'il n'existe pas."""
-    _verifier_famille(famille)
+    await _verifier_famille(famille)
     org = _organisation()
     if not await stock.supprimer(org, cle_de(famille, slug)):
         raise ErreurBibliotheque(f"Library element not found: {famille}/{slug}.", 404)
 
 
+def _resume(element: Element, nombres: dict[str, int], extrait: str | None = None) -> Resume:
+    courante = element.courante
+    return Resume(
+        famille=element.famille,
+        slug=element.slug,
+        titre=element.titre,
+        statut=element.statut,
+        version_courante=element.version_courante,
+        auteur=courante.auteur,
+        date=courante.date,
+        banc=courante.banc,
+        origine=courante.origine,
+        utilisee_par=nombres.get(_cle_usage(element.famille, element.slug), 0),
+        dossier=element.dossier,
+        etiquettes=list(element.etiquettes),
+        extrait=extrait,
+    )
+
+
+def _extrait(element: Element, requete: str) -> str | None:
+    """Le passage du contenu courant qui contient la requête (une cinquantaine de caractères autour), ou ``None``."""
+    texte = json.dumps(element.courante.contenu, ensure_ascii=False)
+    place = texte.casefold().find(requete)
+    if place < 0:
+        return None
+    debut = max(0, place - 50)
+    return ("…" if debut else "") + texte[debut : place + len(requete) + 50] + ("…" if place + len(requete) + 50 < len(texte) else "")
+
+
+def _correspond(element: Element, requete: str) -> tuple[bool, str | None]:
+    if not requete:
+        return True, None
+    for champ in (element.titre, element.slug, element.dossier, *element.etiquettes):
+        if requete in champ.casefold():
+            return True, None
+    extrait = _extrait(element, requete)
+    return extrait is not None, extrait
+
+
+async def parcourir(
+    famille: str | None = None,
+    statut: Statut | None = None,
+    *,
+    dossier: str | None = None,
+    etiquettes: list[str] | None = None,
+    recherche: str = "",
+    limite: int = 25,
+    decalage: int = 0,
+) -> tuple[int, list[Resume]]:
+    """Les éléments filtrés (famille, statut, sous-dossier et ses descendants, étiquettes toutes posées, recherche dans le titre,
+    les étiquettes et le contenu), triés famille puis titre, **par page** (E61). Rend ``(total, page)``."""
+    org = organisation_bibliotheque()
+    if org is None:
+        return 0, []
+    if famille is not None:
+        await _verifier_famille(famille)
+    prefixe = f"{PREFIXE_BIBLIO}{famille}:" if famille else PREFIXE_BIBLIO
+    requete = " ".join((recherche or "").split()).casefold()
+    voulues = {e.casefold() for e in (etiquettes or [])}
+    trouves: list[tuple[Element, str | None]] = []
+    for _cle, brut in await stock.lister(org, prefixe):
+        try:
+            element = Element.model_validate(brut)
+        except ValidationError:
+            continue
+        if statut is not None and element.statut is not statut:
+            continue
+        if dossier is not None and not (element.dossier == dossier or element.dossier.startswith(f"{dossier}/")):
+            continue
+        if voulues and not voulues <= {e.casefold() for e in element.etiquettes}:
+            continue
+        ok, extrait = _correspond(element, requete)
+        if ok:
+            trouves.append((element, extrait))
+    trouves.sort(key=lambda paire: (paire[0].famille, paire[0].titre.casefold(), paire[0].slug))
+    nombres = await _nombres_d_agents()
+    page = trouves[max(0, decalage) : max(0, decalage) + max(1, limite)]
+    return len(trouves), [_resume(e, nombres, x) for e, x in page]
+
+
 async def lister(famille: str | None = None, statut: Statut | None = None) -> list[Resume]:
+    """Tous les éléments (sans page) : pour le builder et les écrans qui lisent une famille entière."""
     org = organisation_bibliotheque()
     if org is None:
         return []
     if famille is not None:
-        _verifier_famille(famille)
+        await _verifier_famille(famille)
     prefixe = f"{PREFIXE_BIBLIO}{famille}:" if famille else PREFIXE_BIBLIO
     resumes: list[Resume] = []
     nombres = await _nombres_d_agents()  # revue R4 : une seule lecture, plus une par élément
@@ -317,22 +412,28 @@ async def lister(famille: str | None = None, statut: Statut | None = None) -> li
             continue
         if statut is not None and element.statut is not statut:
             continue
-        courante = element.courante
-        resumes.append(
-            Resume(
-                famille=element.famille,
-                slug=element.slug,
-                titre=element.titre,
-                statut=element.statut,
-                version_courante=element.version_courante,
-                auteur=courante.auteur,
-                date=courante.date,
-                banc=courante.banc,
-                origine=courante.origine,
-                utilisee_par=nombres.get(_cle_usage(element.famille, element.slug), 0),
-            )
-        )
+        resumes.append(_resume(element, nombres))
     return resumes
+
+
+async def classer(famille: str, slug: str, *, dossier: str | None = None, etiquettes: list[str] | None = None) -> Element:
+    """Range un élément : son sous-dossier et/ou ses étiquettes. Ni nouvelle version, ni changement de statut."""
+    await _verifier_famille(famille)
+
+    def construire(brut: Element | None) -> Element:
+        element = _existant(brut, famille, slug)
+        maj: dict[str, Any] = {}
+        if dossier is not None:
+            maj["dossier"] = dossier
+        if etiquettes is not None:
+            propres: list[str] = []
+            for e in etiquettes:
+                if e.casefold() not in {p.casefold() for p in propres}:
+                    propres.append(e)
+            maj["etiquettes"] = propres
+        return _valider(lambda: Element.model_validate({**element.model_dump(), **maj}))
+
+    return await _modifier(famille, slug, construire)
 
 
 # --- « utilisée par N agents » ------------------------------------------------------------------------------

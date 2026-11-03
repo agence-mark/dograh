@@ -51,7 +51,7 @@ async def personnalisee(famille: str, ancien_contenu: dict[str, Any] | None, org
     """(personnalisée, pourquoi). Comparaison de ce que la VERSION UTILISÉE écrivait avec ce que l'agent contient maintenant."""
     if ancien_contenu is None:
         return True, "The version this agent uses is unknown: nothing is overwritten."
-    if FAMILLES[famille].mode != MODE_APPLIQUE:
+    if famille not in FAMILLES or FAMILLES[famille].mode != MODE_APPLIQUE:  # une famille créée à l'écran n'est jamais appliquée
         return True, "This family is written by the builder into the agent's text: it is proposed, never overwritten."
     configurations = await reglages_agent._configurations(organisation_id, workflow_id)
     if famille == "phrases-du-code":

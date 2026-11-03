@@ -28,7 +28,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.builder.bibliotheque import service
+from api.services.builder.bibliotheque import fiches, service
 from api.services.builder.bibliotheque.familles import FAMILLES
 from api.services.builder.bibliotheque.modele import Origine
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
@@ -45,6 +45,7 @@ class Rapport:
     inchanges: list[str] = field(default_factory=list)
     gardes: list[str] = field(default_factory=list)  # modifiés par une personne : non écrasés
     erreurs: list[str] = field(default_factory=list)
+    fiches: list[str] = field(default_factory=list)  # familles dont la fiche de départ vient d'être écrite
     non_configure: bool = False
 
     def en_json(self) -> dict[str, Any]:
@@ -54,6 +55,7 @@ class Rapport:
             "inchanges": self.inchanges,
             "gardes": self.gardes,
             "erreurs": self.erreurs,
+            "fiches": self.fiches,
             "non_configure": self.non_configure,
         }
 
@@ -130,5 +132,7 @@ async def verser(dossier: Path = CONTENU) -> Rapport:
             await verser_un(fichier, rapport)
         except ErreurBibliotheque as erreur:
             rapport.erreurs.append(f"{fichier.famille}/{fichier.slug} : {erreur}")
+    # Les fiches de famille (E49) : écrites au départ, jamais remplacées une fois qu'une personne les a corrigées.
+    rapport.fiches = await fiches.verser_celles_de_depart()
     logger.info(f"[.mark] versement de la bibliothèque : {rapport.en_json()}")
     return rapport

@@ -25,13 +25,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.db.models import UserModel
+from api.routes.builder_bibliotheque_v2 import router as routeur_v2
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder.bibliotheque import droits, importation, propositions, service
-from api.services.builder.bibliotheque.familles import FAMILLES
 from api.services.builder.bibliotheque.modele import Banc, Element, Origine, Proposition, Resume, Statut
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
 
 router = APIRouter(prefix="/bibliotheque", tags=["builder"])
+# U7 : les chemins fixes de la v2 (familles, étiquettes, dépôt...) sont montés AVANT les routes à paramètres ci-dessous.
+router.include_router(routeur_v2)
 
 
 def _refus(erreur: ErreurBibliotheque) -> HTTPException:
@@ -45,19 +47,6 @@ async def _equipe(user: UserModel) -> str:
     except ErreurBibliotheque as erreur:
         raise _refus(erreur) from None
     return droits.nom_de_l_auteur(user)
-
-
-class VueFamille(BaseModel):
-    slug: str
-    libelle: str
-    groupe: str
-    cible: str
-    mode: str
-
-
-@router.get("/familles", response_model=list[VueFamille])
-async def lister_les_familles(user: UserModel = Depends(get_user_with_selected_organization)):
-    return [VueFamille(slug=f.slug, libelle=f.libelle, groupe=f.groupe, cible=f.cible, mode=f.mode) for f in FAMILLES.values()]
 
 
 @router.get("", response_model=list[Resume])
@@ -87,7 +76,7 @@ async def lister_les_propositions(
 
 
 class NouvelleProposition(BaseModel):
-    type: Literal["version", "passage_recette", "rejet"]
+    type: Literal["version", "passage_recette", "rejet", "fiche", "famille"]
     famille: str
     slug: str
     justification: str = Field(min_length=1, max_length=2000)
