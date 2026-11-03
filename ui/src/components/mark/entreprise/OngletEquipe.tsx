@@ -47,16 +47,19 @@ function useEquipe() {
             getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
             getTraducteursApiV1ConnecteursTraducteursGet(),
         ]);
-        setEtablissements(sites.data?.etablissements ?? []);
+        setEtablissements(sites?.data?.etablissements ?? []);
         setAgenda((traducteurs?.data ?? []).find((x) => x.systeme === choix?.data?.agenda) ?? null);
-        setIllisible(Boolean(reponse.error) || !reponse.data);
-        if (reponse.data) setEquipe(reponse.data);
+        setIllisible(Boolean(reponse?.error) || !reponse?.data);
+        if (reponse?.data) setEquipe(reponse.data);
     }, []);
     // [.mark] K4b : pas de lecture avant que l'authentification soit prête (sinon 401 et « Impossible de charger » à vie).
+    // `pret` (un booléen) et non `user` : l'objet utilisateur peut changer d'identité sans que rien ait changé, ce qui
+    // relirait en boucle.
+    const pret = !authLoading && Boolean(user);
     useEffect(() => {
-        if (authLoading || !user) return;
+        if (!pret) return;
         void relire();
-    }, [authLoading, user, relire]);
+    }, [pret, relire]);
     const ecrire = useCallback(
         async (suivante: Equipe, succes: { fr: string; en: string }): Promise<boolean> => {
             const reponse = await putEquipeApiV1OrganizationsEquipePut({ body: charge_utile_equipe(suivante) });

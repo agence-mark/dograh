@@ -23,10 +23,11 @@ export function useDernieresModifications(actif = true) {
         const reponse = await getDernieresModificationsApiV1OrganizationsEtablissementsDernieresModificationsGet();
         setParFiche(Object.fromEntries((reponse.data ?? []).map((m) => [m.id, m])));
     }, []);
+    const pret = !loading && Boolean(user);
     useEffect(() => {
-        if (!actif || loading || !user) return;
+        if (!actif || !pret) return;
         void relire();
-    }, [actif, loading, user, relire]);
+    }, [actif, pret, relire]);
     return { parFiche, relire };
 }
 
