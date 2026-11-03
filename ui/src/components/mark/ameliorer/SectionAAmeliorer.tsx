@@ -14,13 +14,14 @@ import { lireLesAmeliorationsApiV1AmeliorationsGet } from "@/client";
 import type { PageDAmeliorations } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
-import { Gravite } from "@/components/mark/studio/marques";
+import { Gravite, Info } from "@/components/mark/studio/marques";
 import { useAuth } from "@/lib/auth";
 
 import { CAUSES, texteDeFrequence, titreLisible } from "./libelles";
 
 const T = {
     titre: { en: "To improve", fr: "À améliorer" },
+    info: { en: "The most serious first.", fr: "Le plus grave d'abord." },
     toutVoir: { en: "See all", fr: "Tout voir" },
     rien: { en: "Nothing to improve", fr: "Rien à améliorer" },
 };
@@ -48,6 +49,7 @@ export function SectionAAmeliorer({ lien }: { lien: string }) {
             <div className="flex items-center gap-2 pb-3">
                 <Inbox className="size-4 text-muted-foreground" aria-hidden />
                 <h2 className="text-base font-semibold">{t(T.titre)}</h2>
+                <Info>{t(T.info)}</Info>
                 <Link href={lien} className="ml-auto text-sm text-(--acc) hover:font-semibold">
                     {t(T.toutVoir)}
                 </Link>
@@ -66,7 +68,7 @@ export function SectionAAmeliorer({ lien }: { lien: string }) {
                         const titre = titreLisible(p);
                         return (
                             <li key={p.id}>
-                                <Link href={lien} className="flex cursor-pointer items-center gap-4 px-1 py-3.5 hover:bg-muted/40 hover:font-semibold">
+                                <Link href={lien} className="flex cursor-pointer items-center gap-4 py-3.5 hover:bg-muted/40 hover:font-semibold">
                                     <span className="w-20 shrink-0">
                                         <Gravite n={p.gravite as 1 | 2 | 3} />
                                     </span>
