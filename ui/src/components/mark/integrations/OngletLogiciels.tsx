@@ -45,8 +45,22 @@ export function Initiales({ nom, taille = 40 }: { nom: string; taille?: number }
     );
 }
 
+/** [.mark] E-F3-1 : l'état d'un logiciel du catalogue (À essayer, Prêt, À activer, Interne), comme la maquette. */
+function useEtatLogiciel() {
+    const { t } = useLangue();
+    return (c: ConnecteurVue) =>
+        c.etat === "a_activer"
+            ? t({ en: "To activate", fr: "À activer" })
+            : c.etat === "pret"
+              ? t({ en: "Ready", fr: "Prêt" })
+              : c.etat === "interne"
+                ? t({ en: "Internal", fr: "Interne" })
+                : t({ en: "To try", fr: "À essayer" });
+}
+
 export function OngletLogiciels({ connecteurs }: { connecteurs: Connecteurs }) {
     const { t } = useLangue();
+    const etatDe = useEtatLogiciel();
     const [q, setQ] = useState("");
     const [filtre, setFiltre] = useState("");
     const [ouvert, setOuvert] = useState<string | null>(null);
@@ -114,13 +128,9 @@ export function OngletLogiciels({ connecteurs }: { connecteurs: Connecteurs }) {
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-sm font-medium">{c.libelle}</span>
                                         <span className="block text-xs text-muted-foreground">
-                                            {c.interne
-                                                ? t({ en: "Internal", fr: "Interne" })
-                                                : branche(c)
-                                                  ? t({ en: "Connected", fr: "Branché" })
-                                                  : t({ en: "Not connected", fr: "Non branché" })}
+                                            {branche(c) ? t({ en: "Connected", fr: "Branché" }) : etatDe(c)}
                                             {" · "}
-                                            {c.actions.length} {t({ en: "actions", fr: "actions" })}
+                                            {c.actions.length} {c.actions.length > 1 ? t({ en: "actions", fr: "actions" }) : t({ en: "action", fr: "action" })}
                                         </span>
                                     </span>
                                 </button>
@@ -136,6 +146,7 @@ export function OngletLogiciels({ connecteurs }: { connecteurs: Connecteurs }) {
 
 function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: ConnecteurVue; connecteurs: Connecteurs; fermer: () => void }) {
     const { t } = useLangue();
+    const etatDe = useEtatLogiciel();
     const libelles = { configurer: t({ en: "Configure", fr: "Configurer" }), actions: t({ en: "Actions", fr: "Actions" }), apropos: t({ en: "About", fr: "À propos" }) };
     const [onglet, setOnglet] = useState<keyof typeof libelles>(connecteur.interne ? "actions" : "configurer");
     const [lien, setLien] = useState<string | null>(null);
@@ -170,11 +181,27 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
         notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };
 
+    const ligneEtat = (
+            <LigneChamp
+                libelle={t({ en: "State", fr: "État" })}
+                info={
+                    connecteur.etat === "pret"
+                        ? t({ en: "Tried on a test account: ready to use.", fr: "Essayé sur un compte de test : prêt à servir." })
+                        : t({
+                              en: "Coded from the vendor's public documentation and proven on recorded answers. It is tried on a test account before being marked ready.",
+                              fr: "Codé d'après la documentation publique de l'éditeur et prouvé sur des réponses enregistrées. Il est essayé sur un compte de test avant d'être marqué prêt.",
+                          })
+                }
+            >
+                <span className="text-sm">{etatDe(connecteur)}</span>
+            </LigneChamp>
+    );
+
     return (
         <FenetreOnglets
             fermer={fermer}
             titre={connecteur.libelle}
-            sous={connecteur.integration}
+            sous={`${connecteur.integration} · ${etatDe(connecteur)}`}
             visuel={<Initiales nom={connecteur.libelle} />}
             onglets={Object.values(libelles)}
             onglet={libelles[onglet]}
@@ -182,25 +209,50 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
             valider={null}
         >
             {onglet === "configurer" &&
-                (connecteur.interne ? (
+                (connecteur.etat === "a_activer" ? (
+                    <Champs>
+                        <LigneChamp
+                            libelle={t({ en: "State", fr: "État" })}
+                            info={t({
+                                en: "The vendor opens its API on contract, in the client's name: the connector is coded for the first client of the sector who gives us the access.",
+                                fr: "L'éditeur ouvre son API sur contrat, au nom du client : le connecteur se code au premier client du secteur qui nous ouvre l'accès.",
+                            })}
+                        >
+                            <span className="text-sm">{etatDe(connecteur)}</span>
+                        </LigneChamp>
+                        {connecteur.editeur && (
+                            <LigneChamp libelle={t({ en: "Vendor", fr: "Éditeur" })}>
+                                <span className="text-sm">{connecteur.editeur}</span>
+                            </LigneChamp>
+                        )}
+                        <LigneChamp libelle={t({ en: "Access", fr: "Accès" })} info={t({ en: "The contract with the vendor is signed in the client's name; the key received goes into the credentials.", fr: "Le contrat avec l'éditeur se signe au nom du client ; la clé reçue va dans les identifiants." })}>
+                            <span className="text-sm">{t({ en: "API on contract", fr: "API sur contrat" })}</span>
+                        </LigneChamp>
+                    </Champs>
+                ) : connecteur.interne ? (
                     <p className="text-sm text-muted-foreground">{t({ en: "Internal connector: nothing to connect.", fr: "Connecteur interne : rien à brancher." })}</p>
                 ) : !connecteurs.etat?.nango_configure ? (
+<Champs>
+                        {ligneEtat}
                     <p className="text-sm text-muted-foreground" id="connexions-nango-absent">
                         {t({
                             en: "No Nango on this installation (NANGO_URL, NANGO_SECRET_KEY): the integration tools fall back to their phrase.",
                             fr: "Pas de Nango sur cette installation (NANGO_URL, NANGO_SECRET_KEY) : les outils d'intégration disent leur phrase de repli.",
                         })}
                     </p>
+                    </Champs>
                 ) : (
                     <Champs>
+                        {ligneEtat}
                         {comptes.length === 0 && <p className="py-3 text-sm text-muted-foreground">{t({ en: "No account connected.", fr: "Aucun compte branché." })}</p>}
                         {comptes.map((c) => (
                             <LigneChamp
                                 key={c.connection_id}
                                 libelle={
                                     <span>
-                                        {c.connection_id}
+                                        {c.compte ?? c.connection_id}
                                         <span className="block text-xs font-normal text-muted-foreground">
+                                            {c.autorise_par ? `${t({ en: "Authorized by", fr: "Autorisé par" })} ${c.autorise_par} · ` : ""}
                                             {c.creee_le ?? ""}
                                             {c.erreurs ? ` · ${c.erreurs} ${t({ en: "error(s)", fr: "erreur(s)" })}` : ""}
                                         </span>

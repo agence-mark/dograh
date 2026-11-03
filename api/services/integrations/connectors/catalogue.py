@@ -45,6 +45,9 @@ class ContexteAction:
     appel: dict[str, Any] = field(default_factory=dict)
     run_id: int | None = None
     fiche: dict | None = None
+    # F3 (E77): the NAME of the account of this software the tool keeps, when the organization
+    # has several (two Google calendars). Never the model's choice: it comes from the tool.
+    compte: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,9 +87,18 @@ class Connecteur:
     # An action of this connector may transfer the call (registered as a workflow-control
     # boundary, with the transfer's deadline). The team's ``diriger_vers_personne`` does.
     peut_transferer: bool = False
+    # F3: where the software stands. ``a_essayer`` = coded from the public documentation, proven
+    # on recorded answers, never tried on a real test account (the default of a connector);
+    # ``pret`` = tried on a test account with Evan (D3); ``a_activer`` = a card only, the vendor
+    # opens its API on contract and the connector is coded for the first client of the sector.
+    etat: str = "a_essayer"
+    editeur: str | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)
+
+
+ETATS = ("a_essayer", "pret", "a_activer")
 
 
 class CatalogueInvalide(ValueError):
@@ -111,6 +123,10 @@ def declarer(connecteur: Connecteur) -> Connecteur:
             raise CatalogueInvalide(
                 f"{connecteur.nom}.{action.nom}: the organization never travels as a parameter (D6)."
             )
+    if connecteur.etat not in ETATS:
+        raise CatalogueInvalide(f"{connecteur.nom}: unknown state « {connecteur.etat} ».")
+    if connecteur.etat == "a_activer" and (connecteur.actions or connecteur.interne):
+        raise CatalogueInvalide(f"{connecteur.nom}: a card « à activer » has no action.")
     if connecteur.interne and (
         connecteur.gestionnaire_interne is None and connecteur.executer_interne is None
     ):

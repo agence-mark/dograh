@@ -1,6 +1,8 @@
 """[.mark] Salesforce (CRM): actions and translator « dossier » (U3 sexies, point 8, F2).
 
-State « À essayer »: written from Salesforce's public documentation (REST API: SOQL ``query``,
+⚠️ F3 (03/11/2026): the Salesforce REST documentation answered HTTP 403 to my reader, twice (query
+and sObject pages): this file stays as F2 wrote it, from memory of the public documentation, and
+is NOT re-read. State « À essayer »: written from Salesforce's public documentation (REST API: SOQL ``query``,
 ``sobjects``; https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta), proven on answers
 recorded in a file. Through Nango's relay (integration ``salesforce``, which knows the org's
 instance URL).
@@ -135,6 +137,7 @@ async def _role_du_contact(reponse: Any, params: dict, ctx: ContexteAction) -> A
                 },
             ),
             delai=5.0,
+            compte=ctx.compte,
         )
     return reponse
 

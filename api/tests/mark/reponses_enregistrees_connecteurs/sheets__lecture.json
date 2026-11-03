@@ -1,0 +1,24 @@
+{
+ "range": "Appels!A1:Z1000",
+ "majorDimension": "ROWS",
+ "values": [
+  [
+   "Date",
+   "Nom",
+   "Téléphone",
+   "Secret"
+  ],
+  [
+   "01/11",
+   "Paul Autre",
+   "06 99 99 99 99",
+   "autre"
+  ],
+  [
+   "02/11",
+   "Jeanne Martin",
+   "06 12 34 56 78",
+   "interne"
+  ]
+ ]
+}

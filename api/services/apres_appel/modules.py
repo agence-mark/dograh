@@ -169,7 +169,11 @@ async def _connecteurs(contexte: ContexteModule) -> ResultatModule:
             continue
         connecteur, action = trouve
         ctx = contexte_de(
-            action, entree.get("reglages"), fiche, contexte.envoi.get("numero_appelant")
+            action,
+            entree.get("reglages"),
+            fiche,
+            contexte.envoi.get("numero_appelant"),
+            compte=entree.get("compte"),
         )
         try:
             await appeler(

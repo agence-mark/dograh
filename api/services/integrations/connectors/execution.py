@@ -73,6 +73,7 @@ def contexte_de(
     appel: dict | None = None,
     run_id: int | None = None,
     complements: dict | None = None,
+    compte: str | None = None,
 ) -> ContexteAction:
     extraites = (
         (fiche or {}).get("extracted_variables")
@@ -90,6 +91,7 @@ def contexte_de(
         appel=dict(appel or {}),
         run_id=run_id,
         fiche=fiche if isinstance(fiche, dict) else None,
+        compte=compte or None,
     )
 
 
@@ -121,6 +123,7 @@ async def appeler(
             requete,
             delai=delai_s,
             base_url=connecteur.base_url,
+            compte=ctx.compte,
         )
     if action.suite is not None:
         reponse = await action.suite(reponse, arguments, ctx)
@@ -165,6 +168,7 @@ async def executer(
         appel=appel,
         run_id=run_id,
         complements=complements,
+        compte=config.get("compte"),
     )
     debut = time.monotonic()
     try:
@@ -204,14 +208,15 @@ def estampiller(fiche: dict | None, entree: dict) -> None:
 def mettre_de_cote(fiche: dict | None, config: dict, arguments: dict) -> None:
     """A writing action that fell back: retried after the call (module ``connecteurs``)."""
     if isinstance(fiche, dict):
-        fiche.setdefault(CLE_DIFFERES, []).append(
-            {
-                "connecteur": config.get("connecteur"),
-                "action": config.get("action"),
-                "reglages": config.get("reglages") or {},
-                "arguments": arguments,
-            }
-        )
+        entree = {
+            "connecteur": config.get("connecteur"),
+            "action": config.get("action"),
+            "reglages": config.get("reglages") or {},
+            "arguments": arguments,
+        }
+        if config.get("compte"):  # F3 (E77): the account the tool keeps follows the retry
+            entree["compte"] = config["compte"]
+        fiche.setdefault(CLE_DIFFERES, []).append(entree)
 
 
 CLE_HUB = "hub_rendez_vous"

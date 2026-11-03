@@ -93,6 +93,7 @@ async def _jours_puis_heures(reponse: Any, params: dict, ctx: ContexteAction, ma
                 INTEGRATION,
                 _requete_jours(r, datetime.fromisoformat(jour)),
                 delai=5.0,
+                compte=ctx.compte,
             )
     return []
 

@@ -1,0 +1,15 @@
+{
+ "messaging_product": "whatsapp",
+ "contacts": [
+  {
+   "input": "33612345678",
+   "wa_id": "33612345678"
+  }
+ ],
+ "messages": [
+  {
+   "id": "wamid.HBgL",
+   "message_status": "accepted"
+  }
+ ]
+}
