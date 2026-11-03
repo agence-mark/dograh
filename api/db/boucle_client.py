@@ -113,6 +113,42 @@ class BoucleClient(BaseDBClient):
             await session.refresh(existant)
             return _vue(existant)
 
+    async def retirer_les_cas_d_un_element(
+        self, organization_id: int, workflow_id: int, *, releve_par: str, run_id: int | None = None, test: str | None = None
+    ) -> int:
+        """Rejuger un élément REMPLACE son jugement précédent : ses cas (même appel ou même test) sont retirés des problèmes du
+        ``releve_par`` donné, puis le nouveau verdict les remet. Un problème qui n'a plus aucun cas et qu'on n'a pas encore traité
+        (« à trier ») disparaît. Rend le nombre de cas retirés. ⛔ Une seule organisation, un seul agent."""
+        identite = {k: v for k, v in (("run_id", run_id), ("test", test)) if v is not None}
+        if not identite:
+            return 0
+        retires = 0
+        async with self.async_session() as session:
+            lignes = (
+                await session.execute(
+                    select(MarkAmeliorationModel)
+                    .where(
+                        MarkAmeliorationModel.organization_id == organization_id,
+                        MarkAmeliorationModel.workflow_id == workflow_id,
+                        MarkAmeliorationModel.releve_par == releve_par,
+                    )
+                    .with_for_update()
+                )
+            ).scalars().all()
+            for ligne in lignes:
+                restants = [c for c in ligne.cas or [] if not all(c.get(k) == v for k, v in identite.items())]
+                if len(restants) == len(ligne.cas or []):
+                    continue
+                enleves = len(ligne.cas or []) - len(restants)
+                retires += enleves
+                if not restants and ligne.etat == "a_trier":
+                    await session.delete(ligne)
+                else:
+                    ligne.cas = restants
+                    ligne.nb_cas = max((ligne.nb_cas or 0) - enleves, 0)
+            await session.commit()
+        return retires
+
     async def lister_les_ameliorations(
         self,
         organization_id: int,
@@ -121,6 +157,7 @@ class BoucleClient(BaseDBClient):
         workflow_id: int | None = None,
         page: int = 0,
         par_page: int = 50,
+        depuis: datetime | None = None,
     ) -> tuple[list[dict[str, Any]], bool]:
         """Les problèmes de l'organisation, le plus grave puis le plus récent d'abord ; (lignes, a_une_suite)."""
         requete = select(MarkAmeliorationModel).where(MarkAmeliorationModel.organization_id == organization_id)
@@ -130,6 +167,8 @@ class BoucleClient(BaseDBClient):
             requete = requete.where(MarkAmeliorationModel.etat != "ignoree")
         if workflow_id is not None:
             requete = requete.where(MarkAmeliorationModel.workflow_id == workflow_id)
+        if depuis is not None:
+            requete = requete.where(MarkAmeliorationModel.derniere_le > depuis)
         requete = (
             requete.order_by(MarkAmeliorationModel.gravite.desc(), MarkAmeliorationModel.derniere_le.desc())
             .limit(par_page + 1)

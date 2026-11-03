@@ -3,7 +3,8 @@
 /**
  * [.mark] U8 : « À améliorer », la boucle (reprise de `components/studio/a-ameliorer.tsx` de la maquette, E9 et E23).
  * Une boîte de réception par état (À trier, En cours, Testée, Publiée), « Pannes et alertes » et, quand des vrais appels attendent
- * Claude Code, « À juger ». Tableau nu : Gravité · Problème · Fréquence · Relevé par · Cause probable. Un clic ouvre le détail.
+ * Claude Code, « À juger » (visible dès que le juge des vrais appels est sur Claude Code, comme la maquette, ou tant que des éléments
+ * attendent). Tableau nu : Gravité · Problème · Fréquence · Relevé par · Cause probable. Un clic ouvre le détail.
  * Tout vient des routes `/ameliorations`, `/alertes` : aucune donnée écrite ici. Les requêtes d'une page partent en parallèle.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import {
 } from "@/client";
 import type { LigneAJuger, LigneDAlerte, PageDAmeliorations } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Gravite, Info } from "@/components/mark/studio/marques";
 import { useOngletDeLAdresse } from "@/components/mark/studio/onglets-page";
@@ -27,7 +29,10 @@ import { DetailProbleme } from "./DetailProbleme";
 import { AUTEUR, CAUSES, ETATS, type EtatDeLEcran, RELEVE_PAR, texteDeFrequence, titreLisible } from "./libelles";
 
 type Vue = PageDAmeliorations["lignes"][number];
-type Charge<T> = { etat: "chargement" } | { etat: "erreur" } | { etat: "pret"; donnees: T };
+type Charge<T> = { etat: "chargement" } | { etat: "erreur" } | { etat: "acces" } | { etat: "pret"; donnees: T };
+
+/** Une lecture refusée (403 : pas le droit de voir les conversations) montre « accès », pas une erreur à réessayer. */
+const refus = (r: { error?: unknown; response?: { status?: number } }) => (r.error ? (r.response?.status === 403 ? ({ etat: "acces" } as const) : ({ etat: "erreur" } as const)) : null);
 
 const T = {
     titre: { en: "To improve", fr: "À améliorer" },
@@ -76,11 +81,24 @@ export function PageAAmeliorer() {
     const [pannes, setPannes] = useState<Charge<LigneDAlerte[]>>({ etat: "chargement" });
     const [aJuger, setAJuger] = useState<Charge<LigneAJuger[]>>({ etat: "chargement" });
     const [ouvert, setOuvert] = useState<number | null>(null);
+    const { sources } = useSources();
+
+    const chargerLesPannes = useCallback(async () => {
+        setPannes({ etat: "chargement" });
+        const p = await lireLesAlertesApiV1AlertesGet();
+        setPannes(refus(p) ?? (!p.data ? { etat: "erreur" } : { etat: "pret", donnees: p.data.lignes }));
+    }, []);
+
+    const chargerLaFile = useCallback(async () => {
+        setAJuger({ etat: "chargement" });
+        const j = await lireLaFileAJugerApiV1AmeliorationsAJugerGet();
+        setAJuger(refus(j) ?? (!j.data ? { etat: "erreur" } : { etat: "pret", donnees: j.data }));
+    }, []);
 
     const chargerLaListe = useCallback(async (etat: EtatDeLEcran) => {
         setListe({ etat: "chargement" });
         const r = await lireLesAmeliorationsApiV1AmeliorationsGet({ query: { etat } });
-        setListe(r.error || !r.data ? { etat: "erreur" } : { etat: "pret", donnees: r.data });
+        setListe(refus(r) ?? (!r.data ? { etat: "erreur" } : { etat: "pret", donnees: r.data }));
     }, []);
 
     useEffect(() => {
@@ -88,8 +106,8 @@ export function PageAAmeliorer() {
         void (async () => {
             // Les compteurs « Pannes » et « À juger » et la liste de l'onglet courant partent ensemble.
             const [p, j] = await Promise.all([lireLesAlertesApiV1AlertesGet(), lireLaFileAJugerApiV1AmeliorationsAJugerGet()]);
-            setPannes(p.error || !p.data ? { etat: "erreur" } : { etat: "pret", donnees: p.data.lignes });
-            setAJuger(j.error || !j.data ? { etat: "erreur" } : { etat: "pret", donnees: j.data });
+            setPannes(refus(p) ?? (!p.data ? { etat: "erreur" } : { etat: "pret", donnees: p.data.lignes }));
+            setAJuger(refus(j) ?? (!j.data ? { etat: "erreur" } : { etat: "pret", donnees: j.data }));
         })();
     }, [loading, user]);
 
@@ -104,7 +122,8 @@ export function PageAAmeliorer() {
         if (id === "a_juger") return aJuger.etat === "pret" ? aJuger.donnees.length : null;
         return liste.etat === "pret" ? (liste.donnees.compteurs[id] ?? 0) : null;
     };
-    const aDesAppelsAJuger = aJuger.etat === "pret" && aJuger.donnees.length > 0;
+    // E104 : l'onglet existe quand le juge des vrais appels est sur Claude Code (même vide : « Rien à juger »), ou tant que des éléments attendent.
+    const aDesAppelsAJuger = sources?.juge_appels === "claude_code" || (aJuger.etat === "pret" && aJuger.donnees.length > 0);
     const onglets = [...ETATS.map((e) => ({ id: e.id as string, titre: t(e.libelle) })), { id: "pannes", titre: t(T.pannes) }, ...(aDesAppelsAJuger ? [{ id: "a_juger", titre: t(T.aJuger) }] : [])];
     const courant = actif === "a_juger" && !aDesAppelsAJuger ? "a_trier" : actif;
 
@@ -129,9 +148,9 @@ export function PageAAmeliorer() {
                 })}
             </div>
             {courant === "a_juger" ? (
-                <TableDesAppelsAJuger charge={aJuger} t={t} langue={langue} />
+                <TableDesAppelsAJuger charge={aJuger} t={t} langue={langue} reessayer={() => void chargerLaFile()} />
             ) : courant === "pannes" ? (
-                <TableDesPannes charge={pannes} t={t} langue={langue} />
+                <TableDesPannes charge={pannes} t={t} langue={langue} reessayer={() => void chargerLesPannes()} />
             ) : (
                 <TableDesProblemes charge={liste} t={t} ouvrir={setOuvert} reessayer={() => etatCourant && void chargerLaListe(etatCourant)} />
             )}
@@ -148,6 +167,7 @@ export function PageAAmeliorer() {
 
 function TableDesProblemes({ charge, t, ouvrir, reessayer }: { charge: Charge<PageDAmeliorations>; t: ReturnType<typeof useLangue>["t"]; ouvrir: (id: number) => void; reessayer: () => void }) {
     if (charge.etat === "chargement") return <EtatVide cas="chargement" />;
+    if (charge.etat === "acces") return <EtatVide cas="acces" />;
     if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={reessayer} />;
     const lignes = charge.donnees.lignes;
     if (lignes.length === 0) return <EtatVide cas="fait" titre={t(T.rien)} />;
@@ -176,9 +196,10 @@ function TableDesProblemes({ charge, t, ouvrir, reessayer }: { charge: Charge<Pa
     );
 }
 
-function TableDesPannes({ charge, t, langue }: { charge: Charge<LigneDAlerte[]>; t: ReturnType<typeof useLangue>["t"]; langue: string }) {
+function TableDesPannes({ charge, t, langue, reessayer }: { charge: Charge<LigneDAlerte[]>; t: ReturnType<typeof useLangue>["t"]; langue: string; reessayer: () => void }) {
     if (charge.etat === "chargement") return <EtatVide cas="chargement" />;
-    if (charge.etat === "erreur") return <EtatVide cas="erreur" />;
+    if (charge.etat === "acces") return <EtatVide cas="acces" />;
+    if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={reessayer} />;
     if (charge.donnees.length === 0) return <EtatVide cas="fait" titre={t(T.aucunePanne)} />;
     return (
         <Tableau colonnes={[{ titre: t(T.quand) }, { titre: t(T.panne) }, { titre: t(T.agent) }, { titre: t(T.prevenu) }]}>
@@ -197,10 +218,11 @@ function TableDesPannes({ charge, t, langue }: { charge: Charge<LigneDAlerte[]>;
     );
 }
 
-function TableDesAppelsAJuger({ charge, t, langue }: { charge: Charge<LigneAJuger[]>; t: ReturnType<typeof useLangue>["t"]; langue: string }) {
+function TableDesAppelsAJuger({ charge, t, langue, reessayer }: { charge: Charge<LigneAJuger[]>; t: ReturnType<typeof useLangue>["t"]; langue: string; reessayer: () => void }) {
     if (charge.etat === "chargement") return <EtatVide cas="chargement" />;
-    if (charge.etat === "erreur") return <EtatVide cas="erreur" />;
-    if (charge.donnees.length === 0) return <EtatVide cas="fait" titre={t(T.rienAJuger)} />;
+    if (charge.etat === "acces") return <EtatVide cas="acces" />;
+    if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={reessayer} />;
+    if (charge.donnees.length === 0) return <EtatVide cas="fait" titre={t(T.rienAJuger)} info={t(T.infoAJuger)} />;
     return (
         <>
             <p className="flex items-center gap-1.5 text-sm font-medium">

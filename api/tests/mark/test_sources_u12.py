@@ -220,23 +220,32 @@ def verdict(v, preuve="Bonjour monsieur"):
     return {"critere": "Le ton est-il naturel ?", "verdict": v, "replique": 1, "preuve": preuve, "confiance": 0.8}
 
 
-async def test_juge_ecrire_remplit_a_ameliorer_par_l_entree_unique_et_rejuger_remplace(monde):
+@pytest.fixture
+def boucle_factice(monkeypatch):
+    """La base de ce fichier est en mémoire : l'entrée de la boucle est espionnée (la vraie table est jouée dans test_boucle_g1b.py)."""
+    appels = AsyncMock(side_effect=lambda org, wf, run_id, verdicts, lignes, **kw: sum(1 for x in verdicts if x["verdict"] != "reussi"))
+    monkeypatch.setattr(a_ameliorer.ingestion, "ingerer_les_verdicts", appels)
+    return appels
+
+
+async def test_juge_ecrire_remplit_a_ameliorer_par_l_entree_unique_de_la_boucle(monde, boucle_factice):
     await file.ajouter(ORG_CLIENT, ITEM)
     rate = await registre.executer("juge_ecrire", {"id": ITEM["id"], "verdicts": [verdict("rate")]}, mcp())
     assert rate["ok"] and rate["reussi"] is False and rate["a_ameliorer"] == 1
-    points = await a_ameliorer.lister(ORG_CLIENT, AGENT)
-    assert [(p["critere"], p["verdict"], p["replique"], p["source"]) for p in points] == [("Le ton est-il naturel ?", "rate", 1, "claude_code")]
+    args, kw = boucle_factice.call_args
+    assert args[:3] == (ORG_CLIENT, AGENT, None) and kw == {"test": "libre"} and args[3][0]["verdict"] == "rate"
     await file.ajouter(ORG_CLIENT, ITEM)
     bon = await registre.executer("juge_ecrire", {"id": ITEM["id"], "verdicts": [verdict("reussi")]}, mcp())
-    assert bon["ok"] and bon["a_ameliorer"] == 0 and await a_ameliorer.lister(ORG_CLIENT) == []
+    assert bon["ok"] and bon["a_ameliorer"] == 0  # rejugé : la boucle est appelée de nouveau (elle retire l'ancien jugement)
+    assert boucle_factice.await_count == 2
 
 
-async def test_un_verdict_sans_replique_citee_est_refuse_et_rien_n_est_range(monde):
+async def test_un_verdict_sans_replique_citee_est_refuse_et_rien_n_est_range(monde, boucle_factice):
     await file.ajouter(ORG_CLIENT, ITEM)
     sans = {"critere": "Le ton est-il naturel ?", "verdict": "rate", "preuve": "Bonjour monsieur", "confiance": 0.5}
     refus = await registre.executer("juge_ecrire", {"id": ITEM["id"], "verdicts": [sans]}, mcp())
     assert refus["ok"] is False and refus["code"] == "verdict_refuse"
-    assert await a_ameliorer.lister(ORG_CLIENT) == [] and await file.trouver(ORG_CLIENT, ITEM["id"]) is not None
+    assert boucle_factice.await_count == 0 and await file.trouver(ORG_CLIENT, ITEM["id"]) is not None
 
 
 # --- lire le fork ----------------------------------------------------------------------------------------------------------
@@ -245,7 +254,8 @@ async def test_un_verdict_sans_replique_citee_est_refuse_et_rien_n_est_range(mon
 async def test_le_resume_de_session_compte_ce_qui_a_change(monde, monkeypatch):
     monkeypatch.setattr("api.services.builder.actions.lecture_fork.db_client", SimpleNamespace(lister_fils=AsyncMock(return_value=[])))
     await file.ajouter(ORG_CLIENT, ITEM)
-    await a_ameliorer.signaler(ORG_CLIENT, ITEM, [verdict("rate")], "claude_code")
+    problemes = [{"workflow_id": AGENT, "critere": "Le ton est-il naturel ?", "preuve": "Bonjour monsieur"}]
+    monkeypatch.setattr(a_ameliorer, "lister", AsyncMock(side_effect=lambda org, wf=None, depuis=None: problemes if depuis < "2025" else []))
     await stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, "libre", {"le": "2026-11-03T10:00:00+00:00", "statut": "echec", "reussis": 0, "total": 3, "essais": []})
     r = await registre.executer("fork_resume", {"depuis": "2020-01-01T00:00:00+00:00"}, mcp())
     assert r["ok"] and r["a_ameliorer"]["nouveaux"] == 1 and r["tests_en_echec"]["total"] == 1 and r["appels_a_juger"]["total"] == 1

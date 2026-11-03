@@ -2,6 +2,7 @@
 
 - ``GET  /builder/demarrages``                        les 4 démarrages les plus utilisés (hors Rejeté) ;
 - ``GET  /builder/fils``                              les conversations (``?workflow_id=``), les plus récentes d'abord ;
+- ``GET  /builder/fils/compteur``                     le nombre de conversations qui attendent la personne (pastille « Chat » de la barre) ;
 - ``POST /builder/fils``                              ouvre une conversation et lance le travail (``demarrage`` facultatif) ;
 - ``GET  /builder/fils/{id}``                         une conversation (état, coût, jauge, changements à valider) ;
 - ``GET  /builder/fils/{id}/evenements``              le flux SSE, rejoué depuis ``?depuis=`` ou ``Last-Event-ID`` ;
@@ -138,6 +139,16 @@ async def lister_les_fils(
     workflow_id: int | None = Query(default=None), user: UserModel = Depends(get_user_with_selected_organization)
 ):
     return [_vue(f) for f in await db_client.lister_fils(user.selected_organization_id, workflow_id)]
+
+
+class CompteurDesFils(BaseModel):
+    en_attente: int
+
+
+@router.get("/fils/compteur", response_model=CompteurDesFils)
+async def compter_les_fils(user: UserModel = Depends(get_user_with_selected_organization)):
+    """Déclarée avant ``/fils/{fil_id}`` (sinon « compteur » serait lu comme un numéro)."""
+    return CompteurDesFils(en_attente=await db_client.compter_les_fils_en_attente(user.selected_organization_id))
 
 
 class NouveauFil(BaseModel):

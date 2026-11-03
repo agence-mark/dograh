@@ -2,6 +2,7 @@
 
 - ``GET  /ameliorations``                  les problèmes de l'organisation par état, le plus grave d'abord, avec les compteurs des quatre boîtes ;
 - ``GET  /ameliorations/a-juger``          la file « À juger » (vrais appels rangés pour Claude Code) ;
+- ``GET  /ameliorations/compteur``         le nombre de problèmes à trier + d'éléments à juger (pastille « À améliorer » de la barre) ;
 - ``GET  /ameliorations/{id}``             le détail : cas regroupés, réplique fautive, cause, correction proposée, avancement ;
 - ``PUT  /ameliorations/{id}``             l'état à la main (en cours, ignorer, rouvrir), la personne chargée, l'origine ;
 - ``POST /ameliorations/{id}/test``        crée un test depuis la réplique fautive (même fonction que l'action ``tests_creer``) ;
@@ -14,6 +15,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,6 +27,7 @@ from api.services.auth.depends import get_user_with_selected_organization
 from api.services.boucle import qualite, vues
 from api.services.builder import actions  # noqa: F401 -- remplit le registre
 from api.services.builder.actions.registre import Contexte, executer
+from api.services.juge import a_ameliorer
 from api.services.juge import file as file_du_juge
 
 router = APIRouter(tags=["ameliorations"])
@@ -114,7 +117,24 @@ async def lire_les_ameliorations(
     page: int = Query(0, ge=0),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> dict[str, Any]:
+    if page == 0:
+        await a_ameliorer.verser_le_stock_provisoire(user.selected_organization_id)  # les points d'avant G1b, une seule fois
     return await vues.liste(user.selected_organization_id, etat=etat, workflow_id=workflow_id, page=page)
+
+
+class CompteurDesAmeliorations(BaseModel):
+    a_trier: int
+    a_juger: int
+    total: int
+
+
+@router.get("/ameliorations/compteur", response_model=CompteurDesAmeliorations)
+async def compter_les_ameliorations(user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, int]:
+    """Déclarée avant ``/ameliorations/{id}``. Deux lectures bornées à l'organisation, lancées ensemble."""
+    organisation = user.selected_organization_id
+    par_etat, a_juger = await asyncio.gather(db_client.compter_les_ameliorations(organisation), file_du_juge.lister(organisation))
+    a_trier = int(par_etat.get("a_trier", 0))
+    return {"a_trier": a_trier, "a_juger": len(a_juger), "total": a_trier + len(a_juger)}
 
 
 @router.get("/ameliorations/a-juger", response_model=list[LigneAJuger])

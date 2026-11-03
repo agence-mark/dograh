@@ -1,62 +1,94 @@
 """[.mark] U12 : l'entrée UNIQUE par laquelle un verdict du juge remplit « À améliorer » (clé d'API et Claude Code, un seul chemin).
 
-Le module de tri de « À améliorer » est celui du lot G1 : tant qu'il n'est pas sur la base de ce lot, cette fonction range les points
-dans une ligne de ``organization_configurations`` (``MARK_A_AMELIORER_JUGE``, bornée). À la fusion de G1, ``signaler`` est la SEULE fonction à
-rebrancher sur son module (``ajouter``) ; les appelants (``juge_ecrire``, l'après-appel sur clé) ne changent pas.
+Depuis G1b, cette entrée est branchée sur le module de la boucle (``services/boucle/ingestion``, table ``mark_ameliorations``) : un
+verdict par clé d'API et le même verdict écrit par Claude Code (``juge_ecrire``) donnent le MÊME problème, regroupé avec ses pareils.
+Rejuger un élément (un appel, un test) REMPLACE son jugement précédent, jamais ne le double.
 
-Un point = un critère raté ou non vérifiable d'un élément jugé (vrai appel ou test), avec la réplique citée et la preuve. Idempotent :
-rejuger un élément remplace ses points, jamais ne les double.
+La ligne de stock provisoire ``MARK_A_AMELIORER_JUGE`` (U12, avant G1) n'existe plus : ``verser_le_stock_provisoire`` en verse les
+points dans la table (idempotent : un cas déjà compté ne l'est pas deux fois) puis supprime la ligne.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
+
+from api.db import db_client
+from api.services.boucle import ingestion
 from api.services.builder import stock
-from api.services.juge import file
 
-CLE = "MARK_A_AMELIORER_JUGE"
-POINTS_MAX = 300
-RATES = ("rate", "non_verifiable")
+CLE_PROVISOIRE = "MARK_A_AMELIORER_JUGE"
+LIMITE = 100
 
 
-def points_de(item: dict[str, Any], verdicts: list[dict[str, Any]], source: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "id": f"{item['id']}::{v['critere'][:80]}",
-            "element": item["id"],
-            "type": item.get("type"),
-            "workflow_id": item.get("workflow_id"),
-            "run_id": item.get("run_id"),
-            "test": item.get("test"),
-            "critere": v["critere"],
-            "verdict": v["verdict"],
-            "replique": v.get("replique"),
-            "preuve": v.get("preuve"),
-            "source": source,
-            "le": file.maintenant(),
-        }
-        for v in verdicts
-        if v.get("verdict") in RATES
-    ]
+async def signaler(organisation: int, item: dict[str, Any], verdicts: list[dict[str, Any]], lignes: list[tuple[str, str]], source: str) -> int:
+    """Range les critères ratés de l'élément jugé (``item`` : un élément de « À juger », appel ou test) dans « À améliorer ».
+    Rend le nombre de problèmes touchés. ``source`` (``cle_api`` ou ``claude_code``) ne change rien au résultat : une seule entrée."""
+    if item.get("type") == "test":
+        if item.get("workflow_id") is None or not item.get("test"):
+            return 0
+        return await ingestion.ingerer_les_verdicts(
+            organisation, int(item["workflow_id"]), None, verdicts, lignes, test=str(item["test"])
+        )
+    run, organisation_du_run = await db_client.get_workflow_run_with_context(int(item["run_id"]))
+    if run is None or organisation_du_run != organisation:
+        return 0
+    return await ingestion.ingerer_un_appel_juge(run, organisation, verdicts, lignes)
 
 
-async def signaler(organisation: int, item: dict[str, Any], verdicts: list[dict[str, Any]], source: str) -> int:
-    """Range les points ratés de l'élément (ceux d'un jugement précédent du même élément sont remplacés). Rend leur nombre."""
-    nouveaux = points_de(item, verdicts, source)
+async def verser_le_stock_provisoire(organisation: int) -> int:
+    """Verse dans la table les points de l'ancienne ligne de stock, puis la supprime. Idempotent, ne lève jamais. Rend le nombre de points versés."""
+    try:
+        ligne = await stock.lire(organisation, CLE_PROVISOIRE)
+        if ligne is None:
+            return 0
+        points = [p for p in ligne.get("points") or [] if isinstance(p, dict) and p.get("workflow_id") is not None]
+        par_element: dict[str, list[dict[str, Any]]] = {}
+        for p in points:
+            par_element.setdefault(str(p.get("element")), []).append(p)
+        verses = 0
+        for elements in par_element.values():
+            premier = elements[0]
+            verdicts = [{k: p.get(k) for k in ("critere", "verdict", "replique", "preuve")} | {"confiance": 0.7} for p in elements]
+            if premier.get("run_id") is not None:
+                run, org_du_run = await db_client.get_workflow_run_with_context(int(premier["run_id"]))
+                if run is None or org_du_run != organisation:
+                    continue
+                from api.services.juge import appels
 
-    def transformer(ligne):
-        anciens = [p for p in (ligne or {}).get("points") or [] if p.get("element") != item["id"]]
-        return {"points": [*anciens, *nouveaux][-POINTS_MAX:]}
-
-    await stock.modifier(organisation, CLE, transformer)
-    return len(nouveaux)
+                await ingestion.ingerer_un_appel_juge(run, organisation, verdicts, appels.dossier_d_un_run(run)["lignes"])
+            elif premier.get("test"):
+                await ingestion.ingerer_les_verdicts(organisation, int(premier["workflow_id"]), None, verdicts, [], test=str(premier["test"]))
+            verses += len(elements)
+        await stock.supprimer(organisation, CLE_PROVISOIRE)
+        return verses
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[boucle] stock provisoire du juge non versé : {type(erreur).__name__}")
+        return 0
 
 
 async def lister(organisation: int, workflow_id: int | None = None, depuis: str | None = None) -> list[dict[str, Any]]:
-    points = list((await stock.lire(organisation, CLE) or {}).get("points") or [])
+    """Les problèmes ouverts de la file (ceux que le juge a relevés, mais aussi le code, les tests), changés depuis ``depuis`` (date ISO)."""
+    await verser_le_stock_provisoire(organisation)
+    limite = datetime.fromisoformat(depuis) if depuis else None
+    if limite is not None and limite.tzinfo is None:
+        limite = limite.replace(tzinfo=UTC)
+    problemes, _ = await db_client.lister_les_ameliorations(organisation, workflow_id=workflow_id, par_page=LIMITE, depuis=limite)
     return [
-        p
-        for p in points
-        if (workflow_id is None or p.get("workflow_id") == workflow_id) and (depuis is None or str(p.get("le") or "") > depuis)
+        {
+            "id": p["id"],
+            "workflow_id": p["workflow_id"],
+            "critere": p.get("critere") or p.get("titre"),
+            "titre": p.get("titre"),
+            "releve_par": p.get("releve_par"),
+            "gravite": p.get("gravite"),
+            "etat": p.get("etat"),
+            "replique": p.get("replique"),
+            "preuve": ((p.get("cas") or [{}])[-1] or {}).get("citation"),
+            "le": p["derniere_le"].isoformat() if p.get("derniere_le") else None,
+        }
+        for p in problemes
+        if p.get("etat") == "a_trier"
     ]
