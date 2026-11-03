@@ -240,7 +240,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        {t({ en: "run window", fr: "fenêtre du run" })}
+                                        {t({ en: "run window", fr: "fenêtre d'appel" })}
                                     </a>
                                 ) : null}
                             </li>
@@ -249,7 +249,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                     <p className="text-xs text-muted-foreground">
                         {t({
                             en: `Cost so far ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partial)" : ""}. The call on the line is followed live below; its saved transcript and verdict are in its run window when it ends.`,
-                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. L'appel en ligne se suit en direct ci-dessous ; sa transcription enregistrée et son verdict sont dans sa fenêtre du run à la fin de l'appel.`,
+                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. L'appel en ligne se suit en direct ci-dessous ; sa transcription enregistrée et son verdict sont dans sa fenêtre d'appel à la fin de l'appel.`,
                         })}
                     </p>
                     {/* [.mark] The call on the line, or else the last one played (direct-et-passe-muette, lot A). */}

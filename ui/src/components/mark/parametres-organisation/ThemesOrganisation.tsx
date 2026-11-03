@@ -209,7 +209,7 @@ export const ThemeOrganisationGenerale = ({
                 },
                 { libelle: { en: "Timezone", fr: "Fuseau horaire" }, valeur: enregistre.timezone || "UTC" },
                 {
-                    libelle: { en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" },
+                    libelle: { en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" },
                     valeur: t({ en: "Prices by model, dated; thresholds of the incidents", fr: "Prix par modèle, datés ; seuils des incidents" }),
                 },
             ]}
@@ -282,14 +282,14 @@ export const ThemeOrganisationGenerale = ({
                 </Intertitre>
             )}
             {!preferences.chargement && (
-                <Intertitre id="organisation-couts" titre={{ en: "Run window", fr: "Fenêtre du run" }}>
+                <Intertitre id="organisation-couts" titre={{ en: "Run window", fr: "Fenêtre d'appel" }}>
                     <ChampReglage
                         cle="fenetre_du_run"
-                        libelle={{ en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" }}
+                        libelle={{ en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" }}
                         aides={[
                             {
                                 en: "Prices by provider model, dated, to estimate the cost of each call; and the thresholds of the incidents the run window shows.",
-                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel ; et les seuils des incidents que montre la fenêtre du run.",
+                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel ; et les seuils des incidents que montre la fenêtre d'appel.",
                             },
                         ]}
                     >
