@@ -25,8 +25,8 @@ export function OngletAlertes() {
                 info={
                     <Info>
                         {t({
-                            en: "The problems met by your customers' calls: call ended in error, tool failure, model outage, transfer failed.",
-                            fr: "Les problèmes rencontrés par les appels de vos clients : appel terminé en erreur, outil en échec, panne du modèle, transfert échoué.",
+                            en: "The problems met by your customers' calls over the last 30 days (call ended in error, tool failure, model outage, transfer failed), 50 calls per page.",
+                            fr: "Les problèmes rencontrés par les appels de vos clients sur les 30 derniers jours (appel terminé en erreur, outil en échec, panne du modèle, transfert échoué), 50 appels par page.",
                         })}
                     </Info>
                 }
