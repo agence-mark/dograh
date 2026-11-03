@@ -1,0 +1,13 @@
+{
+ "records": [
+  {
+   "id": "rec123",
+   "createdTime": "2026-10-01T10:00:00.000Z",
+   "fields": {
+    "Nom": "Jeanne Martin",
+    "Téléphone": "+33612345678",
+    "Note interne": "ne pas lire"
+   }
+  }
+ ]
+}

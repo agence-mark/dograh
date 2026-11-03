@@ -1,6 +1,10 @@
 """[.mark] Pipedrive (CRM): actions and translator « dossier » (U3 sexies, point 8, F2).
 
-State « À essayer »: written from Pipedrive's public documentation (API v2 for persons, deals and
+State « À essayer ». RE-READ on 03/11/2026 (F3): ``GET /api/v2/persons/search`` (``term`` two characters
+at least, ``fields``, ``exact_match``, ``limit`` 100), ``POST /api/v2/persons`` (``emails`` and ``phones``
+arrays of ``{value, primary, label}``, ``owner_id``) and ``POST /api/v1/notes`` (``content`` plus
+``person_id``): all as written. NOT readable: the deals page and the exact answer shapes (``data.id``,
+``data.items[].item.id``): kept as written, to check on a test account. Written from Pipedrive's public documentation (API v2 for persons, deals and
 search, v1 for notes, https://developers.pipedrive.com/docs/api/v1), proven on answers recorded in a
 file. Through Nango's relay (integration ``pipedrive``, which knows the company's domain).
 

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from api.db.models import UserModel
 from api.schemas.traducteurs import ChoixTraducteurs, TraducteurVue
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.integrations.connectors import nango
+from api.services.integrations.connectors import nango, propositions
 from api.services.integrations.connectors.catalogue import connecteur, connecteurs
 
 router = APIRouter(prefix="/connecteurs", tags=["connecteurs"])
@@ -50,6 +50,10 @@ class ConnecteurVue(BaseModel):
     # neither the deadline, nor the phrases, nor the anticipation; one that only gives its
     # computation (the planner's) is run like any action and reads them all.
     gestionnaire_propre: bool = False
+    # F3: « a_essayer » (coded from the documentation, not yet tried on a test account), « pret »
+    # (tried), « a_activer » (card only, the vendor opens its API on contract), « interne » (ours).
+    etat: str = "a_essayer"
+    editeur: str | None = None
 
 
 class OutilVu(BaseModel):
@@ -72,6 +76,10 @@ class ConnexionVue(BaseModel):
     mode_acces: str | None = None
     # Les outils de l'organisation qui appellent ce logiciel (calculé, jamais stocké).
     utilise_par: list[OutilVu] = Field(default_factory=list)
+    # F3 (E77): the account's name and who authorized it (« Autorisé par » at a client, « Branché
+    # par » at the lab), carried by the connection's tags. Empty before the tags existed.
+    compte: str | None = None
+    autorise_par: str | None = None
 
 
 class EtatConnexions(BaseModel):
@@ -87,11 +95,19 @@ class Suppression(BaseModel):
 
 class DemandeLien(BaseModel):
     connecteurs: list[str] = Field(min_length=1, max_length=10)
+    # F3 (E77): the name of the account to connect (several accounts of one software per
+    # organization). Optional: without it, the connection has no account name, as before.
+    compte: str | None = Field(default=None, max_length=nango.LONGUEUR_ETIQUETTE)
 
 
 class Lien(BaseModel):
     lien: str | None
     expire_le: str | None = None
+
+
+def _qui(user: UserModel) -> str:
+    """How the signed-in person is named in « Autorisé par » / « Branché par »."""
+    return user.email or f"utilisateur {user.id}"
 
 
 @router.get("/catalogue", response_model=list[ConnecteurVue])
@@ -103,6 +119,8 @@ async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organiz
             integration=c.integration,
             interne=c.interne,
             gestionnaire_propre=c.interne and c.gestionnaire_interne is not None,
+            etat="interne" if c.interne else c.etat,
+            editeur=c.editeur,
             actions=[
                 ActionVue(
                     nom=a.nom,
@@ -151,6 +169,8 @@ async def get_connexions(
                 mis_a_jour_le=d.mis_a_jour_le,
                 mode_acces=d.mode_acces,
                 utilise_par=[OutilVu(**o) for o in outils.get(c.integration, [])],
+                compte=c.compte,
+                autorise_par=c.autorise_par,
             )
             for c, d in zip(liste, details)
         ],
@@ -159,12 +179,14 @@ async def get_connexions(
 
 @router.delete("/connexions/{integration}", response_model=Suppression)
 async def delete_connexion(
-    integration: str, user: UserModel = Depends(get_user_with_selected_organization)
+    integration: str,
+    compte: str | None = None,
+    user: UserModel = Depends(get_user_with_selected_organization),
 ):
     """Supprime chez Nango la connexion de l'organisation à ce logiciel. Retrouvée par l'étiquette
     de l'organisation : on ne peut viser que la sienne (autre organisation : 404, comme absente)."""
     try:
-        await nango.supprimer_connexion(user.selected_organization_id, integration)
+        await nango.supprimer_connexion(user.selected_organization_id, integration, compte)
     except nango.ConnexionAbsente:
         raise HTTPException(
             status_code=404, detail=f"No connection to « {integration} » in this organization."
@@ -197,16 +219,84 @@ async def post_lien(
                 status_code=422,
                 detail=f"« {c.libelle} » is internal: there is nothing to connect.",
             )
+        if c.etat == "a_activer":
+            raise HTTPException(
+                status_code=422,
+                detail=f"« {c.libelle} » is not active yet: its vendor opens the API on contract.",
+            )
         if c.integration not in integrations:
             integrations.append(c.integration)
     try:
         return Lien(
             **await nango.lien_d_autorisation(
-                user.selected_organization_id, integrations
+                user.selected_organization_id,
+                integrations,
+                compte=demande.compte,
+                autorise_par=_qui(user),
             )
         )
     except nango.NangoIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from None
+
+
+# --------------------------------------------------------------------------- #
+# F3 (E77): the integrations .mark proposes to a client, read and answered by his portal
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/propositions", response_model=list[propositions.Proposition])
+async def get_propositions(user: UserModel = Depends(get_user_with_selected_organization)):
+    return await propositions.avec_etat(user.selected_organization_id)
+
+
+@router.post("/propositions", response_model=propositions.Proposition, status_code=201)
+async def post_proposition(
+    nouvelle: propositions.NouvelleProposition,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    try:
+        return await propositions.proposer(user.selected_organization_id, nouvelle, _qui(user))
+    except propositions.PropositionDejaPresente as erreur:
+        raise HTTPException(status_code=409, detail=str(erreur)) from None
+    except ValueError as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+
+
+@router.post("/propositions/{identifiant}/relancer", response_model=propositions.Proposition)
+async def post_relance(
+    identifiant: str, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    try:
+        return await propositions.relancer(user.selected_organization_id, identifiant)
+    except propositions.PropositionIntrouvable:
+        raise HTTPException(status_code=404, detail="Unknown proposal.") from None
+
+
+@router.post("/propositions/{identifiant}/lien", response_model=Lien)
+async def post_lien_proposition(
+    identifiant: str,
+    demande: propositions.DemandeLienProposition | None = None,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """The connection window's link for this proposal, made for the signed-in organization only."""
+    qui = (demande.autorise_par if demande else None) or _qui(user)
+    try:
+        return Lien(**await propositions.lien(user.selected_organization_id, identifiant, qui))
+    except propositions.PropositionIntrouvable:
+        raise HTTPException(status_code=404, detail="Unknown proposal.") from None
+    except nango.NangoIndisponible as erreur:
+        raise HTTPException(status_code=503, detail=str(erreur)) from None
+
+
+@router.delete("/propositions/{identifiant}", response_model=Suppression)
+async def delete_proposition(
+    identifiant: str, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    try:
+        await propositions.retirer(user.selected_organization_id, identifiant)
+    except propositions.PropositionIntrouvable:
+        raise HTTPException(status_code=404, detail="Unknown proposal.") from None
+    return Suppression(integration=identifiant)
 
 
 # --------------------------------------------------------------------------- #

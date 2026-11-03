@@ -29,6 +29,10 @@ VARIABLE_URL = "NANGO_URL"
 VARIABLE_CLE = "NANGO_SECRET_KEY"
 VARIABLE_URL_PUBLIQUE = "NANGO_PUBLIC_URL"
 ETIQUETTE = "organization_id"
+# F3 (E77): Nango lowercases the keys of the tags; a value holds 255 characters at most.
+ETIQUETTE_COMPTE = "compte"
+ETIQUETTE_AUTORISE_PAR = "autorise_par"
+LONGUEUR_ETIQUETTE = 80
 DELAI_GESTION_S = 10.0
 
 
@@ -89,6 +93,10 @@ class Connexion:
     erreurs: int = 0
     # The kinds of the connection's errors (« auth », « sync »): Nango gives no date for them.
     types_erreurs: tuple[str, ...] = ()
+    # F3 (E77): the NAME of the account (« agenda du magasin ») and who authorized it, carried by the
+    # connection's tags next to ``organization_id``. Empty for a connection made before this.
+    compte: str | None = None
+    autorise_par: str | None = None
 
 
 @dataclass(frozen=True)
@@ -136,6 +144,8 @@ async def connexions(organization_id: int) -> list[Connexion]:
                     for e in (c.get("errors") or [])
                     if isinstance(e, dict) and e.get("type")
                 ),
+                compte=str(etiquettes.get(ETIQUETTE_COMPTE) or "") or None,
+                autorise_par=str(etiquettes.get(ETIQUETTE_AUTORISE_PAR) or "") or None,
             )
         )
     return sortie
@@ -166,12 +176,14 @@ async def detail_de(connexion: Connexion) -> DetailConnexion:
         return DetailConnexion()
 
 
-async def supprimer_connexion(organization_id: int, integration: str) -> None:
+async def supprimer_connexion(
+    organization_id: int, integration: str, compte: str | None = None
+) -> None:
     """[.mark] Lot F6 : supprime chez Nango la connexion de CETTE organisation à ce logiciel. La
     connexion est retrouvée par l'étiquette de l'organisation (``connexion_de``), jamais par un
     identifiant venu de la demande : l'identifiant d'une autre organisation ne peut pas être visé.
     Absente : ``ConnexionAbsente``. Refusée ou injoignable : ``NangoIndisponible``."""
-    connexion = await connexion_de(organization_id, integration)
+    connexion = await connexion_de(organization_id, integration, compte)
     reponse = await _requete(
         "DELETE",
         f"/connection/{quote(connexion.connection_id, safe='')}",
@@ -185,22 +197,44 @@ async def supprimer_connexion(organization_id: int, integration: str) -> None:
         )
 
 
-async def connexion_de(organization_id: int, integration: str) -> Connexion:
+async def connexion_de(
+    organization_id: int, integration: str, compte: str | None = None
+) -> Connexion:
+    """The connection of THIS organization to this software. With ``compte``, the one of that
+    account (several accounts of one software per organization, E77); without, the first."""
     for connexion in await connexions(organization_id):
-        if connexion.integration == integration:
+        if connexion.integration == integration and (
+            compte is None or connexion.compte == compte
+        ):
             return connexion
+    nom = f" (account « {compte} »)" if compte else ""
     raise ConnexionAbsente(
-        f"This organization is not connected to « {integration} » yet: generate its authorization link."
+        f"This organization is not connected to « {integration} »{nom} yet: generate its authorization link."
     )
 
 
+def etiquette_propre(valeur: str | None) -> str | None:
+    """A tag value from a person's typing: trimmed, one line, short. ``None`` when empty."""
+    texte = " ".join(str(valeur or "").split())[:LONGUEUR_ETIQUETTE]
+    return texte or None
+
+
 async def lien_d_autorisation(
-    organization_id: int, integrations: list[str]
+    organization_id: int,
+    integrations: list[str],
+    compte: str | None = None,
+    autorise_par: str | None = None,
 ) -> dict[str, Any]:
     """A connect session tagged with THIS organization: the link the client opens to
-    authorize (D11). ``{"lien", "expire_le"}``."""
+    authorize (D11). ``{"lien", "expire_le"}``. F3 (E77): the tags also carry the account's name
+    and who authorizes it, kept with the connection."""
+    etiquettes = {ETIQUETTE: _organisation(organization_id)}
+    if etiquette_propre(compte):
+        etiquettes[ETIQUETTE_COMPTE] = etiquette_propre(compte)  # type: ignore[assignment]
+    if etiquette_propre(autorise_par):
+        etiquettes[ETIQUETTE_AUTORISE_PAR] = etiquette_propre(autorise_par)  # type: ignore[assignment]
     corps = {
-        "tags": {ETIQUETTE: _organisation(organization_id)},
+        "tags": etiquettes,
         "allowed_integrations": list(integrations),
         # Older Nango versions read the end user instead of the tags.
         "end_user": {
@@ -254,6 +288,7 @@ async def relayer(
     *,
     delai: float,
     base_url: str | None = None,
+    compte: str | None = None,
 ) -> Any:
     """Call the software of THIS organization through Nango's relay. Returns the JSON body.
 
@@ -261,7 +296,7 @@ async def relayer(
     integration), set by the catalogue, never by a request."""
     if not requete.chemin.startswith("/") or "://" in requete.chemin:
         raise ValueError("An action calls a path of the software's API, never a host.")
-    connexion = await connexion_de(organization_id, integration)
+    connexion = await connexion_de(organization_id, integration, compte)
     entetes = {
         "Connection-Id": connexion.connection_id,
         "Provider-Config-Key": integration,

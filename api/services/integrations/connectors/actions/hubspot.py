@@ -2,7 +2,10 @@
 
 Declared and wired, state « À essayer »: proven on answers recorded in a file, written from
 HubSpot's public documentation (CRM API v3, https://developers.hubspot.com/docs/api/crm/contacts);
-the trial on a test account comes with Evan (D3). Through Nango's relay (integration ``hubspot``).
+the trial on a test account comes with Evan (D3). RE-READ on 03/11/2026 (F3): search body, operator
+``EQ``, six filter groups at most, answer ``results[]``; note body and association type 202: all as
+written. Not stated by the docs: whether a phone filter compares the stored text exactly (kept as
+written: both typings are tried). Through Nango's relay (integration ``hubspot``).
 
 - ``find_contact``: ``POST /crm/v3/objects/contacts/search``, one filter group per typing of the
   number (``phone`` and ``mobilephone``, international and national form: HubSpot compares the
@@ -55,7 +58,7 @@ def _filtres(formes: list[str], mail: str | None) -> list[dict]:
     ]
     if mail:
         groupes.append({"filters": [{"propertyName": "email", "operator": "EQ", "value": mail}]})
-    return groupes[:5]  # HubSpot takes five filter groups at most
+    return groupes[:6]  # HubSpot takes six filter groups at most (docs read 03/11)
 
 
 def _chercher(params: dict, ctx: ContexteAction) -> Requete:

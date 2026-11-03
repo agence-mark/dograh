@@ -1,0 +1,9 @@
+{
+ "ok": true,
+ "channel": "C0123",
+ "ts": "1699000000.000100",
+ "message": {
+  "text": "x",
+  "type": "message"
+ }
+}

@@ -1,0 +1,11 @@
+{
+ "results": [
+  {
+   "id": 55,
+   "name": "Jeanne Martin",
+   "email": "j@exemple.fr",
+   "result_type": "user"
+  }
+ ],
+ "count": 1
+}

@@ -241,6 +241,9 @@ class OrganizationConfigurationKey(Enum):
     # l-agent-collegue, L4, H2): the calendar software of the planner. Same free-text key,
     # no migration. Format: api/schemas/traducteurs.py
     TRADUCTEURS = "TRADUCTEURS"
+    # [.mark] The integrations .mark proposes to a client, waiting for him to authorize them
+    # (builder partie 2, U3 sexies point 9, E77). Same free-text key, no migration.
+    PROPOSITIONS_CONNECTEURS = "PROPOSITIONS_CONNECTEURS"
     # [.mark] The caller's verification of an organization (chantier l-agent-collegue, L6, V2):
     # factors, control fields, levels by kind of data, where records are read. Same free-text
     # key, no migration. Format: api/schemas/verification.py
