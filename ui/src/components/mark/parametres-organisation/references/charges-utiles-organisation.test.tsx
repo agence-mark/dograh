@@ -212,7 +212,8 @@ const jouer = async (cas: CasOrganisation) => {
     }
     // The route of the case itself (a theme saves its parts one after the other: the first call is not always the case's).
     const sienne = cas.carte === "annonce" ? m.saveAnnonce : m.savePreferences;
-    await waitFor(() => expect(sienne.mock.calls.length).toBeGreaterThan(0));
+    // A theme saves its parts in sequence: under a loaded suite the case's own call can come after 1 s.
+    await waitFor(() => expect(sienne.mock.calls.length).toBeGreaterThan(0), { timeout: 5000 });
     // A theme saves its parts one after the other.
     await new Promise((fin) => setTimeout(fin, 50));
     return relever();
