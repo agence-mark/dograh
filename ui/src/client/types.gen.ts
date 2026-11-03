@@ -472,6 +472,20 @@ export type AgentConsultantSchema = {
 };
 
 /**
+ * AgentCopie
+ */
+export type AgentCopie = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * AgentPublie
  */
 export type AgentPublie = {
@@ -2584,6 +2598,28 @@ export type ChoixDeRecette = {
 };
 
 /**
+ * ChoixElement
+ */
+export type ChoixElement = {
+    /**
+     * Type
+     */
+    type: 'agent' | 'outil' | 'document' | 'cle' | 'enregistrement' | 'etablissement';
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Action
+     */
+    action: 'copier' | 'relier' | 'vide';
+    /**
+     * Cible
+     */
+    cible?: string | null;
+};
+
+/**
  * ChoixTraducteurs
  */
 export type ChoixTraducteurs = {
@@ -2691,6 +2727,49 @@ export type ChunkSearchResponseSchema = {
      * Total Results
      */
     total_results: number;
+};
+
+/**
+ * Cible
+ */
+export type Cible = {
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
+ * CibleProposee
+ */
+export type CibleProposee = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    deja_copie?: DejaCopie | null;
+};
+
+/**
+ * CiblesResponse
+ */
+export type CiblesResponse = {
+    /**
+     * Sens
+     */
+    sens: 'exporter' | 'ramener';
+    /**
+     * Cibles
+     */
+    cibles: Array<CibleProposee>;
 };
 
 /**
@@ -2917,6 +2996,48 @@ export type Comportements = {
      * Se Tait
      */
     se_tait?: boolean;
+};
+
+/**
+ * CompteRendu
+ */
+export type CompteRendu = {
+    /**
+     * Sens
+     */
+    sens: 'exporter' | 'ramener';
+    /**
+     * Deja Copie
+     */
+    deja_copie: boolean;
+    /**
+     * Cible Organization Id
+     */
+    cible_organization_id: number;
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agents
+     */
+    agents: Array<AgentCopie>;
+    /**
+     * Dossier Id
+     */
+    dossier_id: number | null;
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneCompte>;
+    /**
+     * Tests Copies
+     */
+    tests_copies: number;
+    /**
+     * Secrets Retires
+     */
+    secrets_retires: number;
 };
 
 /**
@@ -4324,6 +4445,20 @@ export type DefaultConfigurationsResponse = {
 };
 
 /**
+ * DejaCopie
+ */
+export type DejaCopie = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * DemandeApercuSms
  */
 export type DemandeApercuSms = {
@@ -4395,6 +4530,28 @@ export type DemandeControleHoraires = {
      * Les horaires, au format lisible que lit l'agent.
      */
     texte: string;
+};
+
+/**
+ * DemandeCopie
+ */
+export type DemandeCopie = {
+    /**
+     * Sens
+     */
+    sens: 'exporter' | 'ramener';
+    /**
+     * Cible Organization Id
+     */
+    cible_organization_id: number;
+    /**
+     * Choix
+     */
+    choix?: Array<ChoixElement>;
+    /**
+     * Avec Tests
+     */
+    avec_tests?: boolean;
 };
 
 /**
@@ -5362,6 +5519,52 @@ export type Element = {
      * Etiquettes
      */
     etiquettes?: Array<string>;
+};
+
+/**
+ * ElementReleve
+ */
+export type ElementReleve = {
+    /**
+     * Type
+     */
+    type: 'agent' | 'outil' | 'document' | 'cle' | 'enregistrement' | 'etablissement';
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Choix
+     */
+    choix: Array<'copier' | 'relier' | 'vide'>;
+    /**
+     * Defaut
+     */
+    defaut: 'copier' | 'relier' | 'vide';
+    /**
+     * Cibles
+     *
+     * Équivalents chez la cible, pour « relier »
+     */
+    cibles?: Array<Cible>;
+    /**
+     * Cible Par Defaut
+     */
+    cible_par_defaut?: string | null;
+    /**
+     * Code
+     *
+     * Code court que l'écran traduit (jamais une phrase)
+     */
+    code?: string | null;
 };
 
 /**
@@ -8243,6 +8446,28 @@ export type LiensDesGroupesResponse = {
      * Agents
      */
     agents?: Array<LienDeGroupe>;
+};
+
+/**
+ * LigneCompte
+ */
+export type LigneCompte = {
+    /**
+     * Type
+     */
+    type: 'agent' | 'outil' | 'document' | 'cle' | 'enregistrement' | 'etablissement';
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Action
+     */
+    action: 'copier' | 'relier' | 'vide';
+    /**
+     * Code
+     */
+    code?: string | null;
 };
 
 /**
@@ -13255,6 +13480,41 @@ export type RejouerLaSuite = {
 };
 
 /**
+ * Releve
+ */
+export type Releve = {
+    /**
+     * Sens
+     */
+    sens: 'exporter' | 'ramener';
+    /**
+     * Source Organization Id
+     */
+    source_organization_id: number;
+    /**
+     * Cible Organization Id
+     */
+    cible_organization_id: number;
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agent Nom
+     */
+    agent_nom: string;
+    /**
+     * Elements
+     */
+    elements: Array<ElementReleve>;
+    /**
+     * Nb Tests
+     */
+    nb_tests: number;
+    deja_copie?: DejaCopie | null;
+};
+
+/**
  * RemplacerFichierRequestSchema
  *
  * [.mark] U10: the new file of an existing document (uploaded with /upload-url first).
@@ -17511,6 +17771,10 @@ export type VueDemarrage = {
      * Utilisations
      */
     utilisations: number;
+    /**
+     * Proposee Dans
+     */
+    proposee_dans?: string;
 };
 
 /**
@@ -21035,7 +21299,14 @@ export type DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostData = 
          */
         workflow_id: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Avec Tests
+         *
+         * [.mark] Recopier aussi les tests de l'agent (jamais leurs résultats)
+         */
+        avec_tests?: boolean;
+    };
     url: '/api/v1/workflow/{workflow_id}/duplicate';
 };
 
@@ -33987,6 +34258,164 @@ export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses 
 };
 
 export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponse = VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses[keyof VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses];
+
+export type CiblesApiV1ExportAgentWorkflowIdCiblesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query: {
+        /**
+         * Sens
+         */
+        sens: 'exporter' | 'ramener';
+    };
+    url: '/api/v1/export-agent/{workflow_id}/cibles';
+};
+
+export type CiblesApiV1ExportAgentWorkflowIdCiblesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CiblesApiV1ExportAgentWorkflowIdCiblesGetError = CiblesApiV1ExportAgentWorkflowIdCiblesGetErrors[keyof CiblesApiV1ExportAgentWorkflowIdCiblesGetErrors];
+
+export type CiblesApiV1ExportAgentWorkflowIdCiblesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CiblesResponse;
+};
+
+export type CiblesApiV1ExportAgentWorkflowIdCiblesGetResponse = CiblesApiV1ExportAgentWorkflowIdCiblesGetResponses[keyof CiblesApiV1ExportAgentWorkflowIdCiblesGetResponses];
+
+export type ReleveApiV1ExportAgentWorkflowIdReleveGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query: {
+        /**
+         * Sens
+         */
+        sens: 'exporter' | 'ramener';
+        /**
+         * Cible
+         */
+        cible: number;
+    };
+    url: '/api/v1/export-agent/{workflow_id}/releve';
+};
+
+export type ReleveApiV1ExportAgentWorkflowIdReleveGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReleveApiV1ExportAgentWorkflowIdReleveGetError = ReleveApiV1ExportAgentWorkflowIdReleveGetErrors[keyof ReleveApiV1ExportAgentWorkflowIdReleveGetErrors];
+
+export type ReleveApiV1ExportAgentWorkflowIdReleveGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Releve;
+};
+
+export type ReleveApiV1ExportAgentWorkflowIdReleveGetResponse = ReleveApiV1ExportAgentWorkflowIdReleveGetResponses[keyof ReleveApiV1ExportAgentWorkflowIdReleveGetResponses];
+
+export type CopierApiV1ExportAgentWorkflowIdCopierPostData = {
+    body: DemandeCopie;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/export-agent/{workflow_id}/copier';
+};
+
+export type CopierApiV1ExportAgentWorkflowIdCopierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CopierApiV1ExportAgentWorkflowIdCopierPostError = CopierApiV1ExportAgentWorkflowIdCopierPostErrors[keyof CopierApiV1ExportAgentWorkflowIdCopierPostErrors];
+
+export type CopierApiV1ExportAgentWorkflowIdCopierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteRendu;
+};
+
+export type CopierApiV1ExportAgentWorkflowIdCopierPostResponse = CopierApiV1ExportAgentWorkflowIdCopierPostResponses[keyof CopierApiV1ExportAgentWorkflowIdCopierPostResponses];
 
 export type LireUneInvitationApiV1AuthInvitationJetonGetData = {
     body?: never;
