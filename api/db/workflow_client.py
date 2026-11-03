@@ -436,6 +436,21 @@ class WorkflowClient(BaseDBClient):
             result = await session.execute(query)
             return result.scalars().all()
 
+    async def workflow_a_ete_publie(self, workflow_id: int) -> bool:
+        """[.mark] True once a real publication happened: a version beyond the skeleton v1 (published when the agent is created) that is
+        no longer a draft. Used to freeze the recipe of an agent."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowDefinitionModel.id)
+                .where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.version_number > 1,
+                    WorkflowDefinitionModel.status.in_(["published", "archived"]),
+                )
+                .limit(1)
+            )
+            return result.first() is not None
+
     async def list_workflow_ids_with_organization(self) -> list[tuple[int, int]]:
         """[.mark] (workflow_id, organization_id) of every workflow, without loading any definition (versement of the recipes)."""
         async with self.async_session() as session:

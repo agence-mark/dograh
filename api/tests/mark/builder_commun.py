@@ -49,6 +49,9 @@ class FauxDb:
         self.ecritures_de_reglages: list[dict] = []
         self._prochain = 100
 
+    async def workflow_a_ete_publie(self, workflow_id):
+        return workflow_id in getattr(self, "publies", set())
+
     async def list_workflow_ids_with_organization(self):
         return [(w.id, w.organization_id) for w in self.workflows.values()]
 

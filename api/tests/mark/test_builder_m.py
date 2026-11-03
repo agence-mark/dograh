@@ -50,7 +50,6 @@ def client_pour(user) -> TestClient:
 @pytest.fixture(autouse=True)
 def _base_des_routes(monde, monkeypatch):
     monkeypatch.setattr(route, "db_client", monde)
-    monde.workflows[AGENT].released_definition_id = None
 
 
 async def allumer_la_sauvegarde():
@@ -321,7 +320,7 @@ async def test_la_recette_ne_change_plus_une_fois_l_agent_publie(monde):
     await avec_les_deux_premieres(monde)
     c = client_pour(EQUIPE)
     assert c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-polyai"}).json()["recette"]["slug"] == "facon-polyai"
-    monde.workflows[AGENT].released_definition_id = 3
+    monde.publies = {AGENT}  # une vraie publication : une version après le squelette v1
     reponse = c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-tala"})
     assert reponse.status_code == 409
     lue = c.get(f"/builder/agents/{AGENT}/recette").json()

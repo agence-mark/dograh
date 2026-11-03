@@ -95,7 +95,7 @@ async def _vue_de_l_agent(user: UserModel, workflow) -> VueRecetteDeLAgent:
     return VueRecetteDeLAgent(
         recette=recette.en_json() if recette else None,
         indiquee=indiquee,
-        modifiable=workflow.released_definition_id is None,
+        modifiable=not await db_client.workflow_a_ete_publie(workflow.id),
     )
 
 
@@ -118,7 +118,7 @@ async def changer_la_recette_de_l_agent(
             user.selected_organization_id,
             workflow.id,
             demande.recette,
-            deja_publie=workflow.released_definition_id is not None,
+            deja_publie=await db_client.workflow_a_ete_publie(workflow.id),
             par=getattr(user, "email", "") or "",
         )
     except recettes.ErreurRecette as erreur:

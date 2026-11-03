@@ -27,7 +27,7 @@ const T = {
     annuler: { en: "Cancel", fr: "Annuler" },
     confirmer: { en: "Confirm and go back", fr: "Confirmer le retour" },
     enCours: { en: "Going back...", fr: "Retour en cours..." },
-    champs: { en: "fields", fr: "champs" },
+    champs: { en: "field(s)", fr: "champ(s)" },
 } satisfies Record<string, Texte>;
 
 type Ligne = { genre: string; cible: string; nom: string; champs?: string[] };
