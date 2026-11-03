@@ -6,13 +6,12 @@
  * touched. « Sheet »: what the family is, when to use it, how to write an element; read by the builder before it searches
  * or writes; editable for every family (the identity and the shape read by the code stay locked for a family of the code).
  */
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { creerUneFamilleApiV1BuilderBibliothequeFamillesPost, modifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePut } from "@/client";
 import type { VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
-import { detailFromError } from "@/lib/apiError";
 
 import { GROUPES } from "./libelles";
 
@@ -59,7 +58,7 @@ export function FenetreNouvelleFamille({ ouverte, fermer, apres }: { ouverte: bo
                 const libelle = String(v.libelle).trim();
                 const slug = slugDe(libelle);
                 if (!slug) {
-                    toast.error(t({ en: "Give the family a name.", fr: "Donnez un nom à la famille." }));
+                    notifier.echec({ fr: "Donnez un nom à la famille.", en: "Give the family a name." });
                     return;
                 }
                 const reponse = await creerUneFamilleApiV1BuilderBibliothequeFamillesPost({
@@ -71,7 +70,7 @@ export function FenetreNouvelleFamille({ ouverte, fermer, apres }: { ouverte: bo
                     },
                 });
                 if (reponse.error) {
-                    toast.error(detailFromError(reponse.error, t({ en: "The family was not created.", fr: "La famille n'a pas été créée." })));
+                    notifier.echec({ fr: "Famille non créée. Réessayez.", en: "Family not created. Try again." }, { erreur: reponse.error });
                     return;
                 }
                 apres(slug);
@@ -112,7 +111,7 @@ export function FenetreFiche({ famille, fermer, apres }: { famille: VueFamille |
                     body: { fiche: { description: String(v.description), quand: String(v.quand), comment: String(v.comment) } },
                 });
                 if (reponse.error) {
-                    toast.error(detailFromError(reponse.error, t({ en: "The sheet was not saved.", fr: "La fiche n'a pas été enregistrée." })));
+                    notifier.echec({ fr: "Fiche non enregistrée. Réessayez.", en: "Sheet not saved. Try again." }, { erreur: reponse.error });
                     return;
                 }
                 apres();

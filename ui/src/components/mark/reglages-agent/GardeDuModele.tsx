@@ -10,7 +10,7 @@
  *   A TROUBLESHOOTING tool, never part of a standard setup (F26): none by default, presented as such.
  */
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -153,7 +153,7 @@ export const GardeDuModele = ({
         setEnregistrement(true);
         try {
             await onSave({ ...resolue, ...patch }, workflowName);
-            toast.success(`${t(message)} ${rappel}`);
+            notifier.succes(message, { publier: true });
         } finally {
             setEnregistrement(false);
         }

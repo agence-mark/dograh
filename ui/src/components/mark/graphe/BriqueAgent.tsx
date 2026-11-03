@@ -18,7 +18,7 @@
 import { ExternalLink, Plus, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import {
@@ -32,7 +32,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 
@@ -180,14 +179,14 @@ export const BriqueAgent = ({
                 body: outilDePassation(cible, annonce, accueil, dejaPris),
             });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Brique non enregistrée. Réessayez.", en: "Block not saved. Try again." }, { erreur: reponse.error });
                 return;
             }
             ajouterOutil?.(reponse.data);
             onChange([...outilsUuids, reponse.data.tool_uuid]);
             setOuverte(false);
         } catch {
-            toast.error(t(TEXTES.echec));
+            notifier.echec({ fr: "Brique non enregistrée. Réessayez.", en: "Block not saved. Try again." });
         } finally {
             setEnCours(false);
         }

@@ -20,7 +20,7 @@
  * save, as the clerk's is.
  */
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { listToolsApiV1ToolsGet } from "@/client/sdk.gen";
 import type { ToolResponse } from "@/client/types.gen";
@@ -79,7 +79,7 @@ export const TravailEnArrierePlan = ({
         setEnregistrement(true);
         try {
             await onSave({ ...resolue, ...patch }, workflowName);
-            toast.success(`${t(message)} ${rappel}`);
+            notifier.succes(message, { publier: true });
         } finally {
             setEnregistrement(false);
         }

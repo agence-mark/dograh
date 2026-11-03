@@ -2,7 +2,8 @@
 
 import { Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 
 import {
   createTelephonyTrunkApiV1OrganizationsTelephonyConfigsConfigIdTrunksPost,
@@ -81,6 +82,9 @@ export function TrunkCard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TrunkResponse | null>(null);
   const [name, setName] = useState("");
+  // Erreur de saisie : sous le champ, jamais une notification (15-notifications.md).
+  const { t } = useLangue();
+  const [nameError, setNameError] = useState<Texte | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [settings, setSettings] = useState<TrunkSettings>({});
   const [submitting, setSubmitting] = useState(false);
@@ -107,14 +111,15 @@ export function TrunkCard({
   const handleSubmit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      toast.error("Trunk name is required");
+      setNameError({ fr: "Donnez un nom au trunk.", en: "Give the trunk a name." });
       return;
     }
     const invalid = providerUi.validate?.(trimmed, settings);
     if (invalid) {
-      toast.error(invalid);
+      setNameError({ fr: invalid, en: invalid });
       return;
     }
+    setNameError(null);
 
     setSubmitting(true);
     try {
@@ -132,11 +137,11 @@ export function TrunkCard({
       if (response.error) {
         throw new Error(detailFromError(response.error, "Failed to save trunk"));
       }
-      toast.success(editing ? "Trunk updated" : "Trunk added");
+      notifier.succes(editing ? { fr: "Trunk modifié.", en: "Trunk updated." } : { fr: "Trunk ajouté.", en: "Trunk added." });
       setDialogOpen(false);
       await onChanged();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save trunk");
+      notifier.echec({ fr: "Trunk non enregistré. Réessayez.", en: "Trunk not saved. Try again." }, { erreur: error });
     } finally {
       setSubmitting(false);
     }
@@ -155,11 +160,11 @@ export function TrunkCard({
       if (response.error) {
         throw new Error(detailFromError(response.error, "Failed to delete trunk"));
       }
-      toast.success(`Trunk "${deleteTarget.name}" deleted`);
+      notifier.succes({ fr: `Trunk « ${deleteTarget.name} » supprimé.`, en: `Trunk "${deleteTarget.name}" deleted.` });
       setDeleteTarget(null);
       await onChanged();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete trunk");
+      notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: error });
     } finally {
       setSubmitting(false);
     }
@@ -313,10 +318,20 @@ export function TrunkCard({
               <Input
                 id="trunk-name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setNameError(null);
+                }}
                 placeholder="e.g. primary-carrier"
                 disabled={submitting}
+                aria-invalid={nameError ? true : undefined}
+                aria-describedby={nameError ? "trunk-name-erreur" : undefined}
               />
+              {nameError && (
+                <p id="trunk-name-erreur" role="alert" className="text-sm text-destructive">
+                  {t(nameError)}
+                </p>
+              )}
             </div>
 
             {SettingsFields && (

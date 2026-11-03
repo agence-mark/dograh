@@ -8,6 +8,7 @@ import { duplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePost } from '@/
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { notifier } from "@/components/mark/notifications";
 
 interface DuplicateWorkflowTemplateProps {
     id: number;
@@ -54,9 +55,12 @@ export function DuplicateWorkflowTemplate({ id, title, description, serverAccess
                 logger.info('Workflow created successfully from template');
                 // Redirect to the new workflow
                 router.push(`/workflow/${response.data.id}`);
+            } else {
+                notifier.echec({ fr: "Agent non créé. Réessayez.", en: "Agent not created. Try again." }, { erreur: response.error });
             }
         } catch (error) {
             logger.error(`Error creating workflow from template: ${error}`);
+            notifier.echec({ fr: "Agent non créé. Réessayez.", en: "Agent not created. Try again." }, { erreur: error });
         } finally {
             setIsLoading(false);
         }

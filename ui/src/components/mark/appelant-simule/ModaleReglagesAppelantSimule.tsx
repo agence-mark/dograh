@@ -32,6 +32,7 @@ import { detailFromError } from "@/lib/apiError";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
+import { notifier } from "@/components/mark/notifications";
 
 // Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
 export const MODELES_SIMULATEUR: string[] = [
@@ -212,6 +213,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
             setErreur(detailFromError(reponse.error, "Simulated caller settings not saved"));
             return;
         }
+        notifier.succes({ fr: "Réglages de l'appelant simulé enregistrés.", en: "Simulated caller settings saved." });
         onFermer();
     };
 

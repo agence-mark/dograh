@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TtsCacheList from "./TtsCacheList";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const mocks = vi.hoisted(() => ({
     auth: { user: { id: "user" } as { id: string } | null, loading: false },
@@ -98,10 +99,12 @@ describe("TtsCacheList", () => {
     });
 
     it("reports invalidation failure without claiming success or refreshing", async () => {
+        viderNotifications();
         mocks.invalidate.mockResolvedValue({ error: { detail: "Speech cache is temporarily unavailable" } });
         render(<TtsCacheList />);
         fireEvent.click(await screen.findByRole("button", { name: "Invalidate Hello there" }));
-        await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Speech cache is temporarily unavailable"));
+        await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toContain("Speech cache is temporarily unavailable"));
+        expect(lireNotifications().every((n) => n.sorte === "echec")).toBe(true);
         expect(mocks.list).toHaveBeenCalledTimes(1);
     });
 });

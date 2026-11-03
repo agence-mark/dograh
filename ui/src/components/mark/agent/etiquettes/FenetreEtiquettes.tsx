@@ -6,7 +6,7 @@
  * Enregistrer remplace les étiquettes de l'agent (`PUT /etiquettes/agents/{id}`) ; le serveur contrôle l'agent.
  */
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { poserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPut } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 import { ajouter, basculer, NOM_MAX } from "./logique";
 import { useEtiquettes } from "./useEtiquettes";
@@ -81,13 +80,13 @@ export function FenetreEtiquettes({
                 body: { etiquettes: selection },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(T.echec)));
+                notifier.echec({ fr: "Étiquettes non enregistrées. Réessayez.", en: "Labels not saved. Try again." }, { erreur: reponse.error });
                 return;
             }
             onEnregistre?.();
             onOuvertChange(false);
         } catch {
-            toast.error(t(T.echec));
+            notifier.echec({ fr: "Étiquettes non enregistrées. Réessayez.", en: "Labels not saved. Try again." });
         } finally {
             setEnCours(false);
         }

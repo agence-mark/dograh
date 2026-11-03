@@ -2,7 +2,7 @@
 
 import { PhoneForwarded, PhoneOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     deciderDuRenvoiApiV1WorkflowWorkflowIdRunsRunIdRenvoiEnTestPost,
@@ -80,21 +80,11 @@ export const BoutonsRenvoiEnTest = ({ workflowId, runId, actif }: BoutonsRenvoiE
             });
             // The generated client resolves with `{ data, error }` on an HTTP error.
             if (reponse.error) {
-                toast.error(
-                    t({
-                        en: "The transfer is no longer waiting for an answer (time limit passed).",
-                        fr: "Le renvoi n'attend plus de réponse (délai dépassé).",
-                    }),
-                );
+                notifier.information({ fr: "Le renvoi n'attend plus de réponse (délai dépassé).", en: "The transfer is no longer waiting for an answer (timed out)." });
             }
             setEnAttente(false);
         } catch {
-            toast.error(
-                t({
-                    en: "The answer to the transfer could not be sent.",
-                    fr: "La réponse au renvoi n'a pas pu être envoyée.",
-                }),
-            );
+            notifier.echec({ fr: "Réponse au renvoi non envoyée. Réessayez.", en: "Transfer answer not sent. Try again." });
         } finally {
             setEnvoi(false);
         }

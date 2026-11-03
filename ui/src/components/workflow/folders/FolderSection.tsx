@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     deleteFolderApiV1FolderFolderIdDelete,
@@ -96,7 +96,7 @@ export function FolderSection({
     const [isRenaming, setIsRenaming] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [creatingSubFolder, setCreatingSubFolder] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const isDeleting = false;
 
     const isFolder = kind === 'folder';
     const isArchived = kind === 'archived';
@@ -113,33 +113,40 @@ export function FolderSection({
             const detail =
                 (response.error as { detail?: string })?.detail ??
                 'Failed to rename folder';
-            toast.error(detail);
+            notifier.echec({ fr: "Dossier non renommé. Réessayez.", en: "Folder not renamed. Try again." }, { erreur: detail });
             throw new Error(detail);
         }
-        toast.success('Folder renamed');
+        notifier.succes({ fr: "Dossier renommé.", en: "Folder renamed." });
         router.refresh();
     };
 
-    const handleDelete = async () => {
+    // Suppression différée de 5 s (« Annuler ») : le dossier disparaît de l'écran, le serveur n'est appelé qu'ensuite.
+    const [masque, setMasque] = useState(false);
+    const handleDelete = () => {
         if (!folder) return;
-        setIsDeleting(true);
-        try {
-            const response = await deleteFolderApiV1FolderFolderIdDelete({
-                path: { folder_id: folder.id },
-            });
-            if (response.error) {
-                throw new Error('Failed to delete folder');
-            }
-            toast.success(`Folder "${folder.name}" deleted`);
-            setConfirmDelete(false);
-            router.refresh();
-        } catch (err) {
-            logger.error(`Error deleting folder: ${err}`);
-            toast.error('Failed to delete folder');
-        } finally {
-            setIsDeleting(false);
-        }
+        const { id, name } = folder;
+        setConfirmDelete(false);
+        setMasque(true);
+        notifier.annulable(
+            { fr: `Dossier « ${name} » supprimé.`, en: `Folder "${name}" deleted.` },
+            {
+                restaurer: () => setMasque(false),
+                executer: async () => {
+                    try {
+                        const response = await deleteFolderApiV1FolderFolderIdDelete({ path: { folder_id: id } });
+                        if (response.error) throw response.error;
+                        router.refresh();
+                    } catch (err) {
+                        logger.error(`Error deleting folder: ${err}`);
+                        setMasque(false);
+                        notifier.echec({ fr: "Dossier non supprimé. Réessayez.", en: "Folder not deleted. Try again." }, { erreur: err });
+                    }
+                },
+            },
+        );
     };
+
+    if (masque) return null;
 
     return (
         <div className="mb-3">

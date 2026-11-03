@@ -29,6 +29,7 @@ import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs,FenetreOnglets } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
 import { LIBELLES_TYPE, type TypeOutil } from "./modele";
+import { notifier } from "@/components/mark/notifications";
 
 const ORDRE: TypeOutil[] = ["integration", "http_api", "mcp", "transfer_call", "transfer_agent", "end_call", "native", "calculator"];
 // `native` (demande de rappel) se crée depuis l'agent : elle n'a pas de définition par défaut dans le fork.
@@ -95,6 +96,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
         setEnCours(false);
         if (r.error || !r.data) return setErreur(detailFromError(r.error, "Failed to create tool"));
         cree(r.data);
+        notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };
 
     if (!type) {

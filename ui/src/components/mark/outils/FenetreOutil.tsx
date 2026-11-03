@@ -37,6 +37,7 @@ import { OngletActivite } from "./OngletActivite";
 import { OngletComportement } from "./OngletComportement";
 import { OngletEssai } from "./OngletEssai";
 import { OngletParametres, OngletReponse, OngletRequete } from "./OngletsHttp";
+import { notifier } from "@/components/mark/notifications";
 
 type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "comportement" | "essai" | "activite";
 const ONGLETS: Record<string, IdOnglet[]> = {
@@ -104,6 +105,7 @@ export function FenetreOutil({
         setCourant(r.data);
         setModifs({});
         apresEcriture();
+        notifier.succes({ fr: "Outil enregistré.", en: "Tool saved." });
     };
 
     const archiver = async () => {
@@ -114,6 +116,7 @@ export function FenetreOutil({
         if (r.error) return setErreur(detailFromError(r.error, "Failed"));
         apresEcriture();
         fermer();
+        notifier.succes(archive ? { fr: "Outil restauré.", en: "Tool restored." } : { fr: "Outil archivé.", en: "Tool archived." });
     };
 
     // Après un essai, le serveur a écrit « dernier essai » / « premier essai » : on relit l'outil sans perdre les modifications en cours.

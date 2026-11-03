@@ -62,6 +62,6 @@ describe("[.mark] the warning after the graph is saved", () => {
         expect(succes).toBeGreaterThan(-1);
         expect(appel).toBeGreaterThan(succes);
         expect(appel).toBeLessThan(finDuSucces);
-        expect(source).toContain("if (avertissement) toast.warning(avertissement);");
+        expect(source).toMatch(/if \(avertissement\) \{\s*notifier\.avertissement\(/);
     });
 });

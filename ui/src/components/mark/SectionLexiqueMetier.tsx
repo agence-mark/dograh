@@ -2,7 +2,7 @@
 
 import { Check, Download, Plus, Square, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   budgetLexiqueApiV1OrganizationsLexiqueBudgetPost,
@@ -203,7 +203,7 @@ export function SectionLexiqueMetier() {
         return false;
       }
       setLexique(reponse.data ?? suivant);
-      toast.success("Trade vocabulary saved");
+      notifier.succes({ fr: "Lexique enregistré.", en: "Vocabulary saved." });
       return true;
     } catch {
       setErreur("Failed to save the trade vocabulary");
@@ -296,9 +296,7 @@ export function SectionLexiqueMetier() {
         return;
       }
       const resultat = reponse.data;
-      toast.success(
-        `${resultat?.ajoutes ?? 0} added, ${resultat?.deja_presents ?? 0} already there`,
-      );
+      notifier.succes({ fr: `${resultat?.ajoutes ?? 0} ajoutés, ${resultat?.deja_presents ?? 0} déjà présents.`, en: `${resultat?.ajoutes ?? 0} added, ${resultat?.deja_presents ?? 0} already there.` });
       await charger();
     } catch {
       setErreur("This file is not a trade vocabulary (expected JSON).");

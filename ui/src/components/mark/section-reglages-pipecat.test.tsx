@@ -31,6 +31,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { RAPPEL_PUBLICATION, SectionReglagesPipecat } from "./SectionReglagesPipecat";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const organisation = { stt: { provider: "deepgram", model: "nova-3-general" } };
 
@@ -40,6 +41,7 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 // Les toasts sont comptes par les tests d'echec : sans remise a zero, un test
 // lit les appels de ses predecesseurs et passe ou tombe pour la mauvaise raison.
 beforeEach(() => {
+  viderNotifications();
     toastMock.success.mockClear();
     toastMock.error.mockClear();
 });
@@ -446,9 +448,10 @@ describe("Section Reglages vocaux de la page de parametres", () => {
         toucherUnReglage();
         fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
-        await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
-        expect(toastMock.error.mock.calls[0][0]).toMatch(/not saved/i);
-        expect(toastMock.success).not.toHaveBeenCalled();
+        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
+        expect(lireNotifications().find((n) => n.sorte === "echec")?.texte.en).toMatch(/not saved/i);
+        expect(lireNotifications().find((n) => n.sorte === "echec")?.detail).toContain("vad_stop_secs");
+        expect(lireNotifications().some((n) => n.sorte === "succes")).toBe(false);
     });
 
     it("affiche l'interrupteur des nombres dictes eteint par defaut", () => {

@@ -2,7 +2,7 @@
 
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +36,6 @@ import { detailFromError } from "@/lib/apiError";
 import type { ChampFiche, WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "./langue/langue";
-import { RAPPEL_PUBLICATION } from "./SectionReglagesPipecat";
 
 /**
  * [.mark] The "Call Record" card of an agent's settings page (plan fiche au fil
@@ -792,11 +791,11 @@ export const SectionFiche = ({
                 },
                 workflowName,
             );
-            toast.success(`Call record saved. ${RAPPEL_PUBLICATION}`);
+            notifier.succes({ fr: "Fiche d'appel enregistrée.", en: "Call record saved." }, { publier: true });
         } catch (e) {
             const message = detailFromError(e, "Call record not saved. Check the fields and try again.");
             setErreur(message);
-            toast.error(`Call record not saved: ${message}`);
+            notifier.echec({ fr: `Fiche non enregistrée : ${message}.`, en: `Call record not saved: ${message}.` });
         } finally {
             setIsSaving(false);
         }

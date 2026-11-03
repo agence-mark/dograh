@@ -13,13 +13,12 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { creerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePost } from "@/client/sdk.gen";
 import type { FolderResponse, WorkflowListResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { detailFromError } from "@/lib/apiError";
 
 import { WorkflowTable } from "../../workflow/WorkflowTable";
 import { type Texte, useLangue } from "../langue/langue";
@@ -78,13 +77,13 @@ export const VueGroupe = ({
                 body: { name: nom },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Groupe non créé. Réessayez.", en: "Group not created. Try again." }, { erreur: reponse.error });
                 throw new Error("creation");
             }
-            toast.success(t(TEXTES.cree));
+            notifier.succes({ fr: "Groupe créé.", en: "Group created." });
             router.refresh();
         } catch (erreur) {
-            if (!(erreur instanceof Error && erreur.message === "creation")) toast.error(t(TEXTES.echec));
+            if (!(erreur instanceof Error && erreur.message === "creation")) notifier.echec({ fr: "Groupe non créé. Réessayez.", en: "Group not created. Try again." });
             throw erreur;
         }
     };

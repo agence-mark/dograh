@@ -9,7 +9,7 @@ import {
 import { EdgeChange, NodeChange } from "@xyflow/system";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import {
@@ -395,9 +395,7 @@ export const useWorkflowState = ({
             );
         });
         if (maxInstanceViolation) {
-            toast.error(
-                `${maxInstanceViolation.display_name} limit reached. Remove the extra node before saving.`,
-            );
+            notifier.echec({ fr: `Limite atteinte pour « ${maxInstanceViolation.display_name} ». Retirez le nœud en trop avant d'enregistrer.`, en: `Limit reached for "${maxInstanceViolation.display_name}". Remove the extra node before saving.` });
             return;
         }
         const viewport = rfInstance.current.getViewport();
@@ -443,7 +441,12 @@ export const useWorkflowState = ({
                         wf,
                         useWorkflowStore.getState().workflowConfigurations,
                     );
-                    if (avertissement) toast.warning(avertissement);
+                    if (avertissement) {
+                        notifier.avertissement({
+                            fr: avertissementApresEnregistrement(wf, useWorkflowStore.getState().workflowConfigurations, "fr") ?? avertissement,
+                            en: avertissementApresEnregistrement(wf, useWorkflowStore.getState().workflowConfigurations, "en") ?? avertissement,
+                        });
+                    }
                     result = {
                         versionNumber: response.data.version_number ?? undefined,
                         versionStatus: response.data.version_status ?? undefined,

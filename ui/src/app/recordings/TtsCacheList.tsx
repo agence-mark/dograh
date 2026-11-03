@@ -2,7 +2,7 @@
 
 import { AudioLines, Loader2, Play, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     clearTtsCacheApiV1TtsCacheDelete,
@@ -116,14 +116,14 @@ export default function TtsCacheList() {
             });
             if (controller.signal.aborted) return;
             if (result.error || !result.data) {
-                toast.error(detailFromError(result.error, "This cached audio may have expired. Refresh and try again."));
+                notifier.echec({ fr: "Phrase expirée. Actualisez et réessayez.", en: "Phrase expired. Refresh and try again." }, { erreur: result.error });
                 return;
             }
             const url = URL.createObjectURL(result.data);
             previewUrl.current = url;
             setPreview({ id: entry.id, url });
         } catch {
-            if (!controller.signal.aborted) toast.error("Could not play cached speech.");
+            if (!controller.signal.aborted) notifier.echec({ fr: "Lecture impossible. Réessayez.", en: "Could not play. Try again." });
         } finally {
             if (!controller.signal.aborted) setPreviewLoading(null);
         }
@@ -141,13 +141,13 @@ export default function TtsCacheList() {
                 ? await invalidateTtsCacheEntryApiV1TtsCacheEntryIdDelete({ path: { entry_id: entry.id } })
                 : await clearTtsCacheApiV1TtsCacheDelete();
             if (result.error) {
-                toast.error(detailFromError(result.error, "Could not invalidate cached speech."));
+                notifier.echec({ fr: "Phrase non invalidée. Réessayez.", en: "Phrase not invalidated. Try again." }, { erreur: result.error });
                 return;
             }
-            toast.success(entry ? "Cached speech invalidated" : "Organization speech cache cleared");
+            notifier.succes(entry ? { fr: "Phrase invalidée.", en: "Phrase invalidated." } : { fr: "Cache de l'organisation vidé.", en: "Organization cache cleared." });
             setRefresh((value) => value + 1);
         } catch {
-            toast.error("Could not invalidate cached speech.");
+            notifier.echec({ fr: "Phrase non invalidée. Réessayez.", en: "Phrase not invalidated. Try again." });
         } finally {
             setRemoving(null);
         }
@@ -223,7 +223,7 @@ export default function TtsCacheList() {
                                             </div>
                                         </div>
                                         {preview?.id === entry.id && <audio ref={audioRef} controls autoPlay src={preview.url}
-                                            className="mt-3 w-full" aria-label="Cached speech preview" onError={() => toast.error("Could not play cached speech.")} />}
+                                            className="mt-3 w-full" aria-label="Cached speech preview" onError={() => notifier.echec({ fr: "Lecture impossible. Réessayez.", en: "Could not play. Try again." })} />}
                                     </div>
                                 ))}
                             </div>

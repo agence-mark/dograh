@@ -2,7 +2,7 @@
 
 import { Bot, Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
 import { AppelantSimule, TitreOngletAppelantSimule } from "@/components/mark/appelant-simule/AppelantSimule";
@@ -21,7 +21,7 @@ import { EmbeddedVoiceTester } from "./workflow-tester/EmbeddedVoiceTester";
 import { ManualTextChatPanel } from "./workflow-tester/ManualTextChatPanel";
 import { ChatModeToggle, DisabledNotice, EmptyState } from "./workflow-tester/shared";
 import type { WorkflowRuntimeNodeTransition } from "./workflow-tester/types";
-import { extractSdkErrorMessage, getErrorMessage } from "./workflow-tester/utils";
+import { extractSdkErrorMessage } from "./workflow-tester/utils";
 
 // [.mark] One tab of the tester panel: icon above a label that may wrap (lot 0, direct-et-passe-muette).
 const ONGLET = "h-auto min-w-0 flex-col gap-0.5 whitespace-normal rounded-md px-1 py-1 text-center text-xs leading-tight";
@@ -88,7 +88,7 @@ export function WorkflowTesterPanel({
                 }
             } catch (error) {
                 if (!ignore) {
-                    toast.error(getErrorMessage(error));
+                    notifier.echec({ fr: "Test non démarré. Vérifiez le micro et réessayez.", en: "Test not started. Check the microphone and try again." }, { erreur: error });
                 }
             } finally {
                 if (!ignore) {
@@ -134,7 +134,7 @@ export function WorkflowTesterPanel({
             setVoiceRunId(response.data.id);
             setActiveMode("audio");
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            notifier.echec({ fr: "Test interrompu. Relancez-le.", en: "Test interrupted. Start it again." }, { erreur: error });
         } finally {
             setCreatingVoiceRun(false);
         }

@@ -3,7 +3,7 @@
 import { PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import { createWorkflowApiV1WorkflowCreateDefinitionPost } from '@/client/sdk.gen';
 import { ModaleCreationAgent } from '@/components/mark/groupe/ModaleCreationAgent';
@@ -69,7 +69,7 @@ export function CreateWorkflowButton() {
             }
         } catch (err) {
             logger.error(`Error creating blank workflow: ${err}`);
-            toast.error('Failed to create workflow');
+            notifier.echec({ fr: "Agent non créé. Réessayez.", en: "Agent not created. Try again." });
         } finally {
             setIsCreating(false);
         }

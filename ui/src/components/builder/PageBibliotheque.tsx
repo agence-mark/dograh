@@ -10,7 +10,7 @@
  */
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost,
@@ -234,7 +234,7 @@ export function PageBibliotheque() {
                                 path: { famille },
                                 body: { chemin },
                             });
-                            if (reponse.error) toast.error(detailFromError(reponse.error, "The folder was not created"));
+                            if (reponse.error) notifier.echec({ fr: "Dossier non créé. Réessayez.", en: "Folder not created. Try again." }, { erreur: reponse.error });
                             else void chargerLesDossiers(famille);
                         }}
                         onSupprimerDossier={async (chemin) => {
@@ -242,7 +242,7 @@ export function PageBibliotheque() {
                                 path: { famille },
                                 query: { chemin },
                             });
-                            if (reponse.error) toast.error(detailFromError(reponse.error, "The folder was not removed"));
+                            if (reponse.error) notifier.echec({ fr: "Dossier non retiré. Réessayez.", en: "Folder not removed. Try again." }, { erreur: reponse.error });
                             else {
                                 if (dossier === chemin) setDossier(null);
                                 void chargerLesDossiers(famille);

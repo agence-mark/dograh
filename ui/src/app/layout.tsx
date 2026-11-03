@@ -10,6 +10,7 @@ import { FournisseurLangue } from "@/components/mark/langue/langue";
 import { SentryErrorBoundary } from "@/components/SentryErrorBoundary";
 import SpinLoader from "@/components/SpinLoader";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ZoneNotifications } from "@/components/mark/notifications";
 import { Toaster } from "@/components/ui/sonner";
 import { AppConfigProvider } from "@/context/AppConfigContext";
 import { OnboardingProvider } from "@/context/OnboardingContext";
@@ -72,6 +73,8 @@ export default function RootLayout({
                         <AppLayout>
                           {children}
                         </AppLayout>
+                        <ZoneNotifications />
+                        {/* TEMPORAIRE : les fichiers de K1 appellent encore sonner ; à retirer avec components/ui/sonner.tsx quand ils sont passés à `notifier`. */}
                         <Toaster />
                       </OnboardingProvider>
                     </TelephonyConfigWarningsProvider>

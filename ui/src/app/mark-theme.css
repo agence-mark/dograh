@@ -98,6 +98,13 @@
   --gravite-grave: #c2362f;
   --gravite-surveiller: #1b5fb0;
   --gravite-faible: #52606f;
+
+  /* Notifications passagères (Evan, 04/11) : pastille pleine foncée, jamais d'orange. */
+  --notif-succes: #15803d;
+  --notif-echec: #c2362f;
+  --notif-avertissement: #6d3fc0;
+  --notif-information: #1b5fb0;
+  --notif-encours: #0f1c2e;
   --etat-fait: #1a9e5c;
 
   /* The giant faded "dograh" wordmark, removed (D8). */

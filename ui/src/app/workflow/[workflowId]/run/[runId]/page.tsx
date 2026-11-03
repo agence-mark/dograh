@@ -17,7 +17,7 @@ import {
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import WorkflowLayout from '@/app/workflow/WorkflowLayout';
 import {
@@ -109,7 +109,7 @@ function CopyDebugIdButton({ label, value }: { label: string; value: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error(`Failed to copy ${label}`);
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 
@@ -577,7 +577,7 @@ function ContextDisplay({ title, context }: { title: string; context: Record<str
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error('Failed to copy context');
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 

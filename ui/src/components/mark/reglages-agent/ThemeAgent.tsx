@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { Bot, CalendarIcon, Clipboard, Download, ExternalLink, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet } from "@/client/sdk.gen";
 import { Button } from "@/components/ui/button";
@@ -132,11 +132,11 @@ const Rapport = ({ workflowId }: { workflowId: number }) => {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error(t({ en: "Failed to download report", fr: "Téléchargement du rapport impossible" }));
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (err) {
             logger.error(`Failed to download workflow report: ${err}`);
-            toast.error(t({ en: "Failed to download report", fr: "Téléchargement du rapport impossible" }));
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloading(false);
         }
@@ -320,9 +320,9 @@ export const ThemeAgent = ({
         if (!workflowUuid) return;
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success(t({ en: "Agent UUID copied", fr: "Identifiant de l'agent copié" }));
+            notifier.succes({ fr: "Identifiant copié.", en: "ID copied." });
         } catch {
-            toast.error(t({ en: "Failed to copy Agent UUID", fr: "Copie de l'identifiant impossible" }));
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 

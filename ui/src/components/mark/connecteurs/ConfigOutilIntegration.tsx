@@ -14,7 +14,7 @@
  */
 import { Copy, Link2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { BuiltinToolConfig } from "@/app/tools/[toolUuid]/components";
 import type { ConnecteurVue } from "@/client/types.gen";
@@ -426,7 +426,7 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
             const r = await connecteurs.demanderLien([nom]);
             if (r.lien) setLien({ connecteur: nom, url: r.lien });
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "No authorization link", fr: "Pas de lien d'autorisation" }));
+            notifier.echec({ fr: "Lien d'autorisation indisponible. Réessayez.", en: "Authorization link unavailable. Try again." }, { erreur: e });
         } finally {
             setEnCours(null);
         }
@@ -471,7 +471,7 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
                                     aria-label={t({ en: "Copy the link", fr: "Copier le lien" })}
                                     onClick={() => {
                                         void navigator.clipboard?.writeText(lien.url);
-                                        toast.success(t({ en: "Link copied", fr: "Lien copié" }));
+                                        notifier.succes({ fr: "Lien copié.", en: "Link copied." });
                                     }}
                                 >
                                     <Copy className="h-3.5 w-3.5" />

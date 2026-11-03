@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   deletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDelete,
@@ -135,7 +135,7 @@ export default function TelephonyConfigurationDetailPage() {
       setConfig(cfgRes.data ?? null);
       setPhoneNumbers(numbersRes.data?.phone_numbers ?? []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load configuration");
+      notifier.echec({ fr: "Configuration illisible. Rechargez la page.", en: "Could not load the configuration. Reload the page." }, { erreur: err });
     } finally {
       setLoading(false);
     }
@@ -156,10 +156,10 @@ export default function TelephonyConfigurationDetailPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success("Set as default outbound");
+      notifier.succes({ fr: "Configuration par défaut pour les appels sortants.", en: "Now the default for outbound calls." });
       fetchAll();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set default");
+      notifier.echec({ fr: "Changement impossible. Réessayez.", en: "Could not change the default. Try again." }, { erreur: err });
     }
   };
 
@@ -174,12 +174,10 @@ export default function TelephonyConfigurationDetailPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success("Reactivated — reconnecting within a minute");
+      notifier.succes({ fr: "Configuration réactivée. Reconnexion en cours, moins d'une minute.", en: "Configuration reactivated. Reconnecting, under a minute." });
       fetchAll();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to reactivate configuration",
-      );
+      notifier.echec({ fr: "Réactivation impossible. Réessayez.", en: "Could not reactivate. Try again." }, { erreur: err });
     }
   };
 
@@ -193,10 +191,10 @@ export default function TelephonyConfigurationDetailPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success(`${n.address} is now the default caller ID`);
+      notifier.succes({ fr: `${n.address} devient le numéro appelant par défaut.`, en: `${n.address} is now the default caller ID.` });
       fetchAll();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set default caller");
+      notifier.echec({ fr: "Changement impossible. Réessayez.", en: "Could not change the default. Try again." }, { erreur: err });
     }
   };
 
@@ -214,11 +212,11 @@ export default function TelephonyConfigurationDetailPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success("Phone number deleted");
+      notifier.succes({ fr: "Numéro supprimé.", en: "Phone number deleted." });
       setPhoneDeleteTarget(null);
       fetchAll();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete phone number");
+      notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: err });
     }
   };
 
@@ -275,8 +273,8 @@ export default function TelephonyConfigurationDetailPage() {
               type="button"
               onClick={() => {
                 copyTextToClipboard(String(config.id))
-                  .then(() => toast.success("Configuration ID copied"))
-                  .catch(() => toast.error("Failed to copy ID"));
+                  .then(() => notifier.succes({ fr: "Identifiant copié.", en: "ID copied." }))
+                  .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
               }}
               title="Click to copy"
               className="inline-flex items-center gap-1 self-start rounded font-mono text-xs text-muted-foreground hover:text-foreground"
@@ -352,8 +350,8 @@ export default function TelephonyConfigurationDetailPage() {
                 type="button"
                 onClick={() => {
                   copyTextToClipboard(stasisDialplanLine)
-                    .then(() => toast.success("Dialplan line copied"))
-                    .catch(() => toast.error("Failed to copy"));
+                    .then(() => notifier.succes({ fr: "Ligne copiée.", en: "Line copied." }))
+                    .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
                 }}
                 title="Click to copy"
                 className="group mt-1 flex w-full items-center gap-2 rounded-md border bg-muted/20 p-2 text-left font-mono text-xs transition-colors hover:bg-muted/40"
@@ -370,8 +368,8 @@ export default function TelephonyConfigurationDetailPage() {
               onClick={() => {
                 const url = inboundWebhookUrl;
                 copyTextToClipboard(url)
-                  .then(() => toast.success("Inbound webhook URL copied"))
-                  .catch(() => toast.error("Failed to copy URL"));
+                  .then(() => notifier.succes({ fr: "Adresse copiée.", en: "URL copied." }))
+                  .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
               }}
               title="Click to copy inbound webhook URL"
               aria-label="Copy inbound webhook URL"
@@ -462,8 +460,8 @@ export default function TelephonyConfigurationDetailPage() {
                         type="button"
                         onClick={() => {
                           copyTextToClipboard(String(n.id))
-                            .then(() => toast.success("Phone number ID copied"))
-                            .catch(() => toast.error("Failed to copy ID"));
+                            .then(() => notifier.succes({ fr: "Identifiant copié.", en: "ID copied." }))
+                            .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
                         }}
                         title="Click to copy phone number ID"
                         aria-label={`Copy phone number ID ${n.id}`}

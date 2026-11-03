@@ -12,7 +12,7 @@
  */
 import { Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
@@ -77,7 +77,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
             return;
         }
         setEnregistre(choix);
-        toast.success(t({ en: "Calendar software saved", fr: "Logiciel d'agenda enregistré" }));
+        notifier.succes({ fr: "Logiciel d'agenda enregistré.", en: "Calendar software saved." });
     };
 
     const genererLien = async () => {
@@ -86,7 +86,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
             const r = await connecteurs.demanderLien([choisi.systeme]);
             setLien(r.lien ?? null);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "No authorization link", fr: "Pas de lien d'autorisation" }));
+            notifier.echec({ fr: "Lien d'autorisation indisponible. Réessayez.", en: "Authorization link unavailable. Try again." }, { erreur: e });
         }
     };
 

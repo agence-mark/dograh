@@ -34,7 +34,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost,
@@ -185,10 +185,13 @@ export const WorkflowEditorHeader = ({
         const promise = publishWorkflowApiV1WorkflowWorkflowIdPublishPost({
             path: { workflow_id: workflowId },
         });
-        toast.promise(promise, {
-            loading: t(T.publication),
-            success: t(T.publie),
-            error: t(T.publicationEchoue),
+        notifier.suivre(promise, {
+            encours: { fr: "Publication en cours…", en: "Publishing…" },
+            succes: { fr: "Agent publié.", en: "Agent published." },
+            echec: { fr: "Publication impossible. Réessayez.", en: "Could not publish. Try again." },
+            echecSi: (reponse) => reponse.error,
+            reessayer: () => void handlePublish(),
+            groupe: "publication-agent",
         });
         try {
             await promise;
@@ -204,10 +207,12 @@ export const WorkflowEditorHeader = ({
         const promise = duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost({
             path: { workflow_id: workflowId },
         });
-        toast.promise(promise, {
-            loading: t(T.duplication),
-            success: t(T.duplique),
-            error: t(T.duplicationEchoue),
+        notifier.suivre(promise, {
+            encours: { fr: "Duplication en cours…", en: "Duplicating…" },
+            succes: { fr: "Agent dupliqué.", en: "Agent duplicated." },
+            echec: { fr: "Duplication impossible. Réessayez.", en: "Could not duplicate. Try again." },
+            echecSi: (reponse) => reponse.error,
+            groupe: "duplication-agent",
         });
         try {
             const { data } = await promise;
@@ -221,14 +226,14 @@ export const WorkflowEditorHeader = ({
 
     const handleCopyAgentUuid = async () => {
         if (!workflowUuid) {
-            toast.error(t(T.uuidIndisponible));
+            notifier.echec({ fr: "Identifiant indisponible.", en: "ID unavailable." });
             return;
         }
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success(t(T.uuidCopie));
+            notifier.succes({ fr: "Identifiant copié.", en: "ID copied." });
         } catch {
-            toast.error(t(T.uuidEchoue));
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 
@@ -279,7 +284,7 @@ export const WorkflowEditorHeader = ({
             await renameWorkflow(trimmed);
             exitEditMode();
         } catch {
-            toast.error(t(T.renommageEchoue));
+            notifier.echec({ fr: "Renommage impossible. Réessayez.", en: "Could not rename. Try again." });
             setRename({ kind: "editing", draft: trimmed, error: null });
             setTimeout(() => nameInputRef.current?.focus(), 0);
         }

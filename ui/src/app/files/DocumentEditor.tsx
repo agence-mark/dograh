@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
   getDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGet,
@@ -109,11 +109,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
         setSaveError(detailFromError(response.error, 'Failed to save document'));
         return;
       }
-      toast.success(
-        response.data.processing_status === 'pending'
-          ? `Saved "${doc.filename}". Processing started.`
-          : `No changes to save in "${doc.filename}".`
-      );
+      response.data.processing_status === 'pending' ? notifier.succes({ fr: `Document « ${doc.filename} » enregistré. Analyse en cours.`, en: `Document "${doc.filename}" saved. Processing.` }) : notifier.information({ fr: "Rien à enregistrer.", en: "Nothing to save." });
       onSaved();
     } catch (err) {
       logger.error('Error saving document content:', err);

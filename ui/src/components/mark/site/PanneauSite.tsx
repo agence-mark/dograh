@@ -10,7 +10,7 @@
  */
 import { Check, Copy, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     creerUnSiteApiV1OrganizationsSitesPost,
@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
@@ -117,10 +116,10 @@ export function PanneauSite({ workflowId }: Props) {
         try {
             const res = await action();
             if (res?.error) {
-                toast.error(detailFromError(res.error));
+                notifier.echec({ fr: "Couleurs non importées. Vérifiez l'adresse du site.", en: "Colors not imported. Check the site address." }, { erreur: res.error });
                 return false;
             }
-            toast.success(ok);
+            notifier.succes({ fr: "Couleurs importées.", en: "Colors imported." });
             await charger();
             return true;
         } finally {
@@ -287,9 +286,9 @@ export function PanneauSite({ workflowId }: Props) {
                                                 path,
                                                 body: {},
                                             });
-                                            if (res.error) toast.error(detailFromError(res.error));
+                                            if (res.error) notifier.echec({ fr: "Couleurs non importées. Réessayez.", en: "Colors not imported. Try again." }, { erreur: res.error });
                                             else if (res.data?.couleur) setCouleur(res.data.couleur);
-                                            else toast.error(t({ en: "No colour found on the site", fr: "Aucune couleur trouvée sur le site" }));
+                                            else notifier.information({ fr: "Aucune couleur trouvée sur le site.", en: "No color found on the site." });
                                         }}
                                     >
                                         {t({ en: "My site's colour", fr: "Couleur de mon site" })}

@@ -3,7 +3,7 @@ import * as LucideIcons from "lucide-react";
 import { Check, Circle, Copy, Edit, type LucideIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
@@ -394,7 +394,7 @@ function ClickToCopy({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy value");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
     return (
@@ -591,7 +591,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
             setTriggerCopied(true);
             setTimeout(() => setTriggerCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy trigger URL");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     }, [data.trigger_path, webhookBaseUrl]);
 

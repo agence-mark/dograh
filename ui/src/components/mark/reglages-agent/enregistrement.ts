@@ -20,7 +20,7 @@
  * on the page as it was, case by case.
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { detailFromError } from "@/lib/apiError";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
@@ -128,18 +128,16 @@ export const useEnregistrementTheme = ({
                 }
             }
             reussies.forEach((p) => p.apres?.());
-            toast.success(
-                `${t({ en: `${titre.en} saved.`, fr: `${titre.fr} : enregistré.` })} ${t(RAPPEL_PUBLICATION_TEXTE)}`,
-            );
+            notifier.succes({ fr: `${titre.fr} : enregistré.`, en: `${titre.en} saved.` }, { publier: true });
         } catch (erreur) {
             reussies.forEach((p) => p.apres?.());
             if (erreur instanceof EchecPartie) {
                 const noms = erreur.parties.map((p) => t(p)).join(", ");
                 const message = erreur.message.replace(/^Value error,\s*/gm, "");
                 parties.filter((p) => erreur.parties.includes(p.nom)).forEach((p) => p.surEchec?.(message));
-                toast.error(`${noms}: ${t({ en: "not saved", fr: "non enregistré" })}. ${message}`);
+                notifier.echec({ fr: `${erreur.parties.map((p) => p.fr).join(", ")} : non enregistré. Vérifiez les valeurs.`, en: `${erreur.parties.map((p) => p.en).join(", ")}: not saved. Check the values.` }, { erreur: message });
             } else {
-                toast.error(t({ en: "Not saved. Check the values and try again.", fr: "Non enregistré. Vérifiez les valeurs et réessayez." }));
+                notifier.echec({ fr: "Non enregistré. Vérifiez les valeurs et réessayez.", en: "Not saved. Check the values and try again." });
             }
         } finally {
             setEnCours(false);

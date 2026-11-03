@@ -9,7 +9,7 @@
  */
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { Badge } from "@/components/ui/badge";
@@ -64,15 +64,15 @@ export const PhrasesDeLEtape = ({ etapeId, etapeNom }: { etapeId: string; etapeN
     const enregistrer = async (suivantes: ReglePhrase[]) => {
         const erreurs = erreursDesPhrases(suivantes, etapes);
         if (erreurs.length > 0) {
-            toast.error(t(erreurs[0].message));
+            notifier.echec(erreurs[0].message);
             return false;
         }
         try {
             await phrases.enregistrer(suivantes.map((r) => chargeRegle(r, etapes)));
-            toast.success(t({ en: "Phrases saved.", fr: "Phrases enregistrées." }));
+            notifier.succes({ fr: "Phrases enregistrées.", en: "Phrases saved." });
             return true;
         } catch {
-            toast.error(t({ en: "The phrases could not be saved.", fr: "Les phrases n'ont pas pu être enregistrées." }));
+            notifier.echec({ fr: "Phrases non enregistrées. Réessayez.", en: "Phrases not saved. Try again." });
             return false;
         }
     };

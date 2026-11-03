@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { notifier } from "@/components/mark/notifications";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
     { champ: "presse", libelle: { en: "In a hurry", fr: "Pressé" } },
@@ -325,6 +326,7 @@ export function ModaleScenarios({
             setErreur(detailFromError(reponse.error, "Scenarios not saved"));
             return;
         }
+        notifier.succes({ fr: "Scénarios enregistrés.", en: "Scenarios saved." });
         onFermer(true);
     };
 

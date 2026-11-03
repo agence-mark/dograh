@@ -5,13 +5,12 @@
  * draft banner (See · Accept/Refuse), so both do exactly the same thing.
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { WorkflowVersionDiffDialog } from "@/app/workflow/[workflowId]/components/WorkflowVersionDiffDialog";
 import { getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from "@/client";
 import type { WorkflowVersionResponse } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
-import { detailFromError } from "@/lib/apiError";
 
 import { useContexteDuPanneau } from "./contexte-du-panneau";
 import { appliquerLesOperations, comparer, type Resume, resumer } from "./graphe";
@@ -56,13 +55,13 @@ export function useRevueDesChangements(): RevueDesChangements {
             query: { limit: 10, offset: 0 },
         });
         if (reponse.error || !reponse.data) {
-            toast.error(detailFromError(reponse.error, "Failed to load version history"));
+            notifier.echec({ fr: "Historique illisible. Rechargez la page.", en: "Could not load version history. Reload the page." }, { erreur: reponse.error });
             return;
         }
         const choisie = reponse.data.find((v) => v.status === "draft");
         const precedente = reponse.data.find((v) => v.status === "published") ?? reponse.data.find((v) => v.status !== "draft");
         if (!choisie || !precedente) {
-            toast.message(t(T.pasDeVersion));
+            notifier.information({ fr: "Pas de version précédente à comparer.", en: "No previous version to compare." });
             return;
         }
         setPaire({ precedente, choisie });
@@ -70,7 +69,7 @@ export function useRevueDesChangements(): RevueDesChangements {
 
     const accepter = () => {
         solder();
-        toast.success(t(T.accepte));
+        notifier.succes({ fr: "Proposition acceptée.", en: "Proposal accepted." });
     };
 
     const refuser = async () => {
@@ -79,11 +78,11 @@ export function useRevueDesChangements(): RevueDesChangements {
         const ok = await restaurer(avant);
         setOccupe(false);
         if (!ok) {
-            toast.error(t(T.echecRefus));
+            notifier.echec({ fr: "Refus non enregistré. Réessayez.", en: "Rejection not saved. Try again." });
             return;
         }
         solder();
-        toast.success(t(T.refuse));
+        notifier.succes({ fr: "Proposition refusée.", en: "Proposal rejected." });
     };
 
     return {
