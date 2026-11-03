@@ -35,6 +35,14 @@ const SORT_OPTIONS = [
     { value: "shortest", label: "Shortest first", sort: "duration", order: "asc" },
 ] as const;
 
+const LIBELLE_TRI = {
+    recent: { en: "Recently used", fr: "Utilisées récemment" },
+    most_used: { en: "Most reused", fr: "Les plus rejouées" },
+    least_used: { en: "Least reused", fr: "Les moins rejouées" },
+    longest: { en: "Longest first", fr: "Les plus longues" },
+    shortest: { en: "Shortest first", fr: "Les plus courtes" },
+} as const;
+
 export default function TtsCacheList() {
     const { user, loading: authLoading } = useAuth();
     const maquette = useFormeMaquette();
@@ -189,7 +197,7 @@ export default function TtsCacheList() {
                         </div>
                     }
                 />
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-1 pb-2">
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-2 pb-2">
                     <div className="relative">
                         <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -204,8 +212,8 @@ export default function TtsCacheList() {
                     <Liste
                         valeur={sortValue}
                         changer={(v) => { setSortValue(v); setOffset(0); }}
-                        options={SORT_OPTIONS.map((o) => ({ valeur: o.value, libelle: o.label }))}
-                        className="w-44"
+                        options={SORT_OPTIONS.map((o) => ({ valeur: o.value, libelle: t(LIBELLE_TRI[o.value]) }))}
+                        className="w-56"
                     />
                     <Input id="tts-min-duration" aria-label={t({ en: "Min seconds", fr: "Durée minimale (secondes)" })} type="number" min="0" step="0.1" value={minDuration}
                         onChange={(e) => { setMinDuration(e.target.value); setOffset(0); }} placeholder={t({ en: "Min s", fr: "Min s" })} className="h-8 w-20 text-right" />
@@ -213,14 +221,14 @@ export default function TtsCacheList() {
                         onChange={(e) => { setMaxDuration(e.target.value); setOffset(0); }} placeholder={t({ en: "Max s", fr: "Max s" })} className="h-8 w-20 text-right" />
                 </div>
                 {error ? (
-                    <EtatVide cas="erreur" reessayer={() => setRefresh((value) => value + 1)} />
+                    <EtatVide cas="erreur" compact reessayer={() => setRefresh((value) => value + 1)} />
                 ) : loading ? (
                     <EtatVide cas="chargement" lignes={3} />
                 ) : entries.length === 0 ? (
                     search ? (
-                        <EtatVide cas="filtre" recherche={search} effacer={() => setSearch("")} />
+                        <EtatVide cas="filtre" compact recherche={search} effacer={() => setSearch("")} />
                     ) : (
-                        <EtatVide cas="premier" icone={AudioLines} titre={t({ en: "No cached speech yet", fr: "Aucune phrase en cache pour l'instant" })} info={t({ en: "Speech appears here after a successful synthesis in an agent with speech caching on.", fr: "Les phrases apparaissent ici après une synthèse réussie, chez un agent dont le cache de la voix est allumé." })} />
+                        <EtatVide cas="premier" compact icone={AudioLines} titre={t({ en: "No cached speech yet", fr: "Aucune phrase en cache pour l'instant" })} info={t({ en: "Speech appears here after a successful synthesis in an agent with speech caching on.", fr: "Les phrases apparaissent ici après une synthèse réussie, chez un agent dont le cache de la voix est allumé." })} />
                     )
                 ) : (
                     <>

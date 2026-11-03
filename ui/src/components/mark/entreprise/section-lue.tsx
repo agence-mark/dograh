@@ -92,6 +92,8 @@ export function BlocLu({
         titre: string;
         info?: React.ReactNode;
         corps: React.ReactNode;
+        /** Le libellé du bouton (« Enregistrer » par défaut). */
+        valider?: string;
         onValider: () => void;
         onAnnuler?: () => void;
         verifier?: () => Record<string, string> | null;
@@ -130,10 +132,11 @@ export function BlocLu({
                         setOuverte(false);
                     }}
                     titre={fenetre.titre}
-                    info={fenetre.info}
+                    info={fenetre.info ?? info}
+                    etroite
                     sections={[]}
                     corps={<div className="-my-5 divide-y">{fenetre.corps}</div>}
-                    valider={t({ en: "Save", fr: "Enregistrer" })}
+                    valider={fenetre.valider ?? t({ en: "Save", fr: "Enregistrer" })}
                     onValider={() => {
                         valide.current = true;
                         fenetre.onValider();

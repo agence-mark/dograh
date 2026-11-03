@@ -405,12 +405,13 @@ export function SectionLexiqueMetier() {
           </p>
         )}
         <BudgetDeLaTranscription budget={budget} />
+        <div className="mt-10">
         {!lu ? (
-          <EtatVide cas="erreur" reessayer={() => void charger()} />
+          <EtatVide cas="erreur" compact reessayer={() => void charger()} />
         ) : termesLus.length === 0 ? (
-          <EtatVide cas="premier" icone={BookOpen} titre={t({ en: "No term yet", fr: "Aucun terme pour l'instant" })} />
+          <EtatVide cas="premier" compact icone={BookOpen} titre={t({ en: "No term yet", fr: "Aucun terme pour l'instant" })} />
         ) : vus.length === 0 ? (
-          <EtatVide cas="filtre" recherche={recherche} effacer={() => setRecherche("")} />
+          <EtatVide cas="filtre" compact recherche={recherche} effacer={() => setRecherche("")} />
         ) : (
           <Paginee liste={vus}>
             {(page) => (
@@ -440,6 +441,7 @@ export function SectionLexiqueMetier() {
             )}
           </Paginee>
         )}
+        </div>
         {terme !== null && (
           <FenetreChamps
             ouverte
@@ -794,11 +796,14 @@ export function SectionLexiqueMetier() {
  */
 function BudgetDeLaTranscription({ budget }: { budget: BudgetLexique | null }) {
   const { t } = useLangue();
+  const maquette = useFormeMaquette();
   if (!budget) return null;
   const nonEnvoyes = budget.non_envoyes ?? [];
   const parTermes = budget.plafond_termes !== null && budget.plafond_termes !== undefined;
   const parJetons = budget.plafond_jetons !== null && budget.plafond_jetons !== undefined;
   if (!budget.nom_du_plafond || (!parTermes && !parJetons)) {
+    // [.mark] K4b : sur la page de la maquette, rien à dire quand le fournisseur ne déclare aucune limite.
+    if (maquette) return null;
     return (
       <p className="text-xs text-muted-foreground" data-testid="budget-lexique">
         {t({ en: "No term is sent to the transcription: its provider", fr: "Aucun terme n'est envoyé à la transcription : son fournisseur" })}

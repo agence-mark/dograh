@@ -155,7 +155,7 @@ export const ThemeDonneesClient = ({
                     erreur ? null : <EtatVide cas="chargement" />
                 ) : (
                     <>
-                        <BaseDuClient etat={etat} enCours={enCours} agir={agir} enRetard={enRetard} />
+                        <BaseDuClient etat={etat} enCours={enCours} agir={agir} enRetard={enRetard} erreur={erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur} />
                         {rattachee && etat.joignable && conservation.length > 0 && (
                             <>
                                 <GroupePage titre={t({ en: "Retention", fr: "Conservation" })} />

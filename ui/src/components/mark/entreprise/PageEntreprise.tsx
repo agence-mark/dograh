@@ -106,13 +106,13 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                         id: "verification",
                         titre: t({ en: "Caller verification", fr: "Vérification de l'appelant" }),
                         ...etat("verification"),
-                        contenu: <ThemeVerification {...commun} />,
+                        contenu: <ThemeVerification {...commun} sansTitre />,
                     },
                     {
                         id: "ecoute",
                         titre: t({ en: "Listening and sounds", fr: "Écoute et sons" }),
                         ...etat("ecoute"),
-                        contenu: <ThemeEcouteOrganisation {...commun} sons={<SonsEtCacheVoix />} />,
+                        contenu: <ThemeEcouteOrganisation {...commun} sansTitre sons={<SonsEtCacheVoix />} />,
                     },
                 ]}
             />

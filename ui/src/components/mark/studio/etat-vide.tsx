@@ -25,16 +25,17 @@ export type EtatVideProps =
     | { cas: "erreur"; reessayer?: () => void }
     | { cas: "acces"; role?: string };
 
-const Centre = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 py-8 text-center">{children}</div>
+/** `compact` (K4b) : dans une page qui empile plusieurs listes, un état vide ne prend pas la moitié de l'écran. */
+const Centre = ({ children, compact }: { children: React.ReactNode; compact?: boolean }) => (
+    <div className={`flex flex-col items-center justify-center gap-3 py-8 text-center ${compact ? "" : "min-h-[50vh]"}`}>{children}</div>
 );
 
-export function EtatVide(p: EtatVideProps) {
+export function EtatVide(p: EtatVideProps & { compact?: boolean }) {
     const { t } = useLangue();
     if (p.cas === "premier") {
         const I = p.icone;
         return (
-            <Centre>
+            <Centre compact={p.compact}>
                 <I className="size-8 text-(--acc)" strokeWidth={1.75} />
                 <p className="flex items-center gap-1.5 text-base font-semibold">
                     {p.titre}
@@ -45,7 +46,7 @@ export function EtatVide(p: EtatVideProps) {
     }
     if (p.cas === "fait") {
         return (
-            <Centre>
+            <Centre compact={p.compact}>
                 <Check className="size-8 text-(--etat-fait)" strokeWidth={2.25} />
                 <p className="flex items-center gap-1.5 text-base font-semibold">
                     {p.titre}
@@ -57,7 +58,7 @@ export function EtatVide(p: EtatVideProps) {
     }
     if (p.cas === "filtre") {
         return (
-            <Centre>
+            <Centre compact={p.compact}>
                 <p className="text-sm text-muted-foreground">
                     {t({ en: "No result for", fr: "Aucun résultat pour" })} « {p.recherche} »
                 </p>
@@ -86,7 +87,7 @@ export function EtatVide(p: EtatVideProps) {
     }
     if (p.cas === "erreur") {
         return (
-            <Centre>
+            <Centre compact={p.compact}>
                 <AlertCircle className="size-8 text-destructive" strokeWidth={1.75} />
                 <p className="text-base font-semibold">{t({ en: "Unable to load", fr: "Impossible de charger" })}</p>
                 {p.reessayer && (
@@ -98,7 +99,7 @@ export function EtatVide(p: EtatVideProps) {
         );
     }
     return (
-        <Centre>
+        <Centre compact={p.compact}>
             <Lock className="size-8 text-muted-foreground" strokeWidth={1.75} />
             <p className="text-base font-semibold">{p.role ?? t({ en: "Reserved for administrators", fr: "Réservé aux administrateurs" })}</p>
         </Centre>

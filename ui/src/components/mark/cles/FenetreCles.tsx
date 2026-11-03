@@ -36,7 +36,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
+import { Liste } from "../studio/liste";
 import { notifier } from "@/components/mark/notifications";
 
 export type Fournisseur = Cle["fournisseur"];
@@ -466,10 +468,30 @@ export function SelecteurCle({
     const perdue = horsListe && designation?.etat === "supprimee";
     const ancienne = horsListe && designation?.etat !== "supprimee" ? designation : null;
 
+    const maquette = useFormeMaquette();
+    const valeurListe = perdue || (horsListe && !ancienne) ? "" : (valeur ?? "");
+    const videListe =
+        cles && cles.length === 0
+            ? t({ en: "— no key yet: add one with « Keys… » —", fr: "— aucune clé : ajoute-en une avec « Clés… » —" })
+            : t({ en: "— choose a key —", fr: "— choisir une clé —" });
+
     return (
         <div className="space-y-1 text-xs text-muted-foreground">
-            <span>{t(libelle)}</span>
+            {!maquette && <span>{t(libelle)}</span>}
             <div className="flex gap-2">
+                {maquette ? (
+                    <Liste
+                        valeur={valeurListe}
+                        changer={(v) => onChange(v || null)}
+                        vide={videListe}
+                        options={[
+                            ...(cles ?? []).map((k) => ({ valeur: k.uuid, libelle: k.nom })),
+                            ...(ancienne && valeur ? [{ valeur, libelle: `${ancienne.nom ?? ""} ${t({ en: "(outside the library)", fr: "(hors bibliothèque)" })}` }] : []),
+                        ]}
+                        taille="default"
+                        className="min-w-0 flex-1"
+                    />
+                ) : (
                 <select
                     className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                     value={perdue || (horsListe && !ancienne) ? "" : (valeur ?? "")}
@@ -492,8 +514,9 @@ export function SelecteurCle({
                         </option>
                     )}
                 </select>
-                <Button type="button" size="sm" variant="outline" onClick={() => setBibliotheque(true)}>
-                    {t({ en: "Keys…", fr: "Clés…" })}
+                )}
+                <Button type="button" size={maquette ? "default" : "sm"} variant="outline" onClick={() => setBibliotheque(true)}>
+                    {maquette ? `+ ${t({ en: "Key", fr: "Clé" })}` : t({ en: "Keys…", fr: "Clés…" })}
                 </Button>
             </div>
             {perdue && (

@@ -231,9 +231,33 @@ export const ThemeApresAppel = ({
                     <Input id="smtp-hote" value={smtp.hote ?? ""} placeholder={t({ en: "smtp.example.org", fr: "smtp.example.org" })} onChange={(e) => poser("smtp", "hote", vide(e.target.value))} />
                 </ChampReglage>
                 <ChampReglage cle="smtp_port" idControle="smtp-port" libelle={{ en: "Port", fr: "Port" }} bornes={{ en: "1 to 65535, default 587", fr: "1 à 65535, 587 par défaut" }}>
-                    <Input id="smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poser("smtp", "port", Number(e.target.value))} />
+                    <div className="flex items-center gap-2">
+                        <Input id="smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poser("smtp", "port", Number(e.target.value))} className={maquette ? "w-32" : ""} />
+                        {maquette && <span className="ml-auto text-xs text-muted-foreground">{t({ en: "from 1 to 65535", fr: "de 1 à 65535" })}</span>}
+                    </div>
                 </ChampReglage>
                 <ChampReglage cle="smtp_securite" idControle="smtp-securite" libelle={{ en: "Security", fr: "Sécurité" }}>
+                    {maquette ? (
+                        <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm" role="group" aria-label={t({ en: "Security", fr: "Sécurité" })}>
+                            {(
+                                [
+                                    ["starttls", "STARTTLS"],
+                                    ["ssl", "SSL/TLS"],
+                                    ["aucune", t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })],
+                                ] as const
+                            ).map(([valeur, libelle]) => (
+                                <button
+                                    key={valeur}
+                                    type="button"
+                                    aria-pressed={(smtp.securite ?? "starttls") === valeur}
+                                    onClick={() => poser("smtp", "securite", valeur)}
+                                    className={`cursor-pointer rounded-md px-3 py-1 ${(smtp.securite ?? "starttls") === valeur ? "bg-white font-medium text-foreground shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                >
+                                    {libelle}
+                                </button>
+                            ))}
+                        </span>
+                    ) : (
                     <select
                         id="smtp-securite"
                         className="rounded border border-border bg-background px-2 py-1 text-sm"
@@ -244,6 +268,7 @@ export const ThemeApresAppel = ({
                         <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
                         <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
                     </select>
+                    )}
                 </ChampReglage>
                 <ChampReglage cle="smtp_utilisateur" idControle="smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>
                     <Input id="smtp-utilisateur" value={smtp.utilisateur ?? ""} onChange={(e) => poser("smtp", "utilisateur", vide(e.target.value))} />

@@ -608,6 +608,7 @@ export const ThemeEcouteOrganisation = ({
     ouvert,
     onBasculer,
     plat,
+    sansTitre,
     sons,
 }: ProprietesThemeOrganisation & {
     /** [.mark] U2 bis : les enregistrements et le cache de la voix, sous le lexique (sous-onglet « Écoute et sons »). */
@@ -616,6 +617,7 @@ export const ThemeEcouteOrganisation = ({
     <Theme
         id="ecoute"
         plat={plat}
+        sansTitre={sansTitre}
         icone={Ear}
         titre={titre("ecoute").titre}
         description={{

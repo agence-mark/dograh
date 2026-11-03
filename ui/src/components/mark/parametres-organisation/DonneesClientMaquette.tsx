@@ -34,9 +34,13 @@ export const LIBELLES_TABLES: Record<string, Texte> = {
     action: { en: "Actions (mails, SMS…)", fr: "Actions (mails, SMS…)" },
     // [.mark] L4 (A8): 6 months by default, shorter if the client wants.
     verbatim: { en: "Transcripts (verbatim)", fr: "Transcriptions (verbatim)" },
+    evenement_portail: { en: "Portal events", fr: "Événements du portail" },
+    verification: { en: "Caller verifications", fr: "Vérifications de l'appelant" },
 };
+/** L'ordre de la maquette (appels, demandes, contacts, actions, verbatim), puis le reste dans l'ordre du serveur. */
+const ORDRE_TABLES = Object.keys(LIBELLES_TABLES);
 
-export const BaseDuClient = ({ etat, enCours, agir, enRetard }: { etat: EtatBaseClient; enCours: boolean; agir: Agir; enRetard: boolean }) => {
+export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: EtatBaseClient; enCours: boolean; agir: Agir; enRetard: boolean; erreur: React.ReactNode }) => {
     const { t } = useLangue();
     const [fenetre, setFenetre] = useState(false);
     const [nom, setNom] = useState("");
@@ -160,6 +164,11 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard }: { etat: EtatBase
                 titre={rattachee ? t({ en: "Change database", fr: "Changer de base" }) : t({ en: "Create or attach a database", fr: "Créer ou rattacher une base" })}
                 corps={
                     <div className="space-y-3 py-3.5">
+                        {erreur && (
+                            <p className="text-sm text-destructive" role="alert" data-testid="erreur-base-client-fenetre">
+                                {erreur}
+                            </p>
+                        )}
                         {!etat.serveur_configure && (
                             <p className="text-sm text-destructive" data-testid="serveur-non-configure" role="alert">
                                 {t({
@@ -270,6 +279,7 @@ export const TableauConservation = ({
                     </Button>
                 }
             />
+            <div className="mt-10">
             <Tableau
                 colonnes={[
                     { titre: t({ en: "Data", fr: "Donnée" }) },
@@ -284,7 +294,13 @@ export const TableauConservation = ({
                     },
                 ]}
             >
-                {conservation.map((ligne, i) => {
+                {conservation
+                    .map((ligne, i) => ({ ligne, i }))
+                    .sort((a, b) => {
+                        const rang = (n: string) => (ORDRE_TABLES.includes(n) ? ORDRE_TABLES.indexOf(n) : ORDRE_TABLES.length);
+                        return rang(a.ligne.table_nom) - rang(b.ligne.table_nom);
+                    })
+                    .map(({ ligne, i }) => {
                     const valide = ligne.duree_jours >= 1 && ligne.duree_jours <= 3650;
                     return (
                         <Ligne key={ligne.table_nom}>
@@ -308,6 +324,7 @@ export const TableauConservation = ({
                     );
                 })}
             </Tableau>
+            </div>
         </section>
     );
 };

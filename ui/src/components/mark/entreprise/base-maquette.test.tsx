@@ -175,7 +175,7 @@ describe("[.mark] K4b : Base et automatisations", () => {
         fireEvent.click(within(bloc).getByRole("button", { name: "Modifier" }));
         expect(((await screen.findByLabelText(/Mois de conservation : verbatim/)) as HTMLInputElement).value).toBe("6");
         fireEvent.change(screen.getByLabelText(/Mois de conservation : verbatim/), { target: { value: "9" } });
-        fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+        fireEvent.click(screen.getByRole("button", { name: "Enregistrer la conservation des appels" }));
         await waitFor(() => expect(m.ecrireAppels).toHaveBeenCalled());
         expect(m.ecrireAppels.mock.calls[0][0].body.duree_mois).toBe(9);
     });

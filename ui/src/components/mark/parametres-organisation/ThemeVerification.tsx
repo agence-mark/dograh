@@ -101,7 +101,7 @@ export const charge_utile_verification = (r: ReglagesVerification): ReglagesVeri
 const basculer = (liste: string[], cle: string, present: boolean) =>
     present ? [...liste.filter((x) => x !== cle), cle] : liste.filter((x) => x !== cle);
 
-export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: ProprietesThemeOrganisation) => {
+export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitre }: ProprietesThemeOrganisation) => {
     const { t } = useLangue();
     const maquette = useFormeMaquette();
     const { user, loading: authLoading } = useAuth();
@@ -172,6 +172,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
         <Theme
             id="verification"
             plat={plat}
+            sansTitre={sansTitre}
             icone={ShieldCheck}
             titre={TITRE_VERIFICATION}
             description={{
@@ -248,7 +249,11 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                         </ChampReglage>
                     </Intertitre>
 
-                    <Intertitre id="verif-groupe-lecture" titre={{ en: "What may be read", fr: "Ce qui peut être lu" }}>
+                    <Intertitre
+                        id="verif-groupe-lecture"
+                        titre={{ en: "What may be read", fr: "Ce qui peut être lu" }}
+                        description={maquette ? { en: "How many distinct factors must have passed, and the fields the agent may read. No field ticked: never read.", fr: "Combien de facteurs distincts doivent avoir réussi, et les champs que l'agent peut lire. Aucun champ coché : jamais lu." } : undefined}
+                    >
                         {TYPES_LISIBLES.map((type) => {
                             const niveau = brouillon.lisibles?.[type.cle] ?? { facteurs_requis: 2, champs: [] };
                             return (
@@ -327,7 +332,11 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                         })}
                     </Intertitre>
 
-                    <Intertitre id="verif-groupe-source" titre={{ en: "Where the records are", fr: "Où sont les dossiers" }}>
+                    <Intertitre
+                        id="verif-groupe-source"
+                        titre={{ en: "Where the records are", fr: "Où sont les dossiers" }}
+                        description={maquette ? { en: "A software that holds the records appears here once its translator exists and it is connected (« Integrations »).", fr: "Un logiciel qui tient les dossiers apparaît ici dès que son traducteur existe et qu'il est connecté (« Intégrations »)." } : undefined}
+                    >
                         <ChampReglage
                             cle="logiciel"
                             idControle="verif-logiciel"

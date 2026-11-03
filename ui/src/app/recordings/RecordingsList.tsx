@@ -21,12 +21,14 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
+import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
 import logger from "@/lib/logger";
 
 export default function RecordingsList({ refreshKey }: { refreshKey?: number }) {
     const organizationTimezone = useOrganizationTimezone();
     const maquette = useFormeMaquette();
+    const { user, loading: authLoading } = useAuth();
     const { t } = useLangue();
     const [fiche, setFiche] = useState<RecordingResponseSchema | null>(null);
     const [recordings, setRecordings] = useState<RecordingResponseSchema[]>([]);
@@ -63,9 +65,11 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
         }
     }, []);
 
+    // [.mark] K4b : pas de lecture avant que l'authentification soit prête (sinon 401 et erreur affichée jusqu'au rechargement).
     useEffect(() => {
+        if (authLoading || !user) return;
         fetchRecordings();
-    }, [fetchRecordings, refreshKey]);
+    }, [fetchRecordings, refreshKey, authLoading, user]);
 
     // Suppression différée de 5 s (« Annuler ») : l'enregistrement disparaît de la liste, le serveur n'est appelé
     // qu'ensuite. Remplace la confirmation avant.
@@ -175,7 +179,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
             }
         };
         return (
-            <div data-testid="enregistrements">
+            <div data-testid="enregistrements" className="mt-6">
                 <div className="flex items-center justify-end gap-2 pt-1 pb-2">
                     <div className="relative">
                         <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -192,14 +196,14 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
                     </Button>
                 </div>
                 {error ? (
-                    <EtatVide cas="erreur" reessayer={fetchRecordings} />
+                    <EtatVide cas="erreur" compact reessayer={fetchRecordings} />
                 ) : isLoading && recordings.length === 0 ? (
                     <EtatVide cas="chargement" lignes={3} />
                 ) : filteredRecordings.length === 0 ? (
                     searchQuery ? (
-                        <EtatVide cas="filtre" recherche={searchQuery} effacer={() => setSearchQuery("")} />
+                        <EtatVide cas="filtre" compact recherche={searchQuery} effacer={() => setSearchQuery("")} />
                     ) : (
-                        <EtatVide cas="premier" icone={AudioLines} titre={t({ en: "No recordings yet", fr: "Aucun enregistrement pour l'instant" })} />
+                        <EtatVide cas="premier" compact icone={AudioLines} titre={t({ en: "No recordings yet", fr: "Aucun enregistrement pour l'instant" })} />
                     )
                 ) : (
                     <Paginee liste={filteredRecordings}>

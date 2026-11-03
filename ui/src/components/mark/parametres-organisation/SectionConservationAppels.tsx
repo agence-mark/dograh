@@ -126,7 +126,11 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                 aides={[{ en: "A month counts 30 days.", fr: "Un mois compte 30 jours." }]}
                 erreur={moisValide(brouillon.duree_mois) ? null : { en: `A whole number from ${MOIS_MIN} to ${MOIS_MAX}.`, fr: `Un nombre entier de ${MOIS_MIN} à ${MOIS_MAX}.` }}
             >
-                <Input id="conservation-appels-duree" type="number" min={MOIS_MIN} max={MOIS_MAX} value={brouillon.duree_mois ?? ""} onChange={(e) => poser({ duree_mois: Number(e.target.value) })} />
+                <div className="flex items-center gap-2">
+                    <Input id="conservation-appels-duree" type="number" min={MOIS_MIN} max={MOIS_MAX} value={brouillon.duree_mois ?? ""} onChange={(e) => poser({ duree_mois: Number(e.target.value) })} className="w-32" />
+                    <span className="text-sm text-muted-foreground">{t({ en: "months", fr: "mois" })}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t({ en: `from ${MOIS_MIN} to ${MOIS_MAX}`, fr: `de ${MOIS_MIN} à ${MOIS_MAX}` })}</span>
+                </div>
             </ChampReglage>
             <ChampReglage
                 cle="audio_enregistre"
@@ -146,6 +150,7 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                     onCheckedChange={(v) => poser({ audio_enregistre: v })}
                 />
             </ChampReglage>
+            {brouillon.audio_enregistre && (
             <ChampReglage
                 cle="audio_duree_mois"
                 idControle="conservation-appels-audio-duree"
@@ -154,8 +159,13 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                 aides={[{ en: "Also applies to the audio recorded before it was switched off.", fr: "S'applique aussi à l'audio enregistré avant qu'il soit coupé." }]}
                 erreur={moisValide(brouillon.audio_duree_mois) ? null : { en: `A whole number from ${MOIS_MIN} to ${MOIS_MAX}.`, fr: `Un nombre entier de ${MOIS_MIN} à ${MOIS_MAX}.` }}
             >
-                <Input id="conservation-appels-audio-duree" type="number" min={MOIS_MIN} max={MOIS_MAX} value={brouillon.audio_duree_mois ?? ""} onChange={(e) => poser({ audio_duree_mois: Number(e.target.value) })} />
+                <div className="flex items-center gap-2">
+                    <Input id="conservation-appels-audio-duree" type="number" min={MOIS_MIN} max={MOIS_MAX} value={brouillon.audio_duree_mois ?? ""} onChange={(e) => poser({ audio_duree_mois: Number(e.target.value) })} className="w-32" />
+                    <span className="text-sm text-muted-foreground">{t({ en: "months", fr: "mois" })}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t({ en: `from ${MOIS_MIN} to ${MOIS_MAX}`, fr: `de ${MOIS_MIN} à ${MOIS_MAX}` })}</span>
+                </div>
             </ChampReglage>
+            )}
             <ChampReglage
                 cle="essai_a_blanc"
                 idControle="conservation-appels-blanc"
@@ -186,7 +196,7 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
         return (
             <BlocLu
                 id="donnees-conservation-appels"
-                titre={t(TITRE_SECTION)}
+                titre={t({ en: "Call retention in Dograh", fr: "Conservation des appels dans Dograh" })}
                 info={t({
                     en: "What Dograh keeps of each call: the verbatim, the copies (transcript, logs, context, annotations) and the audio. A nightly task empties what is older than the durations; the call's row (cost, duration, state) stays.",
                     fr: "Ce que Dograh garde de chaque appel : le verbatim, les copies (transcription, journaux, contexte, annotations) et l'audio. Une tâche de nuit vide ce qui dépasse les durées ; la ligne de l'appel (coût, durée, état) reste.",
@@ -198,8 +208,9 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                     [t({ en: "Last passage", fr: "Dernier passage" }), <span key="p" data-testid={passage ? "dernier-passage-conservation" : "aucun-passage-conservation"}>{resume}</span>],
                 ]}
                 fenetre={{
-                    titre: t(TITRE_SECTION),
+                    titre: t({ en: "Call retention in Dograh", fr: "Conservation des appels dans Dograh" }),
                     corps: champs,
+                    valider: t({ en: "Save call retention", fr: "Enregistrer la conservation des appels" }),
                     onAnnuler: () => poser(reglages),
                     onValider: () => void enregistrer({ fr: "Durée de conservation enregistrée.", en: "Retention period saved." }),
                     verifier: () => (invalide ? { duree: "invalide" } : null),
