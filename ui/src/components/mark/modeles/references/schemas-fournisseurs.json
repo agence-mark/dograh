@@ -690,77 +690,77 @@
               "accent": "France",
               "description": "amical, posé",
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Mathieu"
             },
             {
               "accent": "France",
               "description": "articulation précise",
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Celine"
             },
             {
               "accent": "France",
               "description": "chaleureux, vif en conversation",
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Julien"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Olivier"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Elodie"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Camille"
             },
             {
               "accent": "France",
               "description": "parisienne",
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Manon"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Baptiste"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Noemie"
             },
             {
               "accent": "Québec",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Genevieve"
             },
             {
               "accent": "Québec",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Antoine"
             }
           ],

@@ -102,20 +102,21 @@ SONIOX_TTS_LANGUAGES = (
 # ⛔ Aucune description ni aucun genre n'est invente : `None` = non releve.
 SONIOX_TTS_VOIX_RELEVE = "2026-10-21"
 SONIOX_TTS_VOIX_SOURCE = "GET /v1/tts-models (api.soniox.com)"
+# Genre : champ « gender » de la même route, relevé le 2026-11-03 (constat C10), identique sur tts-rt-v1, v1-preview et v2.
 # Dans l'ordre d'affichage : les trois candidats d'accueil d'abord (Mathieu,
 # Celine, Julien), puis les autres voix de France, puis le Quebec.
 SONIOX_TTS_VOIX = (
-    {"id": "Mathieu", "francais": True, "accent": "France", "genre": None, "description": "amical, posé"},
-    {"id": "Celine", "francais": True, "accent": "France", "genre": None, "description": "articulation précise"},
-    {"id": "Julien", "francais": True, "accent": "France", "genre": None, "description": "chaleureux, vif en conversation"},
-    {"id": "Olivier", "francais": True, "accent": "France", "genre": None, "description": None},
-    {"id": "Elodie", "francais": True, "accent": "France", "genre": None, "description": None},
-    {"id": "Camille", "francais": True, "accent": "France", "genre": None, "description": None},
-    {"id": "Manon", "francais": True, "accent": "France", "genre": None, "description": "parisienne"},
-    {"id": "Baptiste", "francais": True, "accent": "France", "genre": None, "description": None},
-    {"id": "Noemie", "francais": True, "accent": "France", "genre": None, "description": None},
-    {"id": "Genevieve", "francais": True, "accent": "Québec", "genre": None, "description": None},
-    {"id": "Antoine", "francais": True, "accent": "Québec", "genre": None, "description": None},
+    {"id": "Mathieu", "francais": True, "accent": "France", "genre": "masculin", "description": "amical, posé"},
+    {"id": "Celine", "francais": True, "accent": "France", "genre": "féminin", "description": "articulation précise"},
+    {"id": "Julien", "francais": True, "accent": "France", "genre": "masculin", "description": "chaleureux, vif en conversation"},
+    {"id": "Olivier", "francais": True, "accent": "France", "genre": "masculin", "description": None},
+    {"id": "Elodie", "francais": True, "accent": "France", "genre": "féminin", "description": None},
+    {"id": "Camille", "francais": True, "accent": "France", "genre": "féminin", "description": None},
+    {"id": "Manon", "francais": True, "accent": "France", "genre": "féminin", "description": "parisienne"},
+    {"id": "Baptiste", "francais": True, "accent": "France", "genre": "masculin", "description": None},
+    {"id": "Noemie", "francais": True, "accent": "France", "genre": "féminin", "description": None},
+    {"id": "Genevieve", "francais": True, "accent": "Québec", "genre": "féminin", "description": None},
+    {"id": "Antoine", "francais": True, "accent": "Québec", "genre": "masculin", "description": None},
 )
 SONIOX_TTS_VOIX_IDS = tuple(voix["id"] for voix in SONIOX_TTS_VOIX)
 # La voix proposee d'office : la premiere de la liste (candidat d'accueil), jamais
