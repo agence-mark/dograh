@@ -2267,6 +2267,34 @@ export type CataloguePhrases = {
 };
 
 /**
+ * CeQueLAgentNeDitJamais
+ */
+export type CeQueLAgentNeDitJamais = {
+    /**
+     * Outils
+     *
+     * Remove from a reply the name of one of the agent's tools, curly braces, square brackets and {{...}}.
+     */
+    outils?: boolean;
+    /**
+     * Recitation
+     *
+     * Replace a reply that copies at least N consecutive words of the agent's own instructions.
+     */
+    recitation?: boolean;
+    /**
+     * Mots
+     */
+    mots?: number;
+    /**
+     * Phrase
+     *
+     * What is said instead of a recited reply; empty = the code's text.
+     */
+    phrase?: string;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -2401,8 +2429,24 @@ export type ChangerRoleRequest = {
 
 /**
  * ChangerUnTest
+ *
+ * U3 : la modification complète d'un test (champs absents = inchangés). MÊME fonction que l'action ``tests_modifier``.
  */
 export type ChangerUnTest = {
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Criteres
+     */
+    criteres?: Array<{
+        [key: string]: unknown;
+    }> | null;
     /**
      * Obligatoire
      */
@@ -2411,6 +2455,36 @@ export type ChangerUnTest = {
      * Dossier
      */
     dossier?: string | null;
+    /**
+     * Scenario
+     */
+    scenario?: string | null;
+    /**
+     * Replique
+     */
+    replique?: string | null;
+    /**
+     * Historique
+     */
+    historique?: Array<{
+        [key: string]: string;
+    }> | null;
+    /**
+     * Personnage
+     */
+    personnage?: string | null;
+    /**
+     * Ouverture
+     */
+    ouverture?: string | null;
+    /**
+     * Tours Max
+     */
+    tours_max?: number | null;
+    /**
+     * Questions Juge
+     */
+    questions_juge?: Array<string> | null;
 };
 
 /**
@@ -2837,6 +2911,50 @@ export type Conservation = {
      * Source
      */
     source?: string | null;
+};
+
+/**
+ * ConsigneDeSecurite
+ *
+ * Une consigne : un interrupteur et une phrase modifiable (vide = le texte du code).
+ */
+export type ConsigneDeSecurite = {
+    /**
+     * Actif
+     *
+     * Put this safety instruction after the prompt.
+     */
+    actif?: boolean;
+    /**
+     * Phrase
+     *
+     * Your own wording; empty = the code's text.
+     */
+    phrase?: string;
+};
+
+/**
+ * ConsigneUrgence
+ */
+export type ConsigneUrgence = {
+    /**
+     * Actif
+     *
+     * Put this safety instruction after the prompt.
+     */
+    actif?: boolean;
+    /**
+     * Phrase
+     *
+     * Your own wording; empty = the code's text.
+     */
+    phrase?: string;
+    /**
+     * Transfert
+     *
+     * After the emergency sentence, offer to pass the caller to a person (only if a transfer exists).
+     */
+    transfert?: boolean;
 };
 
 /**
@@ -3527,7 +3645,7 @@ export type CreerUnTest = {
     /**
      * Criteres
      *
-     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, merci_en_tete, coordonnees_prises, sans_redite, sans_rigidite.
+     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite.
      */
     criteres?: Array<{
         [key: string]: unknown;
@@ -4867,6 +4985,40 @@ export type DuplicateTemplateRequest = {
      * Workflow Name
      */
     workflow_name: string;
+};
+
+/**
+ * EcouteDeLAppelant
+ */
+export type EcouteDeLAppelant = {
+    /**
+     * Actif
+     *
+     * Listen to the caller with a classifier, in parallel, never awaited.
+     */
+    actif?: boolean;
+    /**
+     * Sensibilite
+     */
+    sensibilite?: 'prudente' | 'normale' | 'large';
+    /**
+     * Sur Manipulation
+     *
+     * rappel: remind the model of its instructions on the next turn; noter: only mark it.
+     */
+    sur_manipulation?: 'rappel' | 'noter';
+    /**
+     * Sur Detresse
+     *
+     * urgence: the emergency instruction on the next turn; noter: only mark it.
+     */
+    sur_detresse?: 'urgence' | 'noter';
+    /**
+     * Consigne
+     *
+     * The classifier's instruction; empty = the code's text.
+     */
+    consigne?: string;
 };
 
 /**
@@ -13283,6 +13435,24 @@ export type ScheduleConfigResponse = {
 };
 
 /**
+ * SecuriteConversation
+ */
+export type SecuriteConversation = {
+    manipulation?: ConsigneDeSecurite;
+    confidentialite?: ConsigneDeSecurite;
+    role?: ConsigneDeSecurite;
+    urgence?: ConsigneUrgence;
+    jamais?: CeQueLAgentNeDitJamais;
+    ecoute?: EcouteDeLAppelant;
+    /**
+     * Marquer
+     *
+     * Mark every trigger on the reply and send the call to « To improve ».
+     */
+    marquer?: boolean;
+};
+
+/**
  * SelectOrganizationRequest
  */
 export type SelectOrganizationRequest = {
@@ -17145,6 +17315,10 @@ export type WorkflowConfigurationDefaults = {
      * Stop the agent from SAYING the caller's family name out loud. Enforced in code rather than by the prompt, which never held: five rewrites in two days still left the name spoken in 2 voice runs out of 5. ⚠️ Only works when the text is sent to the voice sentence by sentence (see the aggregation mode above): word by word, a name is split across frames and the filter stays inert. The name is still written to the call record and the transcript -- this filters what is spoken, never what is noted. A SPELLED name is deliberately left alone, so have the agent confirm a name by spelling it, never by saying it.
      */
     interdire_nom_appelant?: boolean;
+    /**
+     * [.mark] The safety of the conversation, three layers, all generic and each with a switch, all off by default: safety instructions added after the prompt (manipulation, confidentiality, role, vital emergency); two guards on the reply before the voice (a tool name, braces, brackets and {{...}} removed; a reply that copies N consecutive words of the agent's own instructions replaced); a classifier of the caller, in parallel, never awaited. Same behaviour by phone and by keyboard.
+     */
+    securite_conversation?: SecuriteConversation | null;
     /**
      * Interdire Civilite Appelant
      *
@@ -24084,6 +24258,98 @@ export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors = {
 export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostError = NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors[keyof NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostErrors];
 
 export type NoterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/executions';
+};
+
+export type ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetError = ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetErrors[keyof ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetErrors];
+
+export type ExecutionsPasseesApiV1BuilderTestsWorkflowIdExecutionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/ressources';
+};
+
+export type RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetError = RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetErrors[keyof RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetErrors];
+
+export type RessourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGetResponses = {
     /**
      * Successful Response
      */
