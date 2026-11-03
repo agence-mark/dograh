@@ -97,6 +97,15 @@ def membership(monkeypatch):
         monkeypatch.setattr(
             service.db_client, "add_user_to_organization", _add_to_organization
         )
+    try:
+        # [.mark] U2 ter : la liste synchronise d'abord les appartenances du rôle, en base. Ce test porte sur la
+        # porte de la route, pas sur les rôles (`test_equipe_invitations.py`) : sans ce remplacement, il touchait la
+        # vraie base depuis la boucle du TestClient et tombait en suite complète (« Event loop is closed »).
+        from api.services.equipe_mark import espaces
+
+        monkeypatch.setattr(espaces, "synchroniser_appartenances", AsyncMock(return_value=None))
+    except ImportError:
+        pass
     return SimpleNamespace(owned=owned, selected=selected, joined=joined)
 
 
