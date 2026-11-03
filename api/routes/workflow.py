@@ -317,6 +317,11 @@ class WorkflowListResponse(BaseModel):
     total_runs: int
     folder_id: int | None = None
     workflow_uuid: str | None = None
+    # [.mark] K2: what the agents list shows (version, state, last change, calls of the last 7 days).
+    version_numero: int | None = None
+    version_etat: str | None = None
+    modifie_le: datetime | None = None
+    appels_7j: int = 0
 
 
 class MoveWorkflowToFolderRequest(BaseModel):
@@ -756,6 +761,7 @@ async def get_workflows(
     # Get run counts for all workflows in a single query
     workflow_ids = [workflow.id for workflow in workflows]
     run_counts = await db_client.get_workflow_run_counts(workflow_ids)
+    etats = await db_client.get_etat_des_versions_pour_liste(workflow_ids)
 
     return [
         WorkflowListResponse(
@@ -766,6 +772,7 @@ async def get_workflows(
             total_runs=run_counts.get(workflow.id, 0),
             folder_id=workflow.folder_id,
             workflow_uuid=workflow.workflow_uuid,
+            **etats.get(workflow.id, {}),
         )
         for workflow in workflows
     ]
