@@ -142,6 +142,9 @@ REGLES: tuple[Regle, ...] = (
     _r({"PUT"}, r"^/organizations/selected$", MEMBRE),
     _r(ECRITURE, r"^/organizations/(telephony-configs|telephony-providers)(/.*)?$", P("telephonie.gerer")),
     _r(ECRITURE, r"^/organizations/(model-configurations|langfuse-credentials|usage)(/.*)?$", P("cles.gerer")),
+    # Le portail ouvre sa connexion à la base du client avec la clé d'API de l'organisation (lot F6) :
+    # une permission qu'une clé peut porter, celle des accès techniques, jamais ``atelier.regler``.
+    _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("cles.gerer")),
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),
     _r(ECRITURE, r"^/organizations/.*$", P("agents.modifier"), par_defaut=True),
