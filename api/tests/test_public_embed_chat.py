@@ -53,6 +53,9 @@ _CHAT_TOKEN = SimpleNamespace(
     is_active=True,
     expires_at=None,
     allowed_domains=[],
+    # [.mark] S1 : champs du jeton ajoutés par la migration du widget (aucun site, réglages par défaut).
+    site_id=None,
+    reglages_mark=None,
     workflow_id=1,
     organization_id=11,
     created_by=7,
@@ -66,6 +69,9 @@ _VOICE_TOKEN = SimpleNamespace(
     is_active=True,
     expires_at=None,
     allowed_domains=[],
+    # [.mark] S1 : champs du jeton ajoutés par la migration du widget (aucun site, réglages par défaut).
+    site_id=None,
+    reglages_mark=None,
     workflow_id=1,
     organization_id=11,
     created_by=7,
@@ -79,6 +85,9 @@ _RESTRICTED_TOKEN = SimpleNamespace(
     is_active=True,
     expires_at=None,
     allowed_domains=["allowed.example.com"],
+    # [.mark] S1 : champs du jeton ajoutés par la migration du widget (aucun site, réglages par défaut).
+    site_id=None,
+    reglages_mark=None,
     workflow_id=1,
     organization_id=11,
     created_by=7,
@@ -92,6 +101,9 @@ _INACTIVE_TOKEN = SimpleNamespace(
     is_active=False,
     expires_at=None,
     allowed_domains=[],
+    # [.mark] S1 : champs du jeton ajoutés par la migration du widget (aucun site, réglages par défaut).
+    site_id=None,
+    reglages_mark=None,
     workflow_id=1,
     organization_id=11,
     created_by=7,
@@ -222,7 +234,12 @@ def _patch_db(monkeypatch):
     async def _get_workflow(*_args, **_kwargs):
         return SimpleNamespace(
             id=1,
-            released_definition=SimpleNamespace(id=55, template_context_variables={}),
+            released_definition=SimpleNamespace(
+                id=55,
+                template_context_variables={},
+                # [.mark] S1 / D182 : une session publique ne reçoit que les clés que l'agent déclare.
+                workflow_configurations={"contexte_public_cles": ["name", "customer_name", "bio"]},
+            ),
             current_definition=None,
             template_context_variables={},
         )
@@ -265,6 +282,10 @@ def _patch_db(monkeypatch):
         "api.services.workflow.embed_text_chat_service.allow_embed_chat_message",
         _allow,
     )
+    # [.mark] S1 : limite par adresse et plafond du mois, en Redis et en base, hors du sujet de ces tests.
+    monkeypatch.setattr("api.routes.public_embed.autoriser_session", _allow)
+    monkeypatch.setattr("api.routes.public_embed.plafond.reserver", _allow)
+    monkeypatch.setattr("api.routes.public_embed.plafond.rendre", _noop)
 
     async def _start_chat(**_kwargs):
         return _text_session(turns=[_GREETING_TURN], revision=2)
