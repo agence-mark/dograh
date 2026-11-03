@@ -49,8 +49,12 @@ export function OptionsDeConstruction() {
 
     if (!options) return null;
 
-    const enregistrer = async (suivantes: Options) => {
-        const r = await reglerLesOptionsApiV1BuilderOptionsPut({ body: suivantes });
+    // On relit l'état du serveur et on ne change QUE le champ voulu : les interrupteurs du builder (Portes) vivent dans la même ligne
+    // et ne doivent jamais être écrasés par une copie périmée.
+    const enregistrer = async (morceau: Partial<Options>) => {
+        const frais = await lireLesOptionsApiV1BuilderOptionsGet();
+        const base = (frais?.data as Options | undefined) ?? options;
+        const r = await reglerLesOptionsApiV1BuilderOptionsPut({ body: { ...base, ...morceau } });
         if (r.error || !r.data) return notifier.echec(T.echec);
         setOptions(r.data as Options);
         notifier.succes(T.ok);
@@ -67,7 +71,7 @@ export function OptionsDeConstruction() {
                     id="option-sauvegarde"
                     aria-label={t(T.sauvegarde)}
                     checked={options.sauvegarde_avant_modification}
-                    onCheckedChange={(valeur) => void enregistrer({ ...options, sauvegarde_avant_modification: valeur })}
+                    onCheckedChange={(valeur) => void enregistrer({ sauvegarde_avant_modification: valeur })}
                 />
             </div>
             {recettes.length > 0 && (
@@ -80,7 +84,7 @@ export function OptionsDeConstruction() {
                         id="option-recette"
                         className="h-9 cursor-pointer rounded-md border bg-background px-2 text-sm"
                         value={options.recette_par_defaut}
-                        onChange={(e) => void enregistrer({ ...options, recette_par_defaut: e.target.value })}
+                        onChange={(e) => void enregistrer({ recette_par_defaut: e.target.value })}
                     >
                         <option value="">{t(T.aucune)}</option>
                         {recettes.map((r) => (
