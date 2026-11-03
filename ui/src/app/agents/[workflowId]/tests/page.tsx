@@ -1,16 +1,19 @@
 "use client";
 
-// [.mark] U3 : l'onglet Tests monte l'écran actuel des tests de l'agent (refondu par B2) sous l'en-tête de l'agent.
+// [.mark] U3 (E47) : l'onglet Tests de l'agent (liste, exécutions passées, fenêtre d'un test, depuis la bibliothèque).
 import { useParams } from "next/navigation";
 
-import PageTestsDeLAgent from "@/app/workflow/[workflowId]/tests/page";
+import { PageTests } from "@/components/builder/tests/PageTests";
 import { EntetePageAgent } from "@/components/mark/agent/EntetePageAgent";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/lib/auth";
 
 export default function OngletTestsAgent() {
     const { workflowId } = useParams();
+    const { user, loading } = useAuth();
     return (
         <EntetePageAgent agentId={Number(workflowId)} onglet="tests">
-            <PageTestsDeLAgent />
+            {loading || !user ? <Skeleton className="m-6 h-64" /> : <PageTests workflowId={Number(workflowId)} />}
         </EntetePageAgent>
     );
 }

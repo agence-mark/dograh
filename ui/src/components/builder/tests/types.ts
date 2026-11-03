@@ -12,6 +12,8 @@ export interface ResumeDeTest {
     dossier: string;
     origine: string | null;
     genre: "conversation" | "replique";
+    description?: string;
+    modifie_le?: string | null;
     criteres: number;
     derniere: null | { le: string; version: number | null; statut: StatutDeTest; reussis: number; total: number };
 }
@@ -130,3 +132,40 @@ export interface AgentDeRecette {
     version: number | null;
     a_jour: boolean;
 }
+
+/** What the test window reads from the agent and the library (`/builder/tests/<agent>/ressources`): no list is written in the screen. */
+export interface RessourcesDeTest {
+    etapes: string[];
+    outils: string[];
+    issues: string[];
+    champs: string[];
+    personnages: Array<{ slug: string; titre: string }>;
+    scenarios_types: Array<{ slug: string; titre: string; statut: string }>;
+}
+
+/** A kept run of any test (`/builder/tests/<agent>/executions`). */
+export interface ExecutionPassee {
+    test: string;
+    nom: string;
+    obligatoire: boolean;
+    le: string;
+    version: number | null;
+    statut: StatutDeTest;
+    reussis: number;
+    total: number;
+}
+
+/** What a typical scenario cites that the agent lacks (`.../scenarios-types/<slug>/examiner`). */
+export interface BilanDeScenario {
+    copie?: boolean;
+    titre: string;
+    but: string | null;
+    personnage_absent: boolean;
+    absents: Array<{ critere: number; type: string; manque: string; sorte: string }>;
+}
+
+/** The three kinds of the test window (E47). A tool-call test is a one-reply test whose criterion is a tool. */
+export type SorteDeTest = "conversation" | "replique" | "outil";
+
+export const sorteDuTest = (t: { scenario?: unknown; criteres: Array<{ type: string }> }): SorteDeTest =>
+    t.scenario ? "conversation" : t.criteres.length > 0 && t.criteres.every((c) => c.type === "outil") ? "outil" : "replique";

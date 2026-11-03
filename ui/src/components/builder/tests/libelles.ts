@@ -11,10 +11,10 @@ export const STATUTS_DE_TEST: Record<StatutDeTest, { texte: Texte; classe: strin
     erreur: { texte: { en: "Could not run", fr: "Non jouable" }, classe: "bg-(--signal-idle)/20 text-foreground" },
 };
 
-export type ChampDeCritere = "texte" | "nom" | "attendue" | "noms" | "champs" | "max" | "ne_doit_pas_etre_appele";
+export type ChampDeCritere = "texte" | "nom" | "attendue" | "noms" | "mots" | "champs" | "max" | "ne_doit_pas_etre_appele";
 
 /** The criteria the code judges (the judge never decides): what each one asks for. */
-export const CRITERES: Record<string, { libelle: Texte; champs: ChampDeCritere[] }> = {
+export const CRITERES: Record<string, { libelle: Texte; champs: ChampDeCritere[]; ancien?: boolean }> = {
     texte_absent: { libelle: { en: "The agent never says…", fr: "L'agent ne dit jamais…" }, champs: ["texte"] },
     texte_present: { libelle: { en: "The agent says…", fr: "L'agent dit…" }, champs: ["texte"] },
     outil: { libelle: { en: "A tool is called", fr: "Un outil est appelé" }, champs: ["nom", "ne_doit_pas_etre_appele"] },
@@ -22,7 +22,9 @@ export const CRITERES: Record<string, { libelle: Texte; champs: ChampDeCritere[]
     issue: { libelle: { en: "The call ends with the outcome", fr: "L'appel se termine par l'issue" }, champs: ["attendue"] },
     appel_clos_par_l_agent: { libelle: { en: "The agent closes the call", fr: "L'agent clôt l'appel" }, champs: [] },
     mecanique_dite: { libelle: { en: "No tool or mechanic name is said", fr: "Aucun nom d'outil ou de mécanique n'est dit" }, champs: ["noms"] },
-    merci_en_tete: { libelle: { en: "Replies starting with « Merci »", fr: "Répliques qui commencent par « Merci »" }, champs: ["max"] },
+    texte_en_tete: { libelle: { en: "Replies starting with the words…", fr: "Répliques qui commencent par les mots…" }, champs: ["mots", "max"] },
+    // Kept to READ the tests written before: the server reads it as `texte_en_tete` with « merci ». Never offered in a list.
+    merci_en_tete: { libelle: { en: "Replies starting with « Merci »", fr: "Répliques qui commencent par « Merci »" }, champs: ["max"], ancien: true },
     coordonnees_prises: { libelle: { en: "The sheet holds the fields", fr: "La fiche contient les champs" }, champs: ["champs"] },
     sans_redite: { libelle: { en: "No repetition", fr: "Aucune redite" }, champs: [] },
     sans_rigidite: { libelle: { en: "No rigid re-asking", fr: "Aucune redemande rigide" }, champs: [] },
@@ -33,6 +35,7 @@ export const CHAMPS: Record<ChampDeCritere, Texte> = {
     nom: { en: "Tool name", fr: "Nom de l'outil" },
     attendue: { en: "Expected", fr: "Attendu" },
     noms: { en: "Names (comma-separated)", fr: "Noms (séparés par des virgules)" },
+    mots: { en: "Words (comma-separated)", fr: "Mots (séparés par des virgules)" },
     champs: { en: "Fields (comma-separated)", fr: "Champs (séparés par des virgules)" },
     max: { en: "At most", fr: "Au plus" },
     ne_doit_pas_etre_appele: { en: "Must NOT be called", fr: "Ne doit PAS être appelé" },

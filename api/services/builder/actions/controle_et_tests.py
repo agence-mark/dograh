@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from api.services.builder.actions.registre import REGISTRE, Contexte, ErreurAction
+from api.services.builder.actions.registre import REGISTRE, Action, Contexte, ErreurAction, enregistrer
 
 
 class _Controle(BaseModel):
@@ -37,7 +37,7 @@ class _TestACreer(BaseModel):
         default_factory=list,
         description=(
             "Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, "
-            "mecanique_dite, merci_en_tete, coordonnees_prises, sans_redite, sans_rigidite."
+            "mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite."
         ),
     )
     obligatoire: bool = Field(default=False, description="A required test blocks the publication when it fails.")
@@ -52,6 +52,23 @@ class _TestACreer(BaseModel):
     origine: str = Field(default="manuel", description="client | recette | code | manuel | fiche")
     description: str = ""
     questions_juge: list[str] = Field(default_factory=list, description="Questions for the non-blocking judge.")
+
+
+class _TestAModifier(BaseModel):
+    workflow_id: int | None = None
+    test: str = Field(min_length=1, max_length=80, description="Slug of the test to change (it never changes).")
+    nom: str | None = Field(default=None, max_length=200)
+    description: str | None = None
+    criteres: list[dict[str, Any]] | None = Field(default=None, description="The WHOLE new list of criteria (replaces the old one).")
+    obligatoire: bool | None = None
+    dossier: str | None = Field(default=None, max_length=80)
+    scenario: str | None = Field(default=None, max_length=4000)
+    replique: str | None = None
+    historique: list[dict[str, str]] | None = None
+    personnage: str | None = None
+    ouverture: str | None = None
+    tours_max: int | None = Field(default=None, ge=2, le=40)
+    questions_juge: list[str] | None = None
 
 
 class _TestsARejouer(BaseModel):
@@ -118,6 +135,27 @@ async def _tests_creer(contexte: Contexte, parametres: BaseModel) -> dict[str, A
         "ok": True,
         "test": resume,
         "elements": [{"statut": "ok", "message": f"Test « {test['nom']} » created ({resume['genre']}, personal data replaced)."}],
+        "carte": {"type": "tests", "cree": resume},
+    }
+
+
+async def _tests_modifier(contexte: Contexte, parametres: BaseModel) -> dict[str, Any]:
+    """U3 (E47) : modifier un test existant en entier (même validation qu'à la création), résultats remis à zéro."""
+    from api.services.builder.actions._commun import agent_verifie
+    from api.services.builder.tests_agent import creation, stockage
+    from api.services.tests_rejouables.modele import ErreurTestRejouable
+
+    identifiant = await agent_verifie(contexte, parametres.workflow_id)
+    champs = parametres.model_dump(exclude={"workflow_id", "test"}, exclude_unset=True)
+    try:
+        test = await creation.modifier(contexte.organisation_id, identifiant, parametres.test, **champs)
+    except (stockage.ErreurTest, ErreurTestRejouable) as erreur:
+        raise ErreurAction(str(erreur)) from None
+    resume = creation.en_resume(test)
+    return {
+        "ok": True,
+        "test": resume,
+        "elements": [{"statut": "ok", "message": f"Test « {test['nom']} » changed; its earlier results are cleared."}],
         "carte": {"type": "tests", "cree": resume},
     }
 
@@ -202,4 +240,20 @@ _remplir(
     ecriture=True,
     groupe="tests",
     lot="lot 6",
+)
+enregistrer(
+    Action(
+        nom="tests_modifier",
+        description=(
+            "Change an existing test in full (name, description, criteria, required, folder, reply or scenario, character, first "
+            "words, turns): same validation as at creation, the slug never changes, the earlier results are cleared because they "
+            "judged the old test. A test keeps its kind (one reply or a simulated conversation)."
+        ),
+        parametres=_TestAModifier,
+        fonction=_tests_modifier,
+        ecriture=True,
+        disponible=True,
+        groupe="tests",
+        extras={"lot": "U3"},
+    )
 )

@@ -84,6 +84,11 @@ async def changer(organization_id: int, workflow_id: int, slug: str, **champs: A
     return await stock.modifier(organization_id, cle_test(workflow_id, slug), transformer) or {}
 
 
+async def effacer_les_resultats(organization_id: int, workflow_id: int, slug: str) -> None:
+    """Un test modifié n'a plus de résultats : ceux d'avant jugeaient l'ancien."""
+    await stock.supprimer(organization_id, cle_resultats(workflow_id, slug))
+
+
 async def resultats(organization_id: int, workflow_id: int, slug: str) -> list[dict[str, Any]]:
     ligne = await stock.lire(organization_id, cle_resultats(workflow_id, slug)) or {}
     return list(ligne.get("executions") or [])

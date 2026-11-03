@@ -48,6 +48,7 @@ ARGUMENTS = {
     "outil_essayer": {"workflow_id": AGENT, "outil": "noter"},
     "tests_creer": {"workflow_id": AGENT, "nom": "t", "scenario": "s"},
     "tests_rejouer": {"workflow_id": AGENT},
+    "tests_modifier": {"workflow_id": AGENT, "test": "t"},
     # Lot 3 (dossiers, fiche classée, base de connaissances) et B48 (objets de l'agent).
     "depot_ajouter_site": {"workflow_id": AGENT, "adresse": "https://exemple.test"},
     "fiche_creer_les_objets": {"workflow_id": AGENT},

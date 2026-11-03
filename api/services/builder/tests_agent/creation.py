@@ -91,6 +91,81 @@ async def creer(
     return test
 
 
+async def modifier(
+    organisation_id: int,
+    workflow_id: int,
+    slug: str,
+    *,
+    nom: str | None = None,
+    description: str | None = None,
+    criteres: list[dict[str, Any]] | None = None,
+    obligatoire: bool | None = None,
+    dossier: str | None = None,
+    questions_juge: list[str] | None = None,
+    replique: str | None = None,
+    historique: list[dict[str, str]] | None = None,
+    scenario: str | None = None,
+    personnage: str | None = None,
+    ouverture: str | None = None,
+    tours_max: int | None = None,
+) -> dict[str, Any]:
+    """U3 (E47) : modification COMPLÈTE d'un test existant, même validation qu'à la création.
+
+    Le ``slug`` ne change jamais ; les résultats d'avant sont remis à zéro (ils jugeaient l'ancien test) ; les données personnelles sont
+    remplacées par des fausses comme à la création. La sorte (réplique ou conversation) ne change pas : c'est un autre test.
+    """
+    ancien = await stockage.lire(organisation_id, workflow_id, slug)
+    test = dict(ancien)
+    if nom is not None:
+        nom = " ".join(nom.split())[:LONGUEUR_NOM_MAX]
+        if not nom:
+            raise stockage.ErreurTest("A test needs a name.")
+        test["nom"] = nom
+    if description is not None:
+        test["description"] = description
+    if criteres is not None:
+        criteres = verdict.valider_criteres(criteres)
+        test["criteres"] = criteres
+        test["critere"] = criteres[0] if criteres[0]["type"] in verdict.TYPES_DE_BASE else verdict.CRITERE_NEUTRE
+    if obligatoire is not None:
+        test["obligatoire"] = bool(obligatoire)
+    if dossier is not None:
+        test["dossier"] = dossier.strip()[:80]
+    if questions_juge is not None:
+        test["questions_juge"] = [q[:300] for q in questions_juge][:5]
+    if test.get("scenario"):
+        if replique or historique:
+            raise stockage.ErreurTest("This test is a simulated conversation: it has no single reply to change.")
+        base = dict(test["scenario"])
+        if scenario is not None:
+            if not scenario.strip():
+                raise stockage.ErreurTest("A conversation test needs its scenario.")
+            base["but"] = scenario.strip()[:4000]
+        if personnage is not None:
+            base["personnage"] = personnage or None
+        if ouverture is not None:
+            base["ouverture"] = ouverture.strip()[:500]
+        if tours_max is not None:
+            base["tours_max"] = tours_max
+        test["scenario"] = base
+    else:
+        if scenario or personnage or ouverture or tours_max:
+            raise stockage.ErreurTest("This test is one reply: it has no scenario to change.")
+        if replique is not None:
+            if not replique.strip():
+                raise stockage.ErreurTest("A reply test needs its reply.")
+            test["replique"] = replique.strip()
+        if historique is not None:
+            test["historique"] = list(historique)
+    test = rendre_fictif(test)
+    if not est_fictive(test):
+        raise stockage.ErreurTest("The test still holds data that looks real: nothing was kept.")
+    test["modifie_le"] = stockage.maintenant()
+    await stockage.ecrire(organisation_id, workflow_id, test)
+    await stockage.effacer_les_resultats(organisation_id, workflow_id, slug)
+    return test
+
+
 async def _slug_libre(organisation_id: int, workflow_id: int, nom: str) -> str:
     pris = {t["slug"] for t in await stockage.lister(organisation_id, workflow_id)}
     base, n, slug = stockage.slug_de(nom), 2, stockage.slug_de(nom)
@@ -109,7 +184,9 @@ def en_resume(test: dict[str, Any]) -> dict[str, Any]:
         "dossier": test.get("dossier", ""),
         "origine": test.get("origine"),
         "genre": "conversation" if test.get("scenario") else "replique",
+        "description": test.get("description", ""),
         "criteres": len(test.get("criteres") or []),
         "source": test.get("source") or {},
         "cree_le": test.get("cree_le"),
+        "modifie_le": test.get("modifie_le") or test.get("cree_le"),
     }

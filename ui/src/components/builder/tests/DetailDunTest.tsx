@@ -44,8 +44,8 @@ interface Props {
     workflowId: number;
     test: TestComplet;
     resultats: Execution[];
-    onObligatoire: (valeur: boolean) => void;
-    onSupprimer: () => void;
+    onObligatoire?: (valeur: boolean) => void;
+    onSupprimer?: () => void;
 }
 
 export function DetailDunTest({ workflowId, test, resultats, onObligatoire, onSupprimer }: Props) {
@@ -66,17 +66,22 @@ export function DetailDunTest({ workflowId, test, resultats, onObligatoire, onSu
     };
 
     return (
-        <section className="space-y-3 rounded border p-4" data-testid="detail-du-test">
+        <section className="space-y-3" data-testid="detail-du-test">
             <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-lg font-semibold">{test.nom}</h2>
                 <span className="rounded bg-muted px-2 py-0.5 text-xs">{test.origine ? t(ORIGINES_DE_TEST[test.origine] ?? { en: test.origine, fr: test.origine }) : ""}</span>
-                <label className="ml-auto flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={test.obligatoire} onChange={(e) => onObligatoire(e.target.checked)} aria-label={t({ en: "Required", fr: "Obligatoire" })} />
-                    {t({ en: "Required", fr: "Obligatoire" })}
-                </label>
-                <Button variant="ghost" size="sm" onClick={onSupprimer}>
-                    {t({ en: "Delete", fr: "Supprimer" })}
-                </Button>
+                {test.obligatoire && <span className="ml-auto text-xs text-muted-foreground">{t({ en: "Required", fr: "Obligatoire" })}</span>}
+                {onObligatoire && (
+                    <label className="ml-auto flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={test.obligatoire} onChange={(e) => onObligatoire(e.target.checked)} aria-label={t({ en: "Required", fr: "Obligatoire" })} />
+                        {t({ en: "Required", fr: "Obligatoire" })}
+                    </label>
+                )}
+                {onSupprimer && (
+                    <Button variant="ghost" size="sm" onClick={onSupprimer}>
+                        {t({ en: "Delete", fr: "Supprimer" })}
+                    </Button>
+                )}
             </div>
             <ul className="list-disc pl-5 text-sm text-muted-foreground">
                 {test.criteres.map((c, i) => (

@@ -25,7 +25,7 @@ export interface SourceDuTest {
     extrait?: string;
 }
 
-interface LigneDeCritere {
+export interface LigneDeCritere {
     type: string;
     valeurs: Partial<Record<ChampDeCritere, string | boolean>>;
 }
@@ -54,6 +54,7 @@ export function critereDeLaLigne(ligne: LigneDeCritere): Record<string, unknown>
     }
     if (v.attendue !== undefined) c.attendue = String(v.attendue).trim();
     if (v.noms !== undefined) c.noms = liste(v.noms);
+    if (v.mots !== undefined) c.mots = liste(v.mots);
     if (v.champs !== undefined) c.champs = liste(v.champs);
     if (v.max !== undefined) c.max = Number(v.max) || 0;
     return c;
@@ -166,7 +167,7 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
                             value={c.type}
                             onChange={(e) => changerType(i, e.target.value)}
                         >
-                            {Object.entries(CRITERES).map(([type, d]) => (
+                            {Object.entries(CRITERES).filter(([, d]) => !d.ancien).map(([type, d]) => (
                                 <option key={type} value={type}>
                                     {t(d.libelle)}
                                 </option>
