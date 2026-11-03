@@ -6,13 +6,15 @@ import { toast } from "sonner";
 
 import { loginApiV1AuthLoginPost } from "@/client/sdk.gen";
 import { useLangue } from "@/components/mark/langue/langue";
-import { CadreAcces } from "@/components/mark/studio/cadre-acces";
+import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { detailFromError } from "@/lib/apiError";
 
-/** [.mark] La connexion au nouveau design (U2 ter). `premierCompte` : l'installation est vide, le premier compte peut s'inscrire. */
+/**
+ * [.mark] La connexion dans la forme de la maquette (`PageConnexion`, K1). `premierCompte` : l'installation est vide,
+ * le premier compte peut s'inscrire (c'est la seule inscription ; ensuite, on entre par invitation).
+ */
 export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean }) {
     const { t } = useLangue();
     const [email, setEmail] = useState("");
@@ -43,16 +45,22 @@ export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean 
 
     return (
         <CadreAcces
-            titre={t({ en: "Sign in", fr: "Connexion" })}
-            sousTitre={t({ en: "Enter your email and password", fr: "Saisissez votre adresse et votre mot de passe" })}
+            titre={t({ en: "Sign in", fr: "Se connecter" })}
+            sousTitre={t({ en: "The .mark team's workshop.", fr: "L'atelier de l'équipe .mark." })}
         >
             <form onSubmit={envoyer} className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="email">{t({ en: "Email", fr: "Adresse e-mail" })}</Label>
-                    <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="mot-de-passe">{t({ en: "Password", fr: "Mot de passe" })}</Label>
+                <ChampAcces libelle={t({ en: "Email", fr: "E-mail" })}>
+                    <Input
+                        id="email"
+                        type="email"
+                        autoComplete="username"
+                        placeholder="prenom@agence-mark.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                </ChampAcces>
+                <ChampAcces libelle={t({ en: "Password", fr: "Mot de passe" })}>
                     <Input
                         id="mot-de-passe"
                         type="password"
@@ -61,19 +69,26 @@ export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean 
                         onChange={(e) => setMotDePasse(e.target.value)}
                         required
                     />
-                </div>
-                <Button type="submit" className="w-full cursor-pointer" disabled={enCours}>
+                </ChampAcces>
+                <Button type="submit" className="w-full" disabled={enCours}>
                     {enCours ? t({ en: "Signing in...", fr: "Connexion..." }) : t({ en: "Sign in", fr: "Se connecter" })}
                 </Button>
             </form>
-            {premierCompte && (
-                <p className="text-center text-sm text-muted-foreground">
-                    {t({ en: "New installation?", fr: "Nouvelle installation ?" })}{" "}
-                    <Link href="/auth/signup" className="cursor-pointer text-primary hover:font-medium">
-                        {t({ en: "Create the first account", fr: "Créer le premier compte" })}
-                    </Link>
-                </p>
-            )}
+            <PiedAcces>
+                {premierCompte ? (
+                    <>
+                        {t({ en: "New installation?", fr: "Nouvelle installation ?" })}{" "}
+                        <Link href="/auth/signup" className="font-medium text-foreground hover:font-semibold">
+                            {t({ en: "Create the first account", fr: "Créer le premier compte" })}
+                        </Link>
+                    </>
+                ) : (
+                    t({
+                        en: "No account? A member of the team invites you from Settings › Team and roles.",
+                        fr: "Pas de compte ? Un membre de l'équipe vous invite depuis Réglages › Équipe et rôles.",
+                    })
+                )}
+            </PiedAcces>
         </CadreAcces>
     );
 }

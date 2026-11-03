@@ -43,13 +43,13 @@ export function useOngletDeLAdresse(ids: string[], defaut: string) {
     return { actif, choisir };
 }
 
-export function OngletsPage({ onglets, defaut }: { onglets: OngletPage[]; defaut?: string }) {
+export function OngletsPage({ onglets, defaut, espacement = "space-y-6" }: { onglets: OngletPage[]; defaut?: string; espacement?: string }) {
     const { actif, choisir } = useOngletDeLAdresse(
         onglets.map((o) => o.id),
         defaut ?? onglets[0].id,
     );
     return (
-        <div className="space-y-6">
+        <div className={espacement}>
             <div role="tablist" className="flex flex-wrap items-center gap-1 border-b">
                 {onglets.map((o) => (
                     <button

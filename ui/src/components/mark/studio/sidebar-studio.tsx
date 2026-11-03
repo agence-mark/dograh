@@ -13,12 +13,10 @@ import "@/lib/espaces";
 import { AlertTriangle, Building2, ChevronsUpDown, FlaskConical, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
-import { BoutonLangue } from "@/components/mark/langue/BoutonLangue";
 import { useLangue } from "@/components/mark/langue/langue";
-import ThemeToggle from "@/components/ThemeSwitcher";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -41,11 +39,15 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
+import type { ProfilResponse } from "@/client/types.gen";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { retenirEspace } from "@/lib/espaceCourant";
 
+import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
+import { useMoi } from "./moi";
+import { useNomEspace } from "./nom-espace";
 import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
 import { SelecteurEspace } from "./selecteur-espace";
 
@@ -67,7 +69,10 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
     const { provider, logout, user } = useAuth();
     const { telnyxMissingWebhookPublicKeyCount, vonageMissingSignatureSecretCount } = useTelephonyConfigWarnings();
     const alerteTelephonie = telnyxMissingWebhookPublicKeyCount > 0 || vonageMissingSignatureSecretCount > 0;
-    const replie = !isMobile && state === "collapsed";
+    const [profilOuvert, setProfilOuvert] = useState(false);
+    const [profilLu, setProfilLu] = useState<ProfilResponse | null>(null);
+    const moi = useMoi();
+    const profil = profilLu ?? moi;
 
     const { espace, base, org } = espaceDe(pathname);
     // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).
@@ -75,7 +80,10 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 
+    const nomEspace = useNomEspace(espace, org);
+    const nomComplet = [profil?.prenom, profil?.nom].filter(Boolean).join(" ");
     const identite =
+        nomComplet ||
         user?.displayName ||
         (user as { primaryEmail?: string } | undefined)?.primaryEmail ||
         (user as LocalUser | undefined)?.email ||
@@ -142,7 +150,7 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                             <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
                                 {espace === "labo" ? t({ en: "Space", fr: "Espace" }) : t({ en: "Client", fr: "Client" })}
                             </span>
-                            <span className="block truncate text-sm font-medium">{org ?? t({ en: "Lab .mark", fr: "Labo .mark" })}</span>
+                            <span className="block truncate text-sm font-medium">{nomEspace ?? (org ? "" : "Labo")}</span>
                         </span>
                     </div>
                 )}
@@ -182,22 +190,20 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
                                 {initialesDe(identite)}
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium group-data-[collapsible=icon]:hidden">
-                                {identite || t({ en: "Account", fr: "Compte" })}
-                            </span>
+                            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                                <p className="truncate text-sm font-medium">{identite || t({ en: "Account", fr: "Compte" })}</p>
+                                {profil?.role && <p className="truncate text-xs text-muted-foreground">{profil.role}</p>}
+                            </div>
                             <ChevronsUpDown className="size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="top" align="start" className="w-56">
                         {courriel && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{courriel}</DropdownMenuLabel>}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
-                            <Link href="/profil">
-                                <UserRound className="mr-2 size-4" /> {t({ en: "My profile", fr: "Mon profil" })}
-                            </Link>
+                        <DropdownMenuItem onClick={() => setProfilOuvert(true)} className="cursor-pointer hover:font-medium">
+                            <UserRound className="mr-2 size-4" /> {t({ en: "My profile", fr: "Mon profil" })}
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
-                            <Link href="/labo/reglages/equipe">
+                            <Link href="/labo/reglages?onglet=equipe">
                                 <Users className="mr-2 size-4" /> {t({ en: "Team and roles", fr: "Équipe et rôles" })}
                             </Link>
                         </DropdownMenuItem>
@@ -207,10 +213,7 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <div className={`flex items-center justify-center gap-2 ${replie ? "flex-col" : ""}`}>
-                    <BoutonLangue replie={replie} />
-                    <ThemeToggle showLabel={false} className="rounded-full hover:bg-accent hover:text-accent-foreground" />
-                </div>
+                <FenetreProfil profil={profil} ouverte={profilOuvert} fermer={() => setProfilOuvert(false)} apres={setProfilLu} />
             </SidebarFooter>
         </Sidebar>
     );

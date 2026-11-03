@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,62 +14,16 @@ import {
 import type { PermissionResponse, RoleResponse } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
-import { type Champ, FenetreChamps, type SectionChamps } from "@/components/mark/studio/fenetre-champs";
+import { Info } from "@/components/mark/studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import { listerEspaces } from "@/lib/espaces";
 
+import { type CorpsRole, FenetreRole } from "./FenetreRole";
 import { lireOuSignaler } from "./VueMembres";
 
 type Client = { id: number; nom: string };
-
-/** Le formulaire d'un rôle : son nom, les espaces qu'il ouvre, ses permissions groupées en interrupteurs. */
-function sectionsDuRole(
-    role: RoleResponse | null,
-    catalogue: PermissionResponse[],
-    clients: Client[],
-    t: ReturnType<typeof useLangue>["t"],
-): SectionChamps[] {
-    if (role?.fixe) {
-        return [
-            {
-                champs: [
-                    { id: "nom", l: t({ en: "Name", fr: "Nom" }), t: "lu", v: role.nom },
-                    { id: "esp", l: t({ en: "Spaces", fr: "Espaces" }), t: "lu", v: t({ en: "The Lab and every client", fr: "Le Labo et tous les clients" }) },
-                    { id: "perm", l: t({ en: "Permissions", fr: "Permissions" }), t: "lu", v: t({ en: "All of them", fr: "Toutes" }) },
-                ],
-            },
-        ];
-    }
-    const champsClients: Champ[] = clients.map((c) => ({
-        id: `o:${c.id}`,
-        l: c.nom,
-        t: "inter",
-        v: role?.organisations.includes(c.id) ?? false,
-        si: ["tous", [false]],
-    }));
-    const groupes = new Map<string, Champ[]>();
-    for (const p of catalogue) {
-        const champs = groupes.get(p.groupe) ?? [];
-        champs.push({ id: `p:${p.cle}`, l: p.libelle, t: "inter", v: role?.permissions.includes(p.cle) ?? false });
-        groupes.set(p.groupe, champs);
-    }
-    return [
-        {
-            champs: [{ id: "nom", l: t({ en: "Name", fr: "Nom" }), t: "texte", v: role?.nom ?? "" }],
-        },
-        {
-            titre: t({ en: "Spaces opened", fr: "Espaces ouverts" }),
-            champs: [
-                { id: "labo", l: t({ en: "The Lab", fr: "Le Labo" }), t: "inter", v: role?.labo_ouvert ?? false },
-                { id: "tous", l: t({ en: "Every client", fr: "Tous les clients" }), t: "inter", v: role?.tous_les_clients ?? false },
-                ...champsClients,
-            ],
-        },
-        ...[...groupes.entries()].map(([titre, champs]) => ({ titre, champs })),
-    ];
-}
 
 export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
     const { t } = useLangue();
@@ -96,14 +50,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
 
     if (!roles) return <EtatVide cas="chargement" />;
 
-    const enregistrer = async (role: RoleResponse | null, v: Record<string, string | boolean>) => {
-        const corps = {
-            nom: String(v.nom ?? ""),
-            labo_ouvert: v.labo === true,
-            tous_les_clients: v.tous === true,
-            permissions: Object.keys(v).filter((k) => k.startsWith("p:") && v[k] === true).map((k) => k.slice(2)),
-            organisations: Object.keys(v).filter((k) => k.startsWith("o:") && v[k] === true).map((k) => Number(k.slice(2))),
-        };
+    const enregistrer = async (role: RoleResponse | null, corps: CorpsRole) => {
         const res = role
             ? await modifierUnRoleApiV1EquipeMarkRolesRoleIdPut({ path: { role_id: role.id }, body: corps })
             : await creerUnRoleApiV1EquipeMarkRolesPost({ body: corps });
@@ -115,13 +62,21 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
     const lecture = Boolean(role?.fixe) || !peutGerer;
 
     return (
-        <div>
+        <div className="space-y-6">
             <TitreTableau
                 titre={t({ en: "Roles", fr: "Rôles" })}
+                info={
+                    <Info>
+                        {t({
+                            en: "A role is a set of permissions and the spaces it opens. Roles are created here, without code.",
+                            fr: "Un rôle = des permissions et les espaces qu'il ouvre. Ils se créent ici, sans code.",
+                        })}
+                    </Info>
+                }
                 action={
                     peutGerer ? (
-                        <Button className="cursor-pointer" onClick={() => setOuvert("nouveau")}>
-                            {t({ en: "New role", fr: "Nouveau rôle" })}
+                        <Button variant="outline" size="sm" onClick={() => setOuvert("nouveau")}>
+                            <Plus className="size-3.5" /> {t({ en: "Role", fr: "Rôle" })}
                         </Button>
                     ) : undefined
                 }
@@ -139,9 +94,13 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                 >
                     {roles.map((r) => (
                         <Ligne key={r.id} onClick={() => setOuvert(r)}>
-                            <Cellule principale>{r.nom}</Cellule>
+                            <Cellule principale sous={r.fixe ? t({ en: "fixed", fr: "fixe" }) : undefined}>
+                                {r.nom}
+                            </Cellule>
                             <Cellule>
-                                {[
+                                {r.labo_ouvert && r.tous_les_clients
+                                    ? t({ en: "The Lab and every client", fr: "Le Labo et tous les clients" })
+                                    : [
                                     r.labo_ouvert ? t({ en: "Lab", fr: "Labo" }) : null,
                                     r.tous_les_clients
                                         ? t({ en: "every client", fr: "tous les clients" })
@@ -153,9 +112,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                                     .join(" · ") || "—"}
                             </Cellule>
                             <Cellule droite>
-                                {r.fixe ? `${catalogue.length}` : r.permissions.length}
-                                {" / "}
-                                {catalogue.length}
+                                {r.fixe ? catalogue.length : r.permissions.length} {t({ en: "of", fr: "sur" })} {catalogue.length}
                             </Cellule>
                             <Cellule droite>{r.membres}</Cellule>
                         </Ligne>
@@ -164,38 +121,25 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
             )}
 
             {ouvert !== null && (
-                <FenetreChamps
-                    ouverte
+                <FenetreRole
+                    key={role ? role.id : "nouveau"}
+                    role={role}
+                    catalogue={catalogue}
+                    clients={clients}
+                    lecture={lecture}
                     fermer={() => setOuvert(null)}
-                    titre={role ? role.nom : t({ en: "New role", fr: "Nouveau rôle" })}
-                    info={
-                        role?.fixe
-                            ? t({
-                                  en: "The Administrator role cannot be changed or deleted; there is always one administrator left.",
-                                  fr: "Le rôle Administrateur ne se modifie ni ne se supprime ; il reste toujours un administrateur.",
-                              })
+                    enregistrer={(corps) => void enregistrer(role, corps)}
+                    supprimer={
+                        role
+                            ? async () => {
+                                  const res = await supprimerUnRoleApiV1EquipeMarkRolesRoleIdDelete({ path: { role_id: role.id } });
+                                  if (res.error) toast.error(detailFromError(res.error, t({ en: "The role was not deleted", fr: "Le rôle n'a pas été supprimé" })));
+                                  else {
+                                      setOuvert(null);
+                                      void charger();
+                                  }
+                              }
                             : undefined
-                    }
-                    sections={sectionsDuRole(role, catalogue, clients, t)}
-                    valider={lecture ? t({ en: "Close", fr: "Fermer" }) : t({ en: "Save", fr: "Enregistrer" })}
-                    onValider={lecture ? undefined : (v) => void enregistrer(role, v)}
-                    pied={
-                        role && !role.fixe && peutGerer ? (
-                            <Button
-                                variant="destructive"
-                                className="cursor-pointer"
-                                onClick={async () => {
-                                    const res = await supprimerUnRoleApiV1EquipeMarkRolesRoleIdDelete({ path: { role_id: role.id } });
-                                    if (res.error) toast.error(detailFromError(res.error, t({ en: "The role was not deleted", fr: "Le rôle n'a pas été supprimé" })));
-                                    else {
-                                        setOuvert(null);
-                                        void charger();
-                                    }
-                                }}
-                            >
-                                {t({ en: "Delete the role", fr: "Supprimer le rôle" })}
-                            </Button>
-                        ) : undefined
                     }
                 />
             )}

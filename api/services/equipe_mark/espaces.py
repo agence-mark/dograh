@@ -20,6 +20,7 @@ from api.services.equipe_mark.acces import organisation_est_ouverte
 
 DUREE_CACHE_S = 30.0
 NOM_MAX = 120
+NOM_LABO = "Labo"
 
 _cle_espace = OrganizationConfigurationKey.MARK_ESPACE.value
 _cle_nom = OrganizationConfigurationKey.MARK_NOM_AFFICHAGE.value
@@ -57,6 +58,9 @@ async def definir_labo(organization_id: int, est_labo: bool) -> None:
     """Marque (ou démarque) le Labo ; un seul à la fois, le cache est rafraîchi tout de suite."""
     if est_labo:
         await db_client.marquer_labo(_cle_espace, organization_id)
+        # L'organisation du Labo s'affiche « Labo » (Evan, 04/11), sauf si elle porte déjà un nom choisi.
+        if await db_client.get_configuration(organization_id, _cle_nom) is None:
+            await definir_nom_affichage(organization_id, NOM_LABO)
     else:
         await db_client.demarquer_labo(_cle_espace, organization_id)
     await rafraichir_labo(force=True)
@@ -107,7 +111,8 @@ async def lister_espaces(user) -> list[dict]:
     return [
         {
             "id": i,
-            "nom": noms.get(i) or provider_id,
+            # Le Labo sans nom choisi (désigné par la variable d'environnement, installation d'avant) s'affiche « Labo ».
+            "nom": noms.get(i) or (NOM_LABO if labo_id is not None and i == labo_id else provider_id),
             "provider_id": provider_id,
             "espace": "labo" if labo_id is not None and i == labo_id else "client",
             "selectionne": i == user.selected_organization_id,

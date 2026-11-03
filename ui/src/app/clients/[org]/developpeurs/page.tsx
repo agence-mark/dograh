@@ -1,2 +1,7 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/api-keys/page";
+// [.mark] K1 : Développeurs est une section des Réglages de l'organisation.
+import { redirect } from "next/navigation";
+
+export default async function Page({ params }: { params: Promise<{ org: string }> }) {
+    const { org } = await params;
+    redirect(`/clients/${org}/reglages?section=developpeurs`);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Users } from "lucide-react";
+import { Copy, Mail, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ import type { InvitationResponse, MembreResponse, RoleResponse } from "@/client/
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
-import { Marque } from "@/components/mark/studio/marques";
+import { Info, PointEtat } from "@/components/mark/studio/marques";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ export function VueMembres() {
     const [roles, setRoles] = useState<RoleResponse[]>([]);
     const [inviter, setInviter] = useState(false);
     const [ouvert, setOuvert] = useState<MembreResponse | null>(null);
+    const [invitation, setInvitation] = useState<InvitationResponse | null>(null);
     const [lien, setLien] = useState<{ lien: string; envoye: boolean; email: string } | null>(null);
 
     const charger = useCallback(async () => {
@@ -70,94 +71,115 @@ export function VueMembres() {
     if (!membres) return <EtatVide cas="chargement" />;
 
     return (
-        <div className="space-y-8">
-            <section>
+        <div>
+            <section className="space-y-6">
                 <TitreTableau
                     titre={t({ en: "Members", fr: "Membres" })}
+                    info={
+                        <Info>
+                            {t({
+                                en: "A member joins by invitation (single-use link, valid 48 h); open sign-up is closed. They use the keys of the organizations their role opens, without ever seeing them.",
+                                fr: "Un membre entre par invitation (lien à usage unique, valable 48 h) ; l'inscription libre est fermée. Il utilise les clés des organisations que son rôle lui ouvre, sans jamais les voir.",
+                            })}
+                        </Info>
+                    }
                     action={
-                        <Button className="cursor-pointer" onClick={() => setInviter(true)} disabled={roles.length === 0}>
-                            {t({ en: "Invite", fr: "Inviter" })}
+                        <Button size="sm" onClick={() => setInviter(true)} disabled={roles.length === 0}>
+                            <Mail className="size-3.5" /> {t({ en: "Invite", fr: "Inviter" })}
                         </Button>
                     }
                 />
-                {membres.total === 0 ? (
+                {membres.total === 0 && invitations.total === 0 ? (
                     <EtatVide cas="premier" icone={Users} titre={t({ en: "No member yet", fr: "Aucun membre" })} />
                 ) : (
                     <Paginee total={membres.total} page={page} changerPage={setPage}>
                         <Tableau
                             colonnes={[
-                                { titre: t({ en: "Name", fr: "Nom" }) },
-                                { titre: t({ en: "Email", fr: "Adresse e-mail" }) },
+                                { titre: t({ en: "Person", fr: "Personne" }) },
                                 { titre: t({ en: "Role", fr: "Rôle" }) },
+                                { titre: t({ en: "State", fr: "État" }) },
                             ]}
                         >
                             {membres.lignes.map((m) => (
-                                <Ligne key={m.user_id} onClick={() => setOuvert(m)}>
-                                    <Cellule principale>{identite(m)}</Cellule>
-                                    <Cellule>{m.email}</Cellule>
+                                <Ligne key={`m${m.user_id}`} onClick={() => setOuvert(m)}>
+                                    <Cellule principale sous={identite(m) !== m.email ? m.email : undefined}>
+                                        {identite(m)}
+                                    </Cellule>
+                                    <Cellule>{m.role_nom}</Cellule>
                                     <Cellule>
-                                        <Marque ton={m.role_nom === "Administrateur" ? "plein" : "neutre"}>{m.role_nom}</Marque>
+                                        <PointEtat etat="publie">{t({ en: "Active", fr: "Actif" })}</PointEtat>
                                     </Cellule>
                                 </Ligne>
                             ))}
+                            {page === 0 &&
+                                invitations.lignes.map((i) => (
+                                    <Ligne key={`i${i.id}`} onClick={() => setInvitation(i)}>
+                                        <Cellule principale>{i.email}</Cellule>
+                                        <Cellule>{i.role_nom}</Cellule>
+                                        <Cellule>
+                                            <PointEtat etat="attente">{t({ en: "Invitation sent", fr: "Invitation envoyée" })}</PointEtat>
+                                        </Cellule>
+                                    </Ligne>
+                                ))}
                         </Tableau>
                     </Paginee>
                 )}
             </section>
 
-            {invitations.total > 0 && (
-                <section>
-                    <TitreTableau titre={t({ en: "Pending invitations", fr: "Invitations en attente" })} />
-                    <Paginee total={invitations.total} page={pageInv} changerPage={setPageInv}>
-                        <Tableau
-                            colonnes={[
-                                { titre: t({ en: "Email", fr: "Adresse e-mail" }) },
-                                { titre: t({ en: "Role", fr: "Rôle" }) },
-                                { titre: t({ en: "Expires", fr: "Expire" }) },
-                                { titre: "", droite: true },
-                            ]}
+            {invitation && (
+                <FenetreChamps
+                    ouverte
+                    fermer={() => setInvitation(null)}
+                    titre={invitation.email}
+                    info={t({
+                        en: "The link has not been used yet. Revoking it closes it right away.",
+                        fr: "Le lien n'a pas encore servi. Le révoquer le ferme tout de suite.",
+                    })}
+                    valider={t({ en: "Close", fr: "Fermer" })}
+                    sections={[
+                        {
+                            champs: [
+                                { id: "e", l: t({ en: "Email", fr: "E-mail" }), t: "lu", v: invitation.email },
+                                { id: "r", l: t({ en: "Role", fr: "Rôle" }), t: "lu", v: invitation.role_nom },
+                                { id: "x", l: t({ en: "Expires", fr: "Expire" }), t: "lu", v: new Date(invitation.expire_le).toLocaleString() },
+                            ],
+                        },
+                    ]}
+                    pied={
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-(--marque-danger-texte)"
+                            onClick={async () => {
+                                const res = await annulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDelete({
+                                    path: { invitation_id: invitation.id },
+                                });
+                                if (res.error) toast.error(detailFromError(res.error, t({ en: "Not cancelled", fr: "Non annulée" })));
+                                else {
+                                    setInvitation(null);
+                                    void charger();
+                                }
+                            }}
                         >
-                            {invitations.lignes.map((i) => (
-                                <Ligne key={i.id}>
-                                    <Cellule principale>{i.email}</Cellule>
-                                    <Cellule>{i.role_nom}</Cellule>
-                                    <Cellule>{new Date(i.expire_le).toLocaleString()}</Cellule>
-                                    <Cellule droite>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="cursor-pointer hover:font-medium"
-                                            onClick={async () => {
-                                                const res = await annulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDelete({
-                                                    path: { invitation_id: i.id },
-                                                });
-                                                if (res.error) toast.error(detailFromError(res.error, t({ en: "Not cancelled", fr: "Non annulée" })));
-                                                else void charger();
-                                            }}
-                                        >
-                                            {t({ en: "Cancel", fr: "Annuler" })}
-                                        </Button>
-                                    </Cellule>
-                                </Ligne>
-                            ))}
-                        </Tableau>
-                    </Paginee>
-                </section>
+                            <Trash2 className="size-3.5" /> {t({ en: "Revoke the invitation", fr: "Révoquer l'invitation" })}
+                        </Button>
+                    }
+                />
             )}
 
             <FenetreChamps
                 ouverte={inviter}
                 fermer={() => setInviter(false)}
-                titre={t({ en: "Invite a member", fr: "Inviter un membre" })}
+                titre={t({ en: "Invite to the .mark team", fr: "Inviter dans l'équipe .mark" })}
                 info={t({
                     en: "The link works once and expires after 48 hours. If a mail server is set for the installation, it is also sent by email; otherwise it is shown here to copy.",
                     fr: "Le lien sert une seule fois et expire au bout de 48 heures. Si l'installation a un serveur de mail, il part aussi par e-mail ; sinon il s'affiche ici pour être copié.",
                 })}
-                valider={t({ en: "Invite", fr: "Inviter" })}
+                valider={t({ en: "Send the invitation", fr: "Envoyer l'invitation" })}
                 sections={[
                     {
                         champs: [
-                            { id: "email", l: t({ en: "Email", fr: "Adresse e-mail" }), t: "texte" },
+                            { id: "email", l: t({ en: "Email", fr: "E-mail" }), t: "texte" },
                             { id: "role", l: t({ en: "Role", fr: "Rôle" }), t: "choix", o: nomsDeRoles, v: roleParNom("Membre")?.nom ?? nomsDeRoles[0] },
                         ],
                     },
@@ -217,18 +239,23 @@ export function VueMembres() {
                     fermer={() => setOuvert(null)}
                     titre={identite(ouvert)}
                     valider={t({ en: "Save", fr: "Enregistrer" })}
+                    info={t({
+                        en: "Removing a member closes their access right away; what they did stays in the journal under their name.",
+                        fr: "Retirer un membre ferme son accès tout de suite ; ce qu'il a fait reste au journal sous son nom.",
+                    })}
                     sections={[
                         {
                             champs: [
-                                { id: "e", l: t({ en: "Email", fr: "Adresse e-mail" }), t: "lu", v: ouvert.email ?? "" },
+                                { id: "e", l: t({ en: "Email", fr: "E-mail" }), t: "lu", v: ouvert.email ?? "" },
                                 { id: "role", l: t({ en: "Role", fr: "Rôle" }), t: "choix", o: nomsDeRoles, v: ouvert.role_nom },
                             ],
                         },
                     ]}
                     pied={
                         <Button
-                            variant="destructive"
-                            className="cursor-pointer"
+                            variant="ghost"
+                            size="sm"
+                            className="text-(--marque-danger-texte)"
                             onClick={async () => {
                                 const res = await retirerUnMembreApiV1EquipeMarkMembresUserIdDelete({ path: { user_id: ouvert.user_id } });
                                 if (res.error) toast.error(detailFromError(res.error, t({ en: "Not removed", fr: "Non retiré" })));
@@ -238,7 +265,7 @@ export function VueMembres() {
                                 }
                             }}
                         >
-                            {t({ en: "Remove from the team", fr: "Retirer de l'équipe" })}
+                            <Trash2 className="size-3.5" /> {t({ en: "Remove from the team", fr: "Retirer de l'équipe" })}
                         </Button>
                     }
                     onValider={async (v) => {

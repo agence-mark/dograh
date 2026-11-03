@@ -51,14 +51,14 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(css).toMatch(/\[data-slot="sidebar-content"\]::-webkit-scrollbar[^{]*\{[^}]*display:\s*none/);
     });
 
-    it("the 30 px page titles never reach the agent's name in the editor bar (text-base)", () => {
+    it("aucune surcharge de titres, de champs ni de traits d'icônes : ceux de la maquette (K1, 04/11)", () => {
         const css = sansCommentaires(theme());
-        const regles = [...css.matchAll(/([^{}]*\bh1\b[^{}]*)\{[^}]*font-size/g)].map((m) => m[1].trim());
-        expect(regles.length).toBeGreaterThan(0);
-        for (const selecteur of regles) expect(selecteur).toMatch(/\[class~="text-2xl"\]/);
+        expect(css).not.toMatch(/h1[^{}]*\{/);
+        expect(css).not.toMatch(/\[data-slot="input"\][^{]*\{[^}]*height/);
+        expect(css).not.toMatch(/svg\.lucide/);
     });
 
-    it("contrast decisions of 27/09 hold: bordered buttons are filled, dark borders and fields are firmer, node types have colours", () => {
+    it("contrast decisions of 27/09 hold, sauf le bouton à bordure, repris de la maquette (K1): dark borders and fields are firmer, node types have colours", () => {
         const css = sansCommentaires(theme());
         const sombre = css.match(/\.dark\s*\{[^}]*\}/)?.[0] ?? "";
         expect(sombre).toMatch(/--border:\s*#333333/);
@@ -66,8 +66,7 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         for (const jeton of ["--node-start", "--node-end", "--node-global"]) expect(css).toMatch(new RegExp(`${jeton}:`));
         const bouton = readFileSync(join(APP, "..", "components", "ui", "button.tsx"), "utf8");
         const outline = bouton.match(/outline:\s*"([^"]*)"/)?.[1] ?? "";
-        expect(outline).toMatch(/(^|\s)bg-primary(\s|$)/);
-        expect(outline).toMatch(/(^|\s)text-primary-foreground(\s|$)/);
+        expect(outline).toMatch(/(^|\s)bg-background(\s|$)/);
     });
 
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {

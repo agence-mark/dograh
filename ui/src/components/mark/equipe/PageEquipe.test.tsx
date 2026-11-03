@@ -43,7 +43,7 @@ vi.mock("@/lib/espaces", () => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { PageEquipe } from "./PageEquipe";
+import { EquipeEtRoles } from "./PageEquipe";
 
 const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 
@@ -87,7 +87,7 @@ afterEach(cleanup);
 const monter = () =>
     render(
         <FournisseurLangue>
-            <PageEquipe />
+            <EquipeEtRoles />
         </FournisseurLangue>,
     );
 
@@ -104,7 +104,7 @@ describe("Équipe et rôles", () => {
         sdk.monProfil.mockImplementation(() => ok({ permissions: ["equipe.gerer", "roles.gerer"] }));
         monter();
         await waitFor(() => expect(screen.getByText("Evan L")).toBeTruthy());
-        expect(screen.getByText("pierre@exemple.fr", { selector: "td:nth-child(1) span" })).toBeTruthy(); // sans nom : l'adresse
+        expect(screen.getAllByText("pierre@exemple.fr").length).toBeGreaterThan(0); // sans nom : l'adresse
         expect(screen.getByText("lea@exemple.fr")).toBeTruthy();
         expect(sdk.membres).toHaveBeenCalledWith({ query: { limit: 25, offset: 0 } });
     });
@@ -113,14 +113,13 @@ describe("Équipe et rôles", () => {
         sdk.monProfil.mockImplementation(() => ok({ permissions: ["equipe.gerer", "roles.gerer"] }));
         monter();
         await waitFor(() => expect(screen.getByText("Evan L")).toBeTruthy());
-        fireEvent.click(screen.getByRole("button", { name: "Rôles" }));
-        await waitFor(() => expect(screen.getByText("4 / 15")).toBeTruthy());
-        expect(screen.getByText("15 / 15")).toBeTruthy(); // Administrateur : toutes
+        await waitFor(() => expect(screen.getByText("4 sur 15")).toBeTruthy());
+        expect(screen.getByText("15 sur 15")).toBeTruthy(); // Administrateur : toutes
         expect(screen.getByText("Labo · 1 client(s)")).toBeTruthy();
 
-        fireEvent.click(screen.getByRole("button", { name: "Journal" }));
+        fireEvent.click(screen.getByRole("button", { name: "Consulter" }));
         await waitFor(() => expect(screen.getByText("A invité un membre")).toBeTruthy());
-        expect(screen.getByText("Evan L")).toBeTruthy();
+        expect(screen.getAllByText("Evan L").length).toBeGreaterThan(0);
         expect(screen.getByText("Nuances de Feu")).toBeTruthy();
     });
 });

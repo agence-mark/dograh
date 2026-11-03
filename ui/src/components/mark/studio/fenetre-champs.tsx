@@ -9,14 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-import { BlocChamp, LigneChamp } from "./fenetre-onglets";
 import { Liste } from "./liste";
 import { Info } from "./marques";
 
 /**
- * Fenêtre à champs (E55) : en-tête fixe, corps blanc, champs séparés par un trait, pied fixe. Les champs sont décrits
- * par leurs données (type, libellé, valeur de départ) ; la fenêtre rend les valeurs saisies à `onValider`, sans rien
- * inventer. Un champ `si` n'apparaît que si un autre champ a l'une des valeurs listées.
+ * Fenêtre à champs (E55), reprise de la maquette (`modales.tsx`, K1) : en-tête fixe, corps blanc, champs séparés par un
+ * trait, pied fixe. La première phrase d'une explication se lit sous le libellé, le reste est dans le « ! ». Les champs
+ * sont décrits par leurs données (type, libellé, valeur de départ) ; la fenêtre rend les valeurs saisies à `onValider`,
+ * sans rien inventer. Un champ `si` n'apparaît que si un autre champ a l'une des valeurs listées.
  */
 export type Champ = { id: string; l: string; info?: React.ReactNode; si?: [string, (string | boolean)[]] } & (
     | { t: "texte"; v?: string }
@@ -41,61 +41,86 @@ const depart = (sections: SectionChamps[]): Valeurs =>
         ),
     );
 
+/** La première phrase d'une explication (celle qui se lit sous le libellé) ; le reste va dans le « ! ». */
+const premiere = (a?: string) => (a ? a.split(/(?<=\.)\s/)[0] : "");
+
 function ChampVue({ c, valeur, changer }: { c: Champ; valeur: string | boolean; changer: (v: string | boolean) => void }) {
+    const { t } = useLangue();
     const texte = String(valeur);
+    const phrase = typeof c.info === "string" ? premiere(c.info) : "";
+    const reste = c.info && (typeof c.info !== "string" || c.info !== phrase) ? (typeof c.info === "string" ? c.info : c.info) : undefined;
+    const entete = (
+        <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+                {c.l}
+                {reste && <Info>{reste}</Info>}
+            </p>
+            {phrase && <p className="mt-0.5 text-xs text-muted-foreground">{phrase}</p>}
+        </div>
+    );
     if (c.t === "inter") {
         return (
-            <LigneChamp libelle={c.l} info={c.info}>
+            <div className="flex items-start gap-4 py-3.5">
+                {entete}
                 <Switch checked={valeur === true} onCheckedChange={changer} aria-label={c.l} />
-            </LigneChamp>
+            </div>
         );
     }
-    if (c.t === "choix") {
-        return (
-            <LigneChamp libelle={c.l} info={c.info}>
-                <Liste valeur={texte} changer={changer} options={c.o} className="w-56" />
-            </LigneChamp>
-        );
-    }
-    if (c.t === "nombre") {
-        const n = Number(texte);
-        const hors = texte !== "" && ((c.min !== undefined && n < c.min) || (c.max !== undefined && n > c.max));
-        return (
-            <LigneChamp libelle={c.l} info={c.info}>
-                <span className="inline-flex items-center gap-2">
-                    <Input
-                        value={texte}
-                        inputMode="numeric"
-                        aria-label={c.l}
-                        aria-invalid={hors}
-                        onChange={(e) => changer(e.target.value.replace(/[^\d]/g, ""))}
-                        className="h-8 w-24 text-right"
-                    />
-                    {c.unite && <span className="w-6 text-sm text-muted-foreground">{c.unite}</span>}
-                </span>
-            </LigneChamp>
-        );
-    }
-    if (c.t === "lu") {
-        return (
-            <LigneChamp libelle={c.l} info={c.info}>
-                <span className="text-sm text-muted-foreground">{c.v}</span>
-            </LigneChamp>
-        );
-    }
+    const n = Number(texte);
+    const horsBornes = c.t === "nombre" && texte !== "" && ((c.min !== undefined && n < c.min) || (c.max !== undefined && n > c.max));
     return (
-        <BlocChamp libelle={c.l} info={c.info}>
-            {c.t === "zone" ? (
-                <Textarea value={texte} aria-label={c.l} onChange={(e) => changer(e.target.value)} rows={4} />
-            ) : (
+        <div className="space-y-2 py-3.5">
+            {entete}
+            {c.t === "texte" && <Input value={texte} aria-label={c.l} onChange={(e) => changer(e.target.value)} />}
+            {c.t === "lu" && <p className="text-sm">{c.v}</p>}
+            {c.t === "secret" && (
                 <Input
-                    type={c.t === "secret" ? "password" : "text"}
+                    type="password"
                     value={texte}
                     aria-label={c.l}
+                    placeholder={t({ en: "Entered once, never shown again", fr: "Saisi une fois, jamais réaffiché" })}
                     onChange={(e) => changer(e.target.value)}
                 />
             )}
-        </BlocChamp>
+            {c.t === "zone" && <Textarea value={texte} aria-label={c.l} onChange={(e) => changer(e.target.value)} className="min-h-20" />}
+            {c.t === "nombre" && (
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="number"
+                        min={c.min}
+                        max={c.max}
+                        value={texte}
+                        aria-label={c.l}
+                        aria-invalid={horsBornes}
+                        onChange={(e) => changer(e.target.value)}
+                        className={`w-32 ${horsBornes ? "border-(--pastille-urgente)" : ""}`}
+                    />
+                    {c.unite && <span className="text-sm text-muted-foreground">{c.unite}</span>}
+                    {(c.min !== undefined || c.max !== undefined) && (
+                        <span className={`ml-auto text-xs ${horsBornes ? "text-(--marque-danger-texte)" : "text-muted-foreground"}`}>
+                            {t({ en: "from", fr: "de" })} {c.min} {t({ en: "to", fr: "à" })} {c.max}
+                        </span>
+                    )}
+                </div>
+            )}
+            {c.t === "choix" &&
+                (c.o.length >= 2 && c.o.length <= 3 ? (
+                    <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm">
+                        {c.o.map((o) => (
+                            <button
+                                key={o}
+                                type="button"
+                                onClick={() => changer(o)}
+                                className={`rounded-md px-3 py-1 ${texte === o ? "bg-white font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                            >
+                                {o}
+                            </button>
+                        ))}
+                    </span>
+                ) : (
+                    <Liste valeur={texte} changer={changer} options={c.o} taille="default" className="w-full" />
+                ))}
+        </div>
     );
 }
 
@@ -123,14 +148,17 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     const lecture = valider === "Fermer" || valider === "Close";
+    const phrase = typeof info === "string" ? premiere(info) : "";
+    const reste = info && (typeof info !== "string" || info !== phrase) ? info : undefined;
     return (
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${taille} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">
                         {titre}
-                        {info && <Info>{info}</Info>}
+                        {reste && <Info>{reste}</Info>}
                     </DialogTitle>
+                    {phrase && <p className="mt-0.5 text-sm text-muted-foreground">{phrase}</p>}
                 </div>
                 {corps && <div className="min-h-0 flex-1 space-y-8 overflow-auto bg-background px-6 py-5">{corps}</div>}
                 {visibles.length > 0 && (
