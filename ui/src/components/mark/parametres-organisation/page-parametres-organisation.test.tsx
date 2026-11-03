@@ -455,6 +455,7 @@ describe("[.mark] cloture-code F7: the « Objects » section of « Establishment
             fireEvent.click(screen.getByRole("button", { name: /Cancel|Annuler/ }));
             await waitFor(() => expect(document.querySelector('[data-reglage="nom"]')).toBeNull());
         }
-        for (const champ of CHAMPS_OBJET) expect(vus.has(champ), champ).toBe(true);
+        // E66 : « Qui la tient à jour » (etablissement) n'apparaît que si le client a plusieurs établissements ou si la variable en porte un.
+        for (const champ of CHAMPS_OBJET.filter((c) => c !== "etablissement")) expect(vus.has(champ), champ).toBe(true);
     });
 });

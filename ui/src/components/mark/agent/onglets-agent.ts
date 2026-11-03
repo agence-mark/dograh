@@ -5,7 +5,7 @@
  */
 import type { Texte } from "@/components/mark/langue/langue";
 
-export type OngletAgent = "parcours" | "reglages" | "tests" | "appels" | "versions";
+export type OngletAgent = "parcours" | "reglages" | "tests" | "appels" | "versions" | "site";
 
 export const ONGLETS_AGENT: { id: OngletAgent; titre: Texte; suite: string }[] = [
     { id: "parcours", titre: { en: "Flow", fr: "Parcours" }, suite: "" },
@@ -15,12 +15,15 @@ export const ONGLETS_AGENT: { id: OngletAgent; titre: Texte; suite: string }[] =
     { id: "versions", titre: { en: "Versions", fr: "Versions" }, suite: "/versions" },
 ];
 
+/** [.mark] U3 quater (E65) : l'onglet « Site », visible seulement pour un agent dont le canal est le site. */
+export const ONGLET_SITE: { id: OngletAgent; titre: Texte; suite: string } = { id: "site", titre: { en: "Site", fr: "Site" }, suite: "/site" };
+
 /** L'adresse d'un onglet de l'agent `agentId`. */
 export const adresseOnglet = (agentId: number | string, onglet: OngletAgent): string =>
-    `/agents/${agentId}${ONGLETS_AGENT.find((o) => o.id === onglet)?.suite ?? ""}`;
+    `/agents/${agentId}${[...ONGLETS_AGENT, ONGLET_SITE].find((o) => o.id === onglet)?.suite ?? ""}`;
 
 /** L'onglet que dit une adresse (`/agents/12/tests` → `tests`) ; toute autre suite est le Parcours. */
 export function ongletDeAdresse(pathname: string): OngletAgent {
     const m = pathname.match(/^\/agents\/[^/]+\/([^/?#]+)/);
-    return ONGLETS_AGENT.find((o) => m && o.suite === `/${m[1]}`)?.id ?? "parcours";
+    return [...ONGLETS_AGENT, ONGLET_SITE].find((o) => m && o.suite === `/${m[1]}`)?.id ?? "parcours";
 }

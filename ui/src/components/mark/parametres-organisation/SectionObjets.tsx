@@ -23,7 +23,8 @@ import { useAuth } from "@/lib/auth";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { useLangue } from "../langue/langue";
-import { JaugeObjet, ModaleObjet } from "./ModaleObjet";
+import { CreateurVariable } from "../variables/CreateurVariable";
+import { JaugeObjet } from "./ModaleObjet";
 
 /** Les champs de `ReglagesObjets` montrés par la section (l'inventaire les compare au client généré). */
 export const CHAMPS_REGLAGES_OBJETS = ["plafond_caracteres"] as const;
@@ -86,10 +87,10 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
     return (
         <Intertitre
             id="etablissement-objets"
-            titre={{ en: "Objects", fr: "Objets" }}
+            titre={{ en: "Variables", fr: "Variables" }}
             description={{
-                en: "Business data the agent receives as {{technical name}}: a single value or a list. .mark creates them; the client keeps their content up to date in the portal.",
-                fr: "Des données métier que l'agent reçoit en {{nom technique}} : une valeur simple ou une liste. .mark les crée ; le client en tient le contenu à jour dans le portail.",
+                en: "Business data the agent receives as {{technical name}}: a word, a number, a yes or no, a date, a list or a table. .mark creates them; the client keeps their content up to date in the portal.",
+                fr: "Des données métier que l'agent reçoit en {{nom technique}} : un mot, un nombre, un oui ou non, une date, une liste ou un tableau. .mark les crée ; le client en tient le contenu à jour dans le portail.",
             }}
         >
             {refus ? (
@@ -126,16 +127,16 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                             </button>
                         ))}
                         {(vue.objets ?? []).length === 0 && (
-                            <p className="text-sm text-muted-foreground">{t({ en: "No object yet.", fr: "Aucun objet pour l'instant." })}</p>
+                            <p className="text-sm text-muted-foreground">{t({ en: "No variable yet.", fr: "Aucune variable pour l'instant." })}</p>
                         )}
                     </div>
                     <Button variant="outline" size="sm" onClick={() => setOuvert("neuf")} data-testid="ajouter-objet">
-                        <Plus className="h-3.5 w-3.5" /> {t({ en: "Add an object", fr: "Ajouter un objet" })}
+                        <Plus className="h-3.5 w-3.5" /> {t({ en: "Add a variable", fr: "Ajouter une variable" })}
                     </Button>
                     <ChampReglage
                         cle="plafond_caracteres"
                         idControle="objets-plafond"
-                        libelle={{ en: "Ceiling of one object", fr: "Plafond d'un objet" }}
+                        libelle={{ en: "Ceiling of one variable", fr: "Plafond d'une variable" }}
                         aides={[{ en: "Characters of the text the agent receives; an object over it is not saved (here or in the portal).", fr: "Caractères du texte que reçoit l'agent ; un objet au-delà n'est pas enregistré (ici comme au portail)." }]}
                         bornes={{ en: "100 to 50,000, default 3,000", fr: "100 à 50 000, 3 000 par défaut" }}
                         erreur={erreurPlafond ? { en: erreurPlafond, fr: erreurPlafond } : null}
@@ -150,7 +151,7 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                 </>
             )}
             {ouvert && (
-                <ModaleObjet
+                <CreateurVariable
                     objet={ouvert === "neuf" ? null : ouvert}
                     plafond={enregistre}
                     etablissements={etablissements}

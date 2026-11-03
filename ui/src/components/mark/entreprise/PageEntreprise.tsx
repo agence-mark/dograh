@@ -51,7 +51,7 @@ export function PageEntreprise() {
                 titre={t({ en: "Company", fr: "Entreprise" })}
                 info={t({
                     en: "What the agents know about the company, read at every call: places, team, appointments, objects, caller verification, vocabulary and sounds. The client keeps it up to date from the portal: each fiche says who changed it last and from where.",
-                    fr: "Ce que les agents savent de l'entreprise, lu à chaque appel : lieux, équipe, rendez-vous, objets, vérification de l'appelant, vocabulaire et sons. Le client la tient à jour depuis son portail : chaque fiche dit qui l'a modifiée en dernier et d'où.",
+                    fr: "Ce que les agents savent de l'entreprise, lu à chaque appel : lieux, équipe, rendez-vous, variables, vérification de l'appelant, vocabulaire et sons. Le client la tient à jour depuis son portail : chaque fiche dit qui l'a modifiée en dernier et d'où.",
                 })}
             />
             <OngletsPage
@@ -80,7 +80,7 @@ export function PageEntreprise() {
                             />
                         ),
                     },
-                    { id: "objets", titre: t({ en: "Objects", fr: "Objets" }), contenu: <ThemeObjets /> },
+                    { id: "objets", titre: t({ en: "Variables", fr: "Variables" }), contenu: <ThemeObjets /> },
                     {
                         id: "verification",
                         titre: t({ en: "Caller verification", fr: "Vérification de l'appelant" }),

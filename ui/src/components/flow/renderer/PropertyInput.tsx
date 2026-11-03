@@ -12,6 +12,8 @@ import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
 import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
+import { ChampVariables } from "@/components/mark/variables/ChampVariables";
+import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,10 +179,21 @@ interface WidgetProps {
 function StringWidget({ spec, value, onChange }: WidgetProps) {
     const v = (value as string | undefined) ?? "";
     const isMultiline = spec.editor === "textarea";
+    const catalogue = useCatalogueVariables();
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />
-            {isMultiline ? (
+            {spec.name === "greeting" ? (
+                // [.mark] U3 bis (E62) : le moteur rend les variables de l'accueil, le champ les montre en étiquettes.
+                <ChampVariables
+                    value={v}
+                    onChange={onChange}
+                    catalogue={catalogue.variables}
+                    catalogueLu={catalogue.lu}
+                    placeholder={spec.placeholder ?? undefined}
+                    ariaLabel={spec.display_name}
+                />
+            ) : isMultiline ? (
                 <Textarea
                     value={v}
                     onChange={(e) => onChange(e.target.value)}
@@ -424,6 +437,24 @@ function MentionWidget({
     onChange,
     recordings,
 }: WidgetProps & { recordings: RecordingResponseSchema[] }) {
+    const catalogue = useCatalogueVariables();
+    // [.mark] U3 bis (E62) : sans enregistrement à citer (@), le champ montre les variables en étiquettes ;
+    // avec des enregistrements, on garde le champ d'origine qui sait les citer.
+    if (recordings.length === 0) {
+        return (
+            <div className="grid gap-2">
+                <StackedLabel spec={spec} />
+                <ChampVariables
+                    value={(value as string | undefined) ?? ""}
+                    onChange={onChange}
+                    catalogue={catalogue.variables}
+                    catalogueLu={catalogue.lu}
+                    placeholder={spec.placeholder ?? undefined}
+                    ariaLabel={spec.display_name}
+                />
+            </div>
+        );
+    }
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />

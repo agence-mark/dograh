@@ -309,7 +309,7 @@ export const ThemeAgent = ({
                 config: () => ({ filet_de_fin: filet }),
             },
             {
-                nom: { en: "Template variables", fr: "Variables du modèle" },
+                nom: { en: "Test values", fr: "Valeurs d'essai" },
                 modifie: variablesModifiees,
                 enregistrerAutrement: () => enregistrerVariables(variablesAEnregistrer),
             },
@@ -474,23 +474,23 @@ export const ThemeAgent = ({
                 </ZoneCommune>
             )}
 
-            <Intertitre id="agent-variables" titre={{ en: "Template Variables", fr: "Variables du modèle" }}>
+            <Intertitre id="agent-variables" titre={{ en: "Test values", fr: "Valeurs d'essai" }}>
                 <ChampReglage
                     cle="template_context_variables"
-                    libelle={{ en: "Template Variables", fr: "Variables du modèle" }}
+                    libelle={{ en: "Test values", fr: "Valeurs d'essai" }}
                     aides={[
                         {
-                            en: "Variables available in workflow prompts via {{variable_name}} syntax for testing the workflow.",
-                            fr: "Disponibles dans les prompts avec la syntaxe {{nom_variable}}, pour tester l'agent.",
+                            en: "Values used only for tests (Try, test call, chat, simulated caller), never in a real call or a campaign. They are not a source of the variable tags.",
+                            fr: "Des valeurs qui ne servent qu'aux essais (Essayer, appel d'essai, chat, appelant simulé), jamais dans un vrai appel ni une campagne. Ce n'est pas une source d'étiquettes.",
                         },
                     ]}
                 >
                     <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
                         <span>
-                            {nombreDeVariables} {t({ en: "variables", fr: "variables" })}
+                            {nombreDeVariables} {t({ en: "test values", fr: "valeurs d'essai" })}
                         </span>
                         <Button variant="outline" size="sm" onClick={() => setFenetreVariables(true)}>
-                            {t({ en: "Manage variables", fr: "Gérer les variables" })}
+                            {t({ en: "Manage test values", fr: "Gérer les valeurs d'essai" })}
                         </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">

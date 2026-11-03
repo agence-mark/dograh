@@ -84,7 +84,7 @@ describe("[.mark] l'écran Entreprise (U2 bis, E56)", () => {
             "Établissements",
             "Équipe et routage",
             "Rendez-vous",
-            "Objets",
+            "Variables",
             "Vérification de l'appelant",
             "Écoute et sons",
         ]);
