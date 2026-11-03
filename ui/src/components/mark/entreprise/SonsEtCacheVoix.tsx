@@ -16,12 +16,14 @@ import { RecordingsUploadDialog } from "@/app/recordings/RecordingsUploadDialog"
 import TtsCacheList from "@/app/recordings/TtsCacheList";
 import { Button } from "@/components/ui/button";
 
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
 import { TitreTableau } from "../studio/tableau";
 
 export function SonsEtCacheVoix() {
     const { t } = useLangue();
+    const maquette = useFormeMaquette();
     const [envoi, setEnvoi] = useState(false);
     const [relecture, setRelecture] = useState(0);
     return (
@@ -46,6 +48,9 @@ export function SonsEtCacheVoix() {
                 />
                 <RecordingsList refreshKey={relecture} />
             </section>
+            {maquette ? (
+                <TtsCacheList />
+            ) : (
             <section id="ecoute-cache-voix">
                 <TitreTableau
                     titre={t({ en: "Voice cache", fr: "Cache de la voix" })}
@@ -60,6 +65,7 @@ export function SonsEtCacheVoix() {
                 />
                 <TtsCacheList />
             </section>
+            )}
             <RecordingsUploadDialog open={envoi} onOpenChange={setEnvoi} onUploadComplete={() => setRelecture((k) => k + 1)} />
         </>
     );

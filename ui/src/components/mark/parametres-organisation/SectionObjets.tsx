@@ -119,7 +119,7 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
             ) : !vue ? (
                 <EtatVide cas="chargement" />
             ) : (vue.objets ?? []).length === 0 ? (
-                <EtatVide cas="premier" icone={Braces} titre={t({ en: "No variable yet", fr: "Aucune variable" })} />
+                <EtatVide cas="premier" icone={Braces} titre={t({ en: "No variable yet", fr: "Aucune variable" })} compact />
             ) : (
                 <div data-testid="liste-objets">
                     <Tableau

@@ -158,6 +158,8 @@ export function FenetreChamps(props: {
     pied?: React.ReactNode;
     /** Contenu libre sous les champs (liste, tableau) ; reste un corps blanc, sans carte. */
     corps?: React.ReactNode;
+    /** [.mark] K4b : une fenêtre à contrôles branchés (`corps`) garde la largeur d'une fenêtre à champs. */
+    etroite?: boolean;
     /**
      * Vérification à la validation : rend, par identifiant de champ, la phrase à lire sous le champ. Tant qu'elle rend
      * une faute, la fenêtre reste ouverte et `onValider` n'est pas appelé (une erreur de saisie n'est pas une notification).
@@ -168,13 +170,13 @@ export function FenetreChamps(props: {
     return props.ouverte ? <FenetreOuverte {...props} /> : null;
 }
 
-function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier }: Parameters<typeof FenetreChamps>[0]) {
+function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier, etroite }: Parameters<typeof FenetreChamps>[0]) {
     const { t } = useLangue();
     const [valeurs, setValeurs] = useState<Valeurs>(() => depart(sections));
     const [fautes, setFautes] = useState<Record<string, string>>({});
     const visible = (c: Champ) => !c.si || c.si[1].includes(valeurs[c.si[0]] as string | boolean);
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
-    const taille = `${corps ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
+    const taille = `${corps && !etroite ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     const lecture = valider === "Fermer" || valider === "Close";
     return (
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>

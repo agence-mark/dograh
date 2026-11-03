@@ -44,6 +44,7 @@ import { BlocTraducteurs } from "../connecteurs/BlocTraducteurs";
 import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
@@ -607,6 +608,7 @@ export const ThemeEcouteOrganisation = ({
     ouvert,
     onBasculer,
     plat,
+    sansTitre,
     sons,
 }: ProprietesThemeOrganisation & {
     /** [.mark] U2 bis : les enregistrements et le cache de la voix, sous le lexique (sous-onglet « Écoute et sons »). */
@@ -615,6 +617,7 @@ export const ThemeEcouteOrganisation = ({
     <Theme
         id="ecoute"
         plat={plat}
+        sansTitre={sansTitre}
         icone={Ear}
         titre={titre("ecoute").titre}
         description={{
@@ -627,9 +630,7 @@ export const ThemeEcouteOrganisation = ({
         modifie={false}
         erreurs={[]}
     >
-        <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
-            <SectionLexiqueMetier />
-        </Intertitre>
+        <LexiqueDeLEcoute />
         {sons}
     </Theme>
 );
@@ -882,5 +883,16 @@ export const ThemeDeveloppeurs = ({
             </Intertitre>
             {suite}
         </Theme>
+    );
+};
+
+/** [.mark] K4b : en forme de maquette le lexique porte son propre titre (tableau + actions) ; sinon l'intertitre d'avant. */
+const LexiqueDeLEcoute = () => {
+    const maquette = useFormeMaquette();
+    if (maquette) return <SectionLexiqueMetier />;
+    return (
+        <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
+            <SectionLexiqueMetier />
+        </Intertitre>
     );
 };

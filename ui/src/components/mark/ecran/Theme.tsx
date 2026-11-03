@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+import { useFormeMaquette } from "./forme-maquette";
 import { THEMES_COMMUNS_EN_LECTURE, useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 import { FenetreParente } from "../studio/fenetre-parente";
@@ -223,6 +224,8 @@ export const Theme = ({
     useEffect(() => {
         if (!ouvert) setFiltre("");
     }, [ouvert]);
+    // [.mark] K4b : les pages de la maquette espacent leurs blocs de 40 px (un thème posé à plat y est une colonne de blocs).
+    const maquette = useFormeMaquette();
     // [.mark] Lot 12 (A10) : chez un spécialisé, les thèmes communs viennent du principal : en
     // lecture, avec un bandeau, et sans bouton d'enregistrement (rien à enregistrer ici).
     const { specialiseDe } = useGroupe();
@@ -419,13 +422,18 @@ export const Theme = ({
 
     if (plat) {
         return (
-            <section id={id} data-theme={id} data-plat className="space-y-6">
-                <div className={sansTitre ? "flex items-center gap-2 empty:hidden" : "flex items-center gap-2"}>
-                    <h2 className={sansTitre ? "sr-only" : "text-base font-semibold"}>{t(titre)}</h2>
-                    {!sansTitre && <Info>{t(description)}</Info>}
-                    <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
-                </div>
-                <div className="space-y-6">{enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}</div>
+            <section id={id} data-theme={id} data-plat className={maquette ? "space-y-10" : "space-y-6"}>
+                {sansTitre ? (
+                    // [.mark] K4b : aucune boîte d'en-tête (même vide, elle ferait ajouter 40 px au bloc suivant) : le titre est le nom de la section.
+                    <h2 className="sr-only">{t(titre)}</h2>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-base font-semibold">{t(titre)}</h2>
+                        <Info>{t(description)}</Info>
+                        <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
+                    </div>
+                )}
+                <div className={maquette ? "space-y-10" : "space-y-6"}>{enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}</div>
                 {pied}
             </section>
         );

@@ -27,25 +27,21 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { LigneLue } from "../entreprise/section-lue";
 import { type Texte, useLangue } from "../langue/langue";
+import { EtatVide } from "../studio/etat-vide";
+import { GroupePage } from "../studio/groupe-page";
 import { PointEtat } from "../studio/marques";
 import { SectionConservationAppels, useConservationAppels } from "./SectionConservationAppels";
-import { SectionListesValeurs, useListesValeurs } from "./SectionListesValeurs";
+import { BaseDuClient, LIBELLES_TABLES, TableauConservation } from "./DonneesClientMaquette";
+import { SectionListesValeurs, TableauxListesValeurs, useListesValeurs } from "./SectionListesValeurs";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_DONNEES: Texte = { en: "Client data", fr: "Données du client" };
 
-const LIBELLES_TABLES: Record<string, Texte> = {
-    appel: { en: "Calls", fr: "Appels" },
-    demande: { en: "Requests", fr: "Demandes" },
-    contact: { en: "Contacts (after their last activity)", fr: "Contacts (après leur dernière activité)" },
-    action: { en: "Actions (mails, SMS…)", fr: "Actions (mails, SMS…)" },
-    // [.mark] L4 (A8): 6 months by default, shorter if the client wants.
-    verbatim: { en: "Transcripts (verbatim)", fr: "Transcriptions (verbatim)" },
-};
 
 export const useBaseClient = () => {
     const { user, loading: authLoading } = useAuth();
@@ -100,6 +96,7 @@ export const ThemeDonneesClient = ({
     sansTitre,
 }: ProprietesThemeOrganisation & { base: ReturnType<typeof useBaseClient> }) => {
     const { t } = useLangue();
+    const maquette = useFormeMaquette();
     const { etat, erreur, enCours, agir } = base;
     const [nom, setNom] = useState("");
     const [conservation, setConservation] = useState<Conservation[]>([]);
@@ -153,7 +150,38 @@ export const ThemeDonneesClient = ({
                     {erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur}
                 </p>
             )}
-            {!etat ? (
+            {maquette ? (
+                !etat ? (
+                    erreur ? null : <EtatVide cas="chargement" />
+                ) : (
+                    <>
+                        <BaseDuClient etat={etat} enCours={enCours} agir={agir} enRetard={enRetard} erreur={erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur} />
+                        {rattachee && etat.joignable && conservation.length > 0 && (
+                            <>
+                                <GroupePage titre={t({ en: "Retention", fr: "Conservation" })} />
+                                <TableauConservation
+                                    conservation={conservation}
+                                    setConservation={setConservation}
+                                    bloque={enCours || !conservationModifiee || conservation.some((l) => !(l.duree_jours >= 1 && l.duree_jours <= 3650))}
+                                    enregistrer={() =>
+                                        void agir(
+                                            () => putConservationApiV1OrganizationsBaseClientConservationPut({ body: conservation }),
+                                            { en: "Retention saved.", fr: "Conservation enregistrée." },
+                                        )
+                                    }
+                                />
+                            </>
+                        )}
+                        <SectionConservationAppels etat={conservationAppels} />
+                        {etat.joignable && !enRetard && (
+                            <>
+                                <GroupePage titre={t({ en: "Portal indicators", fr: "Indicateurs du portail" })} />
+                                <TableauxListesValeurs etat={listesValeurs} />
+                            </>
+                        )}
+                    </>
+                )
+            ) : !etat ? (
                 <p className="text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>
             ) : (
                 <>
@@ -346,7 +374,7 @@ export const ThemeDonneesClient = ({
                     {etat?.joignable && !enRetard && <SectionListesValeurs etat={listesValeurs} />}
                 </>
             )}
-            <SectionConservationAppels etat={conservationAppels} />
+            {!maquette && <SectionConservationAppels etat={conservationAppels} />}
         </Theme>
     );
 };

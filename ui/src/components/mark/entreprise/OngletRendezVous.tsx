@@ -238,7 +238,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                 }
             />
             {typesIci.length === 0 ? (
-                <EtatVide cas="premier" icone={CalendarClock} titre={t({ en: "No type at this level", fr: "Aucun type à ce niveau" })} />
+                <EtatVide cas="premier" icone={CalendarClock} titre={t({ en: "No type at this level", fr: "Aucun type à ce niveau" })} compact />
             ) : (
                 <Tableau
                     colonnes={[

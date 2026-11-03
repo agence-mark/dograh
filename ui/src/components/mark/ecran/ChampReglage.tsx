@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { BORNES } from "../bornes-reglages";
 import { type Texte, useLangue } from "../langue/langue";
+import { useFormeMaquette } from "./forme-maquette";
 import { PastilleOrigine } from "./heritage";
 
 /** « > 0 · ≤ 10 · optional », from the bounds the server enforces. */
@@ -79,7 +80,7 @@ export const ChampReglage = ({
     erreur = null,
     disposition = "colonne",
     note = null,
-    variante = "reglage",
+    variante: varianteDemandee = "reglage",
     sous = null,
     children,
 }: {
@@ -106,6 +107,9 @@ export const ChampReglage = ({
 }) => {
     const { t } = useLangue();
     const ligneMaquette = useContext(ContexteLigneMaquette);
+    // [.mark] K4b : les pages Entreprise et Base montrent chaque réglage comme la fenêtre d'un nœud (explications dans un « ! »).
+    const maquette = useFormeMaquette();
+    const variante = maquette ? "noeud" : varianteDemandee;
     if (variante === "noeud") {
         const explications = [note, ...aides, bornes].filter((x): x is Texte => x !== null);
         const etiquetteNoeud = (
@@ -123,7 +127,7 @@ export const ChampReglage = ({
             </Label>
         );
         return (
-            <div id={`reglage-${cle}`} data-reglage={cle} className="scroll-mt-24 space-y-1.5">
+            <div id={`reglage-${cle}`} data-reglage={cle} className={cn("scroll-mt-24 space-y-1.5", maquette && "py-3.5")}>
                 {disposition === "ligne" ? (
                     <div className="flex items-center justify-between gap-4">
                         {etiquetteNoeud}

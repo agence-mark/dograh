@@ -17,6 +17,7 @@ import {
     putEquipeApiV1OrganizationsEquipePut,
 } from "@/client/sdk.gen";
 import type { Equipe, Etablissement, Personne, Sujet, TraducteurVue } from "@/client/types.gen";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
@@ -34,6 +35,7 @@ const VIDE: Equipe = { personnes: [], sujets: [] };
 const nomComplet = (p: Pick<Personne, "prenom" | "nom">) => [p.prenom, p.nom].filter(Boolean).join(" ");
 
 function useEquipe() {
+    const { user, loading: authLoading } = useAuth();
     const [equipe, setEquipe] = useState<Equipe | null>(null);
     const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
     const [agenda, setAgenda] = useState<TraducteurVue | null>(null);
@@ -50,9 +52,11 @@ function useEquipe() {
         setIllisible(Boolean(reponse.error) || !reponse.data);
         if (reponse.data) setEquipe(reponse.data);
     }, []);
+    // [.mark] K4b : pas de lecture avant que l'authentification soit prête (sinon 401 et « Impossible de charger » à vie).
     useEffect(() => {
+        if (authLoading || !user) return;
         void relire();
-    }, [relire]);
+    }, [authLoading, user, relire]);
     const ecrire = useCallback(
         async (suivante: Equipe, succes: { fr: string; en: string }): Promise<boolean> => {
             const reponse = await putEquipeApiV1OrganizationsEquipePut({ body: charge_utile_equipe(suivante) });
@@ -171,7 +175,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
                 }
             />
             {personnes.length === 0 ? (
-                <EtatVide cas="premier" icone={Users} titre={t({ en: "No one yet", fr: "Personne pour l'instant" })} />
+                <EtatVide cas="premier" icone={Users} titre={t({ en: "No one yet", fr: "Personne pour l'instant" })} compact />
             ) : (
                 <Tableau
                     colonnes={[
@@ -218,7 +222,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
                 }
             />
             {sujets.length === 0 ? (
-                <EtatVide cas="premier" icone={Users} titre={t({ en: "No subject yet", fr: "Aucun sujet pour l'instant" })} />
+                <EtatVide cas="premier" icone={Users} titre={t({ en: "No subject yet", fr: "Aucun sujet pour l'instant" })} compact />
             ) : (
                 <Tableau
                     colonnes={[

@@ -26,9 +26,14 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { type Texte, useLangue } from "../langue/langue";
+import { Liste } from "../studio/liste";
+import { Puces } from "../studio/puces";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_VERIFICATION: Texte = { en: "Caller verification", fr: "Vérification de l'appelant" };
@@ -96,8 +101,9 @@ export const charge_utile_verification = (r: ReglagesVerification): ReglagesVeri
 const basculer = (liste: string[], cle: string, present: boolean) =>
     present ? [...liste.filter((x) => x !== cle), cle] : liste.filter((x) => x !== cle);
 
-export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: ProprietesThemeOrganisation) => {
+export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitre }: ProprietesThemeOrganisation) => {
     const { t } = useLangue();
+    const maquette = useFormeMaquette();
     const { user, loading: authLoading } = useAuth();
     const [enregistre, setEnregistre] = useState<ReglagesVerification | null>(null);
     const [brouillon, setBrouillon] = useState<ReglagesVerification | null>(null);
@@ -166,6 +172,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
         <Theme
             id="verification"
             plat={plat}
+            sansTitre={sansTitre}
             icone={ShieldCheck}
             titre={TITRE_VERIFICATION}
             description={{
@@ -177,13 +184,24 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={erreurs}
-            enregistrement={brouillon ? { onEnregistrer: () => void enregistrer(), enCours } : undefined}
+            enregistrement={brouillon && !maquette ? { onEnregistrer: () => void enregistrer(), enCours } : undefined}
         >
             {brouillon === null ? (
                 <p className="text-sm text-muted-foreground">{erreur ?? t({ en: "Loading…", fr: "Chargement…" })}</p>
             ) : (
                 <>
-                    <Intertitre id="verif-groupe-facteurs" titre={{ en: "Factors", fr: "Facteurs" }}>
+                    <Intertitre
+                        id="verif-groupe-facteurs"
+                        titre={{ en: "Factors", fr: "Facteurs" }}
+                        description={maquette ? { en: "What the code checks before an agent may read a caller's record. Runs only for an agent that switches it on. Two failed attempts: nothing is read, a colleague calls back. The answers are never kept.", fr: "Ce que le code vérifie avant qu'un agent puisse lire le dossier d'un appelant. Ne tourne que pour un agent qui l'allume. Deux tentatives échouées : rien n'est lu, un collègue rappelle. Les réponses ne sont jamais gardées." } : undefined}
+                        action={
+                            maquette ? (
+                                <Button size="sm" disabled={enCours || !modifie || erreurs.length > 0} data-testid="enregistrer-verification" onClick={() => void enregistrer()}>
+                                    {t({ en: "Save", fr: "Enregistrer" })}
+                                </Button>
+                            ) : undefined
+                        }
+                    >
                         {FACTEURS.map((f) => (
                             <ChampReglage key={f.cle} cle={f.cle} idControle={`verif-${f.cle}`} libelle={f.libelle} aides={[f.aide]} disposition="ligne">
                                 <Switch id={`verif-${f.cle}`} checked={Boolean(brouillon[f.cle])} onCheckedChange={(v) => poser({ [f.cle]: v })} />
@@ -199,7 +217,19 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                             bornes={{ en: "Default: last name and postcode", fr: "Par défaut : nom et code postal" }}
                         >
                             {brouillon.question ? (
-                                <div className="flex flex-wrap gap-3" data-testid="verif-champs-controle">
+                                maquette ? (
+                                    <div data-testid="verif-champs-controle">
+                                        <Puces
+                                            choix={CHAMPS_CONTROLE.map((c) => ({ cle: c.cle, libelle: t(c.libelle) }))}
+                                            valeur={brouillon.champs_controle ?? []}
+                                            changer={(v) => poser({ champs_controle: v })}
+                                        />
+                                        {!(brouillon.champs_controle ?? []).length && (
+                                            <p className="pt-2 text-xs text-destructive">{t({ en: "Choose at least one.", fr: "Choisissez-en au moins un." })}</p>
+                                        )}
+                                    </div>
+                                ) : (
+<div className="flex flex-wrap gap-3" data-testid="verif-champs-controle">
                                     {CHAMPS_CONTROLE.map((c) => (
                                         <label key={c.cle} className="flex items-center gap-1 text-sm">
                                             <input
@@ -211,13 +241,19 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                                         </label>
                                     ))}
                                 </div>
-                            ) : (
+                            
+                                )
+) : (
                                 <span className="text-xs text-muted-foreground">{t({ en: "Control question off.", fr: "Question de contrôle éteinte." })}</span>
                             )}
                         </ChampReglage>
                     </Intertitre>
 
-                    <Intertitre id="verif-groupe-lecture" titre={{ en: "What may be read", fr: "Ce qui peut être lu" }}>
+                    <Intertitre
+                        id="verif-groupe-lecture"
+                        titre={{ en: "What may be read", fr: "Ce qui peut être lu" }}
+                        description={maquette ? { en: "How many distinct factors must have passed, and the fields the agent may read. No field ticked: never read.", fr: "Combien de facteurs distincts doivent avoir réussi, et les champs que l'agent peut lire. Aucun champ coché : jamais lu." } : undefined}
+                    >
                         {TYPES_LISIBLES.map((type) => {
                             const niveau = brouillon.lisibles?.[type.cle] ?? { facteurs_requis: 2, champs: [] };
                             return (
@@ -229,6 +265,34 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                                     aides={[{ en: "How many distinct factors must have passed, and the fields the agent may read. No field ticked: never read.", fr: "Combien de facteurs distincts doivent avoir réussi, et les champs que l'agent peut lire. Aucun champ coché : jamais lu." }]}
                                     bornes={bornesDe(1, 3)}
                                 >
+                                    {maquette ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm text-muted-foreground">{t({ en: "Factors required", fr: "Facteurs exigés" })}</span>
+                                                <Input
+                                                    id={`verif-niveau-${type.cle}`}
+                                                    type="number"
+                                                    min={1}
+                                                    max={3}
+                                                    aria-label={t({ en: "Factors required", fr: "Facteurs exigés" })}
+                                                    value={niveau.facteurs_requis ?? 2}
+                                                    className={`w-20 text-right ${(niveau.facteurs_requis ?? 2) > actifs ? "border-(--pastille-urgente)" : ""}`}
+                                                    onChange={(e) => poserNiveau(type.cle, { facteurs_requis: Math.min(3, Math.max(1, Number(e.target.value) || 1)) })}
+                                                />
+                                            </div>
+                                            {(niveau.facteurs_requis ?? 2) > actifs && (
+                                                <p className="text-xs text-destructive" data-testid={`verif-inaccessible-${type.cle}`}>
+                                                    {t({ en: "More factors required than switched on: never read.", fr: "Plus de facteurs exigés qu'allumés : jamais lu." })}
+                                                </p>
+                                            )}
+                                            <Puces
+                                                choix={type.champs.map((c) => ({ cle: c.cle, libelle: t(c.libelle) }))}
+                                                valeur={niveau.champs ?? []}
+                                                changer={(v) => poserNiveau(type.cle, { champs: v })}
+                                                testid={(c) => `verif-lisible-${type.cle}-${c}`}
+                                            />
+                                        </div>
+                                    ) : (
                                     <div className="space-y-1">
                                         <select
                                             id={`verif-niveau-${type.cle}`}
@@ -262,12 +326,17 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                                             ))}
                                         </div>
                                     </div>
+                                    )}
                                 </ChampReglage>
                             );
                         })}
                     </Intertitre>
 
-                    <Intertitre id="verif-groupe-source" titre={{ en: "Where the records are", fr: "Où sont les dossiers" }}>
+                    <Intertitre
+                        id="verif-groupe-source"
+                        titre={{ en: "Where the records are", fr: "Où sont les dossiers" }}
+                        description={maquette ? { en: "A software that holds the records appears here once its translator exists and it is connected (« Integrations »).", fr: "Un logiciel qui tient les dossiers apparaît ici dès que son traducteur existe et qu'il est connecté (« Intégrations »)." } : undefined}
+                    >
                         <ChampReglage
                             cle="logiciel"
                             idControle="verif-logiciel"
@@ -275,6 +344,15 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                             aides={[{ en: "The client database by default. A software that holds the records appears here once its translator exists (and is connected in « Integrations »).", fr: "La base du client par défaut. Un logiciel qui tient les dossiers apparaît ici dès que son traducteur existe (et qu'il est connecté dans « Intégrations »)." }]}
                             bornes={{ en: "Default: the client database", fr: "Par défaut : la base du client" }}
                         >
+                            {maquette ? (
+                                <Liste
+                                    valeur={brouillon.logiciel ?? ""}
+                                    changer={(v) => poser({ logiciel: v || null })}
+                                    vide={t({ en: "The client database", fr: "La base du client" })}
+                                    options={logiciels.map((l) => ({ valeur: l.systeme, libelle: l.libelle }))}
+                                    className="w-56"
+                                />
+                            ) : (
                             <select
                                 id="verif-logiciel"
                                 className="rounded border border-border bg-background px-2 py-1 text-sm"
@@ -288,6 +366,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
                                     </option>
                                 ))}
                             </select>
+                            )}
                         </ChampReglage>
                     </Intertitre>
                     {erreur && (
