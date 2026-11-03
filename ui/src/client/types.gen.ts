@@ -7991,6 +7991,12 @@ export type IntegrationToolConfig = {
         [key: string]: string;
     };
     /**
+     * Compte
+     *
+     * Name of the connected account this tool uses (several accounts of one software).
+     */
+    compte?: string | null;
+    /**
      * Dernier Essai
      *
      * Server-managed: the last trial (success, mode, date).

@@ -406,7 +406,7 @@ function FenetreLogiciel({
             body: {
                 name: `${connecteur.libelle} · ${action}`,
                 category: "integration",
-                definition: { schema_version: 1, type: "integration", config: compte ? { ...config, compte } : config } as never,
+                definition: { schema_version: 1, type: "integration", config: compte ? { ...config, compte } : config },
             },
         });
         if (r.error) return notifier.echec({ fr: "Outil non créé. Réessayez.", en: "Tool not created. Try again." }, { erreur: r.error });
