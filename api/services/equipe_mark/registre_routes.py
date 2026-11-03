@@ -158,6 +158,8 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),
     _r(ECRITURE, r"^/organizations/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/organizations/.*$", MEMBRE, par_defaut=True),
+    # U3 bis : le catalogue des variables d'un agent (lecture seule, tout membre de l'organisation).
+    _r(LECTURE, r"^/mark/variables(/.*)?$", MEMBRE),
 )
 
 

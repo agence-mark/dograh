@@ -28,6 +28,7 @@ from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
 from api.routes.listes_valeurs import router as listes_valeurs_router
 from api.routes.objets_agent import router as objets_agent_router
+from api.routes.variables_agent import router as variables_agent_router
 from api.routes.modules import router as modules_router
 from api.routes.verification import router as verification_router
 from api.routes.agents_servis import router as agents_servis_router
@@ -129,6 +130,7 @@ router.include_router(equipe_mark_router)
 router.include_router(invitation_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
+router.include_router(variables_agent_router)  # [.mark] U3 bis : le catalogue des variables (étiquettes)
 router.include_router(outils_mark_router)  # [.mark] U3 sexies : avant `/tools/{uuid}` et `/credentials/{uuid}`
 router.include_router(credentials_router)
 router.include_router(tool_router)
