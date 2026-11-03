@@ -1,2 +1,2 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/workflow/page";
+// [.mark] U5 : l'accueil du Labo = l'accueil du builder (démarrages, saisie, conversations récentes).
+export { default } from "@/components/builder/chat/PageAccueil";
