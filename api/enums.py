@@ -250,6 +250,11 @@ class OrganizationConfigurationKey(Enum):
     # their ceiling live in the client's database, 019). Same free-text key, no migration.
     # Format: api/services/objets_agent/stockage.py
     OBJETS_AGENT_NOMS = "OBJETS_AGENT_NOMS"
+    # [.mark] builder partie 2, U2: the space of an organization. MARK_ESPACE = {"espace": "labo"} marks THE Labo
+    # (one holder, the only source; MARK_BIBLIOTHEQUE_ORGANISATION_ID is only the fallback); MARK_NOM_AFFICHAGE =
+    # {"nom": "..."} is the name shown (otherwise provider_id). Free-text keys of the same table, no migration.
+    MARK_ESPACE = "MARK_ESPACE"
+    MARK_NOM_AFFICHAGE = "MARK_NOM_AFFICHAGE"
 
 
 class UserConfigurationKey(Enum):

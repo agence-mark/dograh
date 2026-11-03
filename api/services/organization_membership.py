@@ -102,6 +102,10 @@ class SelectOrganizationRequest(BaseModel):
 
 
 async def list_organizations_for_user(user: UserModel) -> OrganizationListResponse:
+    # [.mark] Un compte de l'équipe voit ce que son rôle ouvre (une organisation créée après lui comprise).
+    from api.services.equipe_mark.espaces import synchroniser_appartenances
+
+    await synchroniser_appartenances(user)
     organizations = await db_client.list_organizations_for_user(user.id)
     return OrganizationListResponse(
         organizations=[

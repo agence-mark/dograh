@@ -13,6 +13,7 @@ from api.routes.builder import router as builder_router
 from api.routes.builder_tests import router as builder_tests_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
+from api.routes.espaces import router as espaces_router
 from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
@@ -110,6 +111,8 @@ router.include_router(objets_agent_router)
 router.include_router(modules_router)
 # [.mark] l-agent-collegue, L6: the caller's verification.
 router.include_router(verification_router)
+# [.mark] builder partie 2, U2: the spaces (Labo, clients), mounted before the organization router.
+router.include_router(espaces_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)

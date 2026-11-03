@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 from loguru import logger
+from sqlalchemy.orm import object_session
 from starlette.requests import HTTPConnection
 
 from api.db import db_client
@@ -69,10 +70,20 @@ def _chemin_de_la_route(connexion: HTTPConnection) -> tuple[str, str] | None:
     return methode.upper(), modele
 
 
+def _fixer_organisation(user, organization_id: int | None) -> None:
+    """Change l'organisation de CETTE requête sans jamais l'écrire en base : le compte est détaché de sa session d'abord."""
+    session = object_session(user)
+    if session is not None:
+        session.expunge(user)
+    user.selected_organization_id = organization_id
+
+
 async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool) -> None:
     """Fixe l'organisation de la requête et vérifie l'accès ; lève 400, 403 sinon. Modifie ``user`` en mémoire seulement."""
     from api.services.builder.constantes import organisation_bibliotheque
+    from api.services.equipe_mark.espaces import rafraichir_labo
 
+    await rafraichir_labo()  # le Labo marqué en base (cache court) ; le repli par variable ne sert que sans marquage
     labo_id = organisation_bibliotheque()
     acces = await db_client.acces_du_compte(user.id)
     brut = (connexion.headers.get(ENTETE_ORGANISATION) or "").strip()
@@ -87,11 +98,11 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         demandee = int(brut)
         if not await organisation_accessible(user.id, demandee, acces, labo_id):
             raise HTTPException(status_code=403, detail="Organization not accessible")
-        user.selected_organization_id = demandee
+        _fixer_organisation(user, demandee)
     elif user.selected_organization_id is not None and acces is not None:
         # Défaut : l'organisation choisie auparavant, si le rôle l'ouvre encore ; sinon aucune.
         if not organisation_est_ouverte(acces, user.selected_organization_id, labo_id):
-            user.selected_organization_id = None
+            _fixer_organisation(user, None)
 
     # --- la décision de la route
     position = _chemin_de_la_route(connexion)

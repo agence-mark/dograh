@@ -126,6 +126,10 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/user/.*$", MEMBRE, par_defaut=True),
     _r(LECTURE, r"^/turn/credentials$", MEMBRE),
     _r({"GET"}, r"^/auth/me$", MEMBRE),
+    # ------------------------------------------------------------------ espaces
+    _r({"GET"}, r"^/espaces$", MEMBRE),
+    _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
+    _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
     # ------------------------------------------------------------------ organisation
     _r({"POST"}, r"^/organizations$", P("clients.creer")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
