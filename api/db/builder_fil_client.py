@@ -79,6 +79,26 @@ class BuilderFilClient(BaseDBClient):
             )
             return list((await session.execute(requete)).scalars().all())
 
+    async def compter_les_fils_en_attente(self, organization_id: int) -> int:
+        """Les conversations du builder (principales, celles de l'écran) qui ont des changements à valider et ne travaillent plus :
+        c'est ce qui attend la personne. Une seule requête, bornée à l'organisation."""
+        async with self.async_session() as session:
+            return int(
+                (
+                    await session.execute(
+                        select(func.count())
+                        .select_from(MarkBuilderConversationModel)
+                        .where(
+                            MarkBuilderConversationModel.organization_id == organization_id,
+                            MarkBuilderConversationModel.parent_id.is_(None),
+                            MarkBuilderConversationModel.genre == "principal",
+                            MarkBuilderConversationModel.changements > 0,
+                            MarkBuilderConversationModel.etat != "en_cours",
+                        )
+                    )
+                ).scalar_one()
+            )
+
     async def modifier_fil(self, organization_id: int, fil_id: int, **champs: Any) -> None:
         inconnus = set(champs) - CHAMPS_MODIFIABLES
         if inconnus:

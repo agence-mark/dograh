@@ -84,3 +84,45 @@ async def test_le_stock_provisoire_est_verse_une_fois_puis_supprime():
     # lister() verse aussi, et rend les problèmes ouverts
     lus = await a_ameliorer.lister(org, agent.id)
     assert [p["critere"] for p in lus] == ["Suit le parcours"]
+
+
+# --- les compteurs de la barre -----------------------------------------------------------------------------------------------
+
+from api.services.juge import file  # noqa: E402
+from api.tests.mark.equipe_commun import client_http, entetes  # noqa: E402
+
+
+async def test_le_compteur_d_a_ameliorer_additionne_les_problemes_a_trier_et_les_elements_a_juger():
+    org, user, jeton, agent = await decor("g1b-compteur")
+    run = await un_appel(agent, user, org)
+    await a_ameliorer.signaler(org, un_item(run, agent), [verdict_juge("Suit le parcours"), verdict_juge("Reste poli")], LIGNES, "claude_code")
+    await file.ajouter(org, {"id": "appel-99", "type": "appel", "workflow_id": agent.id, "run_id": run.id})
+    async with client_http() as c:
+        r = await c.get("/api/v1/ameliorations/compteur", headers=entetes(jeton, org))
+    assert r.status_code == 200 and r.json() == {"a_trier": 2, "a_juger": 1, "total": 3}
+
+
+async def test_les_compteurs_se_cloisonnent_par_organisation():
+    org, user, jeton, agent = await decor("g1b-compteur-a")
+    autre, autre_user, _, autre_agent = await decor("g1b-compteur-b")
+    run = await un_appel(autre_agent, autre_user, autre)
+    await a_ameliorer.signaler(autre, un_item(run, autre_agent), [verdict_juge("X")], LIGNES, "claude_code")
+    await db_client.creer_fil(autre, autre_user.id, None, "Chat de l'autre")
+    async with client_http() as c:
+        a = await c.get("/api/v1/ameliorations/compteur", headers=entetes(jeton, org))
+        b = await c.get("/api/v1/builder/fils/compteur", headers=entetes(jeton, org))
+        sans = await c.get("/api/v1/ameliorations/compteur")
+    assert a.json()["total"] == 0 and b.json() == {"en_attente": 0} and sans.status_code in (401, 403)
+
+
+async def test_le_compteur_du_chat_compte_les_fils_qui_attendent_une_decision():
+    org, user, jeton, _ = await decor("g1b-chat")
+    attend = await db_client.creer_fil(org, user.id, None, "À relire")
+    travaille = await db_client.creer_fil(org, user.id, None, "En route")
+    sans = await db_client.creer_fil(org, user.id, None, "Rien à valider")
+    await db_client.modifier_fil(org, attend.id, etat="terminee", changements=3)
+    await db_client.modifier_fil(org, travaille.id, etat="en_cours", changements=2)
+    await db_client.modifier_fil(org, sans.id, etat="terminee", changements=0)
+    async with client_http() as c:
+        r = await c.get("/api/v1/builder/fils/compteur", headers=entetes(jeton, org))
+    assert r.status_code == 200 and r.json() == {"en_attente": 1}
