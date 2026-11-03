@@ -10,7 +10,7 @@
  */
 import "@/lib/espaces";
 
-import { AlertTriangle, Building2, ChevronsUpDown, FlaskConical, LogOut, UserRound, Users } from "lucide-react";
+import { AlertTriangle, ChevronsUpDown, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -49,7 +49,7 @@ import { Pastille } from "./marques";
 import { useMoi } from "./moi";
 import { useNomEspace } from "./nom-espace";
 import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
-import { SelecteurEspace } from "./selecteur-espace";
+import { PuceEspace, SelecteurEspace } from "./selecteur-espace";
 
 /** Un compteur de la barre : fourni par la page qui le sait (ordre 18), jamais inventé ici. */
 export type CompteurMenu = { n: number; urgent?: boolean };
@@ -139,16 +139,10 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                         data-espace={espace}
                         className="flex items-center gap-2 rounded-lg border px-2.5 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
-                        <span
-                            className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
-                                espace === "labo" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"
-                            }`}
-                        >
-                            {espace === "labo" ? <FlaskConical className="size-4" /> : <Building2 className="size-4" />}
-                        </span>
+                        <PuceEspace espace={espace} />
                         <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                             <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
-                                {espace === "labo" ? t({ en: "Space", fr: "Espace" }) : t({ en: "Client", fr: "Client" })}
+                                {espace === "client" ? t({ en: "Client", fr: "Client" }) : t({ en: "Space", fr: "Espace" })}
                             </span>
                             <span className="block truncate text-sm font-medium">{nomEspace ?? (org ? "" : "Labo")}</span>
                         </span>

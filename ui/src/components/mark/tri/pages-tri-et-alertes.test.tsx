@@ -13,9 +13,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PageATrierDuMenu from "@/app/a-trier/page";
-import PageAlertesDuMenu from "@/app/alertes/page";
 
 import { FournisseurLangue } from "../langue/langue";
+import { OngletAlertes } from "./OngletAlertes";
 import { PageAlertes } from "./PageAlertes";
 import { PageATrier } from "./PageATrier";
 
@@ -241,14 +241,16 @@ describe("[.mark] the « Alerts » page", () => {
 });
 
 describe("[.mark] the pages of the menu", () => {
-    it("carry their title and description in both languages", async () => {
+    it("carry their title in both languages; the explanation is in the « ! », never a visible sentence (K1b)", async () => {
         render(<FournisseurLangue><PageATrierDuMenu /></FournisseurLangue>);
         expect(await screen.findByRole("heading", { name: "À trier" })).toBeTruthy();
         cleanup();
-        render(<FournisseurLangue><PageAlertesDuMenu /></FournisseurLangue>);
-        expect(await screen.findByRole("heading", { name: "Alertes" })).toBeTruthy();
+        render(<FournisseurLangue><OngletAlertes /></FournisseurLangue>);
+        expect(await screen.findByText("Alertes")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Précision" })).toBeTruthy();
+        expect(screen.queryByText(/Les problèmes rencontrés par les appels/)).toBeNull();
         cleanup();
-        render(<PageAlertesDuMenu />);
-        expect(await screen.findByRole("heading", { name: "Alerts" })).toBeTruthy();
+        render(<OngletAlertes />);
+        expect(await screen.findByText("Alerts")).toBeTruthy();
     });
 });

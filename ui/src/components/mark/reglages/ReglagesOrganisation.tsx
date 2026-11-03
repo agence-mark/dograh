@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * [.mark] « Réglages de l'organisation » dans la forme de la maquette (`EcranReglagesOrganisation`, K1) : un menu de
- * thèmes à gauche (Général, Intégrations, Développeurs), le thème choisi à droite, posé à plat. Mêmes thèmes, mêmes
- * routes, mêmes enregistrements que `PageParametresOrganisation` ; seule la forme change. La section se lit et s'écrit
- * dans l'adresse (`?section=`).
+ * [.mark] « Réglages de l'organisation » dans la forme de la maquette (`EcranReglagesOrganisation`, K1 puis K1b) : un
+ * menu de thèmes à gauche (Général, Intégrations, Développeurs), le thème choisi à droite en LIGNES EN LECTURE avec un
+ * bouton « Modifier » qui ouvre la fenêtre du thème (décision d'Evan, 04/11). La fenêtre porte tous les réglages du
+ * thème et son enregistrement : mêmes thèmes, mêmes routes, mêmes enregistrements que `PageParametresOrganisation`,
+ * aucune fonction en moins. « Enregistrer » ferme la fenêtre ; « Annuler » la ferme et oublie le brouillon. La section
+ * se lit et s'écrit dans l'adresse (`?section=`).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import APIKeysPage from "@/app/api-keys/page";
 import { Intertitre } from "@/components/mark/ecran/Intertitre";
+import { ContexteLignes } from "@/components/mark/ecran/Theme";
 import { useLangue } from "@/components/mark/langue/langue";
 import { usePreferencesOrganisation } from "@/components/mark/parametres-organisation/preferences";
 import type { ThemeOrganisation } from "@/components/mark/parametres-organisation/references/cas-organisation";
@@ -39,11 +42,25 @@ export function ReglagesOrganisation() {
     const preferences = usePreferencesOrganisation();
     const apresAppel = useApresAppel();
     const [section, setSection] = useState<Section>("organisation");
-    const [, setEtats] = useState<Partial<Record<ThemeOrganisation, Etat>>>({});
+    // La fenêtre ouverte (une seule à la fois) ; `cle` remonte le thème pour oublier son brouillon (« Annuler »).
+    const [ouverte, setOuverte] = useState<Section | null>(null);
+    const [cle, setCle] = useState(0);
+    const [etats, setEtats] = useState<Partial<Record<ThemeOrganisation, Etat>>>({});
+    const ouverteRef = useRef<Section | null>(null);
+    ouverteRef.current = ouverte;
     useEffect(() => setSection(lireSection()), []);
 
     const choisir = (s: Section) => {
+        // Changer de section sans enregistrer perdrait le brouillon : on prévient (bonnes pratiques de l'écran).
+        const brouillon = Object.values(etats).some((e) => e?.modifie);
+        if (
+            s !== section &&
+            brouillon &&
+            !window.confirm(t({ en: "Leave without saving your changes?", fr: "Quitter sans enregistrer vos modifications ?" }))
+        )
+            return;
         setSection(s);
+        setOuverte(null);
         try {
             const adresse = new URL(window.location.href);
             adresse.searchParams.set("section", s);
@@ -54,11 +71,22 @@ export function ReglagesOrganisation() {
     };
 
     const signaler = useCallback((id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => {
-        setEtats((avant) =>
-            avant[id]?.modifie === modifie && avant[id]?.enErreur === enErreur ? avant : { ...avant, [id]: { modifie, enErreur } },
-        );
+        setEtats((avant) => {
+            // Un brouillon enregistré (modifié puis plus modifié) ferme sa fenêtre ; un échec la laisse ouverte.
+            if (avant[id]?.modifie && !modifie && !enErreur && ouverteRef.current === id) setOuverte(null);
+            return avant[id]?.modifie === modifie && avant[id]?.enErreur === enErreur ? avant : { ...avant, [id]: { modifie, enErreur } };
+        });
     }, []);
-    const commun = { ouvert: true, onBasculer: () => undefined, ouvrir: () => undefined, signaler, plat: true };
+    const annuler = useCallback(() => {
+        setOuverte(null);
+        setCle((n) => n + 1);
+    }, []);
+    const commun = (id: Section) => ({
+        ouvert: ouverte === id,
+        onBasculer: () => setOuverte((avant) => (avant === id ? null : id)),
+        ouvrir: () => setOuverte(id),
+        signaler,
+    });
 
     const sections: { id: Section; titre: string }[] = [
         { id: "organisation", titre: t({ en: "General", fr: "Général" }) },
@@ -83,22 +111,29 @@ export function ReglagesOrganisation() {
                 ))}
             </aside>
             <div className="min-w-0">
-                {section === "organisation" && (
-                    <ThemeOrganisationGenerale
-                        {...commun}
-                        preferences={preferences}
-                        adressesMark={apresAppel.ecran?.adresses.installation ?? []}
-                    />
-                )}
-                {section === "integrations" && <ThemeIntegrations {...commun} preferences={preferences} />}
-                {section === "developpeurs" && (
-                    <div className="space-y-8">
-                        <ThemeDeveloppeurs {...commun} />
-                        <Intertitre id="developpeurs-cles" titre={{ en: "Dograh API keys", fr: "Clés d'API de Dograh" }}>
-                            <APIKeysPage />
-                        </Intertitre>
-                    </div>
-                )}
+                <ContexteLignes.Provider value={{ annuler }}>
+                    {section === "organisation" && (
+                        <ThemeOrganisationGenerale
+                            key={cle}
+                            {...commun("organisation")}
+                            titre={{ en: "General", fr: "Général" }}
+                            preferences={preferences}
+                            adressesMark={apresAppel.ecran?.adresses.installation ?? []}
+                        />
+                    )}
+                    {section === "integrations" && <ThemeIntegrations key={cle} {...commun("integrations")} preferences={preferences} />}
+                    {section === "developpeurs" && (
+                        <ThemeDeveloppeurs
+                            key={cle}
+                            {...commun("developpeurs")}
+                            suite={
+                                <Intertitre id="developpeurs-cles" titre={{ en: "Dograh API keys", fr: "Clés d'API de Dograh" }}>
+                                    <APIKeysPage />
+                                </Intertitre>
+                            }
+                        />
+                    )}
+                </ContexteLignes.Provider>
             </div>
         </div>
     );

@@ -93,6 +93,8 @@ export interface ProprietesThemeOrganisation {
     signaler: (id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => void;
     /** [.mark] U2 bis / U2 (E116) : le thème posé à plat dans un sous-onglet (voir `Theme`). */
     plat?: boolean;
+    /** [.mark] K1b : le titre que montre la page quand il diffère de celui du thème (« Général » dans Réglages › Organisation). */
+    titre?: Texte;
 }
 
 const CHARGEMENT: Texte = { en: "Loading...", fr: "Chargement..." };
@@ -177,6 +179,7 @@ export const ThemeOrganisationGenerale = ({
     signaler,
     adressesMark = [],
     plat,
+    titre: titreAffiche,
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[] }) => {
     const { t } = useLangue();
     const idFuseau = useId();
@@ -191,12 +194,27 @@ export const ThemeOrganisationGenerale = ({
         <Theme
             id="organisation"
             icone={Settings}
-            titre={titre("organisation").titre}
+            titre={titreAffiche ?? titre("organisation").titre}
             description={{
                 en: "Organization-wide defaults used by testing and scheduling flows.",
                 fr: "Réglages communs utilisés par les tests et la planification.",
             }}
             resume={[brouillon.timezone, brouillon.test_phone_number || t({ en: "no test number", fr: "pas de numéro de test" })]}
+            lignes={[
+                {
+                    libelle: { en: "Test phone number", fr: "Numéro de test" },
+                    valeur: enregistre.test_phone_number || t({ en: "None", fr: "Aucun" }),
+                },
+                {
+                    libelle: { en: "Notification addresses", fr: "Adresses de notification" },
+                    valeur: (enregistre.adresses_notification ?? []).join(", ") || t({ en: "None", fr: "Aucune" }),
+                },
+                { libelle: { en: "Timezone", fr: "Fuseau horaire" }, valeur: enregistre.timezone || "UTC" },
+                {
+                    libelle: { en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" },
+                    valeur: t({ en: "Prices by model, dated; thresholds of the incidents", fr: "Prix par modèle, datés ; seuils des incidents" }),
+                },
+            ]}
             ouvert={ouvert}
             plat={plat}
             onBasculer={onBasculer}
@@ -617,6 +635,7 @@ export const ThemeIntegrations = ({
     const modifie = differe(brouillon, enregistre);
     useSignaler("integrations", modifie, false, signaler);
 
+    const nombreConnexions = connecteurs.etat?.connexions?.length ?? 0;
     const correspondance = preferences.enregistrees.disposition_mapping ?? {};
     const nombre = Object.keys(correspondance).length;
     const texteNombre =
@@ -641,6 +660,29 @@ export const ThemeIntegrations = ({
                     ? t({ en: "External PBX on", fr: "Standard externe actif" })
                     : t({ en: "No external PBX", fr: "Pas de standard externe" }),
                 brouillon.disposition_mapping_enabled ? t({ en: "Custom disposition codes", fr: "Codes d'issue personnalisés" }) : null,
+            ]}
+            lignes={[
+                {
+                    libelle: { en: "External PBX integrations", fr: "Intégrations de standard externe" },
+                    valeur: enregistre.external_pbx_integrations_enabled
+                        ? t({ en: "On", fr: "Actives" })
+                        : t({ en: "Off", fr: "Éteintes" }),
+                },
+                {
+                    libelle: { en: "Your own disposition codes", fr: "Vos propres codes d'issue" },
+                    valeur: enregistre.disposition_mapping_enabled ? texteNombre : t({ en: "Off", fr: "Éteints" }),
+                },
+                {
+                    libelle: { en: "Connected software", fr: "Logiciels connectés" },
+                    valeur: connecteurs.etat
+                        ? t({
+                              en: `${nombreConnexions} connected`,
+                              fr: `${nombreConnexions} connecté${nombreConnexions > 1 ? "s" : ""}`,
+                          })
+                        : t(CHARGEMENT),
+                },
+                { libelle: { en: "Calendar software", fr: "Logiciel d'agenda" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+                { libelle: { en: "Outage fallback", fr: "Repli en cas de panne" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
             ]}
             ouvert={ouvert}
             plat={plat}
@@ -774,7 +816,12 @@ const EnSavoirPlus = ({ href }: { href: string }) => {
     );
 };
 
-export const ThemeDeveloppeurs = ({ ouvert, onBasculer, plat }: ProprietesThemeOrganisation) => {
+export const ThemeDeveloppeurs = ({
+    ouvert,
+    onBasculer,
+    plat,
+    suite,
+}: ProprietesThemeOrganisation & { suite?: ReactNode }) => {
     const { t } = useLangue();
     return (
         <Theme
@@ -783,6 +830,11 @@ export const ThemeDeveloppeurs = ({ ouvert, onBasculer, plat }: ProprietesThemeO
             titre={titre("developpeurs").titre}
             description={{ en: "MCP server and call tracing (Langfuse).", fr: "Serveur MCP et traçage des appels (Langfuse)." }}
             resume={[]}
+            lignes={[
+                { libelle: { en: "Dograh API keys", fr: "Clés d'API de Dograh" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+                { libelle: { en: "MCP server", fr: "Serveur MCP" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+                { libelle: { en: "Call tracing (Langfuse)", fr: "Traçage des appels (Langfuse)" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+            ]}
             ouvert={ouvert}
             plat={plat}
             onBasculer={onBasculer}
@@ -809,6 +861,7 @@ export const ThemeDeveloppeurs = ({ ouvert, onBasculer, plat }: ProprietesThemeO
                 </p>
                 <TelemetrySection />
             </Intertitre>
+            {suite}
         </Theme>
     );
 };

@@ -13,7 +13,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import PageCles from "@/app/cles/page";
+import { OngletCles } from "@/components/mark/cles/OngletCles";
 
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm } from "../ServiceConfigurationForm";
 
@@ -131,9 +131,9 @@ describe("[.mark] the key library in Dograh's model form", () => {
     });
 });
 
-describe("[.mark] the « Keys » page of the menu (P18)", () => {
+describe("[.mark] the « Keys » tab of « Models and keys » (P18, K1b)", () => {
     it("shows the whole library, every provider, with a key to add", async () => {
-        render(<PageCles />);
+        render(<OngletCles />);
         const page = await screen.findByTestId("page-cles");
         await within(page).findByTestId("cle-c-openai");
         expect(within(page).getByTestId("cle-c-mistral")).toBeTruthy();

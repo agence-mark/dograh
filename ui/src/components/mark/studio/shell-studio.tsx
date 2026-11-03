@@ -115,7 +115,8 @@ export function ShellStudio({
         miettes ??
         [
             { libelle: nomEspace ?? (org ? "" : "Labo"), href: base },
-            ...(entree ? [{ libelle: t(entree.titre) }] : []),
+            // L'accueil de la Relation clients n'ajoute pas un second maillon (comme la maquette).
+            ...(entree && entree.id !== "relation-accueil" ? [{ libelle: t(entree.titre) }] : []),
         ];
 
     return (

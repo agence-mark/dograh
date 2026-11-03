@@ -34,7 +34,10 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/campaigns/:campaignId", destination: "/labo/campagnes/:campaignId" },
     { source: "/campaigns/:campaignId/edit", destination: "/labo/campagnes/:campaignId/edit" },
     { source: "/model-configurations", destination: "/labo/modeles" },
-    { source: "/cles", destination: "/labo/cles" },
+    // Les clés sont un onglet de « Modèles et clés », les alertes un onglet de « Qualité » (K1b, décision d'Evan 04/11).
+    { source: "/cles", destination: "/labo/modeles?onglet=cles" },
+    { source: "/labo/cles", destination: "/labo/modeles?onglet=cles" },
+    { source: "/clients/:org/cles", destination: "/clients/:org/modeles?onglet=cles" },
     { source: "/telephony-configurations", destination: "/labo/telephonie" },
     { source: "/telephony-configurations/:configId", destination: "/labo/telephonie/:configId" },
     { source: "/tools", destination: "/labo/outils" },
@@ -49,7 +52,9 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/reports", destination: "/labo/qualite" },
     { source: "/bibliotheque", destination: "/labo/bibliotheque" },
     { source: "/a-trier", destination: "/labo/a-ameliorer" },
-    { source: "/alertes", destination: "/labo/alertes" },
+    { source: "/alertes", destination: "/labo/qualite?onglet=alertes" },
+    { source: "/labo/alertes", destination: "/labo/qualite?onglet=alertes" },
+    { source: "/clients/:org/alertes", destination: "/clients/:org/qualite?onglet=alertes" },
     { source: "/settings", destination: "/labo/reglages" },
 ];
 
