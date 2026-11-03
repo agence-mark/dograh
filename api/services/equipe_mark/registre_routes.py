@@ -89,6 +89,10 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/builder/bibliotheque/propositions$", P("builder.lancer")),
     _r(ECRITURE, r"^/builder/bibliotheque(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/builder/(cerveau|prix)$", P("atelier.regler")),
+    # U11 : le déploiement progressif et les positions de la publication sont des gestes de publication ; la liste vocale écrit le brouillon ; les attaques se jouent comme des tests.
+    _r(ECRITURE, r"^/builder/publication/[^/]+/(deploiement/.*|reglages)$", P("agents.publier")),
+    _r(ECRITURE, r"^/builder/publication/.*$", P("agents.modifier")),
+    _r(ECRITURE, r"^/builder/attaques/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/tests/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/.*$", P("builder.lancer"), par_defaut=True),
     _r(LECTURE, r"^/builder/.*$", MEMBRE, par_defaut=True),

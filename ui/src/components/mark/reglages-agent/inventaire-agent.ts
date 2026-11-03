@@ -108,6 +108,11 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
         theme: "securite",
         via: "Safety theme (ThemeSecurite.tsx), drawn from the maquette; its own tests are in securite-ecran.test.tsx",
     },
+    // U11: the checks before publishing and the progressive deployment are set in the « Publish » window itself.
+    publication: {
+        theme: "securite",
+        via: "The « Publish » window (FenetreDePublication.tsx): each check on three positions, the progressive deployment switch",
+    },
     tts_replacements: { theme: "voix", cas: ["prononciation"] },
     // Chantier voix-soniox, lot 5 bis (D11) then lot 7: a card that opens a centred modal (`BalisesPermises.tsx`).
     tts_balises_permises: { theme: "voix", cas: ["balises-permises"] },

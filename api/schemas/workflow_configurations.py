@@ -17,6 +17,7 @@ from api.constants import (
 )
 from api.schemas.fiche_agent import ChampFiche, verifier_champs
 from api.schemas.phrases_du_code import MAX_REGLES, ReglePhrase, verifier_regles
+from api.schemas.publication import Publication
 from api.schemas.securite_conversation import SecuriteConversation
 from api.schemas.organization_preferences import AdresseEtablissement
 
@@ -878,6 +879,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "-- this filters what is spoken, never what is noted. A SPELLED "
             "name is deliberately left alone, so have the agent confirm a name "
             "by spelling it, never by saying it."
+        ),
+    )
+    publication: Publication | None = Field(
+        default=None,
+        description=(
+            "[.mark] U11, the publication: each check of the « Before publishing » window on three positions (off, warns, blocks) "
+            "and the progressive deployment (off by default: a publication is for all calls). Empty: the code's defaults, "
+            "which are the guard that was already there."
         ),
     )
     securite_conversation: SecuriteConversation | None = Field(

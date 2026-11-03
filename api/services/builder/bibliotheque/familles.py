@@ -61,6 +61,8 @@ FAMILLES: dict[str, Famille] = dict(
         _f("personnages-appelant", "Personnages d'appelant", "prouve", "appelant simulé"),
         _f("serie-manipulation", "Série manipulation", "prouve", "tests"),
         _f("criteres-types", "Critères types", "prouve", "tests"),
+        _f("jeux-d-attaques", "Jeux d'attaques", "prouve", "attaques de l'agent (U11)"),
+        _f("controles-avant-publication", "Contrôles avant publication", "prouve", "fenêtre Publier (U11)"),
         # 7. Ce qui guide le builder
         _f("questionnaire-audit", "Questionnaire d'audit", "guide", "builder"),
         _f("documents-conception-types", "Documents de conception types", "guide", "builder"),

@@ -8,7 +8,7 @@
  * `?builder=1`), sans rien dupliquer.
  */
 import type { ReactFlowInstance } from "@xyflow/react";
-import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, LoaderCircle, MoreHorizontal, Phone, Pencil, Play, Send, Sparkles, Tag, Users } from "lucide-react";
+import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Phone, Pencil, Play, Send, Sparkles, Tag, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -16,7 +16,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost,
     getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet,
-    publishWorkflowApiV1WorkflowWorkflowIdPublishPost,
 } from "@/client/sdk.gen";
 import type { WorkflowVersionResponse } from "@/client/types.gen";
 import { BarreDuBuilder } from "@/components/builder/ecran/BarreDuBuilder";
@@ -39,6 +38,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
+import { FenetreDePublication } from "./publication/FenetreDePublication";
 import { adresseOnglet } from "./onglets-agent";
 
 export type ModeEssai = "audio" | "text" | "simulated";
@@ -72,7 +72,6 @@ const T = {
     appelantSimule: { en: "Simulated caller", fr: "Appelant simulé" },
     jouerLesTests: { en: "Play the tests", fr: "Jouer les tests" },
     publier: { en: "Publish", fr: "Publier" },
-    publication: { en: "Publishing...", fr: "Publication..." },
     enregistrer: { en: "Save", fr: "Enregistrer" },
     enregistrement: { en: "Saving...", fr: "Enregistrement..." },
     nonEnregistre: { en: "Unsaved changes", fr: "Non enregistré" },
@@ -124,10 +123,9 @@ export function ActionsAgent({
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
-    const [publication, setPublication] = useState(false);
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
-    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | null>(null);
+    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | null>(null);
     const [labo, setLabo] = useState(true);
     useEffect(() => setLabo(typeof espaceRetenu() !== "number"), []);
 
@@ -150,26 +148,11 @@ export function ActionsAgent({
     const raison = editeur?.builder.raisonDeBlocage ?? null;
     const bloque = Boolean(editeur && (editeur.estModifie || editeur.erreursDuParcours > 0 || raison));
 
-    const publier = async () => {
-        if (publication) return;
-        setPublication(true);
-        const promesse = publishWorkflowApiV1WorkflowWorkflowIdPublishPost({ path: { workflow_id: agentId } });
-        notifier.suivre(promesse, {
-            encours: { fr: "Publication en cours…", en: "Publishing…" },
-            succes: { fr: "Agent publié.", en: "Agent published." },
-            echec: { fr: "Publication impossible. Réessayez.", en: "Could not publish. Try again." },
-            echecSi: (reponse) => reponse.error,
-            reessayer: () => void publier(),
-            groupe: "publication-agent",
-        });
-        try {
-            await promesse;
-            editeur?.onPublie();
-            await lire();
-            if (!editeur) router.refresh();
-        } finally {
-            setPublication(false);
-        }
+    // [.mark] U11 : « Publier » ouvre TOUJOURS la fenêtre « Publier vX » (contrôles, forcer, part des appels).
+    const apresPublication = async () => {
+        editeur?.onPublie();
+        await lire();
+        if (!editeur) router.refresh();
     };
 
     const enregistrer = async () => {
@@ -329,15 +312,8 @@ export function ActionsAgent({
                 ))}
 
             {!editeur?.versionPassee && aUnBrouillon && (
-                <Button size="sm" onClick={publier} disabled={publication || bloque} title={raison ?? undefined} className="gap-1.5">
-                    {publication ? (
-                        <>
-                            <LoaderCircle className="size-3.5 animate-spin" />
-                            {t(T.publication)}
-                        </>
-                    ) : (
-                        t(T.publier)
-                    )}
+                <Button size="sm" onClick={() => setFenetre("publier")} disabled={bloque} title={raison ?? undefined} className="gap-1.5">
+                    {t(T.publier)}
                 </Button>
             )}
             {editeur && !editeur.versionPassee && editeur.estModifie && (
@@ -381,6 +357,14 @@ export function ActionsAgent({
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            {fenetre === "publier" && (
+                <FenetreDePublication
+                    agentId={agentId}
+                    version={versionNumero}
+                    fermer={() => setFenetre(null)}
+                    onPublie={() => void apresPublication()}
+                />
+            )}
             <FenetreEtiquettes agentId={agentId} ouvert={fenetre === "etiquettes"} onOuvertChange={(o) => setFenetre(o ? "etiquettes" : null)} />
             <FenetreChamps
                 ouverte={fenetre === "dupliquer"}

@@ -79,6 +79,12 @@ ARGUMENTS = {
     "juge_a_faire": {},
     "juge_lire": {"id": "appel-1"},
     "juge_ecrire": {"id": "appel-1", "verdicts": [{"critere": "c", "verdict": "reussi", "replique": 1, "preuve": "p", "confiance": 0.9}]},
+    # U11 : prouver avant de publier, attaquer l'agent.
+    "publication_controler": {},
+    "publication_corriger_la_liste_vocale": {"ids": ["silence_appelant"]},
+    "attaques_lancer": {"profondeur": "rapide", "confirme": True},
+    "attaques_rapport": {},
+    "attaques_rejouer": {},
 }
 
 

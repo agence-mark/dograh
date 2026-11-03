@@ -75,6 +75,7 @@ from api.services.groupe.groupe import (
 )
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
+from api.schemas.publication import DemandeDePublication
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
 from api.services.workflow.run_usage_response import (
     format_public_cost_info,
@@ -901,7 +902,7 @@ async def get_workflow_versions(
     ]
 
 
-async def publier_un_agent(workflow_id: int, user: UserModel):
+async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[DemandeDePublication] = None):
     """Publish the current draft of a workflow (shared by the route and the group route).
 
     Drafts are allowed to be incomplete (so the editor can save mid-edit),
@@ -937,7 +938,27 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
 
     refus_du_builder = await verifier_avant_publication(workflow, draft, user.selected_organization_id, user.id)
     if refus_du_builder is not None:
-        raise HTTPException(status_code=422, detail=refus_du_builder)
+        # [.mark] U11 : on peut toujours forcer, avec une raison écrite au journal (la personne, la version, ce qui bloquait).
+        if demande is None or not demande.forcer:
+            raise HTTPException(status_code=422, detail=refus_du_builder)
+        from api.services.equipe_mark.acces import journaliser
+        from api.services.publication.controles import RaisonObligatoire, raison_valide
+
+        try:
+            raison_forcee = raison_valide(demande.raison)
+        except RaisonObligatoire as erreur:
+            raise HTTPException(status_code=422, detail=str(erreur)) from None
+        await journaliser(
+            user,
+            "agents.publier_force",
+            user.selected_organization_id,
+            {
+                "agent": workflow_id,
+                "version": draft.version_number,
+                "raison": raison_forcee,
+                "ce_qui_bloquait": [e["message"] for e in refus_du_builder.get("errors", [])][:20],
+            },
+        )
 
     # [.mark] U10 / S2 (D153, D163) : le canal est « telephone » ou « site » ; un agent de site ne porte aucun outil
     # de transfert d'appel (ni vers un numéro, ni vers une personne de l'équipe).
@@ -960,10 +981,29 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
         if refus_canal:
             raise HTTPException(status_code=422, detail=refus_canal)
 
+    # [.mark] U11 (E103) : déploiement progressif, ÉTEINT par défaut. Éteint, rien n'est lu ni écrit ici.
+    from api.services.publication import deploiement as deploiement_progressif
+    from api.services.publication.reglages import deploiement_actif
+
+    part = demande.pourcentage if demande is not None else None
+    progressif = deploiement_actif(draft.workflow_configurations)
+    if part is not None and not progressif:
+        raise HTTPException(status_code=422, detail="The progressive deployment is off for this agent (Settings > Publication).")
+    if part is not None and workflow.released_definition_id is None:
+        raise HTTPException(status_code=422, detail="There is no earlier published version to keep the rest of the calls on.")
+    precedente_id = workflow.released_definition_id
+
     try:
         published = await db_client.publish_workflow_draft(workflow_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    if part is not None:
+        await deploiement_progressif.demarrer(
+            user.selected_organization_id, workflow_id, published.id, precedente_id, part, str(user.id)
+        )
+    elif progressif:  # une publication ordinaire vaut pour tous les appels : la part en cours est close (geste de la personne)
+        await deploiement_progressif.passer_a_100(user.selected_organization_id, workflow_id)
 
     capture_event(
         distinct_id=str(user.provider_id),
@@ -1007,10 +1047,14 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
 @router.post("/{workflow_id}/publish")
 async def publish_workflow(
     workflow_id: int,
+    demande: Optional[DemandeDePublication] = None,
     user: UserModel = Depends(get_user),
 ):
-    """Publish the current draft version of a workflow."""
-    return await publier_un_agent(workflow_id, user)
+    """Publish the current draft version of a workflow.
+
+    [.mark] U11 : le corps est facultatif (forcer avec une raison, part des appels, note pour le journal).
+    """
+    return await publier_un_agent(workflow_id, user, demande)
 
 
 @router.post("/{workflow_id}/create-draft")
