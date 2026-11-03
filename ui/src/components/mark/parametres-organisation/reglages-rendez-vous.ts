@@ -3,7 +3,7 @@
  * theme « Appointments » (organization and establishment levels) and by the fiche of an
  * establishment (lot 11 of agents-specialises: appointments and zone written WITH the fiche).
  *
- * Moved out of `ThemeRendezVous.tsx` unchanged, so both screens read the same bounds, labels and help.
+ * Moved out of the old appointments theme (removed) unchanged, so both screens read the same bounds, labels and help.
  */
 import type { ReglagesPlanificateur } from "@/client/types.gen";
 

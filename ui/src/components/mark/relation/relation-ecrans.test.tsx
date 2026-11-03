@@ -46,6 +46,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { AccueilRelation, EcranAvis, EcranMessages, FicheClient } from "./EcransRelation";
+import { oublierLectureClients } from "./lecture-clients";
 
 const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 const maintenant = new Date().toISOString();
@@ -57,6 +58,7 @@ const fil = (sur: object = {}) => ({
 const avec = (ui: React.ReactNode) => render(<FournisseurLangue>{ui}</FournisseurLangue>);
 
 beforeEach(() => {
+    oublierLectureClients();
     Object.values(sdk).forEach((f) => f.mockReset());
     sdk.clients.mockImplementation(() => ok([{ id: 7, nom: "Nuances de Feu", ouverts: 1, non_lus: 1, demandes_nouvelles: 0 }]));
 });
@@ -69,10 +71,30 @@ describe("Ma file", () => {
         expect(await screen.findByText("Couper les SMS le dimanche")).toBeTruthy();
         expect(screen.getAllByText("Nuances de Feu").length).toBeGreaterThan(0);
     });
-    it("dit que rien n'attend quand la file est vide", async () => {
+    it("dit que rien n'attend l'équipe quand la file est vide, avec une donnée réelle (J, E102)", async () => {
         sdk.file.mockImplementation(() => ok([]));
         avec(<AccueilRelation />);
+        expect(await screen.findByText("Rien n'attend l'équipe")).toBeTruthy();
+        expect(await screen.findByText("1 client")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /Réessayer|Effacer|Créer|Ajouter|Nouveau/ })).toBeNull(); // aucun bouton d'action
+    });
+});
+
+describe("Messages : les trois états vides de la colonne des fils (J, E102)", () => {
+    it("aucun fil nulle part : « Aucun fil », sans bouton", async () => {
+        sdk.fils.mockImplementation(() => ok([]));
+        avec(<EcranMessages />);
+        // Le filtre de départ est « À traiter » : une file vide est une bonne nouvelle.
         expect(await screen.findByText("Rien n'attend")).toBeTruthy();
+    });
+    it("une recherche sans résultat : « Aucun résultat pour », et « Effacer les filtres » la vide", async () => {
+        sdk.fils.mockImplementation(() => ok([]));
+        avec(<EcranMessages />);
+        await screen.findByText("Rien n'attend");
+        fireEvent.change(screen.getByPlaceholderText("Rechercher"), { target: { value: "zzz" } });
+        expect(await screen.findByText(/Aucun résultat pour/)).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
+        await waitFor(() => expect((screen.getByPlaceholderText("Rechercher") as HTMLInputElement).value).toBe(""));
     });
 });
 

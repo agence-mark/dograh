@@ -68,7 +68,7 @@ import { BoutonAppliquerATous, type ReglageAppliquable } from "./BoutonAppliquer
 import { FicheRendezVous } from "./FicheRendezVous";
 import { ModaleCopieFiche } from "./ModaleCopieFiche";
 import { libelleReglage, texteValeur } from "./reglages-rendez-vous";
-import { charge_utile_planificateur } from "./ThemeRendezVous";
+import { charge_utile_planificateur } from "./charge-utile-planificateur";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 

@@ -15,8 +15,6 @@ import { useLangue } from "../langue/langue";
 import { usePreferencesOrganisation } from "../parametres-organisation/preferences";
 import type { ThemeOrganisation } from "../parametres-organisation/references/cas-organisation";
 import { useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
-import { ThemeEquipe } from "../parametres-organisation/ThemeEquipe";
-import { ThemeRendezVous } from "../parametres-organisation/ThemeRendezVous";
 import { ThemeEcouteOrganisation, ThemeEtablissementOrganisation } from "../parametres-organisation/ThemesOrganisation";
 import { ThemeVerification } from "../parametres-organisation/ThemeVerification";
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
@@ -34,9 +32,10 @@ type Etat = { modifie: boolean; enErreur: boolean };
 export const ONGLETS_ENTREPRISE = ["etablissements", "equipe", "rendez-vous", "objets", "verification", "ecoute"] as const;
 
 /**
- * `anciensThemes` : RÉSERVÉ AUX TESTS (`toutes-les-rubriques.tsx`). Monte les thèmes d'avant (réglages tous visibles) à la
- * place des tableaux et fenêtres de la maquette, pour que les tests d'inventaire prouvent qu'aucun réglage n'a disparu :
- * les tableaux et fenêtres ont leurs propres tests (`onglets-maquette.test.tsx`).
+ * `anciensThemes` : RÉSERVÉ AUX TESTS (`toutes-les-rubriques.tsx`). Monte les thèmes d'avant (réglages tous visibles) des
+ * seuls Établissements, Vérification de l'appelant et Écoute et sons, pour que les tests d'inventaire prouvent qu'aucun
+ * réglage n'a disparu. Équipe et Rendez-vous n'ont plus d'ancien thème (J) : leur inventaire est prouvé sur leurs
+ * fenêtres (`inventaire-fenetres.test.tsx`).
  */
 export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }) {
     const { t } = useLangue();
@@ -84,22 +83,12 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                     {
                         id: "equipe",
                         titre: t({ en: "Team and routing", fr: "Équipe et routage" }),
-                        ...(anciensThemes ? etat("equipe") : {}),
-                        contenu: anciensThemes ? <ThemeEquipe {...commun} baseRattachee={baseRattachee} /> : <OngletEquipe baseRattachee={baseRattachee} />,
+                        contenu: <OngletEquipe baseRattachee={baseRattachee} />,
                     },
                     {
                         id: "rendez-vous",
                         titre: t({ en: "Appointments", fr: "Rendez-vous" }),
-                        ...(anciensThemes ? etat("rendez-vous") : {}),
-                        contenu: anciensThemes ? (
-                            <ThemeRendezVous
-                                {...commun}
-                                baseRattachee={baseRattachee}
-                                adresseConnue={preferences.chargement ? null : Boolean(preferences.enregistrees.adresse_etablissement)}
-                            />
-                        ) : (
-                            <OngletRendezVous baseRattachee={baseRattachee} />
-                        ),
+                        contenu: <OngletRendezVous baseRattachee={baseRattachee} />,
                     },
                     { id: "objets", titre: t({ en: "Variables", fr: "Variables" }), contenu: <ThemeObjets /> },
                     {

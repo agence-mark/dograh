@@ -42,6 +42,8 @@ import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsCon
 import type { ProfilResponse } from "@/client/types.gen";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
+
+import { useCompteursBarre } from "./compteurs-barre";
 import { retenirEspace } from "@/lib/espaceCourant";
 
 import { FenetreProfil } from "./fenetre-profil";
@@ -62,7 +64,7 @@ const initialesDe = (identite: string) =>
         .map((s) => s[0]?.toUpperCase())
         .join("") || "U";
 
-export function SidebarStudio({ compteurs }: { compteurs?: Record<string, CompteurMenu> }) {
+export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Record<string, CompteurMenu> }) {
     const pathname = usePathname();
     const { t } = useLangue();
     const { state, isMobile, setOpenMobile } = useSidebar();
@@ -75,6 +77,8 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
     const profil = profilLu ?? moi;
 
     const { espace, base, org } = espaceDe(pathname);
+    const compteursLus = useCompteursBarre(espace, pathname);
+    const compteurs = { ...compteursLus, ...compteursFournis };
     // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).
     useEffect(() => retenirEspace(pathname), [pathname]);
     const groupes = menuDe(espace);
@@ -92,7 +96,7 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
 
     const Entree = ({ entree }: { entree: EntreeMenu }) => {
         const I = entree.icone;
-        const compteur = compteurs?.[entree.id];
+        const compteur = compteurs[entree.id];
         const alerte = entree.id === "telephonie" && alerteTelephonie;
         return (
             <SidebarMenuItem>
