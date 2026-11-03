@@ -107,6 +107,17 @@ describe("Réglages › Organisation en lignes (K1b)", () => {
         expect(screen.getByDisplayValue("+33344000000")).toBeTruthy();
     });
 
+    it("changer de section avec un brouillon non enregistré prévient, et reste si on refuse", () => {
+        const confirmer = vi.spyOn(window, "confirm").mockReturnValue(false);
+        monter();
+        fireEvent.click(screen.getByRole("button", { name: "Modifier" }));
+        fireEvent.change(screen.getByDisplayValue("+33344000000"), { target: { value: "+33399" } });
+        fireEvent.click(screen.getByRole("button", { name: "Développeurs" }));
+        expect(confirmer).toHaveBeenCalled();
+        expect(screen.getByDisplayValue("+33399")).toBeTruthy();
+        confirmer.mockRestore();
+    });
+
     it("Développeurs : MCP, traçage et clés d'API de Dograh restent atteignables, dans la fenêtre", () => {
         monter();
         fireEvent.click(screen.getByRole("button", { name: "Développeurs" }));

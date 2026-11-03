@@ -45,12 +45,20 @@ export function ReglagesOrganisation() {
     // La fenêtre ouverte (une seule à la fois) ; `cle` remonte le thème pour oublier son brouillon (« Annuler »).
     const [ouverte, setOuverte] = useState<Section | null>(null);
     const [cle, setCle] = useState(0);
-    const [, setEtats] = useState<Partial<Record<ThemeOrganisation, Etat>>>({});
+    const [etats, setEtats] = useState<Partial<Record<ThemeOrganisation, Etat>>>({});
     const ouverteRef = useRef<Section | null>(null);
     ouverteRef.current = ouverte;
     useEffect(() => setSection(lireSection()), []);
 
     const choisir = (s: Section) => {
+        // Changer de section sans enregistrer perdrait le brouillon : on prévient (bonnes pratiques de l'écran).
+        const brouillon = Object.values(etats).some((e) => e?.modifie);
+        if (
+            s !== section &&
+            brouillon &&
+            !window.confirm(t({ en: "Leave without saving your changes?", fr: "Quitter sans enregistrer vos modifications ?" }))
+        )
+            return;
         setSection(s);
         setOuverte(null);
         try {

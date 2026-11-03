@@ -7,6 +7,7 @@
  * « Nouveau client » crée une organisation (permission `clients.creer`, vérifiée par le serveur) et l'ouvre.
  */
 import { Building2, Check, ChevronsUpDown, FlaskConical, HeartHandshake, Loader2, Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -121,16 +122,14 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                         <>
                             <DropdownMenuLabel className="text-xs text-muted-foreground">{t({ en: "Our tool", fr: "Notre outil" })}</DropdownMenuLabel>
                             {ligne(labo)}
-                            <DropdownMenuItem
-                                onSelect={() => router.push("/relation")}
-                                data-espace-relation=""
-                                className="cursor-pointer hover:font-medium"
-                            >
-                                <span className="mr-2">
-                                    <PuceEspace espace="relation" petite />
-                                </span>
-                                <span className="min-w-0 flex-1 truncate">{t(RELATION_CLIENTS)}</span>
-                                {espace === "relation" && <Check className="ml-1 size-4" />}
+                            <DropdownMenuItem asChild data-espace-relation="" className="cursor-pointer hover:font-medium">
+                                <Link href="/relation">
+                                    <span className="mr-2">
+                                        <PuceEspace espace="relation" petite />
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate">{t(RELATION_CLIENTS)}</span>
+                                    {espace === "relation" && <Check className="ml-1 size-4" />}
+                                </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                         </>
