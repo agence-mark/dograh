@@ -98,17 +98,20 @@ async def _ajouter(organisation_id: int, workflow_id: int, cle: str, valeurs: di
 async def ingerer_les_verdicts(
     organisation_id: int,
     workflow_id: int,
-    run_id: int,
+    run_id: int | None,
     verdicts: list[dict[str, Any]],
     lignes: list[tuple[str, str]],
     *,
     cause: str = "prompt",
     version_numero: int | None = None,
     etape: str | None = None,
+    test: str | None = None,
 ) -> int:
-    """Les critères ratés d'un appel jugé entrent dans la file. Rend le nombre de problèmes touchés. Ne lève jamais."""
+    """Les critères ratés d'un appel (``run_id``) ou d'un test (``test``) jugé entrent dans la file. Rejuger le même élément REMPLACE
+    son jugement précédent (ses anciens cas sont retirés avant), jamais ne le double. Rend le nombre de problèmes touchés. Ne lève jamais."""
     touches = 0
     try:
+        await db_client.retirer_les_cas_d_un_element(organisation_id, workflow_id, releve_par=RELEVE_PAR_JUGE, run_id=run_id, test=test)
         for v in verdicts or []:
             if v.get("verdict") == "reussi":
                 continue
@@ -131,7 +134,8 @@ async def ingerer_les_verdicts(
                     "version_numero": version_numero,
                 },
                 {
-                    "run_id": run_id,
+                    **({"run_id": run_id} if run_id is not None else {}),
+                    **({"test": test} if test is not None else {}),
                     "tour": rang if isinstance(rang, int) else None,
                     "rang": rang_de_l_appelant(lignes, rang),
                     "citation": str(v.get("preuve") or "")[:300],

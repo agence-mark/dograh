@@ -22,7 +22,7 @@ from api.services.builder import consignes
 from api.services.builder.cerveau import independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
-from api.services.juge import a_ameliorer, file, passes
+from api.services.juge import file, passes
 from api.services.juge import verdicts as v
 
 

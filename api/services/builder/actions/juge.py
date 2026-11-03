@@ -104,20 +104,14 @@ async def _ecrire(contexte: Contexte, p: _Ecrire) -> dict[str, Any]:
     }
     if item["type"] == "appel":
         await appels.ecrire_dans_le_run(int(item["run_id"]), resultat)
-        # U8 (B) : un critère raté par Claude Code entre aussi dans « À améliorer » (même chemin que le juge sur clé).
-        from api.services.boucle import ingestion
-
-        run, _ = await db_client.get_workflow_run_with_context(int(item["run_id"]))
-        if run is not None:
-            await ingestion.ingerer_un_appel_juge(run, contexte.organisation_id, verifies, lignes)
     else:
         from api.services.builder import stock
 
         await stock.ecrire(
             contexte.organisation_id, f"{file.PREFIXE_VERDICT_TEST}{item['workflow_id']}:{item.get('test')}", resultat
         )
-    # U12 : « À améliorer » se remplit comme sur clé d'API, par la même entrée unique.
-    points = await a_ameliorer.signaler(contexte.organisation_id, item, verifies, "claude_code")
+    # U12 + G1b : « À améliorer » se remplit comme sur clé d'API, par la même entrée unique (le module de la boucle).
+    points = await a_ameliorer.signaler(contexte.organisation_id, item, verifies, lignes, "claude_code")
     await file.retirer(contexte.organisation_id, item["id"])
     return {"ok": True, "id": item["id"], "reussi": resultat["reussi"], "mention": resultat["mention"], "a_ameliorer": points}
 
