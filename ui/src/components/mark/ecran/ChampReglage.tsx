@@ -159,13 +159,16 @@ export const ChampReglage = ({
                             </code>
                         </span>
                     </Info>
-                    <PastilleOrigine cle={cle} />
+                    {/* Maquette : l'origine ne se montre que si elle compte (propre à l'agent) ; sinon au survol de la ligne. */}
+                    <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[data-origine=agent]]:opacity-100">
+                        <PastilleOrigine cle={cle} />
+                    </span>
                 </Label>
                 {premiere && <p className="mt-0.5 text-xs text-muted-foreground">{premiere}</p>}
             </div>
         );
         return (
-            <div id={`reglage-${cle}`} data-reglage={cle} data-aide={[...aides, ...(bornes ? [bornes] : [])].map((a) => t(a)).join(" ")} className="scroll-mt-24 space-y-2 py-3.5">
+            <div id={`reglage-${cle}`} data-reglage={cle} data-aide={[...aides, ...(bornes ? [bornes] : [])].map((a) => t(a)).join(" ")} className="group scroll-mt-24 space-y-2 py-3.5">
                 {disposition === "ligne" ? (
                     <div className="flex items-start gap-4">
                         {etiquetteMaquette}
