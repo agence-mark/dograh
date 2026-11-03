@@ -36,6 +36,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAUTS_PIPECAT } from "@/types/workflow-configurations";
 
+import { CLES_INTERVENTIONS_MARK } from "./reglages-agent/ThemeInterventions";
 import {
     CLES_ACCUEIL,
     CLES_COUPURE,
@@ -54,12 +55,35 @@ const TOUTES = [
     ...CLES_ACCUEIL,
 ] as string[];
 
+// [.mark] Builder partie 2, constat C7 : depuis la page des réglages de l'agent (chantiers agent-facon-tala et
+// suivants), une partie des réglages n'est plus dans cette fenêtre mais dans un thème de cette page, qui l'enregistre
+// champ par champ. Ils sont listés ici, et le test vérifie que leur thème les porte vraiment (lu dans son fichier).
+const CLES_DONNEES_DE_LA_PAGE_AGENT = [
+    "fiche_dans_le_systeme",
+    "fiche_forme_courte",
+    "prechauffer_les_collegues",
+    "reconnaitre_un_outil_ecrit",
+    "signaler_un_probleme",
+    "alertes_par_mail",
+];
+const HORS_FENETRE = [...CLES_INTERVENTIONS_MARK, ...CLES_DONNEES_DE_LA_PAGE_AGENT] as string[];
+
 describe("Les cles des sections de la fenetre de configuration", () => {
-    it("couvrent tous les reglages Pipecat", () => {
+    it("couvrent tous les reglages Pipecat (ceux de la page de l'agent a part)", () => {
         const manquantes = Object.keys(DEFAUTS_PIPECAT).filter(
-            (cle) => !TOUTES.includes(cle),
+            (cle) => !TOUTES.includes(cle) && !HORS_FENETRE.includes(cle),
         );
         expect(manquantes).toEqual([]);
+    });
+
+    // La fenêtre et la page de l'agent sont deux écrans distincts, enregistrés séparément : une clé que les deux montrent
+    // (« laisser_la_parole », « relance_apres_outil », déplacées dans les interventions) n'est pas un doublon d'une même
+    // sauvegarde. Le doublon que ce fichier garde est celui À L'INTÉRIEUR de la fenêtre (test suivant).
+    it("chaque reglage tenu hors de la fenetre est vraiment porte par son theme", () => {
+        const donnees = readFileSync(join(process.cwd(), "src/components/mark/reglages-agent/ThemeDonnees.tsx"), "utf8");
+        for (const cle of CLES_DONNEES_DE_LA_PAGE_AGENT) {
+            expect(donnees.includes(`cle="${cle}"`), `${cle} absent de ThemeDonnees`).toBe(true);
+        }
     });
 
     it("n'en revendiquent aucun deux fois", () => {

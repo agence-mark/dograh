@@ -6,10 +6,10 @@
  * by itself (repeated nudges, no dead end). The nudges are only counted, never lines to triage. A click on an agent sets the
  * agent filter of the queue below. No threshold, no alert: the numbers are for reading.
  */
-import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
-import type { LigneDeTaux } from "@/client/types.gen";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
+import type { LigneDeTaux } from "@/client/types.gen";
 import { detailFromError } from "@/lib/apiError";
 
 import { useLangue } from "../langue/langue";

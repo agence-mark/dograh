@@ -116,6 +116,18 @@ export const NOMS_RESERVES = [
     "mark_connexions_modele",
     "mark_reseau",
     "mark_journal_des_actions",
+    // builder partie 2, constat C7 : les noms que le serveur a réservés depuis (passages-fiables, arbitre, alertes,
+    // signalement, rejeu des tests), recopiés ici pour que l'écran refuse ce que le serveur refuse.
+    "alertes",
+    "alertes_mail",
+    "arbitre",
+    "attentes_accordees",
+    "desaccords_arbitre",
+    "outils_simules",
+    "passages_par_le_code",
+    "rejeu_sortants_simules",
+    "retenues_verite",
+    "signalements",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

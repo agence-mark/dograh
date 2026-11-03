@@ -125,7 +125,8 @@ describe("After the call (organization)", () => {
         m.put.mockImplementation(async ({ body }) => ({ data: { ...ECRAN, reglages: body } }));
         rendre(<Apres />);
         const hote = (await screen.findByLabelText(/^(Server|Serveur)$/)) as HTMLInputElement;
-        expect(hote.value).toBe("smtp.example.org");
+        // Le champ s'affiche vide avant le chargement (constat C7 : lu trop tôt, le test échouait au hasard).
+        await waitFor(() => expect(hote.value).toBe("smtp.example.org"));
         expect(document.querySelector('input[type="password"]')).toBeNull();
         expect(screen.getByTestId("derniere-nuit").textContent).toContain("verbatim 2");
         fireEvent.change(screen.getByLabelText(/Assistant's name|Nom de l'assistant/), { target: { value: "Léa" } });

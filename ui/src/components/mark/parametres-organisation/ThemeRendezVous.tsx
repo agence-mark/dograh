@@ -34,6 +34,7 @@ import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
+import { BoutonAppliquerATous } from "./BoutonAppliquerATous";
 import {
     CHOIX,
     type Cle,
@@ -44,7 +45,6 @@ import {
     OUI_NON,
     texteValeur,
 } from "./reglages-rendez-vous";
-import { BoutonAppliquerATous } from "./BoutonAppliquerATous";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_RENDEZ_VOUS: Texte = { en: "Appointments", fr: "Rendez-vous" };

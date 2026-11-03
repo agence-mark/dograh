@@ -530,8 +530,10 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # with the same value (the loop above says so): the record in the system
     # instruction (figeage-v12, D4), the colleagues' warm-up, the tool written as
     # text and the short record block (plan agent-facon-tala, C1, C3 bis, C8).
-    assert len(ecran) == 51, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 51. "
+    # Then 61 (builder, part 1, recorded at part 2's lot 0, constat C7): the ten engine interventions and report
+    # switches moved to the agent's settings page, declared on both sides with the same value (the loop above says so).
+    assert len(ecran) == 61, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 61. "
         f"A setting added on one side only renders and is then dropped."
     )
 

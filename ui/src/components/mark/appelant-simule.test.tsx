@@ -299,7 +299,8 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
     it("picks keys in the library, refuses a cap out of bounds, and sends what was set", async () => {
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
         const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
-        expect([...modele.options].map((o) => o.textContent)).toContain("Mistral organisation 2");
+        // Les clés arrivent après le premier rendu (constat C7 : lues trop tôt, le test échouait au hasard).
+        await waitFor(() => expect([...modele.options].map((o) => o.textContent)).toContain("Mistral organisation 2"));
         fireEvent.change(modele, { target: { value: "c-mistral" } });
         fireEvent.change(screen.getByLabelText("ElevenLabs key (voice and transcription)"), {
             target: { value: "c-eleven" },

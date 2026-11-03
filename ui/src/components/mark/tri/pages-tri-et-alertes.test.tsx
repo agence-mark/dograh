@@ -12,8 +12,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import PageAlertesDuMenu from "@/app/alertes/page";
 import PageATrierDuMenu from "@/app/a-trier/page";
+import PageAlertesDuMenu from "@/app/alertes/page";
 
 import { FournisseurLangue } from "../langue/langue";
 import { PageAlertes } from "./PageAlertes";

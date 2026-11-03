@@ -15,8 +15,8 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
-import { ModaleEtablissements } from "./ModaleEtablissements";
 import { FicheRendezVous } from "./FicheRendezVous";
+import { ModaleEtablissements } from "./ModaleEtablissements";
 import { CHOIX, FENETRE, NOMBRES, NOMBRES_TRAJETS, OUI_NON } from "./reglages-rendez-vous";
 
 const m = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), phrases: vi.fn(), appliquer: vi.fn() }));

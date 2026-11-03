@@ -182,7 +182,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                                     onClick={() => setChoisi(l.slug)}
                                 >
                                     <span className="font-medium">{l.nom}</span>
-                                    {l.obligatoire && <span className="rounded bg-red-100 px-1.5 text-xs text-red-900 dark:bg-red-950 dark:text-red-200">{t({ en: "required", fr: "obligatoire" })}</span>}
+                                    {l.obligatoire && <span className="rounded bg-(--signal-danger)/15 px-1.5 text-xs text-(--signal-danger)">{t({ en: "required", fr: "obligatoire" })}</span>}
                                     <span className="text-xs text-muted-foreground">{l.genre === "conversation" ? t({ en: "conversation", fr: "conversation" }) : t({ en: "reply", fr: "réplique" })}</span>
                                     <span className="ml-auto text-xs">
                                         {l.derniere ? (
@@ -221,7 +221,7 @@ function BandeauDePublication({ etat }: { etat: EtatDePublication }) {
     const bloque = etat.bloque;
     return (
         <section
-            className={`space-y-1 rounded border p-3 text-sm ${bloque ? "border-red-300 bg-red-50 dark:bg-red-950" : "border-emerald-300 bg-emerald-50 dark:bg-emerald-950"}`}
+            className={`space-y-1 rounded border p-3 text-sm ${bloque ? "border-(--signal-danger)/40 bg-(--signal-danger)/10" : "border-(--signal-ok)/40 bg-(--signal-ok)/10"}`}
             data-testid="bandeau-publication"
         >
             <h2 className="font-semibold">
@@ -270,7 +270,7 @@ function ResultatDeLaSuite({ suite }: { suite: ResultatDeSuite }) {
                         {e.nom} {e.obligatoire ? `(${t({ en: "required", fr: "obligatoire" })})` : ""}
                     </p>
                     {e.replique && <p>« {e.replique} »</p>}
-                    <p className="text-red-900 dark:text-red-200">{e.raison}</p>
+                    <p className="text-(--signal-danger)">{e.raison}</p>
                     <p className="text-xs text-muted-foreground" data-testid="diagnostic">
                         {t({ en: "Diagnosis", fr: "Diagnostic" })} : {t(CAUSES[e.diagnostic.cause])} — {e.diagnostic.raison}{" "}
                         {t({ en: "Nothing is changed without your agreement.", fr: "Rien n'est changé sans votre accord." })}

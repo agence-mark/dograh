@@ -6,9 +6,9 @@ import type { Texte } from "@/components/mark/langue/langue";
 import type { StatutDeTest } from "./types";
 
 export const STATUTS_DE_TEST: Record<StatutDeTest, { texte: Texte; classe: string }> = {
-    ok: { texte: { en: "Passed", fr: "Réussi" }, classe: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200" },
-    echec: { texte: { en: "Failed", fr: "Échec" }, classe: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200" },
-    erreur: { texte: { en: "Could not run", fr: "Non jouable" }, classe: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" },
+    ok: { texte: { en: "Passed", fr: "Réussi" }, classe: "bg-(--signal-ok)/15 text-(--signal-ok)" },
+    echec: { texte: { en: "Failed", fr: "Échec" }, classe: "bg-(--signal-danger)/15 text-(--signal-danger)" },
+    erreur: { texte: { en: "Could not run", fr: "Non jouable" }, classe: "bg-(--signal-idle)/20 text-foreground" },
 };
 
 export type ChampDeCritere = "texte" | "nom" | "attendue" | "noms" | "champs" | "max" | "ne_doit_pas_etre_appele";

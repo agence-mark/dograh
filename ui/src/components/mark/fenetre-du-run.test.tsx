@@ -40,6 +40,8 @@ vi.mock("next/navigation", () => ({
     useParams: () => ({ workflowId: "34", runId: "967" }),
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
     usePathname: () => "/workflow/34/run/967",
+    // La page lit ?creer_test=<rang> (builder, lot 6) : aucun paramètre ici.
+    useSearchParams: () => new URLSearchParams(),
 }));
 // One stable object: the page re-fetches whenever `auth` changes identity.
 const AUTH = { isAuthenticated: true, loading: false, user: { id: "u-1" } };

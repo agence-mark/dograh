@@ -29,7 +29,7 @@ function Conversation({ essai }: { essai: EssaiResultat }) {
                         <span className="mr-2 text-xs font-medium">{role === "agent" ? t({ en: "Agent", fr: "Agent" }) : t({ en: "Caller", fr: "Appelant" })}</span>
                         {texte}
                         {fautes.map((f, j) => (
-                            <p key={j} className="mt-1 rounded bg-red-50 p-1 text-xs text-red-900 dark:bg-red-950 dark:text-red-200" data-testid="raison-de-l-echec">
+                            <p key={j} className="mt-1 rounded bg-(--signal-danger)/10 p-1 text-xs text-(--signal-danger)" data-testid="raison-de-l-echec">
                                 {f.raison ?? f.detail}
                             </p>
                         ))}
@@ -117,7 +117,7 @@ export function DetailDunTest({ workflowId, test, resultats, onObligatoire, onSu
                         ))}
                     </div>
                     {essai?.erreur && (
-                        <p className="rounded bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200" data-testid="essai-en-erreur">
+                        <p className="rounded bg-(--signal-idle)/20 p-2 text-sm text-foreground" data-testid="essai-en-erreur">
                             {t({ en: "This attempt could not be played:", fr: "Cet essai n'a pas pu être joué :" })} {essai.erreur}
                         </p>
                     )}
