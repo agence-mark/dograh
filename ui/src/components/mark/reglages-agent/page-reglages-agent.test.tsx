@@ -139,7 +139,7 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(12));
 };
 
 const ouvrirLeTheme = (id: string) => {
@@ -1066,7 +1066,10 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
 
     it("greys out « Generate the flow map » in a group (the code always generates it), never for a lone agent", async () => {
         const interrupteur = () => document.getElementById("generer_schema_parcours") as HTMLElement;
-        const aide = () => document.querySelector('[data-reglage="generer_schema_parcours"]')?.textContent ?? "";
+        const aide = () => {
+            const bloc = document.querySelector('[data-reglage="generer_schema_parcours"]');
+            return `${bloc?.getAttribute("data-aide") ?? ""} ${bloc?.textContent ?? ""}`;
+        };
         for (const [config, force] of [
             [PRINCIPAL, true],
             [SPECIALISE, true],
@@ -1288,7 +1291,7 @@ describe("[.mark] the background work settings (lot 4)", () => {
         const en = briques.querySelector('[data-groupe="briques-travail"]')?.textContent ?? "";
         expect(en).toContain("Background work");
         expect(en).toContain("Allowed tools");
-        expect(en).toContain("Max duration (s)");
+        expect(en).toContain("Max duration");
         cleanup();
         window.localStorage.setItem("mark.langue", "fr");
         const brFr = await ouvrirBriques({ ...REFERENCE, travail_actif: true }, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
@@ -1395,18 +1398,18 @@ describe("[.mark] the agent's improvement boxes (passages-fiables, lots F and G)
 describe("[.mark] the agent page: cards, windows and search", () => {
     const cartes = () => [...document.querySelectorAll("[data-theme][data-carte]")].map((e) => e.getAttribute("data-theme"));
 
-    it("draws the 11 themes as cards in three levels, in the order of the plan", async () => {
+    it("draws the 12 themes as cards in three levels, in the order of the plan", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         const niveaux = [...document.querySelectorAll("[data-niveau]")].map((n) => [
             n.getAttribute("data-niveau"),
             [...n.querySelectorAll("[data-theme][data-carte]")].map((c) => c.getAttribute("data-theme")),
         ]);
         expect(niveaux).toEqual([
-            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees"]],
+            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees", "securite"]],
             ["avance", ["briques", "ecoute", "modules", "tour", "rythme"]],
             ["moteur", ["interventions"]],
         ]);
-        expect(cartes()).toHaveLength(11);
+        expect(cartes()).toHaveLength(12);
     });
 
     it("opens a theme in a centred window with a fixed header and footer, and closes it with Escape", async () => {

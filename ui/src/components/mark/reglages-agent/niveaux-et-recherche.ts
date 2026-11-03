@@ -18,7 +18,7 @@ import { INVENTAIRE_AGENT } from "./inventaire-agent";
 export type NiveauReglages = "essentiel" | "avance" | "moteur";
 
 export const NIVEAUX_REGLAGES: Array<{ id: NiveauReglages; titre: Texte; themes: string[]; laboSeulement?: boolean }> = [
-    { id: "essentiel", titre: { en: "Essential", fr: "Essentiel" }, themes: ["agent", "etablissement", "voix", "phrases", "donnees"] },
+    { id: "essentiel", titre: { en: "Essential", fr: "Essentiel" }, themes: ["agent", "etablissement", "voix", "phrases", "donnees", "securite"] },
     { id: "avance", titre: { en: "Advanced", fr: "Avancé" }, themes: ["briques", "ecoute", "modules", "tour", "rythme"] },
     { id: "moteur", titre: { en: "Engine", fr: "Moteur" }, themes: ["interventions"], laboSeulement: true },
 ];

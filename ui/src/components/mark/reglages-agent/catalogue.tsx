@@ -14,17 +14,18 @@
  * whole number for the prompt count, nothing for an empty optional field…).
  * The English texts are the sections' own; the French ones are the mockup's.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { attributDeLongueur, attributsDeBorne, NOMBRE_MAX_ELEMENTS, texteHorsBornes } from "../bornes-reglages";
-import { ChampReglage, texteBornes } from "../ecran/ChampReglage";
+import { attributDeLongueur, attributsDeBorne, BORNES, NOMBRE_MAX_ELEMENTS, texteHorsBornes } from "../bornes-reglages";
+import { ChampReglage, ContexteLigneMaquette, decouperUnite, texteBornes } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Lecture = "decimal" | "decimalPositif" | "entier" | "entierPositif";
@@ -802,6 +803,8 @@ export const Reglage = ({
     apres?: ReactNode;
 }) => {
     const definition: Definition = CATALOGUE[cle];
+    const { t } = useLangue();
+    const dansFenetre = useContext(ContexteLigneMaquette);
     const erreur = erreurDuReglage(cle, valeur);
     const commun = {
         cle,
@@ -822,35 +825,87 @@ export const Reglage = ({
         }
         case "nombre": {
             const facultatif = definition.facultatif;
+            const borne = BORNES[cle];
+            const unite = decouperUnite(t(definition.libelle)).unite;
+            const champ = (
+                <Input
+                    id={cle}
+                    type="number"
+                    step={definition.pas}
+                    disabled={desactive}
+                    placeholder={facultatif?.indication}
+                    {...attributsDeBorne(cle)}
+                    aria-invalid={erreur ? true : undefined}
+                    value={facultatif ? ((valeur as number | null) ?? "") : (valeur as number)}
+                    onChange={(e) => {
+                        const brut = e.target.value;
+                        if (facultatif && brut === "") {
+                            onChange(null);
+                            return;
+                        }
+                        const lu = lire(brut, definition.lecture);
+                        if (lu !== undefined) onChange(lu);
+                    }}
+                    className={dansFenetre ? "h-8 w-20 border-transparent bg-transparent px-1 text-right text-lg font-semibold tabular-nums shadow-none md:text-lg" : undefined}
+                />
+            );
+            if (!dansFenetre) {
+                return (
+                    <ChampReglage {...commun} idControle={cle} bornes={texteBornes(cle, Boolean(facultatif))}>
+                        {champ}
+                        {apres}
+                    </ChampReglage>
+                );
+            }
+            // K3 (maquette `Reglage`, nombre borné) : la valeur en grand à droite avec son unité, un curseur dessous.
+            const pas = Number(definition.pas) || 1;
+            const courant = typeof valeur === "number" ? valeur : (borne?.min ?? 0);
             return (
-                <ChampReglage {...commun} idControle={cle} bornes={texteBornes(cle, Boolean(facultatif))}>
-                    <Input
-                        id={cle}
-                        type="number"
-                        step={definition.pas}
-                        disabled={desactive}
-                        placeholder={facultatif?.indication}
-                        {...attributsDeBorne(cle)}
-                        aria-invalid={erreur ? true : undefined}
-                        value={facultatif ? ((valeur as number | null) ?? "") : (valeur as number)}
-                        onChange={(e) => {
-                            const brut = e.target.value;
-                            if (facultatif && brut === "") {
-                                onChange(null);
-                                return;
-                            }
-                            const lu = lire(brut, definition.lecture);
-                            if (lu !== undefined) onChange(lu);
-                        }}
-                    />
-                    {apres}
+                <ChampReglage
+                    {...commun}
+                    idControle={cle}
+                    bornes={texteBornes(cle, Boolean(facultatif))}
+                    disposition="ligne"
+                    sous={
+                        <>
+                            {borne && (
+                                <div className="pt-1">
+                                    <input
+                                        type="range"
+                                        aria-label={t(definition.libelle)}
+                                        min={borne.min}
+                                        max={borne.max}
+                                        step={pas}
+                                        value={Math.min(Math.max(courant, borne.min), borne.max)}
+                                        disabled={desactive}
+                                        onChange={(e) => onChange(Number(e.target.value))}
+                                        className="w-full cursor-pointer accent-foreground"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                        <span>{borne.min}</span>
+                                        <span>{borne.max}</span>
+                                    </div>
+                                </div>
+                            )}
+                            {apres}
+                        </>
+                    }
+                >
+                    <span className="inline-flex items-center">
+                        {champ}
+                        {unite && <span className="ml-0.5 text-xs text-muted-foreground">{unite}</span>}
+                    </span>
                 </ChampReglage>
             );
         }
         case "choix":
             return (
                 <ChampReglage {...commun} idControle={cle}>
-                    <OptionsTraduites cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} />
+                    {dansFenetre && definition.options.length <= 3 ? (
+                        <Segments cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} desactive={desactive} />
+                    ) : (
+                        <OptionsTraduites cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} />
+                    )}
                 </ChampReglage>
             );
         case "texte":
@@ -890,6 +945,44 @@ export const Reglage = ({
                 </ChampReglage>
             );
     }
+};
+
+/** K3 (maquette `Reglage`, choix court) : des segments dans une pastille grise, le choisi en blanc. */
+export const Segments = ({
+    cle,
+    valeur,
+    options,
+    onChange,
+    desactive,
+}: {
+    cle: string;
+    valeur: string;
+    options: Array<{ valeur: string; libelle: Texte }>;
+    onChange: (valeur: unknown) => void;
+    desactive: boolean;
+}) => {
+    const { t } = useLangue();
+    return (
+        <div id={cle} role="radiogroup" className="inline-flex rounded-xl bg-muted p-1">
+            {options.map((option) => (
+                <button
+                    key={option.valeur}
+                    type="button"
+                    role="radio"
+                    data-valeur={option.valeur}
+                    aria-checked={valeur === option.valeur}
+                    disabled={desactive}
+                    onClick={() => onChange(option.valeur)}
+                    className={cn(
+                        "cursor-pointer rounded-lg px-3 py-1.5 text-sm hover:font-medium",
+                        valeur === option.valeur ? "bg-background font-medium shadow-sm" : "text-muted-foreground",
+                    )}
+                >
+                    {t(option.libelle)}
+                </button>
+            ))}
+        </div>
+    );
 };
 
 const OptionsTraduites = ({

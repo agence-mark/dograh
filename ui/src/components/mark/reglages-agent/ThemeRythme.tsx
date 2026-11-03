@@ -6,7 +6,7 @@
  * Management » (General, rebuilt, D6 option B) and our idle prompts and
  * silent-agent hang-up (Speech Tuning), which were two cards for one subject.
  */
-import { Clock } from "lucide-react";
+import { Timer } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
@@ -88,7 +88,7 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
     return (
         <Theme
             id={ID_THEME_RYTHME}
-            icone={Clock}
+            icone={Timer}
             titre={TITRE_RYTHME}
             description={{ en: "Caller silences, idle prompts, hang-up and duration.", fr: "Silences de l'appelant, relances, raccrochage et durée." }}
             resume={[

@@ -97,7 +97,7 @@ const ouvrir = async (config: Record<string, unknown>, servi: Record<string, unk
     m.servis.mockResolvedValue(vueServie({ numeros_de_lagent: ["+33344000001", "+33344000009"], ...servi }));
     m.config = resolveWorkflowConfigurations({ ...CONFIG_DE_REFERENCE, ...config } as never);
     render(<WorkflowSettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(12));
     const entete = document.querySelector('[data-theme="etablissement"] > button[aria-expanded]') as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     return document.getElementById("etablissement") as HTMLElement;
@@ -112,7 +112,8 @@ describe("[.mark] the fiche of the agent, theme « Business »", () => {
         await waitFor(() => expect(menu()).not.toBeNull());
         const reglage = theme.querySelector('[data-reglage="etablissement_id"]');
         expect(reglage).not.toBeNull();
-        expect(reglage?.textContent).toContain("Default: none · one fiche at most");
+        // K3 : l'aide et les bornes sont dans le « ! » ; `data-aide` en garde le texte entier.
+        expect(`${reglage?.getAttribute("data-aide")} ${reglage?.textContent}`).toContain("Default: none · one fiche at most");
         expect(menu()!.value).toBe("");
         const options = [...menu()!.options].map((o) => [o.value, o.textContent]);
         expect(options).toEqual([

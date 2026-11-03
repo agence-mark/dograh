@@ -4,9 +4,12 @@
  * [.mark] U3 (E47): the criteria of a test, one line each. Every list is READ in the agent or the library (steps, tools,
  * outcomes, sheet fields); the type list is the one of the code (`CRITERES`). No `<select>` of the browser (E48).
  */
+import { Plus, X } from "lucide-react";
+
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -55,65 +58,77 @@ export function EditeurDeCriteres({
     const { t } = useLangue();
     const offerts = types ?? Object.keys(CRITERES).filter((k) => !CRITERES[k].ancien);
     const maj = (i: number, l: LigneDeCritere) => changer(lignes.map((x, k) => (k === i ? l : x)));
+    // K3 (maquette `LigneCritere`) : un critère = son titre avec son « ! » et sa croix, ses paramètres dessous, pleine largeur ;
+    // « + Ajouter un critère » ouvre la liste des types (12 au plus).
     return (
-        <div className="space-y-2" data-testid="criteres-du-test">
-            {lignes.map((c, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2">
-                    <Liste
-                        className="w-64"
-                        valeur={c.type}
-                        changer={(type) => maj(i, ligneVide(type))}
-                        options={[
-                            ...(offerts.includes(c.type) ? [] : [c.type]),
-                            ...offerts,
-                        ].map((k) => ({ valeur: k, libelle: t(CRITERES[k]?.libelle ?? { en: k, fr: k }) }))}
-                    />
-                    {(CRITERES[c.type]?.champs ?? []).map((ch) => {
-                        const options = optionsDuChamp(ch, c.type, ressources);
-                        if (ch === "ne_doit_pas_etre_appele")
-                            return (
-                                <label key={ch} className="flex items-center gap-2 text-sm">
-                                    <Switch
-                                        checked={Boolean(c.valeurs[ch])}
-                                        onCheckedChange={(v) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: v } })}
-                                        aria-label={t(CHAMPS[ch])}
+        <div data-testid="criteres-du-test">
+            <div className="divide-y border-y">
+                {lignes.map((c, i) => (
+                    <div key={i} className="space-y-2 py-3">
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="flex flex-1 items-center gap-1.5 font-medium">{t(CRITERES[c.type]?.libelle ?? { en: c.type, fr: c.type })}</span>
+                            <button
+                                type="button"
+                                aria-label={t({ en: "Remove the criterion", fr: "Retirer le critère" })}
+                                onClick={() => changer(lignes.filter((_, k) => k !== i))}
+                                className="cursor-pointer text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        </div>
+                        {(CRITERES[c.type]?.champs ?? []).map((ch) => {
+                            const options = optionsDuChamp(ch, c.type, ressources);
+                            if (ch === "ne_doit_pas_etre_appele")
+                                return (
+                                    <label key={ch} className="flex items-center gap-2 text-sm">
+                                        <Switch
+                                            checked={Boolean(c.valeurs[ch])}
+                                            onCheckedChange={(v) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: v } })}
+                                            aria-label={t(CHAMPS[ch])}
+                                        />
+                                        {t(CHAMPS[ch])}
+                                    </label>
+                                );
+                            const valeur = String(c.valeurs[ch] ?? "");
+                            if (options && options.length > 0)
+                                return (
+                                    <Liste
+                                        key={ch}
+                                        className="w-full"
+                                        valeur={valeur}
+                                        placeholder={t(CHAMPS[ch])}
+                                        changer={(v) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: v } })}
+                                        options={valeur && !options.includes(valeur) ? [valeur, ...options] : options}
                                     />
-                                    {t(CHAMPS[ch])}
-                                </label>
-                            );
-                        const valeur = String(c.valeurs[ch] ?? "");
-                        if (options && options.length > 0)
+                                );
                             return (
-                                <Liste
+                                <Input
                                     key={ch}
-                                    className="w-48"
-                                    valeur={valeur}
+                                    className="h-8"
+                                    aria-label={t(CHAMPS[ch])}
                                     placeholder={t(CHAMPS[ch])}
-                                    changer={(v) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: v } })}
-                                    options={valeur && !options.includes(valeur) ? [valeur, ...options] : options}
+                                    value={valeur}
+                                    onChange={(e) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: e.target.value } })}
                                 />
                             );
-                        return (
-                            <Input
-                                key={ch}
-                                className="h-8 w-48"
-                                aria-label={t(CHAMPS[ch])}
-                                placeholder={t(CHAMPS[ch])}
-                                value={valeur}
-                                onChange={(e) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: e.target.value } })}
-                            />
-                        );
-                    })}
-                    {lignes.length > 1 && (
-                        <Button variant="ghost" size="sm" onClick={() => changer(lignes.filter((_, k) => k !== i))}>
-                            {t({ en: "Remove", fr: "Retirer" })}
-                        </Button>
-                    )}
-                </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={() => changer([...lignes, ligneVide(offerts[0])])}>
-                {t({ en: "Add a criterion", fr: "Ajouter un critère" })}
-            </Button>
+                        })}
+                    </div>
+                ))}
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="mt-2" disabled={lignes.length >= 12}>
+                        <Plus className="size-3.5" /> {t({ en: "Add a criterion", fr: "Ajouter un critère" })}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                    {offerts.map((k) => (
+                        <DropdownMenuItem key={k} onSelect={() => changer([...lignes, ligneVide(k)])}>
+                            {t(CRITERES[k]?.libelle ?? { en: k, fr: k })}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }

@@ -8,10 +8,12 @@
  */
 import { useCallback, useEffect, useState } from "react";
 
-import { lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet } from "@/client/sdk.gen";
+import { lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet, listerLesSitesApiV1OrganizationsSitesGet } from "@/client/sdk.gen";
 import type { EmplacementLu } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Info } from "@/components/mark/studio/marques";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
@@ -21,14 +23,23 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
     const [emplacement, setEmplacement] = useState<EmplacementLu | null>(null);
+    const [nomDuSite, setNomDuSite] = useState<string | null>(null);
     const [refus, setRefus] = useState(false);
     const [ouvert, setOuvert] = useState(false);
 
     const lire = useCallback(async () => {
         try {
-            const reponse = await lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet({ path: { workflow_id: agentId } });
+            // Les deux lectures partent ensemble ; le nom du site est un confort : sans lui, la clé reste affichée.
+            const [reponse, sites] = await Promise.all([
+                lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet({ path: { workflow_id: agentId } }),
+                Promise.resolve()
+                    .then(() => listerLesSitesApiV1OrganizationsSitesGet())
+                    .catch(() => null),
+            ]);
             setRefus(!reponse.data);
             setEmplacement(reponse.data ?? null);
+            const site = (sites?.data ?? []).find((x) => x.id === reponse.data?.site_id);
+            setNomDuSite(site ? site.nom || site.allowed_domains?.[0] || null : null);
         } catch {
             setRefus(true);
         }
@@ -46,7 +57,7 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
             </p>
         );
     }
-    if (!emplacement) return <p className="p-6 text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>;
+    if (!emplacement) return <EtatVide cas="chargement" lignes={3} />;
     if (emplacement.canal !== "site") {
         return (
             <p className="p-6 text-sm text-muted-foreground" data-testid="site-pas-le-canal">
@@ -55,25 +66,45 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
         );
     }
     const chemins = emplacement.chemins ?? [];
+    // K3 (maquette `OngletSite`) : le titre « Le module du site » avec son « ! » et le bouton, puis des lignes nues.
+    const lignes: Array<[string, string, Record<string, string>]> = [
+        [t({ en: "Site", fr: "Site" }), nomDuSite ?? emplacement.site_cle ?? t({ en: "No site chosen yet", fr: "Aucun site choisi" }), { "data-site-cle": "" }],
+        [t({ en: "Pages", fr: "Pages" }), chemins.length > 0 ? chemins.join(", ") : "—", { "data-chemins": "" }],
+        [
+            t({ en: "Script", fr: "Script" }),
+            emplacement.dernier_chargement
+                ? `${t({ en: "Detected, last loaded", fr: "Détecté, dernier chargement" })} ${emplacement.dernier_chargement}`
+                : t({ en: "Not detected yet", fr: "Pas encore détecté" }),
+            { "data-script": "" },
+        ],
+        [t({ en: "State", fr: "État" }), emplacement.widget_actif ? t({ en: "Active", fr: "Actif" }) : t({ en: "Off", fr: "Éteint" }), { "data-etat": "" }],
+    ];
     return (
-        <div className="mx-auto max-w-3xl space-y-4 p-6" data-onglet-site>
-            <dl className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">{t({ en: "Site", fr: "Site" })}</dt>
-                <dd data-site-cle>{emplacement.site_cle ?? t({ en: "No site chosen yet", fr: "Aucun site choisi" })}</dd>
-                <dt className="text-muted-foreground">{t({ en: "Pages", fr: "Pages" })}</dt>
-                <dd data-chemins>{chemins.length > 0 ? chemins.join(", ") : "—"}</dd>
-                <dt className="text-muted-foreground">{t({ en: "Script", fr: "Script" })}</dt>
-                <dd data-script>
-                    {emplacement.dernier_chargement
-                        ? `${t({ en: "Detected, last loaded", fr: "Détecté, dernier chargement" })} ${emplacement.dernier_chargement}`
-                        : t({ en: "Not detected yet", fr: "Pas encore détecté" })}
-                </dd>
-                <dt className="text-muted-foreground">{t({ en: "State", fr: "État" })}</dt>
-                <dd data-etat>{emplacement.widget_actif ? t({ en: "Active", fr: "Actif" }) : t({ en: "Off", fr: "Éteint" })}</dd>
-            </dl>
-            <Button onClick={() => setOuvert(true)} data-testid="configurer-module">
-                {t({ en: "Configure the module", fr: "Configurer le module" })}
-            </Button>
+        <div className="mx-auto max-w-5xl space-y-6 px-6 py-6" data-onglet-site>
+            <div>
+                <div className="flex items-center gap-2">
+                    <h2 className="flex flex-1 items-center gap-1.5 text-base font-semibold">
+                        {t({ en: "The site module", fr: "Le module du site" })}
+                        <Info>
+                            {t({
+                                en: "The widget placed on the client's site: look, behaviour, installation on the site and .mark settings. The client sets the same one in their portal.",
+                                fr: "Le widget posé sur le site du client : apparence, comportement, pose sur le site et réglages .mark. Le client règle le même dans son portail.",
+                            })}
+                        </Info>
+                    </h2>
+                    <Button size="sm" onClick={() => setOuvert(true)} data-testid="configurer-module">
+                        {t({ en: "Configure the module", fr: "Configurer le module" })}
+                    </Button>
+                </div>
+                <div className="mt-4 divide-y border-t text-sm">
+                    {lignes.map(([libelle, valeur, marque]) => (
+                        <div key={libelle} className="flex items-center gap-3 py-3">
+                            <span className="w-64 shrink-0 text-muted-foreground">{libelle}</span>
+                            <span {...marque}>{valeur}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
             {ouvert && (
                 <Dialog
                     open
@@ -84,14 +115,24 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
                         }
                     }}
                 >
-                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-                        <DialogHeader>
-                            <DialogTitle>{t({ en: "Site module", fr: "Module du site" })}</DialogTitle>
-                            <DialogDescription>
-                                {t({ en: "The same editor as the client portal: one source, the client and .mark set the same module.", fr: "Le même éditeur que le portail : une seule source, le client et .mark règlent le même module." })}
+                    <DialogContent className="flex h-[92vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+                        <DialogHeader className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
+                            <DialogTitle className="flex items-center gap-2">
+                                {t({ en: "Site module", fr: "Module du site" })}
+                                <Info>
+                                    {t({
+                                        en: "The same editor as the client portal: one source, the client and .mark set the same module.",
+                                        fr: "Le même éditeur que le portail : une seule source, le client et .mark règlent le même module.",
+                                    })}
+                                </Info>
+                            </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                {t({ en: "The same editor as the client portal.", fr: "Le même éditeur que le portail." })}
                             </DialogDescription>
                         </DialogHeader>
-                        <PanneauSite workflowId={agentId} />
+                        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                            <PanneauSite workflowId={agentId} />
+                        </div>
                     </DialogContent>
                 </Dialog>
             )}

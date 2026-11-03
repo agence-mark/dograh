@@ -31,9 +31,16 @@ export const jouerGeste = (geste: Geste) => {
             fireEvent.change(cible, { target: { value: geste.valeur } });
             return;
         }
-        case "choisir":
-            fireEvent.change(element(geste.id), { target: { value: geste.valeur } });
+        case "choisir": {
+            const cible = element(geste.id);
+            // K3 : un choix de trois valeurs au plus s'affiche en segments (`role="radiogroup"`), pas en liste.
+            if (cible.getAttribute("role") === "radiogroup") {
+                fireEvent.click(cible.querySelector(`[data-valeur="${geste.valeur}"]`) as HTMLElement);
+                return;
+            }
+            fireEvent.change(cible, { target: { value: geste.valeur } });
             return;
+        }
         case "etiquette": {
             const champ = element(geste.id);
             fireEvent.change(champ, { target: { value: geste.valeur } });

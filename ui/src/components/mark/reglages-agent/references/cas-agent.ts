@@ -40,6 +40,7 @@ export type ThemeAgent =
     | "phrases"
     | "donnees"
     | "interventions"
+    | "securite"
     | "etablissement";
 
 export type Geste =
@@ -450,6 +451,7 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     phrases: "Phrases",
     donnees: "Call data",
     interventions: "Engine interventions",
+    securite: "Safety",
     etablissement: "Business",
 };
 

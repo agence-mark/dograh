@@ -16,16 +16,18 @@
  * Three themes keep the buttons they had, because they save elsewhere or at
  * once (Services, the trade vocabulary, Developers): they pass no `enregistrement`.
  */
-import { ChevronDown, type LucideIcon, X } from "lucide-react";
-import { createContext, type ReactNode, useContext, useEffect } from "react";
+import { ChevronDown, type LucideIcon, Search, X } from "lucide-react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import { THEMES_COMMUNS_EN_LECTURE, useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 import { FenetreParente } from "../studio/fenetre-parente";
 import { Info } from "../studio/marques";
+import { ContexteLigneMaquette } from "./ChampReglage";
 
 export interface ErreurNommee {
     /** The technical name of the setting (convention E5). */
@@ -143,7 +145,7 @@ export const Pastilles = ({ modifie, enErreur }: { modifie: boolean; enErreur: b
  * (et non dans un portail) : le contenu du thème reste un descendant de son thème, comme avant (liens « afficher »,
  * tests, ancres). Echap ou un clic sur le fond la ferme ; une fenêtre ouverte depuis elle prend sa taille (E71).
  */
-const TAILLE_FENETRE_THEME = "sm:max-w-3xl max-h-[85vh]";
+const TAILLE_FENETRE_THEME = "sm:max-w-3xl h-[86vh]";
 const FenetreDuTheme = ({ id, onFermer, children }: { id: string; onFermer: () => void; children: ReactNode }) => {
     const { t } = useLangue();
     useEffect(() => {
@@ -156,7 +158,7 @@ const FenetreDuTheme = ({ id, onFermer, children }: { id: string; onFermer: () =
     }, [onFermer]);
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
             data-fond-fenetre
             onMouseDown={(e) => e.target === e.currentTarget && onFermer()}
         >
@@ -165,7 +167,7 @@ const FenetreDuTheme = ({ id, onFermer, children }: { id: string; onFermer: () =
                 aria-modal="true"
                 aria-labelledby={`${id}-titre`}
                 data-fenetre-theme={id}
-                className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-lg border bg-background shadow-lg sm:max-w-3xl"
+                className="relative flex h-[86vh] w-full flex-col overflow-hidden rounded-lg border bg-background shadow-lg sm:max-w-3xl"
             >
                 <FenetreParente.Provider value={{ classe: TAILLE_FENETRE_THEME }}>{children}</FenetreParente.Provider>
                 <button
@@ -198,6 +200,29 @@ export const Theme = ({
     children,
 }: ProprietesTheme) => {
     const { t } = useLangue();
+    // [.mark] K3 : la recherche de la fenêtre (maquette : « Chercher dans <thème> ») et le corps qu'elle filtre.
+    const [filtre, setFiltre] = useState("");
+    const [aucun, setAucun] = useState(false);
+    const corps = useRef<HTMLDivElement>(null);
+    // Chaque réglage se retrouve par son libellé ou son nom technique ; un groupe sans réglage visible se replie.
+    useEffect(() => {
+        const racine = corps.current;
+        if (!racine) return;
+        const q = filtre.trim().toLowerCase();
+        let visibles = 0;
+        racine.querySelectorAll<HTMLElement>("[data-reglage]").forEach((el) => {
+            const trouve = q === "" || (el.textContent ?? "").toLowerCase().includes(q) || (el.dataset.reglage ?? "").toLowerCase().includes(q);
+            el.hidden = !trouve;
+            if (trouve) visibles += 1;
+        });
+        racine.querySelectorAll<HTMLElement>("[data-groupe]").forEach((groupe) => {
+            groupe.hidden = q !== "" && !groupe.querySelector("[data-reglage]:not([hidden])");
+        });
+        setAucun(q !== "" && visibles === 0);
+    });
+    useEffect(() => {
+        if (!ouvert) setFiltre("");
+    }, [ouvert]);
     // [.mark] Lot 12 (A10) : chez un spécialisé, les thèmes communs viennent du principal : en
     // lecture, avec un bandeau, et sans bouton d'enregistrement (rien à enregistrer ici).
     const { specialiseDe } = useGroupe();
@@ -246,17 +271,51 @@ export const Theme = ({
     const cartes = useContext(ContexteCartes);
     const enLignes = useContext(ContexteLignes);
     const annuler = (cartes ?? enLignes)?.annuler ?? (() => undefined);
+    // [.mark] K3 : dans l'onglet Réglages d'un agent, la fenêtre prend la forme de la maquette (`reglages-fenetre.tsx`) :
+    // pastille d'icône, titre, résumé, recherche dans le thème ; pied « Aucune modification » / Annuler / Enregistrer.
+    const dansAgent = cartes !== null;
+    const pastillesTitre = <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />;
     const fenetre = ouvert ? (
         <FenetreDuTheme id={id} onFermer={onBasculer}>
-            <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
-                <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
-                    {t(titre)}
-                    <Info>{t(description)}</Info>
-                    <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
-                </h2>
-            </div>
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-background px-6 py-5">
-                {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
+            {dansAgent ? (
+                <div className="shrink-0 space-y-3 border-b px-6 pt-5 pr-12 pb-4">
+                    <div className="flex items-center gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                            <Icone className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
+                                {t(titre)}
+                                {pastillesTitre}
+                            </h2>
+                            <p className="mt-1 truncate text-sm text-muted-foreground">{t(description)}</p>
+                        </div>
+                    </div>
+                    <div className="relative w-full max-w-72">
+                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={filtre}
+                            onChange={(e) => setFiltre(e.target.value)}
+                            aria-label={`${t({ en: "Search in", fr: "Chercher dans" })} ${t(titre)}`}
+                            placeholder={`${t({ en: "Search in", fr: "Chercher dans" })} ${t(titre)}`}
+                            className="h-8 border-transparent bg-muted/50 pl-8 shadow-none focus-visible:bg-background"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
+                    <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
+                        {t(titre)}
+                        <Info>{t(description)}</Info>
+                        {pastillesTitre}
+                    </h2>
+                </div>
+            )}
+            <div ref={corps} className={cn("min-h-0 flex-1 overflow-y-auto bg-background px-6 py-5", dansAgent ? "space-y-8" : "space-y-6")}>
+                <ContexteLigneMaquette.Provider value={dansAgent}>
+                    {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
+                </ContexteLigneMaquette.Provider>
+                {aucun && <p className="py-16 text-center text-sm text-muted-foreground">{t({ en: "No setting.", fr: "Aucun réglage." })}</p>}
             </div>
             {enregistrement && !enLecture && (
                 <div className="flex flex-wrap items-center justify-end gap-3 border-t px-6 py-3" data-pied-fenetre>
@@ -277,9 +336,12 @@ export const Theme = ({
                         </div>
                     )}
                     {erreurs.length === 0 && modifie && (
-                        <span className="mr-auto text-xs text-muted-foreground">{t(TEXTES_THEME.modifie)}</span>
+                        <span className={cn("mr-auto text-muted-foreground", dansAgent ? "text-sm" : "text-xs")}>{t(TEXTES_THEME.modifie)}</span>
                     )}
-                    <Button type="button" variant="ghost" onClick={() => annuler(id)}>
+                    {erreurs.length === 0 && !modifie && dansAgent && (
+                        <span className="mr-auto text-sm text-muted-foreground">{t({ en: "No change", fr: "Aucune modification" })}</span>
+                    )}
+                    <Button type="button" variant={dansAgent ? "outline" : "ghost"} onClick={() => annuler(id)}>
                         {t(TEXTES_THEME.annuler)}
                     </Button>
                     <Button
@@ -288,7 +350,11 @@ export const Theme = ({
                         onClick={enregistrement.onEnregistrer}
                         disabled={bloque}
                     >
-                        {enregistrement.enCours ? t(TEXTES_THEME.enregistrement) : t(TEXTES_THEME.enregistrer)}
+                        {enregistrement.enCours
+                            ? t(TEXTES_THEME.enregistrement)
+                            : dansAgent
+                              ? t({ en: "Save the draft", fr: "Enregistrer le brouillon" })
+                              : t(TEXTES_THEME.enregistrer)}
                     </Button>
                 </div>
             )}
@@ -332,32 +398,19 @@ export const Theme = ({
                     aria-haspopup="dialog"
                     aria-expanded={ouvert}
                     onClick={onBasculer}
-                    className="flex h-full w-full cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-left hover:border-foreground/40"
+                    className="flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-4 text-left transition-shadow hover:shadow-md"
                 >
-                    <Icone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 space-y-1">
-                        <span className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{t(titre)}</span>
-                            <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
-                        </span>
-                        <span className="block text-xs text-muted-foreground">{t(description)}</span>
-                        {puces.length > 0 && (
-                            <span className="flex flex-wrap gap-1.5 pt-1" data-resume={id}>
-                                {puces.map((puce, i) => (
-                                    <span key={i} className="rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-                                        {puce}
-                                    </span>
-                                ))}
-                            </span>
-                        )}
-                        {(propres > 0 || niveau) && (
-                            <span className="block pt-1 text-[11px] text-muted-foreground" data-propres={propres}>
-                                {niveau ? t(niveau) : null}
-                                {niveau && propres > 0 ? " · " : null}
-                                {propres > 0 ? `${propres} ${t(TEXTES_THEME.propres)}` : null}
-                            </span>
-                        )}
+                    <Icone className="mb-3 size-4 text-muted-foreground" />
+                    <span className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{t(titre)}</span>
+                        <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
                     </span>
+                    <span className="line-clamp-2 block text-xs text-muted-foreground">{t(description)}</span>
+                    {propres > 0 && (
+                        <span className="block pt-2 text-[11px] text-muted-foreground" data-propres={propres} data-niveau-carte={niveau ? t(niveau) : undefined}>
+                            {`${propres} ${t(TEXTES_THEME.propres)}`}
+                        </span>
+                    )}
                 </button>
                 {fenetre}
             </section>

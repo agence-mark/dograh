@@ -15,9 +15,11 @@ import { ActiveFilter, availableAttributes } from "@/types/filters";
 interface WorkflowExecutionsProps {
     workflowId: number;
     searchParams: URLSearchParams;
+    /** K3 : « agent » = la forme de l'onglet Appels de la maquette. */
+    forme?: "agent";
 }
 
-export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecutionsProps) {
+export function WorkflowExecutions({ workflowId, searchParams, forme }: WorkflowExecutionsProps) {
     const router = useRouter();
     const [workflowRuns, setWorkflowRuns] = useState<WorkflowRunResponseSchema[]>([]);
     const [loading, setLoading] = useState(true);
@@ -179,8 +181,10 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
     }, [fetchWorkflowRuns, currentPage, appliedFilters, sortBy, sortOrder]);
 
     return (
-        <div className="container mx-auto py-8">
+        <div className={forme === "agent" ? "mx-auto max-w-5xl px-6 py-6" : "container mx-auto py-8"}>
             <WorkflowRunsTable
+                forme={forme}
+                emptyMessage={forme === "agent" ? "Aucun appel encore" : undefined}
                 runs={workflowRuns}
                 loading={loading}
                 error={error}
