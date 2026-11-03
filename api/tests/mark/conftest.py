@@ -28,6 +28,13 @@ def _aucune_tache_de_fond_ne_survit():
             if not tache.done():
                 tache.cancel()
 
+    # [.mark] builder partie 2, U5: the chat's background work (a dict of tasks, not a set).
+    from api.services.builder import fil as builder_fil
+
+    for tache in list(builder_fil._TACHES.values()):
+        if not tache.done():
+            tache.cancel()
+
 
 # [.mark] builder-agent-vocal : la fixture ``monde`` (base en mémoire) est offerte à tous les tests du builder.
 from api.tests.mark.builder_commun import monde  # noqa: E402, F401

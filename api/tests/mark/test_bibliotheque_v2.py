@@ -78,7 +78,7 @@ def test_modifier_une_fiche_est_reserve_a_l_equipe_et_la_fiche_modifiee_est_lue(
 async def test_le_versement_ecrit_les_fiches_de_depart_et_ne_remplace_jamais_une_fiche_corrigee(monde, tmp_path):
     await fiches.ecrire("moules-etape", fiches.Fiche(description="corrigée par Evan"))
     rapport = await versement.verser(tmp_path)
-    assert "moules-etape" not in rapport.fiches and len(rapport.fiches) == 29
+    assert "moules-etape" not in rapport.fiches and len(rapport.fiches) == 30
     assert (await fiches.lire("moules-etape")).description == "corrigée par Evan"
     assert (await versement.verser(tmp_path)).fiches == []  # idempotent
 

@@ -67,6 +67,7 @@ FAMILLES: dict[str, Famille] = dict(
         _f("conventions-mark", "Conventions .mark", "guide", "builder (couche 1 du contexte)"),
         _f("regles-redaction", "Règles de rédaction", "guide", "builder"),
         _f("methode-builder", "Méthode du builder", "guide", "builder"),
+        _f("demarrages-builder", "Démarrages du builder", "guide", "accueil du Labo (cartes sous la saisie)"),
     ]
 )
 
