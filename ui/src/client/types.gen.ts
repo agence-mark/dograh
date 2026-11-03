@@ -2518,6 +2518,16 @@ export type ChangementDeFamille = {
 };
 
 /**
+ * ChangementDeSource
+ */
+export type ChangementDeSource = {
+    /**
+     * Source
+     */
+    source: 'claude_code' | 'cle_api';
+};
+
+/**
  * ChangerRoleRequest
  */
 export type ChangerRoleRequest = {
@@ -2585,6 +2595,24 @@ export type ChangerUnTest = {
      * Questions Juge
      */
     questions_juge?: Array<string> | null;
+};
+
+/**
+ * ChargeMiroir
+ */
+export type ChargeMiroir = {
+    /**
+     * Session
+     */
+    session: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Evenements
+     */
+    evenements: Array<EvenementMiroir>;
 };
 
 /**
@@ -6475,6 +6503,32 @@ export type EvenementJour = {
      * Ouvert
      */
     ouvert: number;
+};
+
+/**
+ * EvenementMiroir
+ */
+export type EvenementMiroir = {
+    /**
+     * Type
+     */
+    type: 'message' | 'texte' | 'action' | 'fin';
+    /**
+     * Texte
+     */
+    texte?: string;
+    /**
+     * Nom
+     */
+    nom?: string;
+    /**
+     * Resume
+     */
+    resume?: string;
+    /**
+     * Ok
+     */
+    ok?: boolean;
 };
 
 /**
@@ -12639,6 +12693,28 @@ export type RecordingUploadResponseSchema = {
 };
 
 /**
+ * RecuDuMiroir
+ */
+export type RecuDuMiroir = {
+    /**
+     * Actif
+     */
+    actif: boolean;
+    /**
+     * Recus
+     */
+    recus: number;
+    /**
+     * Filtres
+     */
+    filtres?: number;
+    /**
+     * Fil Id
+     */
+    fil_id?: number | null;
+};
+
+/**
  * RedialCampaignRequest
  */
 export type RedialCampaignRequest = {
@@ -12689,6 +12765,16 @@ export type RefusOutput = {
      * Detail
      */
     detail: string;
+};
+
+/**
+ * ReglageDuMiroir
+ */
+export type ReglageDuMiroir = {
+    /**
+     * Actif
+     */
+    actif: boolean;
 };
 
 /**
@@ -17942,6 +18028,10 @@ export type VueFil = {
      * Sous Agents Actifs
      */
     sous_agents_actifs?: boolean;
+    /**
+     * Auteur
+     */
+    auteur?: string | null;
 };
 
 /**
@@ -18060,6 +18150,18 @@ export type VueReglagesCerveau = {
      * Cle Posee
      */
     cle_posee?: boolean;
+};
+
+/**
+ * VueSources
+ */
+export type VueSources = {
+    /**
+     * Sources
+     */
+    sources: {
+        [key: string]: 'claude_code' | 'cle_api';
+    };
 };
 
 /**
@@ -25369,6 +25471,326 @@ export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutRespon
 };
 
 export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponse = ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses[keyof ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses];
+
+export type LireLesSourcesApiV1BuilderSourcesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/sources';
+};
+
+export type LireLesSourcesApiV1BuilderSourcesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesSourcesApiV1BuilderSourcesGetError = LireLesSourcesApiV1BuilderSourcesGetErrors[keyof LireLesSourcesApiV1BuilderSourcesGetErrors];
+
+export type LireLesSourcesApiV1BuilderSourcesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueSources;
+};
+
+export type LireLesSourcesApiV1BuilderSourcesGetResponse = LireLesSourcesApiV1BuilderSourcesGetResponses[keyof LireLesSourcesApiV1BuilderSourcesGetResponses];
+
+export type ReglerUneSourceApiV1BuilderSourcesBriquePutData = {
+    body: ChangementDeSource;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Brique
+         */
+        brique: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/sources/{brique}';
+};
+
+export type ReglerUneSourceApiV1BuilderSourcesBriquePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerUneSourceApiV1BuilderSourcesBriquePutError = ReglerUneSourceApiV1BuilderSourcesBriquePutErrors[keyof ReglerUneSourceApiV1BuilderSourcesBriquePutErrors];
+
+export type ReglerUneSourceApiV1BuilderSourcesBriquePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueSources;
+};
+
+export type ReglerUneSourceApiV1BuilderSourcesBriquePutResponse = ReglerUneSourceApiV1BuilderSourcesBriquePutResponses[keyof ReglerUneSourceApiV1BuilderSourcesBriquePutResponses];
+
+export type LireLeMiroirApiV1BuilderMiroirReglageGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/miroir/reglage';
+};
+
+export type LireLeMiroirApiV1BuilderMiroirReglageGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeMiroirApiV1BuilderMiroirReglageGetError = LireLeMiroirApiV1BuilderMiroirReglageGetErrors[keyof LireLeMiroirApiV1BuilderMiroirReglageGetErrors];
+
+export type LireLeMiroirApiV1BuilderMiroirReglageGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglageDuMiroir;
+};
+
+export type LireLeMiroirApiV1BuilderMiroirReglageGetResponse = LireLeMiroirApiV1BuilderMiroirReglageGetResponses[keyof LireLeMiroirApiV1BuilderMiroirReglageGetResponses];
+
+export type ReglerLeMiroirApiV1BuilderMiroirReglagePutData = {
+    body: ReglageDuMiroir;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/miroir/reglage';
+};
+
+export type ReglerLeMiroirApiV1BuilderMiroirReglagePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeMiroirApiV1BuilderMiroirReglagePutError = ReglerLeMiroirApiV1BuilderMiroirReglagePutErrors[keyof ReglerLeMiroirApiV1BuilderMiroirReglagePutErrors];
+
+export type ReglerLeMiroirApiV1BuilderMiroirReglagePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglageDuMiroir;
+};
+
+export type ReglerLeMiroirApiV1BuilderMiroirReglagePutResponse = ReglerLeMiroirApiV1BuilderMiroirReglagePutResponses[keyof ReglerLeMiroirApiV1BuilderMiroirReglagePutResponses];
+
+export type RecevoirLeMiroirApiV1BuilderMiroirPostData = {
+    body: ChargeMiroir;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/miroir';
+};
+
+export type RecevoirLeMiroirApiV1BuilderMiroirPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RecevoirLeMiroirApiV1BuilderMiroirPostError = RecevoirLeMiroirApiV1BuilderMiroirPostErrors[keyof RecevoirLeMiroirApiV1BuilderMiroirPostErrors];
+
+export type RecevoirLeMiroirApiV1BuilderMiroirPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RecuDuMiroir;
+};
+
+export type RecevoirLeMiroirApiV1BuilderMiroirPostResponse = RecevoirLeMiroirApiV1BuilderMiroirPostResponses[keyof RecevoirLeMiroirApiV1BuilderMiroirPostResponses];
+
+export type LireLeResumeApiV1BuilderResumeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Depuis
+         */
+        depuis?: string | null;
+    };
+    url: '/api/v1/builder/resume';
+};
+
+export type LireLeResumeApiV1BuilderResumeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeResumeApiV1BuilderResumeGetError = LireLeResumeApiV1BuilderResumeGetErrors[keyof LireLeResumeApiV1BuilderResumeGetErrors];
+
+export type LireLeResumeApiV1BuilderResumeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type SuivreLesModificationsApiV1BuilderLiveGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Last-Event-Id
+         */
+        'last-event-id'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Objet
+         */
+        objet?: string | null;
+        /**
+         * Depuis
+         */
+        depuis?: number | null;
+    };
+    url: '/api/v1/builder/live';
+};
+
+export type SuivreLesModificationsApiV1BuilderLiveGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SuivreLesModificationsApiV1BuilderLiveGetError = SuivreLesModificationsApiV1BuilderLiveGetErrors[keyof SuivreLesModificationsApiV1BuilderLiveGetErrors];
+
+export type SuivreLesModificationsApiV1BuilderLiveGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;
