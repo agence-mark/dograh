@@ -105,18 +105,28 @@ const ouvrir = async (testid = "element-lexiques-commun") => {
     return screen.findByTestId("element-detail");
 };
 
+// Radix ouvre un menu au clavier : Entrée sur son déclencheur.
+const ouvrirLeMenu = async (nom: RegExp) => {
+    const declencheur = await screen.findByRole("button", { name: nom });
+    fireEvent.keyDown(declencheur, { key: "Enter" });
+};
+const fenetreNouvelElement = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /New element/ }));
+    return screen.findByTestId("nouvel-element");
+};
+
 describe("[.mark] the Library page: the list", () => {
     it("shows status, version, author, bench and « used by N agents » of each element", async () => {
         render(<PageBibliotheque />);
         const recette = await screen.findByTestId("element-moules-etape-qualifier");
         expect(recette.textContent).toContain("Qualify");
         expect(recette.textContent).toContain("Recipe");
-        expect(recette.textContent).toContain("v2 · alice");
+        expect(recette.textContent).toContain("v2");
         expect(recette.textContent).toContain("v12, 31 of 39");
-        expect(recette.textContent).toContain("Used by 3 agent(s)");
+        expect(within(recette).getByTestId("nb-agents").textContent).toBe("3");
         const candidat = screen.getByTestId("element-lexiques-commun");
         expect(candidat.textContent).toContain("Candidate");
-        expect(candidat.textContent).toContain("Used by 0 agent(s)");
+        expect(within(candidat).getByTestId("nb-agents").textContent).toBe("–");
     });
 
     it("filters by family, status, sub-folder and label, sending the filter to the server, 25 per page", async () => {
@@ -128,7 +138,8 @@ describe("[.mark] the Library page: the list", () => {
         expect(m.dossiers).toHaveBeenLastCalledWith({ path: { famille: "lexiques" } });
         fireEvent.click(within(await screen.findByTestId("sous-dossiers")).getByRole("button", { name: "rdv" }));
         await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ famille: "lexiques", dossier: "rdv" }) }));
-        fireEvent.click(within(screen.getByTestId("filtre-etiquettes")).getByRole("button", { name: /urgence/ }));
+        await ouvrirLeMenu(/Labels/);
+        fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: /urgence/ }));
         await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ etiquette: ["urgence"] }) }));
     });
 
@@ -165,7 +176,7 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
         fireEvent.click(await screen.findByRole("button", { name: /New family/ }));
         const nom = await screen.findByLabelText("Name");
         fireEvent.change(nom, { target: { value: "Trades" } });
-        fireEvent.change(screen.getByLabelText("What it is"), { target: { value: "Trade sheets" } });
+        fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Trade sheets" } });
         m.creerFamille.mockResolvedValue({ data: { ...FAMILLES[0], slug: "trades", libelle: "Trades", du_code: false } });
         fireEvent.click(screen.getByRole("button", { name: "Create the family" }));
         await waitFor(() => expect(m.creerFamille).toHaveBeenCalledOnce());
@@ -205,6 +216,7 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
 
     it("manages the labels: rename and delete go to the server, the count is shown", async () => {
         render(<PageBibliotheque />);
+        await ouvrirLeMenu(/Labels/);
         fireEvent.click(await screen.findByText("Manage labels…"));
         const fenetre = await screen.findByTestId("gestion-etiquettes");
         expect(fenetre.textContent).toContain("2 element(s)");
@@ -217,6 +229,7 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
 
     it("deletes a label only after the confirmation that says how many elements lose it", async () => {
         render(<PageBibliotheque />);
+        await ouvrirLeMenu(/Labels/);
         fireEvent.click(await screen.findByText("Manage labels…"));
         const fenetre = await screen.findByTestId("gestion-etiquettes");
         m.supprimerEtiquette.mockResolvedValue({ data: [] });
@@ -228,7 +241,8 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
 
     it("drops a document: the file goes to the server and the result says it is a Candidate", async () => {
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
+        await fenetreNouvelElement();
+        fireEvent.click(screen.getByRole("button", { name: "Drop a file" }));
         const depot = await screen.findByTestId("depot-document");
         const fichier = new File(["# Rule"], "rule.md", { type: "text/markdown" });
         fireEvent.change(depot.querySelector("[data-depot-fichier]") as HTMLInputElement, { target: { files: [fichier] } });
@@ -241,7 +255,8 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
 
     it("shows the refusal of a drop as it comes", async () => {
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
+        await fenetreNouvelElement();
+        fireEvent.click(screen.getByRole("button", { name: "Drop a file" }));
         const depot = await screen.findByTestId("depot-document");
         fireEvent.change(depot.querySelector("[data-depot-fichier]") as HTMLInputElement, { target: { files: [new File(["x"], "x.exe")] } });
         m.deposer.mockResolvedValue({ error: { detail: "The document is not read: Format not supported" } });
@@ -265,6 +280,7 @@ describe("[.mark] the Library page: one element", () => {
 
     it("keeps « Promote to Recipe » closed until the bench is written, then sends it", async () => {
         const detail = await ouvrir();
+        fireEvent.click(within(detail).getByRole("button", { name: "Promote to Recipe" }));
         const bouton = within(detail).getByRole("button", { name: "Promote to Recipe" }) as HTMLButtonElement;
         expect(bouton.disabled).toBe(true);
         fireEvent.change(within(detail).getByLabelText("The bench that proves it"), { target: { value: "  3 x 3 green  " } });
@@ -282,6 +298,7 @@ describe("[.mark] the Library page: one element", () => {
 
     it("keeps « Reject » closed until the reason is written, then keeps the reason", async () => {
         const detail = await ouvrir();
+        fireEvent.click(within(detail).getByRole("button", { name: "Reject" }));
         const bouton = within(detail).getByRole("button", { name: "Reject this version" }) as HTMLButtonElement;
         expect(bouton.disabled).toBe(true);
         fireEvent.change(within(detail).getByLabelText("The reason, kept with it"), { target: { value: "too long" } });
@@ -322,6 +339,7 @@ describe("[.mark] the Library page: one element", () => {
 
     it("shows the refusal of a person who is not in the .mark team", async () => {
         const detail = await ouvrir();
+        fireEvent.click(within(detail).getByRole("button", { name: "Promote to Recipe" }));
         fireEvent.change(within(detail).getByLabelText("The bench that proves it"), { target: { value: "banc" } });
         m.statut.mockResolvedValue({ error: { detail: "Only members of the .mark organization write in the library." } });
         fireEvent.click(within(detail).getByRole("button", { name: "Promote to Recipe" }));
@@ -338,7 +356,7 @@ describe("[.mark] the Library page: proposals and import", () => {
     it("lists the proposals, accepts one with its bench and keeps « Refuse » closed without a reason", async () => {
         m.propositions.mockResolvedValue({ data: [PROPOSITION] });
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Proposals" }));
+        fireEvent.click(await screen.findByRole("button", { name: /Proposals/ }));
         const carte = await screen.findByTestId("proposition-p1");
         expect(carte.textContent).toContain("Move to Recipe");
         expect(carte.textContent).toContain("builder pour dograh:p1");
@@ -356,7 +374,7 @@ describe("[.mark] the Library page: proposals and import", () => {
     it("refuses a proposal with its reason", async () => {
         m.propositions.mockResolvedValue({ data: [PROPOSITION] });
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Proposals" }));
+        fireEvent.click(await screen.findByRole("button", { name: /Proposals/ }));
         const carte = await screen.findByTestId("proposition-p1");
         fireEvent.change(within(carte).getByLabelText("Reason for refusing"), { target: { value: "not proven" } });
         m.refuser.mockResolvedValue({ data: { ...PROPOSITION, etat: "refusee" } });
@@ -366,9 +384,7 @@ describe("[.mark] the Library page: proposals and import", () => {
 
     it("imports with its origin, licence and date, and shows what changed since the last import", async () => {
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
-        const form = await screen.findByTestId("formulaire-import");
-        fireEvent.change(within(form).getByLabelText("Identifier (a-z, 0-9, -)"), { target: { value: "guide" } });
+        const form = await fenetreNouvelElement();
         fireEvent.change(within(form).getByLabelText("Title"), { target: { value: "Guide" } });
         fireEvent.click(within(form).getByLabelText(/comes from a source outside/));
         const bouton = within(form).getByRole("button", { name: "Import as a Candidate" }) as HTMLButtonElement;
@@ -389,14 +405,58 @@ describe("[.mark] the Library page: proposals and import", () => {
 
     it("creates a plain element as a Candidate", async () => {
         render(<PageBibliotheque />);
-        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
-        const form = await screen.findByTestId("formulaire-import");
-        fireEvent.change(within(form).getByLabelText("Identifier (a-z, 0-9, -)"), { target: { value: "neuf" } });
+        const form = await fenetreNouvelElement();
         fireEvent.change(within(form).getByLabelText("Title"), { target: { value: "New" } });
         m.creer.mockResolvedValue({ data: ELEMENT });
         fireEvent.click(within(form).getByRole("button", { name: "Create as a Candidate" }));
         await waitFor(() =>
-            expect(m.creer).toHaveBeenCalledWith({ path: { famille: "moules-etape" }, body: { slug: "neuf", titre: "New", contenu: { texte: "" } } }),
+            expect(m.creer).toHaveBeenCalledWith({ path: { famille: "moules-etape" }, body: { slug: "new", titre: "New", contenu: { texte: "" }, notes: "" } }),
         );
     });
 });
+
+describe("[.mark] K5: the « New element » window and the frame of the maquette", () => {
+    it("files the new element in its sub-folder with its labels, after creating it (never a new version)", async () => {
+        render(<PageBibliotheque />);
+        const form = await fenetreNouvelElement();
+        fireEvent.change(within(form).getByLabelText("Title"), { target: { value: "Rdv fait accompli" } });
+        fireEvent.change(within(form).getByLabelText("Content"), { target: { value: "Two slots." } });
+        fireEvent.change(within(form).getByLabelText("Version notes"), { target: { value: "first" } });
+        fireEvent.click(within(form).getByText(/\+ Label/));
+        const champ = within(form).getByLabelText("Label to add");
+        fireEvent.change(champ, { target: { value: "urgence" } });
+        fireEvent.keyDown(champ, { key: "Enter" });
+        m.creer.mockResolvedValue({ data: ELEMENT });
+        m.ranger.mockResolvedValue({ data: ELEMENT });
+        fireEvent.click(within(form).getByRole("button", { name: "Create as a Candidate" }));
+        await waitFor(() =>
+            expect(m.creer).toHaveBeenCalledWith({
+                path: { famille: "moules-etape" },
+                body: { slug: "rdv-fait-accompli", titre: "Rdv fait accompli", contenu: { texte: "Two slots." }, notes: "first" },
+            }),
+        );
+        await waitFor(() =>
+            expect(m.ranger).toHaveBeenCalledWith({ path: { famille: "moules-etape", slug: "rdv-fait-accompli" }, body: { etiquettes: ["urgence"] } }),
+        );
+    });
+
+    it("refuses a JSON that is not an object for a family read by a mechanism, without calling the server", async () => {
+        m.familles.mockResolvedValue({ data: [{ ...FAMILLES[0], slug: "lexiques", libelle: "Lexicons" }] });
+        render(<PageBibliotheque />);
+        const form = await fenetreNouvelElement();
+        fireEvent.change(within(form).getByLabelText("Title"), { target: { value: "Terms" } });
+        fireEvent.change(within(form).getByLabelText("Content (JSON)"), { target: { value: "[1]" } });
+        fireEvent.click(within(form).getByRole("button", { name: "Create as a Candidate" }));
+        expect((await within(form).findByRole("alert")).textContent).toContain("not a valid JSON object");
+        expect(m.creer).not.toHaveBeenCalled();
+    });
+
+    it("shows the number of proposals waiting on the « Proposals » button, and the first family is chosen at the start", async () => {
+        m.propositions.mockResolvedValue({ data: [{ id: "p1", etat: "en_attente" }, { id: "p2", etat: "acceptee" }] });
+        render(<PageBibliotheque />);
+        const bouton = await screen.findByRole("button", { name: /Proposals/ });
+        await waitFor(() => expect(bouton.textContent).toContain("1"));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ famille: "moules-etape" }) }));
+    });
+});
+

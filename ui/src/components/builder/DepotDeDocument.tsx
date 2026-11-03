@@ -17,15 +17,17 @@ import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
 // The families whose content has a shape read by the code: a document cannot be dropped in them (the server says so too).
-const STRUCTUREES = ["personnages-appelant", "scenarios-test", "criteres-types", "phrases-du-code", "lexiques", "modeles-reglages"];
+export const STRUCTUREES = ["personnages-appelant", "scenarios-test", "criteres-types", "phrases-du-code", "lexiques", "modeles-reglages"];
 
 interface Props {
     familles: VueFamille[];
     familleChoisie: string;
     onDepose: (famille: string, slug: string, comparatif: { identique: boolean } | null) => void;
+    /** K5 : dans « Nouvel élément » (onglet « Déposer un fichier ») : la famille est celle de la fenêtre, pas de titre de section. */
+    integre?: boolean;
 }
 
-export function DepotDeDocument({ familles, familleChoisie, onDepose }: Props) {
+export function DepotDeDocument({ familles, familleChoisie, onDepose, integre = false }: Props) {
     const { t } = useLangue();
     const permises = familles.filter((f) => !STRUCTUREES.includes(f.slug));
     const [choix, setFamille] = useState("");
@@ -63,12 +65,14 @@ export function DepotDeDocument({ familles, familleChoisie, onDepose }: Props) {
 
     return (
         <section className="space-y-3 text-sm" data-testid="depot-document">
-            <h2 className="text-lg font-semibold">{t({ en: "Drop a document", fr: "Déposer un document" })}</h2>
+            {!integre && <h2 className="text-lg font-semibold">{t({ en: "Drop a document", fr: "Déposer un document" })}</h2>}
             <div className="grid gap-3 md:grid-cols-3">
-                <label className="block space-y-1">
-                    <span>{t({ en: "Family", fr: "Famille" })}</span>
-                    <Liste valeur={famille} changer={setFamille} options={permises.map((f) => ({ valeur: f.slug, libelle: f.libelle }))} className="w-full" />
-                </label>
+                {!integre && (
+                    <label className="block space-y-1">
+                        <span>{t({ en: "Family", fr: "Famille" })}</span>
+                        <Liste valeur={famille} changer={setFamille} options={permises.map((f) => ({ valeur: f.slug, libelle: f.libelle }))} className="w-full" />
+                    </label>
+                )}
                 <label className="block space-y-1">
                     <span>{t({ en: "Title (optional)", fr: "Titre (facultatif)" })}</span>
                     <Input value={titre} onChange={(e) => setTitre(e.target.value)} />
