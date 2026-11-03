@@ -14,6 +14,7 @@ import {
 } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -56,7 +57,10 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             path: { workflow_id: workflowId },
             body: { fichier },
         });
-        if (reponse.error) setErreur(detailFromError(reponse.error, t(T.echec)));
+        if (reponse.error) {
+            setErreur(detailFromError(reponse.error, t(T.echec)));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+        } else notifier.succes({ en: "File added.", fr: "Fichier ajouté." });
         await rafraichir(workflowId);
         setOccupe(false);
     };
@@ -69,14 +73,21 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             path: { workflow_id: workflowId },
             body: { adresse: adresse.trim() },
         });
-        if (reponse.error) setErreur(detailFromError(reponse.error, t(T.echec)));
-        else setAdresse("");
+        if (reponse.error) {
+            setErreur(detailFromError(reponse.error, t(T.echec)));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+        } else {
+            setAdresse("");
+            notifier.succes({ en: "Site added.", fr: "Site ajouté." });
+        }
         await rafraichir(workflowId);
         setOccupe(false);
     };
 
     const retirer = async (id: string) => {
-        await retirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDelete({ path: { workflow_id: workflowId, depot_id: id } });
+        const reponse = await retirerUnDepotApiV1BuilderDepotWorkflowIdDepotIdDelete({ path: { workflow_id: workflowId, depot_id: id } });
+        if (reponse.error) notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+        else notifier.succes({ en: "Item removed.", fr: "Élément retiré." });
         await rafraichir(workflowId);
     };
 

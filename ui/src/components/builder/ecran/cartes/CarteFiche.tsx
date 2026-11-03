@@ -15,6 +15,7 @@ import {
 } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -79,8 +80,10 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
         });
         if (reponse.error) {
             setErreur(detailFromError(reponse.error, t(T.echec)));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
             return;
         }
+        notifier.succes({ en: "Line saved.", fr: "Ligne enregistrée." });
         setEnEdition(null);
         setSaisies((s) => ({ ...s, [champ]: "" }));
         await rafraichir(workflowId);
@@ -89,7 +92,10 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
     const valider = async () => {
         setErreur(null);
         const reponse = await validerLaFicheApiV1BuilderFicheWorkflowIdValiderPost({ path: { workflow_id: workflowId } });
-        if (reponse.error) setErreur(detailFromError(reponse.error, t(T.echec)));
+        if (reponse.error) {
+            setErreur(detailFromError(reponse.error, t(T.echec)));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+        } else notifier.succes({ en: "Sheet validated.", fr: "Fiche validée." });
         await rafraichir(workflowId);
     };
 

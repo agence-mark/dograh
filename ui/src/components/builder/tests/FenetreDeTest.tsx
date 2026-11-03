@@ -10,7 +10,6 @@
  * The « Environment » part of the mockup (simulated date, caller number, tool answers in series) is U11 and not built: it is not
  * drawn (`14-ecarts-maquette.md`).
  */
-import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { Bot, FolderPlus, Play, Plus, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
 
@@ -19,6 +18,7 @@ import {
     creerUnTestApiV1BuilderTestsWorkflowIdPost,
     rejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPost,
 } from "@/client";
+import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { Info } from "@/components/mark/studio/marques";

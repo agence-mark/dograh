@@ -17,6 +17,7 @@ import {
     suivreUnFilApiV1BuilderFilsFilIdEvenementsGet,
     type VueFil,
 } from "@/client";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
@@ -90,7 +91,11 @@ export function useFil(filId: number) {
     const apres = useCallback(
         async (r: { error?: unknown; data?: VueFil }) => {
             if (r.error) {
-                setErreur(detailFromError(r.error, "The request failed"));
+                // Jamais le texte brut du serveur à l'écran : une notification dit ce qui s'est passé (le détail va à l'équipe seule).
+                notifier.echec(
+                    { en: "The builder could not take this into account. Try again.", fr: "Le builder n'a pas pu le prendre en compte. Réessayez." },
+                    { erreur: detailFromError(r.error, "The request failed") },
+                );
                 return;
             }
             setErreur(null);
