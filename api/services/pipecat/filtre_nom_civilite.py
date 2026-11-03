@@ -354,9 +354,14 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         champ_du_prenom: str = "prenom",
         corriger_numeros: bool = False,
         contexte: Callable[[], dict] | None = None,
+        securite_reglages=None,
+        securite: Callable[[], object] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        # [.mark] U3 quinquies (E68), couche 2 : les garde-fous de sortie, dans ce même passage (avant la voix).
+        self._securite_reglages = securite_reglages
+        self._securite = securite
         # [.mark] Plan postscriptum-note-d-abord (C10) : la relecture d'un numéro,
         # corrigée sur la phrase recomposée (même endroit, même raison que le nom).
         self._corriger_numeros = corriger_numeros
@@ -412,7 +417,30 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             logger.warning(f"[.mark] Caller first name unreadable: {erreur!r}")
             return None
 
-    def _filtrer(self, texte: str) -> str:
+    def _garde_de_securite(self, texte: str) -> str:
+        """[.mark] U3 quinquies, couche 2 : noms d'outils, syntaxe, consigne récitée. Seulement sur le texte du MODÈLE. Ne lève jamais."""
+        reglages = self._securite_reglages
+        if reglages is None or not (reglages.jamais.outils or reglages.jamais.recitation):
+            return texte
+        try:
+            from api.services.securite import garde_sortie, marques
+
+            contexte_garde = self._securite() if self._securite else None
+            if contexte_garde is None:
+                contexte_garde = garde_sortie.Contexte()
+            resultat = garde_sortie.nettoyer(texte, reglages, contexte_garde)
+            if resultat.declenchements and reglages.marquer:
+                appel = self._contexte()
+                for d in resultat.declenchements:
+                    marques.noter(appel, couche=marques.COUCHE_SORTIE, nom=d["garde"], detail=d["detail"], extrait=d["extrait"])
+            return resultat.texte
+        except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
+            logger.warning(f"[.mark] Safety guard failed, sentence kept as is: {erreur!r}")
+            return texte
+
+    def _filtrer(self, texte: str, modele: bool = True) -> str:
+        if modele:
+            texte = self._garde_de_securite(texte)
         if self._corriger_numeros:
             contexte = self._contexte()
             texte = corriger_relecture(texte, numero_de_reference(contexte), contexte)
@@ -479,7 +507,7 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         # relecture indépendante du 22/09. Elle est déjà une phrase complète :
         # on la filtre sur place, sans la bufferiser.
         if self._par_phrase and isinstance(frame, TTSSpeakFrame) and frame.text:
-            frame.text = self._filtrer(frame.text)
+            frame.text = self._filtrer(frame.text, modele=False)  # une phrase du code n'est jamais gardée par la sécurité
             await self.push_frame(frame, direction)
             return
 
@@ -521,6 +549,7 @@ def creer_filtre_nom_civilite(
     variables: Callable[[], dict],
     contexte: Callable[[], dict] | None = None,
     voix=None,
+    securite: Callable[[], object] | None = None,
 ) -> FiltreNomCiviliteProcessor | None:
     """Le filtre pour cet agent, ou ``None`` quand les deux interrupteurs sont
     éteints -- ce qui est le défaut, et ce qui vaut pour tout agent existant.
@@ -534,7 +563,11 @@ def creer_filtre_nom_civilite(
     retirer_civilite = bool(run_configs.get("interdire_civilite_appelant"))
     # C10 : la relecture des numéros, option par agent, éteinte par défaut.
     corriger_numeros = run_configs.get(CLE_RELECTURE_DES_NUMEROS) is True
-    if not retirer_nom and not retirer_civilite and not corriger_numeros:
+    from api.services.securite.reglages import de_l_agent, garde_de_sortie_allumee
+
+    reglages_securite = de_l_agent(run_configs)
+    garde = garde_de_sortie_allumee(reglages_securite)
+    if not retirer_nom and not retirer_civilite and not corriger_numeros and not garde:
         return None
     # Import tardif : ``service_factory`` importe ce module (pas de cycle au chargement).
     from api.services.pipecat.service_factory import mode_d_envoi_du_texte
@@ -549,4 +582,6 @@ def creer_filtre_nom_civilite(
         corriger_numeros=corriger_numeros,
         contexte=contexte,
         mode_envoi=mode_envoi,
+        securite_reglages=reglages_securite if garde else None,
+        securite=securite,
     )

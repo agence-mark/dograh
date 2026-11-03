@@ -102,6 +102,11 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     interdire_nom_appelant: { theme: "voix", cas: ["nom-appelant"] },
     interdire_civilite_appelant: { theme: "voix", cas: ["civilite"] },
     relecture_des_numeros: { theme: "voix", cas: ["relecture-des-numeros"] },
+    // U3 quinquies (E68): the safety of the conversation. The server side is built and tested; the « Safety » theme of the
+    // settings screen is NOT built yet (written in B2's state sheet): until then it is set by the builder or the MCP.
+    securite_conversation: {
+        horsEcran: "Safety of the conversation (three layers, one structured key): the « Safety » theme is not built yet; set through the builder actions or the configuration, off by default",
+    },
     tts_replacements: { theme: "voix", cas: ["prononciation"] },
     // Chantier voix-soniox, lot 5 bis (D11) then lot 7: a card that opens a centred modal (`BalisesPermises.tsx`).
     tts_balises_permises: { theme: "voix", cas: ["balises-permises"] },

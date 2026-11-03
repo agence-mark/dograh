@@ -90,6 +90,12 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[cerveau] case « outil écrit » non posée : {erreur!r}")
     copie = passage.contexte_avec_la_notice(moteur, trame.context)
+    # [.mark] U3 quinquies, couche 3 : lit la parole de la personne en parallèle, pose le rappel du résultat d'avant (jamais attendu).
+    from api.services.securite import ecoute as ecoute_securite
+
+    rappel = ecoute_securite.contexte_avec_le_rappel(moteur, copie if copie is not None else trame.context)
+    if rappel is not None:
+        copie = rappel
     if copie is None:
         return trame
     return LLMContextFrame(context=copie, speculation=trame.speculation)
@@ -126,8 +132,10 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         from api.services.pipecat.texte_du_cerveau import case_outil_ecrit
         from api.services.workflow.fiche_dans_le_systeme import case_allumee
 
+        from api.services.securite.ecoute import ecoute_allumee
+
         if moteur is None or llm is None or not (
-            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur)
+            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur) or ecoute_allumee(agent)
         ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"

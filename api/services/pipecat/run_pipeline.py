@@ -1948,8 +1948,10 @@ async def _run_pipeline_impl(
         # sous-circuit de l'agent, juste avant le bus qui porte son texte à la
         # voix de l'appel (réglages PAR agent : le filtre reste dans son sous-circuit). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
+        from api.services.securite.contexte import depuis_le_moteur as securite_du_moteur  # [.mark] U3 quinquies
+
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
-            run_configs, variables_appel, contexte_appel, voix=user_config.tts
+            run_configs, variables_appel, contexte_appel, voix=user_config.tts, securite=securite_du_moteur(engine)
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement
