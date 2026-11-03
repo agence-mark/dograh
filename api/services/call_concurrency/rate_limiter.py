@@ -43,9 +43,11 @@ class RateLimiter:
         rate_limit: int = 1,
         *,
         scope_key: str | None = None,
+        window_seconds: float = 1.0,
     ) -> bool:
         """
         Enforces strict rate limit: max N calls per rolling second window
+        ([.mark] ``window_seconds``: une autre fenêtre, ex. une heure pour la limite par adresse du widget)
         Returns True if allowed, False if rate limited
 
         ``scope_key`` creates an isolated rate-limit bucket without touching
@@ -55,7 +57,7 @@ class RateLimiter:
 
         key = f"rate_limit:{scope_key or organization_id}"
         now = time.time()
-        window_start = now - 1.0  # 1 second sliding window
+        window_start = now - window_seconds  # 1 second sliding window by default
 
         # Lua script for atomic sliding window operation
         lua_script = """
@@ -73,7 +75,7 @@ class RateLimiter:
         if current_requests < max_requests then
             -- Add current timestamp
             redis.call('ZADD', key, now, ARGV[4])
-            redis.call('EXPIRE', key, 2)  -- Expire after 2 seconds
+            redis.call('EXPIRE', key, ARGV[5])  -- Expire with the window (+1 s)
             return 1
         else
             return 0
@@ -82,7 +84,14 @@ class RateLimiter:
 
         try:
             result = await redis_client.eval(
-                lua_script, 1, key, now, window_start, rate_limit, uuid.uuid4().hex
+                lua_script,
+                1,
+                key,
+                now,
+                window_start,
+                rate_limit,
+                uuid.uuid4().hex,
+                int(window_seconds) + 1,
             )
             return bool(result)
         except Exception as e:

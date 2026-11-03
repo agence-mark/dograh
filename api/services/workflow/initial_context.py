@@ -14,6 +14,8 @@ RESERVED_INITIAL_CONTEXT_KEYS = frozenset(
         "provider",
         "runtime_configuration",
         MPS_CORRELATION_ID_CONTEXT_KEY,
+        # [.mark] U10 : posée par le serveur à /init pour une session du widget (agent de site), jamais par une page.
+        "canal_mark",
     }
 )
 

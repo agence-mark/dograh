@@ -1645,6 +1645,11 @@ async def _run_pipeline_impl(
     call_monitor_processor.bind_user(
         user_context_aggregator, idle_timeout=max_user_idle_timeout
     )
+    # [.mark] U10 / S1 (D179) : la durée maximale d'une conversation du widget public, en trois temps
+    # (consigne, phrase de fin après la phrase en cours, coupure dure). Appel normal : rien.
+    from api.services.site_mark.demarrage import lancer_la_duree_du_widget
+
+    lancer_la_duree_du_widget(engine, workflow_run, workflow.organization_id)
 
     pipeline_metrics_aggregator = PipelineMetricsAggregator()
     # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : le greffier et le cerveau de fond

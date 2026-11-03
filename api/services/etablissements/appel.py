@@ -136,6 +136,26 @@ def par_numero_appele(
     return None
 
 
+def _etablissement_d_un_agent_de_site(
+    catalogue: CatalogueEtablissements, contexte: dict, fiche_choisie: str | None
+) -> tuple[Etablissement, str] | None:
+    """La fiche choisie par l'agent, sinon la fiche que la conversation porte déjà (passation à un spécialisé), sinon aucune."""
+    for identifiant, source in (
+        (fiche_choisie, "fiche_de_lagent"),
+        (contexte.get(CLE_FICHE_DE_LAPPEL), "appel"),
+    ):
+        if isinstance(identifiant, str) and identifiant.strip():
+            for etablissement in catalogue.etablissements:
+                if etablissement.id == identifiant.strip():
+                    return etablissement, source
+            if source == "fiche_de_lagent":
+                logger.warning(
+                    f"[.mark] The site agent's fiche « {identifiant} » no longer exists: no establishment"
+                )
+                return None
+    return None
+
+
 def choisir_etablissement(
     catalogue: CatalogueEtablissements,
     contexte: dict,
@@ -147,6 +167,11 @@ def choisir_etablissement(
     in its settings ([.mark] lot 1, F1), tried first."""
     if not catalogue.etablissements:
         return None
+    # [.mark] U10 / S2 : un agent de SITE sert sa fiche, ou aucune. Jamais le numéro appelé, l'établissement
+    # « essai », « le premier de l'agent » ni « le premier de l'organisation » : une page n'a pas de numéro et
+    # un visiteur ne choisit pas le lieu (D154, D182).
+    if contexte.get("canal_mark") == "site":
+        return _etablissement_d_un_agent_de_site(catalogue, contexte, fiche_choisie)
     # [.mark] Lot 1 (C2 ①) : la fiche de l'agent. Disparue : aucune fiche, jamais d'erreur.
     if isinstance(fiche_choisie, str) and fiche_choisie.strip():
         for etablissement in catalogue.etablissements:
