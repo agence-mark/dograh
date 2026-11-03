@@ -69,12 +69,14 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
 
     if (baseRattachee === false) {
         return (
-            <p className="pt-4 text-sm text-muted-foreground" data-testid="rdv-sans-base">
-                {t({
-                    en: "The planner's rules live in the client's database: attach one in Data and automations first.",
-                    fr: "Les règles du planificateur vivent dans la base du client : rattachez-en une dans Base et automatisations d'abord.",
-                })}
-            </p>
+            <div data-testid="rdv-sans-base">
+                <EtatVide
+                    cas="premier"
+                    icone={CalendarClock}
+                    titre={t({ en: "No database attached", fr: "Aucune base rattachée" })}
+                    info={t({ en: "The planner's rules live in the client's database: attach one in Data and automations first.", fr: "Les règles du planificateur vivent dans la base du client : rattachez-en une dans Base et automatisations d'abord." })}
+                />
+            </div>
         );
     }
     if (illisible) return <EtatVide cas="erreur" reessayer={() => void relire()} />;

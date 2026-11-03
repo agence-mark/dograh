@@ -43,11 +43,11 @@ import { ChampEtiquettes } from "../ChampEtiquettes";
 import { BlocTraducteurs } from "../connecteurs/BlocTraducteurs";
 import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
-import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
+import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { type Texte, useLangue } from "../langue/langue";
 import { texteAdresse } from "../SectionAdresseEtablissement";
 import {
@@ -406,11 +406,18 @@ export const ThemeEtablissementOrganisation = ({
             id="etablissement"
             plat={plat}
             icone={Building2}
-            titre={titre("etablissement").titre}
-            description={{
-                en: "One fiche per place, then what applies to the whole company: its address, the announcement when it is closed, and « Close everything ».",
-                fr: "Une fiche par lieu, puis ce qui vaut pour toute l'entreprise : son adresse, l'annonce quand elle est fermée, et « Tout fermer ».",
-            }}
+            titre={sansListe ? { en: "Whole company", fr: "Toute l'entreprise" } : titre("etablissement").titre}
+            description={
+                sansListe
+                    ? {
+                          en: "What applies when a call serves no establishment, and « Close everything ».",
+                          fr: "Ce qui vaut quand un appel ne sert aucun établissement, et le « Tout fermer ».",
+                      }
+                    : {
+                          en: "One fiche per place, then what applies to the whole company: its address, the announcement when it is closed, and « Close everything ».",
+                          fr: "Une fiche par lieu, puis ce qui vaut pour toute l'entreprise : son adresse, l'annonce quand elle est fermée, et « Tout fermer ».",
+                      }
+            }
             resume={[
                 nombre === 0
                     ? t({ en: "No establishment", fr: "Aucun établissement" })

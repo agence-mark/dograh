@@ -108,9 +108,14 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                 }
             />
             {refus ? (
-                <p className="py-3 text-sm text-muted-foreground" data-testid="objets-refus">
-                    {refus}
-                </p>
+                <div data-testid="objets-refus">
+                    <EtatVide
+                        cas="premier"
+                        icone={Braces}
+                        titre={t({ en: "No database attached", fr: "Aucune base rattachée" })}
+                        info={t({ en: "Attach the client's database first (Data and automations): the variables live there.", fr: "Rattachez d'abord la base du client (Base et automatisations) : les variables y vivent." })}
+                    />
+                </div>
             ) : !vue ? (
                 <EtatVide cas="chargement" />
             ) : (vue.objets ?? []).length === 0 ? (

@@ -20,6 +20,7 @@ import { ThemeEcouteOrganisation, ThemeEtablissementOrganisation } from "../para
 import { ThemeVerification } from "../parametres-organisation/ThemeVerification";
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
 import { OngletsPage } from "../studio/onglets-page";
+import { PageStudio } from "../studio/shell-studio";
 import { TitrePage } from "../studio/titre-page";
 import { OngletEquipe } from "./OngletEquipe";
 import { OngletEtablissements } from "./OngletEtablissements";
@@ -54,7 +55,7 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
     const baseRattachee = base.etat ? Boolean(base.etat.nom_base) : null;
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+        <PageStudio>
             <TitrePage
                 titre={t({ en: "Company", fr: "Entreprise" })}
                 info={t({
@@ -62,7 +63,9 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                     fr: "Ce que les agents savent de l'entreprise, lu à chaque appel : lieux, équipe, rendez-vous, variables, vérification de l'appelant, vocabulaire et sons. Le client la tient à jour depuis son portail : chaque fiche dit qui l'a modifiée en dernier et d'où.",
                 })}
             />
+            <div className="-mt-2">
             <OngletsPage
+                espacement="space-y-10"
                 onglets={[
                     {
                         id: "etablissements",
@@ -109,7 +112,8 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                     },
                 ]}
             />
-        </div>
+            </div>
+        </PageStudio>
     );
 }
 

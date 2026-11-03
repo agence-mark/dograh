@@ -305,7 +305,7 @@ export const Theme = ({
                         <Info>{t(description)}</Info>
                         <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
                     </h2>
-                    <Button type="button" size="sm" aria-haspopup="dialog" aria-expanded={ouvert} onClick={onBasculer}>
+                    <Button type="button" variant="outline" size="sm" aria-haspopup="dialog" aria-expanded={ouvert} onClick={onBasculer}>
                         {t({ en: "Edit", fr: "Modifier" })}
                     </Button>
                 </div>

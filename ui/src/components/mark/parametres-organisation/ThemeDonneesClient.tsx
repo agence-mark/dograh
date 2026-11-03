@@ -10,7 +10,6 @@
  */
 import { Database } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getBaseClientApiV1OrganizationsBaseClientGet,
@@ -21,6 +20,7 @@ import {
     putConservationApiV1OrganizationsBaseClientConservationPut,
 } from "@/client/sdk.gen";
 import type { Conservation, EtatBaseClient } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -28,10 +28,10 @@ import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
-import { LigneLue } from "../entreprise/section-lue";
-import { PointEtat } from "../studio/marques";
 import { Theme } from "../ecran/Theme";
+import { LigneLue } from "../entreprise/section-lue";
 import { type Texte, useLangue } from "../langue/langue";
+import { PointEtat } from "../studio/marques";
 import { SectionConservationAppels, useConservationAppels } from "./SectionConservationAppels";
 import { SectionListesValeurs, useListesValeurs } from "./SectionListesValeurs";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
@@ -157,7 +157,7 @@ export const ThemeDonneesClient = ({
                 <p className="text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>
             ) : (
                 <>
-                    <Intertitre id="donnees-base" titre={{ en: "Database", fr: "Base" }}>
+                    <Intertitre id="donnees-base" titre={{ en: "Client database", fr: "Base du client" }}>
                         {!etat.serveur_configure && (
                             <p className="text-sm text-destructive" data-testid="serveur-non-configure">
                                 {t({

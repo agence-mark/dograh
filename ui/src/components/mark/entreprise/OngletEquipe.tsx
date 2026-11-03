@@ -77,12 +77,14 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
 
     if (baseRattachee === false) {
         return (
-            <p className="pt-4 text-sm text-muted-foreground" data-testid="equipe-sans-base">
-                {t({
-                    en: "Attach the client's database first (Data and automations): the team lives there.",
-                    fr: "Rattachez d'abord la base du client (Base et automatisations) : l'équipe y vit.",
-                })}
-            </p>
+            <div data-testid="equipe-sans-base">
+                <EtatVide
+                    cas="premier"
+                    icone={Users}
+                    titre={t({ en: "No database attached", fr: "Aucune base rattachée" })}
+                    info={t({ en: "Attach the client's database first (Data and automations): the team lives there.", fr: "Rattachez d'abord la base du client (Base et automatisations) : l'équipe y vit." })}
+                />
+            </div>
         );
     }
     if (illisible) return <EtatVide cas="erreur" />;

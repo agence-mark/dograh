@@ -17,6 +17,7 @@ import type { ThemeOrganisation } from "../parametres-organisation/references/ca
 import { ThemeApresAppel, useApresAppel } from "../parametres-organisation/ThemeApresAppel";
 import { ThemeDonneesClient, useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
 import { Info } from "../studio/marques";
+import { PageStudio } from "../studio/shell-studio";
 import { TitrePage } from "../studio/titre-page";
 
 type Etat = { modifie: boolean; enErreur: boolean };
@@ -44,7 +45,7 @@ export function PageBase() {
     const commun = { ouvert: true, onBasculer: () => undefined, ouvrir: () => undefined, signaler, plat: true, sansTitre: true };
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+        <PageStudio>
             <TitrePage
                 titre={t({ en: "Data and automations", fr: "Base et automatisations" })}
                 info={t({
@@ -66,6 +67,6 @@ export function PageBase() {
                 />
                 <ThemeApresAppel {...commun} apresAppel={apresAppel} />
             </section>
-        </div>
+        </PageStudio>
     );
 }
