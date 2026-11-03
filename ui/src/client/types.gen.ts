@@ -7343,6 +7343,16 @@ export type JournalResponse = {
 };
 
 /**
+ * JugeDesVraisAppels
+ */
+export type JugeDesVraisAppels = {
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
+
+/**
  * LancementSerie
  */
 export type LancementSerie = {
@@ -12970,11 +12980,29 @@ export type RoleResponse = {
  */
 export type RoleSimule = {
     /**
+     * Source
+     *
+     * Where the brain comes from: an API key of the key library, or Claude Code (the person's subscription).
+     */
+    source?: 'cle_api' | 'claude_code';
+    /**
      * Modele
      *
-     * Model, from the list.
+     * « provider/model », any provider of the key library.
      */
-    modele?: 'mistral/mistral-small-latest' | 'mistral/mistral-medium-latest' | 'mistral/mistral-large-latest';
+    modele?: string;
+    /**
+     * Format
+     *
+     * Wire format when the provider is not one the code knows (openai-compatible by default).
+     */
+    format?: 'openai' | 'anthropic' | null;
+    /**
+     * Adresse
+     *
+     * Base address of a provider the code does not know.
+     */
+    adresse?: string;
     /**
      * Identifiant
      *
@@ -16625,6 +16653,10 @@ export type VueFil = {
  * Ce que l'écran lit : les mêmes réglages, et SEULEMENT si une clé est posée.
  */
 export type VueReglagesCerveau = {
+    /**
+     * Source
+     */
+    source?: 'cle_api' | 'claude_code';
     /**
      * Format
      */
@@ -20618,6 +20650,102 @@ export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetRe
 };
 
 export type LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponse = LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponses[keyof LireLHeritageDesReglagesApiV1WorkflowWorkflowIdHeritageReglagesGetResponses];
+
+export type LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/juge-vrais-appels';
+};
+
+export type LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetError = LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetErrors[keyof LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetErrors];
+
+export type LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: JugeDesVraisAppels;
+};
+
+export type LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetResponse = LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetResponses[keyof LireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGetResponses];
+
+export type ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutData = {
+    body: JugeDesVraisAppels;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/juge-vrais-appels';
+};
+
+export type ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutError = ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutErrors[keyof ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutErrors];
+
+export type ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: JugeDesVraisAppels;
+};
+
+export type ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutResponse = ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutResponses[keyof ReglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPutResponses];
 
 export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetData = {
     body?: never;
