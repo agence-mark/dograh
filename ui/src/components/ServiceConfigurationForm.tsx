@@ -170,6 +170,11 @@ export interface ServiceConfigurationFormProps {
      * Les valeurs de la voix restent celles de la configuration (rien n'est effacé à l'enregistrement).
      */
     voixVerrouillee?: ReactNode;
+    /**
+     * [.mark] U3 (E35): when given, only these services are drawn (the window of ONE service passes `["llm"]`, say).
+     * Absent = every service of the mode, as before.
+     */
+    segments?: ServiceSegment[];
 }
 
 function getProviderDisplayName(
@@ -316,6 +321,7 @@ export function ServiceConfigurationForm({
     initialConfig,
     forceRealtime,
     voixVerrouillee,
+    segments,
 }: ServiceConfigurationFormProps) {
     const { t } = useLangue();
     const [apiError, setApiError] = useState<string | null>(null);
@@ -1464,14 +1470,14 @@ export function ServiceConfigurationForm({
     };
 
     const getVisibleTabs = () => {
-        if (mode === 'override') {
-            return isRealtime ? OVERRIDE_REALTIME_TABS : OVERRIDE_STANDARD_TABS;
-        }
-        return isRealtime ? REALTIME_TABS : STANDARD_TABS;
+        const tous = mode === 'override'
+            ? (isRealtime ? OVERRIDE_REALTIME_TABS : OVERRIDE_STANDARD_TABS)
+            : (isRealtime ? REALTIME_TABS : STANDARD_TABS);
+        return segments ? tous.filter(({ key }) => segments.includes(key)) : tous;
     };
 
     const visibleTabs = getVisibleTabs();
-    const defaultTab = isRealtime ? "realtime" : "llm";
+    const defaultTab = visibleTabs[0]?.key ?? (isRealtime ? "realtime" : "llm");
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>

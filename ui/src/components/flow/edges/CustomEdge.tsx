@@ -1,4 +1,4 @@
-import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
+import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
 import { AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -263,18 +263,15 @@ export default function CustomEdge(props: CustomEdgeProps) {
         labelX = sourceX + loopOffsetX;
         labelY = sourceY;
     } else {
-        // Use smoothstep path for orthogonal/elbow edges
-        // borderRadius: 8 gives slightly rounded corners for a clean look
-        // offset: 20 provides spacing before the first bend
-        const [path, lx, ly] = getSmoothStepPath({
+        // [.mark] E36 : liaisons courbes (colonne centrée), la condition au milieu ; seul l'habillage change.
+        const [path, lx, ly] = getBezierPath({
             sourceX,
             sourceY,
             sourcePosition,
             targetX,
             targetY,
             targetPosition,
-            borderRadius: 8,
-            offset: 20,
+            curvature: 0.35,
         });
         edgePath = path;
         labelX = lx;
@@ -409,13 +406,13 @@ export default function CustomEdge(props: CustomEdgeProps) {
                             </div>
                         </div>
                     ) : (
-                        /* Simple label shown by default - amber/orange colored pill style */
+                        /* [.mark] E36 : la condition en pastille sobre, le trait de la liaison la relie aux deux étapes */
                         <div className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-medium shadow-sm",
-                            "transition-all duration-200",
+                            "max-w-[220px] cursor-pointer truncate px-3 py-1 rounded-full text-xs font-medium shadow-sm",
+                            "transition-all duration-200 hover:font-semibold",
                             data?.invalid
                                 ? "bg-destructive text-white"
-                                : "border border-(--acc-fill) bg-(--acc-fill) text-white"
+                                : "border border-border bg-background text-foreground"
                         )}>
                             {data?.label || data?.condition || 'No condition'}
                         </div>

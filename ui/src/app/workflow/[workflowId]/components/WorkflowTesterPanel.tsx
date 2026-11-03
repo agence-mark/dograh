@@ -38,6 +38,8 @@ interface WorkflowTesterPanelProps {
     onRuntimeNodeTransition?: (transition: WorkflowRuntimeNodeTransition) => void;
     // [.mark] Lot 11 (C8): the fiche the agent chose; with one, the test window offers no establishment.
     ficheDeLagent?: string | null;
+    // [.mark] U3 (« Try ▾ » of the agent bar): the tab to show. `cle` changes at each choice, so choosing the same mode twice still applies.
+    modeDemande?: { mode: "audio" | "text" | "simulated"; cle: number } | null;
 }
 
 export function WorkflowTesterPanel({
@@ -51,6 +53,7 @@ export function WorkflowTesterPanel({
     onClose,
     onRuntimeNodeTransition,
     ficheDeLagent = null,
+    modeDemande = null,
 }: WorkflowTesterPanelProps) {
     const auth = useAuth();
     const { markActionCompleted } = useOnboarding();
@@ -163,6 +166,11 @@ export function WorkflowTesterPanel({
             setVoiceRunId(null);
         }
     };
+
+    useEffect(() => {
+        if (modeDemande) handleModeChange(modeDemande.mode);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [modeDemande?.cle]);
 
     return (
         <div className={cn("flex h-full min-h-0 flex-col bg-background", className)}>

@@ -4,10 +4,8 @@ import {
     Background,
     BackgroundVariant,
     type NodeChange,
-    Panel,
     ReactFlow,
 } from "@xyflow/react";
-import { BrushCleaning, Maximize2, Minus, Plus, Settings } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -21,25 +19,24 @@ import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
+import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
+import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
 import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
 import { useLangue } from "@/components/mark/langue/langue";
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { detailFromError } from '@/lib/apiError';
+import { espaceRetenu } from '@/lib/espaceCourant';
 import { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import AddNodePanel from "../../../components/flow/AddNodePanel";
 import CustomEdge from "../../../components/flow/edges/CustomEdge";
 import { GenericNode } from "../../../components/flow/nodes/GenericNode";
 import { PhoneCallDialog } from './components/PhoneCallDialog';
-import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester/types';
-import { WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
+import { type ModeEssai, WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
 import { WorkflowTesterPanel } from './components/WorkflowTesterPanel';
-import { WorkflowVersionDiffDialog } from './components/WorkflowVersionDiffDialog';
 import { WorkflowProvider } from "./contexts/WorkflowContext";
 import { useWorkflowState } from "./hooks/useWorkflowState";
 import { useWorkflowStore } from "./stores/workflowStore";
@@ -93,20 +90,12 @@ function RenderWorkflow({
     const { specs } = useNodeSpecs();
     const { hasCompletedAction } = useOnboarding();
     const [isPhoneCallDialogOpen, setIsPhoneCallDialogOpen] = useState(false);
-    const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
     const [isTesterRailOpen, setIsTesterRailOpen] = useState(true);
     const [isTesterSheetOpen, setIsTesterSheetOpen] = useState(false);
     const [isDesktopViewport, setIsDesktopViewport] = useState(false);
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
-    const [versionsLoading, setVersionsLoading] = useState(false);
-    const [versionsLoadingMore, setVersionsLoadingMore] = useState(false);
-    const [versionsHasMore, setVersionsHasMore] = useState(false);
+    const [, setVersionsLoading] = useState(false);
     const [activeVersionId, setActiveVersionId] = useState<number | null>(initialSelectedVersion?.id ?? null);
-    const [comparingVersionId, setComparingVersionId] = useState<number | null>(null);
-    const [versionDiffPair, setVersionDiffPair] = useState<{
-        previousVersion: WorkflowVersionResponse;
-        selectedVersion: WorkflowVersionResponse;
-    } | null>(null);
     const hasAutoOpenedTester = useRef(false);
     // [.mark] builder-agent-vocal (lot 4): what the builder panel needs from this editor.
     const { t: tBuilder } = useLangue();
@@ -208,7 +197,6 @@ function RenderWorkflow({
             if (data) {
                 const page = data.slice(0, VERSIONS_PAGE_SIZE);
                 setVersions(page);
-                setVersionsHasMore(data.length > VERSIONS_PAGE_SIZE);
                 // Set active version to draft if exists, else published.
                 // Both live on the newest page so the first fetch always sees them.
                 const current = page.find((v) => v.status === "draft") ?? page.find((v) => v.status === "published");
@@ -228,102 +216,12 @@ function RenderWorkflow({
         }
     }, [workflowId]);
 
-    const handleLoadMoreVersions = useCallback(async () => {
-        if (versionsLoadingMore || !versionsHasMore) return;
-        setVersionsLoadingMore(true);
-        try {
-            const response = await getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
-                path: { workflow_id: workflowId },
-                query: { limit: VERSIONS_PAGE_SIZE + 1, offset: versions.length },
-            });
-            if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to load more versions"));
-                return;
-            }
-            const data = response.data;
-            if (data) {
-                setVersions((prev) => [...prev, ...data.slice(0, VERSIONS_PAGE_SIZE)]);
-                setVersionsHasMore(data.length > VERSIONS_PAGE_SIZE);
-            }
-        } finally {
-            setVersionsLoadingMore(false);
-        }
-    }, [workflowId, versions.length, versionsLoadingMore, versionsHasMore]);
-
-    const handleOpenVersionPanel = useCallback(() => {
-        setIsVersionPanelOpen(true);
-        void fetchVersions(false, true);
-    }, [fetchVersions]);
-
-    const handleCompareVersion = useCallback(async (version: WorkflowVersionResponse) => {
-        if (comparingVersionId !== null) return;
-
-        const selectedIndex = versions.findIndex((candidate) => candidate.id === version.id);
-        if (selectedIndex < 0) {
-            toast.error("That workflow version is no longer in the history list");
-            return;
-        }
-
-        setComparingVersionId(version.id);
-        try {
-            // Fetch the selected row and the row immediately below it afresh.
-            // The offset also handles comparisons that cross a pagination boundary.
-            const response = await getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
-                path: { workflow_id: workflowId },
-                query: { limit: 2, offset: selectedIndex },
-            });
-            if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to compare workflow versions"));
-                return;
-            }
-
-            const pair = response.data;
-            const selectedVersion = pair?.[0];
-            const previousVersion = pair?.[1];
-
-            // A new draft may have been inserted since the panel opened, shifting
-            // every offset. Refresh instead of showing a mismatched comparison.
-            if (!selectedVersion || selectedVersion.id !== version.id) {
-                await fetchVersions(true, true);
-                toast.error("Version history changed. Please try the comparison again.");
-                return;
-            }
-            if (
-                !previousVersion ||
-                previousVersion.version_number >= selectedVersion.version_number
-            ) {
-                toast.error(`v${selectedVersion.version_number} has no previous version`);
-                return;
-            }
-
-            // Keep the panel's cached copies in sync with the fresh pair so they
-            // remain current when the dialog closes and history reopens.
-            setVersions((currentVersions) => currentVersions.map((currentVersion) => (
-                pair?.find((freshVersion) => freshVersion.id === currentVersion.id)
-                ?? currentVersion
-            )));
-            setVersionDiffPair({ previousVersion, selectedVersion });
-            setIsVersionPanelOpen(false);
-        } catch {
-            toast.error("Failed to compare workflow versions");
-        } finally {
-            setComparingVersionId(null);
-        }
-    }, [comparingVersionId, fetchVersions, versions, workflowId]);
-
-    const handleVersionDiffOpenChange = useCallback((open: boolean) => {
-        if (open) return;
-        setVersionDiffPair(null);
-        setIsVersionPanelOpen(true);
-    }, []);
-
     const navigateToVersion = useCallback((version: number | null) => {
         const query = new URLSearchParams(searchParams.toString());
         if (version === null) query.delete('version');
         else query.set('version', String(version));
         const suffix = query.toString();
-        router.push(`/workflow/${workflowId}${suffix ? `?${suffix}` : ''}`, { scroll: false });
-        setIsVersionPanelOpen(false);
+        router.push(`/agents/${workflowId}${suffix ? `?${suffix}` : ''}`, { scroll: false });
     }, [router, searchParams, workflowId]);
 
     const handleSelectVersion = useCallback((version: WorkflowVersionResponse) => {
@@ -435,7 +333,35 @@ function RenderWorkflow({
         return null;
     }, [isDirty, isViewingHistoricalVersion, workflowValidationErrors.length]);
 
-    const handleOpenTester = useCallback(() => {
+    // [.mark] E36 : « Prompt général » ouvre la fenêtre du nœud global ; s'il n'existe pas, la barre le crée puis l'ouvre.
+    const demanderOuverture = useOuvertureNoeud((s) => s.demander);
+    const [ouvrirLeGlobalApresAjout, setOuvrirLeGlobalApresAjout] = useState(false);
+    const noeudGlobal = nodes.find((n) => n.type === NodeType.GLOBAL_NODE);
+    const handlePromptGeneral = useCallback(() => {
+        if (noeudGlobal) {
+            demanderOuverture(noeudGlobal.id);
+            return;
+        }
+        setOuvrirLeGlobalApresAjout(true);
+        handleNodeSelect(NodeType.GLOBAL_NODE);
+    }, [noeudGlobal, demanderOuverture, handleNodeSelect]);
+    useEffect(() => {
+        if (ouvrirLeGlobalApresAjout && noeudGlobal) {
+            setOuvrirLeGlobalApresAjout(false);
+            demanderOuverture(noeudGlobal.id);
+        }
+    }, [ouvrirLeGlobalApresAjout, noeudGlobal, demanderOuverture]);
+    // La bibliothèque est celle du Labo : le lien n'est proposé que depuis l'espace Labo.
+    const [bibliothequeHref, setBibliothequeHref] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        const espace = espaceRetenu();
+        setBibliothequeHref(typeof espace === 'number' ? undefined : '/labo/bibliotheque');
+    }, []);
+
+    // [.mark] U3 : « Try ▾ » choisit l'onglet du panneau d'essai ; `cle` change à chaque choix.
+    const [modeEssai, setModeEssai] = useState<{ mode: ModeEssai; cle: number } | null>(null);
+    const handleOpenTester = useCallback((mode?: ModeEssai) => {
+        if (mode) setModeEssai((precedent) => ({ mode, cle: (precedent?.cle ?? 0) + 1 }));
         if (window.innerWidth >= 1280) {
             setIsTesterRailOpen(true);
             return;
@@ -566,7 +492,7 @@ function RenderWorkflow({
             recharger: rechargerLeBrouillon,
             restaurer: restaurerLeGraphe,
             appelerLAgent: () => setIsPhoneCallDialogOpen(true),
-            essayerAuClavier: handleOpenTester,
+            essayerAuClavier: () => handleOpenTester("text"),
         }),
         [workflowId, lireLeGrapheDuBuilder, rechargerLeBrouillon, restaurerLeGraphe, handleOpenTester],
     );
@@ -768,7 +694,6 @@ function RenderWorkflow({
                     user={user}
                     onPhoneCallClick={() => setIsPhoneCallDialogOpen(true)}
                     onTestAgentClick={handleOpenTester}
-                    onHistoryClick={handleOpenVersionPanel}
                     activeVersionLabel={activeVersionLabel}
                     isViewingHistoricalVersion={isViewingHistoricalVersion}
                     onBackToDraft={handleBackToDraft}
@@ -778,7 +703,6 @@ function RenderWorkflow({
                     builder={{
                         ouvert: builderOuvert,
                         onToggle: () => useBuilderEcran.getState().basculerLePanneau(),
-                        testsHref: `/workflow/${workflowId}/tests`,
                         raisonDeBlocage: builderAvant
                             ? tBuilder({ en: "Review the builder's changes first.", fr: "Relisez d'abord les changements du builder." })
                             : null,
@@ -831,121 +755,22 @@ function RenderWorkflow({
                                     color="var(--border-strong)"
                                 />
 
-                                {/* Top-right controls - vertical layout (hidden when viewing history) */}
-                                {!isViewingHistoricalVersion && (
-                                    <Panel position="top-right">
-                                        <TooltipProvider>
-                                            <div className="flex flex-col gap-2">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="default"
-                                                            size="icon"
-                                                            onClick={() => setIsAddNodePanelOpen(true)}
-                                                            className="shadow-md hover:shadow-lg"
-                                                        >
-                                                            <Plus className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="left">
-                                                        <p>Add node</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={() => router.push(`/workflow/${workflowId}/settings`)}
-                                                            className="shadow-sm"
-                                                        >
-                                                            <Settings className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="left">
-                                                        <p>Workflow settings</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                        </TooltipProvider>
-                                    </Panel>
-                                )}
                             </ReactFlow>
 
-                            {/* Bottom-left controls - horizontal layout with custom buttons */}
-                            <div className="absolute bottom-12 left-8 z-10 flex gap-2">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.zoomIn()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Zoom in</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.zoomOut()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Zoom out</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.fitView()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Maximize2 className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Fit view</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    {!isViewingHistoricalVersion && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setNodes(layoutNodes(nodes, edges, 'TB', rfInstance));
-                                                        setIsDirty(true);
-                                                    }}
-                                                    className="shadow-sm h-8 w-8"
-                                                >
-                                                    <BrushCleaning className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Tidy Up</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                </TooltipProvider>
-                            </div>
+                            {/* [.mark] E36 : la barre flottante du canevas (prompt général, nœud, bibliothèque, zoom, ajuster, ranger) */}
+                            <BarreCanevas
+                                lectureSeule={isViewingHistoricalVersion}
+                                onPromptGeneral={handlePromptGeneral}
+                                onAjouter={() => setIsAddNodePanelOpen(true)}
+                                onZoomAvant={() => rfInstance.current?.zoomIn()}
+                                onZoomArriere={() => rfInstance.current?.zoomOut()}
+                                onAjuster={() => rfInstance.current?.fitView()}
+                                onRanger={() => {
+                                    setNodes(layoutNodes(nodes, edges, 'TB', rfInstance));
+                                    setIsDirty(true);
+                                }}
+                                bibliothequeHref={bibliothequeHref}
+                            />
                         </div>
 
                         {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
@@ -962,6 +787,7 @@ function RenderWorkflow({
                                     isVisible={isDesktopViewport}
                                     onClose={() => setIsTesterRailOpen(false)}
                                     onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                                    modeDemande={modeEssai}
                                 />
                             </aside>
                         )}
@@ -978,6 +804,7 @@ function RenderWorkflow({
                                 showWebCallOnboarding={shouldShowWebCallOnboarding}
                                 isVisible={isTesterSheetOpen}
                                 onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                                modeDemande={modeEssai}
                             />
                         </SheetContent>
                     </Sheet>
@@ -991,29 +818,6 @@ function RenderWorkflow({
                     onClose={() => setIsAddNodePanelOpen(false)}
                     nodes={nodes}
                 />
-
-                <VersionHistoryPanel
-                    isOpen={isVersionPanelOpen}
-                    onClose={() => setIsVersionPanelOpen(false)}
-                    versions={versions}
-                    loading={versionsLoading}
-                    activeVersionId={activeVersionId}
-                    onSelectVersion={handleSelectVersion}
-                    onCompareVersion={handleCompareVersion}
-                    comparingVersionId={comparingVersionId}
-                    hasMore={versionsHasMore}
-                    loadingMore={versionsLoadingMore}
-                    onLoadMore={handleLoadMoreVersions}
-                />
-
-                {versionDiffPair && (
-                    <WorkflowVersionDiffDialog
-                        open
-                        onOpenChange={handleVersionDiffOpenChange}
-                        previousVersion={versionDiffPair.previousVersion}
-                        selectedVersion={versionDiffPair.selectedVersion}
-                    />
-                )}
 
                 <PhoneCallDialog
                     open={isPhoneCallDialogOpen}

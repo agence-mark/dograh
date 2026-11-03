@@ -92,6 +92,10 @@ interface Contexte {
     outilsQuiEcrivent?: string[];
 }
 
+// La fenêtre d'un nœud est à onglets par sujet (E15) : un bloc d'un autre sujet que le premier se lit après avoir ouvert
+// son onglet. Un bloc de test dit son sujet une fois (`ongletAOuvrir`), `monter` ouvre l'onglet avant de rendre la main.
+let ongletAOuvrir: string | null = null;
+
 const monter = async (
     type: "agentNode" | "endCall" | "startCall",
     data: Record<string, unknown>,
@@ -134,7 +138,13 @@ const monter = async (
         </ReactFlowProvider>,
     );
     fireEvent.doubleClick(screen.getByText("Étape"));
-    return await screen.findByRole("dialog");
+    const fenetre = await screen.findByRole("dialog");
+    if (ongletAOuvrir) {
+        const onglet = fenetre.querySelector(`[data-section="${ongletAOuvrir}"]`) as HTMLElement | null;
+        if (!onglet) throw new Error(`Onglet « ${ongletAOuvrir} » absent de la fenêtre du nœud`);
+        fireEvent.click(onglet);
+    }
+    return fenetre;
 };
 
 const donneesDeLEtape = () => useWorkflowStore.getState().nodes[0].data as Record<string, unknown>;
@@ -148,7 +158,10 @@ beforeEach(() => {
     m.ajouterOutil.mockReset();
     m.saveWorkflow.mockClear();
 });
-afterEach(cleanup);
+afterEach(() => {
+    cleanup();
+    ongletAOuvrir = null;
+});
 
 describe("[.mark] case « Retour au principal » d'une étape", () => {
     it("n'existe pas chez un agent sans principal (un agent seul garde sa fenêtre d'avant)", async () => {
@@ -415,6 +428,10 @@ describe("[.mark] menu « Déclenchement de l'action » d'une étape (correctifs
 });
 
 describe("[.mark] champ conditionnel de la liste des champs d'une étape (correctifs-apres-banc-commun, lot 7)", () => {
+    beforeEach(() => {
+        ongletAOuvrir = "donnees";
+    });
+
     const ETAPE = { champs_etape: "degre_urgence, numero_rappel" };
 
     it("une étape sans condition n'écrit rien de plus", async () => {
@@ -476,13 +493,17 @@ describe("[.mark] champ conditionnel de la liste des champs d'une étape (correc
 });
 
 describe("[.mark] phrases de fin du nœud de fin", () => {
+    beforeEach(() => {
+        ongletAOuvrir = "phrases";
+    });
+
     it("un nœud de fin d'un agent seul porte la liste (plus de doublon avec le formulaire) et garde sa zone de texte", async () => {
         const dialogue = await monter("endCall", { name: "Étape" });
         // Lot 2 d'orchestrateur-trois-cerveaux (D5) : la liste est celle de ``PhrasesDeFin`` pour tout agent,
         // le formulaire généré ne la dessine plus.
         expect(dialogue.querySelectorAll('[data-reglage="fins"]').length).toBe(1);
         expect(within(dialogue).queryAllByText("Fixed closing sentences").length).toBe(0);
-        expect(within(dialogue).getAllByRole("textbox").some((z) => (z as HTMLTextAreaElement).value === "Consigne.")).toBe(true);
+        expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(true);
     });
 
     it("chez un spécialisé aussi : une seule liste, qui s'écrit dans l'étape", async () => {
@@ -497,11 +518,11 @@ describe("[.mark] phrases de fin du nœud de fin", () => {
         const dialogue = await monter("endCall", {}, { estPrincipal: true });
         expect(dialogue.querySelector('[data-reglage="fins"]')).not.toBeNull();
         // Sans ligne, la zone de texte d'avant reste (rien n'est enregistré à sa place).
-        expect(within(dialogue).getAllByRole("textbox").some((z) => (z as HTMLTextAreaElement).value === "Consigne.")).toBe(true);
+        expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(true);
         fireEvent.change(document.getElementById("fin-phrase-defaut") as HTMLElement, { target: { value: "Merci de votre appel." } });
         // Une phrase par défaut écrite : la liste remplace la zone de texte.
         await waitFor(() =>
-            expect(within(dialogue).queryAllByRole("textbox").some((z) => (z as HTMLTextAreaElement).value === "Consigne.")).toBe(false),
+            expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(false),
         );
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().fins).toEqual([{ phrase: "Merci de votre appel." }]);
@@ -551,6 +572,10 @@ describe("[.mark] phrases de fin du nœud de fin", () => {
 });
 
 describe("[.mark] brique « Agent » sous une étape", () => {
+    beforeEach(() => {
+        ongletAOuvrir = "outils";
+    });
+
     const crees: ToolResponse[] = [];
     beforeEach(() => {
         crees.length = 0;
