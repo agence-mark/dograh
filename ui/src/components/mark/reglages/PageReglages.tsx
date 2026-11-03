@@ -9,11 +9,12 @@ import { EquipeEtRoles } from "@/components/mark/equipe/PageEquipe";
 import { useLangue } from "@/components/mark/langue/langue";
 import { PanneauAffichage } from "@/components/mark/reglages/PanneauAffichage";
 import { ReglagesOrganisation } from "@/components/mark/reglages/ReglagesOrganisation";
+import { OngletSources } from "@/components/mark/sources/OngletSources";
 import { OngletsPage } from "@/components/mark/studio/onglets-page";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 
-export function PageReglages({ defaut = "organisation" }: { defaut?: "equipe" | "organisation" | "affichage" }) {
+export function PageReglages({ defaut = "organisation" }: { defaut?: "equipe" | "organisation" | "affichage" | "sources" }) {
     const { t } = useLangue();
     return (
         <PageStudio>
@@ -28,6 +29,7 @@ export function PageReglages({ defaut = "organisation" }: { defaut?: "equipe" | 
                 espacement="space-y-10"
                 defaut={defaut}
                 onglets={[
+                    { id: "sources", titre: t({ en: "Sources", fr: "Sources" }), contenu: <OngletSources /> },
                     { id: "equipe", titre: t({ en: "Team and roles", fr: "Équipe et rôles" }), contenu: <EquipeEtRoles /> },
                     { id: "organisation", titre: t({ en: "Organization", fr: "Organisation" }), contenu: <ReglagesOrganisation /> },
                     { id: "affichage", titre: t({ en: "Display", fr: "Affichage" }), contenu: <PanneauAffichage /> },

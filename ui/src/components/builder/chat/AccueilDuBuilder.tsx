@@ -18,6 +18,8 @@ import {
     type VueDemarrage,
 } from "@/client";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { AvertissementClaudeCode } from "@/components/mark/sources/marques";
+import { useSources } from "@/components/mark/sources/useSources";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +70,9 @@ export function AccueilDuBuilder() {
     const [ouvert, setOuvert] = useState<File | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
     const entree = useRef<HTMLInputElement>(null);
+    const { sources } = useSources();
+    // E105 : le builder est sur Claude Code, l'accueil garde sa saisie et ses cartes ; l'envoi est ferme, la carte rouge le dit.
+    const ferme = sources?.builder === "claude_code";
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -109,7 +114,7 @@ export function AccueilDuBuilder() {
         setFichiers((avant) => [...avant, ...lus]);
     };
     const envoyer = async () => {
-        if (manque) return;
+        if (manque || ferme) return;
         const message = [saisie.trim(), ...fichiers.map((f) => `\n[Fichier : ${f.nom}]\n${f.texte}`)].join("\n");
         const r = await ouvrirUnFilApiV1BuilderFilsPost({ body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null } });
         if (r.error || !r.data) {
@@ -181,10 +186,11 @@ export function AccueilDuBuilder() {
                                 {modele.modele || "-"} · {t(T.plafond)} ${modele.plafond.toFixed(2)}
                             </span>
                         ))}
-                    <Button size="sm" disabled={manque !== null} title={manque ?? undefined} onClick={() => void envoyer()}>
+                    <Button size="sm" disabled={manque !== null || ferme} title={manque ?? undefined} onClick={() => void envoyer()}>
                         {t(T.envoyer)}
                     </Button>
                 </div>
+                {ferme && <AvertissementClaudeCode />}
                 {ouvert && <FenetreFichier nom={ouvert.name} fichier={ouvert} fermer={() => setOuvert(null)} />}
                 {erreur && <p className="text-sm text-destructive">{erreur}</p>}
             </div>

@@ -8,15 +8,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select, update
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import delete, select, update
 
 from api.db.base_client import BaseDBClient
-from api.db.models_builder import MarkBuilderConversationModel, MarkBuilderEvenementModel
+from api.db.models_builder import MarkBuilderConversationModel, MarkBuilderEvenementModel, MarkModificationModel
 
 CHAMPS_MODIFIABLES = frozenset(
     {"titre", "etat", "historique", "jetons", "cout", "jauge", "changements", "workflow_id", "demarrage"}
     | {"genre", "delegation_id", "usage", "tache", "modele", "resultat", "sous_agents_actifs"}
+    | {"session_externe", "auteur"}
 )
+MODIFICATIONS_GARDEES_JOURS = 3
 
 
 class BuilderFilClient(BaseDBClient):
@@ -137,3 +141,64 @@ class BuilderFilClient(BaseDBClient):
                 .execution_options(populate_existing=True)
             )
             return list(resultat.scalars().all())
+
+    # --- U12 : le miroir des conversations Claude Code -------------------------------------------------------------
+
+    async def fil_de_la_session(self, organization_id: int, session_externe: str) -> MarkBuilderConversationModel | None:
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                select(MarkBuilderConversationModel)
+                .where(
+                    MarkBuilderConversationModel.organization_id == organization_id,
+                    MarkBuilderConversationModel.genre == "claude_code",
+                    MarkBuilderConversationModel.session_externe == session_externe,
+                )
+                .order_by(MarkBuilderConversationModel.id.desc())
+                .limit(1)
+                .execution_options(populate_existing=True)
+            )
+            return resultat.scalar_one_or_none()
+
+    # --- U12 : la mise à jour en direct ----------------------------------------------------------------------------
+
+    async def ajouter_modification(
+        self, organization_id: int, objet: str, action: str, source: str, auteur: str | None
+    ) -> int:
+        async with self.async_session() as session:
+            ligne = MarkModificationModel(
+                organization_id=organization_id, objet=objet[:80], action=action[:80], source=source[:20], auteur=(auteur or None)
+            )
+            session.add(ligne)
+            await session.flush()
+            identifiant = int(ligne.id)
+            if identifiant % 50 == 0:  # l'élagage se fait de temps en temps, jamais à chaque écriture
+                await session.execute(
+                    delete(MarkModificationModel).where(
+                        MarkModificationModel.organization_id == organization_id,
+                        MarkModificationModel.cree_le < datetime.now(UTC) - timedelta(days=MODIFICATIONS_GARDEES_JOURS),
+                    )
+                )
+            await session.commit()
+            return identifiant
+
+    async def modifications_apres(
+        self, organization_id: int, apres: int = 0, objet: str | None = None, limite: int = 200
+    ) -> list[MarkModificationModel]:
+        async with self.async_session() as session:
+            requete = select(MarkModificationModel).where(
+                MarkModificationModel.organization_id == organization_id, MarkModificationModel.id > apres
+            )
+            if objet is not None:
+                requete = requete.where(MarkModificationModel.objet == objet)
+            resultat = await session.execute(requete.order_by(MarkModificationModel.id).limit(limite))
+            return list(resultat.scalars().all())
+
+    async def derniere_modification(self, organization_id: int) -> int:
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                select(MarkModificationModel.id)
+                .where(MarkModificationModel.organization_id == organization_id)
+                .order_by(MarkModificationModel.id.desc())
+                .limit(1)
+            )
+            return int(resultat.scalar_one_or_none() or 0)

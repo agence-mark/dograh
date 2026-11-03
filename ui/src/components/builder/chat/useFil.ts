@@ -76,7 +76,8 @@ export function useFil(filId: number) {
                     if ((e as { name?: string })?.name === "AbortError") return;
                 }
                 const etat = await rafraichir();
-                if (!etat || etat.etat !== "en_cours") return;
+                // Une conversation recopiee de Claude Code reprend a chaque message : son flux se rouvre tant que l'ecran est la.
+                if (!etat || (etat.etat !== "en_cours" && etat.genre !== "claude_code")) return;
                 await new Promise((ok) => setTimeout(ok, REPRISE_MS));
             }
         })();

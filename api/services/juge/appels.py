@@ -22,7 +22,7 @@ from api.services.builder import consignes
 from api.services.builder.cerveau import independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
-from api.services.juge import file, passes
+from api.services.juge import a_ameliorer, file, passes
 from api.services.juge import verdicts as v
 
 
@@ -74,8 +74,11 @@ async def apres_appel(run: Any, organisation: int) -> None:
             return
         from api.services.appel_simule import reglages as appel_simule
 
+        from api.services import sources_cerveaux
+
         roles = await appel_simule.lire_reglages(organisation)
-        juge = roles.juge
+        # U12 : la source du juge des vrais appels est celle de sa brique (Claude Code au départ).
+        juge = roles.juge.model_copy(update={"source": await sources_cerveaux.source_de(organisation, "juge_appels", roles.juge.source)})
         base = await reglages_cerveau.lire(organisation)
         controle = independance.controler(
             source_juge=juge.source,
@@ -102,6 +105,9 @@ async def apres_appel(run: Any, organisation: int) -> None:
         rendu = await passes.juger(cerveau, dossier["lignes"], await grille(), outils=dossier["outils"], fiche=dossier["fiche"])
         await ecrire_dans_le_run(
             run.id, {"etat": "juge", "source": "cle_api", "modele": juge.modele, "juge_le": file.maintenant(), **rendu, **mention}
+        )
+        await a_ameliorer.signaler(
+            organisation, {"id": f"appel-{run.id}", "type": "appel", "workflow_id": run.workflow_id, "run_id": run.id}, rendu["verdicts"], "cle_api"
         )
     except Exception as erreur:  # noqa: BLE001 -- un juge en panne n'abîme ni l'appel ni l'après-appel
         logger.warning(f"[juge] appel {getattr(run, 'id', '?')} non jugé : {type(erreur).__name__}")
