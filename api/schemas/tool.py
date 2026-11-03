@@ -848,6 +848,11 @@ class IntegrationToolConfig(BaseModel):
         default_factory=dict,
         description="Parameter of the action → field of the record that gives it (anticipation).",
     )
+    # K5 (E77): the connected account the tool follows when the organization has several of the same software (two Google
+    # calendars...). Empty: the organization's only (or first) account. The name is the one given at connection time.
+    compte: str | None = Field(
+        default=None, max_length=255, description="Name of the connected account this tool uses (several accounts of one software)."
+    )
 
 
     # Gérés par le serveur (U3 sexies point 4) : voir ``ComportementOutil``.

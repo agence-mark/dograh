@@ -19,7 +19,9 @@ import { useLangue } from "../langue/langue";
 import { EtatVide } from "../studio/etat-vide";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
+import { Initiales } from "../integrations/OngletLogiciels";
 import { Paginee } from "../studio/pagination";
+import { PageStudio } from "../studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import { TitrePage } from "../studio/titre-page";
 import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
@@ -86,6 +88,7 @@ export function PageOutils() {
     const ouvertOutil = ouvert ? tous.find((o) => o.tool_uuid === ouvert) : undefined;
 
     return (
+        <PageStudio>
         <div className="space-y-6">
             <TitrePage
                 titre={t({ en: "Tools", fr: "Outils" })}
@@ -168,21 +171,29 @@ export function PageOutils() {
                                 },
                                 { titre: t({ en: "Success", fr: "Réussite" }), droite: true },
                                 { titre: t({ en: "Agents", fr: "Agents" }), droite: true },
+                                { titre: t({ en: "Modified", fr: "Modifié" }), droite: true },
                             ]}
                         >
                             {page.map((o) => {
                                 const s = stats[o.tool_uuid];
                                 return (
                                     <Ligne key={o.tool_uuid} onClick={() => setOuvert(o.tool_uuid)}>
-                                        <Cellule principale sous={o.description ?? undefined}>
-                                            {o.name}
-                                        </Cellule>
+                                        <td className="py-3">
+                                            <span className="flex items-center gap-3">
+                                                <Initiales nom={o.name.replace(/_/g, " ")} taille={32} />
+                                                <span className="min-w-0">
+                                                    <span className="block font-mono font-medium">{o.name}</span>
+                                                    {o.description && <span className="block max-w-80 truncate text-xs text-muted-foreground">{o.description}</span>}
+                                                </span>
+                                            </span>
+                                        </td>
                                         <Cellule>{libelleType(o.category)}</Cellule>
                                         <Cellule>{brancheSur(o)}</Cellule>
                                         <Cellule>{acces(o)}</Cellule>
                                         <Cellule droite>{s ? s.executions : "–"}</Cellule>
                                         <Cellule droite>{s && s.reussite !== null ? `${s.reussite} %` : "–"}</Cellule>
                                         <Cellule droite>{s ? s.nb_agents : "–"}</Cellule>
+                                        <Cellule droite>{(o.updated_at ?? o.created_at ?? "").slice(0, 10) || "–"}</Cellule>
                                     </Ligne>
                                 );
                             })}
@@ -221,5 +232,6 @@ export function PageOutils() {
                 />
             )}
         </div>
+        </PageStudio>
     );
 }

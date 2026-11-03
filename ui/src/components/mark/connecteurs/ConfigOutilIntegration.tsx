@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { useLangue } from "../langue/langue";
+import { Liste } from "../studio/liste";
 import {
     ATTENTE_MAX_DEFAUT_MS,
     type ConfigIntegration,
@@ -489,11 +490,21 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
     );
 }
 
-/** The creation dialog of « Tools »: the software and the action; the rest on the tool page. */
-export function ChampsCreationIntegration({ onChange }: { onChange: (valeur: ConfigIntegration | null) => void }) {
+/** [.mark] K5 (E77) : les comptes branchés de ce logiciel, pour que l'outil choisisse le sien. */
+export function comptesDuLogiciel(connecteurs: ReturnType<typeof useConnecteurs>, nomConnecteur: string): string[] {
+    const integration = connecteurs.catalogue?.find((c) => c.nom === nomConnecteur)?.integration;
+    return (connecteurs.etat?.connexions ?? []).filter((x) => x.integration === integration).map((x) => x.compte ?? x.connection_id);
+}
+
+/**
+ * The creation dialog of « Tools »: the software, the action and (K5, as in the maquette) the connected account the tool
+ * follows; the rest on the tool page. A single account needs no choice: the tool follows it without writing anything.
+ */
+export function ChampsCreationIntegration({ onChange, avecCompte = false }: { onChange: (valeur: ConfigIntegration | null) => void; avecCompte?: boolean }) {
     const { t } = useLangue();
     const connecteurs = useConnecteurs();
     const [valeur, setValeur] = useState<ConfigIntegration | null>(null);
+    const [compte, setCompte] = useState("");
     useEffect(() => {
         if (connecteurs.catalogue && valeur === null) {
             const premier = configParDefaut(connecteurs.catalogue);
@@ -501,17 +512,46 @@ export function ChampsCreationIntegration({ onChange }: { onChange: (valeur: Con
             onChange(premier);
         }
     }, [connecteurs.catalogue, valeur, onChange]);
+    // Plusieurs comptes : l'outil garde dès le départ celui qu'on voit choisi (jamais « le premier » par hasard).
+    const nomsDesComptes = valeur && avecCompte ? comptesDuLogiciel(connecteurs, valeur.connecteur).join(" ") : "";
+    useEffect(() => {
+        const noms = nomsDesComptes ? nomsDesComptes.split(" ") : [];
+        if (valeur && noms.length > 1) onChange({ ...valeur, compte: noms.includes(compte) ? compte : noms[0] } as ConfigIntegration);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nomsDesComptes, valeur?.connecteur, valeur?.action, compte]);
     if (connecteurs.erreur) return <p className="text-sm text-destructive">{connecteurs.erreur}</p>;
     if (!connecteurs.catalogue || !valeur) return <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>;
+    const comptes = avecCompte ? comptesDuLogiciel(connecteurs, valeur.connecteur) : [];
+    const choisi = comptes.includes(compte) ? compte : (comptes[0] ?? "");
+    const poser = (v: ConfigIntegration, nom: string) => {
+        const c = comptesDuLogiciel(connecteurs, v.connecteur);
+        onChange(avecCompte && c.length > 1 ? ({ ...v, compte: c.includes(nom) ? nom : c[0] } as ConfigIntegration) : v);
+    };
     return (
-        <ChoixAction
-            catalogue={connecteurs.catalogue}
-            valeur={valeur}
-            onChange={(v) => {
-                setValeur(v);
-                onChange(v);
-            }}
-        />
+        <div className="space-y-3">
+            <ChoixAction
+                catalogue={connecteurs.catalogue}
+                valeur={valeur}
+                onChange={(v) => {
+                    setValeur(v);
+                    poser(v, choisi);
+                }}
+            />
+            {comptes.length > 1 && (
+                <div className="flex items-center gap-3" data-testid="choix-du-compte">
+                    <span className="text-sm text-muted-foreground">{t({ en: "Connected account", fr: "Compte branché" })}</span>
+                    <Liste
+                        valeur={choisi}
+                        changer={(nom) => {
+                            setCompte(nom);
+                            poser(valeur, nom);
+                        }}
+                        options={comptes}
+                        className="w-64"
+                    />
+                </div>
+            )}
+        </div>
     );
 }
 

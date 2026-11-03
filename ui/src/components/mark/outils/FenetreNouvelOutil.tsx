@@ -149,7 +149,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
                 </BlocChamp>
                 {type === "integration" && (
                     <BlocChamp libelle={t({ en: "Software and action", fr: "Logiciel et action" })}>
-                        <ChampsCreationIntegration onChange={setIntegration} />
+                        <ChampsCreationIntegration onChange={setIntegration} avecCompte />
                     </BlocChamp>
                 )}
                 {type === "transfer_agent" && (

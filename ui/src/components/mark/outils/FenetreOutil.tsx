@@ -28,9 +28,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
+import { comptesDuLogiciel } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp } from "../studio/fenetre-onglets";
+import { Liste } from "../studio/liste";
 import { Marque } from "../studio/marques";
 import { type Config, configDe, definitionAvec, ecritHttp, LIBELLES_TYPE, premierEssaiValide, texte, type TypeOutil } from "./modele";
 import { OngletActivite } from "./OngletActivite";
@@ -89,6 +91,8 @@ export function FenetreOutil({
     else if (courant.category === "integration") {
         ecrit = Boolean(connecteurs.catalogue?.find((c) => c.nom === texte(config, "connecteur"))?.actions.find((a) => a.nom === texte(config, "action"))?.ecrit);
     }
+
+    const comptesBranches = courant.category === "integration" ? comptesDuLogiciel(connecteurs, texte(config, "connecteur")) : [];
 
     const enregistrer = async () => {
         if (!nom.trim()) return setErreur(t({ en: "Give the tool a name.", fr: "Donnez un nom à l'outil." }));
@@ -154,6 +158,19 @@ export function FenetreOutil({
                     <LigneChamp libelle={t({ en: "Access", fr: "Accès" })}>
                         <Marque>{ecrit ? t({ en: "Writes", fr: "Écrit" }) : t({ en: "Reads", fr: "Lit" })}</Marque>
                     </LigneChamp>
+                    {courant.category === "integration" && comptesBranches.length > 0 && (
+                        <LigneChamp
+                            libelle={t({ en: "Connected account", fr: "Compte branché" })}
+                            info={t({ en: "The connected accounts of this software (Integrations › Software). The tool follows the one chosen here.", fr: "Les comptes branchés de ce logiciel (Intégrations › Logiciels). L'outil suit celui choisi ici." })}
+                        >
+                            <Liste
+                                valeur={comptesBranches.includes(texte(config, "compte")) ? texte(config, "compte") : comptesBranches[0]}
+                                changer={(v) => pose({ compte: v })}
+                                options={comptesBranches}
+                                className="w-64"
+                            />
+                        </LigneChamp>
+                    )}
                     {["http_api", "mcp", "integration"].includes(courant.category) && (
                         <LigneChamp libelle={t({ en: "First trial", fr: "Premier essai" })}>
                             <Marque ton={premierEssaiValide(config) ? "succes" : "neutre"}>

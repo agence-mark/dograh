@@ -73,8 +73,8 @@ export const useConnecteurs = () => {
         void relire();
     }, [authLoading, user, relire]);
 
-    const demanderLien = useCallback(async (connecteurs: string[]) => {
-        const r = await postLienApiV1ConnecteursLienPost({ body: { connecteurs } });
+    const demanderLien = useCallback(async (connecteurs: string[], compte?: string) => {
+        const r = await postLienApiV1ConnecteursLienPost({ body: { connecteurs, compte } });
         if (r.error || !r.data) throw new Error(detailFromError(r.error, "No authorization link"));
         return r.data;
     }, []);
