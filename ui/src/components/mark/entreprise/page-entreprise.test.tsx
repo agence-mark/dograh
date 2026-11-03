@@ -24,6 +24,10 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
         Promise.resolve({ data: { serveur_configure: true, version_attendue: 3, nom_base: null, joignable: false, refus: [], conservation: [] } }),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+// La fenêtre de « Toute l'entreprise » pose une liste du design system (Radix) : jsdom n'a ni observateur de taille ni capture de pointeur.
+vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
 vi.mock("@/context/UserConfigContext", () => ({ useUserConfig: () => ({ refreshConfig: () => Promise.resolve() }) }));
 vi.mock("react-timezone-select", () => ({ default: () => null }));

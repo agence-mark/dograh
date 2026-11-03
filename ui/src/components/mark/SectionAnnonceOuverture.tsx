@@ -244,10 +244,8 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
         )}
       </span>
     );
-    const options = [
-      { valeur: ETAT_CALCULE, libelle: t({ en: "Computed from each agent's opening hours", fr: "Calculé depuis les horaires de chaque agent" }) },
-      ...ETATS.map((etat) => ({ valeur: etat.valeur, libelle: `${t({ en: "Forced:", fr: "Forcé :" })} ${t(etat.libelle)}` })),
-    ];
+    // L'option « calculé » est la valeur vide de la liste (`vide`) : Radix refuse une option dont la valeur est une chaîne vide.
+    const options = ETATS.map((etat) => ({ valeur: etat.valeur, libelle: `${t({ en: "Forced:", fr: "Forcé :" })} ${t(etat.libelle)}` }));
     return (
       <div className="divide-y">
         <div className="space-y-2 py-3.5" id="reglage-annonce_fermeture" data-reglage="annonce_fermeture">
@@ -296,6 +294,7 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
             changer={(v) =>
               modifier(v === ETAT_CALCULE ? { etat_force: null, etat_force_jusqu_a: null } : { etat_force: v as ReglagesAnnonceOuverture["etat_force"] })
             }
+            vide={t({ en: "Computed from each agent's opening hours", fr: "Calculé depuis les horaires de chaque agent" })}
             options={options}
             taille="default"
             className="w-full"
