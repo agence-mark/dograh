@@ -26,9 +26,11 @@ import {
 } from '@/client/sdk.gen';
 import { BoutonCreerUnTest } from '@/components/builder/tests/BoutonCreerUnTest';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
-import { FenetreDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
+import { FenetreDuRun, useAnalyseDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
 import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
+import { useLangue } from '@/components/mark/langue/langue';
+import { OngletsPage } from '@/components/mark/studio/onglets-page';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';
@@ -61,7 +63,6 @@ interface WorkflowRunResponse {
     annotations: Record<string, unknown> | null;
 }
 
-const RUN_SHELL_HEIGHT_CLASS = "h-[calc(100svh-49px)] min-h-[calc(100svh-49px)] max-h-[calc(100svh-49px)]";
 const WAVEFORM_BAR_COUNT = 96;
 type SplitTrackPlaybackMode = 'both' | 'user' | 'bot';
 
@@ -633,6 +634,9 @@ export default function WorkflowRunPage() {
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
     const [workflowName, setWorkflowName] = useState<string | null>(null);
     const customizeButtonRef = useRef<HTMLButtonElement>(null);
+    const { t: tp } = useLangue();
+    // [.mark] U3 : l'analyse du run est lue UNE fois, les onglets s'en partagent les blocs.
+    const analyse = useAnalyseDuRun(Number(params.workflowId), Number(params.runId));
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -722,194 +726,207 @@ export default function WorkflowRunPage() {
         );
     }
     else if (showRunDetailsView) {
+        // [.mark] U3 : la page d'une conversation. Tout ce que montrait la fenêtre du run reste là, rangé en sept onglets
+        // (Transcription, Journal des événements, Agents et outils, Phrases du code, Coûts, Contrôle qualité, Contexte),
+        // « créer un test depuis cette réplique » dans la Transcription. Les volets restent montés ; l'analyse du run
+        // est lue une seule fois et partagée entre les onglets.
+        const analyseLue = { analyse: analyse.analyse, erreur: analyse.erreur };
+        const idAgent = Number(params.workflowId);
+        const idRun = Number(params.runId);
         returnValue = (
-            <div className={`flex ${RUN_SHELL_HEIGHT_CLASS} min-h-0 w-full overflow-hidden bg-background`}>
-                <div className="min-w-0 flex-1 overflow-y-auto">
-                    <div className="mx-auto w-full max-w-4xl space-y-6 p-6">
-                    <Card className="border-border">
-                        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0 flex-1 space-y-2">
-                                {workflowName && (
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
-                                            <Bot className="h-5 w-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                                                Agent
-                                            </p>
-                                            <p className="truncate text-xl font-semibold text-foreground">
-                                                {workflowName}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    <CopyDebugIdButton label="Agent ID" value={workflowId} />
-                                    <CopyDebugIdButton label="Run ID" value={runId} />
-                                </div>
-                                <div className="flex min-w-0 items-center gap-4 pt-1">
-                                    <CardTitle className="min-w-0 text-2xl">
-                                        {isTextChatRun ? 'Text Chat Session' : 'Agent Run Completed'}
-                                    </CardTitle>
-                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${isTextChatRun ? 'bg-muted' : 'bg-muted'}`}>
-                                        {isTextChatRun ? (
-                                            <FileText className="h-5 w-5 text-foreground" />
-                                        ) : (
-                                            <svg className="h-5 w-5 text-(--signal-ok)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                            </svg>
+            <div className="min-h-[calc(100svh-49px)] w-full overflow-y-auto bg-background" data-page-conversation>
+                <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                                {isTextChatRun ? tp({ en: 'Text chat session', fr: 'Session de chat écrit' }) : tp({ en: 'Conversation', fr: 'Conversation' })}
+                            </p>
+                            <h1 className="flex items-center gap-2 truncate text-2xl font-semibold tracking-tight">
+                                <Bot className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                {workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`}
+                            </h1>
+                            {workflowRun?.created_at && (
+                                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <Clock className="h-4 w-4" />
+                                    {formatDateTime(workflowRun.created_at, organizationTimezone)}
+                                </p>
+                            )}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                <CopyDebugIdButton label="Agent ID" value={workflowId} />
+                                <CopyDebugIdButton label="Run ID" value={runId} />
+                            </div>
+                        </div>
+                        <Button asChild ref={customizeButtonRef} className="cursor-pointer gap-2 self-start">
+                            <Link href={`/agents/${params.workflowId}`}>{tp({ en: 'Customize the agent', fr: "Personnaliser l'agent" })}</Link>
+                        </Button>
+                    </div>
+
+                    <FenetreDuRun
+                        workflowId={idAgent}
+                        runId={idRun}
+                        recordingKey={workflowRun?.recording_url ?? null}
+                        blocs={['simulation', 'resume', 'apres-appel']}
+                        lue={analyseLue}
+                    />
+
+                    <OngletsPage
+                        defaut="transcription"
+                        onglets={[
+                            {
+                                id: 'transcription',
+                                titre: tp({ en: 'Transcript', fr: 'Transcription' }),
+                                contenu: (
+                                    <div className="space-y-6" data-onglet-conversation="transcription">
+                                        {!isTextChatRun && (
+                                            <div className="flex flex-wrap gap-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-muted-foreground">Preview:</span>
+                                                    <MediaPreviewButton
+                                                        recordingUrl={workflowRun?.recording_url}
+                                                        transcriptUrl={workflowRun?.transcript_url}
+                                                        runId={idRun}
+                                                        onOpenPreview={openPreview}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-2 border-l border-border pl-4">
+                                                    <span className="text-sm text-muted-foreground">Download:</span>
+                                                    <Button
+                                                        onClick={() => downloadFile(workflowRun?.transcript_url ?? null)}
+                                                        disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
+                                                        size="sm"
+                                                        className="gap-2"
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                        Transcript
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => downloadFile(workflowRun?.recording_url ?? null)}
+                                                        disabled={!workflowRun?.recording_url || !auth.isAuthenticated}
+                                                        size="sm"
+                                                        className="gap-2"
+                                                    >
+                                                        <Video className="h-4 w-4" />
+                                                        Recording
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* [.mark] builder lot 6 : créer un test depuis une réplique de cet appel */}
+                                        <BoutonCreerUnTest
+                                            workflowId={idAgent}
+                                            runId={idRun}
+                                            evenements={workflowRun?.logs?.realtime_feedback_events as never}
+                                            rangInitial={rangDemande}
+                                        />
+                                        <FenetreDuRun
+                                            workflowId={idAgent}
+                                            runId={idRun}
+                                            recordingKey={workflowRun?.recording_url ?? null}
+                                            blocs={['conversation']}
+                                            lue={analyseLue}
+                                        />
+                                        {!isTextChatRun && hasSplitTracks && (
+                                            <SplitTracksSection
+                                                userRecordingUrl={userSplitRecordingUrl as string}
+                                                botRecordingUrl={botSplitRecordingUrl as string}
+                                            />
                                         )}
                                     </div>
-                                </div>
-                                {workflowRun?.created_at && (
-                                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                        <Clock className="h-4 w-4" />
-                                        Call time: {formatDateTime(workflowRun.created_at, organizationTimezone)}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                                <Link href={`/workflow/${params.workflowId}`}>
-                                    <Button
-                                        ref={customizeButtonRef}
-                                        className="gap-2"
-                                    >
-                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                        Customize Agent
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground mb-8">
-                                {isTextChatRun
-                                    ? 'Review the conversation history, metrics, and context captured for this text session.'
-                                    : 'Your voice agent run has been completed successfully. You can preview or download the transcript and recording.'}
-                            </p>
-
-                            <div className="flex flex-wrap gap-4">
-                                {!isTextChatRun && (
-                                    <>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-muted-foreground">Preview:</span>
-                                            <MediaPreviewButton
-                                                recordingUrl={workflowRun?.recording_url}
-                                                transcriptUrl={workflowRun?.transcript_url}
-                                                runId={Number(params.runId)}
-                                                onOpenPreview={openPreview}
-                                            />
+                                ),
+                            },
+                            {
+                                id: 'journal',
+                                titre: tp({ en: 'Event log', fr: 'Journal des événements' }),
+                                contenu: (
+                                    <div className="space-y-6" data-onglet-conversation="journal">
+                                        <div className="h-[60vh] min-h-0">
+                                            <ConversationRailFrame className="h-full">
+                                                <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
+                                            </ConversationRailFrame>
                                         </div>
-                                        <div className="flex items-center gap-2 border-l border-border pl-4">
-                                            <span className="text-sm text-muted-foreground">Download:</span>
-                                            <Button
-                                                onClick={() => downloadFile(workflowRun?.transcript_url ?? null)}
-                                                disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
-                                                size="sm"
-                                                className="gap-2"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                Transcript
-                                            </Button>
-                                            <Button
-                                                onClick={() => downloadFile(workflowRun?.recording_url ?? null)}
-                                                disabled={!workflowRun?.recording_url || !auth.isAuthenticated}
-                                                size="sm"
-                                                className="gap-2"
-                                            >
-                                                <Video className="h-4 w-4" />
-                                                Recording
-                                            </Button>
-                                        </div>
-                                    </>
-                                )}
-                                {workflowRun?.gathered_context?.trace_url && (
-                                    <div className={`flex items-center gap-2 ${isTextChatRun ? '' : 'border-l border-border pl-4'}`}>
-                                        <span className="text-sm text-muted-foreground">Trace:</span>
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-2"
-                                        >
-                                            <a
-                                                href={String(workflowRun.gathered_context.trace_url)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <ExternalLink className="h-4 w-4" />
-                                                View Trace
-                                            </a>
-                                        </Button>
+                                        <FenetreDuRun
+                                            workflowId={idAgent}
+                                            runId={idRun}
+                                            blocs={['incidents', 'latence', 'chrono', 'reseau']}
+                                            lue={analyseLue}
+                                        />
                                     </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                        <RunMetricsSection
-                            costInfo={workflowRun?.cost_info ?? null}
-                            logs={workflowRun?.logs ?? null}
-                            gatheredContext={workflowRun?.gathered_context ?? null}
-                        />
-
-                        {/* [.mark] The clerk's passes, failures and tokens (mode-prise-de-notes). */}
-                        <BilanGreffier fiche={workflowRun?.gathered_context ?? null} />
-
-                        {/* [.mark] Lot 13 (agents-specialises): the agents of the call, its path and its hand-overs. */}
-                        <TraceDesAgents contexte={workflowRun?.gathered_context ?? null} />
-                        {/* [.mark] fiabilite-orchestration, lot 4 ter (F24) : les phrases dites par le code. */}
-                        <PhrasesDuCode contexte={(workflowRun?.gathered_context ?? null) as Record<string, unknown> | null} />
-
-                        {/* [.mark] The run window: latency turn by turn, providers, modules, record, path, incidents. */}
-                        <FenetreDuRun
-                            workflowId={Number(params.workflowId)}
-                            runId={Number(params.runId)}
-                            recordingKey={workflowRun?.recording_url ?? null}
-                        />
-
-                        {!isTextChatRun && hasSplitTracks && (
-                            <SplitTracksSection
-                                userRecordingUrl={userSplitRecordingUrl as string}
-                                botRecordingUrl={botSplitRecordingUrl as string}
-                            />
-                        )}
-
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <ContextDisplay
-                                title="Initial Context"
-                                context={workflowRun?.initial_context ?? null}
-                            />
-                            <ContextDisplay
-                                title="Gathered Context"
-                                context={workflowRun?.gathered_context ?? null}
-                            />
-                        </div>
-
-                        {workflowRun?.annotations && Object.keys(workflowRun.annotations).length > 0 && (
-                            <ContextDisplay
-                                title="QA Results"
-                                context={workflowRun.annotations as Record<string, string | number | boolean | object>}
-                            />
-                        )}
-                    </div>
-                </div>
-
-                <div className="h-full min-h-0 w-[420px] shrink-0 border-l border-border bg-background p-5">
-                    <div className="flex h-full min-h-0 flex-col gap-3">
-                        {/* [.mark] builder lot 6 : créer un test depuis une réplique de cet appel */}
-                        <BoutonCreerUnTest
-                            workflowId={Number(params.workflowId)}
-                            runId={Number(params.runId)}
-                            evenements={workflowRun?.logs?.realtime_feedback_events as never}
-                            rangInitial={rangDemande}
-                        />
-                        <ConversationRailFrame className="min-h-0 flex-1">
-                            <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
-                        </ConversationRailFrame>
-                    </div>
+                                ),
+                            },
+                            {
+                                id: 'agents',
+                                titre: tp({ en: 'Agents and tools', fr: 'Agents et outils' }),
+                                contenu: (
+                                    <div className="space-y-6" data-onglet-conversation="agents">
+                                        {/* [.mark] Lot 13 (agents-specialises): the agents of the call, its path and its hand-overs. */}
+                                        <TraceDesAgents contexte={workflowRun?.gathered_context ?? null} />
+                                        <FenetreDuRun
+                                            workflowId={idAgent}
+                                            runId={idRun}
+                                            blocs={['parcours', 'modules', 'fiche']}
+                                            lue={analyseLue}
+                                        />
+                                    </div>
+                                ),
+                            },
+                            {
+                                id: 'phrases',
+                                titre: tp({ en: 'Code sentences', fr: 'Phrases du code' }),
+                                contenu: (
+                                    <div data-onglet-conversation="phrases">
+                                        {/* [.mark] fiabilite-orchestration, lot 4 ter (F24) : les phrases dites par le code. */}
+                                        <PhrasesDuCode contexte={(workflowRun?.gathered_context ?? null) as Record<string, unknown> | null} />
+                                    </div>
+                                ),
+                            },
+                            {
+                                id: 'couts',
+                                titre: tp({ en: 'Costs', fr: 'Coûts' }),
+                                contenu: (
+                                    <div className="space-y-6" data-onglet-conversation="couts">
+                                        <RunMetricsSection
+                                            costInfo={workflowRun?.cost_info ?? null}
+                                            logs={workflowRun?.logs ?? null}
+                                            gatheredContext={workflowRun?.gathered_context ?? null}
+                                        />
+                                        <FenetreDuRun workflowId={idAgent} runId={idRun} blocs={['fournisseurs']} lue={analyseLue} />
+                                        {/* [.mark] The clerk's passes, failures and tokens (mode-prise-de-notes). */}
+                                        <BilanGreffier fiche={workflowRun?.gathered_context ?? null} />
+                                    </div>
+                                ),
+                            },
+                            {
+                                id: 'qualite',
+                                titre: tp({ en: 'Quality control', fr: 'Contrôle qualité' }),
+                                contenu: (
+                                    <div className="space-y-6" data-onglet-conversation="qualite">
+                                        <ContextDisplay
+                                            title="QA Results"
+                                            context={(workflowRun?.annotations ?? null) as Record<string, string | number | boolean | object> | null}
+                                        />
+                                        {workflowRun?.gathered_context?.trace_url && (
+                                            <Button asChild size="sm" variant="outline" className="gap-2">
+                                                <a href={String(workflowRun.gathered_context.trace_url)} target="_blank" rel="noopener noreferrer">
+                                                    <ExternalLink className="h-4 w-4" />
+                                                    View Trace
+                                                </a>
+                                            </Button>
+                                        )}
+                                    </div>
+                                ),
+                            },
+                            {
+                                id: 'contexte',
+                                titre: tp({ en: 'Context', fr: 'Contexte' }),
+                                contenu: (
+                                    <div className="grid gap-6 md:grid-cols-2" data-onglet-conversation="contexte">
+                                        <ContextDisplay title="Initial Context" context={workflowRun?.initial_context ?? null} />
+                                        <ContextDisplay title="Gathered Context" context={workflowRun?.gathered_context ?? null} />
+                                    </div>
+                                ),
+                            },
+                        ]}
+                    />
                 </div>
             </div>
         );

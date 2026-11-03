@@ -61,6 +61,7 @@ ARGUMENTS = {
     "base_rattacher": {"workflow_id": AGENT, "proposition": "p", "noeud": "1"},
     "objets_agent_lister": {},
     "objets_agent_ecrire": {"depuis": "a"},
+    "etiquettes_agent": {"workflow_id": AGENT, "etiquettes": ["Recette"]},
 }
 
 

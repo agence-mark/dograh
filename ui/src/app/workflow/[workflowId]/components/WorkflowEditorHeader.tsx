@@ -28,6 +28,7 @@ import {
     Phone,
     Play,
     Rocket,
+    Tag,
     Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -42,6 +43,7 @@ import {
 import { WorkflowError } from "@/client/types.gen";
 import { BarreDuBuilder } from "@/components/builder/ecran/BarreDuBuilder";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
+import { FenetreEtiquettes } from "@/components/mark/agent/etiquettes/FenetreEtiquettes";
 import { adresseDesAgents } from "@/components/mark/agent/liste-des-agents";
 import { MenuMembre } from "@/components/mark/agent/MenuMembre";
 import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
@@ -126,6 +128,7 @@ const T = {
     duplicationEchoue: { en: "The agent could not be duplicated", fr: "L'agent n'a pas pu être dupliqué" },
     telecharger: { en: "Download (JSON)", fr: "Télécharger (JSON)" },
     copierUuid: { en: "Copy the UUID", fr: "Copier l'UUID" },
+    etiquettes: { en: "Labels", fr: "Étiquettes" },
     uuidCopie: { en: "UUID copied", fr: "UUID copié" },
     uuidIndisponible: { en: "UUID not available", fr: "UUID indisponible" },
     uuidEchoue: { en: "The UUID could not be copied", fr: "L'UUID n'a pas pu être copié" },
@@ -155,6 +158,7 @@ export const WorkflowEditorHeader = ({
     const [savingWorkflow, setSavingWorkflow] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [etiquettesOuvert, setEtiquettesOuvert] = useState(false);
     const [retour, setRetour] = useState("/labo/agents");
     useEffect(() => setRetour(adresseDesAgents(espaceRetenu())), []);
     // Un seul état pour le renommage : l'erreur et l'enregistrement s'excluent, et ni l'un ni l'autre n'a de sens à l'affichage.
@@ -502,6 +506,10 @@ export const WorkflowEditorHeader = ({
                                 <Download className="mr-2 size-4" />
                                 {t(T.telecharger)}
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEtiquettesOuvert(true)} className="cursor-pointer hover:font-medium">
+                                <Tag className="mr-2 size-4" />
+                                {t(T.etiquettes)}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleCopyAgentUuid} disabled={!workflowUuid} className="cursor-pointer hover:font-medium">
                                 <Clipboard className="mr-2 size-4" />
                                 {t(T.copierUuid)}
@@ -511,6 +519,7 @@ export const WorkflowEditorHeader = ({
                 </div>
             </div>
 
+            <FenetreEtiquettes agentId={workflowId} ouvert={etiquettesOuvert} onOuvertChange={setEtiquettesOuvert} />
             <OngletsAgent
                 agentId={workflowId}
                 actif="parcours"

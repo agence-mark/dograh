@@ -17,6 +17,7 @@ from api.routes.cles import router as cles_router
 from api.routes.equipe_mark import router as equipe_mark_router
 from api.routes.equipe_mark import routeur_public as invitation_router
 from api.routes.espaces import router as espaces_router
+from api.routes.etiquettes import router as etiquettes_router
 from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
@@ -118,6 +119,7 @@ router.include_router(modules_router)
 router.include_router(verification_router)
 # [.mark] builder partie 2, U2: the spaces (Labo, clients), mounted before the organization router.
 router.include_router(espaces_router)
+router.include_router(etiquettes_router)
 # [.mark] U2 ter: the .mark team (roles, members, invitations, journal) and the public invitation page.
 router.include_router(equipe_mark_router)
 router.include_router(invitation_router)

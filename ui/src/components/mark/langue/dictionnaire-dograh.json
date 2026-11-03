@@ -109,7 +109,6 @@
   "Agent / version": "Agent / version",
   "Agent Name": "Nom de l'agent",
   "Agent name, call behavior, and turn detection.": "Nom de l'agent, comportement d'appel et détection des tours de parole.",
-  "Agent Run Completed": "Appel de l'agent terminé",
   "Agent Runs": "Appels passés",
   "Agent UUID": "Identifiant de l'agent (UUID)",
   "Agent UUID copied": "Identifiant de l'agent copié",
@@ -208,7 +207,6 @@
   "Call Management": "Gestion des appels",
   "Call Schedule": "Horaires d'appel",
   "Call this agent in the browser": "Appeler cet agent depuis le navigateur",
-  "Call time:": "Heure d'appel :",
   "Call to Action Text": "Texte d'incitation",
   "Call Type": "Type d'appel",
   "Caller ID (from)": "Numéro présenté (émetteur)",
@@ -1011,7 +1009,6 @@
   "Retry On": "Rappeler si",
   "Reuse generated audio for repeated phrases to reduce response time and speech generation costs. Cached audio expires after 24 hours. Currently available with MiniMax TTS.": "Réutilise l'audio déjà généré pour les phrases répétées, afin de répondre plus vite et de payer moins de synthèse vocale. L'audio en cache expire après 24 heures. Disponible aujourd'hui avec la voix MiniMax.",
   "Reuses count speech requests served from cache. Listening here does not count as reuse or extend expiry.": "Les réutilisations comptent les demandes de paroles servies depuis le cache. Écouter ici ne compte pas comme une réutilisation et ne prolonge pas l'expiration.",
-  "Review the conversation history, metrics, and context captured for this text session.": "Relisez l'historique de la conversation, les mesures et le contexte relevés pour cette session écrite.",
   "Route calls into this Stasis application": "Diriger les appels vers cette application Stasis",
   "Route calls to": "Diriger les appels vers",
   "Rule": "Règle",
@@ -1189,7 +1186,6 @@
   "Testing sends an actual": "Le test envoie une vraie requête",
   "Testing...": "Test...",
   "Text": "Texte",
-  "Text Chat Session": "Session de discussion écrite",
   "The": "Le",
   "The agent plays this message, then disconnects the call.": "L'agent dit ce message, puis raccroche.",
   "The agent this tool hands the caller to. For more than one destination, create a tool per agent.": "L'agent auquel cet outil passe l'appelant. Pour plusieurs destinations, créez un outil par agent.",
@@ -1258,7 +1254,6 @@
   "total runs)": "appels au total)",
   "Total Workflow Runs": "Total des appels des workflows",
   "Total:": "Total :",
-  "Trace:": "Trace :",
   "Traces": "Traces",
   "Trade vocabulary": "Lexique métier",
   "Traffic %": "Trafic %",
@@ -1410,6 +1405,5 @@
   "Your code": "Votre code",
   "Your Documents": "Vos documents",
   "Your organization has no default yet.": "Votre organisation n'a pas encore de valeur par défaut.",
-  "Your Tools": "Vos outils",
-  "Your voice agent run has been completed successfully. You can preview or download the transcript and recording.": "L'appel de votre agent vocal s'est bien terminé. Vous pouvez afficher ou télécharger la transcription et l'enregistrement."
+  "Your Tools": "Vos outils"
 }

@@ -232,10 +232,13 @@ describe("Fenêtre du run", () => {
         });
         lireAgent.mockResolvedValue({ data: { name: "essai" } });
         lireAnalyse.mockResolvedValue({ data: ANALYSE });
+        lireAnalyse.mockClear();
         const { default: PageDuRun } = await import("@/app/workflow/[workflowId]/run/[runId]/page");
         enFrancais(<PageDuRun />);
-        await waitFor(() => expect(screen.getByTestId("fenetre-du-run")).toBeTruthy());
+        // La page range les blocs dans ses onglets (U3) : plusieurs fenêtres, une seule lecture de l'analyse.
+        await waitFor(() => expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0));
         expect(lireAnalyse).toHaveBeenCalledWith({ path: { workflow_id: 34, run_id: 967 } });
+        expect(lireAnalyse).toHaveBeenCalledTimes(1);
     });
 });
 

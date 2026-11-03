@@ -85,7 +85,7 @@ const monterLaPage = async (gathered: Record<string, unknown>) => {
     });
     const { default: PageDuRun } = await import("@/app/workflow/[workflowId]/run/[runId]/page");
     enFrancais(<PageDuRun />);
-    await waitFor(() => expect(screen.getByTestId("fenetre-du-run")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0));
 };
 
 const texte = (element: Element) => (element.textContent ?? "").replace(/\s+/g, " ");
@@ -229,7 +229,7 @@ describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () =
         expect(screen.queryByText("Agents de l'appel")).toBeNull();
         expect(document.querySelector('[data-carte="agents-de-l-appel"]')).toBeNull();
         // Les autres blocs de la page sont là.
-        expect(screen.getByTestId("fenetre-du-run")).toBeTruthy();
+        expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0);
         expect(screen.getByText("Mesures de l'appel")).toBeTruthy();
     });
 

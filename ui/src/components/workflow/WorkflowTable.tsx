@@ -21,6 +21,7 @@ import type { FolderResponse } from '@/client/types.gen';
 import { BoutonDupliquerAgent } from '@/components/mark/BoutonDupliquerAgent';
 import { BadgeGroupe, type RoleAffiche } from '@/components/mark/groupe/BadgeGroupe';
 import { ChoixSpecialisesArchivage } from '@/components/mark/groupe/ChoixSpecialisesArchivage';
+import { Etiquette } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -66,6 +67,8 @@ interface WorkflowTableProps {
      * Archiving a main agent asks what to do with its specialised agents first.
      */
     roles?: Map<number, RoleAffiche>;
+    /** [.mark] U3 (E30): the labels of each agent (by id), drawn under its name. */
+    etiquettes?: Record<string, string[]>;
 }
 
 export function WorkflowTable({
@@ -74,6 +77,7 @@ export function WorkflowTable({
     folders,
     currentFolderId = null,
     roles,
+    etiquettes,
 }: WorkflowTableProps) {
     const router = useRouter();
     const organizationTimezone = useOrganizationTimezone();
@@ -183,6 +187,13 @@ export function WorkflowTable({
                                 <TableCell className="font-medium">
                                     {workflow.name}
                                     <BadgeGroupe role={roles?.get(workflow.id)} />
+                                    {(etiquettes?.[String(workflow.id)] ?? []).length > 0 && (
+                                        <span className="mt-1 flex flex-wrap gap-1 font-normal" data-etiquettes-de-l-agent>
+                                            {(etiquettes?.[String(workflow.id)] ?? []).map((nom) => (
+                                                <Etiquette key={nom}>{nom}</Etiquette>
+                                            ))}
+                                        </span>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     {formatDate(workflow.created_at, organizationTimezone)}

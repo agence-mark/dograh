@@ -19,6 +19,8 @@ vi.mock("@/client/sdk.gen", () => ({
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost: vi.fn(),
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost: vi.fn(),
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet: vi.fn(async () => ({ data: {} })),
+    lireLesEtiquettesApiV1EtiquettesGet: vi.fn(async () => ({ data: { etiquettes: [{ nom: "Recette", nb_agents: 1 }], par_agent: { "5": ["Recette"] } } })),
+    poserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPut: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
 vi.mock("@/components/ui/sidebar", () => ({ useSidebar: () => ({ toggleSidebar: vi.fn() }) }));
@@ -135,6 +137,16 @@ describe("la ligne d'onglets et les menus de la barre", () => {
         expect(within(menu).getByText("Download (JSON)")).toBeTruthy();
         expect(within(menu).getByText("Copy the UUID")).toBeTruthy();
         expect(within(menu).queryByText(/Export|Exporter/)).toBeNull();
+    });
+
+    it("⋮ › Étiquettes ouvre la fenêtre des étiquettes de l'agent, avec celles qu'il porte déjà cochées", async () => {
+        render(<WorkflowEditorHeader {...base} />);
+        const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
+        fireEvent.click(within(menu).getByText("Labels"));
+        const fenetre = await screen.findByRole("dialog");
+        expect(fenetre.getAttribute("data-fenetre")).toBe("etiquettes");
+        const recette = await within(fenetre).findByRole("checkbox", { name: "Recette" });
+        expect(recette.getAttribute("aria-checked")).toBe("true");
     });
 
     it("la version est un menu qui mène à l'onglet Versions, et « non enregistré » se lit dans la ligne d'onglets", async () => {

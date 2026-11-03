@@ -74,6 +74,8 @@ interface FolderSectionProps {
     children?: ReactNode;
     groupes?: ReactNode;
     roles?: Map<number, RoleAffiche>;
+    /** [.mark] U3 (E30): the labels of the agents by id, drawn on the rows. */
+    etiquettes?: Record<string, string[]>;
     nombre?: number;
 }
 
@@ -86,6 +88,7 @@ export function FolderSection({
     children,
     groupes,
     roles,
+    etiquettes,
     nombre,
 }: FolderSectionProps) {
     const router = useRouter();
@@ -223,6 +226,7 @@ export function FolderSection({
                                 folders={isArchived ? undefined : allFolders}
                                 currentFolderId={folder?.id ?? null}
                                 roles={roles}
+                                etiquettes={etiquettes}
                             />
                         ) : count > 0 || children ? null : (
                             <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
