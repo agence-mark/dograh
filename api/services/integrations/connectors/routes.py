@@ -244,12 +244,12 @@ async def post_lien(
 # --------------------------------------------------------------------------- #
 
 
-@router.get("/propositions", response_model=list[propositions.Proposition])
+@router.get("/propositions", response_model=list[propositions.PropositionConnecteur])
 async def get_propositions(user: UserModel = Depends(get_user_with_selected_organization)):
     return await propositions.avec_etat(user.selected_organization_id)
 
 
-@router.post("/propositions", response_model=propositions.Proposition, status_code=201)
+@router.post("/propositions", response_model=propositions.PropositionConnecteur, status_code=201)
 async def post_proposition(
     nouvelle: propositions.NouvelleProposition,
     user: UserModel = Depends(get_user_with_selected_organization),
@@ -262,7 +262,7 @@ async def post_proposition(
         raise HTTPException(status_code=422, detail=str(erreur)) from None
 
 
-@router.post("/propositions/{identifiant}/relancer", response_model=propositions.Proposition)
+@router.post("/propositions/{identifiant}/relancer", response_model=propositions.PropositionConnecteur)
 async def post_relance(
     identifiant: str, user: UserModel = Depends(get_user_with_selected_organization)
 ):

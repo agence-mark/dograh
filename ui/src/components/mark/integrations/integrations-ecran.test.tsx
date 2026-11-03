@@ -18,12 +18,14 @@ const CATALOGUE = [
         nom: "agenda_essai",
         libelle: "Agenda d'essai",
         integration: "agenda-essai",
+        etat: "a_essayer",
         actions: [
             { nom: "trouver", description: "Find slots.", ecrit: false, anticipable_permis: true, parametres: [], reglages_par_defaut: { nombre: 3 } },
             { nom: "poser", description: "Book.", ecrit: true, anticipable_permis: false, parametres: [], reglages_par_defaut: {} },
         ],
     },
-    { nom: "crm_essai", libelle: "CRM d'essai", integration: "crm-essai", actions: [], },
+    { nom: "crm_essai", libelle: "CRM d'essai", integration: "crm-essai", etat: "a_essayer", actions: [] },
+    { nom: "immo_essai", libelle: "Immo d'essai", integration: "immo-essai", etat: "a_activer", editeur: "Éditeur d'essai", actions: [] },
 ];
 const CONNEXIONS = {
     nango_configure: true,
@@ -95,11 +97,27 @@ describe("[.mark] Intégrations › Logiciels", () => {
         monter();
         const carte = (await screen.findByText("Agenda d'essai")).closest("button")!;
         expect(carte.textContent).toContain("Branché");
-        expect(screen.getByText("CRM d'essai").closest("button")!.textContent).toContain("Non branché");
+        expect(screen.getByText("CRM d'essai").closest("button")!.textContent).toContain("À essayer");
+        expect(screen.getByText("Immo d'essai").closest("button")!.textContent).toContain("À activer");
         fireEvent.change(screen.getByPlaceholderText("Rechercher un logiciel"), { target: { value: "crm" } });
         expect(screen.queryByText("Agenda d'essai")).toBeNull();
         fireEvent.change(screen.getByPlaceholderText("Rechercher un logiciel"), { target: { value: "zzz" } });
         expect(await screen.findByText(/aucun résultat/i)).toBeTruthy();
+    });
+
+    it("dit l'état du logiciel : À essayer avec son explication, À activer avec l'éditeur et sans lien de connexion", async () => {
+        monter();
+        fireEvent.click(await screen.findByText("CRM d'essai"));
+        expect(await screen.findByText("État")).toBeTruthy();
+        expect(screen.getByText("crm-essai · À essayer")).toBeTruthy();
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+        cleanup();
+        monter();
+        fireEvent.click(await screen.findByText("Immo d'essai"));
+        expect(await screen.findByText("Éditeur d'essai")).toBeTruthy();
+        expect(screen.getByText("API sur contrat")).toBeTruthy();
+        expect(screen.getByText("immo-essai · À activer")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /lien d'autorisation/i })).toBeNull();
     });
 
     it("ouvre un logiciel : comptes branchés, nouveau lien, débrancher", async () => {

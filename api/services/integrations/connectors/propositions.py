@@ -28,7 +28,7 @@ CLE = OrganizationConfigurationKey.PROPOSITIONS_CONNECTEURS.value
 MAX_PROPOSITIONS = 100
 
 
-class Proposition(BaseModel):
+class PropositionConnecteur(BaseModel):
     identifiant: str
     connecteur: str
     compte: str = Field(min_length=1, max_length=nango.LONGUEUR_ETIQUETTE)
@@ -43,8 +43,8 @@ class Proposition(BaseModel):
     autorise_par: str | None = None
 
 
-class Propositions(BaseModel):
-    propositions: list[Proposition] = Field(default_factory=list)
+class PropositionsStockees(BaseModel):
+    propositions: list[PropositionConnecteur] = Field(default_factory=list)
 
 
 class NouvelleProposition(BaseModel):
@@ -71,23 +71,23 @@ def _maintenant() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-async def lire(organization_id: int) -> Propositions:
+async def lire(organization_id: int) -> PropositionsStockees:
     """Never raises: unreadable or absent = none."""
     try:
         ligne = await db_client.get_configuration(organization_id, CLE)
         if ligne is None or not ligne.value:
-            return Propositions()
-        return Propositions.model_validate(ligne.value)
+            return PropositionsStockees()
+        return PropositionsStockees.model_validate(ligne.value)
     except Exception as erreur:  # noqa: BLE001 -- logged, the list is shown empty
         logger.error(f"[.mark] Proposals of organization {organization_id} unreadable: {erreur!r}")
-        return Propositions()
+        return PropositionsStockees()
 
 
-async def _ecrire(organization_id: int, valeur: Propositions) -> None:
+async def _ecrire(organization_id: int, valeur: PropositionsStockees) -> None:
     await db_client.upsert_configuration(organization_id, CLE, valeur.model_dump(mode="json"))
 
 
-async def avec_etat(organization_id: int) -> list[Proposition]:
+async def avec_etat(organization_id: int) -> list[PropositionConnecteur]:
     """The proposals with their state: « autorisee » when a connection of that software holds the
     account's name. Nango unreachable: the stored state, never an error."""
     liste = (await lire(organization_id)).propositions
@@ -114,7 +114,7 @@ async def avec_etat(organization_id: int) -> list[Proposition]:
 
 async def proposer(
     organization_id: int, nouvelle: NouvelleProposition, propose_par: str | None
-) -> Proposition:
+) -> PropositionConnecteur:
     from api.services.integrations.connectors.catalogue import connecteur
 
     c = connecteur(nouvelle.connecteur)
@@ -128,7 +128,7 @@ async def proposer(
         raise ValueError("Too many proposals: remove some first.")
     if any(p.connecteur == c.nom and p.compte == compte and p.etat == "a_autoriser" for p in existantes):
         raise PropositionDejaPresente(f"« {compte} » is already proposed for {c.libelle}.")
-    proposition = Proposition(
+    proposition = PropositionConnecteur(
         identifiant=uuid.uuid4().hex,
         connecteur=c.nom,
         compte=compte,
@@ -137,11 +137,11 @@ async def proposer(
         propose_le=_maintenant(),
     )
     stockees = (await lire(organization_id)).propositions
-    await _ecrire(organization_id, Propositions(propositions=[*stockees, proposition]))
+    await _ecrire(organization_id, PropositionsStockees(propositions=[*stockees, proposition]))
     return proposition
 
 
-async def _trouver(organization_id: int, identifiant: str) -> tuple[Propositions, Proposition]:
+async def _trouver(organization_id: int, identifiant: str) -> tuple[PropositionsStockees, PropositionConnecteur]:
     stockees = await lire(organization_id)
     for p in stockees.propositions:
         if p.identifiant == identifiant:
@@ -149,7 +149,7 @@ async def _trouver(organization_id: int, identifiant: str) -> tuple[Propositions
     raise PropositionIntrouvable(identifiant)
 
 
-async def relancer(organization_id: int, identifiant: str) -> Proposition:
+async def relancer(organization_id: int, identifiant: str) -> PropositionConnecteur:
     stockees, p = await _trouver(organization_id, identifiant)
     p2 = p.model_copy(update={"relances": p.relances + 1, "relance_le": _maintenant()})
     stockees.propositions = [p2 if x.identifiant == identifiant else x for x in stockees.propositions]
