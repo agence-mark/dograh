@@ -1,0 +1,54 @@
+{
+  "id": "lire-avant-d-ecrire",
+  "demande": "Change l'accueil de mon agent pour qu'il soit plus chaleureux.",
+  "plateforme": {
+    "brouillon_voir": {
+      "ok": true,
+      "en_attente": [],
+      "noeuds": 2
+    }
+  },
+  "tours": [
+    [
+      {
+        "appel": "recette_lire",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "appel": "brouillon_voir",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "appel": "brouillon_operation",
+        "arguments": {
+          "operations": [
+            {
+              "op": "modifier_prompt",
+              "id": "1",
+              "prompt": "Bonjour, comment puis-je vous aider ?"
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "texte": "Le changement est en attente de votre revue."
+      }
+    ]
+  ],
+  "correcteurs": [
+    {
+      "genre": "ordre",
+      "actions": [
+        "recette_lire",
+        "brouillon_voir",
+        "brouillon_operation"
+      ]
+    }
+  ]
+}
