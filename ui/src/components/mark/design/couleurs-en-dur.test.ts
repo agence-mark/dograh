@@ -43,7 +43,7 @@ export const PALETTE_MARK = new Set(
     [
         "#ffffff", "#0e0e0e", "#0a0a0a", "#f5f5f5", "#141414", "#f4f4f4", "#1f1f1f",
         "#737373", "#9a9a9a", "#1a1a1a", "#ebebeb", "#242424", "#e5e5e5", "#2c2c2c",
-        "#a3a3a3", "#5c5c5c", "#d93036", "#f16a6e", "#fafafa", "#efefef", "#222222",
+        "#a3a3a3", "#5c5c5c", "#d93036", "#f16a6e", "#fafafa", "#efefef", "#222222", "#0f1c2e", "#3d8fe6", "#111a26", "#5e6b7b", "#e4ebf3", "#eaf3fd", "#f2f7fe", "#1b5fb0", "#2b78cf", "#dd4949",
         "#121212", "#d4d4d4", "#3a3a3a", "#22a355", "#3ecf7a", "#e08a00", "#f0a93a",
         "#e5484d", "#b4b4b4", "#2a2a2a", "#333333", "#4a4a4a", "#2268d8",
     ],

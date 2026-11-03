@@ -20,64 +20,85 @@
 /* ---- Tokens (plan D3) ---------------------------------------------------- */
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #111a26;
   --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --card-foreground: #111a26;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --primary: #0a0a0a;
+  --popover-foreground: #111a26;
+  --primary: #0f1c2e;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f4;
-  --secondary-foreground: #0a0a0a;
-  --muted: #f4f4f4;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5;
-  --accent-foreground: #0a0a0a;
+  --secondary: #f2f7fe;
+  --secondary-foreground: #0f1c2e;
+  --muted: #f2f7fe;
+  --muted-foreground: #5e6b7b;
+  --accent: #eaf3fd;
+  --accent-foreground: #1b5fb0;
   --destructive: #d93036;
-  --border: #ebebeb;
-  --input: #e5e5e5;
-  --ring: #2974ed;
+  --border: #e4ebf3;
+  --input: #e4ebf3;
+  --ring: #3d8fe6;
 
-  --sidebar: #fafafa;
-  --sidebar-foreground: #0a0a0a;
-  --sidebar-primary: #0a0a0a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111a26;
+  --sidebar-primary: #0f1c2e;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #efefef;
-  --sidebar-accent-foreground: #0a0a0a;
-  --sidebar-border: #ebebeb;
-  --sidebar-ring: #2974ed;
+  --sidebar-accent: #eaf3fd;
+  --sidebar-accent-foreground: #1b5fb0;
+  --sidebar-border: #e4ebf3;
+  --sidebar-ring: #3d8fe6;
 
   /* Dograh's orange call to action, now black. */
-  --cta: #0a0a0a;
+  --cta: #0f1c2e;
   --cta-foreground: #ffffff;
 
   /* New .mark tokens, used as bg-(--surface), text-(--signal-ok), ... */
-  --surface: #fafafa;
-  --border-strong: #d4d4d4;
+  --surface: #f7fafe;
+  --border-strong: #cbd8e6;
   --signal-ok: #22a355;
   --signal-warn: #e08a00;
   --signal-danger: #e5484d;
   --signal-idle: #b4b4b4;
-  --bubble-agent: #0a0a0a;
+  --bubble-agent: #0f1c2e;
   --primary-disabled: #a3a3a3;
   --primary-disabled-foreground: #fafafa;
 
   /* The blue accent: --acc (lines, borders, icons), --acc-soft (tinted ground),
      --acc-text (text on the tinted ground), --acc-fill (full surface under white text),
      --acc-line (the gates' lines, lighter than a selected one). */
-  --acc: #2974ed;
-  --acc-soft: #eaf1fd;
-  --acc-text: #1f5fc8;
-  --acc-fill: #2268d8;
-  --acc-line: color-mix(in oklab, #2974ed 55%, transparent);
+  --acc: #3d8fe6;
+  --acc-soft: #eaf3fd;
+  --acc-text: #1b5fb0;
+  --acc-fill: #2b78cf;
+  --acc-line: color-mix(in oklab, #3d8fe6 55%, transparent);
 
   /* Node types in the graph (Evan, 27/09): start green, end red, global violet, white text. */
   --node-start: #15803d;
   --node-end: #c62f35;
   --node-global: #7c3aed;
+
+
+  /* Marques (E19, E100) : quatre tons, une pastille rouge réservée à ce qui demande une action.
+     Jamais d'orange à l'écran (E100) : « attention » prend le bleu .mark. */
+  --marque-neutre: #eef2f7;
+  --marque-neutre-texte: #0f1c2e;
+  --marque-succes: #e7f6ec;
+  --marque-succes-texte: #1a7f3c;
+  --marque-attention: #eaf3fd;
+  --marque-attention-texte: #1b5fb0;
+  --marque-danger: #fdecec;
+  --marque-danger-texte: #c43c3c;
+  --marque-plein: #0f1c2e;
+  --marque-plein-texte: #ffffff;
+  --pastille-urgente: #dd4949;
+  --point-publie: #1a7f3c;
+  --point-fini: #8a97a6;
+  --gravite-grave: #c2362f;
+  --gravite-surveiller: #1b5fb0;
+  --gravite-faible: #52606f;
+  --etat-fait: #1a9e5c;
 
   /* The giant faded "dograh" wordmark, removed (D8). */
   --brand-imprint: none;
@@ -131,7 +152,55 @@
   --acc-fill: #2f6fe0;
   --acc-line: color-mix(in oklab, #5b97f5 55%, transparent);
 
+  --marque-neutre: #1f2733;
+  --marque-neutre-texte: #e6edf5;
+  --marque-succes: #12301f;
+  --marque-succes-texte: #5fd08a;
+  --marque-attention: #17243a;
+  --marque-attention-texte: #8ab5f8;
+  --marque-danger: #3a1a1c;
+  --marque-danger-texte: #f19a9d;
+  --marque-plein: #e6edf5;
+  --marque-plein-texte: #0e0e0e;
+  --pastille-urgente: #dd4949;
+  --point-publie: #3ecf7a;
+  --point-fini: #7a8796;
+  --gravite-grave: #c4383d;
+  --gravite-surveiller: #2f6fe0;
+  --gravite-faible: #52606f;
+  --etat-fait: #3ecf7a;
+
   --brand-imprint: none;
+}
+
+/* ---- Police Switzer (hébergée dans ui/public/fonts, aucune police chargée d'un site tiers) ---- */
+
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
+:root {
+  /* globals.css lit --font-sans dans cette variable : la police de tout l'écran devient Switzer. */
+  --font-geist-sans: "Switzer", system-ui, sans-serif;
+}
+
+/* ---- Interactions communes (E71, E89, E101) ---- */
+
+/* E101 : tout ce qui se clique montre la main ; ce qui est désactivé, l'interdiction. */
+button:not(:disabled), a[href], summary, select, label:has(input:not(:disabled)),
+input[type="checkbox"], input[type="radio"], input[type="file"], input[type="range"],
+[role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"],
+[role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"] {
+  cursor: pointer;
+}
+button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select:disabled {
+  cursor: not-allowed;
+}
+
+/* E71 : une fenêtre ouverte depuis une autre laisse la place de sa flèche retour devant le titre. */
+[data-slot="dialog-content"][data-imbriquee] > :first-child {
+  padding-left: 3.5rem !important;
 }
 
 /* ---- Page titles (D5) ---------------------------------------------------- */

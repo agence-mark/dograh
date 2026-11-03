@@ -1,9 +1,11 @@
 "use client"
 
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon } from "lucide-react"
+import { ArrowLeft, XIcon } from "lucide-react"
 import * as React from "react"
 
+import { useLangue } from "@/components/mark/langue/langue"
+import { FenetreParente, tailleDe } from "@/components/mark/studio/fenetre-parente"
 import { cn } from "@/lib/utils"
 
 function Dialog({
@@ -51,6 +53,10 @@ function DialogContent({
   children,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  // [.mark] E71 : ouverte depuis une autre fenêtre, elle prend sa taille exacte et une flèche retour remplace la croix.
+  const parente = React.useContext(FenetreParente)
+  const { t } = useLangue()
+  const taille = parente ? parente.classe : tailleDe(className) || "sm:max-w-lg"
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -74,17 +80,30 @@ function DialogContent({
           }
         }}
         data-slot="dialog-content"
+        data-imbriquee={parente ? "" : undefined}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-          className
+          className,
+          parente && parente.classe
         )}
         {...props}
       >
-        {children}
+        <FenetreParente.Provider value={{ classe: taille }}>{children}</FenetreParente.Provider>
+        {parente ? (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            aria-label={t({ en: "Back", fr: "Retour" })}
+            title={t({ en: "Back", fr: "Retour" })}
+            className="absolute top-[22px] left-5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-hidden"
+          >
+            <ArrowLeft className="size-4" />
+          </DialogPrimitive.Close>
+        ) : (
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
           <XIcon />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   )
