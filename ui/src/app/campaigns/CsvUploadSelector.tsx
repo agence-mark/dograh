@@ -1,9 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { notifier } from "@/components/mark/notifications";
 
 import { getPresignedUploadUrlApiV1S3PresignedUploadUrlPost } from '@/client/sdk.gen';
+import { useLangue } from '@/components/mark/langue/langue';
+import { notifier } from "@/components/mark/notifications";
+import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import logger from '@/lib/logger';
@@ -16,6 +18,7 @@ interface CsvUploadSelectorProps {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: CsvUploadSelectorProps) {
+  const { t } = useLangue();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +97,15 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
   return (
     <div className="space-y-2">
-      <Label>CSV File</Label>
+      <Label className="flex items-center gap-1.5">
+        CSV File
+        <Info>
+          {t({
+            en: 'Upload a CSV file with contact data. Must include phone_number column. The columns can be accessed as initial_context in the workflow nodes. Max 10MB.',
+            fr: 'Envoyez un fichier CSV avec vos contacts. Il doit contenir une colonne phone_number. Les colonnes sont accessibles dans les nœuds du workflow sous initial_context. 10 Mo max.',
+          })}
+        </Info>
+      </Label>
       <div className="flex items-center gap-4">
         <input
           ref={fileInputRef}
@@ -118,11 +129,6 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
           </div>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Upload a CSV file with contact data. Must include phone_number column.
-        The columns can be accessed as initial_context in the workflow nodes. <br/>
-        Max 10MB.
-      </p>
     </div>
   );
 }

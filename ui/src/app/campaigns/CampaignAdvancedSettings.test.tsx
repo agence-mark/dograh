@@ -10,6 +10,7 @@ import { FournisseurLangue } from "@/components/mark/langue/langue";
 vi.mock("react-timezone-select", () => ({ default: () => <div data-testid="fuseau" /> }));
 
 import CampaignAdvancedSettings from "./CampaignAdvancedSettings";
+import CsvUploadSelector from "./CsvUploadSelector";
 
 afterEach(() => cleanup());
 
@@ -63,5 +64,15 @@ describe("[.mark] K8 : réglages avancés d'une campagne", () => {
         // L'interrupteur reste un contrôle à part : le « ! » n'est pas dans son étiquette.
         const etiquette = container.querySelector('label[for="retry-enabled"]');
         expect(etiquette?.querySelector('[role="button"]')).toBeNull();
+    });
+
+    it("le sélecteur de fichier CSV garde son explication dans le « ! », dite dans la langue de l'écran", () => {
+        const { container } = render(
+            <FournisseurLangue>
+                <CsvUploadSelector onFileUploaded={rien} selectedFileName="" />
+            </FournisseurLangue>,
+        );
+        expect(container.textContent).not.toMatch(/phone_number/);
+        expect(screen.getByRole("button", { name: "Précision" })).toBeTruthy();
     });
 });
