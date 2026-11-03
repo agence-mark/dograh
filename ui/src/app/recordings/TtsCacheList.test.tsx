@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn(), preview: vi.fn(), invalidate: vi.fn(), clear: vi.fn(),
     toastError: vi.fn(),
 }));
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/lib/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "UTC" }));
 vi.mock("@/client/sdk.gen", () => ({

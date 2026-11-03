@@ -1,5 +1,6 @@
 "use client";
 
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { BookOpen, Check, Download, Plus, Search, Square, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -713,7 +714,7 @@ export function SectionLexiqueMetier() {
                       value={terme.prononciation ?? ""}
                       onChange={(e) => modifier(rang, { prononciation: e.target.value || null })}
                     />
-                    <select
+                    <ListeDeroulante
                       aria-label={`Kind ${rang + 1}`}
                       className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                       value={terme.type ?? "nom"}
@@ -723,7 +724,7 @@ export function SectionLexiqueMetier() {
                     >
                       <option value="nom">Name</option>
                       <option value="mot">Word</option>
-                    </select>
+                    </ListeDeroulante>
                     <Input
                       aria-label={`Category ${rang + 1}`}
                       value={terme.categorie ?? ""}

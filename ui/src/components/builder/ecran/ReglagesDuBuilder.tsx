@@ -7,6 +7,7 @@
  * ⛔ The key is written, never read back: the field starts empty, says « a key is saved » when there is one, and an
  * empty field leaves the saved key alone. Only members of the .mark team may change the brain (the server decides).
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
@@ -117,7 +118,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
                 <div className="space-y-3">
                     <div className="space-y-1">
                         <Label htmlFor="builder-format">{t(T.fournisseur)}</Label>
-                        <select
+                        <ListeDeroulante
                             id="builder-format"
                             className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                             value={format}
@@ -125,7 +126,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
                         >
                             <option value="anthropic">{t(T.anthropic)}</option>
                             <option value="openai">{t(T.openai)}</option>
-                        </select>
+                        </ListeDeroulante>
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor="builder-modele">{t(T.modele)}</Label>

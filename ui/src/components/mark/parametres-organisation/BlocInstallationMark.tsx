@@ -9,6 +9,7 @@
  * save fixes it, any other organization is refused. Acts at once (its own button),
  * nothing of the theme's « Save ».
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -119,7 +120,7 @@ export function BlocInstallationMark() {
                 <Input id="installation-smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poserSmtp("port", Number(e.target.value))} />
             </ChampReglage>
             <ChampReglage cle="installation.smtp_securite" idControle="installation-smtp-securite" libelle={{ en: "Security", fr: "Sécurité" }}>
-                <select
+                <ListeDeroulante
                     id="installation-smtp-securite"
                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                     value={smtp.securite ?? "starttls"}
@@ -128,7 +129,7 @@ export function BlocInstallationMark() {
                     <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
                     <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
                     <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
-                </select>
+                </ListeDeroulante>
             </ChampReglage>
             <ChampReglage cle="installation.smtp_utilisateur" idControle="installation-smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>
                 <Input id="installation-smtp-utilisateur" value={smtp.utilisateur ?? ""} onChange={(e) => poserSmtp("utilisateur", vide(e.target.value))} />

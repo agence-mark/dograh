@@ -10,6 +10,7 @@
  * Acts at once with its own button, like the connections above it (E6, exceptions of the theme).
  * The organization is never chosen here: the server takes the signed-in user's (D6).
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -103,7 +104,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                     },
                 ]}
             >
-                <select
+                <ListeDeroulante
                     id="traducteur-agenda"
                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                     value={choix}
@@ -118,7 +119,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                             {x.libelle}
                         </option>
                     ))}
-                </select>
+                </ListeDeroulante>
             </ChampReglage>
             {choisi && connecteurs.etat?.nango_configure && (
                 <div className="flex flex-wrap items-center gap-3 rounded-md border bg-(--surface) p-3 text-sm" data-testid="etat-traducteur">

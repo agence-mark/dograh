@@ -8,6 +8,7 @@
  * le juge lisent leurs réglages existants et ouvrent la fenêtre de réglage qu'ils avaient déjà.
  * Chaque champ s'enregistre en le quittant, avec sa notification : il n'y a jamais de saisie en attente à perdre.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { BookOpen, Bot, DoorOpen, Gavel, Laptop, ListChecks, Monitor, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -397,7 +398,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         </p>
                         <div className="space-y-2">
                             <Ligne libelle={t(T.format)}>
-                                <select
+                                <ListeDeroulante
                                     aria-label={t(T.format)}
                                     className="h-8 w-56 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                     value={cerveau.format ?? "anthropic"}
@@ -405,7 +406,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                                 >
                                     <option value="anthropic">{t(T.anthropic)}</option>
                                     <option value="openai">{t(T.openai)}</option>
-                                </select>
+                                </ListeDeroulante>
                             </Ligne>
                             <Ligne libelle={t(T.modele)}>
                                 <ChampSimple id="cerveau-modele" libelle={t(T.modele)} valeur={cerveau.modele ?? ""} className="h-8 w-56" onEnregistrer={(v) => v.trim() && enregistrerCerveau({ modele: v.trim() })} />

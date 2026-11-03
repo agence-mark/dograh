@@ -6,6 +6,7 @@
  * l'avancement et les gestes. Rien d'inventé : chaque ligne vient de `GET /ameliorations/{id}`, chaque geste d'une route réelle.
  * Forme non prévue par la maquette (provisoire, E-G1-2) : la personne chargée et l'origine se changent ici, comme dans l'ancien « À trier ».
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Check, Circle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -246,7 +247,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                         <Info>{t(T.origineInfo)}</Info>
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <select
+                                        <ListeDeroulante
                                             aria-label={t(T.origine)}
                                             className="h-8 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                             value={vue.origine ?? ""}
@@ -260,8 +261,8 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                                     {t(libelle)}
                                                 </option>
                                             ))}
-                                        </select>
-                                        <select
+                                        </ListeDeroulante>
+                                        <ListeDeroulante
                                             aria-label={t(T.chargeDe)}
                                             className="h-8 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                             value={vue.assigne ?? ""}
@@ -273,7 +274,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                                     {p.nom}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </ListeDeroulante>
                                     </div>
                                 </div>
                                 {(vue.origine ?? vue.origine_suggeree) === "recette" && vue.recettes.length > 0 && (

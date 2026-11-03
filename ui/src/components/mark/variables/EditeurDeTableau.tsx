@@ -12,6 +12,7 @@
  * `verrouillerColonnesMark` : dans le portail, une colonne posée par .mark porte un cadenas (ni renommée, ni supprimée, ni
  * changée de type, mais déplaçable) et l'import CSV est grisé quand le tableau en a une. Dans Dograh rien n'est verrouillé.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ArrowLeft, ArrowRight, Lock, Plus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -287,11 +288,11 @@ const CaseDuTableau = ({
 }) => {
     if (type === "oui_non") {
         return (
-            <select data-case={`${ligne}-${colonne}`} aria-label={libelle} value={valeur} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} className="h-8 w-full rounded-md border bg-background px-2 text-sm">
+            <ListeDeroulante data-case={`${ligne}-${colonne}`} aria-label={libelle} value={valeur} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} className="h-8 w-full rounded-md border bg-background px-2 text-sm">
                 <option value="" />
                 <option value="oui">oui</option>
                 <option value="non">non</option>
-            </select>
+            </ListeDeroulante>
         );
     }
     return (

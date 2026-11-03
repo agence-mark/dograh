@@ -19,6 +19,7 @@
  * the theme is what it was. A specialised agent (`agent_principal_id`) has no menu: it serves the
  * establishment of the call.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -332,7 +333,7 @@ export const ThemeEtablissement = ({
                         {fiches === null ? (
                             <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
                         ) : (
-                            <select
+                            <ListeDeroulante
                                 id="etablissement_id"
                                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                                 value={fiche}
@@ -347,7 +348,7 @@ export const ThemeEtablissement = ({
                                         {e.nom}
                                     </option>
                                 ))}
-                            </select>
+                            </ListeDeroulante>
                         )}
                         {fichesIllisibles && (
                             <p className="text-xs text-destructive">

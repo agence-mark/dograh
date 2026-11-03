@@ -7,6 +7,7 @@
  *  - the builder writes them from the client sheet through the same server function.
  * Personal data is replaced by fake data by the server before anything is kept (Q3); the form says so.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useState } from "react";
 
 import { creerUnTestApiV1BuilderTestsWorkflowIdPost } from "@/client";
@@ -161,7 +162,7 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
                 <h3 className="text-sm font-medium">{t({ en: "Criteria (judged by the code)", fr: "Critères (jugés par le code)" })}</h3>
                 {criteres.map((c, i) => (
                     <div key={i} className="flex flex-wrap items-end gap-2">
-                        <select
+                        <ListeDeroulante
                             aria-label={t({ en: "Criterion", fr: "Critère" })}
                             className="h-9 rounded-md border bg-background px-2 text-sm"
                             value={c.type}
@@ -172,7 +173,7 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
                                     {t(d.libelle)}
                                 </option>
                             ))}
-                        </select>
+                        </ListeDeroulante>
                         {CRITERES[c.type].champs.map((ch) =>
                             ch === "ne_doit_pas_etre_appele" ? (
                                 <label key={ch} className="flex items-center gap-1 text-sm">
@@ -212,13 +213,13 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
                 </label>
                 <label className="flex items-center gap-2">
                     <span>{t({ en: "Origin", fr: "Origine" })}</span>
-                    <select className="h-9 rounded-md border bg-background px-2" value={origine} onChange={(e) => setOrigine(e.target.value)}>
+                    <ListeDeroulante className="h-9 rounded-md border bg-background px-2" value={origine} onChange={(e) => setOrigine(e.target.value)}>
                         {Object.entries(ORIGINES_DE_TEST).map(([valeur, libelle]) => (
                             <option key={valeur} value={valeur}>
                                 {t(libelle)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
             </div>
             {erreur && (

@@ -9,6 +9,7 @@
  * of the agent's list: « Cancel » / « Save ». The words of a trade live in these scenarios, never
  * in the code.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -249,7 +250,7 @@ function EditeurScenario({
                 </label>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "If the agent transfers the call", fr: "Si l'agent renvoie l'appel" })}</span>
-                    <select
+                    <ListeDeroulante
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={scenario.renvoi ?? "refuse"}
                         onChange={(e) => onChange({ renvoi: e.target.value as ScenarioSimule["renvoi"] })}
@@ -260,7 +261,7 @@ function EditeurScenario({
                                 {t(r.libelle)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
             </div>
         </div>

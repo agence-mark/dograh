@@ -11,6 +11,7 @@
  * Lot 11 (agents-specialises, C8): an agent that chose its fiche brings it to the test, so the choice is
  * shown only for an agent WITHOUT a fiche (a specialised agent tried on its own, for instance).
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useRef, useState } from "react";
 
 import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
@@ -51,7 +52,7 @@ export function ChoixEtablissementEssai({
     return (
         <label className="flex shrink-0 items-center gap-2 border-b px-4 py-3 text-sm text-muted-foreground" data-testid="choix-etablissement-essai">
             {t({ en: "Establishment played", fr: "Établissement joué" })}
-            <select
+            <ListeDeroulante
                 className="ml-auto min-w-0 max-w-[60%] cursor-pointer rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 value={valeur}
                 disabled={desactive}
@@ -64,7 +65,7 @@ export function ChoixEtablissementEssai({
                         {e.nom}
                     </option>
                 ))}
-            </select>
+            </ListeDeroulante>
         </label>
     );
 }

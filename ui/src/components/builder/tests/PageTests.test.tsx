@@ -35,6 +35,7 @@ const m = vi.hoisted(() => ({
     preparer: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     lireLesTestsApiV1BuilderTestsWorkflowIdGet: (o: unknown) => m.liste(o),
     etatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGet: (o: unknown) => m.publication(o),

@@ -7,6 +7,7 @@
  *  - Recette par défaut : celle que la fenêtre « Nouvel agent » propose, lue dans la bibliothèque.
  * Réservé à l'équipe .mark (le serveur décide) : sans réponse du serveur, rien ne s'affiche. Conçu sans maquette.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 
 import { lireLesOptionsApiV1BuilderOptionsGet, listerLesRecettesApiV1BuilderRecettesGet, reglerLesOptionsApiV1BuilderOptionsPut } from "@/client/sdk.gen";
@@ -82,7 +83,7 @@ export function OptionsDeConstruction() {
                         {t(T.recette)}
                         <Info>{t(T.recetteInfo)}</Info>
                     </Label>
-                    <select
+                    <ListeDeroulante
                         id="option-recette"
                         className="h-9 cursor-pointer rounded-md border bg-background px-2 text-sm"
                         value={options.recette_par_defaut}
@@ -94,7 +95,7 @@ export function OptionsDeConstruction() {
                                 {r.nom}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </div>
             )}
         </div>

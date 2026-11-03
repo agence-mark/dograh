@@ -1,3 +1,4 @@
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import type {
@@ -277,7 +278,7 @@ function OptionsWidget({ spec, value, onChange }: WidgetProps) {
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />
-            <select
+            <ListeDeroulante
                 className="border rounded-md p-2 text-sm bg-background"
                 value={(value as string | number | undefined) ?? ""}
                 onChange={(e) => {
@@ -291,7 +292,7 @@ function OptionsWidget({ spec, value, onChange }: WidgetProps) {
                         {o.label}
                     </option>
                 ))}
-            </select>
+            </ListeDeroulante>
         </div>
     );
 }

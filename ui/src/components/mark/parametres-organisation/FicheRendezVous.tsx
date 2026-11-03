@@ -13,6 +13,7 @@
  * The controls, bounds, labels and help are the ones of the theme « Appointments »
  * (`reglages-rendez-vous.ts`): one list for both screens.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import type { ReglagesPlanificateur } from "@/client/types.gen";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -75,7 +76,7 @@ export function FicheRendezVous({
     );
     const ouiNon = (f: (typeof OUI_NON)[number]) => (
         <ChampReglage key={f.cle} cle={cleDe(f.cle)} idControle={idControle(f.cle)} libelle={f.libelle} aides={[f.aide]}>
-            <select
+            <ListeDeroulante
                 id={idControle(f.cle)}
                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                 value={reglages[f.cle] === null || reglages[f.cle] === undefined ? "" : String(reglages[f.cle])}
@@ -84,13 +85,13 @@ export function FicheRendezVous({
                 <option value="">{`${t({ en: "Default", fr: "Défaut" })} (${texteValeur(defauts[f.cle], t)})`}</option>
                 <option value="true">{t({ en: "Yes", fr: "Oui" })}</option>
                 <option value="false">{t({ en: "No", fr: "Non" })}</option>
-            </select>
+            </ListeDeroulante>
             {boutonPour?.(f.cle)}
         </ChampReglage>
     );
     const choix = (f: (typeof CHOIX)[number]) => (
         <ChampReglage key={f.cle} cle={cleDe(f.cle)} idControle={idControle(f.cle)} libelle={f.libelle} aides={[f.aide]}>
-            <select
+            <ListeDeroulante
                 id={idControle(f.cle)}
                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                 value={(reglages[f.cle] as string | null | undefined) ?? ""}
@@ -102,7 +103,7 @@ export function FicheRendezVous({
                         {t(o.texte)}
                     </option>
                 ))}
-            </select>
+            </ListeDeroulante>
             {boutonPour?.(f.cle)}
         </ChampReglage>
     );

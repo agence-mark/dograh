@@ -1,5 +1,6 @@
 "use client";
 
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
@@ -375,7 +376,7 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
         <Label htmlFor="etat_force" className="text-xs">
           {t({ en: "Close everything", fr: "Tout fermer" })}
         </Label>
-        <select
+        <ListeDeroulante
           id="etat_force"
           aria-label={t({ en: "Close everything", fr: "Tout fermer" })}
           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
@@ -398,7 +399,7 @@ export function ChampsAnnonceOuverture({ annonce }: { annonce: EtatAnnonceOuvert
               {t({ en: "Forced:", fr: "Forcé :" })} {t(etat.libelle)}
             </option>
           ))}
-        </select>
+        </ListeDeroulante>
 
         {force !== null && (
           <div className="space-y-2" id="reglage-etat_force_jusqu_a" data-reglage="etat_force_jusqu_a">

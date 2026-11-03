@@ -5,6 +5,7 @@
  * la liste des recettes vient de la bibliothèque. Elle se change tant qu'aucune version n'est publiée ; ensuite elle est montrée sans
  * pouvoir changer. Conçue sans maquette : composants de la maquette (`Info`), jetons seulement. Rien à l'écran sans réponse du serveur.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 
 import {
@@ -67,7 +68,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
                 <Info>{t(T.info)}</Info>
             </span>
             {vue.modifiable ? (
-                <select
+                <ListeDeroulante
                     aria-label={t(T.titre)}
                     className="cursor-pointer rounded-md border bg-background px-2 py-1"
                     value={vue.indiquee ? (courante?.slug ?? "") : ""}
@@ -80,7 +81,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
                             {r.prouvee ? "" : ` (${t(T.nonProuvee)})`}
                         </option>
                     ))}
-                </select>
+                </ListeDeroulante>
             ) : (
                 <span data-recette-figee>
                     {courante?.nom ?? ""} <span className="text-xs text-muted-foreground">{t(T.figee)}</span>

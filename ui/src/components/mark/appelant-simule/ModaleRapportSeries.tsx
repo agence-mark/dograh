@@ -6,6 +6,7 @@
  * incidents, cost), the comparison of two series side by side, and the export (CSV, one line per
  * call). Each call links to its run window.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -278,7 +279,7 @@ export function ModaleRapportSeries({
                     <div className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-2">
                             {([0, 1] as const).map((k) => (
-                                <select
+                                <ListeDeroulante
                                     key={k}
                                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                                     value={choix[k]}
@@ -301,7 +302,7 @@ export function ModaleRapportSeries({
                                             {libelle(s)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                             ))}
                         </div>
                         <div className="grid gap-6 sm:grid-cols-2">

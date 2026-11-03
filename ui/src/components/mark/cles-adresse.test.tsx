@@ -31,6 +31,7 @@ const { ajouter, liste } = vi.hoisted(() => ({
     ] as { uuid: string; nom: string; fournisseur: string; nom_fournisseur?: string; adresse?: string }[],
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     listerLesClesApiV1ClesGet: async () => ({ data: liste }),
     fournisseursDesClesApiV1ClesFournisseursGet: async () => ({ data: ["mistral", "openai"] }),

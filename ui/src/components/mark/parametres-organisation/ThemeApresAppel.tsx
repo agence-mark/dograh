@@ -9,6 +9,7 @@
  * night task (purge and counters). One « Save » for the theme (E6); the test mail, the recap now
  * and the purge now act at once.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -258,7 +259,7 @@ export const ThemeApresAppel = ({
                             ))}
                         </span>
                     ) : (
-                    <select
+                    <ListeDeroulante
                         id="smtp-securite"
                         className="rounded border border-border bg-background px-2 py-1 text-sm"
                         value={smtp.securite ?? "starttls"}
@@ -267,7 +268,7 @@ export const ThemeApresAppel = ({
                         <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
                         <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
                         <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
-                    </select>
+                    </ListeDeroulante>
                     )}
                 </ChampReglage>
                 <ChampReglage cle="smtp_utilisateur" idControle="smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>

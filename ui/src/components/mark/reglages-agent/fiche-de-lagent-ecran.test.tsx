@@ -28,6 +28,7 @@ const m = vi.hoisted(() => ({
     servis: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({
     useParams: () => ({ workflowId: "1" }),

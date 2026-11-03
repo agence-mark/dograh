@@ -56,6 +56,7 @@ const TRADUCTEURS = [
       reference_agenda: { en: "Mailbox", fr: "Boîte aux lettres" }, operations: {} },
 ];
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: m.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,

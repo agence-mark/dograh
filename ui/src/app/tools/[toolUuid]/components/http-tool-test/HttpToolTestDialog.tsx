@@ -1,5 +1,6 @@
 "use client";
 
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { AlertTriangle, Loader2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -125,7 +126,7 @@ function ParameterFields({
                             </p>
                         )}
                         {parameter.type === "boolean" ? (
-                            <select
+                            <ListeDeroulante
                                 id={inputId}
                                 value={value}
                                 onChange={(event) => onValueChange(parameter.name, event.target.value)}
@@ -133,7 +134,7 @@ function ParameterFields({
                             >
                                 <option value="true">true</option>
                                 <option value="false">false</option>
-                            </select>
+                            </ListeDeroulante>
                         ) : parameter.type === "number" ? (
                             <Input
                                 id={inputId}

@@ -5,6 +5,7 @@
  * builder » de la bibliothèque, les 4 plus utilisés hors Rejeté). Un clic remplit la saisie (modifiable) ; la saisie demande ce
  * qui manque (un agent, des fichiers texte) et « Envoyer » reste grisé, raison au survol, tant qu'il manque quelque chose.
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ArrowUp, Bot, FileText, FlaskConical, MessageSquare, Paperclip, Settings2, Sparkles, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -176,7 +177,7 @@ export function AccueilDuBuilder() {
                             {besoinAgent && (
                                 <span className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">{t(T.agent)}</span>
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t(T.agent)}
                                         className="min-w-64 cursor-pointer rounded-md border bg-background px-2 py-1 text-sm"
                                         value={agentId ?? ""}
@@ -188,7 +189,7 @@ export function AccueilDuBuilder() {
                                                 {a.name}
                                             </option>
                                         ))}
-                                    </select>
+                                    </ListeDeroulante>
                                 </span>
                             )}
                             {fichiers.map((f) => (

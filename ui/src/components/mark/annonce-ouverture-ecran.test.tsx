@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
     toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: mocks.getAnnonce,
     saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: mocks.saveAnnonce,

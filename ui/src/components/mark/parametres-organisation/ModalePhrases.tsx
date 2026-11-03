@@ -12,6 +12,7 @@
  * The two pick-up announcements are two fiches of the catalogue: shown here, read-only,
  * with where they are edited (the announcement below, and each establishment).
  */
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -241,7 +242,7 @@ export function ModalePhrases({
                                         className="font-mono"
                                         onChange={(e) => modifier(i, { variable: e.target.value })}
                                     />
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t({ en: "Level", fr: "Niveau" })}
                                         className="rounded border border-border bg-background px-2 py-1 text-sm"
                                         value={p.niveau ?? "organisation"}
@@ -249,7 +250,7 @@ export function ModalePhrases({
                                     >
                                         <option value="organisation">{t({ en: "Organization", fr: "Organisation" })}</option>
                                         <option value="etablissement">{t({ en: "Establishment", fr: "Établissement" })}</option>
-                                    </select>
+                                    </ListeDeroulante>
                                     <Button
                                         variant="ghost"
                                         size="icon"

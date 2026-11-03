@@ -30,6 +30,7 @@ const LU = {
 };
 
 const m = vi.hoisted(() => ({ lire: vi.fn(), enregistrer: vi.fn() }));
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getVerificationAppelantApiV1OrganizationsVerificationAppelantGet: m.lire,
     putVerificationAppelantApiV1OrganizationsVerificationAppelantPut: m.enregistrer,
