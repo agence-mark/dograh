@@ -51,6 +51,15 @@ const dateCourte = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const secondes = (valeur: number | null | undefined) =>
     typeof valeur === "number" ? `${valeur.toFixed(2)} s` : "–";
 
+/** [.mark] V1 : une durée d'appel se lit « 3 min 12 » (jamais « 192.00 s »). */
+const dureeLisible = (valeur: number | null | undefined) => {
+    if (typeof valeur !== "number") return "–";
+    const total = Math.round(valeur);
+    const minutes = Math.floor(total / 60);
+    const reste = total % 60;
+    return minutes === 0 ? `${reste} s` : `${minutes} min ${String(reste).padStart(2, "0")}`;
+};
+
 const NATURES: Record<NatureDePasse, Texte> = {
     reply: { en: "reply", fr: "réponse" },
     note: { en: "after note-taking", fr: "après une prise de notes" },
@@ -171,9 +180,9 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
         <div className="space-y-2 text-sm" data-testid="fenetre-resume">
             <p>
                 {t({ en: "Channel", fr: "Canal" })} : {t(CANAUX[resume.channel ?? "phone"] ?? CANAUX.phone)} ·{" "}
-                {t({ en: "Duration", fr: "Durée" })} : {secondes(resume.duration_secs)} ·{" "}
+                {t({ en: "Duration", fr: "Durée" })} : {dureeLisible(resume.duration_secs)} ·{" "}
                 {t({ en: "Agent version", fr: "Version de l'agent" })} : <code>{resume.definition_id ?? "–"}</code> ·{" "}
-                {t({ en: "Outcome", fr: "Issue" })} : <code>{resume.disposition ?? "–"}</code>
+                {t({ en: "Outcome", fr: "Issue" })} : {resume.disposition ?? "–"}
             </p>
             <p className="text-muted-foreground" data-testid="fenetre-version">
                 {resume.version && resume.version.status !== "not_captured" ? (
