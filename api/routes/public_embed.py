@@ -6,7 +6,7 @@ They handle CORS, domain validation, and session management for embedded workflo
 
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -81,6 +81,9 @@ class InitEmbedRequest(BaseModel):
 
     token: str
     context_variables: Optional[dict] = None
+    # [.mark] S4 : « ecrit » = la conversation passe à l'écrit avec le même agent (micro refusé ou voix impossible).
+    # Admis seulement pour un jeton rattaché à un site ; un jeton hors site ne change jamais de modalité.
+    mode: Optional[Literal["voix", "ecrit"]] = None
 
 
 class InitEmbedResponse(BaseModel):
@@ -367,6 +370,11 @@ async def initialize_embed_session(
     widget_type = (
         "chat" if (embed_token.settings or {}).get("widgetType") == "chat" else "voice"
     )
+    # [.mark] S4 (D162) : le secours écrit d'un agent de site. La modalité ne vient JAMAIS de la requête pour un jeton
+    # sans site (un visiteur ne transforme pas un jeton vocal en chat) ; pour un agent de site, « ecrit » est la
+    # bascule voulue quand le micro est refusé. Mêmes plafonds, mêmes limites, même seau de greffe que le chat.
+    if init_request.mode == "ecrit" and widget_type == "voice" and getattr(embed_token, "site_id", None):
+        widget_type = "chat"
     is_chat = widget_type == "chat"
 
     # Chat initialization immediately performs billable greeting work. Keep it

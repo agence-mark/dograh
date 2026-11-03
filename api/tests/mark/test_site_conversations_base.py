@@ -8,7 +8,7 @@ lignes de ses lieux.
 | cloisonnement | un lieu ne lit ni les avis, ni les événements, ni les indicateurs de l'autre ; sans variable, rien |
 | canal site | une conversation du site arrive avec canal, page et mode ; un mode inconnu n'entre pas |
 | contact par mail | sans numéro, le contact est retrouvé par son mail (minuscules, espaces) ou créé ; avec les deux, le numéro l'emporte |
-| avis | un par conversation ; l'avis avant la conversation entre avec elle ; 1-2 étoiles + rappel crée une demande « rappel » |
+| avis | un par conversation ; l'avis avant la conversation entre avec elle ; un rappel demandé crée une demande « rappel » |
 | événements | un INSERT réveille un ``LISTEN portail`` (JSON court, sans donnée personnelle) ; la table garde l'ordre |
 | indicateurs | les colonnes d'avant sont inchangées, celles par canal et avis viennent en dernier |
 | suppression | l'appel effacé efface son avis ; la purge garde les événements 30 jours |
@@ -137,7 +137,7 @@ async def test_un_avis_par_conversation_et_le_mauvais_avis_avec_rappel_cree_une_
     try:
         avis = {
             "etoiles": 2,
-            "obtenu": False,
+            "obtenu": "non",
             "raisons": ["trop long", "pas compris"],
             "commentaire": "Je voulais un humain.",
             "rappel_demande": True,
@@ -165,12 +165,13 @@ async def test_un_avis_par_conversation_et_le_mauvais_avis_avec_rappel_cree_une_
         )
         assert demande["type"] == "rappel" and demande["statut"] == "a_traiter" and demande["contact_id"] == contact_id
         assert await connexion.fetchval("SELECT count(*) FROM mark.v_a_rappeler WHERE id = (SELECT demande_id FROM mark.appel WHERE id = $1)", res["appel_id"]) == 1
-        # Un bon avis, ou 3 étoiles, ne crée rien.
+        # Sans rappel demandé, aucune demande, quelle que soit la note ; avec, 3 étoiles aussi en crée une.
         await _ecrire(base_portail, _site(2032, contact={}), _site(2033, contact={}))
         avant = await connexion.fetchval("SELECT count(*) FROM mark.demande WHERE type = 'rappel'")
-        await sql.noter_avis(connexion, 2032, {"etoiles": 5, "rappel_demande": True})
-        await sql.noter_avis(connexion, 2033, {"etoiles": 3, "rappel_demande": True})
+        await sql.noter_avis(connexion, 2032, {"etoiles": 1, "rappel_demande": False})
         assert await connexion.fetchval("SELECT count(*) FROM mark.demande WHERE type = 'rappel'") == avant
+        await sql.noter_avis(connexion, 2033, {"etoiles": 3, "rappel_demande": True})
+        assert await connexion.fetchval("SELECT count(*) FROM mark.demande WHERE type = 'rappel'") == avant + 1
         # Une publication acceptée porte la date du consentement.
         await _ecrire(base_portail, _site(2034, contact={}))
         await sql.noter_avis(connexion, 2034, {"etoiles": 5, "publication_acceptee": True})
@@ -194,12 +195,12 @@ async def test_un_avis_donne_avant_la_conversation_entre_avec_elle(base_portail)
         # La conversation n'est pas dans la base : l'avis n'est pas écrit (et rien ne se perd, il attend sur le run).
         assert await sql.noter_avis(connexion, 2041, {"etoiles": 4}) == {"ecrit": False}
         assert await connexion.fetchval("SELECT count(*) FROM mark.avis") == 0
-        await sql.recevoir_appel(connexion, _site(2041, contact={}, avis={"etoiles": 4, "obtenu": True}))
+        await sql.recevoir_appel(connexion, _site(2041, contact={}, avis={"etoiles": 4, "obtenu": "oui"}))
         ligne = await _un(
             connexion,
             "SELECT v.etoiles, v.obtenu FROM mark.avis v JOIN mark.appel a ON a.id = v.appel_id WHERE a.dograh_run_id = 2041",
         )
-        assert dict(ligne) == {"etoiles": 4, "obtenu": True}
+        assert dict(ligne) == {"etoiles": 4, "obtenu": "oui"}
         # Rejouer l'envoi ne double rien.
         await sql.recevoir_appel(connexion, _site(2041, contact={}, avis={"etoiles": 1}))
         assert await connexion.fetchval("SELECT count(*) FROM mark.avis") == 1

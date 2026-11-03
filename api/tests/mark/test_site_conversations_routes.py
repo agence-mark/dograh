@@ -48,7 +48,7 @@ INIT = f"{API}/public/embed/init"
 CLIENT = {"Origin": "https://client.fr"}
 AILLEURS = {"Origin": "https://evil.example"}
 
-AVIS = {"etoiles": 4, "obtenu": True, "raisons": ["clair"], "commentaire": "Merci"}
+AVIS = {"etoiles": 4, "obtenu": "oui", "raisons": ["clair"], "commentaire": "Merci"}
 
 
 # --------------------------------------------------------------------------- #
@@ -496,3 +496,48 @@ async def test_la_relance_d_une_action_ne_touche_que_son_organisation_et_son_ech
     assert repart.status_code == 200, repart.text
     assert repart.json() == {"action_id": echec, "etape": "mail", "statut": "en_attente"}
     relancer.assert_awaited_once_with(run_id, "mail")
+
+
+# --------------------------------------------------------------------------- #
+# Le secours écrit (lot S4) : /init avec mode « ecrit »
+# --------------------------------------------------------------------------- #
+
+
+async def test_le_secours_ecrit_n_est_permis_qu_a_un_agent_de_site(db_session, async_session):
+    from api.schemas.embed_chat import PublicEmbedChatSessionResponse
+
+    w = await _widget(db_session, async_session)
+    _, _, _, hors_site = await creer_agent_avec_jeton(db_session, async_session, allowed_domains=["client.fr"])
+
+    async def _demarrer(**_kw):
+        return SimpleNamespace()
+
+    async def _autorise(**_kw):
+        return SimpleNamespace(has_quota=True)
+
+    async def _ok(*_a, **_kw):
+        return True
+
+    reponse_chat = PublicEmbedChatSessionResponse(revision=1, state="running", is_completed=False, turns=[])
+    with (
+        limiteur_en_memoire(),
+        patch("api.routes.public_embed.start_embed_text_chat", _demarrer),
+        patch("api.routes.public_embed.build_public_chat_session_response", lambda _s: reponse_chat),
+        patch("api.routes.public_embed.authorize_embed_workflow_run_start", _autorise),
+        patch("api.routes.public_embed.allow_embed_chat_init", _ok),
+    ):
+        async with client_http() as c:
+            ecrit = await c.post(INIT, json={"token": w.jeton.token, "mode": "ecrit"}, headers=CLIENT)
+            voix = await c.post(INIT, json={"token": w.jeton.token, "mode": "voix"}, headers=CLIENT)
+            sans_mode = await c.post(INIT, json={"token": w.jeton.token}, headers=CLIENT)
+            # Un jeton sans site ne change jamais de modalité, quoi que demande la requête.
+            hors = await c.post(INIT, json={"token": hors_site.token, "mode": "ecrit"}, headers=CLIENT)
+            inconnu = await c.post(INIT, json={"token": w.jeton.token, "mode": "telephone"}, headers=CLIENT)
+    assert ecrit.status_code == 200, ecrit.text
+    assert ecrit.json()["widget_type"] == "chat" and ecrit.json()["chat_session"]["revision"] == 1
+    assert voix.json()["widget_type"] == "voice" and sans_mode.json()["widget_type"] == "voice"
+    assert hors.json()["widget_type"] == "voice"
+    assert inconnu.status_code == 422
+    run = await db_session.get_workflow_run(ecrit.json()["workflow_run_id"], organization_id=w.org)
+    assert run.mode == "textchat" and est_du_widget(run) and mode_de(run) == "ecrit"
+    assert champs_du_site(run)["canal"] == "site"

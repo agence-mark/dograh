@@ -70,7 +70,7 @@ class AvisPublic(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     etoiles: int = Field(ge=1, le=5)
-    obtenu: bool | None = None
+    obtenu: Literal["oui", "en_partie", "non"] | None = None
     raisons: list[str] = Field(default_factory=list, max_length=10)
     commentaire: str | None = Field(default=None, max_length=2000)
     rappel_demande: bool = False

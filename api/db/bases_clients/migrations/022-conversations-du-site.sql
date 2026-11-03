@@ -11,7 +11,7 @@
 --  - appel.page, appel.mode_site ; la valeur de canal « site » (appel.canal est un texte libre) ;
 --  - recevoir_appel : sans numéro, le contact est retrouvé ou créé par son mail (minuscules) ; page et mode ;
 --  - avis (un par conversation) et v_portail_avis sous la sécurité par ligne ;
---  - un avis de 1 ou 2 étoiles avec rappel demandé crée une demande « à rappeler » (type « rappel ») ;
+--  - un avis avec rappel demandé crée une demande « à rappeler » (type « rappel ») ;
 --  - v_portail_kpi : colonnes par canal et avis, AJOUTÉES EN DERNIER (les colonnes d'avant inchangées) ;
 --  - conservation : les événements du portail se purgent à 30 jours (la purge générique purger()).
 -- =====================================================================
@@ -341,7 +341,7 @@ CREATE TABLE IF NOT EXISTS avis (
     id                   bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     appel_id             bigint NOT NULL UNIQUE REFERENCES appel(id) ON DELETE CASCADE,
     etoiles              smallint NOT NULL CHECK (etoiles BETWEEN 1 AND 5),
-    obtenu               boolean,
+    obtenu               text CHECK (obtenu IS NULL OR obtenu IN ('oui', 'en_partie', 'non')),
     raisons              text[] NOT NULL DEFAULT '{}',
     commentaire          text CHECK (commentaire IS NULL OR char_length(commentaire) <= 2000),
     rappel_demande       boolean NOT NULL DEFAULT false,
@@ -606,7 +606,9 @@ DECLARE
     v_appel   appel%ROWTYPE;
     v_demande bigint;
 BEGIN
-    IF NOT (NEW.rappel_demande AND NEW.etoiles <= 2) THEN
+    -- Un visiteur qui demande à être rappelé l'est, quelle que soit sa note (le widget propose la case jusqu'à
+    -- 3 étoiles ; le plan écrivait « 1 ou 2 » : une demande explicite ne se perd pas, voir sb-etat.md).
+    IF NOT NEW.rappel_demande THEN
         RETURN NULL;
     END IF;
     SELECT * INTO v_appel FROM appel WHERE id = NEW.appel_id;
@@ -687,7 +689,7 @@ BEGIN
     END IF;
     INSERT INTO avis (appel_id, etoiles, obtenu, raisons, commentaire, rappel_demande,
                       publication_acceptee, consentement_le)
-    VALUES (v_appel, (p ->> 'etoiles')::smallint, (p ->> 'obtenu')::boolean,
+    VALUES (v_appel, (p ->> 'etoiles')::smallint, nullif(p ->> 'obtenu', ''),
             CASE WHEN jsonb_typeof(p -> 'raisons') = 'array'
                  THEN ARRAY(SELECT left(x, 120) FROM jsonb_array_elements_text(p -> 'raisons') AS t(x) LIMIT 10)
                  ELSE '{}'::text[] END,
