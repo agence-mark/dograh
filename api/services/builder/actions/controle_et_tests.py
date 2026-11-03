@@ -147,6 +147,15 @@ async def _tests_modifier(contexte: Contexte, parametres: BaseModel) -> dict[str
 
     identifiant = await agent_verifie(contexte, parametres.workflow_id)
     champs = parametres.model_dump(exclude={"workflow_id", "test"}, exclude_unset=True)
+    # Garde du code (U5) : le builder (chat ou Claude Code) ne change jamais les critères d'un test existant ; il propose, une
+    # personne accepte depuis l'onglet Tests. La personne qui modifie depuis l'écran (sans conversation) n'est pas concernée.
+    if "criteres" in champs and (contexte.conversation is not None or contexte.porte == "mcp"):
+        return {
+            "ok": False,
+            "code": "garde_du_code",
+            "erreur": "The criteria of an existing test are changed by a person: the change is proposed on a card, not applied.",
+            "carte": {"type": "proposition_test", "genre": "criteres", "workflow_id": identifiant, "test": parametres.test, "criteres": champs["criteres"]},
+        }
     try:
         test = await creation.modifier(contexte.organisation_id, identifiant, parametres.test, **champs)
     except (stockage.ErreurTest, ErreurTestRejouable) as erreur:
@@ -167,6 +176,9 @@ async def _tests_rejouer(contexte: Contexte, parametres: BaseModel) -> dict[str,
     from api.services.tests_rejouables.modele import ErreurTestRejouable
 
     workflow = await agent_de_l_organisation(contexte, parametres.workflow_id)
+    from api.services.builder.actions.rapport_et_tests import consommer_un_accord
+
+    consommer_un_accord(contexte)  # rejouer avec des modèles dépense : l'accord de la personne d'abord (chat seulement)
     try:
         return await execution.rejouer_la_suite(contexte.user, workflow, noms=parametres.tests, repetitions=parametres.repetitions)
     except ErreurTestRejouable as erreur:

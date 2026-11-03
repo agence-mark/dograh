@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -19,6 +20,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     func,
 )
 
@@ -46,6 +48,14 @@ class MarkBuilderConversationModel(Base):
     cout = Column(Float, nullable=False, default=0.0, server_default="0")
     jauge = Column(Float, nullable=False, default=0.0, server_default="0")
     changements = Column(Integer, nullable=False, default=0, server_default="0")
+    # C2 (E96) : un sous-agent est une conversation enfant (genre « sous_agent ») ; le parent garde l'interrupteur des sous-agents.
+    genre = Column(String(20), nullable=False, default="principal", server_default="principal")
+    delegation_id = Column(String(40), nullable=True)
+    usage = Column(String(20), nullable=True)
+    tache = Column(Text, nullable=True)
+    modele = Column(String(120), nullable=True)
+    resultat = Column(JSON, nullable=True)
+    sous_agents_actifs = Column(Boolean, nullable=False, default=True, server_default="true")
     cree_le = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC)
     )

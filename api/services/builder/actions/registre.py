@@ -57,6 +57,8 @@ class Contexte:
     workflow_id: int | None = None
     conversation: dict[str, Any] | None = None
     porte: str = PORTE_ECRAN
+    # C2 (E96) : un sous-agent du builder n'a que ces actions (liste fermée côté serveur) ; ``None`` = toutes celles de la porte.
+    actions_permises: frozenset[str] | None = None
 
     @property
     def organisation_id(self) -> int:
@@ -131,6 +133,8 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
     if contexte.porte == PORTE_ECRAN and not action.moteur:
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
+    if contexte.actions_permises is not None and nom not in contexte.actions_permises:
+        return {"ok": False, "code": "sous_agent", "erreur": f"« {nom} » is not allowed to a sub-agent: it only reads and tests, it never writes."}
     try:
         parametres = action.parametres.model_validate(arguments or {})
     except ValidationError as erreur:
