@@ -167,9 +167,23 @@ export function WorkflowTesterPanel({
     const racine = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (!modeDemande || !isVisible) return;
-        const minuterie = window.setTimeout(() => racine.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus(), 50);
+        const minuterie = window.setTimeout(() => racine.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus(), 300);
         return () => window.clearTimeout(minuterie);
     }, [modeDemande?.cle, isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Le focus peut être rendu au bouton « Essayer » par le menu qui se referme : Échap est donc écouté sur le document
+    // tant que le panneau est visible (une liste ou un menu ouvert garde son Échap).
+    useEffect(() => {
+        if (!isVisible || !onClose) return;
+        const surEchap = (e: KeyboardEvent) => {
+            if (e.key !== "Escape" || e.defaultPrevented) return;
+            if (racine.current?.contains(document.activeElement)) return; // déjà géré par le panneau
+            if (document.querySelector('[role="listbox"],[role="menu"],[role="dialog"]')) return;
+            onClose();
+        };
+        document.addEventListener("keydown", surEchap);
+        return () => document.removeEventListener("keydown", surEchap);
+    }, [isVisible, onClose]);
 
     return (
         <div
