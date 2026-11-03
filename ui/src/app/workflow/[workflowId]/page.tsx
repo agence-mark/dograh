@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import posthog from 'posthog-js';
 import { useEffect, useMemo, useState } from 'react';
 
 import RenderWorkflow from '@/app/workflow/[workflowId]/RenderWorkflow';
@@ -9,7 +8,6 @@ import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1Wor
 import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
 import SpinLoader from '@/components/SpinLoader';
-import { PostHogEvent } from '@/constants/posthog-events';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
@@ -88,10 +86,6 @@ export default function WorkflowDetailPage() {
                     return;
                 }
                 setLoaded({ key: requestKey, workflow, version: selectedVersion });
-                posthog.capture(PostHogEvent.WORKFLOW_EDITOR_OPENED, {
-                    workflow_id: workflow.id,
-                    workflow_name: workflow.name,
-                });
             } catch (err) {
                 if (!cancelled) setError('Failed to fetch workflow');
                 logger.error(`Error fetching workflow: ${err}`);

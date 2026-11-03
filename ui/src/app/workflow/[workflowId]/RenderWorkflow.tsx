@@ -21,7 +21,6 @@ import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
-import { HireExpertNudge } from "@/components/lead-forms/HireExpertNudge";
 import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
 import { useLangue } from "@/components/mark/langue/langue";
@@ -757,7 +756,6 @@ function RenderWorkflow({
                 onOuvertChange={setPropositionGroupe}
             />
             <div className="flex flex-col h-screen min-w-fit">
-                <HireExpertNudge workflowId={workflowId} />
                 {/* New Workflow Editor Header */}
                 <WorkflowEditorHeader
                     workflowName={workflowName}

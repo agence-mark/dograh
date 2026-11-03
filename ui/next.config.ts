@@ -1,30 +1,18 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { REDIRECTIONS } from "./src/lib/redirections";
+
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   experimental: {
     serverSourceMaps: true,
   },
-  async rewrites() {
-    return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://us.i.posthog.com/:path*",
-      },
-      {
-        source: "/ingest/decide",
-        destination: "https://us.i.posthog.com/decide",
-      },
-    ];
+  // [.mark] La table unique des anciennes adresses (src/lib/redirections.ts).
+  async redirects() {
+    return REDIRECTIONS.map((r) => ({ ...r, permanent: false }));
   },
-  // This is required to support PostHog trailing slash API requests
-  skipTrailingSlashRedirect: true,
 };
 
 export default withSentryConfig(nextConfig, {

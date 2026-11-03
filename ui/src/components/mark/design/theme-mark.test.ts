@@ -77,7 +77,7 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
     it("the orange call to action is gone: --cta is black in light, off-white in dark (D3)", () => {
         const css = sansCommentaires(theme());
         const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
-        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0a0a0a/);
+        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0f1c2e/);
         expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*#f5f5f5/);
     });
 
@@ -90,10 +90,10 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
             expect(clair).toMatch(new RegExp(`${jeton}:`));
             expect(sombre).toMatch(new RegExp(`${jeton}:`));
         }
-        expect(clair).toMatch(/--acc:\s*#2974ed/);
+        expect(clair).toMatch(/--acc:\s*#3d8fe6/);
         expect(sombre).toMatch(/--acc:\s*#5b97f5/);
-        expect(clair).toMatch(/--ring:\s*#2974ed/);
-        expect(clair).toMatch(/--sidebar-ring:\s*#2974ed/);
+        expect(clair).toMatch(/--ring:\s*#3d8fe6/);
+        expect(clair).toMatch(/--sidebar-ring:\s*#3d8fe6/);
         expect(sombre).toMatch(/--ring:\s*#5b97f5/);
     });
 });

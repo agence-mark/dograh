@@ -2,7 +2,7 @@
 // (/handler/[...stack], cloud) and the local/OSS auth pages (/auth/login,
 // /auth/signup). LEFT: a centered card that wraps the auth form (`children`).
 // RIGHT (lg+ only): a brand/value panel with the Dograh logo, proof points, and
-// a Bland-style enterprise CTA block at the bottom (passed in as `enterpriseSlot`).
+// and the pitch of the product.
 // Mobile collapses to the single card column. The form column scrolls and stays
 // centered so tall (sign-up) forms never clip on short viewports. Palette is the
 // app's blacks/greys with one warm CTA accent.
@@ -19,10 +19,8 @@ const HIGHLIGHTS = [
 
 export function AuthShell({
   children,
-  enterpriseSlot,
 }: {
   children: ReactNode;
-  enterpriseSlot?: ReactNode;
 }) {
   return (
     <div className="grid min-h-screen w-full bg-background lg:grid-cols-[55%_45%]">
@@ -79,7 +77,6 @@ export function AuthShell({
             We deploy Dograh inside your environment for regulated and
             high-scale teams.
           </p>
-          {enterpriseSlot}
         </div>
       </aside>
     </div>

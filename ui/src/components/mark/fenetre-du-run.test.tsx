@@ -35,7 +35,6 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-facti
 }));
 vi.mock("@/lib/files", () => ({ getSignedUrl: vi.fn(async () => null), downloadFile: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("next/navigation", () => ({
     useParams: () => ({ workflowId: "34", runId: "967" }),
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),

@@ -15,6 +15,10 @@ type AddNodePanelProps = {
     nodes: FlowNode[];
 };
 
+// [.mark] U1: observability integrations of the upstream that send a call to a third party are no longer offered
+// in the menu. A workflow that already holds one keeps rendering it (GenericNode); only the « add » menu changes.
+export const NOEUDS_RETIRES_DU_MENU: ReadonlySet<string> = new Set(['noveum', 'paygent', 'tuner']);
+
 // Section matching and rendering order. Webhook and QA remain integration
 // specs in the API, but are displayed in their own sections in this panel.
 const SECTIONS: Array<{ title: string; matches: (spec: NodeSpec) => boolean }> = [
@@ -94,6 +98,9 @@ function NodeSection({
     );
 }
 
+/** The specs the « add a node » menu offers. */
+export const specsProposees = (specs: NodeSpec[]) => specs.filter((spec) => !NOEUDS_RETIRES_DU_MENU.has(spec.name));
+
 export default function AddNodePanel({ isOpen, onNodeSelect, onClose, nodes }: AddNodePanelProps) {
     const { specs } = useNodeSpecs();
 
@@ -101,7 +108,7 @@ export default function AddNodePanel({ isOpen, onNodeSelect, onClose, nodes }: A
     const sections = useMemo(() => {
         return SECTIONS.map(({ title, matches }) => ({
             title,
-            specs: specs.filter(matches),
+            specs: specsProposees(specs).filter(matches),
         }));
     }, [specs]);
 

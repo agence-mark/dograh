@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import posthog from 'posthog-js';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -36,7 +35,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConversationRailFrame, RealtimeFeedback, WorkflowRunLogs } from '@/components/workflow/conversation';
-import { PostHogEvent } from '@/constants/posthog-events';
 import { WORKFLOW_RUN_MODES } from '@/constants/workflowRunModes';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
@@ -614,8 +612,18 @@ function ContextDisplay({ title, context }: { title: string; context: Record<str
 }
 
 
+/**
+ * [.mark] U1 : l'adresse d'une conversation est `/conversations/<runId>?agent=<workflowId>` (aucune route d'API ne
+ * donne l'agent d'une conversation à partir de son seul numéro) ; l'ancienne `/workflow/<id>/run/<runId>` y redirige.
+ */
+function useParametresDeLaConversation() {
+    const params = useParams<{ workflowId?: string; runId: string }>();
+    const agent = useSearchParams()?.get('agent');
+    return { runId: params.runId, workflowId: params.workflowId ?? agent ?? '' };
+}
+
 export default function WorkflowRunPage() {
-    const params = useParams();
+    const params = useParametresDeLaConversation();
     // [.mark] builder lot 6 : la page « À trier » ouvre l'appel sur la réplique à tester (?creer_test=<rang>).
     const demande = Number(useSearchParams()?.get('creer_test'));
     const rangDemande = Number.isInteger(demande) && demande >= 1 ? demande : undefined;
@@ -675,15 +683,6 @@ export default function WorkflowRunPage() {
                     annotations: runResponse.data?.annotations as Record<string, unknown> | null ?? null,
                 };
                 setWorkflowRun(runData);
-                posthog.capture(PostHogEvent.WORKFLOW_RUN_DETAILS_VIEWED, {
-                    workflow_id: workflowId,
-                    workflow_name: workflowResponse.data?.name ?? null,
-                    run_id: runId,
-                    is_completed: runData.is_completed,
-                    has_recording: !!runData.recording_url,
-                    has_split_recordings: !!runData.user_recording_url && !!runData.bot_recording_url,
-                    has_transcript: !!runData.transcript_url,
-                });
             } finally {
                 setIsLoading(false);
             }

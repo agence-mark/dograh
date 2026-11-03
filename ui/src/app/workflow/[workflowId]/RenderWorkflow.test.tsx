@@ -33,7 +33,6 @@ vi.mock('@/client', () => ({
 vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save }) }));
 vi.mock('@/components/flow/renderer', () => ({ useNodeSpecs: () => ({ specs: [] }) }));
 vi.mock('@/context/OnboardingContext', () => ({ useOnboarding: () => ({ hasCompletedAction: () => true }) }));
-vi.mock('@/components/lead-forms/HireExpertNudge', () => ({ HireExpertNudge: () => null }));
 vi.mock('@/components/flow/AddNodePanel', () => ({ default: () => null }));
 vi.mock('@/components/flow/edges/CustomEdge', () => ({ default: () => null }));
 vi.mock('@/components/flow/nodes/GenericNode', () => ({ GenericNode: () => null }));

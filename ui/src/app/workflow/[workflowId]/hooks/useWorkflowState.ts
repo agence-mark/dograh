@@ -8,7 +8,6 @@ import {
 } from "@xyflow/react";
 import { EdgeChange, NodeChange } from "@xyflow/system";
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -29,7 +28,6 @@ import {
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, FlowNodeData, NodeType } from "@/components/flow/types";
 import { avertissementApresEnregistrement } from "@/components/mark/graphe/avertir-premiere-replique";
-import { PostHogEvent } from "@/constants/posthog-events";
 import { detailFromError } from "@/lib/apiError";
 import logger from '@/lib/logger';
 import { getNextNodeId, getRandomId } from "@/lib/utils";
@@ -325,10 +323,6 @@ export const useWorkflowState = ({
 
         // Use addNodes from ReactFlow instance
         rfInstance.current.addNodes([newNode]);
-        posthog.capture(PostHogEvent.WORKFLOW_NODE_ADDED, {
-            node_type: nodeType,
-            workflow_id: workflowId,
-        });
         setIsAddNodePanelOpen(false);
     }, [nodes, setIsAddNodePanelOpen, workflowId, bySpecName]);
 
