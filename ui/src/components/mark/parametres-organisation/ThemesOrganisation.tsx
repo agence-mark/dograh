@@ -176,6 +176,7 @@ export const ThemeOrganisationGenerale = ({
     onBasculer,
     signaler,
     adressesMark = [],
+    plat,
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[] }) => {
     const { t } = useLangue();
     const idFuseau = useId();
@@ -197,6 +198,7 @@ export const ThemeOrganisationGenerale = ({
             }}
             resume={[brouillon.timezone, brouillon.test_phone_number || t({ en: "no test number", fr: "pas de numéro de test" })]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={[]}
@@ -606,6 +608,7 @@ export const ThemeIntegrations = ({
     ouvert,
     onBasculer,
     signaler,
+    plat,
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences }) => {
     const { t } = useLangue();
     const [correspondanceOuverte, setCorrespondanceOuverte] = useState(false);
@@ -640,6 +643,7 @@ export const ThemeIntegrations = ({
                 brouillon.disposition_mapping_enabled ? t({ en: "Custom disposition codes", fr: "Codes d'issue personnalisés" }) : null,
             ]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={[]}
@@ -770,7 +774,7 @@ const EnSavoirPlus = ({ href }: { href: string }) => {
     );
 };
 
-export const ThemeDeveloppeurs = ({ ouvert, onBasculer }: ProprietesThemeOrganisation) => {
+export const ThemeDeveloppeurs = ({ ouvert, onBasculer, plat }: ProprietesThemeOrganisation) => {
     const { t } = useLangue();
     return (
         <Theme
@@ -780,6 +784,7 @@ export const ThemeDeveloppeurs = ({ ouvert, onBasculer }: ProprietesThemeOrganis
             description={{ en: "MCP server and call tracing (Langfuse).", fr: "Serveur MCP et traçage des appels (Langfuse)." }}
             resume={[]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={false}
             erreurs={[]}

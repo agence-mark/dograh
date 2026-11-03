@@ -49,16 +49,17 @@ describe("page Rejoindre l'équipe", () => {
     it("un lien valable : l'adresse invitée, son rôle, et un mot de passe de 12 caractères au moins", async () => {
         lire.mockResolvedValue({ data: { email: "pierre@exemple.fr", role_nom: "Administrateur" }, error: undefined });
         monter("bon");
-        await waitFor(() => expect(screen.getByText("pierre@exemple.fr · Administrateur")).toBeTruthy());
+        await waitFor(() => expect(screen.getByText("Administrateur")).toBeTruthy());
+        expect((screen.getByLabelText("E-mail") as HTMLInputElement).value).toBe("pierre@exemple.fr");
         const bouton = screen.getByRole("button", { name: "Créer mon compte" }) as HTMLButtonElement;
         expect(bouton.disabled).toBe(true);
-        fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: "court" } });
-        fireEvent.change(screen.getByLabelText("Confirmer le mot de passe"), { target: { value: "court" } });
+        fireEvent.change(screen.getByLabelText(/^Mot de passe/), { target: { value: "court" } });
+        fireEvent.change(screen.getByLabelText(/^Confirmer le mot de passe/), { target: { value: "court" } });
         expect(bouton.disabled).toBe(true);
-        expect(screen.getByText("12 caractères au moins")).toBeTruthy();
-        fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: "un-mot-de-passe-long" } });
+        expect(screen.getByText("12 caractères au moins.")).toBeTruthy();
+        fireEvent.change(screen.getByLabelText(/^Mot de passe/), { target: { value: "un-mot-de-passe-long" } });
         expect(bouton.disabled).toBe(true); // pas encore confirmé
-        fireEvent.change(screen.getByLabelText("Confirmer le mot de passe"), { target: { value: "un-mot-de-passe-long" } });
+        fireEvent.change(screen.getByLabelText(/^Confirmer le mot de passe/), { target: { value: "un-mot-de-passe-long" } });
         expect(bouton.disabled).toBe(false);
     });
 });

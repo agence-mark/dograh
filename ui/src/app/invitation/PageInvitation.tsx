@@ -8,10 +8,9 @@ import {
     lireUneInvitationApiV1AuthInvitationJetonGet,
 } from "@/client/sdk.gen";
 import { useLangue } from "@/components/mark/langue/langue";
-import { CadreAcces } from "@/components/mark/studio/cadre-acces";
+import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { detailFromError } from "@/lib/apiError";
 
 const MOT_DE_PASSE_MIN = 12;
@@ -78,7 +77,7 @@ export function PageInvitation({ jeton }: { jeton: string }) {
                     fr: "Ce lien a déjà servi, a expiré (48 heures) ou n'existe pas. Demandez une nouvelle invitation.",
                 })}
             >
-                <a href="/connexion" className="block cursor-pointer text-center text-sm text-primary hover:font-medium">
+                <a href="/connexion" className="block text-sm font-medium text-foreground hover:font-semibold">
                     {t({ en: "Go to sign-in", fr: "Aller à la connexion" })}
                 </a>
             </CadreAcces>
@@ -88,54 +87,70 @@ export function PageInvitation({ jeton }: { jeton: string }) {
     return (
         <CadreAcces
             titre={t({ en: "Join the .mark team", fr: "Rejoindre l'équipe .mark" })}
-            sousTitre={invitation ? `${invitation.email} · ${invitation.role_nom}` : undefined}
+            sousTitre={
+                invitation && (
+                    <>
+                        {t({ en: "You are invited as", fr: "Vous êtes invité comme" })}{" "}
+                        <span className="font-medium text-foreground">{invitation.role_nom}</span>.
+                    </>
+                )
+            }
         >
             <form onSubmit={envoyer} className="space-y-4">
+                <ChampAcces libelle={t({ en: "Email", fr: "E-mail" })}>
+                    <Input value={invitation?.email ?? ""} disabled readOnly />
+                </ChampAcces>
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                        <Label htmlFor="prenom">{t({ en: "First name", fr: "Prénom" })}</Label>
-                        <Input id="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="nom">{t({ en: "Last name", fr: "Nom" })}</Label>
-                        <Input id="nom" autoComplete="family-name" value={nom} onChange={(e) => setNom(e.target.value)} required />
-                    </div>
+                    <ChampAcces libelle={t({ en: "First name", fr: "Prénom" })}>
+                        <Input autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+                    </ChampAcces>
+                    <ChampAcces libelle={t({ en: "Last name", fr: "Nom" })}>
+                        <Input autoComplete="family-name" value={nom} onChange={(e) => setNom(e.target.value)} required />
+                    </ChampAcces>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="mot-de-passe">{t({ en: "Password", fr: "Mot de passe" })}</Label>
+                <ChampAcces libelle={t({ en: "Password", fr: "Mot de passe" })} aide={tropCourt ? undefined : t({ en: "12 characters at least.", fr: "12 caractères au moins." })}>
                     <Input
-                        id="mot-de-passe"
                         type="password"
                         autoComplete="new-password"
                         value={motDePasse}
                         onChange={(e) => setMotDePasse(e.target.value)}
                         required
                         minLength={MOT_DE_PASSE_MIN}
+                        className={tropCourt ? "border-(--pastille-urgente)" : ""}
                     />
-                    {tropCourt && <p className="text-xs text-destructive">{t({ en: "12 characters at least", fr: "12 caractères au moins" })}</p>}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="confirmation">{t({ en: "Confirm the password", fr: "Confirmer le mot de passe" })}</Label>
+                    {tropCourt && (
+                        <span className="block text-xs text-(--marque-danger-texte)">{t({ en: "12 characters at least.", fr: "12 caractères au moins." })}</span>
+                    )}
+                </ChampAcces>
+                <ChampAcces libelle={t({ en: "Confirm the password", fr: "Confirmer le mot de passe" })}>
                     <Input
-                        id="confirmation"
                         type="password"
                         autoComplete="new-password"
                         value={confirmation}
                         onChange={(e) => setConfirmation(e.target.value)}
                         required
+                        className={different ? "border-(--pastille-urgente)" : ""}
                     />
                     {different && (
-                        <p className="text-xs text-destructive">{t({ en: "The passwords do not match", fr: "Les mots de passe ne correspondent pas" })}</p>
+                        <span className="block text-xs text-(--marque-danger-texte)">
+                            {t({ en: "The two passwords differ.", fr: "Les deux mots de passe diffèrent." })}
+                        </span>
                     )}
-                </div>
+                </ChampAcces>
                 <Button
                     type="submit"
-                    className="w-full cursor-pointer"
+                    className="w-full"
                     disabled={enCours || etat === "lecture" || motDePasse.length < MOT_DE_PASSE_MIN || motDePasse !== confirmation}
                 >
                     {enCours ? t({ en: "Creating...", fr: "Création..." }) : t({ en: "Create my account", fr: "Créer mon compte" })}
                 </Button>
             </form>
+            <PiedAcces>
+                {t({
+                    en: "Your account joins the Lab and the clients your role opens. You will use their keys without ever seeing them.",
+                    fr: "Votre compte rejoint le Labo et les clients que votre rôle ouvre. Vous utiliserez leurs clés sans jamais les voir.",
+                })}
+            </PiedAcces>
         </CadreAcces>
     );
 }

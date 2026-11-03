@@ -1,2 +1,2 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/settings/page";
+// [.mark] K1 : « Réglages de l'organisation » d'un client, dans la forme de la maquette.
+export { PageReglagesOrganisation as default } from "@/components/mark/reglages/ReglagesOrganisation";

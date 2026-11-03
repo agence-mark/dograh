@@ -9,7 +9,7 @@ import type { JournalLigne } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
-import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
+import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { detailFromError } from "@/lib/apiError";
 import { listerEspaces } from "@/lib/espaces";
 
@@ -67,7 +67,6 @@ export function VueJournal() {
 
     return (
         <div>
-            <TitreTableau titre={t({ en: "Journal", fr: "Journal" })} />
             {donnees.total === 0 ? (
                 <EtatVide cas="premier" icone={ScrollText} titre={t({ en: "Nothing written yet", fr: "Rien d'écrit pour l'instant" })} />
             ) : (
@@ -77,7 +76,7 @@ export function VueJournal() {
                             { titre: t({ en: "When", fr: "Quand" }) },
                             { titre: t({ en: "Who", fr: "Qui" }) },
                             { titre: t({ en: "What", fr: "Quoi" }) },
-                            { titre: t({ en: "Space", fr: "Espace" }) },
+                            { titre: t({ en: "Space", fr: "Espace" }), droite: true },
                         ]}
                     >
                         {donnees.lignes.map((l) => (
@@ -85,7 +84,7 @@ export function VueJournal() {
                                 <Cellule principale>{new Date(l.quand).toLocaleString()}</Cellule>
                                 <Cellule>{qui(l)}</Cellule>
                                 <Cellule>{GESTES[l.action] ? t(GESTES[l.action]) : l.action}</Cellule>
-                                <Cellule>{l.organization_id != null ? (espaces[l.organization_id] ?? `#${l.organization_id}`) : "—"}</Cellule>
+                                <Cellule droite>{l.organization_id != null ? (espaces[l.organization_id] ?? `#${l.organization_id}`) : "—"}</Cellule>
                             </Ligne>
                         ))}
                     </Tableau>

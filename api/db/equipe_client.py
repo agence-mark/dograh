@@ -219,8 +219,9 @@ class EquipeClient(BaseDBClient):
                 MarkRoleOrganisationModel(role_id=role.id, organization_id=o)
                 for o in organisations
             )
+            identifiant = role.id
             await session.commit()
-            return role.id
+            return identifiant
 
     async def modifier_role(
         self,
@@ -393,8 +394,10 @@ class EquipeClient(BaseDBClient):
                 expire_le=expire_le,
             )
             session.add(invitation)
+            await session.flush()
+            identifiant = invitation.id
             await session.commit()
-            return invitation.id
+            return identifiant
 
     async def invitation_par_empreinte(self, empreinte_jeton: str) -> dict | None:
         async with self.async_session() as session:
