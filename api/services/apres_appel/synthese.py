@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 
 import httpx
+from loguru import logger
 
 from api.schemas.apres_appel import ReglagesSynthese
 
@@ -47,6 +48,40 @@ Tu ne dis pas pourquoi l'appel s'est terminé. Une conversation qui s'arrête ne
 Si l'appel est trop court pour être résumé, écris une seule phrase qui dit ce qui s'est passé."""
 
 
+FAMILLE_CONSIGNE = "apres-appel"
+SLUG_CONSIGNE = "consigne-synthese"
+_CHAMPS_DU_GABARIT = ("assistant", "assistant_court", "entreprise", "champs")
+
+
+def gabarit_utilisable(texte: str) -> bool:
+    """Un gabarit de la bibliothèque n'est lu que s'il se remplit : les quatre mots du code, rien d'autre
+    entre accolades. Sinon (accolade isolée, mot inconnu) le texte du code reste en secours."""
+    try:
+        texte.format(**dict.fromkeys(_CHAMPS_DU_GABARIT, ""))
+    except (KeyError, IndexError, ValueError):
+        return False
+    return True
+
+
+async def charger_gabarit() -> str:
+    """[.mark] Builder partie 2 (U2) : la consigne par défaut de la synthèse vit dans la bibliothèque (famille
+    ``apres-appel``, élément ``consigne-synthese``, versé depuis ``versement/contenu``). Le texte du code ne sert
+    qu'en secours : bibliothèque injoignable ou non réglée, élément absent, vide ou inutilisable."""
+    try:
+        from api.services.builder.bibliotheque import service
+
+        element = await service.element_ou_none(FAMILLE_CONSIGNE, SLUG_CONSIGNE)
+    except Exception as erreur:  # noqa: BLE001 -- la synthèse ne s'arrête jamais pour une bibliothèque absente
+        logger.warning(f"[.mark] Consigne de synthèse : bibliothèque illisible, texte de secours ({erreur!r})")
+        return CONSIGNE_GENERIQUE
+    texte = str(element.courante.contenu.get("texte") or "").strip() if element else ""
+    if texte and gabarit_utilisable(texte):
+        return texte
+    if texte:
+        logger.warning("[.mark] Consigne de synthèse de la bibliothèque inutilisable, texte de secours")
+    return CONSIGNE_GENERIQUE
+
+
 def nouveau_client(**options) -> httpx.AsyncClient:
     """The HTTP client of the summary (a test gives its stand-in here)."""
     return httpx.AsyncClient(**options)
@@ -56,11 +91,11 @@ class SyntheseImpossible(RuntimeError):
     """The model did not answer, or answered nothing usable. Message safe to show."""
 
 
-def consigne(reglages: ReglagesSynthese, noms_des_champs: list[str]) -> str:
+def consigne(reglages: ReglagesSynthese, noms_des_champs: list[str], gabarit: str | None = None) -> str:
     if reglages.consigne and reglages.consigne.strip():
         return reglages.consigne.strip()
     nom = (reglages.nom_assistant or "").strip()
-    return CONSIGNE_GENERIQUE.format(
+    return (gabarit or CONSIGNE_GENERIQUE).format(
         assistant=nom or "l'assistant vocal",
         assistant_court=nom or "l'assistant",
         entreprise=f", l'assistant vocal de {reglages.nom_entreprise.strip()}"
@@ -116,7 +151,14 @@ async def resumer(
         "temperature": 0.2,
         "max_tokens": 400,
         "messages": [
-            {"role": "system", "content": consigne(reglages, list(fiche))},
+            {
+                "role": "system",
+                "content": consigne(
+                    reglages,
+                    list(fiche),
+                    None if (reglages.consigne or "").strip() else await charger_gabarit(),
+                ),
+            },
             {
                 "role": "user",
                 "content": message_utilisateur(lignes, fiche, noms_equipe),
