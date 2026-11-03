@@ -13,6 +13,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ContexteBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { FournisseurLangue } from "@/components/mark/langue/langue";
 
 const sdk = vi.hoisted(() => ({
@@ -57,11 +58,16 @@ const REGLAGES = {
     minutes_ce_mois: 12,
 };
 
+// K7 : le panneau déclare sa saisie non enregistrée à la page de l'agent (dernière déclaration par identifiant).
+const declarations = vi.hoisted(() => ({ etat: [] as boolean[] }));
+
 function rendre() {
     return render(
-        <FournisseurLangue>
-            <PanneauSite workflowId={42} />
-        </FournisseurLangue>,
+        <ContexteBrouillonLocal.Provider value={(_id, sale) => void declarations.etat.push(sale)}>
+            <FournisseurLangue>
+                <PanneauSite workflowId={42} />
+            </FournisseurLangue>
+        </ContexteBrouillonLocal.Provider>,
     );
 }
 
@@ -72,6 +78,7 @@ beforeEach(() => {
     sdk.sites.mockResolvedValue({ data: [SITE] });
     sdk.canal.mockResolvedValue({ data: {} });
     sdk.regler.mockResolvedValue({ data: {} });
+    declarations.etat = [];
 });
 afterEach(cleanup);
 
@@ -125,5 +132,32 @@ describe("PanneauSite", () => {
         rendre();
         fireEvent.click(await screen.findByRole("switch"));
         await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toContain("This agent still answers a phone number."));
+    });
+});
+
+describe("PanneauSite : saisie gardée (K7)", () => {
+    const site = () => {
+        sdk.emplacement.mockResolvedValue({ data: { workflow_id: 42, canal: "site", embed_token_id: 9, site_id: 3, site_cle: "site_abc", chemins: ["/tarifs"] } });
+        sdk.apparence.mockResolvedValue({ data: APPARENCE });
+        sdk.reglages.mockResolvedValue({ data: REGLAGES });
+    };
+
+    it("ne déclare rien tant que rien n'est saisi, puis déclare la saisie des chemins", async () => {
+        site();
+        rendre();
+        const chemins = (await screen.findByDisplayValue(/\/tarifs/)) as HTMLTextAreaElement;
+        expect(declarations.etat.at(-1)).toBe(false);
+        fireEvent.change(chemins, { target: { value: "/tarifs\n/nouveau" } });
+        await waitFor(() => expect(declarations.etat.at(-1)).toBe(true));
+        fireEvent.change(chemins, { target: { value: "/tarifs" } });
+        await waitFor(() => expect(declarations.etat.at(-1)).toBe(false));
+    });
+
+    it("déclare aussi un plafond ou les domaines modifiés dans les réglages .mark", async () => {
+        site();
+        rendre();
+        const plafond = await screen.findByDisplayValue("500");
+        fireEvent.change(plafond, { target: { value: "800" } });
+        await waitFor(() => expect(declarations.etat).toContain(true));
     });
 });

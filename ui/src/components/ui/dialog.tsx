@@ -5,6 +5,7 @@ import { ArrowLeft, XIcon } from "lucide-react"
 import * as React from "react"
 
 import { useLangue } from "@/components/mark/langue/langue"
+import { GardeDeSaisie } from "@/components/mark/agent/brouillon-local"
 import { FenetreParente, tailleDe } from "@/components/mark/studio/fenetre-parente"
 import { cn } from "@/lib/utils"
 
@@ -88,6 +89,7 @@ function DialogContent({
         )}
         {...props}
       >
+        <GardeDeSaisie />
         <FenetreParente.Provider value={{ classe: taille }}>{children}</FenetreParente.Provider>
         {parente ? (
           <DialogPrimitive.Close
