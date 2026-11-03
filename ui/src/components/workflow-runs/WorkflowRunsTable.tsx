@@ -1,11 +1,13 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, PhoneIncoming, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
 import { CallTypeCell } from "@/components/CallTypeCell";
 import { FilterBuilder } from "@/components/filters/FilterBuilder";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { MediaPreviewButton, MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +62,8 @@ export interface WorkflowRunsTableProps {
     showFilters?: boolean;
     showAgentVersion?: boolean;
     emptyMessage?: string;
+    /** K3 : « agent » = la forme de l'onglet Appels de la maquette (tableau nu, sans titre ni cadre). */
+    forme?: "agent";
 }
 
 export function WorkflowRunsTable({
@@ -86,6 +90,7 @@ export function WorkflowRunsTable({
     showFilters = true,
     showAgentVersion = false,
     emptyMessage = "No workflow runs found",
+    forme,
 }: WorkflowRunsTableProps) {
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
     const organizationTimezone = useOrganizationTimezone();
@@ -96,6 +101,82 @@ export function WorkflowRunsTable({
     const handleRowClick = (run: WorkflowRunResponseSchema) => {
         window.open(`/workflow/${run.workflow_id}/run/${run.id}`, '_blank');
     };
+
+    if (forme === "agent") {
+        return (
+            <div className="space-y-4" data-forme="appels-agent">
+                {showFilters && (
+                    <FilterBuilder
+                        availableAttributes={availableAttributes}
+                        activeFilters={activeFilters}
+                        onFiltersChange={onFiltersChange}
+                        onApplyFilters={onApplyFilters}
+                        onClearFilters={onClearFilters}
+                        isExecuting={isExecutingFilters}
+                        hasAppliedFilters={hasAppliedFilters}
+                    />
+                )}
+                {loading ? (
+                    <EtatVide cas="chargement" />
+                ) : error ? (
+                    <EtatVide cas="erreur" reessayer={onReload} />
+                ) : runs.length === 0 ? (
+                    hasAppliedFilters ? (
+                        <EtatVide cas="filtre" recherche="" effacer={onClearFilters} />
+                    ) : (
+                        <EtatVide cas="premier" icone={PhoneIncoming} titre={emptyMessage} />
+                    )
+                ) : (
+                    <>
+                        <Tableau
+                            colonnes={[
+                                { titre: "Quand" },
+                                ...(showAgentVersion ? [{ titre: "Version" }] : []),
+                                { titre: "Type d'appel" },
+                                { titre: "Issue" },
+                                { titre: "Durée", droite: true },
+                            ]}
+                        >
+                            {runs.map((run) => (
+                                <Ligne key={run.id} onClick={() => handleRowClick(run)}>
+                                    <Cellule principale>{formatDateTime(run.created_at, organizationTimezone)}</Cellule>
+                                    {showAgentVersion && (
+                                        <Cellule>{run.version_number != null ? `v${run.version_number}` : "–"}</Cellule>
+                                    )}
+                                    <Cellule>
+                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                    </Cellule>
+                                    <Cellule>{(run.gathered_context?.mapped_call_disposition as string | undefined) ?? "–"}</Cellule>
+                                    <Cellule droite>
+                                        {typeof run.cost_info?.call_duration_seconds === "number"
+                                            ? `${run.cost_info.call_duration_seconds.toFixed(1)} s`
+                                            : "–"}
+                                    </Cellule>
+                                </Ligne>
+                            ))}
+                        </Tableau>
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between pt-2">
+                                <p className="text-sm text-muted-foreground">
+                                    Page {currentPage} / {totalPages}
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+                                        <ChevronLeft className="h-4 w-4" />
+                                        Précédent
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+                                        Suivant
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
