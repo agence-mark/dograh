@@ -34,6 +34,8 @@ class NomRequest(BaseModel):
 class CreerPrincipalRequest(NomRequest):
     # Le dossier dans lequel le groupe prend son sous-dossier (absent : premier niveau).
     folder_id: int | None = None
+    # [.mark] lot M : la recette choisie à la création (identifiant d'une fiche de la bibliothèque) ; vide = le défaut.
+    recette: str | None = None
 
 
 class CreerPrincipalResponse(BaseModel):
@@ -129,6 +131,12 @@ async def creer_un_groupe(
 ) -> CreerPrincipalResponse:
     """Crée l'agent principal d'un nouveau groupe et son sous-dossier (carte « Graphe avec
     agents spécialisés » de la modale de création)."""
+    from api.services.builder import recettes
+
+    try:
+        choisie = await recettes.verifier_le_choix(user.selected_organization_id, request.recette)
+    except recettes.ErreurRecette as e:
+        raise HTTPException(status_code=e.statut, detail=str(e))
     try:
         workflow_id, folder_id = await service.creer_principal(
             nom=request.name,
@@ -138,6 +146,7 @@ async def creer_un_groupe(
         )
     except service.GroupeError as e:
         raise _vers_http(e)
+    await recettes.poser_a_la_creation(user.selected_organization_id, workflow_id, choisie, getattr(user, "email", "") or "")
     return CreerPrincipalResponse(workflow_id=workflow_id, folder_id=folder_id)
 
 

@@ -291,13 +291,30 @@ async def test_le_builder_ne_change_pas_les_criteres_d_un_test(db_session, sans_
 # --- corriger depuis un appel --------------------------------------------------------------------------------------------
 
 
-async def test_la_descente_dans_le_retour_d_outil_est_reservee_a_la_recette_polyai(db_session, sans_preparation_des_organisations):
+async def test_la_descente_dans_le_retour_d_outil_est_reservee_a_une_recette_qui_en_declare_la_capacite(
+    db_session, sans_preparation_des_organisations, monkeypatch
+):
+    """Lot M (7) : la garde lit la CAPACITÉ de la recette de l'agent, plus un nom de recette (D14 de C2, inchangé pour les deux recettes)."""
+    from api.services.builder import recettes
+    from api.services.builder.bibliotheque import service
+
     org, user, jeton, agent = await decor(db_session, "c1")
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org))
+    base = {"methode_de_construction": "m", "pieces": [], "tests": []}
+    await service.creer("recettes-agent", "facon-tala", "T", {"nom": "T", "defaut_de_depart": True, "capacites": [], **base}, "t")
+    await service.creer("recettes-agent", "facon-polyai", "P", {"nom": "P", "capacites": ["regle_de_descente"], **base}, "t")
     ctx = Contexte(user=user, workflow_id=agent.id, conversation={})
     plan = {"cause": "Oublie le nom", "replique": "Bonjour.", "objet": "retour_outil", "cible": "chercher", "avant": "a", "apres": "b"}
+    # Aucune recette indiquée : le défaut (sans la capacité) ; refusé.
     assert (await executer("correction_proposer", plan, ctx))["code"] == "recette"
     assert (await executer("correction_proposer", {**plan, "recette": "facon-tala"}, ctx))["ok"] is False
-    bon = await executer("correction_proposer", {**plan, "recette": "facon-polyai"}, ctx)
+    # Le paramètre d'avant reste accepté tant que l'agent n'a pas de recette indiquée.
+    assert (await executer("correction_proposer", {**plan, "recette": "facon-polyai"}, ctx))["ok"]
+    # Une recette indiquée sur l'agent prime : façon Tala refuse même si l'appelant dit autre chose.
+    await recettes.definir(org, agent.id, "facon-tala")
+    assert (await executer("correction_proposer", {**plan, "recette": "facon-polyai"}, ctx))["code"] == "recette"
+    await recettes.definir(org, agent.id, "facon-polyai")
+    bon = await executer("correction_proposer", plan, ctx)
     assert bon["ok"] and bon["carte"]["statut"] == "a_approuver"  # rien n'est écrit : la personne approuve d'abord
     assert (await executer("correction_proposer", {**plan, "objet": "etape", "apres": "a"}, ctx))["ok"] is False  # ne change rien
 

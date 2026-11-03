@@ -19,6 +19,7 @@ PREFIXE_RESULTATS = "MARK_TESTS_RESULTATS:"  # MARK_TESTS_RESULTATS:<workflow>:<
 CLE_CERVEAU = "MARK_BUILDER_CERVEAU"  # réglages du cerveau, dans l'organisation des réglages .mark
 CLE_PRIX = "MARK_BUILDER_PRIX"  # table de prix par modèle (C2), même organisation que le cerveau
 CLE_PREFERENCES = "MARK_BUILDER_PREFERENCES"  # user_configurations (couche 3 du contexte permanent)
+CLE_OPTIONS = "MARK_BUILDER_OPTIONS"  # lot M : options de la construction (sauvegarde avant modification, recette par défaut), même organisation que le cerveau
 
 # Bornes (R0-6).
 VERSIONS_MAX = 20

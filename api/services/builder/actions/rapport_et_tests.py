@@ -23,7 +23,6 @@ from api.services.builder.actions.registre import Action, Contexte, ErreurAction
 
 EXECUTIONS_VUES = 3
 OBJETS_DE_CORRECTION = ("prompt_general", "etape", "outil", "retour_outil", "code", "test")
-RECETTE_DE_LA_DESCENTE = "facon-polyai"
 
 
 # --- le rapport de fin -----------------------------------------------------------------------------------------------------
@@ -153,16 +152,21 @@ class _Correction(_Agent):
     cible: str = Field(min_length=1, max_length=200, description="Which prompt, step, tool, code or test is touched.")
     avant: str = Field(max_length=6000, description="The exact text or code today.")
     apres: str = Field(max_length=6000, description="The exact text or code after the change.")
-    recette: str = Field(default="", max_length=60, description="The recipe of the agent: facon-polyai or facon-tala.")
+    recette: str = Field(default="", max_length=60, description="Deprecated: the recipe is read from the agent. Only used when the agent has none set.")
 
 
 async def _correction_proposer(contexte: Contexte, parametres: _Correction) -> dict[str, Any]:
-    # D14 : la règle de descente (la consigne qui échoue descend dans le retour de l'outil) ne vaut que pour la recette façon PolyAI.
-    if parametres.objet == "retour_outil" and parametres.recette != RECETTE_DE_LA_DESCENTE:
-        raise ErreurAction("Moving a rule into a tool's return only applies to the facon-polyai recipe: not on this agent.", "recette")
     if parametres.avant == parametres.apres:
         raise ErreurAction("The plan changes nothing: « avant » and « apres » are the same.")
     identifiant = await agent_verifie(contexte, parametres.workflow_id)
+    # D14 : la règle de descente (la consigne qui échoue descend dans le retour de l'outil) ne vaut que si la recette de l'AGENT
+    # en déclare la capacité (lot M : la garde lit la capacité, plus un nom de recette).
+    if parametres.objet == "retour_outil":
+        from api.services.builder import recettes
+
+        capacites = await recettes.capacites_de_l_agent(contexte.organisation_id, identifiant, parametres.recette)
+        if recettes.CAPACITE_REGLE_DE_DESCENTE not in capacites:
+            raise ErreurAction("Moving a rule into a tool's return only applies to a recipe that has the descent rule: not on this agent.", "recette")
     carte = {"type": "correction", "workflow_id": identifiant, **parametres.model_dump(exclude={"workflow_id"}), "statut": "a_approuver"}
     return {
         "ok": True,

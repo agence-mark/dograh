@@ -108,7 +108,7 @@ def test_aucune_action_interdite_n_est_dans_le_registre():
     # Aucune action de passage en Recette, de rejet, d'acceptation ou de publication n'existe, sous aucun nom.
     # ``tests_supprimer`` (C2) PROPOSE seulement : rien n'est effacé par le builder, une personne supprime depuis l'onglet Tests.
     for nom in registre.REGISTRE:
-        assert not any(mot in nom for mot in ("publi", "supprim", "delete", "recette", "rejet", "accept", "retour")) or nom == "tests_supprimer"
+        assert not any(mot in nom for mot in ("publi", "supprim", "delete", "recette", "rejet", "accept", "retour")) or nom in ("tests_supprimer", "recette_lire") or nom.startswith("publication_")  # recette_lire (lot M) : lecture seule ; publication_* (G2) : contrôle et correction de la liste, jamais une publication
 
 
 async def test_une_erreur_du_cerveau_est_rendue_puis_la_conversation_se_ferme_proprement(monde):

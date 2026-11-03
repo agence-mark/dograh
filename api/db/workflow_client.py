@@ -436,6 +436,14 @@ class WorkflowClient(BaseDBClient):
             result = await session.execute(query)
             return result.scalars().all()
 
+    async def list_workflow_ids_with_organization(self) -> list[tuple[int, int]]:
+        """[.mark] (workflow_id, organization_id) of every workflow, without loading any definition (versement of the recipes)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel.id, WorkflowModel.organization_id).where(WorkflowModel.organization_id.is_not(None))
+            )
+            return [(row[0], row[1]) for row in result.all()]
+
     async def list_workflows_for_model_configuration_migration(
         self, organization_id: int
     ) -> list[WorkflowModel]:

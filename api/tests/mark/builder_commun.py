@@ -49,6 +49,9 @@ class FauxDb:
         self.ecritures_de_reglages: list[dict] = []
         self._prochain = 100
 
+    async def list_workflow_ids_with_organization(self):
+        return [(w.id, w.organization_id) for w in self.workflows.values()]
+
     # -- organization_configurations --
     async def get_configuration(self, organization_id, key):
         valeur = self.configs.get((organization_id, key))
@@ -178,6 +181,8 @@ MODULES_AVEC_DB = (
     "api.services.builder.reglages_agent",
     "api.services.lexique.stockage",
     "api.mcp_server.tools.workflows",
+    "api.routes.builder_m",
+    "api.services.builder.recettes",
 )
 
 
