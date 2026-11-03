@@ -10,7 +10,7 @@
  */
 import { Database } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getBaseClientApiV1OrganizationsBaseClientGet,
@@ -65,7 +65,7 @@ export const useBaseClient = () => {
         dejaLu.current = true;
         void relire();
     }, [authLoading, user, relire]);
-    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown; response?: Response }>, succes: string) => {
+    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown; response?: Response }>, succes: Texte) => {
         setEnCours(true);
         setErreur(null);
         const reponse = await action();
@@ -76,7 +76,7 @@ export const useBaseClient = () => {
             return false;
         }
         setEtat(reponse.data);
-        toast.success(succes);
+        notifier.succes(succes);
         return true;
     }, []);
     return { etat, erreur, enCours, relire, agir };
@@ -201,7 +201,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => postCreerApiV1OrganizationsBaseClientCreerPost({ body: { nom_base: nom } }),
-                                                t({ en: "Database created and attached", fr: "Base créée et rattachée" }),
+                                                { en: "Database created and attached.", fr: "Base créée et rattachée." },
                                             )
                                         }
                                     >
@@ -215,7 +215,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: nom } }),
-                                                t({ en: "Database attached", fr: "Base rattachée" }),
+                                                { en: "Database attached.", fr: "Base rattachée." },
                                             )
                                         }
                                     >
@@ -233,7 +233,7 @@ export const ThemeDonneesClient = ({
                                             onClick={() =>
                                                 void agir(
                                                     () => postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost(),
-                                                    t({ en: "Database upgraded", fr: "Base mise à niveau" }),
+                                                    { en: "Database upgraded.", fr: "Base mise à niveau." },
                                                 )
                                             }
                                         >
@@ -248,7 +248,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost(),
-                                                t({ en: "Tested: the calls read the database again", fr: "Testée : les appels relisent la base" }),
+                                                { en: "Tested: the calls read the database again.", fr: "Testée : les appels relisent la base." },
                                             )
                                         }
                                     >
@@ -262,7 +262,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: null } }),
-                                                t({ en: "Database detached", fr: "Base détachée" }),
+                                                { en: "Database detached.", fr: "Base détachée." },
                                             )
                                         }
                                     >
@@ -323,7 +323,7 @@ export const ThemeDonneesClient = ({
                                 onClick={() =>
                                     void agir(
                                         () => putConservationApiV1OrganizationsBaseClientConservationPut({ body: conservation }),
-                                        t({ en: "Retention saved", fr: "Conservation enregistrée" }),
+                                        { en: "Retention saved.", fr: "Conservation enregistrée." },
                                     )
                                 }
                             >

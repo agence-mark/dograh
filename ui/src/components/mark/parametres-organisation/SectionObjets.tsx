@@ -11,7 +11,7 @@
  */
 import { ChevronRight, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1OrganizationsObjetsReglagesPut } from "@/client/sdk.gen";
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
@@ -77,7 +77,7 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                 setErreurPlafond(detailFromError(reponse.error, "Ceiling refused"));
                 return;
             }
-            toast.success(t({ en: "Ceiling saved", fr: "Plafond enregistré" }));
+            notifier.succes({ fr: "Plafond enregistré.", en: "Ceiling saved." });
             await relire();
         } finally {
             setEnCours(false);

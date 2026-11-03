@@ -2,7 +2,8 @@
 
 import { Copy, Mail, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
+import type { Texte } from "@/components/mark/langue/langue";
 
 import {
     annulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDelete,
@@ -22,12 +23,11 @@ import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 /** Rend les données d'une réponse, ou affiche l'erreur du serveur et rend `null`. */
-export function lireOuSignaler<T>(res: { data?: T; error?: unknown }, repli: string): T | null {
+export function lireOuSignaler<T>(res: { data?: T; error?: unknown }, echec: Texte): T | null {
     if (res.error || res.data === undefined) {
-        toast.error(detailFromError(res.error, repli));
+        notifier.echec(echec, { erreur: res.error });
         return null;
     }
     return res.data;
@@ -54,9 +54,9 @@ export function VueMembres() {
             listerLesInvitationsApiV1EquipeMarkInvitationsGet({ query: fenetrePage(pageInv) }),
             listerLesRolesApiV1EquipeMarkRolesGet(),
         ]);
-        const membresLus = lireOuSignaler(m, t({ en: "The members could not be read", fr: "Les membres n'ont pas pu être lus" }));
+        const membresLus = lireOuSignaler(m, { fr: "Membres illisibles. Rechargez la page.", en: "Could not load members. Reload the page." });
         if (membresLus) setMembres({ lignes: membresLus.membres, total: membresLus.total });
-        const invitationsLues = lireOuSignaler(i, t({ en: "The invitations could not be read", fr: "Les invitations n'ont pas pu être lues" }));
+        const invitationsLues = lireOuSignaler(i, { fr: "Invitations illisibles. Rechargez la page.", en: "Could not load invitations. Reload the page." });
         if (invitationsLues) setInvitations({ lignes: invitationsLues.invitations, total: invitationsLues.total });
         if (r.data) setRoles(r.data);
     }, [page, pageInv, t]);
@@ -154,7 +154,7 @@ export function VueMembres() {
                                 const res = await annulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDelete({
                                     path: { invitation_id: invitation.id },
                                 });
-                                if (res.error) toast.error(detailFromError(res.error, t({ en: "Not cancelled", fr: "Non annulée" })));
+                                if (res.error) notifier.echec({ fr: "Invitation non annulée. Réessayez.", en: "Invitation not cancelled. Try again." }, { erreur: res.error });
                                 else {
                                     setInvitation(null);
                                     void charger();
@@ -188,7 +188,7 @@ export function VueMembres() {
                     const role = roleParNom(String(v.role));
                     if (!role) return;
                     const res = await inviterApiV1EquipeMarkInvitationsPost({ body: { email: String(v.email), role_id: role.id } });
-                    const cree = lireOuSignaler(res, t({ en: "The invitation was not created", fr: "L'invitation n'a pas été créée" }));
+                    const cree = lireOuSignaler(res, { fr: "Invitation non créée. Réessayez.", en: "Invitation not created. Try again." });
                     if (!cree) return;
                     setLien({ lien: cree.lien, envoye: cree.envoye, email: cree.email });
                     void charger();
@@ -222,7 +222,7 @@ export function VueMembres() {
                                 className="cursor-pointer"
                                 onClick={() => {
                                     void navigator.clipboard.writeText(lien.lien);
-                                    toast.success(t({ en: "Link copied", fr: "Lien copié" }));
+                                    notifier.succes({ fr: "Lien copié.", en: "Link copied." });
                                 }}
                             >
                                 <Copy className="mr-2 size-4" />
@@ -258,7 +258,7 @@ export function VueMembres() {
                             className="text-(--marque-danger-texte)"
                             onClick={async () => {
                                 const res = await retirerUnMembreApiV1EquipeMarkMembresUserIdDelete({ path: { user_id: ouvert.user_id } });
-                                if (res.error) toast.error(detailFromError(res.error, t({ en: "Not removed", fr: "Non retiré" })));
+                                if (res.error) notifier.echec({ fr: "Membre non retiré. Réessayez.", en: "Member not removed. Try again." }, { erreur: res.error });
                                 else {
                                     setOuvert(null);
                                     void charger();
@@ -275,7 +275,7 @@ export function VueMembres() {
                             path: { user_id: ouvert.user_id },
                             body: { role_id: role.id },
                         });
-                        if (res.error) toast.error(detailFromError(res.error, t({ en: "Role not changed", fr: "Rôle non changé" })));
+                        if (res.error) notifier.echec({ fr: "Rôle inchangé. Réessayez.", en: "Role unchanged. Try again." }, { erreur: res.error });
                         void charger();
                     }}
                 />

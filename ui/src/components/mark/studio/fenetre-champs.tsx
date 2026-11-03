@@ -44,7 +44,7 @@ const depart = (sections: SectionChamps[]): Valeurs =>
 /** La première phrase d'une explication (celle qui se lit sous le libellé) ; le reste va dans le « ! ». */
 const premiere = (a?: string) => (a ? a.split(/(?<=\.)\s/)[0] : "");
 
-function ChampVue({ c, valeur, changer }: { c: Champ; valeur: string | boolean; changer: (v: string | boolean) => void }) {
+function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | boolean; changer: (v: string | boolean) => void; erreur?: string }) {
     const { t } = useLangue();
     const texte = String(valeur);
     const phrase = typeof c.info === "string" ? premiere(c.info) : "";
@@ -71,7 +71,7 @@ function ChampVue({ c, valeur, changer }: { c: Champ; valeur: string | boolean; 
     return (
         <div className="space-y-2 py-3.5">
             {entete}
-            {c.t === "texte" && <Input value={texte} aria-label={c.l} onChange={(e) => changer(e.target.value)} />}
+            {c.t === "texte" && <Input value={texte} aria-label={c.l} aria-invalid={!!erreur} className={erreur ? "border-(--pastille-urgente)" : ""} onChange={(e) => changer(e.target.value)} />}
             {c.t === "lu" && <p className="text-sm">{c.v}</p>}
             {c.t === "secret" && (
                 <Input
@@ -79,6 +79,8 @@ function ChampVue({ c, valeur, changer }: { c: Champ; valeur: string | boolean; 
                     value={texte}
                     aria-label={c.l}
                     placeholder={t({ en: "Entered once, never shown again", fr: "Saisi une fois, jamais réaffiché" })}
+                    aria-invalid={!!erreur}
+                    className={erreur ? "border-(--pastille-urgente)" : ""}
                     onChange={(e) => changer(e.target.value)}
                 />
             )}
@@ -120,6 +122,11 @@ function ChampVue({ c, valeur, changer }: { c: Champ; valeur: string | boolean; 
                 ) : (
                     <Liste valeur={texte} changer={changer} options={c.o} taille="default" className="w-full" />
                 ))}
+            {erreur && (
+                <p role="alert" className="text-xs text-(--marque-danger-texte)">
+                    {erreur}
+                </p>
+            )}
         </div>
     );
 }
@@ -136,14 +143,20 @@ export function FenetreChamps(props: {
     pied?: React.ReactNode;
     /** Contenu libre sous les champs (liste, tableau) ; reste un corps blanc, sans carte. */
     corps?: React.ReactNode;
+    /**
+     * Vérification à la validation : rend, par identifiant de champ, la phrase à lire sous le champ. Tant qu'elle rend
+     * une faute, la fenêtre reste ouverte et `onValider` n'est pas appelé (une erreur de saisie n'est pas une notification).
+     */
+    verifier?: (valeurs: Valeurs) => Record<string, string> | null;
 }) {
     // Montée à chaque ouverture : l'affichage conditionnel part des valeurs de l'objet ouvert, jamais d'un état périmé.
     return props.ouverte ? <FenetreOuverte {...props} /> : null;
 }
 
-function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps }: Parameters<typeof FenetreChamps>[0]) {
+function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier }: Parameters<typeof FenetreChamps>[0]) {
     const { t } = useLangue();
     const [valeurs, setValeurs] = useState<Valeurs>(() => depart(sections));
+    const [fautes, setFautes] = useState<Record<string, string>>({});
     const visible = (c: Champ) => !c.si || c.si[1].includes(valeurs[c.si[0]]);
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
@@ -177,7 +190,11 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
                                             key={c.id}
                                             c={c}
                                             valeur={valeurs[c.id]}
-                                            changer={(v) => setValeurs((x) => ({ ...x, [c.id]: v }))}
+                                            erreur={fautes[c.id]}
+                                            changer={(v) => {
+                                                setValeurs((x) => ({ ...x, [c.id]: v }));
+                                                setFautes((x) => (c.id in x ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== c.id)) : x));
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -197,6 +214,11 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
                             <Button
                                 variant={danger ? "destructive" : "default"}
                                 onClick={() => {
+                                    const refus = verifier?.(valeurs);
+                                    if (refus && Object.keys(refus).length > 0) {
+                                        setFautes(refus);
+                                        return;
+                                    }
                                     onValider?.(valeurs);
                                     fermer();
                                 }}

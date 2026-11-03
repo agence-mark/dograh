@@ -13,7 +13,7 @@
  * dernier passage, ou l'etat du plafond de l'installation (`ENABLE_CALL_RECORDING_UPLOAD`).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getConservationDesAppelsApiV1OrganizationsConservationAppelsGet,
@@ -73,7 +73,7 @@ export const useConservationAppels = () => {
     const modifie = Boolean(vue && brouillon && JSON.stringify(brouillon) !== JSON.stringify(vue.reglages));
     const invalide = Boolean(brouillon && (!moisValide(brouillon.duree_mois) || !moisValide(brouillon.audio_duree_mois)));
 
-    const enregistrer = async (succes: string) => {
+    const enregistrer = async (succes: Texte) => {
         if (!brouillon || enCours) return;
         setEnCours(true);
         setErreur(null);
@@ -85,7 +85,7 @@ export const useConservationAppels = () => {
             }
             setVue(reponse.data);
             setBrouillon(reponse.data.reglages);
-            toast.success(succes);
+            notifier.succes(succes);
         } catch {
             setErreur("Call retention settings: the server did not answer");
         } finally {
@@ -254,7 +254,7 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                         size="sm"
                         data-testid="enregistrer-conservation-appels"
                         disabled={enCours || !modifie || invalide}
-                        onClick={() => void enregistrer(t({ en: "Call retention saved", fr: "Conservation des appels enregistrée" }))}
+                        onClick={() => void enregistrer({ fr: "Durée de conservation enregistrée.", en: "Retention period saved." })}
                     >
                         {t({ en: "Save call retention", fr: "Enregistrer la conservation des appels" })}
                     </Button>

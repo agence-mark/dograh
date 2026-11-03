@@ -3,7 +3,7 @@
 import { Save, SlidersHorizontal } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   getPreferencesApiV1OrganizationsPreferencesGet,
@@ -145,12 +145,7 @@ export function OrganizationPreferencesSection() {
         await getPreferencesApiV1OrganizationsPreferencesGet();
 
       if (result.error) {
-        toast.error(
-          detailFromError(
-            result.error,
-            "Failed to load organization preferences",
-          ),
-        );
+        notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." }, { erreur: result.error });
         return;
       }
 
@@ -161,7 +156,7 @@ export function OrganizationPreferencesSection() {
         nextPreferences.timezone || emptyPreferences.timezone || "UTC",
       );
     } catch {
-      toast.error("Failed to load organization preferences");
+      notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." });
     } finally {
       setLoading(false);
     }
@@ -210,21 +205,21 @@ export function OrganizationPreferencesSection() {
         if (result.response?.status === 422 && refusAdresse) {
           setErreurAdresse(message);
         }
-        toast.error(message);
+        notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: result.error });
         return false;
       }
       if (!result.data) {
-        toast.error("Failed to save preferences");
+        notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
         return false;
       }
 
       setPreferences(toFormPreferences(result.data));
       setTimezone(result.data.timezone || emptyPreferences.timezone || "UTC");
       await refreshConfig();
-      toast.success(successMessage);
+      notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
       return true;
     } catch {
-      toast.error("Failed to save preferences");
+      notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
       return false;
     } finally {
       setSaving(false);

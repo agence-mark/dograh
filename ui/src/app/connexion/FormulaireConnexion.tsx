@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { loginApiV1AuthLoginPost } from "@/client/sdk.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 /**
  * [.mark] La connexion dans la forme de la maquette (`PageConnexion`, K1). `premierCompte` : l'installation est vide,
@@ -27,7 +26,7 @@ export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean 
         try {
             const res = await loginApiV1AuthLoginPost({ body: { email, password: motDePasse } });
             if (res.error || !res.data) {
-                toast.error(detailFromError(res.error, t({ en: "Sign-in failed", fr: "Connexion impossible" })));
+                notifier.echec({ fr: "Connexion impossible. Vérifiez l'adresse et le mot de passe.", en: "Sign-in failed. Check your email and password." }, { erreur: res.error });
                 return;
             }
             await fetch("/api/auth/session", {
@@ -37,7 +36,7 @@ export function FormulaireConnexion({ premierCompte }: { premierCompte: boolean 
             });
             window.location.href = "/after-sign-in";
         } catch {
-            toast.error(t({ en: "An error occurred. Please try again.", fr: "Une erreur est survenue. Réessayez." }));
+            notifier.echec({ fr: "Connexion impossible. Réessayez dans un instant.", en: "Sign-in failed. Try again in a moment." });
         } finally {
             setEnCours(false);
         }

@@ -11,7 +11,7 @@
  */
 import { Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getApresAppelApiV1OrganizationsApresAppelGet,
@@ -144,11 +144,11 @@ export const ThemeApresAppel = ({
         const reponse = await putApresAppelApiV1OrganizationsApresAppelPut({ body: envoye });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            toast.error(detailFromError(reponse.error, "After-call settings not saved"));
+            notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: reponse.error });
             return;
         }
         setEcran(reponse.data);
-        toast.success(t({ en: "After-call settings saved", fr: "Réglages de l'après-appel enregistrés" }));
+        notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
     };
 
     const agir = async (action: () => Promise<{ data?: unknown; error?: unknown }>, succes: Texte) => {
@@ -156,10 +156,10 @@ export const ThemeApresAppel = ({
         const reponse = await action();
         setEnCours(false);
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, "Refused"));
+            notifier.echec({ fr: "Demande refusée.", en: "Request refused." }, { erreur: reponse.error });
             return;
         }
-        toast.success(t(succes));
+        notifier.succes(succes);
         await apresAppel.relire();
     };
 

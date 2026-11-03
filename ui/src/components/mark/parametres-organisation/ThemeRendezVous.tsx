@@ -14,7 +14,7 @@
  */
 import { CalendarClock, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getEquipeApiV1OrganizationsEquipeGet,
@@ -262,7 +262,7 @@ export const ThemeRendezVous = ({
         }
         setEnregistre(r.data);
         setBrouillon(r.data);
-        toast.success(t({ en: "Appointment rules saved", fr: "Règles des rendez-vous enregistrées" }));
+        notifier.succes({ fr: "Règles enregistrées.", en: "Rules saved." });
     };
 
     const typesIci = (brouillon?.types ?? []).filter((x) => (x.etablissement ?? "") === niveau);

@@ -9,7 +9,7 @@
 import { Building2, Check, ChevronsUpDown, FlaskConical, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
@@ -137,7 +137,7 @@ function NouveauClient({ ouvert, onOuvert }: { ouvert: boolean; onOuvert: (o: bo
             retenirEspace(`/clients/${cree.id}`);
             router.push(`/clients/${cree.id}`);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "Could not create the client", fr: "Impossible de créer le client" }));
+            notifier.echec({ fr: "Client non créé. Réessayez.", en: "Client not created. Try again." }, { erreur: e });
         } finally {
             setEnCours(false);
         }

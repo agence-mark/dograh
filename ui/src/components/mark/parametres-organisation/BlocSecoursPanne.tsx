@@ -14,7 +14,7 @@
  */
 import { Copy, LifeBuoy, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getPanneApiV1OrganizationsPanneGet,
@@ -26,7 +26,6 @@ import type { EcranPanne, ResultatRattrapage } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -45,7 +44,7 @@ function TexteDuBin({ id, titre, texte }: { id: string; titre: Texte; texte: str
                     aria-label={t({ en: "Copy the text of the Bin", fr: "Copier le texte du Bin" })}
                     onClick={() => {
                         void navigator.clipboard?.writeText(texte);
-                        toast.success(t({ en: "Copied", fr: "Copié" }));
+                        notifier.succes({ fr: "Copié.", en: "Copied." });
                     }}
                 >
                     <Copy className="h-3.5 w-3.5" />
@@ -93,11 +92,11 @@ export function BlocSecoursPanne() {
         const r = await putPanneApiV1OrganizationsPannePut({ body: { ...ecran.reglages, url_secours: url.trim() || null, url_secours_promesse: urlPromesse.trim() || null } });
         setEnCours(false);
         if (r.error || !r.data) {
-            toast.error(detailFromError(r.error, "Emergency address not saved"));
+            notifier.echec({ fr: "Adresse de secours non enregistrée. Réessayez.", en: "Fallback address not saved. Try again." }, { erreur: r.error });
             return;
         }
         setEcran(r.data);
-        toast.success(t({ en: "Emergency address saved", fr: "Adresse de secours enregistrée" }));
+        notifier.succes({ fr: "Adresse de secours enregistrée.", en: "Fallback address saved." });
     };
 
     const rattraper = async () => {
@@ -105,7 +104,7 @@ export function BlocSecoursPanne() {
         const r = await postRattrapageApiV1OrganizationsPanneRattrapagePost();
         setEnCours(false);
         if (r.error || !r.data) {
-            toast.error(detailFromError(r.error, "Catch-up failed"));
+            notifier.echec({ fr: "Rattrapage impossible. Réessayez.", en: "Catch-up failed. Try again." }, { erreur: r.error });
             return;
         }
         setBilan(r.data);
@@ -116,14 +115,11 @@ export function BlocSecoursPanne() {
         const r = await postAdresseDeSecoursApiV1OrganizationsPanneAdresseDeSecoursPost({ body: { numero: numero.trim(), effacer: false } });
         setEnCours(false);
         if (r.error || !r.data) {
-            toast.error(detailFromError(r.error, "Emergency address not written"));
+            notifier.echec({ fr: "Adresse non écrite sur le numéro. Réessayez.", en: "Address not written to the number. Try again." }, { erreur: r.error });
             return;
         }
-        toast.success(
-            r.data.ecrit
-                ? t({ en: "Written on the number at Twilio", fr: "Écrite sur le numéro chez Twilio" })
-                : t({ en: "Number not found in the Twilio account", fr: "Numéro introuvable dans le compte Twilio" }),
-        );
+        if (r.data.ecrit) notifier.succes({ fr: "Adresse écrite sur le numéro chez Twilio.", en: "Address written on the number at Twilio." });
+        else notifier.information({ fr: "Rien à écrire pour ce numéro.", en: "Nothing to write for this number." });
     };
 
     return (

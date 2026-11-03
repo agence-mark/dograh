@@ -13,7 +13,7 @@
  */
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGet,
@@ -159,7 +159,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat }: Propri
         }
         setEnregistre(r.data);
         setBrouillon(r.data);
-        toast.success(t({ en: "Caller verification saved", fr: "Vérification de l'appelant enregistrée" }));
+        notifier.succes({ fr: "Vérification enregistrée.", en: "Verification saved." });
     };
 
     return (

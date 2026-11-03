@@ -167,7 +167,7 @@ const stylesFuseau = {
     }),
 };
 
-const PREFERENCES_ENREGISTREES: Texte = { en: "Preferences saved", fr: "Préférences enregistrées" };
+const PREFERENCES_ENREGISTREES: Texte = { en: "Settings saved.", fr: "Réglages enregistrés." };
 const CLES_ORGANISATION = ["test_phone_number", "timezone", "adresses_notification"] as const;
 
 export const ThemeOrganisationGenerale = ({
@@ -203,7 +203,7 @@ export const ThemeOrganisationGenerale = ({
             modifie={modifie}
             erreurs={[]}
             enregistrement={{
-                onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
+                onEnregistrer: () => void preferences.enregistrer(brouillon, PREFERENCES_ENREGISTREES),
                 // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
                 // replaces the whole row, sent from the empty defaults it would
                 // clear the mapping, the address and the test number. Dograh's
@@ -355,7 +355,7 @@ export const ThemeEtablissementOrganisation = ({
         // old card's button did on its own.
         const toutes = !modifie;
         if (adresseModifiee || toutes) {
-            const resultat = await preferences.enregistrer({ adresse_etablissement: adresse }, t(PREFERENCES_ENREGISTREES));
+            const resultat = await preferences.enregistrer({ adresse_etablissement: adresse }, PREFERENCES_ENREGISTREES);
             if (resultat.ok) {
                 setAdresseIncomplete(false);
                 setRefusAdresse(null);
@@ -648,7 +648,7 @@ export const ThemeIntegrations = ({
             modifie={modifie}
             erreurs={[]}
             enregistrement={{
-                onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
+                onEnregistrer: () => void preferences.enregistrer(brouillon, PREFERENCES_ENREGISTREES),
                 // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
                 // replaces the whole row, sent from the empty defaults it would
                 // clear the mapping, the address and the test number. Dograh's
@@ -750,7 +750,7 @@ export const ThemeIntegrations = ({
                             (
                                 await preferences.enregistrer(
                                     { ...brouillon, disposition_mapping },
-                                    t({ en: "Disposition mapping saved", fr: "Correspondance des issues enregistrée" }),
+                                    { en: "Disposition mapping saved.", fr: "Correspondance des issues enregistrée." },
                                 )
                             ).ok
                         }

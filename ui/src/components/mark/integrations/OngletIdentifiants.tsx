@@ -9,7 +9,7 @@
  */
 import { KeyRound } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     createCredentialApiV1CredentialsPost,
@@ -127,7 +127,7 @@ function FenetreIdentifiant({
         if (r.error) return setErreur(detailFromError(r.error, "Value not replaced"));
         setValeur("");
         setErreur(null);
-        toast.success(t({ en: "Value replaced", fr: "Valeur remplacée" }));
+        notifier.succes({ fr: "Valeur remplacée.", en: "Value replaced." });
         apres();
     };
     const supprimer = async () => {

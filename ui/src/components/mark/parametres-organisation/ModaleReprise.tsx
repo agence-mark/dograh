@@ -12,7 +12,7 @@
  * for it. Centred window, never a side panel.
  */
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { repriseDesFichesApiV1OrganizationsEtablissementsReprisePost } from "@/client/sdk.gen";
 import type { ResultatReprise } from "@/client/types.gen";
@@ -47,7 +47,7 @@ export function ModaleReprise({ ouverte, onFermer }: { ouverte: boolean; onFerme
         setEssai(reponse.data);
         if (ecrire) {
             setEcrit(true);
-            toast.success(t({ en: "Takeover written", fr: "Reprise écrite" }));
+            notifier.succes({ fr: "Reprise enregistrée.", en: "Takeover saved." });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

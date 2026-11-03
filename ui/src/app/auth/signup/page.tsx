@@ -6,14 +6,13 @@
  * que l'installation n'a aucun compte (`signup_enabled`) ; ce compte devient Administrateur et son organisation le Labo.
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { signupApiV1AuthSignupPost } from "@/client/sdk.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 const MOT_DE_PASSE_MIN = 12;
 
@@ -38,7 +37,7 @@ export default function PagePremierCompte() {
                 body: { email, password: motDePasse, name: [prenom, nom].filter(Boolean).join(" ") || null },
             });
             if (res.error || !res.data) {
-                toast.error(detailFromError(res.error, t({ en: "The account could not be created", fr: "Le compte n'a pas pu être créé" })));
+                notifier.echec({ fr: "Compte non créé. Vérifiez vos informations et réessayez.", en: "Account not created. Check your details and try again." }, { erreur: res.error });
                 return;
             }
             await fetch("/api/auth/session", {
@@ -48,7 +47,7 @@ export default function PagePremierCompte() {
             });
             window.location.href = "/after-sign-in";
         } catch {
-            toast.error(t({ en: "An error occurred. Please try again.", fr: "Une erreur est survenue. Réessayez." }));
+            notifier.echec({ fr: "Compte non créé. Réessayez dans un instant.", en: "Account not created. Try again in a moment." });
         } finally {
             setEnCours(false);
         }

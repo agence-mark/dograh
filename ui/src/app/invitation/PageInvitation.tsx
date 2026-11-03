@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     accepterUneInvitationApiV1AuthInvitationJetonAccepterPost,
@@ -11,7 +11,6 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 const MOT_DE_PASSE_MIN = 12;
 
@@ -52,7 +51,7 @@ export function PageInvitation({ jeton }: { jeton: string }) {
                 body: { prenom, nom, mot_de_passe: motDePasse },
             });
             if (res.error || !res.data) {
-                toast.error(detailFromError(res.error, t({ en: "The account could not be created", fr: "Le compte n'a pas pu être créé" })));
+                notifier.echec({ fr: "Compte non créé. L'invitation a peut-être expiré.", en: "Account not created. The invitation may have expired." }, { erreur: res.error });
                 return;
             }
             await fetch("/api/auth/session", {
@@ -62,7 +61,7 @@ export function PageInvitation({ jeton }: { jeton: string }) {
             });
             window.location.href = "/after-sign-in";
         } catch {
-            toast.error(t({ en: "An error occurred. Please try again.", fr: "Une erreur est survenue. Réessayez." }));
+            notifier.echec({ fr: "Compte non créé. Réessayez dans un instant.", en: "Account not created. Try again in a moment." });
         } finally {
             setEnCours(false);
         }

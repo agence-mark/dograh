@@ -11,13 +11,12 @@
  */
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { getInstallationApiV1OrganizationsApresAppelInstallationGet, putInstallationApiV1OrganizationsApresAppelInstallationPut } from "@/client/sdk.gen";
 import type { EcranInstallation, ReglagesInstallation, ReglagesSmtp } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampEtiquettes } from "../ChampEtiquettes";
@@ -68,12 +67,12 @@ export function BlocInstallationMark() {
         const r = await putInstallationApiV1OrganizationsApresAppelInstallationPut({ body: { ...brouillon, smtp } });
         setEnCours(false);
         if (r.error || !r.data) {
-            toast.error(detailFromError(r.error, "Installation settings not saved"));
+            notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: r.error });
             return;
         }
         setEcran(r.data);
         setBrouillon(r.data.reglages);
-        toast.success(t({ en: "Installation settings saved", fr: "Réglages de l'installation enregistrés" }));
+        notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
     };
 
     return (

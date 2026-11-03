@@ -14,7 +14,7 @@
  */
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getPhrasesApiV1OrganizationsPhrasesGet,
@@ -184,7 +184,7 @@ export function ModalePhrases({
             setErreur(detailFromError(reponse.error, "Sentences not saved"));
             return;
         }
-        toast.success(t(PHRASES_ENREGISTREES));
+        notifier.succes({ fr: "Phrases enregistrées.", en: "Phrases saved." });
         onFermer(true);
     };
 
