@@ -7368,6 +7368,14 @@ export type ModificationDuCerveau = {
      */
     prix_sortie_par_million?: number;
     /**
+     * Plafond Rejeu Depense
+     */
+    plafond_rejeu_depense?: number;
+    /**
+     * Plafond Rejeu Jetons
+     */
+    plafond_rejeu_jetons?: number;
+    /**
      * Fenetre
      */
     fenetre?: number;
@@ -9344,6 +9352,24 @@ export type PrincipalDuGroupe = {
      * Folder Id
      */
     folder_id?: number | null;
+};
+
+/**
+ * PrixDUnModele
+ */
+export type PrixDUnModele = {
+    /**
+     * Modele
+     */
+    modele: string;
+    /**
+     * Entree Par Million
+     */
+    entree_par_million?: number;
+    /**
+     * Sortie Par Million
+     */
+    sortie_par_million?: number;
 };
 
 /**
@@ -12175,6 +12201,16 @@ export type TtsCacheList = {
 };
 
 /**
+ * TableDesPrix
+ */
+export type TableDesPrix = {
+    /**
+     * Modeles
+     */
+    modeles?: Array<PrixDUnModele>;
+};
+
+/**
  * TauxDeSortieDImpasse
  */
 export type TauxDeSortieDImpasse = {
@@ -14329,6 +14365,14 @@ export type VueReglagesCerveau = {
      * Prix Sortie Par Million
      */
     prix_sortie_par_million?: number;
+    /**
+     * Plafond Rejeu Depense
+     */
+    plafond_rejeu_depense?: number;
+    /**
+     * Plafond Rejeu Jetons
+     */
+    plafond_rejeu_jetons?: number;
     /**
      * Fenetre
      */
@@ -19701,6 +19745,92 @@ export type ReglerLeCerveauApiV1BuilderCerveauPutResponses = {
 };
 
 export type ReglerLeCerveauApiV1BuilderCerveauPutResponse = ReglerLeCerveauApiV1BuilderCerveauPutResponses[keyof ReglerLeCerveauApiV1BuilderCerveauPutResponses];
+
+export type LireLaTableDesPrixApiV1BuilderPrixGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/prix';
+};
+
+export type LireLaTableDesPrixApiV1BuilderPrixGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaTableDesPrixApiV1BuilderPrixGetError = LireLaTableDesPrixApiV1BuilderPrixGetErrors[keyof LireLaTableDesPrixApiV1BuilderPrixGetErrors];
+
+export type LireLaTableDesPrixApiV1BuilderPrixGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TableDesPrix;
+};
+
+export type LireLaTableDesPrixApiV1BuilderPrixGetResponse = LireLaTableDesPrixApiV1BuilderPrixGetResponses[keyof LireLaTableDesPrixApiV1BuilderPrixGetResponses];
+
+export type ReglerLaTableDesPrixApiV1BuilderPrixPutData = {
+    body: TableDesPrix;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/prix';
+};
+
+export type ReglerLaTableDesPrixApiV1BuilderPrixPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLaTableDesPrixApiV1BuilderPrixPutError = ReglerLaTableDesPrixApiV1BuilderPrixPutErrors[keyof ReglerLaTableDesPrixApiV1BuilderPrixPutErrors];
+
+export type ReglerLaTableDesPrixApiV1BuilderPrixPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: TableDesPrix;
+};
+
+export type ReglerLaTableDesPrixApiV1BuilderPrixPutResponse = ReglerLaTableDesPrixApiV1BuilderPrixPutResponses[keyof ReglerLaTableDesPrixApiV1BuilderPrixPutResponses];
 
 export type LireLesPreferencesApiV1BuilderPreferencesGetData = {
     body?: never;
