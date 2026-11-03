@@ -149,6 +149,10 @@ async def _ranger(fichier: Fichier, dossier_actuel: str, etiquettes_actuelles: l
 
 async def verser(dossier: Path = CONTENU) -> Rapport:
     rapport = Rapport()
+    # Lancé au démarrage dans un processus neuf, le cache du Labo est vide : le lire en base d'abord (C8).
+    from api.services.equipe_mark.espaces import rafraichir_labo
+
+    await rafraichir_labo(force=True)
     if organisation_bibliotheque() is None:
         rapport.non_configure = True
         logger.warning("[.mark] versement : organisation de la bibliothèque non réglée, rien n'est versé")

@@ -80,3 +80,21 @@ def test_le_demarrage_du_conteneur_joue_le_versement_apres_les_migrations_sans_b
     migrations = script.index("upgrade head")
     ligne = script.index("python -m api.scripts.mark.verser ||")
     assert migrations < ligne
+
+
+async def test_au_demarrage_le_labo_marque_en_base_est_lu_avant_de_verser(monde, monkeypatch, tmp_path):
+    """Lancé dans un processus neuf (script du conteneur), le cache du Labo est vide : le versement lit la base (C8)."""
+    from unittest.mock import AsyncMock
+
+    from api.services.equipe_mark import espaces
+    from api.tests.mark.builder_commun import ORG_MARK
+
+    monkeypatch.delenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID")
+    espaces.reinitialiser_cache()
+    monkeypatch.setattr(espaces.db_client, "organisation_marquee_labo", AsyncMock(return_value=ORG_MARK))
+    _ecrire(tmp_path, "methode-builder", "essai", {"texte": "a"})
+    try:
+        rapport = await versement.verser(tmp_path)
+    finally:
+        espaces.reinitialiser_cache()
+    assert rapport.non_configure is False and rapport.crees
