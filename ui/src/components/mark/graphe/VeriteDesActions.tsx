@@ -93,6 +93,7 @@ export const VeriteDesActions = ({
         aides={[TEXTES.aide, TEXTES.aide2]}
         bornes={BORNES}
         disposition="ligne"
+        variante="noeud"
     >
         <Switch id={MARQUEUR_VERITE_DES_ACTIONS} checked={coche} onCheckedChange={onChange} />
     </ChampReglage>

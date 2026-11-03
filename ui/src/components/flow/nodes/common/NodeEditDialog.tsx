@@ -1,4 +1,4 @@
-import { AlertCircle, ExternalLink, Sparkles } from "lucide-react";
+import { AlertCircle, Sparkles } from "lucide-react";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
@@ -28,7 +28,6 @@ interface NodeEditDialogProps {
     onSave?: () => void;
     error?: string | null;
     isDirty?: boolean;
-    documentationUrl?: string;
     /** Le type de l'étape, en petit devant son nom (« Début », « Étape », « Fin »…). */
     typeLabel?: string;
     /** Le nom de l'étape, modifiable dans l'en-tête ; absent, l'en-tête n'a pas de champ de nom. */
@@ -51,7 +50,6 @@ export const NodeEditDialog = ({
     onSave,
     error,
     isDirty = false,
-    documentationUrl,
     typeLabel,
     nom,
     onNomChange,
@@ -104,7 +102,7 @@ export const NodeEditDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud">
+            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud">
                 <div className="shrink-0 px-6 pb-3 pr-12 pt-5">
                     <DialogTitle className="sr-only">{title}</DialogTitle>
                     <div className="flex items-center gap-2">
@@ -119,17 +117,6 @@ export const NodeEditDialog = ({
                             />
                         )}
                         <div className="ml-auto flex items-center gap-1">
-                            {documentationUrl && (
-                                <a
-                                    href={documentationUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                    Docs
-                                    <ExternalLink className="size-3.5" />
-                                </a>
-                            )}
                             {onDemanderAuBuilder && !readOnly && (
                                 <Button variant="ghost" size="sm" onClick={onDemanderAuBuilder}>
                                     <Sparkles className="size-3.5 text-(--acc)" /> {t({ en: "Ask the builder", fr: "Demander au builder" })}
@@ -144,10 +131,10 @@ export const NodeEditDialog = ({
                         </div>
                     )}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto bg-background px-6 py-4">
-                    <div className="grid gap-4">{children}</div>
+                <div className="flex min-h-0 flex-1 flex-col bg-background">
+                    {children}
                     {error && (
-                        <div className="mt-4 flex items-center gap-2 text-sm text-destructive">
+                        <div className="flex items-center gap-2 px-6 pb-4 text-sm text-destructive">
                             <AlertCircle className="size-4 shrink-0" />
                             <span>{error}</span>
                         </div>

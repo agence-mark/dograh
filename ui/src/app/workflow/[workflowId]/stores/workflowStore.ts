@@ -27,7 +27,6 @@ interface WorkflowState {
 
   // UI state (not tracked in history)
   isDirty: boolean;
-  isAddNodePanelOpen: boolean;
 
   // Validation state
   workflowValidationErrors: WorkflowError[];
@@ -80,7 +79,6 @@ interface WorkflowActions {
 
   // UI state
   setIsDirty: (isDirty: boolean) => void;
-  setIsAddNodePanelOpen: (isOpen: boolean) => void;
 
   // Validation
   setWorkflowValidationErrors: (errors: WorkflowError[]) => void;
@@ -133,7 +131,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   history: [],
   historyIndex: -1,
   isDirty: false,
-  isAddNodePanelOpen: false,
   workflowValidationErrors: [],
   templateContextVariables: {},
   workflowConfigurations: null,
@@ -375,10 +372,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isDirty });
   },
 
-  setIsAddNodePanelOpen: (isAddNodePanelOpen) => {
-    set({ isAddNodePanelOpen });
-  },
-
   setWorkflowValidationErrors: (workflowValidationErrors) => {
     set({ workflowValidationErrors });
   },
@@ -430,8 +423,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       history: [],
       historyIndex: -1,
       isDirty: false,
-      isAddNodePanelOpen: false,
-      workflowValidationErrors: [],
+          workflowValidationErrors: [],
       templateContextVariables: {},
       workflowConfigurations: null,
       dictionary: '',

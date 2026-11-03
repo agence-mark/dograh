@@ -20,6 +20,7 @@ import { getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { detailFromError } from "@/lib/apiError";
+import { useAuth } from "@/lib/auth";
 import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
 
@@ -849,9 +850,12 @@ export type BlocDuRun =
 export function useAnalyseDuRun(workflowId: number, runId: number, actif = true) {
     const [analyse, setAnalyse] = useState<AnalyseDuRun | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
+    // K2b : la lecture attend que l'authentification soit prête (sinon la requête part sans jeton : « Authorization header required »).
+    const { loading: authEnCours, user } = useAuth();
+    const pret = !authEnCours && !!user;
 
     useEffect(() => {
-        if (!actif) return;
+        if (!actif || !pret) return;
         let annule = false;
         (async () => {
             try {
@@ -871,7 +875,7 @@ export function useAnalyseDuRun(workflowId: number, runId: number, actif = true)
         return () => {
             annule = true;
         };
-    }, [workflowId, runId, actif]);
+    }, [workflowId, runId, actif, pret]);
 
     return { analyse, erreur };
 }

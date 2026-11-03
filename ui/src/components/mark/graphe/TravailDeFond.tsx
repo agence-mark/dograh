@@ -38,6 +38,7 @@ export const TravailDeFond = ({
         libelle={TEXTES.libelle}
         aides={[TEXTES.aide]}
         disposition="ligne"
+        variante="noeud"
     >
         <Switch id={MARQUEUR_TRAVAIL_DE_FOND} checked={coche} onCheckedChange={onChange} />
     </ChampReglage>

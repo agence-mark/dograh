@@ -144,7 +144,6 @@ export const useWorkflowState = ({
         edges,
         workflowName,
         isDirty,
-        isAddNodePanelOpen,
         workflowValidationErrors,
         templateContextVariables,
         workflowConfigurations,
@@ -154,7 +153,6 @@ export const useWorkflowState = ({
         setEdges,
         setWorkflowName,
         setIsDirty,
-        setIsAddNodePanelOpen,
         setWorkflowValidationErrors,
         setTemplateContextVariables,
         setWorkflowConfigurations,
@@ -323,8 +321,7 @@ export const useWorkflowState = ({
 
         // Use addNodes from ReactFlow instance
         rfInstance.current.addNodes([newNode]);
-        setIsAddNodePanelOpen(false);
-    }, [nodes, setIsAddNodePanelOpen, workflowId, bySpecName]);
+    }, [nodes, workflowId, bySpecName]);
 
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setWorkflowName(e.target.value);
@@ -669,7 +666,6 @@ export const useWorkflowState = ({
         rfInstance,
         nodes,
         edges,
-        isAddNodePanelOpen,
         workflowName,
         isDirty,
         workflowValidationErrors,
@@ -683,7 +679,6 @@ export const useWorkflowState = ({
         setNodes,
         setEdges,
         setIsDirty,
-        setIsAddNodePanelOpen,
         handleNodeSelect,
         handleNameChange,
         saveWorkflow,

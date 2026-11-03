@@ -21,7 +21,7 @@ import {
     useAuiState,
     useLocalRuntime,
 } from "@assistant-ui/react";
-import { AtSign, Maximize2, Minimize2, Phone, Plus, Send, Settings, Slash, X } from "lucide-react";
+import { AtSign, Maximize2, Minimize2, Phone, Plus, Send, Settings, Slash, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { lireLeCerveauApiV1BuilderCerveauGet } from "@/client";
@@ -331,12 +331,11 @@ export function PanneauBuilder({ contexte, noeuds }: { contexte: ContexteDuPanne
                 aria-label={t(T.titre)}
                 data-panneau="builder-ia"
             >
-                <header className="flex items-center gap-1 border-b px-3 py-2">
-                    <h2 className="whitespace-nowrap text-sm font-semibold">{t(T.titre)}</h2>
-                    <span className="ml-2 truncate text-xs text-muted-foreground" data-cerveau>
-                        {modele === null ? "" : modele ? `${t(T.modele)} : ${modele}` : t(T.sansCerveau)}
-                    </span>
-                    <div className="ml-auto flex items-center">
+                {/* [.mark] K2b : l'en-tête de la maquette (`panneau-builder.tsx`) : l'étincelle, le titre, les icônes à droite. */}
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                    <Sparkles className="size-4 shrink-0 text-(--acc)" aria-hidden />
+                    <h2 className="flex-1 truncate text-sm font-medium">{t(T.titre)}</h2>
+                    <div className="flex items-center">
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t(T.appeler)} title={t(T.appeler)} onClick={contexte.appelerLAgent}>
                             <Phone className="h-4 w-4" aria-hidden />
                         </Button>
@@ -360,8 +359,11 @@ export function PanneauBuilder({ contexte, noeuds }: { contexte: ContexteDuPanne
                     </div>
                 </header>
                 <BandeauBrouillon />
-                <div className="border-b px-3 py-1">
-                    <button type="button" className="text-xs underline" onClick={contexte.essayerAuClavier}>
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-1.5 text-xs">
+                    <span className="min-w-0 truncate text-muted-foreground" data-cerveau>
+                        {modele === null ? "" : modele ? `${t(T.modele)} : ${modele}` : t(T.sansCerveau)}
+                    </span>
+                    <button type="button" className="shrink-0 cursor-pointer hover:font-medium" onClick={contexte.essayerAuClavier}>
                         {t(T.clavier)}
                     </button>
                 </div>

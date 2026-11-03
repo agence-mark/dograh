@@ -29,12 +29,14 @@ afterEach(cleanup);
 describe.each(["agentNode", "endCall"] as const)("[.mark] first reply on %s", (type) => {
     const spec = (specs as Record<string, unknown>)[type] as NodeSpec;
 
-    it("shows the field right after the prompt, with its help", () => {
+    it("shows the field right after the prompt, with its help in a « ! »", () => {
         const { container } = render(
             <NodeEditForm spec={spec} values={{ name: "Step", prompt: "Ask." }} onChange={() => {}} context={CONTEXTE} />,
         );
         expect(screen.getByText("First reply")).toBeTruthy();
-        expect(screen.getByText(/Used only when "Transitions in the reply" is on/)).toBeTruthy();
+        // K2b : l'explication est dans le « ! » du champ, pas en note dessous.
+        const info = screen.getByText("First reply").closest("label")?.querySelector('[role="button"][aria-label]') as HTMLElement;
+        expect(info).toBeTruthy();
         const textes = container.textContent ?? "";
         expect(textes.indexOf("Prompt")).toBeLessThan(textes.indexOf("First reply"));
     });
