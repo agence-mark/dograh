@@ -266,6 +266,9 @@ CLES_COMMUNES: tuple[str, ...] = (
 # l'appel (thème 8 « celui de l'appel »), jamais une copie de celle du principal.
 CLES_PROPRES: tuple[str, ...] = (
     "generer_schema_parcours",
+    # builder partie 2 (G2, U11) : contrôles avant publication et déploiement progressif, propres à chaque
+    # agent (chacun publie ses propres versions).
+    "publication",
     "text_chat_inactivity_timeout_seconds",
     "etablissement_id",
     "horaires_ouverture",
