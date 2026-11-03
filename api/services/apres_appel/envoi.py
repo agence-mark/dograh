@@ -19,6 +19,7 @@ from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.groupe.parcours import rendre_le_parcours
 from api.services.objets_agent.appel import incidents_des_objets
+from api.services.site_mark.conversations import champs_du_site
 from api.services.apres_appel.rappels import (
     ORIGINE_EQUIPE,
     ORIGINE_PLANIFICATEUR,
@@ -560,6 +561,9 @@ def construire_envoi(
         "numero_version": getattr(definition, "version_number", None),
         "etablissement": etablissement,
         "canal": CANAUX.get(run.mode, "telephone"),
+        # [.mark] U10 / S3 : une conversation du widget est une vraie conversation (canal « site », sa page, son
+        # mode, l'avis laissé avant l'écriture). Pour tout autre appel, rien de plus : l'envoi est celui d'avant.
+        **champs_du_site(run),
         "sens": "entrant" if entrant else "sortant",
         "numero_appelant": appelant or rappel,
         "numero_appele": appele,

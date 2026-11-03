@@ -321,3 +321,48 @@ class SiteClient(BaseDBClient):
             await session.commit()
             await session.refresh(jeton)
             return jeton
+
+    # ------------------------------------------------------------------ événements anonymes (lot S3)
+    async def compter_evenement(self, embed_token_id: int, jour, evenement: str, plafond_du_jour: int) -> bool:
+        """Ajoute 1 au compteur ``affiche`` ou ``ouvert`` du jour. Refuse (``False``) au-delà du plafond du jour :
+        un script qui boucle ne gonfle pas les chiffres sans fin. Aucune donnée sur le visiteur."""
+        if evenement not in ("affiche", "ouvert"):
+            raise ValueError(evenement)
+        async with self.async_session() as session:
+            r = await session.execute(
+                text(
+                    f"INSERT INTO mark_embed_evenements_jour (embed_token_id, jour, {evenement}) "
+                    "VALUES (:t, :j, 1) ON CONFLICT (embed_token_id, jour) DO UPDATE "
+                    f"SET {evenement} = mark_embed_evenements_jour.{evenement} + 1 "
+                    f"WHERE mark_embed_evenements_jour.{evenement} < :p RETURNING {evenement}"
+                ),
+                {"t": embed_token_id, "j": jour, "p": plafond_du_jour},
+            )
+            compte = r.scalar_one_or_none() is not None
+            await session.commit()
+            return compte
+
+    async def lire_evenements(self, organization_id: int, du, au) -> list[dict]:
+        """Les compteurs des agents de CETTE organisation entre deux jours inclus : jamais ceux d'une autre."""
+        async with self.async_session() as session:
+            r = await session.execute(
+                text(
+                    "SELECT e.embed_token_id, t.workflow_id, e.jour, e.affiche, e.ouvert "
+                    "FROM mark_embed_evenements_jour e JOIN embed_tokens t ON t.id = e.embed_token_id "
+                    "WHERE t.organization_id = :o AND e.jour BETWEEN :du AND :au "
+                    "ORDER BY e.jour, t.workflow_id"
+                ),
+                {"o": organization_id, "du": du, "au": au},
+            )
+            return [dict(ligne._mapping) for ligne in r.all()]
+
+    # ------------------------------------------------------------------ conservation (lot S3)
+    async def purger_sessions_du_widget(self, avant: datetime) -> int:
+        """Efface les sessions de widget (adresse IP, navigateur) créées avant ``avant``. Le run, lui, suit la
+        conservation des appels."""
+        async with self.async_session() as session:
+            r = await session.execute(
+                text("DELETE FROM embed_sessions WHERE created_at < :a"), {"a": avant}
+            )
+            await session.commit()
+            return r.rowcount or 0

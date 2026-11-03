@@ -81,6 +81,19 @@ async def configuration_pour(db, site, chemin: str, *, tour_active: bool, relais
     return charge
 
 
+async def jeton_pour(db, site, chemin: str):
+    """Le jeton (valide) de l'agent qui sert ``chemin`` sur ce site, ou ``None`` : la même règle que la configuration."""
+    page = lib_chemins.normaliser(chemin)
+    lignes = await db.lire_chemins_du_site(site.id)
+    jetons = await db.lire_jetons(sorted({ligne.embed_token_id for ligne in lignes}))
+    candidats = {
+        ligne.chemin: jetons.get(ligne.embed_token_id)
+        for ligne in lignes
+        if jeton_valide(jetons.get(ligne.embed_token_id))
+    }
+    return lib_chemins.plus_long_prefixe(candidats, page)
+
+
 async def domaines_du_jeton(db, jeton) -> list:
     """Les domaines du jeton ; vides et rattaché à un site : ceux du site (les domaines du jeton priment)."""
     if jeton.allowed_domains:

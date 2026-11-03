@@ -68,6 +68,10 @@ REGLES: tuple[Regle, ...] = (
     _r(TOUTES, r"^/mcp$", Exemption("Serveur MCP monté à part : authentifie par clé d'API dans son propre module.")),
     _r(TOUTES, r"^/auth/(login|signup)$", Exemption("Connexion et premier compte : par définition sans session.")),
     _r(TOUTES, r"^/auth/invitation(/.*)?$", Exemption("Invitation : le jeton à usage unique fait foi, pas de session.")),
+    # Lot S3 : trois routes publiques du widget, chacune avec sa limite écrite (une exemption n'est pas un trou).
+    _r({"POST"}, r"^/public/embed/avis/[^/]+$", Exemption("Avis du visiteur du site : jeton de session du widget + domaine d'origine ; une fois par conversation, après sa fin ; écrit dans la base de l'organisation de la session.")),
+    _r({"POST"}, r"^/public/embed/rappel/[^/]+$", Exemption("Demande de rappel du visiteur du site : clé publique du site + domaine d'origine ; refusée tant que le plafond du mois n'est pas atteint ; limitée par adresse (non gardée).")),
+    _r({"POST"}, r"^/public/embed/evenement$", Exemption("Compteur anonyme du widget (affiché, ouvert) : clé du site ou jeton + domaine d'origine ; un total par jour et par agent, ni cookie ni adresse lue.")),
     _r(TOUTES, r"^/public/.*$", Exemption("Widget public et agents publics : jeton d'intégration ou clé de l'agent.")),
     _r(TOUTES, r"^/ws/public/signaling/.*$", Exemption("Signalisation du widget public : jeton de session du widget.")),
     _r(TOUTES, r"^/agent-stream/.*$", Exemption("Flux d'un fournisseur de téléphonie : authentifié par le fournisseur.")),

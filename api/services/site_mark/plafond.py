@@ -30,3 +30,14 @@ async def rendre(embed_token_id: int, maintenant: datetime | None = None) -> Non
 
 async def verser_la_duree(embed_token_id: int, secondes: int, maintenant: datetime | None = None) -> None:
     await db_client.ajouter_secondes(embed_token_id, mois_de(maintenant), int(secondes))
+
+
+async def est_atteint(embed_token_id: int, reglages: ReglagesMark, maintenant: datetime | None = None) -> bool:
+    """Le plafond du mois est-il atteint (conversations OU minutes) ? C'est la condition d'une demande de rappel."""
+    usage = await db_client.lire_usage_mensuel(embed_token_id, mois_de(maintenant))
+    if usage is None:
+        return False
+    return (
+        usage.conversations >= reglages.plafond_conversations_mois
+        or usage.secondes >= reglages.plafond_minutes_mois * 60
+    )

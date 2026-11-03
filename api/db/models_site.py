@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from sqlalchemy import (
     JSON,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -62,3 +63,17 @@ class MarkEmbedUsageMensuelModel(Base):
     mois = Column(String(7), primary_key=True)
     conversations = Column(Integer, nullable=False, default=0, server_default="0")
     secondes = Column(Integer, nullable=False, default=0, server_default="0")
+
+
+class MarkEmbedEvenementJourModel(Base):
+    """Les compteurs anonymes d'un agent de site pour un jour : combien de fois le rond s'est affiché, combien de
+    fois il s'est ouvert. Ni cookie, ni identifiant, ni adresse : des totaux (lot S3)."""
+
+    __tablename__ = "mark_embed_evenements_jour"
+
+    embed_token_id = Column(
+        Integer, ForeignKey("embed_tokens.id", ondelete="CASCADE"), primary_key=True
+    )
+    jour = Column(Date, primary_key=True)
+    affiche = Column(Integer, nullable=False, default=0, server_default="0")
+    ouvert = Column(Integer, nullable=False, default=0, server_default="0")

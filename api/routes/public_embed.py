@@ -224,6 +224,30 @@ async def build_public_embed_preflight_response(
         cle = path[len(site_prefix) :].split("/", 1)[0]
         return await _site_preflight_response(cle, origin)
 
+    # [.mark] S3 : l'avis (jeton de session), la demande de rappel (clé du site) et l'événement anonyme.
+    avis_prefix = f"{public_embed_prefix}/avis/"
+    if path.startswith(avis_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        session_token = path[len(avis_prefix) :].split("/", 1)[0]
+        return await _session_preflight_response(session_token, origin, "POST, OPTIONS")
+
+    rappel_prefix = f"{public_embed_prefix}/rappel/"
+    if path.startswith(rappel_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        cle = path[len(rappel_prefix) :].split("/", 1)[0]
+        site = await db_client.lire_site_par_cle(cle)
+        if site is None or not validate_embed_origin(origin, site.allowed_domains or []):
+            return Response(status_code=403)
+        return _cors_response(origin, "POST, OPTIONS")
+
+    if path == f"{public_embed_prefix}/evenement":
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        # Comme /init : la clé ou le jeton sont dans le corps, le domaine est vérifié par la route.
+        return _cors_response(origin, "POST, OPTIONS")
+
     turn_credentials_prefix = f"{public_embed_prefix}/turn-credentials/"
     if path.startswith(turn_credentials_prefix):
         if requested_method.upper() != "GET":
