@@ -12,7 +12,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
     getEquipeApiV1OrganizationsEquipeGet,
-    getEtablissementsApiV1OrganizationsEtablissementsGet,
     getPlanificateurApiV1OrganizationsPlanificateurGet,
     putPlanificateurApiV1OrganizationsPlanificateurPut,
 } from "@/client/sdk.gen";
@@ -24,6 +23,8 @@ import { detailFromError } from "@/lib/apiError";
 import { type Texte, useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { BoutonAppliquerATous } from "../parametres-organisation/BoutonAppliquerATous";
+import { charge_utile_planificateur } from "../parametres-organisation/charge-utile-planificateur";
+import { useResumeEtablissements } from "../parametres-organisation/ModaleEtablissements";
 import {
     CHOIX,
     FENETRE,
@@ -33,7 +34,6 @@ import {
     OUI_NON,
     texteValeur,
 } from "../parametres-organisation/reglages-rendez-vous";
-import { charge_utile_planificateur } from "../parametres-organisation/charge-utile-planificateur";
 import { EtatVide } from "../studio/etat-vide";
 import { type Champ, FenetreChamps, type Valeurs } from "../studio/fenetre-champs";
 import { Liste } from "../studio/liste";
@@ -46,19 +46,18 @@ const DEPART = "";
 export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | null }) {
     const { t } = useLangue();
     const [plan, setPlan] = useState<Planificateur | null>(null);
-    const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
+    const { liste: lieux } = useResumeEtablissements();
+    const etablissements: Etablissement[] = lieux ?? [];
     const [sujets, setSujets] = useState<Sujet[]>([]);
     const [illisible, setIllisible] = useState(false);
     const [niveau, setNiveau] = useState(DEPART);
     const [type, setType] = useState<TypeRendezVous | "nouveau" | null>(null);
 
     const relire = useCallback(async () => {
-        const [p, sites, equipe] = await Promise.all([
+        const [p, equipe] = await Promise.all([
             getPlanificateurApiV1OrganizationsPlanificateurGet(),
-            getEtablissementsApiV1OrganizationsEtablissementsGet(),
             getEquipeApiV1OrganizationsEquipeGet(),
         ]);
-        setEtablissements(sites?.data?.etablissements ?? []);
         setSujets(equipe?.data?.sujets ?? []);
         setIllisible(Boolean(p?.error) || !p?.data);
         if (p?.data) setPlan(p.data);

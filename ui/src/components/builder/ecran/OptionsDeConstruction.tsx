@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { lireLesOptionsApiV1BuilderOptionsGet, listerLesRecettesApiV1BuilderRecettesGet, reglerLesOptionsApiV1BuilderOptionsPut } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { optionsPartagees } from "@/components/mark/reglages/lectures-partagees";
 import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -36,12 +37,13 @@ type Options = { sauvegarde_avant_modification: boolean; recette_par_defaut: str
 
 export function OptionsDeConstruction() {
     const { t } = useLangue();
-    const [options, setOptions] = useState<Options | null>(null);
+    // [.mark] C4 : les options sont lues une fois pour toute la page des Réglages (avec l'onglet Builder IA).
+    const { valeur: lues, poser: poserOptions } = optionsPartagees.useLecture();
+    const options = lues as Options | null;
     const [recettes, setRecettes] = useState<{ slug: string; nom: string }[]>([]);
 
     useEffect(() => {
-        void Promise.all([lireLesOptionsApiV1BuilderOptionsGet(), listerLesRecettesApiV1BuilderRecettesGet()]).then(([o, r]) => {
-            if (o?.data) setOptions(o.data as Options);
+        void listerLesRecettesApiV1BuilderRecettesGet().then((r) => {
             const liste = (r?.data as { recettes: { slug: string; nom: string }[] } | undefined)?.recettes;
             if (liste) setRecettes(liste);
         });
@@ -56,7 +58,7 @@ export function OptionsDeConstruction() {
         const base = (frais?.data as Options | undefined) ?? options;
         const r = await reglerLesOptionsApiV1BuilderOptionsPut({ body: { ...base, ...morceau } });
         if (r.error || !r.data) return notifier.echec(T.echec);
-        setOptions(r.data as Options);
+        poserOptions(r.data);
         notifier.succes(T.ok);
     };
 

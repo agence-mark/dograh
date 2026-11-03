@@ -55,7 +55,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
-import { useAuth } from "@/lib/auth";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
@@ -65,10 +64,11 @@ import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
 import { BoutonAppliquerATous, type ReglageAppliquable } from "./BoutonAppliquerATous";
+import { charge_utile_planificateur } from "./charge-utile-planificateur";
+import { useEtablissementsPartages, useLireEtablissements } from "./etablissements-partages";
 import { FicheRendezVous } from "./FicheRendezVous";
 import { ModaleCopieFiche } from "./ModaleCopieFiche";
 import { libelleReglage, texteValeur } from "./reglages-rendez-vous";
-import { charge_utile_planificateur } from "./charge-utile-planificateur";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 
@@ -167,23 +167,11 @@ export const charge_utile_etablissements = (liste: Etablissement[]) => ({
     etablissements: liste.map(nettoyer),
 });
 
-/** The saved establishments, for the theme's summary; read once auth is ready, re-read on demand. */
+/** The saved establishments, for the theme's summary; read once auth is ready, re-read on demand. [.mark] C4 : lus une seule fois par page quand un fournisseur existe (Entreprise). */
 export function useResumeEtablissements() {
-    const { user, loading: authLoading } = useAuth();
-    const [liste, setListe] = useState<Etablissement[] | null>(null);
-    const [illisible, setIllisible] = useState(false);
-    const dejaLu = useRef(false);
-    const relire = useCallback(async () => {
-        const reponse = await getEtablissementsApiV1OrganizationsEtablissementsGet();
-        setIllisible(Boolean(reponse.error));
-        setListe(reponse.data?.etablissements ?? (reponse.error ? null : []));
-    }, []);
-    useEffect(() => {
-        if (authLoading || !user || dejaLu.current) return;
-        dejaLu.current = true;
-        void relire();
-    }, [authLoading, user, relire]);
-    return { liste, illisible, relire };
+    const partage = useEtablissementsPartages();
+    const propre = useLireEtablissements(partage === null);
+    return partage ?? propre;
 }
 
 interface ProprietesModale {

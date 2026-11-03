@@ -12,19 +12,18 @@ import { useCallback, useEffect, useState } from "react";
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
     getEquipeApiV1OrganizationsEquipeGet,
-    getEtablissementsApiV1OrganizationsEtablissementsGet,
     getTraducteursApiV1ConnecteursTraducteursGet,
     putEquipeApiV1OrganizationsEquipePut,
 } from "@/client/sdk.gen";
 import type { Equipe, Etablissement, Personne, Sujet, TraducteurVue } from "@/client/types.gen";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
+import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
-import { identifiantPour } from "../parametres-organisation/ModaleEtablissements";
 import { charge_utile_equipe, DESCRIPTION_MAX, lieuxDe } from "../parametres-organisation/charge-utile-equipe";
+import { identifiantPour, useResumeEtablissements } from "../parametres-organisation/ModaleEtablissements";
 import { EtatVide } from "../studio/etat-vide";
 import { FenetreChamps, type Valeurs } from "../studio/fenetre-champs";
 import { Info, PointEtat } from "../studio/marques";
@@ -37,17 +36,16 @@ const nomComplet = (p: Pick<Personne, "prenom" | "nom">) => [p.prenom, p.nom].fi
 function useEquipe() {
     const { user, loading: authLoading } = useAuth();
     const [equipe, setEquipe] = useState<Equipe | null>(null);
-    const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
+    const { liste: lieux } = useResumeEtablissements();
+    const etablissements: Etablissement[] = lieux ?? [];
     const [agenda, setAgenda] = useState<TraducteurVue | null>(null);
     const [illisible, setIllisible] = useState(false);
     const relire = useCallback(async () => {
-        const [reponse, sites, choix, traducteurs] = await Promise.all([
+        const [reponse, choix, traducteurs] = await Promise.all([
             getEquipeApiV1OrganizationsEquipeGet(),
-            getEtablissementsApiV1OrganizationsEtablissementsGet(),
             getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
             getTraducteursApiV1ConnecteursTraducteursGet(),
         ]);
-        setEtablissements(sites?.data?.etablissements ?? []);
         setAgenda((traducteurs?.data ?? []).find((x) => x.systeme === choix?.data?.agenda) ?? null);
         setIllisible(Boolean(reponse?.error) || !reponse?.data);
         if (reponse?.data) setEquipe(reponse.data);

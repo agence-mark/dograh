@@ -16,7 +16,6 @@ import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet,
     lireLeCerveauApiV1BuilderCerveauGet,
-    lireLesCerveauxApiV1BuilderCerveauxGet,
     lireLesOptionsApiV1BuilderOptionsGet,
     lireLesPreferencesApiV1BuilderPreferencesGet,
     lireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGet,
@@ -25,7 +24,7 @@ import {
     reglerLesOptionsApiV1BuilderOptionsPut,
     reglerLesSousAgentsApiV1BuilderSousAgentsReglagesPut,
 } from "@/client";
-import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueCerveaux, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
+import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
 import { OptionsDeConstruction } from "@/components/builder/ecran/OptionsDeConstruction";
 import { ModaleReglagesAppelantSimule } from "@/components/mark/appelant-simule/ModaleReglagesAppelantSimule";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -39,6 +38,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
+
+import { cerveauxPartages, optionsPartagees } from "./lectures-partagees";
 
 const T = {
     source: { en: "Source:", fr: "Source :" },
@@ -304,24 +305,21 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
     const [preferences, setPreferences] = useState("");
     const [sous, setSous] = useState<ReglagesSousAgents | null>(null);
     const [actions, setActions] = useState<VueAction[] | null>(null);
-    const [vue, setVue] = useState<VueCerveaux | null>(null);
-    const [opts, setOpts] = useState<VueOptions | null>(null);
+    const prete = !loading && Boolean(user);
+    const { valeur: vue } = cerveauxPartages.useLecture(prete);
+    const { valeur: opts, poser: poserOpts } = optionsPartagees.useLecture(prete);
     const [erreurLecture, setErreurLecture] = useState(false);
     const [erreurChamp, setErreurChamp] = useState<string | null>(null);
 
     const lire = useCallback(async () => {
-        const [c, p, s, a, v, o] = await Promise.all([
+        const [c, p, s, a] = await Promise.all([
             lireLeCerveauApiV1BuilderCerveauGet(),
             lireLesPreferencesApiV1BuilderPreferencesGet(),
             lireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGet(),
             listerLesActionsApiV1BuilderActionsGet(),
-            lireLesCerveauxApiV1BuilderCerveauxGet(),
-            lireLesOptionsApiV1BuilderOptionsGet(),
         ]);
         if (c.error || !c.data) return setErreurLecture(true);
         setErreurLecture(false);
-        setVue(v.data ?? null);
-        setOpts(o.data ?? null);
         setCerveau(c.data);
         setPreferences(p.data?.texte ?? "");
         setSous(s.data ?? {});
@@ -349,15 +347,15 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
         suivre(reglerLeCerveauApiV1BuilderCerveauPut({ body: { ...cerveau, ...morceau } as never }), undefined);
         // la vue relit ce que le serveur a gardé (la clé n'est jamais relue)
         void lireLeCerveauApiV1BuilderCerveauGet().then((r) => r.data && setCerveau(r.data));
-        void lireLesCerveauxApiV1BuilderCerveauxGet().then((r) => r.data && setVue(r.data));
+        void cerveauxPartages.relire();
     };
     // L'interrupteur du builder et ses deux portes : une option à la fois, avec sa notification.
     const regler = (morceau: Partial<VueOptions>) =>
         notifier.suivre(
             ecrireUneOption(morceau).then((nouvelles) => {
                 if (nouvelles) {
-                    setOpts(nouvelles);
-                    void lireLesCerveauxApiV1BuilderCerveauxGet().then((r) => r.data && setVue(r.data));
+                    poserOpts(nouvelles);
+                    void cerveauxPartages.relire();
                 }
                 return { error: nouvelles ? undefined : true };
             }),
@@ -563,13 +561,12 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
     const [reglages, setReglages] = useState<ReglagesAppelantSimule | null>(null);
     const [erreur, setErreur] = useState(false);
     const [fenetre, setFenetre] = useState(false);
-    const [vue, setVue] = useState<VueCerveaux | null>(null);
+    const { valeur: vue } = cerveauxPartages.useLecture(!loading && Boolean(user));
     const lire = useCallback(async () => {
-        const [r, v] = await Promise.all([getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet(), lireLesCerveauxApiV1BuilderCerveauxGet()]);
+        const r = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
         if (r.error || !r.data) return setErreur(true);
         setErreur(false);
         setReglages(r.data);
-        setVue(v.data ?? null);
     }, []);
     useEffect(() => {
         if (!loading && user) void lire();
