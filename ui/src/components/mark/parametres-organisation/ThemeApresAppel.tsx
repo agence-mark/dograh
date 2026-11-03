@@ -251,7 +251,7 @@ export const ThemeApresAppel = ({
                                     type="button"
                                     aria-pressed={(smtp.securite ?? "starttls") === valeur}
                                     onClick={() => poser("smtp", "securite", valeur)}
-                                    className={`cursor-pointer rounded-md px-3 py-1 ${(smtp.securite ?? "starttls") === valeur ? "bg-white font-medium text-foreground shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                    className={`cursor-pointer rounded-md px-3 py-1 ${(smtp.securite ?? "starttls") === valeur ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:font-medium"}`}
                                 >
                                     {libelle}
                                 </button>

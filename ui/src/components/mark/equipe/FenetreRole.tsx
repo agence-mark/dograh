@@ -128,7 +128,7 @@ export function FenetreRole({
                                             key={String(v)}
                                             type="button"
                                             onClick={() => setTous(v)}
-                                            className={`rounded-md px-3 py-1 ${tous === v ? "bg-white font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                            className={`rounded-md px-3 py-1 ${tous === v ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
                                         >
                                             {v ? t({ en: "The Lab and every client", fr: "Le Labo et tous les clients" }) : t({ en: "Chosen clients", fr: "Des clients choisis" })}
                                         </button>

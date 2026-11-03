@@ -115,57 +115,69 @@
   --notif-encours: #0f1c2e;
   --etat-fait: #1a9e5c;
 
+  /* Pastilles des sources de variables (E63) : texte blanc dessus, contraste >= 4,5:1 dans les deux thèmes. */
+  --source-entreprise: #0e7490;
+  --source-appel: #4f46e5;
+  --source-fiche: #047857;
+  --source-campagne: #db2777;
+  --source-inconnue: #dc2626;
+  /* Surlignage d une recherche (texte du thème dessus). */
+  --surligne: #fef08a;
+
   /* The giant faded "dograh" wordmark, removed (D8). */
   --brand-imprint: none;
 }
 
 .dark {
-  --background: #0e0e0e;
-  --foreground: #f5f5f5;
-  --card: #141414;
-  --card-foreground: #f5f5f5;
-  --popover: #141414;
-  --popover-foreground: #f5f5f5;
-  --primary: #f5f5f5;
-  --primary-foreground: #0e0e0e;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #f5f5f5;
-  --muted: #1f1f1f;
-  --muted-foreground: #9a9a9a;
-  --accent: #1a1a1a;
-  --accent-foreground: #f5f5f5;
-  --destructive: #f16a6e;
-  --border: #333333;
-  --input: #3a3a3a;
+  /* Mode nuit (N4, 04/11) : les jetons de base sont ceux de la maquette (`maquette-dograh/app/globals.css`, bloc .dark),
+     valeur pour valeur ; les jetons .mark qui n'y sont pas suivent la même échelle de gris neutres. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  /* Écart voulu avec la maquette (gris 0.556) : l'anneau de focus garde le bleu .mark, visible sur le noir. */
   --ring: #5b97f5;
 
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #f5f5f5;
-  --sidebar-primary-foreground: #0e0e0e;
-  --sidebar-accent: #222222;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #333333;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #5b97f5;
 
-  --cta: #f5f5f5;
-  --cta-foreground: #0e0e0e;
+  --cta: oklch(0.922 0 0);
+  --cta-foreground: oklch(0.205 0 0);
 
-  --surface: #121212;
-  --border-strong: #4a4a4a;
+  --surface: oklch(0.175 0 0);
+  --border-strong: oklch(1 0 0 / 22%);
   --signal-ok: #3ecf7a;
   --signal-warn: #f0a93a;
   --signal-danger: #f16a6e;
   --signal-idle: #5c5c5c;
-  --bubble-agent: #2a2a2a;
-  --primary-disabled: #3a3a3a;
-  --primary-disabled-foreground: #9a9a9a;
+  --bubble-agent: oklch(0.269 0 0);
+  --primary-disabled: oklch(0.32 0 0);
+  --primary-disabled-foreground: oklch(0.62 0 0);
 
-  --canevas: #151515;
-  --canevas-point: #2a2a2a;
-  --liaison: #4a4a4a;
-  --liaison-survol: #7a7a7a;
-  --liaison-fleche: #5c5c5c;
+  --canevas: oklch(0.17 0 0);
+  --canevas-point: oklch(0.28 0 0);
+  --liaison: oklch(0.42 0 0);
+  --liaison-survol: oklch(0.62 0 0);
+  --liaison-fleche: oklch(0.5 0 0);
 
   --acc: #5b97f5;
   --acc-soft: #17243a;
@@ -173,24 +185,41 @@
   --acc-fill: #2f6fe0;
   --acc-line: color-mix(in oklab, #5b97f5 55%, transparent);
 
-  --marque-neutre: #1f2733;
-  --marque-neutre-texte: #e6edf5;
+  --node-start: #22a355;
+  --node-end: #c4383d;
+  --node-global: #8b5cf6;
+
+  --marque-neutre: oklch(0.269 0 0);
+  --marque-neutre-texte: oklch(0.94 0 0);
   --marque-succes: #12301f;
   --marque-succes-texte: #5fd08a;
   --marque-attention: #17243a;
   --marque-attention-texte: #8ab5f8;
   --marque-danger: #3a1a1c;
   --marque-danger-texte: #f19a9d;
-  --marque-plein: #e6edf5;
-  --marque-plein-texte: #0e0e0e;
+  --marque-plein: oklch(0.922 0 0);
+  --marque-plein-texte: oklch(0.205 0 0);
   --pastille-urgente: #dd4949;
   --marque-relation: #e5486b;
   --point-publie: #3ecf7a;
   --point-fini: #7a8796;
   --gravite-grave: #c4383d;
   --gravite-surveiller: #2f6fe0;
-  --gravite-faible: #52606f;
+  --gravite-faible: #6b7684;
+
+  --notif-succes: #15803d;
+  --notif-echec: #c2362f;
+  --notif-avertissement: #6d3fc0;
+  --notif-information: #2f6fe0;
+  --notif-encours: oklch(0.32 0 0);
   --etat-fait: #3ecf7a;
+
+  --source-entreprise: #0e7490;
+  --source-appel: #5b57e8;
+  --source-fiche: #047857;
+  --source-campagne: #c21f6b;
+  --source-inconnue: #c4383d;
+  --surligne: #6b5a00;
 
   --brand-imprint: none;
 }

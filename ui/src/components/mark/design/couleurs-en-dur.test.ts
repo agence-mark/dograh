@@ -77,6 +77,7 @@ const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     "app/tools/config.tsx",
     "app/tools/page.tsx",
     "app/tools/[toolUuid]/page.tsx",
+    "components/mark/outils/FenetreNouvelOutil.tsx",
     "components/flow/ToolSelector.tsx",
 ]);
 

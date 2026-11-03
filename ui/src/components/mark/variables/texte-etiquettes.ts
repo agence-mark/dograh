@@ -21,13 +21,13 @@ export interface VariableCatalogue {
 
 export type Segment = { type: "texte"; texte: string } | { type: "variable"; cle: string; repli: string | null; brut: string };
 
-/** Couleur par source (E63) : pastille pleine, texte blanc, contraste >= 4,5:1. Rouge réservé à l'inconnue. */
+/** Couleur par source (E63) : jeton de mark-theme.css clair et sombre, pastille pleine, texte blanc, contraste >= 4,5:1. Rouge réservé à l'inconnue. */
 export const COULEUR_SOURCE: Record<Source | "inconnue", string> = {
-    entreprise: "#0E7490",
-    appel: "#4F46E5",
-    fiche: "#047857",
-    campagne: "#DB2777",
-    inconnue: "#DC2626",
+    entreprise: "var(--source-entreprise)",
+    appel: "var(--source-appel)",
+    fiche: "var(--source-fiche)",
+    campagne: "var(--source-campagne)",
+    inconnue: "var(--source-inconnue)",
 };
 
 export const NOM_SOURCE: Record<Source, { en: string; fr: string }> = {
