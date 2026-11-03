@@ -37,6 +37,7 @@ import type { ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigura
 import type { FlowEdge, FlowNode } from "@/components/flow/types";
 import { Input } from "@/components/ui/input";
 import { useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
+import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { detailFromError } from "@/lib/apiError";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
 import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/types/workflow-configurations";
@@ -100,6 +101,8 @@ interface ProprietesPage {
 export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const { t } = useLangue();
     const { dirtySections } = useUnsavedChangesContext();
+    // K6 : une saisie non enregistrée n'est jamais relue par-dessus quand l'agent est modifié ailleurs.
+    useBrouillonLocal(dirtySections.size > 0);
     const themes = useThemesOuverts();
     // [.mark] lot 5: a link from a sentence rule opens the theme that sets what it reads (`?theme=briques`).
     useEffect(() => {

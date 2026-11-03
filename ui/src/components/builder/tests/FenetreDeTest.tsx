@@ -10,6 +10,7 @@
  * The « Environment » part of the mockup (simulated date, caller number, tool answers in series) is U11 and not built: it is not
  * drawn (`14-ecarts-maquette.md`).
  */
+import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { Bot, FolderPlus, Play, Plus, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
 
@@ -97,6 +98,8 @@ export function FenetreDeTest({
     derniere?: { le: string; reussis: number; total: number } | null;
 }) {
     const { t, langue } = useLangue();
+    // K6 : tant que la fenêtre est ouverte, une modification de l'agent ailleurs ne la ferme pas (la saisie serait perdue).
+    useBrouillonLocal(true);
     const [sorte, setSorte] = useState<SorteDeTest>(test ? sorteDuTest(test) : "conversation");
     const [nom, setNom] = useState(test?.nom ?? "");
     const [description, setDescription] = useState(test?.description ?? "");
