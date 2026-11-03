@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Globe } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Globe, PhoneIncoming } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
+import { useLangue } from '@/components/mark/langue/langue';
 import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from '@/components/mark/studio/etat-vide';
 
 import { downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet, getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet, getPreferencesApiV1OrganizationsPreferencesGet, getUsageHistoryApiV1OrganizationsUsageRunsGet, getWorkflowsSummaryApiV1WorkflowSummaryGet, savePreferencesApiV1OrganizationsPreferencesPut } from '@/client/sdk.gen';
 import type { DailyUsageBreakdownResponse, OrganizationPreferences, UsageHistoryResponse, WorkflowRunUsageResponse, WorkflowSummaryResponse } from '@/client/types.gen';
@@ -64,6 +66,7 @@ const buildUsageFilterAttributes = (
 export default function UsagePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t } = useLangue();
     const { organizationPricing } = useUserConfig();
     const auth = useAuth();
 
@@ -708,7 +711,11 @@ export default function UsagePage() {
                                 )}
                             </>
                         ) : (
-                            <p className="text-center py-8 text-muted-foreground">No runs found</p>
+                            appliedFilters.length > 0 ? (
+                                <EtatVide cas="filtre" recherche="" effacer={() => void handleClearFilters()} />
+                            ) : (
+                                <EtatVide cas="premier" icone={PhoneIncoming} titre={t({ en: "No call yet", fr: "Aucun appel encore" })} />
+                            )
                         )}
                     </CardContent>
                 </Card>

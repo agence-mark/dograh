@@ -1,11 +1,13 @@
 "use client";
 
-import { Plus } from 'lucide-react';
+import { Megaphone, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { getCampaignsApiV1CampaignGet } from '@/client/sdk.gen';
 import type { CampaignsResponse } from '@/client/types.gen';
+import { useLangue } from '@/components/mark/langue/langue';
+import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +27,7 @@ export default function CampaignsPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
     const router = useRouter();
+    const { t } = useLangue();
 
     const [campaignsData, setCampaignsData] = useState<CampaignsResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -172,13 +175,7 @@ export default function CampaignsPage() {
                                 </Table>
                             </div>
                         ) : (
-                            <div className="text-center py-8">
-                                <p className="mb-4">No campaigns found</p>
-                                <Button onClick={handleCreateCampaign} variant="outline">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Create your first campaign
-                                </Button>
-                            </div>
+                            <EtatVide cas="premier" icone={Megaphone} titre={t({ en: "No campaign yet", fr: "Aucune campagne pour l'instant" })} />
                         )}
                     </CardContent>
                 </Card>

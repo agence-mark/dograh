@@ -91,7 +91,13 @@ export function BoiteMessages({ client, filInitial }: { client?: number; filInit
                 </div>
                 <div className="min-h-0 flex-1 divide-y overflow-y-auto">
                     {fils.length === 0 ? (
-                        <EtatVide cas="premier" icone={Inbox} titre={t({ en: "No thread", fr: "Aucun fil" })} />
+                        q ? (
+                            <EtatVide cas="filtre" compact recherche={q} effacer={() => setQ("")} />
+                        ) : filtre !== "tous" ? (
+                            <EtatVide cas="fait" compact titre={t({ en: "Nothing is waiting", fr: "Rien n'attend" })} />
+                        ) : (
+                            <EtatVide cas="premier" compact icone={Inbox} titre={t({ en: "No thread", fr: "Aucun fil" })} />
+                        )
                     ) : (
                         fils.map((f) => (
                             <button

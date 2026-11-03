@@ -9,7 +9,6 @@ import {
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost,
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost,
     avisEtTemoignagesApiV1RelationAvisGet,
-    listerClientsApiV1RelationClientsGet,
     listerEntreesApiV1RelationEntreesGet,
     listerNotesApiV1RelationClientsOrganizationIdNotesGet,
     maFileApiV1RelationFileGet,
@@ -30,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { BoiteMessages } from "./BoiteMessages";
+import { lireClientsRelation } from "./lecture-clients";
 import { ADRESSE_PORTAIL, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
 
 const CONTENEUR = "mx-auto w-full max-w-6xl space-y-6 p-6";
@@ -46,7 +46,7 @@ export function AccueilRelation() {
 
 function AccueilInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
     const file = useCharge(() => maFileApiV1RelationFileGet());
-    const clients = useCharge(() => listerClientsApiV1RelationClientsGet());
+    const clients = useCharge(() => lireClientsRelation());
     return (
         <div className={CONTENEUR}>
             <TitrePage
@@ -62,7 +62,7 @@ function AccueilInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
                     {file.etat === "chargement" && <EtatVide cas="chargement" />}
                     {file.etat === "erreur" && <EtatVide cas="erreur" reessayer={file.recharger} />}
                     {file.donnees && file.donnees.length === 0 && (
-                        <EtatVide cas="fait" titre={t({ en: "Nothing is waiting", fr: "Rien n'attend" })} />
+                        <EtatVide cas="fait" titre={t({ en: "Nothing is waiting for the team", fr: "Rien n'attend l'équipe" })} donnee={clients.donnees ? `${clients.donnees.length} client${clients.donnees.length > 1 ? "s" : ""}` : undefined} />
                     )}
                     {file.donnees && file.donnees.length > 0 && (
                         <Tableau colonnes={[{ titre: t({ en: "Subject", fr: "Sujet" }) }, { titre: "Client" }, { titre: t({ en: "State", fr: "État" }) }, { titre: t({ en: "Updated", fr: "Mis à jour" }), droite: true }]}>
@@ -115,7 +115,7 @@ export function EcranClients() {
 }
 
 function ClientsInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
-    const { donnees, etat, recharger } = useCharge(() => listerClientsApiV1RelationClientsGet());
+    const { donnees, etat, recharger } = useCharge(() => lireClientsRelation());
     return (
         <div className={CONTENEUR}>
             <TitrePage titre="Clients" />
@@ -151,7 +151,7 @@ export function FicheClient({ id }: { id: number }) {
 function FicheInterne({ id }: { id: number }) {
     const { t } = useLangue();
     const [onglet, setOnglet] = useState<Onglet>("messages");
-    const clients = useCharge(() => listerClientsApiV1RelationClientsGet());
+    const clients = useCharge(() => lireClientsRelation());
     const client = clients.donnees?.find((c) => c.id === id);
     const noms: Record<Onglet, string> = {
         messages: t({ en: "Messages and requests", fr: "Messages et demandes" }),
