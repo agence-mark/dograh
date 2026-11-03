@@ -81,7 +81,7 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
     const derniereQuestion = [...lignes].reverse().find((l) => l.genre === "carte" && l.carte.type === "question");
 
     const principal = (
-        <div className={`relative flex h-[calc(100vh-8rem)] flex-col ${vu !== null ? "hidden" : ""}`}>
+        <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col ${vu !== null ? "hidden" : ""}`}>
             <div className="flex items-center justify-between gap-2 pb-2">
                 {lectureSeule && retour && (
                     <button type="button" className="flex cursor-pointer items-center gap-1 text-sm hover:font-semibold" onClick={retour}>

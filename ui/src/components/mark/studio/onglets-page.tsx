@@ -14,6 +14,9 @@ import { Pastilles } from "../ecran/Theme";
 
 export type OngletPage = { id: string; titre: string; modifie?: boolean; enErreur?: boolean; contenu: ReactNode };
 
+export const EVENEMENT_ALLER = "mark-aller-onglet";
+export const allerALOnglet = (id: string) => window.dispatchEvent(new CustomEvent(EVENEMENT_ALLER, { detail: id }));
+
 const lireOnglet = () => {
     try {
         return new URLSearchParams(window.location.search).get("onglet") ?? "";
@@ -30,6 +33,15 @@ export function useOngletDeLAdresse(ids: string[], defaut: string) {
     const [demande, setDemande] = useState("");
     useEffect(() => setDemande(lireOnglet()), []);
     const actif = ids.includes(demande) ? demande : defaut;
+    // K6 : un lien d'un volet vers un autre onglet de la même page (« Sources » depuis Builder IA) passe par cet événement.
+    useEffect(() => {
+        const aller = (e: Event) => {
+            const id = (e as CustomEvent<string>).detail;
+            if (ids.includes(id)) choisir(id);
+        };
+        window.addEventListener(EVENEMENT_ALLER, aller);
+        return () => window.removeEventListener(EVENEMENT_ALLER, aller);
+    });
     const choisir = (id: string) => {
         setDemande(id);
         try {
