@@ -85,6 +85,11 @@ ARGUMENTS = {
     "attaques_lancer": {"profondeur": "rapide", "confirme": True},
     "attaques_rapport": {},
     "attaques_rejouer": {},
+    # Lot M : sauvegarde avant modification, rendu du graphe, recette de l'agent.
+    "sauvegarde_prendre": {"workflow_id": AGENT},
+    "sauvegarde_refuser": {"workflow_id": AGENT, "raison": "non", "la_personne_a_dit_non": True},
+    "agent_montrer_le_graphe": {"workflow_id": AGENT},
+    "recette_lire": {"workflow_id": AGENT},
 }
 
 
@@ -123,6 +128,8 @@ async def test_les_deux_portes_appellent_la_meme_fonction(nom, monde, monkeypatc
     par_l_ecran = await registre.executer(nom, ARGUMENTS[nom], Contexte(user=user, workflow_id=AGENT))
     async with Client(mcp) as client:
         par_le_mcp = (await client.call_tool(nom, ARGUMENTS[nom])).structured_content
+    # Lot M : la porte MCP ajoute la clé « suite » (consigne de suite) ; le reste est identique à l'écran.
+    assert par_le_mcp.pop("suite")["prochaine"]
     assert par_l_ecran == par_le_mcp == {"ok": True, "vu": nom}
     assert [a[0] for a in appels] == ["ecran", "mcp"]
     assert appels[0][1] == appels[1][1] == 1 and appels[0][2] == appels[1][2]  # même utilisateur, mêmes paramètres validés
@@ -133,6 +140,7 @@ async def test_les_deux_portes_refusent_pareil_un_argument_invalide(monde, monke
     ecran = await registre.executer("bibliotheque_lire", {"famille": "moules-etape"}, Contexte(user=utilisateur(1)))
     async with Client(mcp) as client:
         par_le_mcp = (await client.call_tool("bibliotheque_lire", {"famille": "moules-etape"}, raise_on_error=False)).structured_content
+    par_le_mcp.pop("suite")  # lot M : la consigne de suite est posée par la porte MCP
     assert ecran["ok"] is False and ecran == par_le_mcp  # même validation, même refus
 
 

@@ -32,6 +32,13 @@ async def _principal() -> int:
         print(json.dumps({"modeles_reglages": reprise.en_json()}, ensure_ascii=False))
     except Exception as erreur:  # noqa: BLE001
         print(f"reprise des modèles de réglages en échec : {type(erreur).__name__}: {erreur}", file=sys.stderr)
+    # Lot M (7) : chaque agent sans recette indiquée reçoit la recette par défaut (idempotent, aucun changement de comportement).
+    try:
+        from api.services.builder import recettes
+
+        print(json.dumps({"recettes_des_agents": await recettes.verser_les_agents()}, ensure_ascii=False))
+    except Exception as erreur:  # noqa: BLE001
+        print(f"versement des recettes des agents en échec : {type(erreur).__name__}: {erreur}", file=sys.stderr)
     return 0
 
 

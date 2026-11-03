@@ -142,7 +142,13 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         lieu = ".".join(str(p) for p in premier.get("loc", ()))
         return {"ok": False, "erreur": f"Invalid arguments ({lieu}): {premier.get('msg', 'invalid')}."}
     try:
+        # [.mark] lot M : sauvegarde avant la première modification d'un agent existant (éteinte par défaut, ``sauvegarde.py``).
+        from api.services.builder import sauvegarde
+
+        await sauvegarde.garde(nom, parametres, contexte)
         resultat = await action.fonction(contexte, parametres)
+        if nom == "create_workflow" and isinstance(resultat, dict) and resultat.get("ok", True):
+            await sauvegarde.apres_creation(contexte, resultat)
     except ErreurAction as erreur:
         return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
     except Exception as erreur:  # noqa: BLE001 -- une action qui échoue ne fait pas tomber la conversation

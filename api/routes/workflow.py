@@ -462,6 +462,8 @@ class CreateWorkflowTemplateRequest(BaseModel):
     call_type: Literal[CallType.INBOUND.value, CallType.OUTBOUND.value]
     use_case: str
     activity_description: str
+    # [.mark] lot M : la recette choisie à la création (identifiant d'une fiche de la bibliothèque) ; vide = le défaut.
+    recette: str | None = None
 
 
 @router.post("/{workflow_id}/validate")
@@ -635,13 +637,16 @@ async def create_workflow_from_template(
     (start -> end) that the builder (``/builder``) then builds. Same response shape as before.
     """
     from api.services.builder import creation
+    from api.services.builder.recettes import ErreurRecette
 
     if not user.selected_organization_id:
         raise HTTPException(status_code=400, detail="No organization selected")
     try:
-        workflow = await creation.creer(user, request.call_type, request.use_case, request.activity_description)
+        workflow = await creation.creer(user, request.call_type, request.use_case, request.activity_description, request.recette)
     except HTTPException:
         raise
+    except ErreurRecette as e:
+        raise HTTPException(status_code=e.statut, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error creating workflow from request: {type(e).__name__}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")

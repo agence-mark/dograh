@@ -58,6 +58,7 @@ import {
 import { INVENTAIRE_AGENT } from "./inventaire-agent";
 import { JugeDesVraisAppels } from "./JugeDesVraisAppels";
 import { PreparationAgent } from "./PreparationAgent";
+import { RecetteDeLAgent } from "./RecetteDeLAgent";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
 import { ID_THEME_BRIQUES, ThemeBriques, TITRE_BRIQUES } from "./ThemeBriques";
@@ -458,6 +459,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                         </p>
                     )}
 
+                    <RecetteDeLAgent workflowId={workflowId} />
                     <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
 
                     {resolue && (

@@ -31,6 +31,7 @@ from api.db.models import UserModel
 from api.enums import WebhookCredentialType
 from api.routes.builder_bibliotheque import router as routeur_bibliotheque
 from api.routes.builder_c2 import router as routeur_c2
+from api.routes.builder_m import router as routeur_m
 from api.routes.builder_contexte import router as routeur_contexte
 from api.routes.builder_fils import router as routeur_fils
 from api.services.auth.depends import get_user_with_selected_organization
@@ -50,6 +51,7 @@ router.include_router(routeur_bibliotheque)
 router.include_router(routeur_contexte)
 router.include_router(routeur_fils)
 router.include_router(routeur_c2)
+router.include_router(routeur_m)
 
 NOM_CLE_DU_CERVEAU = "builder-cerveau"
 CLE_LONGUEUR = (8, 500)

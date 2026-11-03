@@ -1,0 +1,82 @@
+{
+  "titre": "Façon Tala",
+  "contenu": {
+    "nom": "Façon Tala",
+    "quand": "Un groupe avec un accueil et un spécialiste par motif d'appel, prompts au moule d'étape (« fait accompli, au lieu de »). Recette de départ.",
+    "defaut_de_depart": true,
+    "methode_de_construction": "Tu construis uniquement avec les pièces de cette recette (prompt général, étapes au moule, conditions de passage), jamais avec celles d'une autre recette. Les moules se remplissent, ils ne se réécrivent pas.",
+    "pieces": [
+      {
+        "famille": "conditions-passage",
+        "slug": "facon-tala-fait-accompli",
+        "role": "Conditions « fait accompli, au lieu de » (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-accueil",
+        "role": "Accueil (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-collecte",
+        "role": "Étape de collecte (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-fin",
+        "role": "Fin d'appel (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-recapitulatif",
+        "role": "Récapitulatif (façon Tala)"
+      },
+      {
+        "famille": "personas",
+        "slug": "facon-tala-persona",
+        "role": "Persona type (façon Tala)"
+      },
+      {
+        "famille": "phrases-fixes",
+        "slug": "facon-tala-phrases-fixes",
+        "role": "Phrases fixes (façon Tala)"
+      },
+      {
+        "famille": "prompt-general",
+        "slug": "facon-tala-telephone",
+        "role": "Prompt général, téléphone (façon Tala)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-tala-interdits-mesures",
+        "role": "Interdits de rédaction mesurés (façon Tala)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-tala-methode",
+        "role": "Méthode de rédaction (façon Tala)"
+      }
+    ],
+    "tests": [
+      "capture-adresse",
+      "capture-correction-a-la-relecture",
+      "capture-nom-epele",
+      "capture-numero-par-paires",
+      "capture-refus-de-donner",
+      "capture-tout-d-un-coup",
+      "correction-au-recapitulatif",
+      "demande-d-un-humain",
+      "demande-hors-perimetre",
+      "demarchage",
+      "entreprise-fermee",
+      "rdv-cas-normal",
+      "urgence-prioritaire"
+    ],
+    "capacites": []
+  },
+  "notes": "Reprise de l'existant sans changement : les pièces sont celles déjà versées (lot M, 04/11).",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

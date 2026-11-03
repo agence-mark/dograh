@@ -1,0 +1,35 @@
+{
+  "id": "repond-d-apres-le-controle",
+  "demande": "Dis-moi franchement si mon agent est prêt pour le téléphone.",
+  "tours": [
+    [
+      {
+        "appel": "publication_controler",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "texte": "Pas encore : trois points restent à régler avant le téléphone."
+      }
+    ]
+  ],
+  "plateforme": {
+    "publication_controler": {
+      "ok": true,
+      "controles": []
+    }
+  },
+  "correcteurs": [
+    {
+      "genre": "appelee",
+      "actions": [
+        "publication_controler"
+      ]
+    },
+    {
+      "genre": "motif",
+      "motif": "pas encore"
+    }
+  ]
+}

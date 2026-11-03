@@ -70,12 +70,14 @@ FAMILLES: dict[str, Famille] = dict(
         _f("regles-redaction", "Règles de rédaction", "guide", "builder"),
         _f("methode-builder", "Méthode du builder", "guide", "builder"),
         _f("demarrages-builder", "Démarrages du builder", "guide", "accueil du Labo (cartes sous la saisie)"),
+        _f("recettes-agent", "Recettes d'agent", "guide", "création d'agent et étape construction du builder"),
     ]
 )
 
 FAMILLE_METHODE = "methode-builder"
 FAMILLE_CONVENTIONS = "conventions-mark"
 FAMILLE_REDACTION = "regles-redaction"
+FAMILLE_RECETTES = "recettes-agent"
 
 
 def famille(slug: str) -> Famille | None:

@@ -47,7 +47,7 @@ def test_la_methode_v1_suit_la_decision_c3_et_ne_porte_aucun_metier():
         "Lire les dossiers",
         "UNE question à la fois, avec la réponse que tu proposes",
         "document de conception",
-        "recettes façon Tala",
+        "la recette de cet agent",  # lot M (7) : l'étape construction lit la recette de l'agent, plus « uniquement façon Tala »
         "trois fois",
         "phrases à essayer",
         "La publication : une personne",

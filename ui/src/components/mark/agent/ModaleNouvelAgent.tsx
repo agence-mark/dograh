@@ -8,11 +8,12 @@
  */
 import { FileText, Plus, Sparkles, Users2, Workflow } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
     createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost,
     creerUnGroupeApiV1WorkflowGroupePost,
+    listerLesRecettesApiV1BuilderRecettesGet,
     updateWorkflowApiV1WorkflowWorkflowIdPut,
 } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -31,7 +32,7 @@ const T = {
     nom: { en: "Name", fr: "Nom" },
     structure: { en: "Structure", fr: "Structure" },
     groupe: { en: "Group with specialists", fr: "Groupe avec spécialistes" },
-    groupePhrase: { en: "A greeter and one specialist per call reason. Our Tala recipe.", fr: "Un accueil, un spécialiste par motif d'appel. Notre recette façon Tala." },
+    groupePhrase: { en: "A greeter and one specialist per call reason.", fr: "Un accueil, un spécialiste par motif d'appel." },
     un: { en: "One agent", fr: "Un agent" },
     unPhrase: { en: "One prompt and a few steps. For a simple need or the site.", fr: "Un seul prompt et peu d'étapes. Pour un besoin simple ou le site." },
     depart: { en: "Starting point", fr: "Point de départ" },
@@ -42,6 +43,13 @@ const T = {
     recetteRaison: { en: "Arrives with the library's creation entry.", fr: "Arrive avec l'entrée de création de la bibliothèque." },
     vide: { en: "Empty", fr: "Vide" },
     videPhrase: { en: "Empty graph, neutral template.", fr: "Graphe vierge, gabarit neutre posé." },
+    recetteTitre: { en: "Recipe", fr: "Recette" },
+    recetteInfo: {
+        en: "How the builder builds this agent: its pieces, its method. Read from the library; it can no longer change once a version is published.",
+        fr: "La façon dont le builder construit cet agent : ses pièces, sa méthode. Lue dans la bibliothèque ; elle ne change plus une fois une version publiée.",
+    },
+    nonProuvee: { en: "not proven", fr: "non prouvée" },
+    parDefaut: { en: "default", fr: "par défaut" },
     description: { en: "What the company does and what the agent must do, in a few lines.", fr: "Ce que fait l'entreprise et ce que l'agent doit faire, en quelques lignes." },
     annuler: { en: "Cancel", fr: "Annuler" },
     lancer: { en: "Start the builder", fr: "Lancer le builder" },
@@ -49,6 +57,8 @@ const T = {
     enCours: { en: "Creating...", fr: "Création..." },
     echec: { en: "Agent not created. Try again.", fr: "Agent non créé. Réessayez." },
 } satisfies Record<string, Texte>;
+
+type RecetteProposee = { slug: string; nom: string; quand: string; prouvee: boolean };
 
 const carte = (actif: boolean) => `rounded-xl border text-left ${actif ? "border-(--acc) ring-1 ring-(--acc)" : "hover:bg-muted/50"}`;
 
@@ -60,6 +70,21 @@ export function ModaleNouvelAgent({ ouvert, fermer, dossierId = null }: { ouvert
     const [nom, setNom] = useState("");
     const [description, setDescription] = useState("");
     const [enCours, setEnCours] = useState(false);
+    const [recettes, setRecettes] = useState<RecetteProposee[]>([]);
+    const [defautRecette, setDefautRecette] = useState<string | null>(null);
+    const [recette, setRecette] = useState("");
+
+    // La liste des recettes vient de la bibliothèque (lot M) : aucune n'est écrite ici. Vide ou illisible : la section n'apparaît pas.
+    useEffect(() => {
+        if (!ouvert) return;
+        void listerLesRecettesApiV1BuilderRecettesGet().then((r) => {
+            const vue = r.data as { defaut: string | null; recettes: RecetteProposee[] } | undefined;
+            if (!vue) return;
+            setRecettes(vue.recettes);
+            setDefautRecette(vue.defaut);
+            setRecette((actuelle) => actuelle || vue.defaut || "");
+        });
+    }, [ouvert]);
 
     const creer = async () => {
         const propre = nom.trim();
@@ -68,12 +93,12 @@ export function ModaleNouvelAgent({ ouvert, fermer, dossierId = null }: { ouvert
         const builder = depart === "builder" ? "?builder=1" : "";
         try {
             if (structure === "groupe") {
-                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ body: { name: propre, folder_id: dossierId } });
+                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ body: { name: propre, folder_id: dossierId, recette: recette || null } });
                 if (reponse.error || !reponse.data) throw new Error("groupe");
                 router.push(`${adresseOnglet(reponse.data.workflow_id, "parcours")}${builder}`);
             } else {
                 const reponse = await createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost({
-                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "" },
+                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "", recette: recette || null },
                 });
                 if (reponse.error || !reponse.data?.id) throw new Error("agent");
                 // Le serveur nomme l'agent d'après le cas d'usage ; le nom donné ici est celui qu'on garde.
@@ -119,6 +144,33 @@ export function ModaleNouvelAgent({ ouvert, fermer, dossierId = null }: { ouvert
                             ))}
                         </div>
                     </div>
+                    {recettes.length > 0 && (
+                        <div className="space-y-2" data-section="recette">
+                            <p className="flex items-center gap-2 text-sm font-medium">
+                                {t(T.recetteTitre)}
+                                <Info>{t(T.recetteInfo)}</Info>
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                {recettes.map((r) => (
+                                    <button
+                                        key={r.slug}
+                                        type="button"
+                                        data-recette={r.slug}
+                                        aria-pressed={recette === r.slug}
+                                        onClick={() => setRecette(r.slug)}
+                                        className={`${carte(recette === r.slug)} cursor-pointer p-3`}
+                                    >
+                                        <p className="text-sm font-medium">
+                                            {r.nom}
+                                            {r.slug === defautRecette && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.parDefaut)}</span>}
+                                            {!r.prouvee && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.nonProuvee)}</span>}
+                                        </p>
+                                        {r.quand && <p className="text-[11px] leading-snug text-muted-foreground">{r.quand}</p>}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <p className="text-sm font-medium">{t(T.depart)}</p>
                         <div className="grid grid-cols-3 gap-3">

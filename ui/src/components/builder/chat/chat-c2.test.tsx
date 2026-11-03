@@ -11,6 +11,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const accepter = vi.fn(async (_o?: unknown) => ({ data: { acceptes: 1 } }));
 const refuser = vi.fn(async (_o?: unknown) => ({ data: { refuses: 1 } }));
 const restaurer = vi.fn(async (_o?: unknown) => ({ data: { version: 3 } }));
+const apercu = vi.fn(async (_o?: unknown) => ({
+    data: {
+        numero: 2,
+        cause: "acceptation",
+        sera_perdu: [{ genre: "noeud modifié", cible: "1", nom: "Accueil", champs: ["prompt"] }],
+        sera_retrouve: [],
+        total_perdu: 1,
+        total_retrouve: 0,
+        inchanges: 1,
+    },
+}));
 const lireTexte = vi.fn(async ({ query }: { query: { page: number } }) => ({
     data: { genre: "pages", page: query.page, pages: 2, texte: query.page === 1 ? "Bonjour le monde" : "le monde est grand" },
 }));
@@ -19,6 +30,7 @@ vi.mock("@/client", () => ({
     accepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPost: (o: unknown) => accepter(o),
     refuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPost: (o: unknown) => refuser(o),
     restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost: (o: unknown) => restaurer(o),
+    apercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGet: (o: unknown) => apercu(o),
     lireLesChangementsApiV1BuilderFilsFilIdChangementsGet: async () => ({
         data: {
             total: 3,
@@ -142,8 +154,24 @@ describe("revue champ par champ", () => {
         await waitFor(() => expect(accepter).toHaveBeenCalledWith({ path: { fil_id: 5 }, body: { rangs: [1] } }));
         fireEvent.click(screen.getByText("Refuse all"));
         await waitFor(() => expect(refuser).toHaveBeenCalledWith({ path: { fil_id: 5 }, body: { rangs: [] } }));
+        // Lot M : un clic sur « revenir » montre d'abord ce qui sera perdu ; rien n'est restauré avant la confirmation.
         fireEvent.click(await screen.findByText("Go back before this"));
+        await screen.findByText("Will be lost (1)");
+        expect(screen.getByText("Accueil")).toBeTruthy();
+        expect(apercu).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 } });
+        expect(restaurer).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByText("Confirm and go back"));
         await waitFor(() => expect(restaurer).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 } }));
+    });
+
+    it("annuler l'aperçu ne restaure rien", async () => {
+        restaurer.mockClear();
+        render(<RevueChampParChamp filId={5} workflowId={9} />);
+        fireEvent.click(await screen.findByText("Go back before this"));
+        await screen.findByText("Will be lost (1)");
+        fireEvent.click(screen.getByText("Cancel"));
+        await waitFor(() => expect(screen.queryByText("Will be lost (1)")).toBeNull());
+        expect(restaurer).not.toHaveBeenCalled();
     });
 
     it("montre (vide) pour une valeur absente", () => {

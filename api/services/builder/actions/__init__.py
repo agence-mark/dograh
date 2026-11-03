@@ -18,6 +18,8 @@ from api.services.builder.actions import methode  # noqa: F401,E402 -- U7 (M2) :
 from api.services.builder.actions import juge  # noqa: F401,E402 -- U6 : juge_a_faire, juge_lire, juge_ecrire pour Claude Code
 from api.services.builder.actions import publication  # noqa: F401,E402 -- U11 : contrôles avant publication et attaques
 from api.services.builder.actions import rapport_et_tests  # noqa: F401,E402 -- C2 : rapport, dépense, tests lus, correction
+from api.services.builder.actions import recettes  # noqa: F401,E402 -- lot M (7) : recette_lire
+from api.services.builder.actions import sauvegarde_et_graphe  # noqa: F401,E402 -- lot M : sauvegarde avant modification, rendu du graphe
 from api.services.builder import sous_agents  # noqa: F401,E402 -- C2 (E96) : l'action deleguer
 from api.services.builder.actions.registre import (  # noqa: F401
     INTERDITES,

@@ -16,7 +16,7 @@ from typing import Any
 from fastmcp.tools import Tool, ToolResult
 
 from api.mcp_server.auth import authenticate_mcp_request
-from api.services.builder import actions
+from api.services.builder import actions, suites
 from api.services.builder.actions.registre import PORTE_MCP, REGISTRE, Contexte, executer
 
 
@@ -26,7 +26,7 @@ class OutilDuBuilder(Tool):
     async def run(self, arguments: dict[str, Any]) -> ToolResult:
         user = await authenticate_mcp_request()
         contexte = Contexte(user=user, workflow_id=None, porte=PORTE_MCP)
-        resultat = await executer(self.name, arguments, contexte)
+        resultat = suites.avec_la_suite_de(self.name, await executer(self.name, arguments, contexte))
         return ToolResult(structured_content=resultat)
 
 

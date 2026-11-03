@@ -1,0 +1,36 @@
+{
+  "id": "montrer-le-graphe",
+  "demande": "Je ne m'y retrouve plus, dessine-moi ce que fait mon agent étape par étape.",
+  "plateforme": {
+    "agent_montrer_le_graphe": {
+      "ok": true,
+      "texte": "2 node(s), 1 link(s)",
+      "mermaid": "flowchart TD"
+    }
+  },
+  "tours": [
+    [
+      {
+        "appel": "agent_montrer_le_graphe",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "texte": "Voici le dessin : deux étapes, une liaison."
+      }
+    ]
+  ],
+  "correcteurs": [
+    {
+      "genre": "appelee",
+      "actions": [
+        "agent_montrer_le_graphe"
+      ]
+    },
+    {
+      "genre": "motif",
+      "motif": "deux étapes"
+    }
+  ]
+}

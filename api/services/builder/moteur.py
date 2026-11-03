@@ -23,7 +23,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.builder import actions, contexte, methode  # noqa: F401 -- ``actions`` inscrit le registre
+from api.services.builder import actions, contexte, methode, suites  # noqa: F401 -- ``actions`` inscrit le registre
 from api.services.builder.actions.registre import Contexte, executer, outils_du_moteur
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.cerveau.reglages import ReglagesCerveau
@@ -133,7 +133,7 @@ async def _tours(
         yield {"type": "fin", "raison": "plafond"}
         return
 
-    systeme = await methode.systeme_complet(getattr(ctx.user, "id", None))
+    systeme = await methode.systeme_complet(getattr(ctx.user, "id", None), agent, org)
     usage_du_resume = await contexte.compacter_si_besoin(conv, cerveau, systeme, reglages.fenetre)
     if usage_du_resume:
         _ajouter_usage(depense, usage_du_resume["entree"], usage_du_resume["sortie"], reglages)
@@ -186,7 +186,7 @@ async def _tours(
             if appel.get("illisible"):
                 resultat = {"ok": False, "erreur": "The arguments were not valid JSON: send them again."}
             else:
-                resultat = await executer(appel["nom"], appel["arguments"], ctx)
+                resultat = suites.avec_la_suite_de(appel["nom"], await executer(appel["nom"], appel["arguments"], ctx))
                 if agent is None and appel["nom"] == "create_workflow" and resultat.get("ok", True):
                     # L'agent vient de naître : la conversation lui est rattachée (tours suivants et table).
                     nouveau = resultat.get("workflow_id") or resultat.get("id")

@@ -25,6 +25,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
+import { OptionsDeConstruction } from "./OptionsDeConstruction";
+
 const T = {
     titre: { en: "Builder settings", fr: "Réglages du builder" },
     description: {
@@ -162,6 +164,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
                         <Label htmlFor="builder-preferences">{t(T.preferences)}</Label>
                         <Textarea id="builder-preferences" value={preferences} onChange={(e) => setPreferences(e.target.value)} className="min-h-20" />
                     </div>
+                    <OptionsDeConstruction />
                     {erreur && <p role="alert" className="text-sm text-destructive">{erreur}</p>}
                 </div>
                 <DialogFooter>

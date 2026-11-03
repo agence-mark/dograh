@@ -20,6 +20,8 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
+import { FenetreRestauration } from "./FenetreRestauration";
+
 const T = {
     titre: { en: "Change", fr: "Changement" },
     sur: { en: "of", fr: "sur" },
@@ -60,6 +62,8 @@ export function RevueChampParChamp({
     const [rang, setRang] = useState(0);
     const [versions, setVersions] = useState<Version[]>([]);
     const [erreur, setErreur] = useState<string | null>(null);
+    // Lot M : revenir à une version passe d'abord par l'aperçu (ce qui sera perdu), puis la confirmation.
+    const [aApercevoir, setAApercevoir] = useState<number | null>(null);
 
     const charger = useCallback(async () => {
         const r = await lireLesChangementsApiV1BuilderFilsFilIdChangementsGet({ path: { fil_id: filId } });
@@ -90,6 +94,7 @@ export function RevueChampParChamp({
 
     const revenir = async (numero: number) => {
         if (workflowId === null) return;
+        setAApercevoir(null);
         const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero } });
         if (r.error) return setErreur(detailFromError(r.error, "The version could not be restored"));
         setErreur(null);
@@ -162,7 +167,7 @@ export function RevueChampParChamp({
                                 <span>
                                     #{v.numero} · {v.cause} · {new Date(v.date).toLocaleString()}
                                 </span>
-                                <button type="button" className="cursor-pointer hover:font-semibold" onClick={() => void revenir(v.numero)}>
+                                <button type="button" className="cursor-pointer hover:font-semibold" onClick={() => setAApercevoir(v.numero)}>
                                     {t(T.revenir)}
                                 </button>
                             </li>
@@ -171,6 +176,9 @@ export function RevueChampParChamp({
                 </div>
             )}
             {erreur && <p className="text-sm text-destructive">{erreur}</p>}
+            {aApercevoir !== null && workflowId !== null && (
+                <FenetreRestauration workflowId={workflowId} numero={aApercevoir} confirmer={() => revenir(aApercevoir)} fermer={() => setAApercevoir(null)} />
+            )}
         </section>
     );
 }

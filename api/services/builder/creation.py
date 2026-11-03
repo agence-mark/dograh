@@ -36,8 +36,13 @@ def nom_de_l_agent(use_case: str, call_type: str) -> str:
     return nom[:120] or "Nouvel agent"
 
 
-async def creer(user: Any, call_type: str, use_case: str, activity_description: str):
-    """Crée l'agent squelette et note la demande dans son contexte. Rend le workflow créé."""
+async def creer(user: Any, call_type: str, use_case: str, activity_description: str, recette: str | None = None):
+    """Crée l'agent squelette et note la demande dans son contexte. Rend le workflow créé.
+
+    ``recette`` (lot M) : la recette choisie à la création ; vide = le défaut de la bibliothèque. Inconnue : ``ErreurRecette`` avant toute création."""
+    from api.services.builder import recettes
+
+    choisie = await recettes.verifier_le_choix(user.selected_organization_id, recette)
     workflow = await db_client.create_workflow(
         nom_de_l_agent(use_case, call_type),
         squelette(),
@@ -47,4 +52,5 @@ async def creer(user: Any, call_type: str, use_case: str, activity_description: 
     )
     notes = f"Demande initiale\nSens de l'appel : {call_type}\nCas d'usage : {use_case}\nDescription : {activity_description}"
     await contexte.ecrire_notes(user.selected_organization_id, workflow.id, notes)
+    await recettes.poser_a_la_creation(user.selected_organization_id, workflow.id, choisie, getattr(user, "email", "") or "")
     return workflow

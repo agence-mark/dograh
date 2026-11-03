@@ -73,6 +73,25 @@ class Demarrage(_Forme):
     icone: Literal["agent", "amelioration", "test", "fichier", "etincelle"] = "etincelle"
 
 
+class PieceDeRecette(BaseModel):
+    famille: str = Field(min_length=1, max_length=64)
+    slug: str = Field(min_length=1, max_length=120)
+    role: str = Field(default="", max_length=200)
+
+
+class RecetteAgent(_Forme):
+    """Une façon de construire un agent (lot M, 7) : lue par la fenêtre de création, la méthode et les gardes du builder."""
+
+    nom: str = Field(min_length=1, max_length=80)
+    quand: str = Field(default="", max_length=600)
+    defaut_de_depart: bool = False
+    methode_de_construction: str = Field(min_length=1, max_length=4000)
+    pieces: list[PieceDeRecette] = Field(default_factory=list, max_length=80)
+    tests: list[str] = Field(default_factory=list, max_length=80)
+    # Ce que la recette permet (ex. « regle_de_descente »). Le code lit la capacité, jamais le nom de la recette.
+    capacites: list[str] = Field(default_factory=list, max_length=12)
+
+
 class Texte(_Forme):
     texte: str = Field(min_length=1)
 
@@ -85,6 +104,7 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "lexiques": Lexique,
     "modeles-reglages": ModeleDeReglages,
     "demarrages-builder": Demarrage,
+    "recettes-agent": RecetteAgent,
 }
 
 

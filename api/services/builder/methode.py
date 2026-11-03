@@ -36,9 +36,23 @@ async def charger_methode() -> str:
     return texte or texte_de_secours()
 
 
-async def systeme_complet(user_id: int | None) -> str:
-    """La méthode + couche 1 (conventions) + couche 3 (préférences). Stable d'un tour à l'autre : mis en cache."""
+async def section_de_la_recette(organisation: int | None, workflow_id: int | None) -> str:
+    """Lot M (7) : la recette de l'agent et sa méthode de construction, lues dans la bibliothèque. Vide sans organisation (appel d'avant)."""
+    if organisation is None:
+        return ""
+    from api.services.builder import recettes
+
+    try:
+        return await recettes.section_pour_la_methode(organisation, workflow_id)
+    except Exception:  # noqa: BLE001 -- une bibliothèque illisible ne coupe pas la conversation
+        return ""
+
+
+async def systeme_complet(user_id: int | None, workflow_id: int | None = None, organisation: int | None = None) -> str:
+    """La méthode + la recette de l'agent + couche 1 (conventions) + couche 3 (préférences). Stable d'un tour à l'autre : mis en cache."""
     parties = [await charger_methode()]
+    if recette := await section_de_la_recette(organisation, workflow_id):
+        parties.append(recette)
     conventions = await contexte.conventions()
     if conventions:
         parties.append("## Conventions de .mark\n" + conventions)
