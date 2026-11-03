@@ -17,8 +17,9 @@ export function formatDateTime(value: DateInput, timezone?: string | null, langu
     });
 }
 
-export function formatDate(value: DateInput, timezone?: string | null) {
-    return new Date(value).toLocaleDateString('en-US', {
+export function formatDate(value: DateInput, timezone?: string | null, langue: 'fr' | 'en' = 'en') {
+    // [.mark] K8 : une date lue en français se dit en français (« 14 oct. 2026 »).
+    return new Date(value).toLocaleDateString(langue === 'fr' ? 'fr-FR' : 'en-US', {
         timeZone: timezone || getLocalTimezone(),
         year: 'numeric',
         month: 'short',

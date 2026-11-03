@@ -51,7 +51,7 @@ function Lue({ libelle, children }: { libelle: string; children: React.ReactNode
 }
 
 export default function CampaignDetailPage() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [redialErreur, setRedialErreur] = useState<string | null>(null);
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
@@ -386,7 +386,7 @@ export default function CampaignDetailPage() {
     const formatLogTimestamp = (ts: string) => {
         const d = new Date(ts);
         if (isNaN(d.getTime())) return ts;
-        return formatDateTime(d, organizationTimezone);
+        return formatDateTime(d, organizationTimezone, langue);
     };
 
     // Lancer ou reprendre une campagne fait partir de vrais appels vers de vraies personnes : on confirme d'abord.
@@ -504,7 +504,7 @@ export default function CampaignDetailPage() {
                         <span className="inline-flex flex-wrap items-center gap-4">
                             <PointEtat etat={etat.point}>{t(etat.libelle)}</PointEtat>
                             <span>
-                                {t({ en: 'Created', fr: 'Créée le' })} {formatDate(campaign.created_at, organizationTimezone)}
+                                {t({ en: 'Created', fr: 'Créée le' })} {formatDate(campaign.created_at, organizationTimezone, langue)}
                             </span>
                         </span>
                     }
@@ -636,10 +636,10 @@ export default function CampaignDetailPage() {
                     {campaign.parent_campaign_id && <Lue libelle={t({ en: 'Redial of', fr: 'Relance de' })}>{lienCampagne(campaign.parent_campaign_id)}</Lue>}
                     {campaign.redialed_campaign_id && <Lue libelle={t({ en: 'Redialed as', fr: 'Relancée par' })}>{lienCampagne(campaign.redialed_campaign_id)}</Lue>}
                     {campaign.started_at && (
-                        <Lue libelle={t({ en: 'Started at', fr: 'Lancée le' })}>{formatDateTime(campaign.started_at, organizationTimezone)}</Lue>
+                        <Lue libelle={t({ en: 'Started at', fr: 'Lancée le' })}>{formatDateTime(campaign.started_at, organizationTimezone, langue)}</Lue>
                     )}
                     {campaign.completed_at && (
-                        <Lue libelle={t({ en: 'Completed at', fr: 'Terminée le' })}>{formatDateTime(campaign.completed_at, organizationTimezone)}</Lue>
+                        <Lue libelle={t({ en: 'Completed at', fr: 'Terminée le' })}>{formatDateTime(campaign.completed_at, organizationTimezone, langue)}</Lue>
                     )}
                 </div>
             </section>

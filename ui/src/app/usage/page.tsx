@@ -60,7 +60,7 @@ const buildUsageFilterAttributes = (
 export default function UsagePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { organizationPricing } = useUserConfig();
     const auth = useAuth();
 
@@ -577,7 +577,7 @@ export default function UsagePage() {
                         {lignes.map((run) => (
                             <Ligne key={run.id} href={`/workflow/${run.workflow_id}/run/${run.id}`}>
                                 <Cellule principale sous={`#${run.id}`}>
-                                    {formatDateTime(run.created_at, effectiveTimezone)}
+                                    {formatDateTime(run.created_at, effectiveTimezone, langue)}
                                 </Cellule>
                                 <Cellule>{run.workflow_name || t({ en: 'Unknown', fr: 'Inconnu' })}</Cellule>
                                 <Cellule>

@@ -1,11 +1,12 @@
 "use client";
 
 import { Plus, X } from 'lucide-react';
-import { ErreurChamp } from '@/components/mark/erreur-champ';
 import Link from 'next/link';
 import { useId } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
 
+import { ErreurChamp } from '@/components/mark/erreur-champ';
+import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -129,7 +130,9 @@ export default function CampaignAdvancedSettings({
         <div className="space-y-6">
             {/* Max Concurrent Calls */}
             <div className="space-y-2">
-                <Label htmlFor="max-concurrency">Max Concurrent Calls</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="max-concurrency">Max Concurrent Calls</Label><Info>Maximum number of simultaneous calls. Leave empty to use {effectiveLimit}.
+                    {fromNumbersCount > 0 && ` You have ${fromNumbersCount} CLI${fromNumbersCount !== 1 ? 's' : ''} and an org limit of ${orgConcurrentLimit}.`}
+                    {fromNumbersCount > 0 && ' Caller IDs rotate across calls and may be reused on simultaneous calls.'}</Info></div>
                 <Input
                     id="max-concurrency"
                     type="number"
@@ -142,16 +145,8 @@ export default function CampaignAdvancedSettings({
                     aria-describedby={erreurs?.simultanes ? "max-concurrency-erreur" : undefined}
                 />
                 <ErreurChamp id="max-concurrency-erreur">{erreurs?.simultanes}</ErreurChamp>
-                <p className="text-sm text-muted-foreground">
-                    Maximum number of simultaneous calls. Leave empty to use {effectiveLimit}.
-                    {fromNumbersCount > 0 && ` You have ${fromNumbersCount} CLI${fromNumbersCount !== 1 ? 's' : ''} and an org limit of ${orgConcurrentLimit}.`}
-                </p>
-                {fromNumbersCount > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                        Caller IDs rotate across calls and may be reused on simultaneous calls.
-                    </p>
-                )}
-                {outboundBlockedReason && (
+
+{outboundBlockedReason && (
                     <p className="text-sm text-foreground">
                         {outboundBlockedReason}{' '}
                         <Link href="/telephony-configurations" className="underline font-medium">Open Telephony Configuration</Link>.
@@ -160,7 +155,7 @@ export default function CampaignAdvancedSettings({
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="dial-rate">Calls Started per Second</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="dial-rate">Calls Started per Second</Label><Info>Maximum new calls this campaign can start each second. Default: 1. Your account allows up to {orgConcurrentLimit}.</Info></div>
                 <Input
                     id="dial-rate"
                     type="number"
@@ -174,20 +169,16 @@ export default function CampaignAdvancedSettings({
                     aria-describedby={erreurs?.cadence ? "dial-rate-erreur" : undefined}
                 />
                 <ErreurChamp id="dial-rate-erreur">{erreurs?.cadence}</ErreurChamp>
-                <p className="text-sm text-muted-foreground">
-                    Maximum new calls this campaign can start each second. Default: 1. Your account allows up to {orgConcurrentLimit}.
-                </p>
-            </div>
+
+</div>
 
             {/* Retry Configuration */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <Label htmlFor="retry-enabled">Enable Retries</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Automatically retry failed calls
-                        </p>
-                    </div>
+                        <div className="flex items-center gap-1.5"><Label htmlFor="retry-enabled">Enable Retries</Label><Info>Automatically retry failed calls</Info></div>
+
+</div>
                     <Switch
                         id="retry-enabled"
                         checked={retryEnabled}
@@ -249,11 +240,9 @@ export default function CampaignAdvancedSettings({
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <Label htmlFor="schedule-enabled">Call Schedule</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Restrict when calls are made
-                        </p>
-                    </div>
+                        <div className="flex items-center gap-1.5"><Label htmlFor="schedule-enabled">Call Schedule</Label><Info>Restrict when calls are made</Info></div>
+
+</div>
                     <Switch
                         id="schedule-enabled"
                         checked={scheduleEnabled}
@@ -348,11 +337,9 @@ export default function CampaignAdvancedSettings({
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <Label htmlFor="circuit-breaker-enabled">Circuit Breaker</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Auto-pause campaign on high failure rates
-                        </p>
-                    </div>
+                        <div className="flex items-center gap-1.5"><Label htmlFor="circuit-breaker-enabled">Circuit Breaker</Label><Info>Auto-pause campaign on high failure rates</Info></div>
+
+</div>
                     <Switch
                         id="circuit-breaker-enabled"
                         checked={circuitBreakerEnabled}
@@ -363,7 +350,7 @@ export default function CampaignAdvancedSettings({
                 {circuitBreakerEnabled && (
                     <div className="space-y-4 pl-4 border-l-2 border-muted">
                         <div className="space-y-2">
-                            <Label htmlFor="cb-failure-threshold">Failure Threshold (%)</Label>
+                            <div className="flex items-center gap-1.5"><Label htmlFor="cb-failure-threshold">Failure Threshold (%)</Label><Info>Pause when failure rate exceeds this percentage</Info></div>
                             <Input
                                 id="cb-failure-threshold"
                                 type="number"
@@ -372,10 +359,8 @@ export default function CampaignAdvancedSettings({
                                 min={1}
                                 max={100}
                             />
-                            <p className="text-sm text-muted-foreground">
-                                Pause when failure rate exceeds this percentage
-                            </p>
-                        </div>
+
+</div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="cb-window">Window (seconds)</Label>

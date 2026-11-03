@@ -28,7 +28,7 @@ export default function CampaignsPage() {
     const { user, loading: authLoading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
     const router = useRouter();
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
 
     const [campaignsData, setCampaignsData] = useState<CampaignsResponse | null>(null);
     const [illisible, setIllisible] = useState(false);
@@ -101,7 +101,7 @@ export default function CampaignsPage() {
                                         <Cellule droite>
                                             {campaign.executed_count} / {campaign.total_queued_count}
                                         </Cellule>
-                                        <Cellule droite>{formatDate(campaign.created_at, organizationTimezone)}</Cellule>
+                                        <Cellule droite>{formatDate(campaign.created_at, organizationTimezone, langue)}</Cellule>
                                     </Ligne>
                                 );
                             })}
