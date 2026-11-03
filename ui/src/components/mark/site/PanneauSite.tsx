@@ -10,6 +10,7 @@
  */
 import { Check, Copy, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { notifier } from "@/components/mark/notifications";
 
 import {
@@ -126,6 +127,14 @@ export function PanneauSite({ workflowId }: Props) {
             setOccupe(false);
         }
     };
+
+    // K7 : une saisie non enregistrée (nom ou domaines d'un nouveau site, chemins, couleur, accroche) est gardée si l'agent change ailleurs.
+    const saisieNonEnregistree =
+        nouveauNom !== "" ||
+        nouveauxDomaines !== "" ||
+        (emplacement?.site_id ? chemins !== ((emplacement.chemins ?? []).join("\n") || "/") : false) ||
+        (apparence ? couleur !== (apparence.apparence.couleur_base ?? "") || accroche !== (apparence.apparence.textes?.accroche ?? "") : false);
+    useBrouillonLocal(saisieNonEnregistree);
 
     if (chargement && !emplacement) return <Loader2 className="h-4 w-4 animate-spin" aria-label="loading" />;
     if (!emplacement) return null;
@@ -368,6 +377,10 @@ function ReglagesMark({
         sessions_par_heure_et_ip: reglages.sessions_par_heure_et_ip,
     });
     const [domaines, setDomaines] = useState(reglages.allowed_domains.join(", "));
+    useBrouillonLocal(
+        domaines !== reglages.allowed_domains.join(", ") ||
+            (Object.keys(valeurs) as (keyof typeof valeurs)[]).some((cle) => valeurs[cle] !== reglages[cle]),
+    );
     const champ = (cle: keyof typeof valeurs, etiquette: string, min: number, max: number) => (
         <Champ etiquette={etiquette}>
             <Input

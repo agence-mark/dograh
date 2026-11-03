@@ -135,6 +135,10 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
     if contexte.actions_permises is not None and nom not in contexte.actions_permises:
         return {"ok": False, "code": "sous_agent", "erreur": f"« {nom} » is not allowed to a sub-agent: it only reads and tests, it never writes."}
+    from api.services.builder import portes
+
+    if (refus := await portes.refus_de_la_porte(contexte)) is not None:
+        return {"ok": False, "code": "porte_coupee", "erreur": refus}
     try:
         parametres = action.parametres.model_validate(arguments or {})
     except ValidationError as erreur:

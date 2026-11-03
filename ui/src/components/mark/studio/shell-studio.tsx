@@ -35,17 +35,41 @@ type Emplacements = {
     milieu: HTMLElement | null;
     actions: HTMLElement | null;
     declarer: (personnalisee: boolean) => void;
+    /** K7 : une page pose son fil d'Ariane (le titre d'un chat en dernier maillon) ; `null` rend celui du cadre. */
+    poserMiettes: (miettes: Miette[] | null) => void;
 };
 const EnteteContexte = createContext<Emplacements | null>(null);
 
-/** Pose le contenu de la barre du haut du cadre : `nom` à la place du fil d'Ariane, `milieu` après lui, `actions` à droite. */
-export function EnteteStudio({ nom, milieu, actions }: { nom?: React.ReactNode; milieu?: React.ReactNode; actions?: React.ReactNode }) {
+/**
+ * Pose le contenu de la barre du haut du cadre : `nom` à la place du fil d'Ariane, `milieu` après lui, `actions` à droite.
+ * K7 : `miettes` garde le fil d'Ariane mais en pose un autre (ex. « Labo > Chat > titre du chat ») ; avec lui, le fil n'est pas masqué.
+ */
+export function EnteteStudio({
+    nom,
+    milieu,
+    actions,
+    miettes,
+}: {
+    nom?: React.ReactNode;
+    milieu?: React.ReactNode;
+    actions?: React.ReactNode;
+    miettes?: Miette[];
+}) {
     const ctx = useContext(EnteteContexte);
     const declarer = ctx?.declarer;
+    const poserMiettes = ctx?.poserMiettes;
+    const avecMiettes = miettes !== undefined;
+    const cle = JSON.stringify(miettes ?? null);
     useEffect(() => {
+        if (avecMiettes) return;
         declarer?.(true);
         return () => declarer?.(false);
-    }, [declarer]);
+    }, [declarer, avecMiettes]);
+    useEffect(() => {
+        if (!avecMiettes) return;
+        poserMiettes?.(JSON.parse(cle) as Miette[]);
+        return () => poserMiettes?.(null);
+    }, [poserMiettes, avecMiettes, cle]);
     if (!ctx) return null;
     return (
         <>
@@ -98,6 +122,7 @@ export function ShellStudio({
     const [elMilieu, setElMilieu] = useState<HTMLElement | null>(null);
     const [elActions, setElActions] = useState<HTMLElement | null>(null);
     const [personnalisee, setPersonnalisee] = useState(false);
+    const [miettesDeLaPage, setMiettesDeLaPage] = useState<Miette[] | null>(null);
 
     useEffect(() => {
         setChoix(lireBarre());
@@ -112,6 +137,7 @@ export function ShellStudio({
     const nomEspace = useNomEspace(espace, org);
     const entree = entreeActive(menuDe(espace), pathname, base);
     const fil: Miette[] =
+        miettesDeLaPage ??
         miettes ??
         [
             { libelle: nomEspace ?? (org ? "" : "Labo"), href: base },
@@ -131,7 +157,7 @@ export function ShellStudio({
             }}
             className="bg-sidebar"
         >
-            <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee }}>
+            <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee, poserMiettes: setMiettesDeLaPage }}>
             <SidebarStudio compteurs={compteurs} />
             <div className="h-svh w-full overflow-hidden lg:py-2 lg:pr-2">
                 <div id="cadre-studio" className="relative flex h-full w-full overflow-hidden bg-background lg:rounded-xl lg:border">

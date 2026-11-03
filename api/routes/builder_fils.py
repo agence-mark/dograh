@@ -6,7 +6,9 @@
 - ``GET  /builder/fils/{id}``                         une conversation (état, coût, jauge, changements à valider) ;
 - ``GET  /builder/fils/{id}/evenements``              le flux SSE, rejoué depuis ``?depuis=`` ou ``Last-Event-ID`` ;
 - ``POST /builder/fils/{id}/messages``                un message de plus ;
-- ``POST /builder/fils/{id}/arreter`` · ``reprendre`` · ``modifier-dernier``.
+- ``POST /builder/fils/{id}/arreter`` · ``reprendre`` · ``modifier-dernier`` ;
+- ``PUT  /builder/fils/{id}/titre``                   renomme (menu ⋮ du Chat) ;
+- ``DELETE /builder/fils/{id}``                       supprime (journalisé ; jamais par une clé d'API).
 
 Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0) : la conversation d'une autre organisation est un 404, et l'agent
 joint est contrôlé de la même façon. Le travail tourne en tâche de fond : fermer l'onglet ne l'arrête pas.
@@ -24,6 +26,8 @@ from pydantic import BaseModel, Field
 from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
+from api.services.equipe_mark.acces import journaliser
+from api.services import modifications_live as live
 from api.services.builder import demarrages, fil as service_fil
 from api.services.builder.constantes import organisation_bibliotheque
 from api.services.mark_evenements import flux_sse, suivre
@@ -250,3 +254,40 @@ async def modifier_le_dernier_message(
 
 
 
+
+
+class TitreDuFil(BaseModel):
+    titre: str = Field(min_length=1, max_length=200)
+
+
+@router.put("/fils/{fil_id}/titre", response_model=VueFil)
+async def renommer_un_fil(fil_id: int, demande: TitreDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent keeps its task as title.")
+    titre = " ".join(demande.titre.split())
+    if not titre:
+        raise HTTPException(status_code=422, detail="The title is empty.")
+    await db_client.modifier_fil(user.selected_organization_id, fil_id, titre=titre[:200])
+    await live.noter(user.selected_organization_id, "conversations", "fil_renomme", source="ecran", auteur=live.auteur_de(user))
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.delete("/fils/{fil_id}", status_code=204)
+async def supprimer_un_fil(
+    fil_id: int,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Supprime la conversation (événements et sous-agents avec). Un accès de machine (clé d'API, portail) ne supprime pas."""
+    if x_api_key:
+        raise HTTPException(status_code=403, detail="An API key cannot delete a conversation.")
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent is removed with its parent conversation.")
+    org = user.selected_organization_id
+    if not await service_fil.supprimer(org, fil_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    # Qui, quoi, quand, où : jamais le contenu de la conversation ni son titre (peut citer un client).
+    await journaliser(user, "builder.fil_supprime", org, {"fil_id": fil_id, "genre": fil.genre, "agent_id": fil.workflow_id})
+    await live.noter(org, "conversations", "fil_supprime", source="ecran", auteur=live.auteur_de(user))

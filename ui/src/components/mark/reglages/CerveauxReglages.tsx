@@ -8,7 +8,7 @@
  * le juge lisent leurs réglages existants et ouvrent la fenêtre de réglage qu'ils avaient déjà.
  * Chaque champ s'enregistre en le quittant, avec sa notification : il n'y a jamais de saisie en attente à perdre.
  */
-import { BookOpen, Bot, Gavel, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
+import { BookOpen, Bot, DoorOpen, Gavel, Laptop, ListChecks, Monitor, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
@@ -16,13 +16,16 @@ import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet,
     lireLeCerveauApiV1BuilderCerveauGet,
+    lireLesCerveauxApiV1BuilderCerveauxGet,
+    lireLesOptionsApiV1BuilderOptionsGet,
     lireLesPreferencesApiV1BuilderPreferencesGet,
     lireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGet,
     listerLesActionsApiV1BuilderActionsGet,
     reglerLeCerveauApiV1BuilderCerveauPut,
+    reglerLesOptionsApiV1BuilderOptionsPut,
     reglerLesSousAgentsApiV1BuilderSousAgentsReglagesPut,
 } from "@/client";
-import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueReglagesCerveau } from "@/client/types.gen";
+import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueCerveaux, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
 import { OptionsDeConstruction } from "@/components/builder/ecran/OptionsDeConstruction";
 import { ModaleReglagesAppelantSimule } from "@/components/mark/appelant-simule/ModaleReglagesAppelantSimule";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -110,6 +113,60 @@ const T = {
         fr: "Les consignes de l'appelant et du juge se règlent dans la fenêtre de réglage ; les personnages de l'appelant vivent dans la bibliothèque.",
     },
     personnages: { en: "Open the personas", fr: "Ouvrir les personnages" },
+    interrupteur: { en: "Builder on", fr: "Builder allumé" },
+    interrupteurInfo: {
+        en: "Off: the builder does nothing, neither in the screen nor in Claude Code. Nothing already written is touched.",
+        fr: "Éteint : le builder ne fait plus rien, ni dans l'écran ni dans Claude Code. Rien de ce qui est déjà écrit n'est touché.",
+    },
+    parMois: { en: "Per month, whole Lab ($, 0 = none)", fr: "Par mois, tout le Labo ($, 0 = aucun)" },
+    parMoisInfo: {
+        en: "Once reached, no new work starts (a running conversation stays bound by its own ceiling). Counts every conversation moved this month (UTC), the sub-agents included.",
+        fr: "Une fois atteint, aucun nouveau travail ne démarre (une conversation en cours reste bornée par son propre plafond). Compte toute conversation bougée ce mois-ci (UTC), sous-agents compris.",
+    },
+    depenseDuMois: { en: "Spent this month:", fr: "Dépensé ce mois-ci :" },
+    secours: { en: "Not in the library: the code's text is used.", fr: "Absent de la bibliothèque : le texte du code sert." },
+    recoit: { en: "What it receives", fr: "Ce qu'il reçoit" },
+    recoitInfo: { en: "Injected by the code, every time.", fr: "Injecté par le code, à chaque fois." },
+    vide: { en: "empty", fr: "vide" },
+    absent: { en: "missing", fr: "absent" },
+    portes: { en: "Doors", fr: "Portes" },
+    porteEcran: { en: "In the screen", fr: "Dans l'écran" },
+    porteEcranInfo: {
+        en: "The brain above, paid per use by its API key, capped. Off: the chat of the screen does not open.",
+        fr: "Le cerveau ci-dessus, payé à l'usage par sa clé d'API, plafonné. Éteinte : le chat de l'écran ne s'ouvre plus.",
+    },
+    porteClaudeCode: { en: "In Claude Code (MCP)", fr: "Dans Claude Code (MCP)" },
+    porteClaudeCodeInfo: {
+        en: "Everyone's subscription: Claude reads the method, the conventions and the recipes through the MCP and calls the same actions. What it changes arrives here as a draft, to validate in the screen. Off: the MCP refuses every action.",
+        fr: "Abonnement de chacun : Claude lit la méthode, les conventions et les recettes par le MCP, et appelle les mêmes actions. Ce qu'il change arrive ici en brouillon, à valider dans l'écran. Éteinte : le MCP refuse toute action.",
+    },
+    actions: { en: "actions", fr: "actions" },
+    limitesJuge: { en: "Limits", fr: "Limites" },
+    passes: { en: "Passes when it is close", fr: "Passes quand c'est serré" },
+    passesInfo: { en: "Up to this many passes when an answer lacks confidence; majority vote.", fr: "Jusqu'à ce nombre de passes quand une réponse manque de confiance ; vote à la majorité." },
+    calibrage: { en: "Calibration", fr: "Calibrage" },
+    calibrageInfo: { en: "The judge's opinion is marked uncalibrated until it agrees with our notes at this rate, on at least the minimum number of notes.", fr: "L'avis du juge reste marqué non calibré tant qu'il n'est pas d'accord avec nos notes à ce taux, sur au moins le nombre de notes minimal." },
+    d_accord: { en: "agreement", fr: "d'accord" },
+    sur: { en: "notes at least", fr: "notes au moins" },
+    aucunOutil: { en: "None", fr: "Aucun" },
+    aucunOutilInfo: {
+        en: "It only talks (caller) or rates (judge). It runs on our server, whichever door launched the tests.",
+        fr: "Il ne fait que parler (appelant) ou noter (juge). Il tourne sur notre serveur, quelle que soit la porte utilisée pour lancer les tests.",
+    },
+    ses_outils: { en: "Its tools", fr: "Ses outils" },
+    recu_methode: { en: "The builder's method (library)", fr: "La méthode du builder (bibliothèque)" },
+    recu_conventions: { en: ".mark conventions (library)", fr: "Les conventions .mark (bibliothèque)" },
+    recu_recette_de_l_agent: { en: "The recipe set on the agent", fr: "La recette indiquée sur l'agent" },
+    recu_preferences: { en: "Your preferences", fr: "Vos préférences" },
+    recu_etat_de_l_agent: { en: "The agent's state, read again from disk: sheet, design, pending changes, latest tests", fr: "L'état de l'agent relu sur le disque : fiche, conception, changements, derniers tests" },
+    recu_recettes_a_la_demande: { en: "The library's recipes, on demand", fr: "Les recettes de la bibliothèque, à la demande" },
+    recu_personnage: { en: "The test's persona", fr: "Le personnage du test" },
+    recu_comportements: { en: "Its behaviours (corrects itself, gives little by little...)", fr: "Ses comportements (se corrige, donne au compte-gouttes...)" },
+    recu_scenario: { en: "The scenario: what it wants, what it knows", fr: "Le scénario : ce qu'il veut, ce qu'il sait" },
+    recu_repliques: { en: "The agent's lines, turn by turn", fr: "Les répliques de l'agent, tour par tour" },
+    recu_transcription: { en: "The conversation's transcript", fr: "La transcription de la conversation" },
+    recu_criteres: { en: "The test's criteria, or the grid for a real call", fr: "Les critères du test, ou la grille pour un vrai appel" },
+    recu_verdict_du_code: { en: "The verdict already set by the code (tools, steps, sheet)", fr: "Le verdict déjà posé par le code (outils, étapes, fiche)" },
 } satisfies Record<string, Texte>;
 
 const USAGES = ["analyser", "tester", "attaquer", "comparer", "controler"] as const;
@@ -176,6 +233,70 @@ function ChampSimple({
     );
 }
 
+/** Le prompt système tel que la bibliothèque le tient : nom, version, statut (ou le secours du code). */
+function CartePrompt({ lu }: { lu: VueCerveauLu | null }) {
+    const { t } = useLangue();
+    const p = lu?.prompt;
+    return (
+        <Carte>
+            <p className="flex items-center gap-2 text-sm font-medium">
+                <BookOpen className="size-4 text-muted-foreground" aria-hidden />
+                {t(T.prompt)}
+                <Info>{t(T.promptInfo)}</Info>
+            </p>
+            {p && (
+                <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm" data-prompt={p.slug}>
+                    <span className="flex-1">{p.titre ?? p.libelle_famille}</span>
+                    {p.version !== null && p.version !== undefined ? (
+                        <span className="text-xs text-muted-foreground">
+                            v{p.version} · {p.statut === "recette" ? "Recette" : p.statut === "rejete" ? "Rejeté" : "Candidat"}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">{t(T.secours)}</span>
+                    )}
+                </div>
+            )}
+            <Button variant="outline" size="sm" asChild>
+                <Link href="/labo/bibliotheque">{t(T.ouvrirBibliotheque)}</Link>
+            </Button>
+        </Carte>
+    );
+}
+
+/** « Ce qu'il reçoit » : les blocs que le code injecte, avec « vide » ou « absent » quand la donnée n'existe pas. */
+function CarteRecoit({ lu }: { lu: VueCerveauLu | null }) {
+    const { t } = useLangue();
+    if (!lu) return null;
+    return (
+        <Carte>
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+                <ListChecks className="size-4 text-muted-foreground" aria-hidden />
+                {t(T.recoit)}
+                <Info>{t(T.recoitInfo)}</Info>
+            </p>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm" data-liste="ce-quil-recoit">
+                {lu.recoit.map((r) => {
+                    const cle = `recu_${r.cle}` as keyof typeof T;
+                    return (
+                        <li key={r.cle}>
+                            {t(T[cle])}
+                            {r.present === false && <span className="text-muted-foreground"> ({r.cle === "preferences" ? t(T.vide) : t(T.absent)})</span>}
+                        </li>
+                    );
+                })}
+            </ul>
+        </Carte>
+    );
+}
+
+/** Une écriture des options : relit l'état du serveur d'abord, change SEUL le champ voulu (les autres réglages d'options ne sont jamais écrasés). */
+async function ecrireUneOption(morceau: Partial<VueOptions>): Promise<VueOptions | null> {
+    const frais = await lireLesOptionsApiV1BuilderOptionsGet();
+    if (frais.error || !frais.data) return null;
+    const r = await reglerLesOptionsApiV1BuilderOptionsPut({ body: { ...frais.data, ...morceau } });
+    return r.error || !r.data ? null : r.data;
+}
+
 export function OngletBuilderIA({ aller }: { aller: () => void }) {
     const { t } = useLangue();
     const { user, loading } = useAuth();
@@ -183,18 +304,24 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
     const [preferences, setPreferences] = useState("");
     const [sous, setSous] = useState<ReglagesSousAgents | null>(null);
     const [actions, setActions] = useState<VueAction[] | null>(null);
+    const [vue, setVue] = useState<VueCerveaux | null>(null);
+    const [opts, setOpts] = useState<VueOptions | null>(null);
     const [erreurLecture, setErreurLecture] = useState(false);
     const [erreurChamp, setErreurChamp] = useState<string | null>(null);
 
     const lire = useCallback(async () => {
-        const [c, p, s, a] = await Promise.all([
+        const [c, p, s, a, v, o] = await Promise.all([
             lireLeCerveauApiV1BuilderCerveauGet(),
             lireLesPreferencesApiV1BuilderPreferencesGet(),
             lireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGet(),
             listerLesActionsApiV1BuilderActionsGet(),
+            lireLesCerveauxApiV1BuilderCerveauxGet(),
+            lireLesOptionsApiV1BuilderOptionsGet(),
         ]);
         if (c.error || !c.data) return setErreurLecture(true);
         setErreurLecture(false);
+        setVue(v.data ?? null);
+        setOpts(o.data ?? null);
         setCerveau(c.data);
         setPreferences(p.data?.texte ?? "");
         setSous(s.data ?? {});
@@ -222,7 +349,20 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
         suivre(reglerLeCerveauApiV1BuilderCerveauPut({ body: { ...cerveau, ...morceau } as never }), undefined);
         // la vue relit ce que le serveur a gardé (la clé n'est jamais relue)
         void lireLeCerveauApiV1BuilderCerveauGet().then((r) => r.data && setCerveau(r.data));
+        void lireLesCerveauxApiV1BuilderCerveauxGet().then((r) => r.data && setVue(r.data));
     };
+    // L'interrupteur du builder et ses deux portes : une option à la fois, avec sa notification.
+    const regler = (morceau: Partial<VueOptions>) =>
+        notifier.suivre(
+            ecrireUneOption(morceau).then((nouvelles) => {
+                if (nouvelles) {
+                    setOpts(nouvelles);
+                    void lireLesCerveauxApiV1BuilderCerveauxGet().then((r) => r.data && setVue(r.data));
+                }
+                return { error: nouvelles ? undefined : true };
+            }),
+            { encours: T.encours, succes: T.ok, echec: T.echec, echecSi: (r) => r.error },
+        );
     const enregistrerSous = (morceau: Partial<ReglagesSousAgents>) => {
         const suivant = { ...sous, ...morceau };
         setSous(suivant);
@@ -240,8 +380,16 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         <div className="flex items-center gap-2">
                             <Bot className="size-5 text-(--acc)" aria-hidden />
                             <p className="font-medium">Builder IA</p>
-                            <Info>{t(T.builderRole)}</Info>
+                            <Info>{`${t(T.builderRole)} ${t(T.interrupteurInfo)}`}</Info>
+                            <Switch
+                                className="ml-auto"
+                                aria-label={t(T.interrupteur)}
+                                checked={opts ? !opts.builder_coupe : true}
+                                disabled={!opts}
+                                onCheckedChange={(v) => regler({ builder_coupe: !v })}
+                            />
                         </div>
+
                         <p className="flex items-center gap-1.5 text-sm font-medium">
                             {t(T.modeleEtCle)}
                             <Info>{t(T.modeleRegle)}</Info>
@@ -285,16 +433,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                             )}
                         </div>
                     </Carte>
-                    <Carte>
-                        <p className="flex items-center gap-2 text-sm font-medium">
-                            <BookOpen className="size-4 text-muted-foreground" aria-hidden />
-                            {t(T.prompt)}
-                            <Info>{t(T.promptInfo)}</Info>
-                        </p>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/labo/bibliotheque">{t(T.ouvrirBibliotheque)}</Link>
-                        </Button>
-                    </Carte>
+                    <CartePrompt lu={vue?.builder ?? null} />
                     <Carte>
                         <p className="text-sm font-medium">{t(T.plafonds)}</p>
                         <Ligne libelle={t(T.plafondDepense)}>
@@ -303,6 +442,14 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         <Ligne libelle={t(T.plafondJetons)}>
                             <ChampSimple id="cerveau-plafond-jetons" libelle={t(T.plafondJetons)} inputMode="numeric" valeur={String(cerveau.plafond_jetons ?? 1_500_000)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_jetons: Number(v) || 1_500_000 })} />
                         </Ligne>
+                        <Ligne libelle={t(T.parMois)} info={t(T.parMoisInfo)}>
+                            <ChampSimple id="cerveau-plafond-mois" libelle={t(T.parMois)} inputMode="decimal" valeur={String(cerveau.plafond_mois ?? 0)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_mois: Math.max(0, Number(v) || 0) })} />
+                        </Ligne>
+                        {vue && (
+                            <p className="text-right text-xs text-muted-foreground" data-depense-du-mois={vue.depense_du_mois}>
+                                {t(T.depenseDuMois)} {vue.depense_du_mois.toFixed(2)} $
+                            </p>
+                        )}
                         <div className="space-y-1.5 border-t pt-3">
                             <label htmlFor="cerveau-preferences" className="text-sm text-muted-foreground">
                                 {t(T.preferences)}
@@ -318,6 +465,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                     </Carte>
                 </div>
                 <div className="space-y-4">
+                    <CarteRecoit lu={vue?.builder ?? null} />
                     <Carte>
                         <p className="flex items-center gap-2 text-sm font-medium">
                             <Wrench className="size-4 text-muted-foreground" aria-hidden />
@@ -376,6 +524,30 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         )}
                     </Carte>
                     <Carte>
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                            <DoorOpen className="size-4 text-muted-foreground" aria-hidden />
+                            {t(T.portes)}
+                        </p>
+                        <div className="flex items-center gap-3 text-sm">
+                            <Monitor className="size-4 text-muted-foreground" aria-hidden />
+                            <span className="flex-1">
+                                {t(T.porteEcran)}
+                                {vue && <span className="text-xs text-muted-foreground"> · {vue.portes.ecran.actions} {t(T.actions)}</span>}
+                            </span>
+                            <Info>{t(T.porteEcranInfo)}</Info>
+                            <Switch aria-label={t(T.porteEcran)} checked={opts ? !opts.porte_ecran_coupee : true} disabled={!opts} onCheckedChange={(v) => regler({ porte_ecran_coupee: !v })} />
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                            <Laptop className="size-4 text-muted-foreground" aria-hidden />
+                            <span className="flex-1">
+                                {t(T.porteClaudeCode)}
+                                {vue && <span className="text-xs text-muted-foreground"> · {vue.portes.claude_code.actions} {t(T.actions)}</span>}
+                            </span>
+                            <Info>{t(T.porteClaudeCodeInfo)}</Info>
+                            <Switch aria-label={t(T.porteClaudeCode)} checked={opts ? !opts.porte_claude_code_coupee : true} disabled={!opts} onCheckedChange={(v) => regler({ porte_claude_code_coupee: !v })} />
+                        </div>
+                    </Carte>
+                    <Carte>
                         <OptionsDeConstruction />
                     </Carte>
                 </div>
@@ -391,11 +563,13 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
     const [reglages, setReglages] = useState<ReglagesAppelantSimule | null>(null);
     const [erreur, setErreur] = useState(false);
     const [fenetre, setFenetre] = useState(false);
+    const [vue, setVue] = useState<VueCerveaux | null>(null);
     const lire = useCallback(async () => {
-        const r = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
+        const [r, v] = await Promise.all([getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet(), lireLesCerveauxApiV1BuilderCerveauxGet()]);
         if (r.error || !r.data) return setErreur(true);
         setErreur(false);
         setReglages(r.data);
+        setVue(v.data ?? null);
     }, []);
     useEffect(() => {
         if (!loading && user) void lire();
@@ -428,19 +602,8 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                             {t(T.regler)}
                         </Button>
                     </Carte>
-                    <Carte>
-                        <p className="flex items-center gap-2 text-sm font-medium">
-                            <BookOpen className="size-4 text-muted-foreground" aria-hidden />
-                            {t(T.consigne)}
-                            <Info>{t(T.consigneInfo)}</Info>
-                        </p>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/labo/bibliotheque">{appelant ? t(T.personnages) : t(T.ouvrirBibliotheque)}</Link>
-                        </Button>
-                    </Carte>
-                </div>
-                {appelant && (
-                    <div className="space-y-4">
+                    <CartePrompt lu={appelant ? (vue?.appelant ?? null) : (vue?.juge ?? null)} />
+                    {appelant && (
                         <Carte>
                             <p className="text-sm font-medium">{t(T.serie)}</p>
                             <Ligne libelle={t(T.simultanes)}>
@@ -453,8 +616,34 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                                 <span className="text-sm">{reglages.plafond ?? 5}</span>
                             </Ligne>
                         </Carte>
-                    </div>
-                )}
+                    )}
+                    {!appelant && vue && (
+                        <Carte>
+                            <p className="text-sm font-medium">{t(T.limitesJuge)}</p>
+                            <Ligne libelle={t(T.passes)} info={t(T.passesInfo)}>
+                                <span className="text-sm">{vue.limites_du_juge.passes_max}</span>
+                            </Ligne>
+                            <Ligne libelle={t(T.calibrage)} info={t(T.calibrageInfo)}>
+                                <span className="text-sm">
+                                    {Math.round(vue.limites_du_juge.accord_min * 100)} % {t(T.d_accord)} · {vue.limites_du_juge.notes_min} {t(T.sur)}
+                                </span>
+                            </Ligne>
+                        </Carte>
+                    )}
+                </div>
+                <div className="space-y-4">
+                    <CarteRecoit lu={appelant ? (vue?.appelant ?? null) : (vue?.juge ?? null)} />
+                    <Carte>
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                            <Wrench className="size-4 text-muted-foreground" aria-hidden />
+                            {t(T.ses_outils)}
+                        </p>
+                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            {t(T.aucunOutil)}
+                            <Info>{t(T.aucunOutilInfo)}</Info>
+                        </p>
+                    </Carte>
+                </div>
             </div>
             <ModaleReglagesAppelantSimule
                 ouverte={fenetre}

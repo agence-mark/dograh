@@ -114,6 +114,28 @@ const ouvrirLeCatalogue = async () => {
     return screen.findByLabelText("Rechercher un logiciel");
 };
 
+describe("[.mark] Intégrations : l'action de l'onglet actif est dans la rangée du titre (K7)", () => {
+    const titre = () => screen.getByRole("heading", { name: /Intégrations|Integrations/ }).closest("div")!.parentElement as HTMLElement;
+
+    it("Logiciels : « Catalogue » ; Serveurs MCP : « Ajouter un serveur MCP » ; Identifiants : « Nouvel identifiant » ; jamais deux à la fois", async () => {
+        monter();
+        await screen.findByText("compte-1");
+        expect(within(titre()).getByRole("button", { name: /Catalogue/ })).toBeTruthy();
+        fireEvent.click(screen.getByRole("tab", { name: /Serveurs MCP|MCP servers/ }));
+        await waitFor(() => expect(within(titre()).getByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ })).toBeTruthy());
+        expect(within(titre()).queryByRole("button", { name: /Catalogue/ })).toBeNull();
+        fireEvent.click(screen.getByRole("tab", { name: /Identifiants|Credentials/ }));
+        await waitFor(() => expect(within(titre()).getByRole("button", { name: /Nouvel identifiant|New credential/ })).toBeTruthy());
+        expect(within(titre()).queryByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ })).toBeNull();
+    });
+
+    it("le bouton de la rangée du titre ouvre bien la fenêtre de son onglet", async () => {
+        monter("mcp");
+        fireEvent.click(await within(titre()).findByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ }));
+        expect(await screen.findByText(/Brancher un serveur MCP|Connect an MCP server/)).toBeTruthy();
+    });
+});
+
 describe("[.mark] Intégrations › Logiciels", () => {
     it("montre le tableau des comptes branchés (au Labo : nos comptes de test), et le catalogue derrière « Catalogue »", async () => {
         monter();

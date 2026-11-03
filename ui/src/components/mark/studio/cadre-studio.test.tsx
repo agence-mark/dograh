@@ -10,7 +10,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
 import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
-import { ShellStudio } from "./shell-studio";
+import { EnteteStudio, ShellStudio } from "./shell-studio";
 
 let chemin = "/workflow";
 let alerteTelephonie = 0;
@@ -247,5 +247,36 @@ describe("cadre", () => {
             );
         });
         expect(barre().getAttribute("data-state")).toBe("expanded");
+    });
+});
+
+describe("emplacement d'actions et fil d'Ariane posés par la page (K7)", () => {
+    const AvecEntete = ({ afficher }: { afficher: boolean }) => (
+        <FournisseurLangue>
+            <ShellStudio>
+                <p>contenu de la page</p>
+                {afficher && <EnteteStudio miettes={[{ libelle: "Labo", href: "/labo" }, { libelle: "Chat", href: "/labo/builder" }, { libelle: "Titre du chat" }]} actions={<button type="button">Arrêter le chat</button>} />}
+            </ShellStudio>
+        </FournisseurLangue>
+    );
+
+    it("la page pose son fil d'Ariane (titre en dernier maillon) et ses actions à droite, sans masquer le fil", async () => {
+        chemin = "/labo/builder/4";
+        render(<AvecEntete afficher />);
+        const fil = await screen.findByRole("navigation", { name: /Fil d'Ariane|Breadcrumb/ });
+        expect(within(fil).getByText("Titre du chat")).toBeTruthy();
+        expect(within(fil).getByText("Chat").closest("a")?.getAttribute("href")).toBe("/labo/builder");
+        expect(fil.hasAttribute("hidden")).toBe(false);
+        const barre = document.querySelector("[data-barre-actions]") as HTMLElement;
+        expect(within(barre).getByText("Arrêter le chat")).toBeTruthy();
+    });
+
+    it("sans la page, le fil du cadre revient", async () => {
+        chemin = "/labo/builder/4";
+        const { rerender } = render(<AvecEntete afficher />);
+        await screen.findByText("Titre du chat");
+        rerender(<AvecEntete afficher={false} />);
+        expect(screen.queryByText("Titre du chat")).toBeNull();
+        expect(screen.queryByText("Arrêter le chat")).toBeNull();
     });
 });

@@ -21,6 +21,15 @@ export function useBrouillonLocal(nonEnregistre: boolean) {
     useEffect(() => () => declarer(id, false), [declarer, id]);
 }
 
+/**
+ * K7 : une fenêtre (Dialog, AlertDialog, Sheet) ouverte dans l'onglet d'un agent est une saisie présumée : on la monte DANS le contenu de
+ * la fenêtre, elle n'existe donc que tant que la fenêtre est ouverte. Hors page d'agent, le contexte ne fait rien.
+ */
+export function GardeDeSaisie() {
+    useBrouillonLocal(true);
+    return null;
+}
+
 /** Le registre des saisies non enregistrées d'une page d'agent ; `vide` est appelé quand la dernière est enregistrée. */
 export function useRegistreBrouillons(vide: () => void) {
     const sales = useRef(new Set<string>());

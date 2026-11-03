@@ -55,11 +55,23 @@ export function useOngletDeLAdresse(ids: string[], defaut: string) {
     return { actif, choisir };
 }
 
-export function OngletsPage({ onglets, defaut, espacement = "space-y-6" }: { onglets: OngletPage[]; defaut?: string; espacement?: string }) {
-    const { actif, choisir } = useOngletDeLAdresse(
+export function OngletsPage({
+    onglets,
+    defaut,
+    espacement = "space-y-6",
+    controle,
+}: {
+    onglets: OngletPage[];
+    defaut?: string;
+    espacement?: string;
+    /** K7 : la page qui a besoin de l'onglet actif (une action dans sa rangée de titre) le lit elle-même et le prête ici. */
+    controle?: { actif: string; choisir: (id: string) => void };
+}) {
+    const interne = useOngletDeLAdresse(
         onglets.map((o) => o.id),
         defaut ?? onglets[0].id,
     );
+    const { actif, choisir } = controle ?? interne;
     return (
         <div className={espacement}>
             <div role="tablist" className="flex flex-wrap items-center gap-1 border-b">

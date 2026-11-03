@@ -152,6 +152,18 @@ async def creer(user, workflow_id: int | None, titre: str, demarrage: str | None
     return await db_client.creer_fil(user.selected_organization_id, user.id, workflow_id, titre[:TITRE_MAX] or "Nouvelle conversation", demarrage)
 
 
+async def _verifier_le_plafond_du_mois(reglages: ReglagesCerveau, user) -> None:
+    """K7 : le plafond de dépense du Labo sur le mois civil. 0 = aucun. Refuse de DÉMARRER un travail une fois atteint ; une
+    conversation déjà lancée reste bornée par son propre plafond. La dépense compte les conversations de premier niveau (celle d'un
+    sous-agent est déjà ajoutée à son parent)."""
+    if reglages.plafond_mois <= 0:
+        return
+    from api.services.builder import depense
+
+    if await depense.du_mois(user.selected_organization_id) >= reglages.plafond_mois:
+        raise ErreurFil("The monthly ceiling of the Lab is reached: raise it in the builder settings.", "plafond_mois")
+
+
 async def lancer(
     user,
     fil,
@@ -166,6 +178,8 @@ async def lancer(
     """Pose le message de la personne et démarre la tâche. Rend la main tout de suite."""
     if en_cours(fil.id):
         raise ErreurFil("The builder is already working on this conversation.", "en_cours")
+    if actions_permises is None:  # un sous-agent appartient à une conversation déjà lancée : le plafond du mois ne le coupe pas en route
+        await _verifier_le_plafond_du_mois(reglages, user)
     org = user.selected_organization_id
     conv = _conversation_de(fil)
     conv["dernier_message"] = await noter(fil.id, evenement_de_message or {"type": "message", "role": "user", "texte": message})
@@ -235,6 +249,17 @@ async def arreter(org: int, fil_id: int) -> str:
         await noter(fil_id, {"type": "fin", "raison": "arret"})
         await db_client.modifier_fil(org, fil_id, etat="arretee")
     return "arretee"
+
+
+async def supprimer(org: int, fil_id: int) -> bool:
+    """Coupe d'abord le travail (et celui de ses sous-agents), puis efface la conversation : événements et sous-agents partent avec
+    elle par cascade. Rend faux si la conversation n'existe pas dans cette organisation."""
+    for enfant in await db_client.lister_les_enfants(org, fil_id):
+        await arreter(org, enfant.id)
+    await arreter(org, fil_id)
+    _TACHES.pop(fil_id, None)
+    CERVEAUX.pop(fil_id, None)
+    return await db_client.supprimer_fil(org, fil_id)
 
 
 async def reprendre(user, fil, cerveau: Cerveau, reglages: ReglagesCerveau) -> None:

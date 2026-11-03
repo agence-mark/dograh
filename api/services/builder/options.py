@@ -1,9 +1,11 @@
 """[.mark] Builder, lot M : les options de la construction, une ligne ``MARK_BUILDER_OPTIONS`` dans l'organisation des réglages.
 
-Deux options, toutes les deux sans effet tant qu'on n'y touche pas :
+Cinq options, toutes sans effet tant qu'on n'y touche pas :
 
 * ``sauvegarde_avant_modification`` : éteinte par défaut ; allumée, le builder ne modifie pas un agent existant avant qu'un
   instantané ait été pris ou refusé (``sauvegarde.py``) ;
+* ``builder_coupe`` · ``porte_ecran_coupee`` · ``porte_claude_code_coupee`` (K7) : l'interrupteur du builder et ses deux portes
+  (``portes.py``). Elles sont écrites comme des RESTRICTIONS, éteintes par défaut : rien n'est coupé tant qu'on n'y touche pas ;
 * ``recette_par_defaut`` : le nom (l'identifiant) de la recette d'agent proposée à la création. Vide : la recette que la
   bibliothèque marque comme défaut de départ (``recettes.py``). Le code ne connaît aucun nom de recette.
 
@@ -20,6 +22,9 @@ from api.services.builder.constantes import CLE_OPTIONS
 
 class Options(BaseModel):
     sauvegarde_avant_modification: bool = False
+    builder_coupe: bool = False
+    porte_ecran_coupee: bool = False
+    porte_claude_code_coupee: bool = False
     recette_par_defaut: str = Field(default="", max_length=64)
 
 

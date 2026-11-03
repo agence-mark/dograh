@@ -16,6 +16,7 @@ import { useSources } from "@/components/mark/sources/useSources";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+import { BandeauDuFil } from "./BandeauDuFil";
 import { CarteDuPlan, CarteQuestion, LigneAction } from "./cartes";
 import { CarteCorrection, CarteDepense, CartePropositionTest, CarteRapport } from "./cartes-c2";
 import type { EtapeDuPlan, LigneDuFil } from "./evenements";
@@ -44,7 +45,18 @@ const T = {
     plafond: { en: "Ceiling reached: raise it in the builder settings, then resume.", fr: "Plafond atteint : relevez-le dans les réglages du builder, puis reprenez." },
 } satisfies Record<string, Texte>;
 
-export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false, retour }: { filId: number; lectureSeule?: boolean; retour?: () => void }) {
+export function FilDuBuilder({
+    filId,
+    lectureSeule: lectureSeuleDemandee = false,
+    retour,
+    entete = false,
+}: {
+    filId: number;
+    lectureSeule?: boolean;
+    retour?: () => void;
+    /** K7 : la page entière du chat pose son bandeau (titre, état, jauge, Arrêter, Ouvrir l'agent) dans la barre du haut du cadre. */
+    entete?: boolean;
+}) {
     const { t, langue } = useLangue();
     const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
     const { sources } = useSources();
@@ -82,6 +94,12 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
 
     const principal = (
         <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
+            {entete && fil && <BandeauDuFil fil={fil} enCours={enCours} lectureSeule={lectureSeule} arreter={() => void arreter()} reprendre={() => void reprendre()} />}
+            {entete ? (
+                <div className="empty:hidden pb-2">
+                    <LigneLive objet={`conversation:${filId}`} />
+                </div>
+            ) : (
             <div className="flex items-center justify-between gap-2 pb-2">
                 {lectureSeule && retour && (
                     <button type="button" className="flex cursor-pointer items-center gap-1 text-sm hover:font-semibold" onClick={retour}>
@@ -104,6 +122,7 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                     {fil && fil.changements > 0 ? ` · ${fil.changements} ${t(T.changements)}` : ""}
                 </p>
             </div>
+            )}
             <div ref={zone} onScroll={surDefilement} className="flex-1 space-y-3 overflow-y-auto pb-40">
                 {lignes.map((l, i) => (
                     <Ligne
