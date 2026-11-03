@@ -7,7 +7,7 @@
  * fenêtres d'avant. Mêmes routes, mêmes enregistrements.
  */
 import { Building2, Copy, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -44,6 +44,17 @@ export function OngletEtablissements({ signaler, preferences, annonce }: Props) 
     const [phrases, setPhrases] = useState(false);
     const fiches = liste.liste ?? [];
     const adresseOrganisation = preferences.enregistrees.adresse_etablissement ?? null;
+    // ⚠️ Stable : le thème signale sa pastille dans un effet qui dépend de cette fonction et se défait quand elle change ;
+    // une fonction neuve à chaque rendu faisait signaler / défaire / signaler sans fin dès qu'une saisie était en cours.
+    const signalerFenetre = useCallback(
+        (id: Parameters<typeof signaler>[0], modifie: boolean, erreur: boolean) => {
+            // Un brouillon enregistré (modifié, puis plus modifié) ferme sa fenêtre ; un échec la laisse ouverte.
+            if (etaitModifie.current && !modifie && !erreur) setEntrepriseOuverte(false);
+            etaitModifie.current = modifie;
+            signaler(id, modifie, erreur);
+        },
+        [signaler],
+    );
 
     return (
         <>
@@ -53,16 +64,9 @@ export function OngletEtablissements({ signaler, preferences, annonce }: Props) 
                     ouvert={entrepriseOuverte}
                     onBasculer={() => setEntrepriseOuverte((v) => !v)}
                     ouvrir={() => setEntrepriseOuverte(true)}
-                    signaler={(id, modifie, erreur) => {
-                        // Un brouillon enregistré (modifié, puis plus modifié) ferme sa fenêtre ; un échec la laisse ouverte.
-                        if (etaitModifie.current && !modifie && !erreur) setEntrepriseOuverte(false);
-                        etaitModifie.current = modifie;
-                        signaler(id, modifie, erreur);
-                    }}
+                    signaler={signalerFenetre}
                     preferences={preferences}
                     annonce={annonce}
-                    sansObjets
-                    sansListe
                 />
             </ContexteLignes.Provider>
 

@@ -8,7 +8,7 @@
  *   - « Réglages de l'organisation » ne garde que trois thèmes, les anciennes ancres mènent à la nouvelle place ;
  *   - Écoute et sons : les enregistrements et le cache de la voix sont montés, l'envoi s'ouvre.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -242,11 +242,16 @@ describe("[.mark] Écoute et sons (E56)", () => {
         expect(screen.getByTestId("fenetre-envoi")).toBeTruthy();
     });
 
-    it("est dans le sous-onglet Écoute et sons, sous le lexique métier", () => {
+    it("est dans le sous-onglet Écoute et sons, sous le lexique métier", async () => {
         rendre(<PageEntreprise />);
         fireEvent.click(onglet("ecoute"));
-        expect(volet("ecoute").querySelector("#ecoute-lexique")).not.toBeNull();
-        expect(volet("ecoute").querySelector("#ecoute-enregistrements")).not.toBeNull();
-        expect(volet("ecoute").querySelector("#ecoute-cache-voix")).not.toBeNull();
+        // Forme de la maquette : le lexique porte son propre titre (recherche, Importer, + Terme), plus d'intertitre `#ecoute-lexique`.
+        const lexique = await within(volet("ecoute")).findByLabelText(/Search the vocabulary|Chercher dans le lexique/);
+        const enregistrements = volet("ecoute").querySelector("#ecoute-enregistrements");
+        expect(enregistrements).not.toBeNull();
+        // ...et les enregistrements viennent APRÈS lui.
+        expect(lexique.compareDocumentPosition(enregistrements as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        // Le cache de la voix porte son propre titre (plus de section `#ecoute-cache-voix`).
+        expect(within(volet("ecoute")).getByTestId("cache-voix")).toBeTruthy();
     });
 });

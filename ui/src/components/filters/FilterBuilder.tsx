@@ -10,7 +10,6 @@ import { RadioFilter } from "@/components/filters/RadioFilter";
 import { TagInputFilter } from "@/components/filters/TagInputFilter";
 import { TextFilter } from "@/components/filters/TextFilter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -325,71 +324,57 @@ export const FilterBuilder: React.FC<FilterBuilderProps> = ({
   );
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Filter Workflow Runs</CardTitle>
-            <CardDescription>
-              Build custom filters to find specific workflow runs
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Templates
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[250px]">
-                <DropdownMenuLabel>Filter Templates</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {filterTemplates.map((template) => (
-                  <DropdownMenuItem
-                    key={template.id}
-                    onClick={() => applyTemplate(template)}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{template.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {template.description}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    // [.mark] K8 : jamais de carte autour d'un filtre (E34) : une barre d'outils, puis les critères en lignes nues.
+    <div className="mb-6 space-y-4" data-forme="filtres-nus">
+        <div className="flex items-center gap-2">
+          <Select value={selectedAttribute} onValueChange={(value) => {
+            addFilter(value);
+          }}>
+            <SelectTrigger className="w-full max-w-72">
+              <SelectValue placeholder="Select attribute to filter by" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableAttributesForAdding.map((attr) => (
+                <SelectItem key={attr.id} value={attr.id}>
+                  <div className="flex items-center gap-2">
+                    {getFilterIcon(attr.type)}
+                    <span>{attr.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="ml-auto">
+                Templates
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[250px]">
+              <DropdownMenuLabel>Filter Templates</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {filterTemplates.map((template) => (
+                <DropdownMenuItem
+                  key={template.id}
+                  onClick={() => applyTemplate(template)}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{template.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {template.description}
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Add Filter Row */}
-          <div className="flex gap-2">
-            <Select value={selectedAttribute} onValueChange={(value) => {
-              addFilter(value);
-            }}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select attribute to filter by" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableAttributesForAdding.map((attr) => (
-                  <SelectItem key={attr.id} value={attr.id}>
-                    <div className="flex items-center gap-2">
-                      {getFilterIcon(attr.type)}
-                      <span>{attr.label}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Active Filters */}
           {resolvedActiveFilters.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Active Filters</h4>
+            <div className="divide-y border-y">
+              <div className="flex items-center justify-between py-2">
+                <h4 className="text-xs text-muted-foreground">Active Filters</h4>
                 {resolvedActiveFilters.length > 1 && (
                   <Button
                     variant="ghost"
@@ -402,10 +387,10 @@ export const FilterBuilder: React.FC<FilterBuilderProps> = ({
               </div>
 
               {resolvedActiveFilters.map((filter, index) => (
-                <Card key={index} className={filter.isValid ? "" : "border-destructive"}>
-                  <CardHeader className="pb-3">
+                <div key={index} className="py-3" data-valide={filter.isValid}>
+                  <div>
                     <div
-                      className="flex items-center justify-between cursor-pointer"
+                      className="flex items-center justify-between cursor-pointer hover:font-medium"
                       onClick={() => toggleFilterExpanded(index)}
                     >
                       <div className="flex items-center gap-2">
@@ -434,13 +419,13 @@ export const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         </Button>
                       </div>
                     </div>
-                  </CardHeader>
+                  </div>
                   {expandedFilters.has(index) && (
-                    <CardContent>
+                    <div className="pt-3">
                       {renderFilterInput(filter, index)}
-                    </CardContent>
+                    </div>
                   )}
-                </Card>
+                </div>
               ))}
             </div>
           )}
@@ -483,8 +468,6 @@ export const FilterBuilder: React.FC<FilterBuilderProps> = ({
               </div>
             </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 };

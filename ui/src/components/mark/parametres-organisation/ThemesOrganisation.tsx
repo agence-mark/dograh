@@ -48,7 +48,6 @@ import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
-import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { type Texte, useLangue } from "../langue/langue";
 import { texteAdresse } from "../SectionAdresseEtablissement";
 import {
@@ -59,13 +58,9 @@ import {
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
 import { BlocSecoursPanne } from "./BlocSecoursPanne";
-import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
-import { ModalePhrases } from "./ModalePhrases";
-import { ModaleReprise } from "./ModaleReprise";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
-import { SectionObjets } from "./SectionObjets";
 
 export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; icone: LucideIcon }> = [
     { id: "organisation", titre: { en: "Organization", fr: "Organisation" }, icone: Settings },
@@ -331,15 +326,9 @@ export const ThemeEtablissementOrganisation = ({
     ouvrir,
     signaler,
     plat,
-    sansObjets,
-    sansListe,
 }: ProprietesThemeOrganisation & {
     preferences: EtatPreferences;
     annonce: EtatAnnonceOuverture;
-    /** [.mark] K4 : la liste des fiches a son tableau (`OngletEtablissements`) ; le thème ne garde que l'entreprise entière. */
-    sansListe?: boolean;
-    /** [.mark] U2 bis : les objets ont leur sous-onglet (`ThemeObjets`), le thème ne les montre plus. */
-    sansObjets?: boolean;
 }) => {
     const { t } = useLangue();
     const adresseEnregistree = preferences.enregistrees.adresse_etablissement ?? null;
@@ -392,37 +381,18 @@ export const ThemeEtablissementOrganisation = ({
     };
 
     const force = annonce.reglages.etat_force ?? null;
-    // [.mark] The establishments (chantier l-agent-travaille, L1): a list to edit, so a modal
-    // that saves itself (E4); it is not part of this theme's draft.
-    const etablissements = useResumeEtablissements();
-    const [modaleEtablissements, setModaleEtablissements] = useState(false);
-    const [modalePhrases, setModalePhrases] = useState(false);
-    // Lot 11: the takeover of the fiches and agents (trial run first), a window of its own.
-    const [modaleReprise, setModaleReprise] = useState(false);
-    const nombre = etablissements.liste?.length ?? 0;
-    const modifications = useDernieresModifications();
 
     return (
         <Theme
             id="etablissement"
             plat={plat}
             icone={Building2}
-            titre={sansListe ? { en: "Whole company", fr: "Toute l'entreprise" } : titre("etablissement").titre}
-            description={
-                sansListe
-                    ? {
-                          en: "What applies when a call serves no establishment, and « Close everything ».",
-                          fr: "Ce qui vaut quand un appel ne sert aucun établissement, et le « Tout fermer ».",
-                      }
-                    : {
-                          en: "One fiche per place, then what applies to the whole company: its address, the announcement when it is closed, and « Close everything ».",
-                          fr: "Une fiche par lieu, puis ce qui vaut pour toute l'entreprise : son adresse, l'annonce quand elle est fermée, et « Tout fermer ».",
-                      }
-            }
+            titre={{ en: "Whole company", fr: "Toute l'entreprise" }}
+            description={{
+                en: "What applies when a call serves no establishment, and « Close everything ».",
+                fr: "Ce qui vaut quand un appel ne sert aucun établissement, et le « Tout fermer ».",
+            }}
             resume={[
-                nombre === 0
-                    ? t({ en: "No establishment", fr: "Aucun établissement" })
-                    : `${nombre} ${t(nombre === 1 ? { en: "establishment", fr: "établissement" } : { en: "establishments", fr: "établissements" })}`,
                 adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "No address", fr: "Aucune adresse" }),
                 force === null
                     ? t({ en: "Close everything: off", fr: "Tout fermer : inactif" })
@@ -443,111 +413,6 @@ export const ThemeEtablissementOrganisation = ({
                 actifSansModification: true,
             }}
         >
-            {!sansListe && (
-            <Intertitre
-                id="etablissement-liste"
-                titre={{ en: "Establishments", fr: "Établissements" }}
-                description={{
-                    en: "An agent that chooses a fiche (theme « Business » of the agent) reads its hours, address, announcements, closing and transfer number alone. An agent without a fiche behaves as before.",
-                    fr: "Un agent qui choisit une fiche (thème « Établissement » de l'agent) en lit seuls les horaires, l'adresse, les annonces, la fermeture et le numéro de transfert. Un agent sans fiche se comporte comme avant.",
-                }}
-            >
-                <ChampReglage
-                    cle="etablissements"
-                    libelle={{ en: "Establishments of the organization", fr: "Établissements de l'organisation" }}
-                    aides={[
-                        {
-                            en: "Name, second number, transfer number, address, hours, announcements, immediate closing, appointments and zone; create one by copy.",
-                            fr: "Nom, second numéro, numéro de transfert, adresse, horaires, annonces, fermeture immédiate, rendez-vous et zone ; création possible par copie.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    {etablissements.illisible ? (
-                        <p className="text-sm text-destructive">
-                            {t({ en: "The saved establishments cannot be read.", fr: "Les établissements enregistrés ne peuvent pas être lus." })}
-                        </p>
-                    ) : (
-                        <ul className="space-y-1 text-sm" data-testid="resume-etablissements">
-                            {(etablissements.liste ?? []).map((e) => (
-                                <li key={e.id}>
-                                    <span className="font-medium">{e.nom}</span>{" "}
-                                    <span className="text-muted-foreground">
-                                        {e.etat_force
-                                            ? t({ en: "closing forced", fr: "fermeture forcée" })
-                                            : (e.horaires_ouverture ?? "").trim()
-                                              ? t({ en: "hours set", fr: "horaires renseignés" })
-                                              : t({ en: "no hours", fr: "aucun horaire" })}
-                                    </span>{" "}
-                                    <DerniereModificationFiche modification={modifications.parFiche[e.id]} />
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => setModaleEtablissements(true)} data-testid="ouvrir-etablissements">
-                        {t({ en: "Edit establishments…", fr: "Modifier les établissements…" })}
-                    </Button>
-                </ChampReglage>
-                <ChampReglage
-                    cle="reprise_des_fiches"
-                    libelle={{ en: "Takeover of the fiches and agents", fr: "Reprise des fiches et des agents" }}
-                    aides={[
-                        {
-                            en: "Writes into each fiche what it used to inherit and attaches each agent to its fiche. A trial run is shown first; nothing is written until you confirm.",
-                            fr: "Écrit dans chaque fiche ce qu'elle héritait et rattache chaque agent à sa fiche. Un essai est montré d'abord ; rien n'est écrit tant que vous ne confirmez pas.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    <Button variant="outline" size="sm" onClick={() => setModaleReprise(true)} data-testid="ouvrir-reprise">
-                        {t({ en: "Take over the fiches…", fr: "Reprendre les fiches…" })}
-                    </Button>
-                </ChampReglage>
-                <ModaleReprise
-                    ouverte={modaleReprise}
-                    onFermer={(ecrit) => {
-                        setModaleReprise(false);
-                        if (ecrit) void etablissements.relire();
-                    }}
-                />
-                <ChampReglage
-                    cle="phrases"
-                    libelle={{ en: "Sentences", fr: "Phrases" }}
-                    aides={[
-                        {
-                            en: "Sentences said word for word, given to the agents as {{variable}}, the same for all or per establishment.",
-                            fr: "Des phrases dites mot pour mot, données aux agents comme {{variable}}, communes ou par établissement.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    <Button variant="outline" size="sm" onClick={() => setModalePhrases(true)} data-testid="ouvrir-phrases">
-                        {t({ en: "Edit sentences…", fr: "Modifier les phrases…" })}
-                    </Button>
-                </ChampReglage>
-                <ModalePhrases
-                    ouverte={modalePhrases}
-                    onFermer={() => setModalePhrases(false)}
-                    annonceOrganisation={annonce.enregistre}
-                />
-                <ModaleEtablissements
-                    ouverte={modaleEtablissements}
-                    onFermer={(enregistre) => {
-                        setModaleEtablissements(false);
-                        if (enregistre) {
-                            void etablissements.relire();
-                            void modifications.relire();
-                        }
-                    }}
-                    adresseOrganisation={adresseEnregistree}
-                    annonceOrganisation={annonce.enregistre}
-                />
-            </Intertitre>
-            )}
-
-            {/* [.mark] cloture-code, F7 (D116): the agent's objects, next to the fiches and the sentences. */}
-            {!sansObjets && <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />}
-
             <Intertitre id="etablissement-adresse" titre={{ en: "Address", fr: "Adresse" }}>
                 {preferences.chargement ? (
                     <p className="text-sm text-muted-foreground">{t(CHARGEMENT)}</p>

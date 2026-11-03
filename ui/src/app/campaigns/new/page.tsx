@@ -1,13 +1,10 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
-import { ErreurChamp } from "@/components/mark/erreur-champ";
-import { useLangue } from "@/components/mark/langue/langue";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     createCampaignApiV1CampaignCreatePost,
@@ -15,8 +12,12 @@ import {
     listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet
 } from '@/client/sdk.gen';
 import type { TelephonyConfigurationListItem, TrafficVariantRequest } from '@/client/types.gen';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { FenetreLibre } from "@/components/mark/studio/fenetre-libre";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,17 +28,29 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../CampaignAdvancedSettings';
 import CsvUploadSelector from '../CsvUploadSelector';
+import CampaignsPage from '../page';
 import TrafficSplitEditor, { trafficSplitError } from '../TrafficSplitEditor';
 
 type Erreurs = Partial<Record<'nom' | 'repartition' | 'telephonie' | 'source' | 'simultanes' | 'cadence', string>>;
 
+/** Quitter la page avec un brouillon de campagne : on prévient (le garde de l'application intercepte les liens). */
 export default function NewCampaignPage() {
+    return (
+        <UnsavedChangesProvider>
+            <FormulaireNouvelleCampagne />
+        </UnsavedChangesProvider>
+    );
+}
+
+function FormulaireNouvelleCampagne() {
     const { t } = useLangue();
+    const [touche, setTouche] = useState(false);
     const [erreurs, setErreurs] = useState<Erreurs>({});
     const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
@@ -299,6 +312,7 @@ export default function NewCampaignPage() {
             }
 
             if (response.data) {
+                setTouche(false);
                 notifier.succes({ fr: "Campagne créée.", en: "Campaign created." });
                 router.push(`/campaigns/${response.data.id}`);
             }
@@ -312,9 +326,13 @@ export default function NewCampaignPage() {
         }
     };
 
+    useUnsavedChanges('campagne', touche || campaignName.trim() !== '' || sourceId !== '');
+
     // Handle back navigation
+    // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
+    const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        router.push('/campaigns');
+        confirmNavigate(() => router.push('/campaigns'));
     };
 
     // Handle CSV file upload
@@ -325,34 +343,24 @@ export default function NewCampaignPage() {
     };
 
     return (
-        <div className="container mx-auto p-6 pb-12 space-y-6 max-w-2xl">
-            <div>
-                <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    className="mb-4"
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Campaigns
-                </Button>
-                <h1 className="text-3xl font-bold mb-2">Create New Campaign</h1>
-                <p className="text-muted-foreground">Set up a new campaign to execute workflows at scale</p>
-            </div>
-
-            <Card>
-                    <CardHeader>
-                        <CardTitle>Campaign Details</CardTitle>
-                        <CardDescription>
-                            Configure your campaign settings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
+        <>
+            {/* La liste reste derrière, comme la maquette : la création est une fenêtre centrée posée dessus. */}
+            <CampaignsPage />
+            <FenetreLibre
+                ouverte
+                fermer={handleBack}
+                titre={t({ en: 'New campaign', fr: 'Nouvelle campagne' })}
+                info={t({ en: 'Set up a campaign to run calls in series from a file.', fr: 'Prépare des appels sortants en série, depuis un fichier.' })}
+                corps={
+                    <form id="nouvelle-campagne" onSubmit={handleSubmit} onChange={() => setTouche(true)} className="divide-y [&>*]:py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="campaign-name">Campaign Name</Label>
+                                <Label htmlFor="campaign-name" className="flex items-center gap-1.5">
+                                    {t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
+                                    <Info>{t({ en: 'Choose a descriptive name for your campaign', fr: 'Un nom qui dit ce que la campagne fait' })}</Info>
+                                </Label>
                                 <Input
                                     id="campaign-name"
-                                    placeholder="Enter campaign name"
+                                    placeholder={t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
                                     value={campaignName}
                                     onChange={(e) => {
                                         setCampaignName(e.target.value);
@@ -364,26 +372,22 @@ export default function NewCampaignPage() {
                                     aria-describedby={erreurs.nom ? 'campaign-name-erreur' : undefined}
                                 />
                                 <ErreurChamp id="campaign-name-erreur">{erreurs.nom}</ErreurChamp>
-                                <p className="text-sm text-muted-foreground">
-                                    Choose a descriptive name for your campaign
-                                </p>
                             </div>
 
                             <TrafficSplitEditor value={variants} onChange={(v) => { setVariants(v); effacer('repartition'); }} disabled={isSubmitting} />
                             <ErreurChamp>{erreurs.repartition}</ErreurChamp>
 
                             <div className="space-y-2">
-                                <Label htmlFor="telephony-config">Telephony Configuration</Label>
+                                <Label htmlFor="telephony-config" className="flex items-center gap-1.5">
+                                    {t({ en: 'Telephony configuration', fr: 'Configuration de téléphonie' })}
+                                    <Info>{t({ en: "Outbound calls for this campaign will use this configuration's caller IDs", fr: "Les appels sortants de la campagne partent des numéros de cette configuration" })}</Info>
+                                </Label>
                                 {!isLoadingTelephonyConfigs && telephonyConfigs.length === 0 ? (
-                                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                                        No telephony configurations yet.{' '}
-                                        <Link
-                                            href="/telephony-configurations"
-                                            className="underline text-foreground"
-                                        >
-                                            Add one
-                                        </Link>{' '}
-                                        to create a campaign.
+                                    <div className="py-2 text-sm text-muted-foreground">
+                                        {t({ en: 'No telephony configuration yet.', fr: 'Aucune configuration de téléphonie.' })}{' '}
+                                        <Link href="/telephony-configurations" className="cursor-pointer text-foreground hover:font-semibold">
+                                            {t({ en: 'Add one', fr: 'En ajouter une' })}
+                                        </Link>
                                     </div>
                                 ) : (
                                     <Select
@@ -392,12 +396,12 @@ export default function NewCampaignPage() {
                                         required
                                     >
                                         <SelectTrigger id="telephony-config">
-                                            <SelectValue placeholder="Select a telephony configuration" />
+                                            <SelectValue placeholder={t({ en: 'Choose a configuration', fr: 'Choisir une configuration' })} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {isLoadingTelephonyConfigs ? (
                                                 <SelectItem value="loading" disabled>
-                                                    Loading configurations...
+                                                    {t({ en: 'Loading configurations...', fr: 'Chargement des configurations...' })}
                                                 </SelectItem>
                                             ) : (
                                                 telephonyConfigs.map((config) => (
@@ -406,7 +410,7 @@ export default function NewCampaignPage() {
                                                         value={config.id.toString()}
                                                     >
                                                         {config.name} ({config.provider})
-                                                        {config.is_default_outbound ? ' - default' : ''}
+                                                        {config.is_default_outbound ? ` - ${t({ en: 'default', fr: 'par défaut' })}` : ''}
                                                     </SelectItem>
                                                 ))
                                             )}
@@ -414,13 +418,13 @@ export default function NewCampaignPage() {
                                     </Select>
                                 )}
                                 <ErreurChamp>{erreurs.telephonie}</ErreurChamp>
-                                <p className="text-sm text-muted-foreground">
-                                    Outbound calls for this campaign will use this configuration&apos;s caller IDs
-                                </p>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="source-type">Data Source Type</Label>
+                                <Label htmlFor="source-type" className="flex items-center gap-1.5">
+                                    {t({ en: 'Data source', fr: 'Source des contacts' })}
+                                    <Info>{t({ en: 'Choose where your contact data is stored', fr: 'Où se trouvent les contacts à appeler' })}</Info>
+                                </Label>
                                 <Select
                                     value={sourceType}
                                     onValueChange={(value) => {
@@ -431,15 +435,12 @@ export default function NewCampaignPage() {
                                     required
                                 >
                                     <SelectTrigger id="source-type">
-                                        <SelectValue placeholder="Select source type" />
+                                        <SelectValue placeholder={t({ en: 'Choose a source', fr: 'Choisir une source' })} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="csv">CSV File</SelectItem>
+                                        <SelectItem value="csv">{t({ en: 'CSV file', fr: 'Fichier CSV' })}</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p className="text-sm text-muted-foreground">
-                                    Choose where your contact data is stored
-                                </p>
                             </div>
 
                             <CsvUploadSelector
@@ -452,17 +453,17 @@ export default function NewCampaignPage() {
                             <Collapsible
                                 open={showAdvancedSettings}
                                 onOpenChange={setShowAdvancedSettings}
-                                className="border rounded-lg"
+                                className="border-t"
                             >
-                                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
-                                    <span className="font-medium">Advanced Settings</span>
+                                <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between py-4 hover:font-semibold">
+                                    <span className="font-medium">{t({ en: 'Advanced settings', fr: 'Réglages avancés' })}</span>
                                     {showAdvancedSettings ? (
                                         <ChevronDown className="h-4 w-4" />
                                     ) : (
                                         <ChevronRight className="h-4 w-4" />
                                     )}
                                 </CollapsibleTrigger>
-                                <CollapsibleContent className="px-4 pb-4">
+                                <CollapsibleContent className="pb-4">
                                     <CampaignAdvancedSettings
                                         maxConcurrency={maxConcurrency}
                                         onMaxConcurrencyChange={(v) => { setMaxConcurrency(v); effacer('simultanes'); }}
@@ -504,30 +505,29 @@ export default function NewCampaignPage() {
                             </Collapsible>
 
                             {createError && (
-                                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                                <div role="alert" className="text-sm text-destructive">
                                     {createError}
                                 </div>
                             )}
 
-                            <div className="flex gap-4 pt-4">
-                                <Button
-                                    type="submit"
-                                    disabled={isSubmitting || !campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId}
-                                >
-                                    {isSubmitting ? 'Creating...' : 'Create Campaign'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleBack}
-                                    disabled={isSubmitting}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
+
                         </form>
-                    </CardContent>
-                </Card>
-        </div>
+                }
+                actions={
+                    <>
+                        <Button type="button" variant="outline" onClick={handleBack} disabled={isSubmitting}>
+                            {t({ en: 'Cancel', fr: 'Annuler' })}
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="nouvelle-campagne"
+                            disabled={isSubmitting || !campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId}
+                        >
+                            {isSubmitting ? t({ en: 'Creating...', fr: 'Création...' }) : t({ en: 'Create the campaign', fr: 'Créer la campagne' })}
+                        </Button>
+                    </>
+                }
+            />
+        </>
     );
 }

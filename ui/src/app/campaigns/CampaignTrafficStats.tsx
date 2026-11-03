@@ -1,24 +1,34 @@
 "use client";
 
+import { RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { getCampaignTrafficStatsApiV1CampaignCampaignIdTrafficStatsGet } from '@/client/sdk.gen';
 import type { CampaignResponse, CampaignTrafficStatsResponse } from '@/client/types.gen';
+import { useLangue } from '@/components/mark/langue/langue';
+import { EtatVide } from '@/components/mark/studio/etat-vide';
+import { Info } from '@/components/mark/studio/marques';
+import { Cellule, Ligne, Tableau, TitreTableau } from '@/components/mark/studio/tableau';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
+/**
+ * [.mark] K8 : la répartition du trafic d'une campagne, en tableau nu (jamais dans un cadre). Mêmes routes, mêmes
+ * colonnes ; l'explication passe par le « ! ».
+ */
 export default function CampaignTrafficStats({ campaign }: { campaign: CampaignResponse }) {
     const { user, loading } = useAuth();
+    const { t } = useLangue();
     const [stats, setStats] = useState<CampaignTrafficStatsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [refresh, setRefresh] = useState(0);
     const revision = campaign.traffic_split?.revision;
+    // Un booléen et non l'objet utilisateur : celui-ci peut changer d'identité sans que rien n'ait changé.
+    const pret = !loading && Boolean(user);
     useEffect(() => {
-        if (loading || !user) return;
+        if (!pret) return;
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
         const fetchStats = async () => {
@@ -36,29 +46,89 @@ export default function CampaignTrafficStats({ campaign }: { campaign: CampaignR
         };
         fetchStats();
         return () => { cancelled = true; clearTimeout(timer); };
-    }, [campaign.id, campaign.state, revision, loading, user, refresh]);
+    }, [campaign.id, campaign.state, revision, pret, refresh]);
 
-    return <Card>
-        <CardHeader>
-            <div className="flex justify-between items-center gap-3"><CardTitle>Traffic split</CardTitle><Button type="button" variant="outline" size="sm" onClick={() => setRefresh(r => r + 1)}>Refresh</Button></div>
-            <CardDescription>Target is the current split. Actual share includes all call attempts and retries, including earlier splits. Small campaigns may differ from the target.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
-            {!stats ? <p className="text-sm text-muted-foreground">{error ? 'Statistics unavailable.' : 'Loading traffic statistics…'}</p> : <Table>
-                <TableHeader><TableRow><TableHead>Agent / version</TableHead><TableHead>Target</TableHead><TableHead>Actual</TableHead><TableHead>Completed attempts</TableHead><TableHead>Outcomes</TableHead></TableRow></TableHeader>
-                <TableBody>{stats.variants.map(variant => <TableRow key={variant.id}>
-                    <TableCell>
-                        <Link className="underline" href={`/workflow/${variant.workflow_id}${variant.workflow_definition_id == null ? '?version=latest' : variant.version_number != null ? `?version=${variant.version_number}` : ''}`}>{variant.workflow_name}</Link>
-                        <div className="text-sm text-muted-foreground">{variant.workflow_definition_id == null ? 'Latest published' : `Version ${variant.version_number ?? variant.workflow_definition_id}`}</div>
-                        {variant.workflow_definition_id == null && (variant.definitions?.length ?? 0) > 0 && <div className="text-xs text-muted-foreground">{(variant.definitions ?? []).map((d, index) => <span key={d.definition_id ?? 'unversioned'}>{index > 0 && ' · '}{d.version_number != null ? <Link className="underline" href={`/workflow/${variant.workflow_id}?version=${d.version_number}`}>v{d.version_number}</Link> : 'Unversioned'}: {d.attempts}</span>)}</div>}
-                    </TableCell>
-                    <TableCell>{variant.target_weight == null ? 'Removed' : `${variant.target_weight}%`}</TableCell>
-                    <TableCell>{(variant.actual_percentage ?? 0).toFixed(1)}%</TableCell>
-                    <TableCell>{variant.completed} / {variant.attempts}</TableCell>
-                    <TableCell className="text-sm">{Object.entries(variant.outcomes ?? {}).map(([outcome, count]) => `${outcome.replaceAll('_', ' ')}: ${count}`).join(' · ') || 'No attempts yet'}</TableCell>
-                </TableRow>)}</TableBody>
-            </Table>}
-        </CardContent>
-    </Card>;
+    return (
+        <section>
+            <TitreTableau
+                titre={t({ en: 'Traffic split', fr: 'Répartition du trafic' })}
+                info={
+                    <Info>
+                        {t({
+                            en: 'Target is the current split. Actual share includes all call attempts and retries, including earlier splits. Small campaigns may differ from the target.',
+                            fr: "La cible est la répartition actuelle. La part réelle compte toutes les tentatives et les relances, répartitions précédentes comprises. Une petite campagne peut s'éloigner de la cible.",
+                        })}
+                    </Info>
+                }
+                action={
+                    <Button type="button" variant="outline" size="sm" onClick={() => setRefresh((r) => r + 1)}>
+                        <RefreshCw className="size-3.5" />
+                        {t({ en: 'Refresh', fr: 'Actualiser' })}
+                    </Button>
+                }
+            />
+            {!stats ? (
+                error ? <EtatVide cas="erreur" compact reessayer={() => setRefresh((r) => r + 1)} /> : <EtatVide cas="chargement" />
+            ) : (
+                <Tableau
+                    colonnes={[
+                        { titre: t({ en: 'Agent / version', fr: 'Agent / version' }) },
+                        { titre: t({ en: 'Target', fr: 'Cible' }), droite: true },
+                        { titre: t({ en: 'Actual', fr: 'Réel' }), droite: true },
+                        { titre: t({ en: 'Completed attempts', fr: 'Tentatives abouties' }), droite: true },
+                        { titre: t({ en: 'Outcomes', fr: 'Issues' }) },
+                    ]}
+                >
+                    {stats.variants.map((variant) => (
+                        <Ligne key={variant.id}>
+                            <Cellule
+                                principale
+                                sous={
+                                    <>
+                                        {variant.workflow_definition_id == null
+                                            ? t({ en: 'Latest published', fr: 'Dernière publiée' })
+                                            : `${t({ en: 'Version', fr: 'Version' })} ${variant.version_number ?? variant.workflow_definition_id}`}
+                                        {variant.workflow_definition_id == null && (variant.definitions?.length ?? 0) > 0 && (
+                                            <span className="block">
+                                                {(variant.definitions ?? []).map((d, index) => (
+                                                    <span key={d.definition_id ?? 'unversioned'}>
+                                                        {index > 0 && ' · '}
+                                                        {d.version_number != null ? (
+                                                            <Link className="cursor-pointer hover:font-semibold" href={`/workflow/${variant.workflow_id}?version=${d.version_number}`}>
+                                                                v{d.version_number}
+                                                            </Link>
+                                                        ) : (
+                                                            t({ en: 'Unversioned', fr: 'Sans version' })
+                                                        )}
+                                                        : {d.attempts}
+                                                    </span>
+                                                ))}
+                                            </span>
+                                        )}
+                                    </>
+                                }
+                            >
+                                <Link
+                                    className="cursor-pointer hover:font-semibold"
+                                    href={`/workflow/${variant.workflow_id}${variant.workflow_definition_id == null ? '?version=latest' : variant.version_number != null ? `?version=${variant.version_number}` : ''}`}
+                                >
+                                    {variant.workflow_name}
+                                </Link>
+                            </Cellule>
+                            <Cellule droite>{variant.target_weight == null ? t({ en: 'Removed', fr: 'Retirée' }) : `${variant.target_weight}%`}</Cellule>
+                            <Cellule droite>{(variant.actual_percentage ?? 0).toFixed(1)}%</Cellule>
+                            <Cellule droite>
+                                {variant.completed} / {variant.attempts}
+                            </Cellule>
+                            <Cellule>
+                                {Object.entries(variant.outcomes ?? {})
+                                    .map(([outcome, count]) => `${outcome.replaceAll('_', ' ')}: ${count}`)
+                                    .join(' · ') || t({ en: 'No attempts yet', fr: 'Aucune tentative' })}
+                            </Cellule>
+                        </Ligne>
+                    ))}
+                </Tableau>
+            )}
+        </section>
+    );
 }

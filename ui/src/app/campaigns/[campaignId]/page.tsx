@@ -1,12 +1,10 @@
 "use client";
 
 import { format } from 'date-fns';
-import { AlertCircle, AlertTriangle, ArrowLeft, CalendarIcon, Check, Clock, Download, Info, Pause, Pencil, Phone, Play, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowLeft, CalendarIcon, Download, Info, Megaphone, Pause, Pencil, Phone, Play, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ErreurChamp } from "@/components/mark/erreur-champ";
-import { useLangue } from "@/components/mark/langue/langue";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     downloadCampaignReportApiV1CampaignCampaignIdReportGet,
@@ -18,10 +16,16 @@ import {
     startCampaignApiV1CampaignCampaignIdStartPost,
 } from '@/client/sdk.gen';
 import type { CampaignResponse } from '@/client/types.gen';
-import { Badge } from '@/components/ui/badge';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Info as Infobulle, PointEtat } from "@/components/mark/studio/marques";
+import { PageStudio } from "@/components/mark/studio/shell-studio";
+import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
+import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,9 +38,20 @@ import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/dateTime';
 
 import CampaignTrafficStats from '../CampaignTrafficStats';
+import { etatCampagne } from '../etat-campagne';
+
+/** Une ligne en lecture : le libellé en gris, la valeur à côté (comme les lignes des réglages). */
+function Lue({ libelle, children }: { libelle: string; children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-3 py-3 text-sm">
+            <span className="w-64 shrink-0 text-muted-foreground">{libelle}</span>
+            <span className="min-w-0 flex-1 break-words">{children}</span>
+        </div>
+    );
+}
 
 export default function CampaignDetailPage() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [redialErreur, setRedialErreur] = useState<string | null>(null);
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
@@ -55,6 +70,7 @@ export default function CampaignDetailPage() {
     // Campaign state
     const [campaign, setCampaign] = useState<CampaignResponse | null>(null);
     const [isLoadingCampaign, setIsLoadingCampaign] = useState(true);
+    const [aConfirmer, setAConfirmer] = useState<'start' | 'resume' | null>(null);
 
     // Action state
     const [isExecutingAction, setIsExecutingAction] = useState(false);
@@ -105,11 +121,6 @@ export default function CampaignDetailPage() {
     useEffect(() => {
         fetchCampaign();
     }, [fetchCampaign]);
-
-    // Handle back navigation
-    const handleBack = () => {
-        router.push('/campaigns');
-    };
 
     // Handle CSV download
     const handleDownloadCsv = async () => {
@@ -355,24 +366,6 @@ export default function CampaignDetailPage() {
         }
     };
 
-    // Get badge variant for state
-    const getStateBadgeVariant = (state: string) => {
-        switch (state) {
-            case 'created':
-                return 'secondary';
-            case 'running':
-                return 'default';
-            case 'paused':
-                return 'outline';
-            case 'completed':
-                return 'secondary';
-            case 'failed':
-                return 'destructive';
-            default:
-                return 'secondary';
-        }
-    };
-
     const canEdit = campaign && ['created', 'running', 'paused'].includes(campaign.state);
 
     // Newest entries first. The backend appends chronologically; the UI is more
@@ -382,29 +375,26 @@ export default function CampaignDetailPage() {
     const getLogIcon = (level: string) => {
         switch (level) {
             case 'error':
-                return <AlertCircle className="h-4 w-4 text-destructive" />;
+                return <AlertCircle className="size-4 text-destructive" />;
             case 'warning':
-                return <AlertTriangle className="h-4 w-4 text-(--signal-warn)" />;
+                return <AlertTriangle className="size-4 text-(--signal-warn)" />;
             default:
-                return <Info className="h-4 w-4 text-foreground" />;
-        }
-    };
-
-    const getLogBadgeVariant = (level: string): 'destructive' | 'secondary' | 'outline' => {
-        switch (level) {
-            case 'error':
-                return 'destructive';
-            case 'warning':
-                return 'outline';
-            default:
-                return 'secondary';
+                return <Info className="size-4 text-foreground" />;
         }
     };
 
     const formatLogTimestamp = (ts: string) => {
         const d = new Date(ts);
         if (isNaN(d.getTime())) return ts;
-        return formatDateTime(d, organizationTimezone);
+        return formatDateTime(d, organizationTimezone, langue);
+    };
+
+    // Lancer ou reprendre une campagne fait partir de vrais appels vers de vraies personnes : on confirme d'abord.
+    const confirmerLancement = () => {
+        const geste = aConfirmer;
+        setAConfirmer(null);
+        if (geste === 'start') void handleStart();
+        if (geste === 'resume') void handleResume();
     };
 
     // Render action button based on state
@@ -413,8 +403,8 @@ export default function CampaignDetailPage() {
 
         const editButton = canEdit ? (
             <Button variant="outline" onClick={() => router.push(`/campaigns/${campaignId}/edit`)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit Campaign
+                <Pencil className="size-4" />
+                {t({ en: 'Edit', fr: 'Modifier' })}
             </Button>
         ) : null;
 
@@ -423,9 +413,9 @@ export default function CampaignDetailPage() {
                 return (
                     <div className="flex items-center gap-2">
                         {editButton}
-                        <Button onClick={handleStart} disabled={isExecutingAction}>
-                            <Play className="h-4 w-4 mr-2" />
-                            Start Campaign
+                        <Button onClick={() => setAConfirmer('start')} disabled={isExecutingAction}>
+                            <Play className="size-4" />
+                            {t({ en: 'Start', fr: 'Lancer' })}
                         </Button>
                     </div>
                 );
@@ -434,8 +424,8 @@ export default function CampaignDetailPage() {
                     <div className="flex items-center gap-2">
                         {editButton}
                         <Button onClick={handlePause} disabled={isExecutingAction}>
-                            <Pause className="h-4 w-4 mr-2" />
-                            Pause Campaign
+                            <Pause className="size-4" />
+                            {t({ en: 'Pause', fr: 'Mettre en pause' })}
                         </Button>
                     </div>
                 );
@@ -443,9 +433,9 @@ export default function CampaignDetailPage() {
                 return (
                     <div className="flex items-center gap-2">
                         {editButton}
-                        <Button onClick={handleResume} disabled={isExecutingAction}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Resume Campaign
+                        <Button onClick={() => setAConfirmer('resume')} disabled={isExecutingAction}>
+                            <RefreshCw className="size-4" />
+                            {t({ en: 'Resume', fr: 'Reprendre' })}
                         </Button>
                     </div>
                 );
@@ -455,8 +445,8 @@ export default function CampaignDetailPage() {
                 }
                 return (
                     <Button onClick={openRedialDialog}>
-                        <Phone className="h-4 w-4 mr-2" />
-                        Redial Campaign
+                        <Phone className="size-4" />
+                        {t({ en: 'Redial', fr: 'Relancer les appels' })}
                     </Button>
                 );
             default:
@@ -466,66 +456,79 @@ export default function CampaignDetailPage() {
 
     if (isLoadingCampaign) {
         return (
-            <div className="container mx-auto p-6 space-y-6">
-                <div className="animate-pulse">
-                    <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
-                    <div className="h-64 bg-muted rounded"></div>
-                </div>
-            </div>
+            <PageStudio>
+                <EtatVide cas="chargement" />
+            </PageStudio>
         );
     }
 
     if (!campaign) {
         return (
-            <div className="container mx-auto p-6 space-y-6">
-                <p className="text-center text-muted-foreground">Campaign not found</p>
-            </div>
+            <PageStudio>
+                <EtatVide cas="erreur" reessayer={() => void fetchCampaign()} />
+            </PageStudio>
         );
     }
 
+    const etat = etatCampagne(campaign.state);
+    const jours = [
+        { en: 'Mon', fr: 'Lun' },
+        { en: 'Tue', fr: 'Mar' },
+        { en: 'Wed', fr: 'Mer' },
+        { en: 'Thu', fr: 'Jeu' },
+        { en: 'Fri', fr: 'Ven' },
+        { en: 'Sat', fr: 'Sam' },
+        { en: 'Sun', fr: 'Dim' },
+    ];
+    const oui = t({ en: 'Yes', fr: 'Oui' });
+    const non = t({ en: 'No', fr: 'Non' });
+    const lienCampagne = (id: number) => (
+        <Link href={`/campaigns/${id}`} className="cursor-pointer hover:font-semibold">
+            {t({ en: 'Campaign', fr: 'Campagne' })} #{id}
+        </Link>
+    );
+
     return (
-        <div className="container mx-auto p-6 space-y-6">
-            <div>
-                <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    className="mb-4"
+        <PageStudio>
+            <div className="space-y-4">
+                <Link
+                    href="/campaigns"
+                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-semibold hover:text-foreground"
                 >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Campaigns
-                </Button>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-bold mb-2">{campaign.name}</h1>
-                            <div className="flex items-center gap-4">
-                                <Badge variant={getStateBadgeVariant(campaign.state)}>
-                                    {campaign.state}
-                                </Badge>
-                                <span className="text-muted-foreground">
-                                    Created {formatDate(campaign.created_at, organizationTimezone)}
-                                </span>
-                            </div>
-                        </div>
+                    <ArrowLeft className="size-4" />
+                    {t({ en: 'Campaigns', fr: 'Campagnes' })}
+                </Link>
+                <TitrePage
+                    titre={campaign.name}
+                    phrase={
+                        <span className="inline-flex flex-wrap items-center gap-4">
+                            <PointEtat etat={etat.point}>{t(etat.libelle)}</PointEtat>
+                            <span>
+                                {t({ en: 'Created', fr: 'Créée le' })} {formatDate(campaign.created_at, organizationTimezone, langue)}
+                            </span>
+                        </span>
+                    }
+                    action={
                         <div className="flex items-center gap-2">
                             <Popover open={isReportPopoverOpen} onOpenChange={setIsReportPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" disabled={isDownloadingReport}>
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Download Report
+                                        <Download className="size-4" />
+                                        {t({ en: 'Report', fr: 'Rapport' })}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-4" align="end">
                                     <div className="space-y-4">
-                                        <div className="text-sm font-medium">Filter by date range</div>
+                                        <div className="text-sm font-medium">{t({ en: 'Filter by date range', fr: 'Filtrer par période' })}</div>
                                         <div className="grid gap-3">
                                             <div className="space-y-1.5">
-                                                <Label className="text-xs">From</Label>
+                                                <Label className="text-xs">{t({ en: 'From', fr: 'Du' })}</Label>
                                                 <div className="flex gap-2">
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                                                {reportStartDate ? format(reportStartDate, 'MMM dd, yyyy') : 'Start date'}
+                                                                <CalendarIcon className="mr-2 size-3.5" />
+                                                                {reportStartDate ? format(reportStartDate, 'dd/MM/yyyy') : t({ en: 'Start date', fr: 'Début' })}
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto p-0" align="start">
@@ -539,20 +542,21 @@ export default function CampaignDetailPage() {
                                                     </Popover>
                                                     <Input
                                                         type="time"
+                                                        aria-label={t({ en: 'Start time', fr: 'Heure de début' })}
                                                         value={reportStartTime}
                                                         onChange={(e) => setReportStartTime(e.target.value)}
-                                                        className="w-[100px] h-8 text-xs"
+                                                        className="h-8 w-[100px] text-xs"
                                                     />
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">
-                                                <Label className="text-xs">To</Label>
+                                                <Label className="text-xs">{t({ en: 'To', fr: 'Au' })}</Label>
                                                 <div className="flex gap-2">
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                                                                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                                                {reportEndDate ? format(reportEndDate, 'MMM dd, yyyy') : 'End date'}
+                                                                <CalendarIcon className="mr-2 size-3.5" />
+                                                                {reportEndDate ? format(reportEndDate, 'dd/MM/yyyy') : t({ en: 'End date', fr: 'Fin' })}
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto p-0" align="start">
@@ -566,9 +570,10 @@ export default function CampaignDetailPage() {
                                                     </Popover>
                                                     <Input
                                                         type="time"
+                                                        aria-label={t({ en: 'End time', fr: 'Heure de fin' })}
                                                         value={reportEndTime}
                                                         onChange={(e) => setReportEndTime(e.target.value)}
-                                                        className="w-[100px] h-8 text-xs"
+                                                        className="h-8 w-[100px] text-xs"
                                                     />
                                                 </div>
                                             </div>
@@ -576,11 +581,13 @@ export default function CampaignDetailPage() {
                                         <Separator />
                                         <div className="flex justify-between">
                                             <Button variant="ghost" size="sm" onClick={handleClearDateRange}>
-                                                Clear
+                                                {t({ en: 'Clear', fr: 'Effacer' })}
                                             </Button>
                                             <Button size="sm" onClick={handleDownloadReport} disabled={isDownloadingReport}>
-                                                <Download className="h-3.5 w-3.5 mr-1.5" />
-                                                {reportStartDate || reportEndDate ? 'Download Filtered' : 'Download All'}
+                                                <Download className="mr-1.5 size-3.5" />
+                                                {reportStartDate || reportEndDate
+                                                    ? t({ en: 'Download filtered', fr: 'Télécharger la période' })
+                                                    : t({ en: 'Download all', fr: 'Tout télécharger' })}
                                             </Button>
                                         </div>
                                     </div>
@@ -588,361 +595,244 @@ export default function CampaignDetailPage() {
                             </Popover>
                             {renderActionButton()}
                         </div>
-                    </div>
-                </div>
-
-                <CampaignTrafficStats campaign={campaign} />
-
-                {/* Campaign Details */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle>Campaign Details</CardTitle>
-                        <CardDescription>
-                            Configuration and source information
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <dt className="text-sm font-medium">Source Type</dt>
-                                <dd className="mt-1 capitalize">{campaign.source_type.replace('-', ' ')}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium">
-                                    {campaign.source_type === 'csv' ? 'Source File' : 'Source Sheet'}
-                                </dt>
-                                <dd className="mt-1">
-                                    {campaign.source_type === 'csv' ? (
-                                        <button
-                                            onClick={handleDownloadCsv}
-                                            className="text-foreground hover:underline text-sm break-all"
-                                        >
-                                            {campaign.source_id.split('/').pop()}
-                                        </button>
-                                    ) : (
-                                        <a
-                                            href={campaign.source_id}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-foreground hover:underline text-sm break-all"
-                                        >
-                                            {campaign.source_id}
-                                        </a>
-                                    )}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium">Telephony Configuration</dt>
-                                <dd className="mt-1">
-                                    {campaign.telephony_configuration_id ? (
-                                        <button
-                                            onClick={() => router.push(`/telephony-configurations/${campaign.telephony_configuration_id}`)}
-                                            className="text-foreground hover:underline"
-                                        >
-                                            {campaign.telephony_configuration_name || `Configuration #${campaign.telephony_configuration_id}`}
-                                        </button>
-                                    ) : (
-                                        <span className="text-muted-foreground">Not assigned</span>
-                                    )}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium">State</dt>
-                                <dd className="mt-1 capitalize">{campaign.state}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium">Progress</dt>
-                                <dd className="mt-1">
-                                    {campaign.executed_count} / {campaign.total_queued_count}
-                                </dd>
-                            </div>
-                            {campaign.parent_campaign_id && (
-                                <div>
-                                    <dt className="text-sm font-medium">Redial Of</dt>
-                                    <dd className="mt-1">
-                                        <button
-                                            onClick={() => router.push(`/campaigns/${campaign.parent_campaign_id}`)}
-                                            className="text-foreground hover:underline"
-                                        >
-                                            Campaign #{campaign.parent_campaign_id}
-                                        </button>
-                                    </dd>
-                                </div>
-                            )}
-                            {campaign.redialed_campaign_id && (
-                                <div>
-                                    <dt className="text-sm font-medium">Redialed As</dt>
-                                    <dd className="mt-1">
-                                        <button
-                                            onClick={() => router.push(`/campaigns/${campaign.redialed_campaign_id}`)}
-                                            className="text-foreground hover:underline"
-                                        >
-                                            Campaign #{campaign.redialed_campaign_id}
-                                        </button>
-                                    </dd>
-                                </div>
-                            )}
-                            {campaign.started_at && (
-                                <div>
-                                    <dt className="text-sm font-medium">Started At</dt>
-                                    <dd className="mt-1">
-                                        {formatDateTime(campaign.started_at, organizationTimezone)}
-                                    </dd>
-                                </div>
-                            )}
-                            {campaign.completed_at && (
-                                <div>
-                                    <dt className="text-sm font-medium">Completed At</dt>
-                                    <dd className="mt-1">
-                                        {formatDateTime(campaign.completed_at, organizationTimezone)}
-                                    </dd>
-                                </div>
-                            )}
-                        </dl>
-                    </CardContent>
-                </Card>
-
-                {/* Campaign Settings */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle>Campaign Settings</CardTitle>
-                        <CardDescription>
-                            Concurrency and retry configuration
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Concurrency Setting */}
-                        <div>
-                            <dt className="text-sm font-medium">Max Concurrent Calls</dt>
-                            <dd className="mt-1">
-                                {campaign.max_concurrency ? (
-                                    <span>{campaign.max_concurrency}</span>
-                                ) : (
-                                    <span className="text-muted-foreground">Using organization default</span>
-                                )}
-                            </dd>
-                        </div>
-
-                        <Separator />
-
-                        {/* Retry Configuration */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Retries Enabled</span>
-                                {campaign.retry_config.enabled ? (
-                                    <Badge variant="default" className="flex items-center gap-1">
-                                        <Check className="h-3 w-3" />
-                                        Enabled
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="secondary" className="flex items-center gap-1">
-                                        <X className="h-3 w-3" />
-                                        Disabled
-                                    </Badge>
-                                )}
-                            </div>
-
-                            {campaign.retry_config.enabled && (
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pl-4 border-l-2 border-muted">
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Max Retries</dt>
-                                        <dd className="mt-1 font-medium">{campaign.retry_config.max_retries}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Retry Delay</dt>
-                                        <dd className="mt-1 font-medium">{campaign.retry_config.retry_delay_seconds}s</dd>
-                                    </div>
-                                    <div className="col-span-2 md:col-span-1">
-                                        <dt className="text-sm text-muted-foreground">Retry On</dt>
-                                        <dd className="mt-1 flex flex-wrap gap-1">
-                                            {campaign.retry_config.retry_on_busy && (
-                                                <Badge variant="outline" className="text-xs">Busy</Badge>
-                                            )}
-                                            {campaign.retry_config.retry_on_no_answer && (
-                                                <Badge variant="outline" className="text-xs">No Answer</Badge>
-                                            )}
-                                            {campaign.retry_config.retry_on_voicemail && (
-                                                <Badge variant="outline" className="text-xs">Voicemail</Badge>
-                                            )}
-                                        </dd>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <Separator />
-
-                        {/* Call Schedule (read-only) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Call Schedule</span>
-                                <div className="flex items-center gap-2">
-                                    {campaign.schedule_config?.enabled ? (
-                                        <Badge variant="default" className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            Enabled
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="secondary" className="flex items-center gap-1">
-                                            <X className="h-3 w-3" />
-                                            Not configured
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-
-                            {campaign.schedule_config?.enabled && (
-                                <div className="pl-4 border-l-2 border-muted space-y-3">
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Timezone</dt>
-                                        <dd className="mt-1 font-medium">{campaign.schedule_config.timezone.replace(/_/g, ' ')}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Time Slots</dt>
-                                        <dd className="mt-1 flex flex-wrap gap-2">
-                                            {campaign.schedule_config.slots.map((slot, index) => {
-                                                const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                                                return (
-                                                    <div key={index} className="flex items-center gap-1">
-                                                        <Badge variant="outline" className="text-xs">{dayNames[slot.day_of_week]}</Badge>
-                                                        <span className="text-sm">{slot.start_time} - {slot.end_time}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </dd>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Activity Log */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle>Activity Log</CardTitle>
-                        <CardDescription>
-                            Recent state transitions and failures. Newest first.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {sortedLogs.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No events recorded yet.</p>
-                        ) : (
-                            <ul className="space-y-3">
-                                {sortedLogs.map((entry, idx) => (
-                                    <li
-                                        key={`${entry.ts}-${idx}`}
-                                        className="flex gap-3 border-b last:border-b-0 pb-3 last:pb-0"
-                                    >
-                                        <div className="mt-0.5">{getLogIcon(entry.level)}</div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant={getLogBadgeVariant(entry.level)} className="text-xs">
-                                                    {entry.level}
-                                                </Badge>
-                                                <code className="text-xs text-muted-foreground">
-                                                    {entry.event}
-                                                </code>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatLogTimestamp(entry.ts)}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm mt-1 break-words">{entry.message}</p>
-                                            {entry.details && Object.keys(entry.details).length > 0 && (
-                                                <details className="mt-1.5">
-                                                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                                                        Details
-                                                    </summary>
-                                                    <pre className="mt-1.5 text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap break-words">
-                                                        {JSON.stringify(entry.details, null, 2)}
-                                                    </pre>
-                                                </details>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Workflow Runs */}
-                <CampaignRuns
-                    campaignId={campaignId}
-                    workflowId={campaign.workflow_id}
-                    searchParams={searchParams}
+                    }
                 />
+            </div>
 
-                <Dialog open={isRedialDialogOpen} onOpenChange={setIsRedialDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Redial Campaign</DialogTitle>
-                            <DialogDescription>
-                                Creates a new campaign that re-dials unique subscribers whose
-                                last call ended with one of the selected outcomes. Subscribers
-                                who were successfully reached on a retry are skipped.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="redial-name">Name</Label>
-                                <Input
-                                    id="redial-name"
-                                    value={redialName}
-                                    onChange={(e) => setRedialName(e.target.value)}
-                                    placeholder="Campaign name"
-                                />
-                            </div>
-                            <div className="space-y-3">
-                                <Label>Redial when last call was</Label>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="redial-voicemail"
-                                        checked={redialOnVoicemail}
-                                        onCheckedChange={(v) => { setRedialOnVoicemail(v === true); setRedialErreur(null); }}
-                                    />
-                                    <Label htmlFor="redial-voicemail" className="font-normal">
-                                        Voicemail
-                                    </Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="redial-no-answer"
-                                        checked={redialOnNoAnswer}
-                                        onCheckedChange={(v) => { setRedialOnNoAnswer(v === true); setRedialErreur(null); }}
-                                    />
-                                    <Label htmlFor="redial-no-answer" className="font-normal">
-                                        No Answer
-                                    </Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="redial-busy"
-                                        checked={redialOnBusy}
-                                        onCheckedChange={(v) => { setRedialOnBusy(v === true); setRedialErreur(null); }}
-                                    />
-                                    <Label htmlFor="redial-busy" className="font-normal">
-                                        Busy
-                                    </Label>
-                                </div>
-                            </div>
-                            <ErreurChamp>{redialErreur}</ErreurChamp>
+            <CampaignTrafficStats campaign={campaign} />
+
+            <section>
+                <TitreTableau
+                    titre={t({ en: 'Campaign', fr: 'Campagne' })}
+                    info={<Infobulle>{t({ en: 'Configuration and source information', fr: 'Configuration et source des contacts' })}</Infobulle>}
+                />
+                <div className="divide-y border-t">
+                    <Lue libelle={t({ en: 'Source type', fr: 'Type de source' })}>
+                        {campaign.source_type === 'csv' ? t({ en: 'CSV file', fr: 'Fichier CSV' }) : campaign.source_type.replace('-', ' ')}
+                    </Lue>
+                    <Lue libelle={campaign.source_type === 'csv' ? t({ en: 'Source file', fr: 'Fichier source' }) : t({ en: 'Source sheet', fr: 'Feuille source' })}>
+                        {campaign.source_type === 'csv' ? (
+                            <button onClick={handleDownloadCsv} className="cursor-pointer break-all hover:font-semibold">
+                                {campaign.source_id.split('/').pop()}
+                            </button>
+                        ) : (
+                            <a href={campaign.source_id} target="_blank" rel="noopener noreferrer" className="cursor-pointer break-all hover:font-semibold">
+                                {campaign.source_id}
+                            </a>
+                        )}
+                    </Lue>
+                    <Lue libelle={t({ en: 'Telephony configuration', fr: 'Configuration de téléphonie' })}>
+                        {campaign.telephony_configuration_id ? (
+                            <Link href={`/telephony-configurations/${campaign.telephony_configuration_id}`} className="cursor-pointer hover:font-semibold">
+                                {campaign.telephony_configuration_name || `${t({ en: 'Configuration', fr: 'Configuration' })} #${campaign.telephony_configuration_id}`}
+                            </Link>
+                        ) : (
+                            <span className="text-muted-foreground">{t({ en: 'Not assigned', fr: 'Aucune' })}</span>
+                        )}
+                    </Lue>
+                    <Lue libelle={t({ en: 'Progress', fr: 'Avancement' })}>
+                        {campaign.executed_count} / {campaign.total_queued_count}
+                    </Lue>
+                    {campaign.parent_campaign_id && <Lue libelle={t({ en: 'Redial of', fr: 'Relance de' })}>{lienCampagne(campaign.parent_campaign_id)}</Lue>}
+                    {campaign.redialed_campaign_id && <Lue libelle={t({ en: 'Redialed as', fr: 'Relancée par' })}>{lienCampagne(campaign.redialed_campaign_id)}</Lue>}
+                    {campaign.started_at && (
+                        <Lue libelle={t({ en: 'Started at', fr: 'Lancée le' })}>{formatDateTime(campaign.started_at, organizationTimezone, langue)}</Lue>
+                    )}
+                    {campaign.completed_at && (
+                        <Lue libelle={t({ en: 'Completed at', fr: 'Terminée le' })}>{formatDateTime(campaign.completed_at, organizationTimezone, langue)}</Lue>
+                    )}
+                </div>
+            </section>
+
+            <section>
+                <TitreTableau
+                    titre={t({ en: 'Settings', fr: 'Réglages' })}
+                    info={<Infobulle>{t({ en: 'Concurrency, retries and call schedule', fr: 'Appels simultanés, nouvelles tentatives et plages horaires' })}</Infobulle>}
+                />
+                <div className="divide-y border-t">
+                    <Lue libelle={t({ en: 'Max concurrent calls', fr: 'Appels simultanés au plus' })}>
+                        {campaign.max_concurrency ? (
+                            campaign.max_concurrency
+                        ) : (
+                            <span className="text-muted-foreground">{t({ en: 'Organization default', fr: "Celui de l'organisation" })}</span>
+                        )}
+                    </Lue>
+                    <Lue libelle={t({ en: 'Retries', fr: 'Nouvelles tentatives' })}>{campaign.retry_config.enabled ? oui : non}</Lue>
+                    {campaign.retry_config.enabled && (
+                        <>
+                            <Lue libelle={t({ en: 'Max retries', fr: 'Tentatives au plus' })}>{campaign.retry_config.max_retries}</Lue>
+                            <Lue libelle={t({ en: 'Delay between retries', fr: 'Délai entre deux tentatives' })}>{campaign.retry_config.retry_delay_seconds} s</Lue>
+                            <Lue libelle={t({ en: 'Retry on', fr: 'Relancer si' })}>
+                                {[
+                                    campaign.retry_config.retry_on_busy && t({ en: 'busy', fr: 'occupé' }),
+                                    campaign.retry_config.retry_on_no_answer && t({ en: 'no answer', fr: 'sans réponse' }),
+                                    campaign.retry_config.retry_on_voicemail && t({ en: 'voicemail', fr: 'messagerie' }),
+                                ]
+                                    .filter(Boolean)
+                                    .join(', ') || '-'}
+                            </Lue>
+                        </>
+                    )}
+                    <Lue libelle={t({ en: 'Call schedule', fr: 'Plages horaires' })}>
+                        {campaign.schedule_config?.enabled ? oui : <span className="text-muted-foreground">{t({ en: 'Not configured', fr: 'Non configurées' })}</span>}
+                    </Lue>
+                    {campaign.schedule_config?.enabled && (
+                        <>
+                            <Lue libelle={t({ en: 'Timezone', fr: 'Fuseau horaire' })}>{campaign.schedule_config.timezone.replace(/_/g, ' ')}</Lue>
+                            <Lue libelle={t({ en: 'Time slots', fr: 'Créneaux' })}>
+                                <span className="flex flex-wrap gap-x-4 gap-y-1">
+                                    {campaign.schedule_config.slots.map((slot, index) => (
+                                        <span key={index}>
+                                            {t(jours[slot.day_of_week] ?? { en: '?', fr: '?' })} {slot.start_time} - {slot.end_time}
+                                        </span>
+                                    ))}
+                                </span>
+                            </Lue>
+                        </>
+                    )}
+                </div>
+            </section>
+
+            <section>
+                <TitreTableau
+                    titre={t({ en: 'Activity log', fr: "Journal d'activité" })}
+                    info={<Infobulle>{t({ en: 'Recent state transitions and failures. Newest first.', fr: 'Les changements d\'état et les échecs récents, du plus récent au plus ancien.' })}</Infobulle>}
+                />
+                {sortedLogs.length === 0 ? (
+                    <EtatVide cas="premier" compact icone={Megaphone} titre={t({ en: 'No event recorded yet', fr: 'Aucun événement pour l\'instant' })} />
+                ) : (
+                    <Tableau
+                        colonnes={[
+                            { titre: t({ en: 'When', fr: 'Quand' }) },
+                            { titre: t({ en: 'Event', fr: 'Événement' }) },
+                            { titre: t({ en: 'Message', fr: 'Message' }) },
+                        ]}
+                    >
+                        {sortedLogs.map((entry, idx) => (
+                            <Ligne key={`${entry.ts}-${idx}`}>
+                                <Cellule principale>
+                                    <span className="inline-flex items-center gap-2">
+                                        {getLogIcon(entry.level)}
+                                        {formatLogTimestamp(entry.ts)}
+                                    </span>
+                                </Cellule>
+                                <Cellule>
+                                    <code className="text-xs">{entry.event}</code>
+                                </Cellule>
+                                <Cellule>
+                                    <span className="break-words">{entry.message}</span>
+                                    {entry.details && Object.keys(entry.details).length > 0 && (
+                                        <details className="mt-1">
+                                            <summary className="cursor-pointer text-xs hover:font-semibold">{t({ en: 'Details', fr: 'Détails' })}</summary>
+                                            <pre className="mt-1.5 overflow-x-auto text-xs break-words whitespace-pre-wrap">
+                                                {JSON.stringify(entry.details, null, 2)}
+                                            </pre>
+                                        </details>
+                                    )}
+                                </Cellule>
+                            </Ligne>
+                        ))}
+                    </Tableau>
+                )}
+            </section>
+
+            <section>
+                <TitreTableau titre={t({ en: 'Calls of the campaign', fr: 'Appels de la campagne' })} />
+                <CampaignRuns campaignId={campaignId} workflowId={campaign.workflow_id} searchParams={searchParams} />
+            </section>
+
+            <Dialog open={aConfirmer !== null} onOpenChange={(ouvert) => !ouvert && setAConfirmer(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {aConfirmer === 'resume'
+                                ? t({ en: 'Resume the campaign?', fr: 'Reprendre la campagne ?' })
+                                : t({ en: 'Start the campaign?', fr: 'Lancer la campagne ?' })}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t({
+                                en: `Calls leave right away toward the contacts of the file (${(campaign.total_queued_count ?? 0) - (campaign.executed_count ?? 0)} left to call).`,
+                                fr: `Les appels partent tout de suite vers les contacts du fichier (${(campaign.total_queued_count ?? 0) - (campaign.executed_count ?? 0)} restant à appeler).`,
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAConfirmer(null)}>
+                            {t({ en: 'Cancel', fr: 'Annuler' })}
+                        </Button>
+                        <Button onClick={confirmerLancement}>
+                            {aConfirmer === 'resume' ? t({ en: 'Resume', fr: 'Reprendre' }) : t({ en: 'Start', fr: 'Lancer' })}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isRedialDialogOpen} onOpenChange={setIsRedialDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t({ en: 'Redial the campaign', fr: 'Relancer la campagne' })}</DialogTitle>
+                        <DialogDescription>
+                            {t({
+                                en: 'Creates a new campaign that re-dials unique subscribers whose last call ended with one of the selected outcomes. Subscribers who were successfully reached on a retry are skipped.',
+                                fr: "Crée une campagne qui rappelle les contacts dont le dernier appel a fini par l'un des résultats cochés. Ceux qui ont été joints à une nouvelle tentative sont écartés.",
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="redial-name">{t({ en: 'Name', fr: 'Nom' })}</Label>
+                            <Input
+                                id="redial-name"
+                                value={redialName}
+                                onChange={(e) => setRedialName(e.target.value)}
+                                placeholder={t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
+                            />
                         </div>
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsRedialDialogOpen(false)}
-                                disabled={isRedialing}
-                            >
-                                Cancel
-                            </Button>
-                            <Button onClick={handleRedial} disabled={isRedialing}>
-                                {isRedialing ? 'Creating...' : 'Create Redial Campaign'}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-        </div>
+                        <div className="space-y-3">
+                            <Label>{t({ en: 'Redial when the last call was', fr: 'Rappeler si le dernier appel était' })}</Label>
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="redial-voicemail"
+                                    checked={redialOnVoicemail}
+                                    onCheckedChange={(v) => { setRedialOnVoicemail(v === true); setRedialErreur(null); }}
+                                />
+                                <Label htmlFor="redial-voicemail" className="cursor-pointer font-normal">
+                                    {t({ en: 'Voicemail', fr: 'Messagerie' })}
+                                </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="redial-no-answer"
+                                    checked={redialOnNoAnswer}
+                                    onCheckedChange={(v) => { setRedialOnNoAnswer(v === true); setRedialErreur(null); }}
+                                />
+                                <Label htmlFor="redial-no-answer" className="cursor-pointer font-normal">
+                                    {t({ en: 'No answer', fr: 'Sans réponse' })}
+                                </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="redial-busy"
+                                    checked={redialOnBusy}
+                                    onCheckedChange={(v) => { setRedialOnBusy(v === true); setRedialErreur(null); }}
+                                />
+                                <Label htmlFor="redial-busy" className="cursor-pointer font-normal">
+                                    {t({ en: 'Busy', fr: 'Occupé' })}
+                                </Label>
+                            </div>
+                        </div>
+                        <ErreurChamp>{redialErreur}</ErreurChamp>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRedialDialogOpen(false)} disabled={isRedialing}>
+                            {t({ en: 'Cancel', fr: 'Annuler' })}
+                        </Button>
+                        <Button onClick={handleRedial} disabled={isRedialing}>
+                            {isRedialing ? t({ en: 'Creating...', fr: 'Création...' }) : t({ en: 'Create the redial campaign', fr: 'Créer la campagne de relance' })}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </PageStudio>
     );
 }

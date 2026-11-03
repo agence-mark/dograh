@@ -1,12 +1,10 @@
 "use client";
 
 import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
-import { ErreurChamp } from "@/components/mark/erreur-champ";
-import { useLangue } from "@/components/mark/langue/langue";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getCampaignApiV1CampaignCampaignIdGet,
@@ -15,11 +13,17 @@ import {
     updateCampaignApiV1CampaignCampaignIdPatch
 } from '@/client/sdk.gen';
 import type { CampaignResponse, TrafficVariantRequest } from '@/client/types.gen';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { PageStudio } from "@/components/mark/studio/shell-studio";
+import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
@@ -28,8 +32,18 @@ import TrafficSplitEditor, { trafficSplitError } from '../../TrafficSplitEditor'
 
 type Erreurs = Partial<Record<'nom' | 'repartition' | 'simultanes' | 'cadence' | 'plages', string>>;
 
+/** Quitter la page avec des changements non enregistrés : on prévient. */
 export default function EditCampaignPage() {
+    return (
+        <UnsavedChangesProvider>
+            <FormulaireCampagne />
+        </UnsavedChangesProvider>
+    );
+}
+
+function FormulaireCampagne() {
     const { t } = useLangue();
+    const [touche, setTouche] = useState(false);
     const [erreurs, setErreurs] = useState<Erreurs>({});
     const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
@@ -285,59 +299,52 @@ export default function EditCampaignPage() {
         }
     };
 
+    // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
+    const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        router.push(`/campaigns/${campaignId}`);
+        confirmNavigate(() => router.push(`/campaigns/${campaignId}`));
     };
+
+    // Quitter avec des changements non enregistrés : le garde de l'application prévient.
+    useUnsavedChanges('campagne', touche || splitChanged);
 
     if (isLoading) {
         return (
-            <div className="container mx-auto p-6 space-y-6 max-w-2xl">
-                <div className="animate-pulse">
-                    <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
-                    <div className="h-64 bg-muted rounded"></div>
-                </div>
-            </div>
+            <PageStudio>
+                <EtatVide cas="chargement" />
+            </PageStudio>
         );
     }
 
     if (!campaign) {
         return (
-            <div className="container mx-auto p-6 space-y-6 max-w-2xl">
-                <p className="text-center text-muted-foreground">Campaign not found</p>
-            </div>
+            <PageStudio>
+                <EtatVide cas="erreur" />
+            </PageStudio>
         );
     }
 
     return (
-        <div className="container mx-auto p-6 pb-12 space-y-6 max-w-2xl">
-            <div>
-                <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    className="mb-4"
+        <PageStudio>
+            <div className="mx-auto max-w-2xl space-y-8">
+                <Link
+                    href={`/campaigns/${campaignId}`}
+                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-semibold hover:text-foreground"
                 >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Campaign
-                </Button>
-                <h1 className="text-3xl font-bold mb-2">Edit Campaign</h1>
-                <p className="text-muted-foreground">Modify campaign settings</p>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Campaign Settings</CardTitle>
-                    <CardDescription>
-                        Update name, concurrency, retry, and schedule configuration
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <ArrowLeft className="size-4" />
+                    {campaign.name}
+                </Link>
+                <TitrePage
+                    titre={t({ en: 'Edit the campaign', fr: 'Modifier la campagne' })}
+                    info={t({ en: 'Update name, concurrency, retry, and schedule configuration', fr: "Nom, appels simultanés, nouvelles tentatives et plages horaires" })}
+                />
+                <form onSubmit={handleSubmit} onChange={() => setTouche(true)} className="space-y-6">
                         {/* Campaign Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="campaign-name">Campaign Name</Label>
+                            <Label htmlFor="campaign-name">{t({ en: 'Campaign name', fr: 'Nom de la campagne' })}</Label>
                             <Input
                                 id="campaign-name"
-                                placeholder="Enter campaign name"
+                                placeholder={t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
                                 value={campaignName}
                                 onChange={(e) => {
                                     setCampaignName(e.target.value);
@@ -395,7 +402,7 @@ export default function EditCampaignPage() {
                         />
 
                         {submitError && (
-                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                            <div role="alert" className="text-sm text-destructive">
                                 {submitError}
                             </div>
                         )}
@@ -405,7 +412,7 @@ export default function EditCampaignPage() {
                                 type="submit"
                                 disabled={isSubmitting || !campaignName.trim()}
                             >
-                                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                                {isSubmitting ? t({ en: 'Saving...', fr: 'Enregistrement...' }) : t({ en: 'Save', fr: 'Enregistrer' })}
                             </Button>
                             <Button
                                 type="button"
@@ -413,12 +420,11 @@ export default function EditCampaignPage() {
                                 onClick={handleBack}
                                 disabled={isSubmitting}
                             >
-                                Cancel
+                                {t({ en: 'Cancel', fr: 'Annuler' })}
                             </Button>
                         </div>
                     </form>
-                </CardContent>
-            </Card>
-        </div>
+            </div>
+        </PageStudio>
     );
 }

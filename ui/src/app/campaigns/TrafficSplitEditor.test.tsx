@@ -30,6 +30,14 @@ beforeEach(() => {
 });
 
 describe('TrafficSplitEditor', () => {
+    it('[K8] aucune carte par agent et aucune phrase d\'aide visible : elle est dans le « ! »', async () => {
+        const { container } = render(<Editor initial={[{ workflow_id: 0, weight: 100 }]} />);
+        await waitFor(() => expect(mocks.agents).toHaveBeenCalled());
+        expect(container.querySelector('fieldset > .rounded-md')).toBeNull();
+        expect(container.textContent).not.toMatch(/Any listed version can receive traffic/);
+        expect(screen.getByRole('button', { name: 'More information' })).toBeTruthy();
+    });
+
     it('waits for authentication before loading agents and versions', async () => {
         mocks.auth.loading = true;
         const initial = [{ workflow_id: 1, weight: 100 }];
