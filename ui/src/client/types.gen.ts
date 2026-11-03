@@ -3192,6 +3192,32 @@ export type ContextDestinationRule = {
 };
 
 /**
+ * ControlesDePublication
+ */
+export type ControlesDePublication = {
+    /**
+     * Tests Obligatoires
+     */
+    tests_obligatoires?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Bilan Du Prompt
+     */
+    bilan_du_prompt?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Liste Vocale
+     */
+    liste_vocale?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Attaques
+     */
+    attaques?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Garde Fous
+     */
+    garde_fous?: 'eteint' | 'previent' | 'bloque';
+};
+
+/**
  * ConversationEquipe
  */
 export type ConversationEquipe = {
@@ -3291,6 +3317,16 @@ export type CopieDeScenario = {
      * Nom
      */
     nom?: string | null;
+};
+
+/**
+ * Corriger
+ */
+export type Corriger = {
+    /**
+     * Ids
+     */
+    ids: Array<string>;
 };
 
 /**
@@ -4386,6 +4422,38 @@ export type DemandeCreation = {
 };
 
 /**
+ * DemandeDePublication
+ *
+ * Corps FACULTATIF de ``POST /workflow/{id}/publish`` : sans corps, la route se comporte comme avant.
+ */
+export type DemandeDePublication = {
+    /**
+     * Forcer
+     *
+     * Publish although a blocking check fails. A reason is then required.
+     */
+    forcer?: boolean;
+    /**
+     * Raison
+     *
+     * Why the publication is forced: written to the journal with the person.
+     */
+    raison?: string | null;
+    /**
+     * Pourcentage
+     *
+     * Progressive deployment only: the share of calls the new version takes (the rest stays on the previous one).
+     */
+    pourcentage?: number | null;
+    /**
+     * Note
+     *
+     * What changes, for the journal.
+     */
+    note?: string | null;
+};
+
+/**
  * DemandeDeRappelConfig
  *
  * [.mark] Configuration de l'outil natif « demander un rappel » (agent-facon-tala, lot B1).
@@ -4663,6 +4731,18 @@ export type DemandeTestMcp = {
      * En Tetes Ext
      */
     en_tetes_ext?: Array<EnteteDeRequete>;
+};
+
+/**
+ * DeploiementProgressif
+ */
+export type DeploiementProgressif = {
+    /**
+     * Actif
+     *
+     * Allow a new version to take only a share of the calls. Off: a publication is for all calls.
+     */
+    actif?: boolean;
 };
 
 /**
@@ -7928,6 +8008,28 @@ export type LancementSerie = {
      * Scenario Ids
      */
     scenario_ids: Array<string>;
+};
+
+/**
+ * Lancer
+ */
+export type Lancer = {
+    /**
+     * Profondeur
+     */
+    profondeur?: string;
+    /**
+     * Confirme
+     */
+    confirme?: boolean;
+    /**
+     * Modifie L Environnement
+     */
+    modifie_l_environnement?: boolean;
+    /**
+     * Corrige
+     */
+    corrige?: boolean;
 };
 
 /**
@@ -12027,6 +12129,14 @@ export type PublicEmbedChatTurn = {
 };
 
 /**
+ * Publication
+ */
+export type Publication = {
+    controles?: ControlesDePublication;
+    deploiement?: DeploiementProgressif;
+};
+
+/**
  * PublierGroupeResponse
  */
 export type PublierGroupeResponse = {
@@ -13604,6 +13714,18 @@ export type RetryConfigResponse = {
      * Retry On Voicemail
      */
     retry_on_voicemail: boolean;
+};
+
+/**
+ * Revenir
+ */
+export type Revenir = {
+    /**
+     * Version
+     *
+     * The version number to go back to (an earlier published or archived version).
+     */
+    version: number;
 };
 
 /**
@@ -18143,6 +18265,10 @@ export type WorkflowConfigurationDefaults = {
      */
     interdire_nom_appelant?: boolean;
     /**
+     * [.mark] U11, the publication: each check of the « Before publishing » window on three positions (off, warns, blocks) and the progressive deployment (off by default: a publication is for all calls). Empty: the code's defaults, which are the guard that was already there.
+     */
+    publication?: Publication | null;
+    /**
      * [.mark] The safety of the conversation, three layers, all generic and each with a switch, all off by default: safety instructions added after the prompt (manipulation, confidentiality, role, vital emergency); two guards on the reply before the voice (a tool name, braces, brackets and {{...}} removed; a reply that copies N consecutive words of the agent's own instructions replaced); a classifier of the caller, in parallel, never awaited. Same behaviour by phone and by keyboard.
      */
     securite_conversation?: SecuriteConversation | null;
@@ -20527,7 +20653,10 @@ export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses = {
 export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponse = GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses[keyof GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetResponses];
 
 export type PublishWorkflowApiV1WorkflowWorkflowIdPublishPostData = {
-    body?: never;
+    /**
+     * Demande
+     */
+    body?: DemandeDePublication | null;
     headers?: {
         /**
          * Authorization
@@ -25289,6 +25418,461 @@ export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
 };
 
 export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
+
+export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}';
+};
+
+export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetError = ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetErrors[keyof ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetErrors];
+
+export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutData = {
+    body: Publication;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/reglages';
+};
+
+export type ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutError = ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutErrors[keyof ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutErrors];
+
+export type ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostData = {
+    body: Corriger;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/liste-vocale/corriger';
+};
+
+export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostError = CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostErrors[keyof CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostErrors];
+
+export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/deploiement';
+};
+
+export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetError = DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors[keyof DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors];
+
+export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/deploiement/passer-a-100';
+};
+
+export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostError = PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors[keyof PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors];
+
+export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostData = {
+    body: Revenir;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/deploiement/revenir';
+};
+
+export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostError = RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors[keyof RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors];
+
+export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/attaques/catalogue';
+};
+
+export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetError = CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetErrors[keyof CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetErrors];
+
+export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DernierRapportApiV1BuilderAttaquesWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/attaques/{workflow_id}';
+};
+
+export type DernierRapportApiV1BuilderAttaquesWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DernierRapportApiV1BuilderAttaquesWorkflowIdGetError = DernierRapportApiV1BuilderAttaquesWorkflowIdGetErrors[keyof DernierRapportApiV1BuilderAttaquesWorkflowIdGetErrors];
+
+export type DernierRapportApiV1BuilderAttaquesWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostData = {
+    body: Lancer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/attaques/{workflow_id}/lancer';
+};
+
+export type LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostError = LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostErrors[keyof LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostErrors];
+
+export type LancerLesAttaquesApiV1BuilderAttaquesWorkflowIdLancerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/attaques/{workflow_id}/rejouer';
+};
+
+export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostError = RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors[keyof RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors];
+
+export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetData = {
     body?: never;
