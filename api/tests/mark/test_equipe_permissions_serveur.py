@@ -147,3 +147,22 @@ async def test_une_cle_d_api_reste_dans_son_organisation(db_session):
         )
     assert ok.status_code == 200
     assert deplacee.status_code == 403
+
+
+async def test_une_cle_d_api_ecrit_sans_role_mais_jamais_les_gestes_de_l_equipe(db_session):
+    org = await creer_organisation(db_session, "perm-org-9")
+    createur, _ = await creer_compte(db_session, "createur-cle@example.com", organisations=[org])  # aucun rôle d'équipe
+    _, cle = await db_session.create_api_key(org, "portail", createur.id)
+    en_tete = {"X-API-Key": cle, "X-Mark-Auteur": "Lea"}
+    async with client_http() as c:
+        ecrit = await c.post("/api/v1/folder/", headers=en_tete, json={"name": "dossier-portail"})
+        invite = await c.post(
+            "/api/v1/equipe-mark/invitations", headers=en_tete, json={"email": "x@example.com", "role_id": 1}
+        )
+        espace = await c.put(f"/api/v1/espaces/{org}", headers=en_tete, json={"nom_affichage": "X"})
+        nouveau = await c.post("/api/v1/organizations", headers=en_tete, json={"provider_id": "pirate"})
+    assert ecrit.status_code == 200
+    assert invite.status_code == 403 and espace.status_code == 403 and nouveau.status_code == 403
+    lignes, _ = await db_session.lister_journal(limit=25, offset=0, organization_id=org)
+    assert [ligne["action"] for ligne in lignes] == ["agents.modifier"]
+    assert lignes[0]["auteur"] == "portail : Lea"

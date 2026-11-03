@@ -31,6 +31,7 @@ from api.services.equipe_mark.registre_routes import (
 
 ENTETE_ORGANISATION = "X-Mark-Organisation"
 PREFIXE_API = "/api/v1"
+PERMISSIONS_JAMAIS_PAR_CLE = frozenset({"equipe.gerer", "roles.gerer", "clients.creer", "atelier.regler"})
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/")
 
 
@@ -118,7 +119,13 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     if isinstance(decision, Exemption):
         return
     if isinstance(decision, Permission):
-        if acces is None or decision.cle not in acces.permissions:
+        if par_cle_api:
+            # Une clé d'API est un accès de machine à UNE organisation (le portail, les scripts) : comme avant U2 ter, elle
+            # n'a pas de rôle d'équipe. Mais jamais les gestes de l'équipe elle-même : une clé fuitée ne crée ni invitation,
+            # ni rôle, ni client, et ne règle pas l'atelier.
+            if decision.cle in PERMISSIONS_JAMAIS_PAR_CLE:
+                raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle} (not available to an API key)")
+        elif acces is None or decision.cle not in acces.permissions:
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
         if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES):
