@@ -242,6 +242,9 @@ class Requete:
     chemin: str
     params: dict[str, Any] | None = None
     json: Any = None
+    # F2: a form body (``application/x-www-form-urlencoded``) for the APIs that take nothing
+    # else (Twilio). Never together with ``json``.
+    formulaire: dict[str, Any] | None = None
 
 
 async def relayer(
@@ -272,6 +275,7 @@ async def relayer(
         headers=entetes,
         params=requete.params,
         json=requete.json,
+        data=requete.formulaire,
     )
     if reponse.status_code >= 400:
         raise NangoIndisponible(

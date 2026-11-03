@@ -1,0 +1,6 @@
+{
+ "resource": {
+  "uri": "https://api.calendly.com/scheduled_events/E1/invitees/I1",
+  "email": "j@exemple.fr"
+ }
+}

@@ -230,3 +230,146 @@ TRADUCTEUR = declarer_traducteur(
         ),
     )
 )
+
+
+# --------------------------------------------------------------------------- #
+# The connector (F2, U3 sexies point 8): the agent's actions on an Outlook agenda
+# --------------------------------------------------------------------------- #
+# Same two actions, same settings and same results as Google Agenda's (the agent's prompts do not
+# change from one agenda to another): the slots are computed from the busy items of the mailbox
+# with the client's rules (opening ranges, notice, horizon), the booking is an event.
+
+from datetime import timedelta
+from zoneinfo import ZoneInfo
+
+from api.services.integrations.connectors.actions import google_agenda as _ga
+from api.services.integrations.connectors.catalogue import (
+    Action,
+    Connecteur,
+    ContexteAction,
+    Parametre,
+    declarer,
+)
+
+REGLAGES_CRENEAUX = {**_ga.REGLAGES_CRENEAUX, "agenda": ""}  # the mailbox address: required
+REGLAGES_RENDEZ_VOUS = {**_ga.REGLAGES_RENDEZ_VOUS, "agenda": ""}
+
+
+def _agenda_requis(reglages: dict) -> str:
+    agenda = str(reglages.get("agenda") or "").strip()
+    if not agenda:
+        raise ValueError("Outlook: the agenda to read (the mailbox address) is not set.")
+    return agenda
+
+
+def _preparer_creneaux(params: dict, ctx: ContexteAction, maintenant: datetime | None = None) -> Requete:
+    r = {**REGLAGES_CRENEAUX, **ctx.reglages}
+    agenda = _agenda_requis(r)
+    debut, fin = _ga._fenetre(params, r, maintenant or datetime.now(ZoneInfo(r["fuseau"])))
+    return _chercher({"agendas": [agenda], "debut": debut.isoformat(), "fin": fin.isoformat()}, None)  # type: ignore[arg-type]
+
+
+def _resultat_creneaux(reponse: Any, params: dict, ctx: ContexteAction, maintenant: datetime | None = None) -> dict:
+    r = {**REGLAGES_CRENEAUX, **ctx.reglages}
+    agenda = _agenda_requis(r)
+    # Unknown is never free: a mailbox Graph could not read gives no slot at all.
+    occupe = _lire_occupations(reponse, {"agendas": [agenda]}, None).get(agenda)  # type: ignore[arg-type]
+    if occupe is None:
+        return {"creneaux": [], "aucun": True}
+    params = {**params, "_motif": params.get("motif") or ctx.modele.motif}
+    libres = _ga.creneaux_libres(occupe, params, r, maintenant or datetime.now(ZoneInfo(r["fuseau"])))
+    return (
+        {"creneaux": [{"debut": m.isoformat(), "libelle": _ga.libelle(m)} for m in libres]}
+        if libres
+        else {"creneaux": [], "aucun": True}
+    )
+
+
+def _preparer_rendez_vous(params: dict, ctx: ContexteAction) -> Requete:
+    r = {**REGLAGES_RENDEZ_VOUS, **ctx.reglages}
+    agenda = _agenda_requis(r)
+    debut = datetime.fromisoformat(str(params["debut"]))
+    if debut.tzinfo is None:
+        debut = debut.replace(tzinfo=ZoneInfo(r["fuseau"]))
+    modele = ctx.modele
+    motif = params.get("motif") or modele.motif or "Rendez-vous"
+    nom = " ".join(x for x in (modele.contact.prenom, modele.contact.nom) if x) or "appelant"
+    lignes = [
+        f"Motif : {motif}",
+        f"Contact : {nom}",
+        *([f"Téléphone : {modele.contact.telephone}"] if modele.contact.telephone else []),
+        *([f"Adresse : {modele.adresse.texte()}"] if modele.adresse.texte() else []),
+        "Posé par l'assistant vocal.",
+    ]
+    corps = {
+        "subject": str(r["titre"]).format(motif=motif, nom=nom),
+        "body": {"contentType": "text", "content": "\n".join(lignes)},
+        "start": {"dateTime": _en_utc(debut.isoformat()), "timeZone": "UTC"},
+        "end": {
+            "dateTime": _en_utc((debut + timedelta(minutes=_ga.duree(r, motif))).isoformat()),
+            "timeZone": "UTC",
+        },
+    }
+    if modele.adresse.texte():
+        corps["location"] = {"displayName": modele.adresse.texte()}
+    return Requete("POST", f"/v1.0/users/{_boite(agenda)}/calendar/events", json=corps)
+
+
+def _resultat_rendez_vous(reponse: Any, params: dict, ctx: ContexteAction) -> dict:
+    debut = datetime.fromisoformat(str(params["debut"]))
+    return {"pose": True, "libelle": _ga.libelle(debut), "identifiant": (reponse or {}).get("id")}
+
+
+def _au_hub_rendez_vous(resultat: dict, params: dict, ctx: ContexteAction) -> dict | None:
+    if not (resultat or {}).get("identifiant"):
+        return None
+    r = {**REGLAGES_RENDEZ_VOUS, **ctx.reglages}
+    debut = datetime.fromisoformat(str(params["debut"]))
+    if debut.tzinfo is None:
+        debut = debut.replace(tzinfo=ZoneInfo(r["fuseau"]))
+    motif = params.get("motif") or ctx.modele.motif
+    return {
+        "systeme": "outlook_agenda",
+        "agenda": r["agenda"],
+        "id_externe": str(resultat["identifiant"]),
+        "debut": debut.isoformat(),
+        "fin": (debut + timedelta(minutes=_ga.duree(r, motif))).isoformat(),
+        "motif": motif,
+    }
+
+
+OUTLOOK_AGENDA = declarer(
+    Connecteur(
+        nom="outlook_agenda",
+        libelle="Microsoft Outlook (agenda)",
+        integration="outlook",
+        actions=(
+            Action(
+                nom="find_free_slots",
+                description="Find up to three free appointment slots in the business's calendar.",
+                parametres=(
+                    Parametre("motif", description="The reason for the appointment, in the caller's words.", obligatoire=False),
+                    Parametre("date", description="The day the caller prefers, YYYY-MM-DD. Leave empty for the first slots.", obligatoire=False),
+                ),
+                ecrit=False,
+                anticipable_permis=True,
+                preparer=_preparer_creneaux,
+                resultat=_resultat_creneaux,
+                reglages_par_defaut=REGLAGES_CRENEAUX,
+            ),
+            Action(
+                nom="book_appointment",
+                description="Book the appointment the caller accepted, at one of the slots proposed.",
+                parametres=(
+                    Parametre("debut", description="The start of the slot accepted, exactly as proposed (ISO date-time)."),
+                    Parametre("motif", description="The reason for the appointment.", obligatoire=False),
+                ),
+                ecrit=True,
+                preparer=_preparer_rendez_vous,
+                resultat=_resultat_rendez_vous,
+                reglages_par_defaut=REGLAGES_RENDEZ_VOUS,
+                au_hub=_au_hub_rendez_vous,
+            ),
+        ),
+    )
+)

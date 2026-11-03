@@ -1,0 +1,18 @@
+[
+ {
+  "time": "2030-01-08T10:00:00+0100",
+  "slotsAvailable": 1
+ },
+ {
+  "time": "2030-01-08T11:00:00+0100",
+  "slotsAvailable": 1
+ },
+ {
+  "time": "2030-01-08T15:30:00+0100",
+  "slotsAvailable": 1
+ },
+ {
+  "time": "2030-01-08T16:00:00+0100",
+  "slotsAvailable": 1
+ }
+]

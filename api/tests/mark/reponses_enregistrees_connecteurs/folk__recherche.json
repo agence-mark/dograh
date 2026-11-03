@@ -1,0 +1,20 @@
+{
+ "data": {
+  "items": [
+   {
+    "id": "per_aaaa",
+    "firstName": "Jeanne",
+    "lastName": "Martin",
+    "fullName": "Jeanne Martin",
+    "emails": [
+     "j@exemple.fr"
+    ],
+    "phones": [
+     "+33612345678"
+    ],
+    "groups": []
+   }
+  ],
+  "pagination": {}
+ }
+}
