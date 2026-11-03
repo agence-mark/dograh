@@ -2507,6 +2507,24 @@ export type ChampRequisDuRappel = {
 };
 
 /**
+ * ChangementDAmelioration
+ */
+export type ChangementDAmelioration = {
+    /**
+     * Etat
+     */
+    etat?: 'a_trier' | 'en_cours' | 'ignoree' | null;
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Origine
+     */
+    origine?: 'client' | 'recette' | 'code' | null;
+};
+
+/**
  * ChangementDeFamille
  */
 export type ChangementDeFamille = {
@@ -2595,6 +2613,16 @@ export type ChangerUnTest = {
      * Questions Juge
      */
     questions_juge?: Array<string> | null;
+    /**
+     * Corrige
+     */
+    corrige?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Comportements
+     */
+    comportements?: Array<string> | null;
 };
 
 /**
@@ -3990,7 +4018,7 @@ export type CreerUnTest = {
     /**
      * Criteres
      *
-     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite.
+     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values).
      */
     criteres?: Array<{
         [key: string]: unknown;
@@ -4061,6 +4089,20 @@ export type CreerUnTest = {
      * Questions for the non-blocking judge.
      */
     questions_juge?: Array<string>;
+    /**
+     * Corrige
+     *
+     * Expected end state: {issue, actions: [tools called], champs: {field: value}, rien_d_autre: true}; compiled into criteria.
+     */
+    corrige?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Comportements
+     *
+     * One or two caller behaviours the test plays (never more).
+     */
+    comportements?: Array<string>;
 };
 
 /**
@@ -8509,6 +8551,48 @@ export type LiensDesGroupesResponse = {
 };
 
 /**
+ * LigneAJuger
+ */
+export type LigneAJuger = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom?: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+    /**
+     * Test
+     */
+    test?: string | null;
+    /**
+     * Le
+     */
+    le?: string | null;
+    /**
+     * Duree
+     */
+    duree?: number | null;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+};
+
+/**
  * LigneCompte
  */
 export type LigneCompte = {
@@ -11357,6 +11441,30 @@ export type PageDAlertes = {
 };
 
 /**
+ * PageDAmeliorations
+ */
+export type PageDAmeliorations = {
+    /**
+     * Lignes
+     */
+    lignes: Array<VueDeLigne>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * A Une Suite
+     */
+    a_une_suite: boolean;
+    /**
+     * Compteurs
+     */
+    compteurs: {
+        [key: string]: number;
+    };
+};
+
+/**
  * PageDElements
  */
 export type PageDElements = {
@@ -13559,6 +13667,32 @@ export type RejetDeBase = {
      * Motif
      */
     motif?: string | null;
+};
+
+/**
+ * Rejeu
+ */
+export type Rejeu = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Reussis
+     */
+    reussis: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Suite Complete
+     */
+    suite_complete: boolean;
+    /**
+     * Etat
+     */
+    etat: string;
 };
 
 /**
@@ -15979,6 +16113,18 @@ export type TermeLexique = {
 };
 
 /**
+ * TestDepuisUnProbleme
+ */
+export type TestDepuisUnProbleme = {
+    /**
+     * Criteres
+     */
+    criteres?: Array<{
+        [key: string]: unknown;
+    }> | null;
+};
+
+/**
  * TextChatInactivityTimeoutConstraints
  *
  * Backend-owned timeout metadata consumed by generated API clients.
@@ -17876,6 +18022,78 @@ export type VueConversation = {
 };
 
 /**
+ * VueDeLigne
+ */
+export type VueDeLigne = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Critere
+     */
+    critere?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Gravite
+     */
+    gravite: number;
+    /**
+     * Frequence
+     */
+    frequence: {
+        [key: string]: unknown;
+    };
+    /**
+     * Releve Par
+     */
+    releve_par: string;
+    /**
+     * Cause
+     */
+    cause?: string | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Origine
+     */
+    origine?: string | null;
+    /**
+     * Origine Suggeree
+     */
+    origine_suggeree: string;
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Derniere Le
+     */
+    derniere_le?: string | null;
+};
+
+/**
  * VueDemarrage
  */
 export type VueDemarrage = {
@@ -17970,6 +18188,114 @@ export type VueDepot = {
      */
     refusees?: Array<{
         [key: string]: string;
+    }>;
+};
+
+/**
+ * VueDetaillee
+ */
+export type VueDetaillee = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Critere
+     */
+    critere?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Gravite
+     */
+    gravite: number;
+    /**
+     * Frequence
+     */
+    frequence: {
+        [key: string]: unknown;
+    };
+    /**
+     * Releve Par
+     */
+    releve_par: string;
+    /**
+     * Cause
+     */
+    cause?: string | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Origine
+     */
+    origine?: string | null;
+    /**
+     * Origine Suggeree
+     */
+    origine_suggeree: string;
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Derniere Le
+     */
+    derniere_le?: string | null;
+    /**
+     * Replique
+     */
+    replique?: string | null;
+    /**
+     * Confiance
+     */
+    confiance?: number | null;
+    /**
+     * Correction
+     */
+    correction?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Cas
+     */
+    cas: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Nb Cas
+     */
+    nb_cas: number;
+    /**
+     * Avancement
+     */
+    avancement: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Recettes
+     */
+    recettes: Array<{
+        [key: string]: unknown;
     }>;
 };
 
@@ -29451,6 +29777,362 @@ export type LireLesAlertesApiV1AlertesGetResponses = {
 };
 
 export type LireLesAlertesApiV1AlertesGetResponse = LireLesAlertesApiV1AlertesGetResponses[keyof LireLesAlertesApiV1AlertesGetResponses];
+
+export type LireLesAmeliorationsApiV1AmeliorationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Etat
+         */
+        etat?: 'a_trier' | 'en_cours' | 'testee' | 'publiee';
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+        /**
+         * Page
+         */
+        page?: number;
+    };
+    url: '/api/v1/ameliorations';
+};
+
+export type LireLesAmeliorationsApiV1AmeliorationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesAmeliorationsApiV1AmeliorationsGetError = LireLesAmeliorationsApiV1AmeliorationsGetErrors[keyof LireLesAmeliorationsApiV1AmeliorationsGetErrors];
+
+export type LireLesAmeliorationsApiV1AmeliorationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDAmeliorations;
+};
+
+export type LireLesAmeliorationsApiV1AmeliorationsGetResponse = LireLesAmeliorationsApiV1AmeliorationsGetResponses[keyof LireLesAmeliorationsApiV1AmeliorationsGetResponses];
+
+export type LireLaFileAJugerApiV1AmeliorationsAJugerGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/ameliorations/a-juger';
+};
+
+export type LireLaFileAJugerApiV1AmeliorationsAJugerGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaFileAJugerApiV1AmeliorationsAJugerGetError = LireLaFileAJugerApiV1AmeliorationsAJugerGetErrors[keyof LireLaFileAJugerApiV1AmeliorationsAJugerGetErrors];
+
+export type LireLaFileAJugerApiV1AmeliorationsAJugerGetResponses = {
+    /**
+     * Response Lire La File A Juger Api V1 Ameliorations A Juger Get
+     *
+     * Successful Response
+     */
+    200: Array<LigneAJuger>;
+};
+
+export type LireLaFileAJugerApiV1AmeliorationsAJugerGetResponse = LireLaFileAJugerApiV1AmeliorationsAJugerGetResponses[keyof LireLaFileAJugerApiV1AmeliorationsAJugerGetResponses];
+
+export type LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Amelioration Id
+         */
+        amelioration_id: number;
+    };
+    query?: never;
+    url: '/api/v1/ameliorations/{amelioration_id}';
+};
+
+export type LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetError = LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetErrors[keyof LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetErrors];
+
+export type LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueDetaillee;
+};
+
+export type LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetResponse = LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetResponses[keyof LireUneAmeliorationApiV1AmeliorationsAmeliorationIdGetResponses];
+
+export type ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutData = {
+    body: ChangementDAmelioration;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Amelioration Id
+         */
+        amelioration_id: number;
+    };
+    query?: never;
+    url: '/api/v1/ameliorations/{amelioration_id}';
+};
+
+export type ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutError = ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutErrors[keyof ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutErrors];
+
+export type ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueDetaillee;
+};
+
+export type ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutResponse = ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutResponses[keyof ChangerUneAmeliorationApiV1AmeliorationsAmeliorationIdPutResponses];
+
+export type CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostData = {
+    /**
+     * Corps
+     */
+    body?: TestDepuisUnProbleme | null;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Amelioration Id
+         */
+        amelioration_id: number;
+    };
+    query?: never;
+    url: '/api/v1/ameliorations/{amelioration_id}/test';
+};
+
+export type CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostError = CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostErrors[keyof CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostErrors];
+
+export type CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostResponses = {
+    /**
+     * Response Creer Un Test Depuis La Replique Api V1 Ameliorations  Amelioration Id  Test Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostResponse = CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostResponses[keyof CreerUnTestDepuisLaRepliqueApiV1AmeliorationsAmeliorationIdTestPostResponses];
+
+export type RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Amelioration Id
+         */
+        amelioration_id: number;
+    };
+    query?: never;
+    url: '/api/v1/ameliorations/{amelioration_id}/rejouer';
+};
+
+export type RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostError = RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostErrors[keyof RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostErrors];
+
+export type RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Rejeu;
+};
+
+export type RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostResponse = RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostResponses[keyof RejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPostResponses];
+
+export type LireLaQualiteApiV1QualiteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Jours
+         */
+        jours?: 7 | 30;
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+    };
+    url: '/api/v1/qualite';
+};
+
+export type LireLaQualiteApiV1QualiteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaQualiteApiV1QualiteGetError = LireLaQualiteApiV1QualiteGetErrors[keyof LireLaQualiteApiV1QualiteGetErrors];
+
+export type LireLaQualiteApiV1QualiteGetResponses = {
+    /**
+     * Response Lire La Qualite Api V1 Qualite Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type LireLaQualiteApiV1QualiteGetResponse = LireLaQualiteApiV1QualiteGetResponses[keyof LireLaQualiteApiV1QualiteGetResponses];
 
 export type GetEtablissementsApiV1OrganizationsEtablissementsGetData = {
     body?: never;
