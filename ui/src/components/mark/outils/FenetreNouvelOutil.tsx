@@ -7,7 +7,7 @@
  * Les autres types demandent un nom (et, selon le type, l'action d'un logiciel branché ou l'agent visé), puis
  * l'outil est créé avec la définition par défaut du fork et sa fenêtre s'ouvre.
  */
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
@@ -27,6 +27,7 @@ import { ChampsCreationIntegration } from "../connecteurs/ConfigOutilIntegration
 import type { ConfigIntegration } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs,FenetreOnglets } from "../studio/fenetre-onglets";
+import { espaceDe } from "../studio/navigation-studio";
 import { Liste } from "../studio/liste";
 import { LIBELLES_TYPE, type TypeOutil } from "./modele";
 import { notifier } from "@/components/mark/notifications";
@@ -49,6 +50,7 @@ const DESCRIPTIONS: Record<TypeOutil, { en: string; fr: string }> = {
 export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree: (o: ToolResponse) => void }) {
     const { t } = useLangue();
     const router = useRouter();
+    const pathname = usePathname();
     const [type, setType] = useState<TypeOutil | null>(null);
     const [nom, setNom] = useState("");
     const [description, setDescription] = useState("");
@@ -65,7 +67,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
 
     const choisir = (x: TypeOutil) => {
         if (x === "mcp") {
-            router.push("/labo/integrations?onglet=mcp");
+            router.push(`${espaceDe(pathname ?? "/labo").base}/integrations?onglet=mcp`);
             return;
         }
         if (CREABLES.has(x)) setType(x);
