@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   deleteLangfuseCredentialsApiV1OrganizationsLangfuseCredentialsDelete,
@@ -66,10 +66,10 @@ export function TelemetrySection() {
       if (error) {
         throw new Error("Failed to save");
       }
-      toast.success("Telemetry credentials saved");
+      notifier.succes({ fr: "Identifiants enregistrés.", en: "Credentials saved." });
       await fetchCredentials();
     } catch {
-      toast.error("Failed to save telemetry credentials");
+      notifier.echec({ fr: "Identifiants non enregistrés. Réessayez.", en: "Credentials not saved. Try again." });
     } finally {
       setSaving(false);
     }
@@ -87,9 +87,9 @@ export function TelemetrySection() {
         traces_public: false,
         configured: false,
       });
-      toast.success("Telemetry credentials removed");
+      notifier.succes({ fr: "Identifiants retirés.", en: "Credentials removed." });
     } catch {
-      toast.error("Failed to remove telemetry credentials");
+      notifier.echec({ fr: "Identifiants non retirés. Réessayez.", en: "Credentials not removed. Try again." });
     } finally {
       setSaving(false);
     }

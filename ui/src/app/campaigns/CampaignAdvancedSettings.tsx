@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, X } from 'lucide-react';
+import { ErreurChamp } from '@/components/mark/erreur-champ';
 import Link from 'next/link';
 import { useId } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
@@ -30,6 +31,8 @@ export interface CampaignAdvancedSettingsProps {
     rateLimitPerSecond: string;
     onRateLimitPerSecondChange: (value: string) => void;
     outboundBlockedReason?: string | null;
+    /** Fautes de saisie, lues sous le champ concerné (plutôt que dans une notification). */
+    erreurs?: { simultanes?: string; cadence?: string; plages?: string };
     // Retry config
     retryEnabled: boolean;
     onRetryEnabledChange: (value: boolean) => void;
@@ -108,7 +111,7 @@ const timezoneSelectStyles = {
 
 export default function CampaignAdvancedSettings({
     maxConcurrency, onMaxConcurrencyChange, effectiveLimit, orgConcurrentLimit, fromNumbersCount,
-    rateLimitPerSecond, onRateLimitPerSecondChange, outboundBlockedReason,
+    rateLimitPerSecond, onRateLimitPerSecondChange, outboundBlockedReason, erreurs,
     retryEnabled, onRetryEnabledChange, maxRetries, onMaxRetriesChange,
     retryDelaySeconds, onRetryDelaySecondsChange,
     retryOnBusy, onRetryOnBusyChange, retryOnNoAnswer, onRetryOnNoAnswerChange,
@@ -135,7 +138,10 @@ export default function CampaignAdvancedSettings({
                     onChange={(e) => onMaxConcurrencyChange(e.target.value)}
                     min={1}
                     max={effectiveLimit}
+                    aria-invalid={!!erreurs?.simultanes}
+                    aria-describedby={erreurs?.simultanes ? "max-concurrency-erreur" : undefined}
                 />
+                <ErreurChamp id="max-concurrency-erreur">{erreurs?.simultanes}</ErreurChamp>
                 <p className="text-sm text-muted-foreground">
                     Maximum number of simultaneous calls. Leave empty to use {effectiveLimit}.
                     {fromNumbersCount > 0 && ` You have ${fromNumbersCount} CLI${fromNumbersCount !== 1 ? 's' : ''} and an org limit of ${orgConcurrentLimit}.`}
@@ -164,7 +170,10 @@ export default function CampaignAdvancedSettings({
                     required
                     value={rateLimitPerSecond}
                     onChange={(e) => onRateLimitPerSecondChange(e.target.value)}
+                    aria-invalid={!!erreurs?.cadence}
+                    aria-describedby={erreurs?.cadence ? "dial-rate-erreur" : undefined}
                 />
+                <ErreurChamp id="dial-rate-erreur">{erreurs?.cadence}</ErreurChamp>
                 <p className="text-sm text-muted-foreground">
                     Maximum new calls this campaign can start each second. Default: 1. Your account allows up to {orgConcurrentLimit}.
                 </p>
@@ -327,6 +336,7 @@ export default function CampaignAdvancedSettings({
                                 <Plus className="h-4 w-4 mr-1" />
                                 Add Time Slot
                             </Button>
+                            <ErreurChamp>{erreurs?.plages}</ErreurChamp>
                         </div>
                     </div>
                 )}

@@ -10,13 +10,12 @@
  */
 import { Copy, Link2, Plug, RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { createToolApiV1ToolsPost, deleteConnexionApiV1ConnecteursConnexionsIntegrationDelete } from "@/client/sdk.gen";
 import type { ConnecteurVue, ConnexionVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 import { configParDefaut, type Connecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -148,7 +147,7 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
             const r = await connecteurs.demanderLien([connecteur.nom]);
             if (r.lien) setLien(r.lien);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "No authorization link", fr: "Pas de lien d'autorisation" }));
+            notifier.echec({ fr: "Lien d'autorisation indisponible. Réessayez.", en: "Authorization link unavailable. Try again." }, { erreur: e });
         }
     };
     const tester = async () => {
@@ -157,8 +156,8 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
     };
     const debrancher = async () => {
         const r = await deleteConnexionApiV1ConnecteursConnexionsIntegrationDelete({ path: { integration: connecteur.integration } });
-        if (r.error) return toast.error(detailFromError(r.error, "Not disconnected"));
-        toast.success(t({ en: "Disconnected", fr: "Débranché" }));
+        if (r.error) return notifier.echec({ fr: "Logiciel non débranché. Réessayez.", en: "Not disconnected. Try again." }, { erreur: r.error });
+        notifier.succes({ fr: "Logiciel débranché.", en: "Disconnected." });
         await connecteurs.relire();
     };
     const creerUnOutil = async (action: string) => {
@@ -167,8 +166,8 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
         const r = await createToolApiV1ToolsPost({
             body: { name: `${connecteur.libelle} · ${action}`, category: "integration", definition: { schema_version: 1, type: "integration", config } },
         });
-        if (r.error) return toast.error(detailFromError(r.error, "Failed to create tool"));
-        toast.success(t({ en: "Tool created", fr: "Outil créé" }));
+        if (r.error) return notifier.echec({ fr: "Outil non créé. Réessayez.", en: "Tool not created. Try again." }, { erreur: r.error });
+        notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };
 
     return (
@@ -233,7 +232,7 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
                                         aria-label={t({ en: "Copy the link", fr: "Copier le lien" })}
                                         onClick={() => {
                                             void navigator.clipboard?.writeText(lien);
-                                            toast.success(t({ en: "Link copied", fr: "Lien copié" }));
+                                            notifier.succes({ fr: "Lien copié.", en: "Link copied." });
                                         }}
                                     >
                                         <Copy className="size-3.5" />

@@ -11,7 +11,7 @@
  * les cases changees partent (une case non touchee n'est pas envoyee).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getListesValeursApiV1OrganizationsListesValeursGet,
@@ -82,7 +82,7 @@ export const useListesValeurs = (actif: boolean) => {
     };
     const modifie = changements().length > 0;
 
-    const enregistrer = async (succes: string) => {
+    const enregistrer = async (succes: Texte) => {
         const valeurs = changements();
         if (valeurs.length === 0 || enCours) return;
         setEnCours(true);
@@ -94,7 +94,7 @@ export const useListesValeurs = (actif: boolean) => {
                 return;
             }
             poser(reponse.data);
-            toast.success(succes);
+            notifier.succes(succes);
         } catch {
             setErreur("Value lists: the server did not answer");
         } finally {
@@ -168,7 +168,7 @@ export const SectionListesValeurs = ({ etat }: { etat: ReturnType<typeof useList
                         size="sm"
                         data-testid="enregistrer-listes-valeurs"
                         disabled={enCours || !modifie}
-                        onClick={() => void enregistrer(t({ en: "Value list boxes saved", fr: "Cases des listes enregistrées" }))}
+                        onClick={() => void enregistrer({ fr: "Listes enregistrées.", en: "Lists saved." })}
                     >
                         {t({ en: "Save the boxes", fr: "Enregistrer les cases" })}
                     </Button>

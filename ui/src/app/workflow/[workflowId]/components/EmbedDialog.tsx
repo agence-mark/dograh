@@ -338,7 +338,7 @@ export function EmbedDialog({
 
     const handleSave = async () => {
         if (isEnabled && widgetType === "chat" && !textChatInactivityIsValid) {
-            notifier.echec({ fr: "Délai d'inactivité du chat incorrect. Corrigez-le.", en: "Invalid chat inactivity delay. Fix it." }, { erreur: textChatInactivityValidationMessage });
+            // La faute se lit déjà sous le champ du délai (et le bouton est grisé) : pas de notification en plus.
             return;
         }
 

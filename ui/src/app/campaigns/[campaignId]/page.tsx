@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { AlertCircle, AlertTriangle, ArrowLeft, CalendarIcon, Check, Clock, Download, Info, Pause, Pencil, Phone, Play, RefreshCw, X } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 
 import {
@@ -34,6 +36,8 @@ import { formatDate, formatDateTime } from '@/lib/dateTime';
 import CampaignTrafficStats from '../CampaignTrafficStats';
 
 export default function CampaignDetailPage() {
+    const { t } = useLangue();
+    const [redialErreur, setRedialErreur] = useState<string | null>(null);
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
     const router = useRouter();
@@ -274,6 +278,7 @@ export default function CampaignDetailPage() {
         setRedialOnVoicemail(true);
         setRedialOnNoAnswer(true);
         setRedialOnBusy(true);
+        setRedialErreur(null);
         setIsRedialDialogOpen(true);
     };
 
@@ -281,7 +286,7 @@ export default function CampaignDetailPage() {
     const handleRedial = async () => {
         if (!user || !campaign) return;
         if (!redialOnVoicemail && !redialOnNoAnswer && !redialOnBusy) {
-            notifier.echec({ fr: "Cochez au moins un motif de rappel.", en: "Select at least one reason to redial." });
+            setRedialErreur(t({ fr: "Cochez au moins un motif de rappel.", en: "Select at least one reason to redial." }));
             return;
         }
         setIsRedialing(true);
@@ -895,7 +900,7 @@ export default function CampaignDetailPage() {
                                     <Checkbox
                                         id="redial-voicemail"
                                         checked={redialOnVoicemail}
-                                        onCheckedChange={(v) => setRedialOnVoicemail(v === true)}
+                                        onCheckedChange={(v) => { setRedialOnVoicemail(v === true); setRedialErreur(null); }}
                                     />
                                     <Label htmlFor="redial-voicemail" className="font-normal">
                                         Voicemail
@@ -905,7 +910,7 @@ export default function CampaignDetailPage() {
                                     <Checkbox
                                         id="redial-no-answer"
                                         checked={redialOnNoAnswer}
-                                        onCheckedChange={(v) => setRedialOnNoAnswer(v === true)}
+                                        onCheckedChange={(v) => { setRedialOnNoAnswer(v === true); setRedialErreur(null); }}
                                     />
                                     <Label htmlFor="redial-no-answer" className="font-normal">
                                         No Answer
@@ -915,13 +920,14 @@ export default function CampaignDetailPage() {
                                     <Checkbox
                                         id="redial-busy"
                                         checked={redialOnBusy}
-                                        onCheckedChange={(v) => setRedialOnBusy(v === true)}
+                                        onCheckedChange={(v) => { setRedialOnBusy(v === true); setRedialErreur(null); }}
                                     />
                                     <Label htmlFor="redial-busy" className="font-normal">
                                         Busy
                                     </Label>
                                 </div>
                             </div>
+                            <ErreurChamp>{redialErreur}</ErreurChamp>
                         </div>
                         <DialogFooter>
                             <Button

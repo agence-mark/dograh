@@ -5,12 +5,11 @@
  * latérale. Identité, mot de passe, préférences ; tout vient de `/equipe-mark/moi` et rien n'est affiché qui n'existe pas
  * côté serveur (l'adresse e-mail et le rôle se lisent seulement).
  */
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { changerMonMotDePasseApiV1EquipeMarkMoiMotDePassePost, modifierMonProfilApiV1EquipeMarkMoiPatch } from "@/client/sdk.gen";
 import type { ProfilResponse } from "@/client/types.gen";
 import { type Langue, useLangue } from "@/components/mark/langue/langue";
-import { detailFromError } from "@/lib/apiError";
 
 import { FenetreChamps, type Valeurs } from "./fenetre-champs";
 
@@ -39,25 +38,22 @@ export function FenetreProfil({
         if (Object.keys(corps).length) {
             const res = await modifierMonProfilApiV1EquipeMarkMoiPatch({ body: corps });
             if (res.error || !res.data) {
-                toast.error(detailFromError(res.error, t({ en: "The change failed", fr: "La modification a échoué" })));
+                notifier.echec({ fr: "Modification impossible. Réessayez.", en: "Could not save the change. Try again." }, { erreur: res.error });
                 return;
             }
             apres?.(res.data);
+            notifier.succes({ fr: "Profil enregistré.", en: "Profile saved." });
             if (corps.langue) choisir(corps.langue as Langue);
         }
         const actuel = String(v.actuel);
         const nouveau = String(v.nouveau);
         if (actuel || nouveau) {
-            if (!actuel || nouveau.length < MOT_DE_PASSE_MIN) {
-                toast.error(t({ en: "The password was not changed: 12 characters at least.", fr: "Le mot de passe n'a pas changé : 12 caractères au moins." }));
-                return;
-            }
             const res = await changerMonMotDePasseApiV1EquipeMarkMoiMotDePassePost({ body: { actuel, nouveau } });
             if (res.error) {
-                toast.error(detailFromError(res.error, t({ en: "The password was not changed", fr: "Le mot de passe n'a pas changé" })));
+                notifier.echec({ fr: "Mot de passe inchangé. Vérifiez le mot de passe actuel.", en: "Password unchanged. Check the current password." }, { erreur: res.error });
                 return;
             }
-            toast.success(t({ en: "Password changed", fr: "Mot de passe changé" }));
+            notifier.succes({ fr: "Mot de passe changé.", en: "Password changed." });
         }
     };
 
@@ -67,6 +63,13 @@ export function FenetreProfil({
             fermer={fermer}
             titre={t({ en: "My profile", fr: "Mon profil" })}
             valider={t({ en: "Save", fr: "Enregistrer" })}
+            verifier={(v) => {
+                if (!String(v.actuel) && !String(v.nouveau)) return null;
+                const fautes: Record<string, string> = {};
+                if (!String(v.actuel)) fautes.actuel = t({ en: "Enter the current password.", fr: "Saisissez le mot de passe actuel." });
+                if (String(v.nouveau).length < MOT_DE_PASSE_MIN) fautes.nouveau = t({ en: "12 characters at least.", fr: "12 caractères au moins." });
+                return Object.keys(fautes).length ? fautes : null;
+            }}
             onValider={(v) => void enregistrer(v)}
             sections={[
                 {

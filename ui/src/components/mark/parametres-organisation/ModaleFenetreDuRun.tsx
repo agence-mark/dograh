@@ -9,6 +9,7 @@
  * file. A list to edit, so a modal (E4) working on a copy: « Cancel » / « Save ». No price is
  * offered by default: an empty table means « cost not captured », never a guessed cost.
  */
+import { notifier } from "@/components/mark/notifications";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -179,6 +180,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
             setErreur(detailFromError(reponse.error, "Price table not saved"));
             return;
         }
+        notifier.succes({ fr: "Tarifs enregistrés.", en: "Prices saved." });
         onFermer();
     };
 

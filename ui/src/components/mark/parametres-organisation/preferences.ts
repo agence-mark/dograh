@@ -18,7 +18,8 @@
  * fields. Frozen by `references/charges-utiles-organisation.test.tsx`.
  */
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
+import type { Texte } from "@/components/mark/langue/langue";
 
 import {
     getPreferencesApiV1OrganizationsPreferencesGet,
@@ -74,12 +75,12 @@ export const usePreferencesOrganisation = () => {
         try {
             const result = await getPreferencesApiV1OrganizationsPreferencesGet();
             if (result.error) {
-                toast.error(detailFromError(result.error, "Failed to load organization preferences"));
+                notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." }, { erreur: result.error });
                 return;
             }
             setEnregistrees(versFormulaire(result.data || PREFERENCES_VIDES));
         } catch {
-            toast.error("Failed to load organization preferences");
+            notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." });
         } finally {
             setChargement(false);
         }
@@ -88,7 +89,7 @@ export const usePreferencesOrganisation = () => {
     /** Saves the stored row with `modifications` over it. */
     async function enregistrer(
         modifications: Partial<OrganizationPreferences>,
-        messageSucces: string,
+        messageSucces: Texte,
     ): Promise<ResultatPreferences> {
         const suivantes = { ...enregistrees, ...modifications };
         setEnCours(true);
@@ -125,20 +126,20 @@ export const usePreferencesOrganisation = () => {
                 const detail = (result.error as { detail?: unknown } | undefined)?.detail;
                 const refusAdresse =
                     typeof detail === "string" || JSON.stringify(detail ?? "").includes("adresse_etablissement");
-                toast.error(message);
+                notifier.echec(refusAdresse ? { fr: message, en: message } : { fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: result.error });
                 return { ok: false, refusAdresse: result.response?.status === 422 && refusAdresse ? message : null };
             }
             if (!result.data) {
-                toast.error("Failed to save preferences");
+                notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
                 return { ok: false, refusAdresse: null };
             }
 
             setEnregistrees(versFormulaire(result.data));
             await refreshConfig();
-            toast.success(messageSucces);
+            notifier.succes(messageSucces);
             return { ok: true, refusAdresse: null };
         } catch {
-            toast.error("Failed to save preferences");
+            notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
             return { ok: false, refusAdresse: null };
         } finally {
             setEnCours(false);

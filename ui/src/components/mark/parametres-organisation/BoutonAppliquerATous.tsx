@@ -14,7 +14,7 @@
  * the organization has a single establishment (nobody to apply it to).
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { appliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPost } from "@/client/sdk.gen";
 import type { DemandeAppliquerATous, ResultatAppliquerATous } from "@/client/types.gen";
@@ -80,12 +80,10 @@ export function BoutonAppliquerATous({
         }
         setOuverte(false);
         const n = reponse.data.etablissements?.length ?? 0;
-        toast.success(
-            t({
-                en: `Applied to ${n} other establishment(s).`,
-                fr: `Appliqué aux ${n} autres établissements.`,
-            }),
-        );
+        notifier.succes({
+            en: `Applied to the ${n} other establishments.`,
+            fr: `Appliqué aux ${n} autres établissements.`,
+        });
         await onApplique(reponse.data);
     };
 

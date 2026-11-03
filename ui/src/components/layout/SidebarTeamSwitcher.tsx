@@ -2,7 +2,7 @@
 
 import type { CurrentUser, Team } from "@stackframe/stack";
 import React, { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import SpinLoader from "@/components/SpinLoader";
 import { useAuth } from "@/lib/auth";
@@ -45,7 +45,7 @@ function SidebarTeamSwitcherContent({ user }: { user: CurrentUser }) {
       reloadApp();
     } catch (error) {
       logger.error("Failed to switch Stack team", error);
-      toast.error("Could not switch teams. Please try again.");
+      notifier.echec({ fr: "Changement impossible. Réessayez.", en: "Could not switch team. Try again." });
       setIsSwitching(false);
     }
   };

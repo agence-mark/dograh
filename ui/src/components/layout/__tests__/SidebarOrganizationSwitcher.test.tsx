@@ -12,6 +12,7 @@
  * next page load. Rendering nothing is the correct behaviour, and it is the
  * kind of thing a refactor removes without any screen looking broken.
  */
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React, { type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,7 +29,6 @@ const mocks = vi.hoisted(() => ({
   createOrganization: vi.fn(),
   selectOrganization: vi.fn(),
   reloadApp: vi.fn(),
-  toastError: vi.fn(),
 }));
 
 vi.mock("@/lib/organizationMembership", () => ({
@@ -39,7 +39,6 @@ vi.mock("@/lib/organizationMembership", () => ({
 
 vi.mock("@/lib/browserReload", () => ({ reloadApp: mocks.reloadApp }));
 
-vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 
 vi.mock("@/lib/logger", () => ({
   default: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -105,6 +104,7 @@ function renderSwitcher(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  viderNotifications();
   mocks.listOrganizations.mockResolvedValue([NUANCES, VERANDA]);
 });
 
@@ -176,9 +176,9 @@ describe("SidebarOrganizationSwitcher", () => {
     fireEvent.click(screen.getByText("Create"));
 
     await waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        "An organization with this identifier already exists",
-      ),
+      expect(lireNotifications().map((n) => [n.sorte, n.texte.en, n.detail])).toEqual([
+        ["echec", "Organization not created. Try again.", "An organization with this identifier already exists"],
+      ]),
     );
     expect(mocks.reloadApp).not.toHaveBeenCalled();
   });

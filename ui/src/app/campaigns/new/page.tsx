@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 
 import {
@@ -32,7 +34,12 @@ import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../Ca
 import CsvUploadSelector from '../CsvUploadSelector';
 import TrafficSplitEditor, { trafficSplitError } from '../TrafficSplitEditor';
 
+type Erreurs = Partial<Record<'nom' | 'repartition' | 'telephonie' | 'source' | 'simultanes' | 'cadence', string>>;
+
 export default function NewCampaignPage() {
+    const { t } = useLangue();
+    const [erreurs, setErreurs] = useState<Erreurs>({});
+    const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const router = useRouter();
 
@@ -210,21 +217,25 @@ export default function NewCampaignPage() {
         e.preventDefault();
         setCreateError(null);
 
-        if (!campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId) {
-            notifier.echec({ fr: "Remplissez tous les champs.", en: "Fill in all fields." });
-            return;
-        }
+        const fautes: Erreurs = {};
+        if (!campaignName) fautes.nom = t({ fr: "Donnez un nom à la campagne.", en: "Give the campaign a name." });
+        if (trafficSplitError(variants)) fautes.repartition = t({ fr: "Corrigez la répartition du trafic.", en: "Fix the traffic split." });
+        if (!selectedTelephonyConfigId) fautes.telephonie = t({ fr: "Choisissez une configuration de téléphonie.", en: "Choose a telephony configuration." });
+        if (!sourceId) fautes.source = t({ fr: "Choisissez un fichier de contacts.", en: "Choose a contacts file." });
 
         const maxConcurrencyValue = maxConcurrency ? Number(maxConcurrency) : null;
         if (maxConcurrencyValue !== null && (
             !Number.isInteger(maxConcurrencyValue) || maxConcurrencyValue < 1 || maxConcurrencyValue > effectiveLimit
         )) {
-            notifier.echec({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
-            return;
+            fautes.simultanes = t({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
         }
         const dialRate = Number(rateLimitPerSecond);
         if (!Number.isInteger(dialRate) || dialRate < 1 || dialRate > orgConcurrentLimit) {
-            notifier.echec({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
+            fautes.cadence = t({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
+        }
+        setErreurs(fautes);
+        if (Object.keys(fautes).length > 0) {
+            if (fautes.simultanes || fautes.cadence) setShowAdvancedSettings(true);
             return;
         }
 
@@ -343,16 +354,23 @@ export default function NewCampaignPage() {
                                     id="campaign-name"
                                     placeholder="Enter campaign name"
                                     value={campaignName}
-                                    onChange={(e) => setCampaignName(e.target.value)}
+                                    onChange={(e) => {
+                                        setCampaignName(e.target.value);
+                                        effacer('nom');
+                                    }}
                                     maxLength={255}
                                     required
+                                    aria-invalid={!!erreurs.nom}
+                                    aria-describedby={erreurs.nom ? 'campaign-name-erreur' : undefined}
                                 />
+                                <ErreurChamp id="campaign-name-erreur">{erreurs.nom}</ErreurChamp>
                                 <p className="text-sm text-muted-foreground">
                                     Choose a descriptive name for your campaign
                                 </p>
                             </div>
 
-                            <TrafficSplitEditor value={variants} onChange={setVariants} disabled={isSubmitting} />
+                            <TrafficSplitEditor value={variants} onChange={(v) => { setVariants(v); effacer('repartition'); }} disabled={isSubmitting} />
+                            <ErreurChamp>{erreurs.repartition}</ErreurChamp>
 
                             <div className="space-y-2">
                                 <Label htmlFor="telephony-config">Telephony Configuration</Label>
@@ -395,6 +413,7 @@ export default function NewCampaignPage() {
                                         </SelectContent>
                                     </Select>
                                 )}
+                                <ErreurChamp>{erreurs.telephonie}</ErreurChamp>
                                 <p className="text-sm text-muted-foreground">
                                     Outbound calls for this campaign will use this configuration&apos;s caller IDs
                                 </p>
@@ -427,6 +446,7 @@ export default function NewCampaignPage() {
                                 onFileUploaded={handleFileUploaded}
                                 selectedFileName={selectedFileName}
                             />
+                            <ErreurChamp>{erreurs.source}</ErreurChamp>
 
                             {/* Advanced Settings */}
                             <Collapsible
@@ -445,12 +465,13 @@ export default function NewCampaignPage() {
                                 <CollapsibleContent className="px-4 pb-4">
                                     <CampaignAdvancedSettings
                                         maxConcurrency={maxConcurrency}
-                                        onMaxConcurrencyChange={setMaxConcurrency}
+                                        onMaxConcurrencyChange={(v) => { setMaxConcurrency(v); effacer('simultanes'); }}
+                                        erreurs={erreurs}
                                         effectiveLimit={effectiveLimit}
                                         orgConcurrentLimit={orgConcurrentLimit}
                                         fromNumbersCount={availableFromNumbersCount}
                                         rateLimitPerSecond={rateLimitPerSecond}
-                                        onRateLimitPerSecondChange={setRateLimitPerSecond}
+                                        onRateLimitPerSecondChange={(v) => { setRateLimitPerSecond(v); effacer('cadence'); }}
                                         outboundBlockedReason={selectedTelephonyConfig?.outbound_blocked_reason}
                                         retryEnabled={retryEnabled}
                                         onRetryEnabledChange={setRetryEnabled}

@@ -9,6 +9,7 @@
  * de chaque outil (Autorisé, Confirmer avec l'appelant, Désactivé : un outil désactivé n'est jamais proposé au
  * modèle) et le comportement commun à tous ses outils.
  */
+import { notifier } from "@/components/mark/notifications";
 import { Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -133,6 +134,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
             ? await updateToolApiV1ToolsToolUuidPut({ path: { tool_uuid: serveur.tool_uuid }, body: { name: nom.trim(), definition: definition as never } })
             : await createToolApiV1ToolsPost({ body: { name: nom.trim(), category: "mcp", definition: definition as never } });
         if (r.error) return setErreur(detailFromError(r.error, "Failed to save the server"));
+        notifier.succes({ fr: "Serveur enregistré.", en: "Server saved." });
         apres();
         fermer();
     };

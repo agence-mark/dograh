@@ -4,6 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 
 import {
@@ -24,7 +26,12 @@ import { useAuth } from '@/lib/auth';
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../../CampaignAdvancedSettings';
 import TrafficSplitEditor, { trafficSplitError } from '../../TrafficSplitEditor';
 
+type Erreurs = Partial<Record<'nom' | 'repartition' | 'simultanes' | 'cadence' | 'plages', string>>;
+
 export default function EditCampaignPage() {
+    const { t } = useLangue();
+    const [erreurs, setErreurs] = useState<Erreurs>({});
+    const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const router = useRouter();
     const params = useParams();
@@ -182,43 +189,31 @@ export default function EditCampaignPage() {
         e.preventDefault();
         setSubmitError(null);
 
-        if (!campaignName.trim()) {
-            notifier.echec({ fr: "Donnez un nom à la campagne.", en: "Give the campaign a name." });
-            return;
-        }
-
-        const splitError = trafficSplitError(variants);
-        if (splitChanged && splitError) {
-            notifier.echec({ fr: "Plages horaires incorrectes. Corrigez-les.", en: "Invalid time slots. Fix them." }, { erreur: splitError });
-            return;
-        }
+        const fautes: Erreurs = {};
+        if (!campaignName.trim()) fautes.nom = t({ fr: "Donnez un nom à la campagne.", en: "Give the campaign a name." });
+        if (splitChanged && trafficSplitError(variants)) fautes.repartition = t({ fr: "Corrigez la répartition du trafic.", en: "Fix the traffic split." });
 
         const maxConcurrencyValue = maxConcurrency ? Number(maxConcurrency) : null;
         if (maxConcurrencyValue !== null && (
             !Number.isInteger(maxConcurrencyValue) || maxConcurrencyValue < 1 || maxConcurrencyValue > effectiveLimit
         )) {
-            notifier.echec({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
-            return;
+            fautes.simultanes = t({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
         }
         const dialRate = Number(rateLimitPerSecond);
         if (!Number.isInteger(dialRate) || dialRate < 1 || dialRate > orgConcurrentLimit) {
-            notifier.echec({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
-            return;
+            fautes.cadence = t({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
         }
 
         // Validate schedule slots if enabled
         if (scheduleEnabled) {
             if (timeSlots.length === 0) {
-                notifier.echec({ fr: "Ajoutez au moins une plage horaire.", en: "Add at least one time slot." });
-                return;
-            }
-            for (const slot of timeSlots) {
-                if (slot.start_time >= slot.end_time) {
-                    notifier.echec({ fr: "Chaque plage doit finir après son début.", en: "Each slot must end after it starts." });
-                    return;
-                }
+                fautes.plages = t({ fr: "Ajoutez au moins une plage horaire.", en: "Add at least one time slot." });
+            } else if (timeSlots.some((slot) => slot.start_time >= slot.end_time)) {
+                fautes.plages = t({ fr: "Chaque plage doit finir après son début.", en: "Each slot must end after it starts." });
             }
         }
+        setErreurs(fautes);
+        if (Object.keys(fautes).length > 0) return;
 
         setIsSubmitting(true);
 
@@ -344,24 +339,32 @@ export default function EditCampaignPage() {
                                 id="campaign-name"
                                 placeholder="Enter campaign name"
                                 value={campaignName}
-                                onChange={(e) => setCampaignName(e.target.value)}
+                                onChange={(e) => {
+                                    setCampaignName(e.target.value);
+                                    effacer('nom');
+                                }}
                                 maxLength={255}
                                 required
+                                aria-invalid={!!erreurs.nom}
+                                aria-describedby={erreurs.nom ? 'campaign-name-erreur' : undefined}
                             />
+                            <ErreurChamp id="campaign-name-erreur">{erreurs.nom}</ErreurChamp>
                         </div>
 
                         <Separator />
 
-                        <TrafficSplitEditor value={variants} onChange={value => { setVariants(value); setSplitChanged(true); }} disabled={isSubmitting} editing />
+                        <TrafficSplitEditor value={variants} onChange={value => { setVariants(value); setSplitChanged(true); effacer('repartition'); }} disabled={isSubmitting} editing />
+                        <ErreurChamp>{erreurs.repartition}</ErreurChamp>
 
                         <CampaignAdvancedSettings
                             maxConcurrency={maxConcurrency}
-                            onMaxConcurrencyChange={setMaxConcurrency}
+                            onMaxConcurrencyChange={(v) => { setMaxConcurrency(v); effacer('simultanes'); }}
+                            erreurs={erreurs}
                             effectiveLimit={effectiveLimit}
                             orgConcurrentLimit={orgConcurrentLimit}
                             fromNumbersCount={fromNumbersCount}
                             rateLimitPerSecond={rateLimitPerSecond}
-                            onRateLimitPerSecondChange={setRateLimitPerSecond}
+                            onRateLimitPerSecondChange={(v) => { setRateLimitPerSecond(v); effacer('cadence'); }}
                             outboundBlockedReason={outboundBlockedReason}
                             retryEnabled={retryEnabled}
                             onRetryEnabledChange={setRetryEnabled}
@@ -380,7 +383,7 @@ export default function EditCampaignPage() {
                             scheduleTimezone={scheduleTimezone}
                             onScheduleTimezoneChange={setScheduleTimezone}
                             timeSlots={timeSlots}
-                            onTimeSlotsChange={setTimeSlots}
+                            onTimeSlotsChange={(v) => { setTimeSlots(v); effacer('plages'); }}
                             circuitBreakerEnabled={circuitBreakerEnabled}
                             onCircuitBreakerEnabledChange={setCircuitBreakerEnabled}
                             circuitBreakerFailureThreshold={circuitBreakerFailureThreshold}

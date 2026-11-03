@@ -2,7 +2,7 @@
 
 import { ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { lireLeJournalApiV1EquipeMarkJournalGet } from "@/client/sdk.gen";
 import type { JournalLigne } from "@/client/types.gen";
@@ -10,7 +10,6 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
-import { detailFromError } from "@/lib/apiError";
 import { listerEspaces } from "@/lib/espaces";
 
 /** Les gestes écrits au journal, dits en clair ; une clé inconnue s'affiche telle quelle (jamais masquée). */
@@ -56,7 +55,7 @@ export function VueJournal() {
     useEffect(() => {
         lireLeJournalApiV1EquipeMarkJournalGet({ query: fenetrePage(page) }).then((res) => {
             if (res.error || !res.data) {
-                toast.error(detailFromError(res.error, t({ en: "The journal could not be read", fr: "Le journal n'a pas pu être lu" })));
+                notifier.echec({ fr: "Journal illisible. Rechargez la page.", en: "Could not load the journal. Reload the page." }, { erreur: res.error });
                 return;
             }
             setDonnees({ lignes: res.data.lignes, total: res.data.total });

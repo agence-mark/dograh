@@ -2,7 +2,7 @@
 
 import { Copy, Eye, EyeOff, Key, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     archiveApiKeyApiV1UserApiKeysApiKeyIdDelete,
@@ -178,10 +178,10 @@ export default function APIKeysPage() {
     const copyToClipboard = async (text: string) => {
         try {
             await copyTextToClipboard(text);
-            toast.success('Key copied to clipboard');
+            notifier.succes({ fr: "Clé copiée.", en: "Key copied." });
         } catch (err) {
             console.error('Failed to copy to clipboard:', err);
-            toast.error('Failed to copy key');
+            notifier.echec({ fr: "Copie impossible. Sélectionnez la clé à la main.", en: "Could not copy. Select the key by hand." });
         }
     };
 

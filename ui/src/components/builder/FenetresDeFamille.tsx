@@ -54,13 +54,11 @@ export function FenetreNouvelleFamille({ ouverte, fermer, apres }: { ouverte: bo
                     ],
                 },
             ]}
+            verifier={(v) => (slugDe(String(v.libelle).trim()) ? null : { libelle: t({ en: "Give the family a name.", fr: "Donnez un nom à la famille." }) })}
             onValider={async (v) => {
                 const libelle = String(v.libelle).trim();
                 const slug = slugDe(libelle);
-                if (!slug) {
-                    notifier.echec({ fr: "Donnez un nom à la famille.", en: "Give the family a name." });
-                    return;
-                }
+                if (!slug) return;
                 const reponse = await creerUneFamilleApiV1BuilderBibliothequeFamillesPost({
                     body: {
                         slug,

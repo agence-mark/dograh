@@ -10,7 +10,7 @@
  */
 import { Plus, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
@@ -145,7 +145,7 @@ function ModaleEquipe({ ouverte, onFermer }: { ouverte: boolean; onFermer: (enre
             setErreur(detailFromError(reponse.error, "Team not saved"));
             return;
         }
-        toast.success(t({ en: "Team saved", fr: "Équipe enregistrée" }));
+        notifier.succes({ fr: "Équipe enregistrée.", en: "Team saved." });
         onFermer(true);
     };
 

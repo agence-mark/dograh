@@ -28,7 +28,7 @@
  */
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getEtablissementsApiV1OrganizationsEtablissementsGet,
@@ -438,7 +438,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
             }
         }
         setEnCours(false);
-        toast.success(t(ETABLISSEMENTS_ENREGISTRES));
+        notifier.succes({ fr: "Établissements enregistrés.", en: "Establishments saved." });
         onFermer(true);
     };
 
