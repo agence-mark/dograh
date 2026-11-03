@@ -145,6 +145,12 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/espaces$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
+    # ------------------------------------------------------------------ Hub « Relation clients » (U3 septies, E78)
+    # Le Hub exige une SESSION d'équipe (la route refuse une clé d'API) ; le lien d'entrée dans un portail exige en plus la permission.
+    _r({"POST"}, r"^/relation/clients/\{organization_id\}/entree$", P("clients.ouvrir_portail")),
+    _r(TOUTES, r"^/relation(/.*)?$", MEMBRE, par_defaut=True),
+    # Côté portail : clé d'API du client seulement (la route refuse une session) ; une clé ne lit que son organisation.
+    _r(TOUTES, r"^/organizations/relation(/.*)?$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ organisation
     _r({"POST"}, r"^/organizations$", P("clients.creer")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
