@@ -88,6 +88,8 @@ CLES_THEME_AGENT: tuple[str, ...] = (
     "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
+    # U3 quinquies (B2) : la sécurité de la conversation vaut pour tout le groupe ; un spécialisé ne la perd jamais.
+    "securite_conversation",
 )
 
 CLES_THEME_BRIQUES: tuple[str, ...] = (

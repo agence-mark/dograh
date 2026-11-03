@@ -2293,6 +2293,20 @@ export type CataloguePhrases = {
 };
 
 /**
+ * CatalogueVariables
+ */
+export type CatalogueVariables = {
+    /**
+     * Sources
+     */
+    sources: Array<string>;
+    /**
+     * Variables
+     */
+    variables: Array<VariableCatalogue>;
+};
+
+/**
  * CeQueLAgentNeDitJamais
  */
 export type CeQueLAgentNeDitJamais = {
@@ -2318,6 +2332,28 @@ export type CeQueLAgentNeDitJamais = {
      * What is said instead of a recited reply; empty = the code's text.
      */
     phrase?: string;
+};
+
+/**
+ * ChampCitant
+ */
+export type ChampCitant = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Champ
+     */
+    champ: string;
 };
 
 /**
@@ -2665,6 +2701,20 @@ export type CircuitBreakerConfigResponse = {
      * Min Calls In Window
      */
     min_calls_in_window?: number;
+};
+
+/**
+ * CitationsDeVariable
+ */
+export type CitationsDeVariable = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Champs
+     */
+    champs: Array<ChampCitant>;
 };
 
 /**
@@ -16622,6 +16672,32 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VariableCatalogue
+ */
+export type VariableCatalogue = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Exemple
+     */
+    exemple?: string;
+    /**
+     * Description
+     */
+    description?: string;
 };
 
 /**
@@ -33312,6 +33388,102 @@ export type DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses = {
      */
     200: unknown;
 };
+
+export type LireLeCatalogueApiV1MarkVariablesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Agent
+         */
+        agent?: number | null;
+    };
+    url: '/api/v1/mark/variables';
+};
+
+export type LireLeCatalogueApiV1MarkVariablesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeCatalogueApiV1MarkVariablesGetError = LireLeCatalogueApiV1MarkVariablesGetErrors[keyof LireLeCatalogueApiV1MarkVariablesGetErrors];
+
+export type LireLeCatalogueApiV1MarkVariablesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueVariables;
+};
+
+export type LireLeCatalogueApiV1MarkVariablesGetResponse = LireLeCatalogueApiV1MarkVariablesGetResponses[keyof LireLeCatalogueApiV1MarkVariablesGetResponses];
+
+export type LireLesCitationsApiV1MarkVariablesCitationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    url: '/api/v1/mark/variables/citations';
+};
+
+export type LireLesCitationsApiV1MarkVariablesCitationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesCitationsApiV1MarkVariablesCitationsGetError = LireLesCitationsApiV1MarkVariablesCitationsGetErrors[keyof LireLesCitationsApiV1MarkVariablesCitationsGetErrors];
+
+export type LireLesCitationsApiV1MarkVariablesCitationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CitationsDeVariable;
+};
+
+export type LireLesCitationsApiV1MarkVariablesCitationsGetResponse = LireLesCitationsApiV1MarkVariablesCitationsGetResponses[keyof LireLesCitationsApiV1MarkVariablesCitationsGetResponses];
 
 export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetData = {
     body?: never;
