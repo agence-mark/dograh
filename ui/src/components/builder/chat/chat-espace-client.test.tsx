@@ -15,9 +15,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { adressesDe } from "./adresses";
 
-const m = vi.hoisted(() => ({ chemin: "/clients/7/builder", push: vi.fn() }));
+const m = vi.hoisted(() => ({ chemin: "/clients/7/builder", push: vi.fn(), session: { user: { id: "u" }, loading: false } }));
 vi.mock("next/navigation", () => ({ usePathname: () => m.chemin, useRouter: () => ({ push: m.push }), useParams: () => ({}) }));
-vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
+// Un objet stable : le vrai `useAuth` ne rend pas un nouvel utilisateur à chaque rendu (les effets en dépendent).
+vi.mock("@/lib/auth", () => ({ useAuth: () => m.session }));
 vi.mock("@/components/mark/studio/nom-espace", () => ({ useNomEspace: (_e: string, org: string | null) => (org === "7" ? "Nuances de Feu" : "Labo") }));
 vi.mock("@/client", () => ({
     getWorkflowsSummaryApiV1WorkflowSummaryGet: vi.fn(async () => ({ data: [] })),
@@ -26,6 +27,7 @@ vi.mock("@/client", () => ({
     lireLesDemarragesApiV1BuilderDemarragesGet: vi.fn(async () => ({ data: [] })),
     listerLesFilsApiV1BuilderFilsGet: vi.fn(async () => ({ data: [{ id: 9, titre: "Un chat", etat: "terminee", changements: 0, cout: 0.1 }] })),
     ouvrirUnFilApiV1BuilderFilsPost: vi.fn(),
+    lireLesAmeliorationsApiV1AmeliorationsGet: vi.fn(async () => ({ data: { lignes: [], page: 0, a_une_suite: false, compteurs: {} } })),
 }));
 
 afterEach(cleanup);
@@ -67,6 +69,14 @@ describe("l'écran dans l'espace d'un client", () => {
         expect(await screen.findByText(/Que construit-on pour Nuances de Feu \?|What do we build for Nuances de Feu \?/)).toBeTruthy();
         const cout = await screen.findByText(/un-modele/);
         expect(cout.closest("a")).toBeNull();
+    });
+    it("l'accueil d'un client a sa section « À améliorer » (état « fait » quand rien n'attend) avec le lien de son espace", async () => {
+        m.chemin = "/clients/7/builder";
+        const { default: PageAccueil } = await import("./PageAccueil");
+        render(<PageAccueil />);
+        expect(await screen.findByText(/Rien à améliorer|Nothing to improve/)).toBeTruthy();
+        const liens = screen.getAllByRole("link", { name: /Tout voir|See all/ }).map((l) => l.getAttribute("href"));
+        expect(liens).toContain("/clients/7/a-ameliorer");
     });
     it("le chat d'un client ouvre ses conversations chez lui", async () => {
         m.chemin = "/clients/7/chat";

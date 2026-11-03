@@ -29,6 +29,7 @@ const m = vi.hoisted(() => ({
     personnes: vi.fn(),
     fil: vi.fn(),
     qualite: vi.fn(),
+    sources: vi.fn(),
     push: vi.fn(),
 }));
 
@@ -43,6 +44,10 @@ vi.mock("@/client", () => ({
     lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => m.personnes(),
     ouvrirUnFilApiV1BuilderFilsPost: (o: unknown) => m.fil(o),
     lireLaQualiteApiV1QualiteGet: (o: unknown) => m.qualite(o),
+    lireLesSourcesApiV1BuilderSourcesGet: () => m.sources(),
+    lireLeMiroirApiV1BuilderMiroirReglageGet: vi.fn(),
+    reglerLeMiroirApiV1BuilderMiroirReglagePut: vi.fn(),
+    reglerUneSourceApiV1BuilderSourcesBriquePut: vi.fn(),
 }));
 // Un objet stable : le vrai `useAuth` ne rend pas un nouvel utilisateur à chaque rendu (les effets en dépendent).
 const SESSION = vi.hoisted(() => ({ user: { id: "u-1" }, loading: false }));
@@ -77,6 +82,7 @@ beforeEach(() => {
     m.personnes.mockResolvedValue({ data: [{ id: 5, nom: "equipe@exemple.test" }] });
     m.fil.mockResolvedValue({ data: { id: 99 } });
     m.qualite.mockResolvedValue({ data: QUALITE });
+    m.sources.mockResolvedValue({ data: { sources: { juge_appels: "cle_api" } } });
 });
 afterEach(() => {
     cleanup();
@@ -129,6 +135,23 @@ describe("La liste de « À améliorer »", () => {
         fireEvent.click(onglet);
         expect(await screen.findByText("Dépannage")).toBeTruthy();
         expect(screen.getByText("1 min 15 s")).toBeTruthy();
+    });
+
+    it("juge des vrais appels sur Claude Code : l'onglet « À juger » existe même vide et dit « Rien à juger »", async () => {
+        m.sources.mockResolvedValue({ data: { sources: { juge_appels: "claude_code" } } });
+        monter(<PageAAmeliorer />);
+        const onglet = await screen.findByRole("tab", { name: /À juger/ });
+        expect(onglet.textContent).toContain("0");
+        fireEvent.click(onglet);
+        expect(await screen.findByText("Rien à juger")).toBeTruthy();
+        expect(document.querySelector("table")).toBeNull();
+    });
+
+    it("une lecture refusée (403) montre l'état « accès », pas une erreur à réessayer", async () => {
+        m.liste.mockResolvedValue({ error: { detail: "x" }, response: { status: 403 } });
+        monter(<PageAAmeliorer />);
+        expect(await screen.findByText(/Réservé aux administrateurs/)).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /Réessayer/ })).toBeNull();
     });
 
     it("liste les pannes avec leur type et si le client a été prévenu", async () => {

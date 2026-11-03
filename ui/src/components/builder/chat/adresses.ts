@@ -18,6 +18,8 @@ export type AdressesDuBuilder = {
     fil: (id: number) => string;
     /** La liste des chats de l'espace. */
     liste: string;
+    /** La page « À améliorer » de l'espace. */
+    aAmeliorer: string;
     /** Les réglages du builder : propres au Labo (le coût se prend sur la clé du Labo). */
     reglages: string | null;
 };
@@ -25,8 +27,8 @@ export type AdressesDuBuilder = {
 export const adressesDe = (pathname: string): Omit<AdressesDuBuilder, "nomDuClient"> & { org: string | null } => {
     const { espace, base, org } = espaceDe(pathname);
     return espace === "client"
-        ? { client: true, org, fil: (id) => `${base}/chat/${id}`, liste: `${base}/chat`, reglages: null }
-        : { client: false, org: null, fil: (id) => `/labo/builder/${id}`, liste: "/labo/builder", reglages: "/labo/reglages" };
+        ? { client: true, org, fil: (id) => `${base}/chat/${id}`, liste: `${base}/chat`, aAmeliorer: `${base}/a-ameliorer`, reglages: null }
+        : { client: false, org: null, fil: (id) => `/labo/builder/${id}`, liste: "/labo/builder", aAmeliorer: "/labo/a-ameliorer", reglages: "/labo/reglages" };
 };
 
 export function useAdressesDuBuilder(): AdressesDuBuilder {

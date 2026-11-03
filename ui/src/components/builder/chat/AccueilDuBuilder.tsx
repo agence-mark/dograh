@@ -17,6 +17,7 @@ import {
     ouvrirUnFilApiV1BuilderFilsPost,
     type VueDemarrage,
 } from "@/client";
+import { SectionAAmeliorer } from "@/components/mark/ameliorer/SectionAAmeliorer";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { AvertissementClaudeCode } from "@/components/mark/sources/marques";
 import { useSources } from "@/components/mark/sources/useSources";
@@ -260,6 +261,7 @@ export function AccueilDuBuilder() {
                     )}
                 </div>
             </section>
+            <SectionAAmeliorer lien={adresses.aAmeliorer} />
             <section>
                 <div className="flex items-center gap-2 pb-3">
                     <MessageSquare className="size-4 text-muted-foreground" aria-hidden />
