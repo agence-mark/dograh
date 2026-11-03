@@ -1,21 +1,17 @@
 'use client';
 
 import {
-    Bot,
     Check,
     ChevronRight,
     Copy,
     Download,
     ExternalLink,
-    FileText,
-    Loader2,
-    Pause,
-    Play,
-    Video,
+    Phone,
+    Star,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import WorkflowLayout from '@/app/workflow/WorkflowLayout';
 import {
@@ -24,26 +20,28 @@ import {
 } from '@/client/sdk.gen';
 import { BoutonCreerUnTest } from '@/components/builder/tests/BoutonCreerUnTest';
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
-import { FenetreDuRun, useAnalyseDuRun } from '@/components/mark/fenetre-du-run/FenetreDuRun';
+import { JournalDesEvenements } from '@/components/mark/conversation/JournalDesEvenements';
+import { LecteurConversation } from '@/components/mark/conversation/LecteurConversation';
+import { titreDeLaConversation } from '@/components/mark/conversation/titre';
+import { FenetreDuRun, LigneNue, useAnalyseDuRun, VueTranscription } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
 import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { useLangue } from '@/components/mark/langue/langue';
 import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { useNomEspace } from '@/components/mark/studio/nom-espace';
 import { OngletsPage } from '@/components/mark/studio/onglets-page';
 import { EnteteStudio, PageStudio } from '@/components/mark/studio/shell-studio';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ConversationRailFrame, RealtimeFeedback, WorkflowRunLogs } from '@/components/workflow/conversation';
 import { WORKFLOW_RUN_MODES } from '@/constants/workflowRunModes';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { formatDateTime } from '@/lib/dateTime';
-import { downloadFile, getSignedUrl } from '@/lib/files';
-import { cn } from '@/lib/utils';
+import { downloadFile } from '@/lib/files';
 
 interface WorkflowRunResponse {
     mode: string;
@@ -61,31 +59,34 @@ interface WorkflowRunResponse {
     gathered_context: Record<string, string | number | boolean | object> | null;
     logs: WorkflowRunLogs | null;
     annotations: Record<string, unknown> | null;
+    /** [.mark] V1b : la version de l'agent jouée et la note du juge (route de l'appel). */
+    version_number: number | null;
+    note_juge: number | null;
 }
 
-const WAVEFORM_BAR_COUNT = 96;
-type SplitTrackPlaybackMode = 'both' | 'user' | 'bot';
+type Contexte = Record<string, string | number | boolean | object> | null;
 
 /** Le canal de l'appel, dit comme la maquette (Navigateur, Clavier, Téléphone…). */
-function libelleDuCanal(mode?: string | null) {
+function libelleDuCanal(mode: string | null | undefined, t: (texte: { en: string; fr: string }) => string) {
     if (!mode) return '';
-    if (mode === WORKFLOW_RUN_MODES.SMALL_WEBRTC || mode === WORKFLOW_RUN_MODES.WEBRTC) return 'Navigateur';
-    if (mode === WORKFLOW_RUN_MODES.TEXTCHAT) return 'Clavier';
-    if (mode === WORKFLOW_RUN_MODES.SIMULATED) return 'Appelant simulé';
-    return 'Téléphone';
+    if (mode === WORKFLOW_RUN_MODES.SMALL_WEBRTC || mode === WORKFLOW_RUN_MODES.WEBRTC) return t({ en: 'Browser', fr: 'Navigateur' });
+    if (mode === WORKFLOW_RUN_MODES.TEXTCHAT) return t({ en: 'Keyboard', fr: 'Clavier' });
+    if (mode === WORKFLOW_RUN_MODES.SIMULATED) return t({ en: 'Simulated caller', fr: 'Appelant simulé' });
+    return t({ en: 'Phone', fr: 'Téléphone' });
 }
 
 function formatDuration(seconds?: number | null, langue: 'fr' | 'en' = 'en') {
-    if (seconds == null || Number.isNaN(seconds)) return 'N/A';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    if (seconds == null || Number.isNaN(seconds)) return '–';
+    const total = Math.round(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
     // [.mark] K2b : « 1 min 14 s » en français (maquette), « 1m 14s » en anglais.
     if (langue === 'fr') return mins === 0 ? `${secs} s` : `${mins} min ${secs} s`;
     if (mins === 0) return `${secs}s`;
     return `${mins}m ${secs}s`;
 }
 
-function getTranscriptMetrics(logs: WorkflowRunLogs | null, gatheredContext: Record<string, string | number | boolean | object> | null) {
+function getTranscriptMetrics(logs: WorkflowRunLogs | null, gatheredContext: Contexte) {
     const events = logs?.realtime_feedback_events ?? [];
     const userTurns = events.filter((event) => event.type === 'rtf-user-transcription' && event.payload.final).length;
     const botTurns = events.filter((event) => event.type === 'rtf-bot-text').length;
@@ -102,17 +103,9 @@ function getTranscriptMetrics(logs: WorkflowRunLogs | null, gatheredContext: Rec
     return { userTurns, botTurns, toolCalls, visitedNodes };
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-            <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
-        </div>
-    );
-}
-
 function CopyDebugIdButton({ label, value }: { label: string; value: string }) {
     const [copied, setCopied] = useState(false);
+    const { t } = useLangue();
 
     const handleCopy = async () => {
         try {
@@ -136,7 +129,7 @@ function CopyDebugIdButton({ label, value }: { label: string; value: string }) {
                 size="icon"
                 className="h-7 w-7 shrink-0"
                 onClick={handleCopy}
-                aria-label={`Copy ${label.toLowerCase()}`}
+                aria-label={`${t({ en: 'Copy', fr: 'Copier' })} : ${label}`}
             >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
@@ -144,363 +137,7 @@ function CopyDebugIdButton({ label, value }: { label: string; value: string }) {
     );
 }
 
-function buildWaveformPeaks(audioBuffer: AudioBuffer) {
-    const channel = audioBuffer.getChannelData(0);
-    const samplesPerBar = Math.max(1, Math.floor(channel.length / WAVEFORM_BAR_COUNT));
-
-    return Array.from({ length: WAVEFORM_BAR_COUNT }, (_, index) => {
-        const start = index * samplesPerBar;
-        const end = Math.min(start + samplesPerBar, channel.length);
-        let sum = 0;
-
-        for (let i = start; i < end; i += 1) {
-            sum += channel[i] * channel[i];
-        }
-
-        const rms = Math.sqrt(sum / Math.max(1, end - start));
-        return Math.max(0.08, Math.min(1, rms * 5));
-    });
-}
-
-async function loadWaveformPeaks(url: string) {
-    const response = await fetch(url);
-    const audioData = await response.arrayBuffer();
-    const AudioContextConstructor =
-        window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-            .webkitAudioContext;
-
-    if (!AudioContextConstructor) return null;
-
-    const audioContext = new AudioContextConstructor();
-    try {
-        const decoded = await audioContext.decodeAudioData(audioData);
-        return buildWaveformPeaks(decoded);
-    } finally {
-        void audioContext.close();
-    }
-}
-
-function getAudioDuration(audio: HTMLAudioElement | null) {
-    return audio && Number.isFinite(audio.duration) ? audio.duration : 0;
-}
-
-function getAudioTimelineState(audios: HTMLAudioElement[]) {
-    const duration = Math.max(0, ...audios.map((audio) => getAudioDuration(audio)));
-    const currentTime = Math.max(0, ...audios.map((audio) => audio.currentTime));
-
-    return { duration, currentTime };
-}
-
-function syncAudioCurrentTime(audio: HTMLAudioElement, startTime: number) {
-    const duration = getAudioDuration(audio);
-    audio.currentTime = Math.min(startTime, duration || startTime);
-}
-
-function WaveformLane({
-    peaks,
-    track,
-    position,
-    isActive,
-}: {
-    peaks: number[] | null;
-    track: 'user' | 'bot';
-    position: 'top' | 'bottom';
-    isActive: boolean;
-}) {
-    return (
-        <div
-            className={cn(
-                'absolute left-3 right-3 flex gap-0.5',
-                isActive ? 'opacity-85' : 'opacity-25',
-                position === 'top' ? 'top-5 h-12 items-end' : 'bottom-5 h-12 items-start'
-            )}
-        >
-            {peaks ? (
-                peaks.map((peak, index) => (
-                    <span
-                        key={`${track}-${index}`}
-                        className={cn(
-                            'min-h-1 flex-1 rounded-full',
-                            track === 'user' ? 'bg-muted-foreground' : 'bg-foreground'
-                        )}
-                        style={{ height: `${Math.round(peak * 100)}%` }}
-                    />
-                ))
-            ) : (
-                <div className="my-auto h-px w-full bg-border" />
-            )}
-        </div>
-    );
-}
-
-function SplitTracksSection({
-    userRecordingUrl,
-    botRecordingUrl,
-}: {
-    userRecordingUrl: string;
-    botRecordingUrl: string;
-}) {
-    const userAudioRef = useRef<HTMLAudioElement | null>(null);
-    const botAudioRef = useRef<HTMLAudioElement | null>(null);
-    const [signedUrls, setSignedUrls] = useState<{ user: string | null; bot: string | null }>({
-        user: null,
-        bot: null,
-    });
-    const [peaks, setPeaks] = useState<{ user: number[] | null; bot: number[] | null }>({
-        user: null,
-        bot: null,
-    });
-    const [isLoading, setIsLoading] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [playbackMode, setPlaybackMode] = useState<SplitTrackPlaybackMode>('both');
-
-    const getPlaybackAudios = (mode: SplitTrackPlaybackMode) => {
-        const audios: HTMLAudioElement[] = [];
-
-        if (mode !== 'bot' && userAudioRef.current) {
-            audios.push(userAudioRef.current);
-        }
-
-        if (mode !== 'user' && botAudioRef.current) {
-            audios.push(botAudioRef.current);
-        }
-
-        return audios;
-    };
-
-    useEffect(() => {
-        let isActive = true;
-        const userAudio = userAudioRef.current;
-        const botAudio = botAudioRef.current;
-
-        userAudio?.pause();
-        botAudio?.pause();
-        setSignedUrls({ user: null, bot: null });
-        setPeaks({ user: null, bot: null });
-        setIsPlaying(false);
-        setProgress(0);
-        setPlaybackMode('both');
-        setIsLoading(true);
-
-        async function loadTracks() {
-            try {
-                const [userUrl, botUrl] = await Promise.all([
-                    getSignedUrl(userRecordingUrl, true),
-                    getSignedUrl(botRecordingUrl, true),
-                ]);
-                if (!isActive) return;
-
-                setSignedUrls({ user: userUrl, bot: botUrl });
-                if (!userUrl || !botUrl) return;
-
-                const [userPeaks, botPeaks] = await Promise.all([
-                    loadWaveformPeaks(userUrl),
-                    loadWaveformPeaks(botUrl),
-                ]);
-
-                if (isActive) {
-                    setPeaks({ user: userPeaks, bot: botPeaks });
-                }
-            } catch (error) {
-                console.error('Error loading split track waveforms:', error);
-            } finally {
-                if (isActive) {
-                    setIsLoading(false);
-                }
-            }
-        }
-
-        void loadTracks();
-
-        return () => {
-            isActive = false;
-            userAudio?.pause();
-            botAudio?.pause();
-        };
-    }, [userRecordingUrl, botRecordingUrl]);
-
-    useEffect(() => {
-        if (!isPlaying) return;
-
-        let frameId: number;
-        const updateProgress = () => {
-            const activeAudios: HTMLAudioElement[] = [];
-
-            if (playbackMode !== 'bot' && userAudioRef.current) {
-                activeAudios.push(userAudioRef.current);
-            }
-
-            if (playbackMode !== 'user' && botAudioRef.current) {
-                activeAudios.push(botAudioRef.current);
-            }
-
-            const { duration, currentTime } = getAudioTimelineState(activeAudios);
-
-            setProgress(duration > 0 ? Math.min(1, currentTime / duration) : 0);
-            frameId = window.requestAnimationFrame(updateProgress);
-        };
-
-        frameId = window.requestAnimationFrame(updateProgress);
-        return () => window.cancelAnimationFrame(frameId);
-    }, [isPlaying, playbackMode]);
-
-    const pauseTracks = () => {
-        userAudioRef.current?.pause();
-        botAudioRef.current?.pause();
-        setIsPlaying(false);
-    };
-
-    const handleTrackEnded = () => {
-        const activeAudios = getPlaybackAudios(playbackMode);
-        const activeTracksDone = activeAudios.length > 0 && activeAudios.every((audio) => audio.ended);
-
-        if (activeTracksDone) {
-            setIsPlaying(false);
-            setProgress(1);
-        }
-    };
-
-    const handlePlaybackModeChange = async (nextMode: SplitTrackPlaybackMode) => {
-        if (nextMode === playbackMode) return;
-
-        const { currentTime } = getAudioTimelineState(getPlaybackAudios(playbackMode));
-        const nextAudios = getPlaybackAudios(nextMode);
-        const { duration } = getAudioTimelineState(nextAudios);
-        const startTime = duration > 0 && currentTime >= duration - 0.1 ? 0 : currentTime;
-
-        userAudioRef.current?.pause();
-        botAudioRef.current?.pause();
-        nextAudios.forEach((audio) => syncAudioCurrentTime(audio, startTime));
-        setPlaybackMode(nextMode);
-        setProgress(duration > 0 ? Math.min(1, startTime / duration) : 0);
-
-        if (!isPlaying) return;
-
-        if (nextAudios.length === 0) {
-            setIsPlaying(false);
-            return;
-        }
-
-        try {
-            await Promise.all(nextAudios.map((audio) => audio.play()));
-            setIsPlaying(true);
-        } catch (error) {
-            pauseTracks();
-            console.error('Error switching split track playback:', error);
-        }
-    };
-
-    const handleTrackButtonClick = (track: 'user' | 'bot') => {
-        const nextMode = playbackMode === track ? 'both' : track;
-        void handlePlaybackModeChange(nextMode);
-    };
-
-    const togglePlayback = async () => {
-        const playbackAudios = getPlaybackAudios(playbackMode);
-        if (!canPlay || playbackAudios.length === 0) return;
-
-        if (isPlaying) {
-            pauseTracks();
-            return;
-        }
-
-        const { duration, currentTime } = getAudioTimelineState(playbackAudios);
-        const startTime = duration > 0 && currentTime >= duration - 0.1 ? 0 : currentTime;
-
-        userAudioRef.current?.pause();
-        botAudioRef.current?.pause();
-        playbackAudios.forEach((audio) => syncAudioCurrentTime(audio, startTime));
-
-        try {
-            await Promise.all(playbackAudios.map((audio) => audio.play()));
-            setIsPlaying(true);
-        } catch (error) {
-            pauseTracks();
-            console.error('Error playing split tracks:', error);
-        }
-    };
-
-    const canPlay =
-        playbackMode === 'both'
-            ? Boolean(signedUrls.user && signedUrls.bot)
-            : playbackMode === 'user'
-                ? Boolean(signedUrls.user)
-                : Boolean(signedUrls.bot);
-    const progressPercent = Math.round(progress * 1000) / 10;
-    const userTrackActive = playbackMode !== 'bot';
-    const botTrackActive = playbackMode !== 'user';
-    const playbackTargetLabel = playbackMode === 'both' ? 'split tracks' : `${playbackMode} track`;
-
-    return (
-        <div className="flex items-center gap-4 rounded-xl border bg-card p-4" data-lecteur-conversation>
-            <audio ref={userAudioRef} src={signedUrls.user ?? undefined} preload="metadata" className="hidden" onEnded={handleTrackEnded} />
-            <audio ref={botAudioRef} src={signedUrls.bot ?? undefined} preload="metadata" className="hidden" onEnded={handleTrackEnded} />
-            <Button
-                type="button"
-                size="icon"
-                className="rounded-full"
-                onClick={togglePlayback}
-                disabled={!canPlay}
-                aria-label={isPlaying ? `Pause ${playbackTargetLabel}` : `Play ${playbackTargetLabel}`}
-            >
-                {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
-            </Button>
-            <div className="relative h-10 min-w-0 flex-1 overflow-hidden">
-                <WaveformLane peaks={peaks.user} track="user" position="top" isActive={userTrackActive} />
-                <WaveformLane peaks={peaks.bot} track="bot" position="bottom" isActive={botTrackActive} />
-                {canPlay && (
-                    <div className="pointer-events-none absolute inset-0">
-                        <div className="absolute bottom-0 top-0 w-px bg-foreground/50" style={{ left: `${progressPercent}%` }} />
-                    </div>
-                )}
-                {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs text-muted-foreground">
-                        <Loader2 className="mr-2 size-3.5 animate-spin" />
-                    </div>
-                )}
-            </div>
-            <span className="inline-flex rounded-md border p-0.5 text-xs" role="group" aria-label="Playback tracks">
-                <button
-                    type="button"
-                    aria-pressed={playbackMode === 'both'}
-                    onClick={() => playbackMode !== 'both' && handleTrackButtonClick(playbackMode === 'user' ? 'user' : 'bot')}
-                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'both' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
-                >
-                    Both tracks
-                </button>
-                <button
-                    type="button"
-                    aria-pressed={playbackMode === 'user'}
-                    aria-label={playbackMode === 'user' ? 'Play both tracks' : 'Play user track only'}
-                    onClick={() => handleTrackButtonClick('user')}
-                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'user' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
-                >
-                    Caller
-                </button>
-                <button
-                    type="button"
-                    aria-pressed={playbackMode === 'bot'}
-                    aria-label={playbackMode === 'bot' ? 'Play both tracks' : 'Play bot track only'}
-                    onClick={() => handleTrackButtonClick('bot')}
-                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'bot' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
-                >
-                    Agent
-                </button>
-            </span>
-            <span className="flex items-center">
-                <Button type="button" variant="ghost" size="icon" className="size-8" title="Download the caller track" aria-label="Download the caller track" onClick={() => downloadFile(userRecordingUrl)}>
-                    <Download className="size-4" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="size-8" title="Download the agent track" aria-label="Download the agent track" onClick={() => downloadFile(botRecordingUrl)}>
-                    <Bot className="size-4" />
-                </Button>
-            </span>
-        </div>
-    );
-}
-
+/** Les mesures de l'appel, en lignes nues (l'onglet Coûts). */
 function RunMetricsSection({
     costInfo,
     logs,
@@ -508,29 +145,29 @@ function RunMetricsSection({
 }: {
     costInfo: WorkflowRunResponse['cost_info'];
     logs: WorkflowRunLogs | null;
-    gatheredContext: Record<string, string | number | boolean | object> | null;
+    gatheredContext: Contexte;
 }) {
     const metrics = getTranscriptMetrics(logs, gatheredContext);
     const { t, langue } = useLangue();
 
     return (
-        <Card className="border-border">
-            <CardHeader className="pb-3">
-                <CardTitle className="text-lg">{t({ en: 'Run metrics', fr: "Mesures de l'appel" })}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <MetricCard label={t({ en: 'Duration', fr: 'Durée' })} value={formatDuration(costInfo?.call_duration_seconds, langue)} />
-                <MetricCard label={t({ en: 'Caller turns', fr: "Tours de l'appelant" })} value={String(metrics.userTurns)} />
-                <MetricCard label={t({ en: 'Agent turns', fr: "Tours de l'agent" })} value={String(metrics.botTurns)} />
-                <MetricCard label={t({ en: 'Tool calls', fr: "Appels d'outils" })} value={String(metrics.toolCalls)} />
-                <MetricCard label={t({ en: 'Steps visited', fr: 'Étapes visitées' })} value={String(metrics.visitedNodes)} />
-            </CardContent>
-        </Card>
+        <section data-testid="mesures-de-l-appel">
+            <p className="pb-1 text-base font-semibold">{t({ en: 'Run metrics', fr: "Mesures de l'appel" })}</p>
+            <div className="divide-y divide-border">
+                <LigneNue libelle={t({ en: 'Duration', fr: 'Durée' })}>{formatDuration(costInfo?.call_duration_seconds, langue)}</LigneNue>
+                <LigneNue libelle={t({ en: 'Caller turns', fr: "Tours de l'appelant" })}>{metrics.userTurns}</LigneNue>
+                <LigneNue libelle={t({ en: 'Agent turns', fr: "Tours de l'agent" })}>{metrics.botTurns}</LigneNue>
+                <LigneNue libelle={t({ en: 'Tool calls', fr: "Appels d'outils" })}>{metrics.toolCalls}</LigneNue>
+                <LigneNue libelle={t({ en: 'Steps visited', fr: 'Étapes visitées' })}>{metrics.visitedNodes}</LigneNue>
+            </div>
+        </section>
     );
 }
 
-function ContextDisplay({ title, context }: { title: string; context: Record<string, string | number | boolean | object> | null }) {
+/** Un contexte (initial, recueilli, contrôle qualité) en lignes nues : une clé, sa valeur ; « Copier » rend le JSON entier. */
+function ContextDisplay({ title, context }: { title: string; context: Contexte }) {
     const [copied, setCopied] = useState(false);
+    const { t } = useLangue();
 
     const handleCopy = async () => {
         if (!context) return;
@@ -543,37 +180,37 @@ function ContextDisplay({ title, context }: { title: string; context: Record<str
         }
     };
 
-    if (!context || Object.keys(context).length === 0) {
-        return (
-            <Card className="border-border">
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">No data available</p>
-                </CardContent>
-            </Card>
-        );
-    }
+    const entrees = context ? Object.entries(context) : [];
 
     return (
-        <Card className="border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg">{title}</CardTitle>
-                <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Copied' : 'Copy'}
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <pre className="text-sm bg-muted p-3 rounded-md overflow-auto max-h-64">
-                    {JSON.stringify(context, null, 2)}
-                </pre>
-            </CardContent>
-        </Card>
+        <section data-testid="contexte-de-l-appel">
+            <div className="flex items-center justify-between pb-1">
+                <p className="text-base font-semibold">{title}</p>
+                {entrees.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied ? t({ en: 'Copied', fr: 'Copié' }) : t({ en: 'Copy', fr: 'Copier' })}
+                    </Button>
+                )}
+            </div>
+            {entrees.length === 0 ? (
+                <p className="py-3 text-sm text-muted-foreground">{t({ en: 'No data', fr: 'Aucune donnée' })}</p>
+            ) : (
+                <div className="divide-y divide-border">
+                    {entrees.map(([cle, valeur]) => (
+                        <LigneNue key={cle} libelle={<span className="break-all font-mono text-xs">{cle}</span>}>
+                            {typeof valeur === 'object' && valeur !== null ? (
+                                <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{JSON.stringify(valeur, null, 2)}</pre>
+                            ) : (
+                                <span className="break-words">{String(valeur)}</span>
+                            )}
+                        </LigneNue>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
-
 
 /**
  * [.mark] U1 : l'adresse d'une conversation est `/conversations/<runId>?agent=<workflowId>` (aucune route d'API ne
@@ -591,6 +228,7 @@ export default function WorkflowRunPage() {
     const demande = Number(useSearchParams()?.get('creer_test'));
     const rangDemande = Number.isInteger(demande) && demande >= 1 ? demande : undefined;
     const [isLoading, setIsLoading] = useState(true);
+    const [enErreur, setEnErreur] = useState(false);
     const auth = useAuth();
     const organizationTimezone = useOrganizationTimezone();
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
@@ -609,82 +247,80 @@ export default function WorkflowRunPage() {
 
     const { openPreview, dialog } = MediaPreviewDialog();
 
+    const lireLAppel = useCallback(async () => {
+        if (!auth.isAuthenticated || auth.loading) return;
+
+        setIsLoading(true);
+        setEnErreur(false);
+        setWorkflowName(null);
+        const workflowId = Number(params.workflowId);
+        const runId = Number(params.runId);
+
+        try {
+            const [runResponse, workflowResponse] = await Promise.all([
+                getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet({
+                    path: {
+                        workflow_id: workflowId,
+                        run_id: runId,
+                    },
+                }),
+                getWorkflowApiV1WorkflowFetchWorkflowIdGet({
+                    path: {
+                        workflow_id: workflowId,
+                    },
+                }),
+            ]);
+
+            setWorkflowName(workflowResponse.data?.name ?? null);
+            if (runResponse.error) setEnErreur(true);
+            // La version et la note viennent de la route de l'appel ; le client d'API généré les porte une fois régénéré.
+            const lu = (runResponse.data ?? {}) as { version_number?: number | null; note_juge?: number | null };
+            const runData = {
+                mode: runResponse.data?.mode ?? '',
+                created_at: runResponse.data?.created_at ?? null,
+                is_completed: runResponse.data?.is_completed ?? false,
+                transcript_url: runResponse.data?.transcript_url ?? null,
+                recording_url: runResponse.data?.recording_url ?? null,
+                user_recording_url: runResponse.data?.user_recording_url ?? null,
+                bot_recording_url: runResponse.data?.bot_recording_url ?? null,
+                cost_info: runResponse.data?.cost_info ?? null,
+                initial_context: runResponse.data?.initial_context as Record<string, string> | null ?? null,
+                gathered_context: runResponse.data?.gathered_context as Record<string, string> | null ?? null,
+                logs: runResponse.data?.logs as WorkflowRunLogs | null ?? null,
+                annotations: runResponse.data?.annotations as Record<string, unknown> | null ?? null,
+                version_number: lu.version_number ?? null,
+                note_juge: lu.note_juge ?? null,
+            };
+            setWorkflowRun(runData);
+        } catch {
+            setEnErreur(true);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [params.workflowId, params.runId, auth.isAuthenticated, auth.loading]);
+
     useEffect(() => {
-        const fetchWorkflowRun = async () => {
-            if (!auth.isAuthenticated || auth.loading) return;
-
-            setIsLoading(true);
-            setWorkflowName(null);
-            const workflowId = Number(params.workflowId);
-            const runId = Number(params.runId);
-
-            try {
-                const [runResponse, workflowResponse] = await Promise.all([
-                    getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet({
-                        path: {
-                            workflow_id: workflowId,
-                            run_id: runId,
-                        },
-                    }),
-                    getWorkflowApiV1WorkflowFetchWorkflowIdGet({
-                        path: {
-                            workflow_id: workflowId,
-                        },
-                    }),
-                ]);
-
-                setWorkflowName(workflowResponse.data?.name ?? null);
-                const runData = {
-                    mode: runResponse.data?.mode ?? '',
-                    created_at: runResponse.data?.created_at ?? null,
-                    is_completed: runResponse.data?.is_completed ?? false,
-                    transcript_url: runResponse.data?.transcript_url ?? null,
-                    recording_url: runResponse.data?.recording_url ?? null,
-                    user_recording_url: runResponse.data?.user_recording_url ?? null,
-                    bot_recording_url: runResponse.data?.bot_recording_url ?? null,
-                    cost_info: runResponse.data?.cost_info ?? null,
-                    initial_context: runResponse.data?.initial_context as Record<string, string> | null ?? null,
-                    gathered_context: runResponse.data?.gathered_context as Record<string, string> | null ?? null,
-                    logs: runResponse.data?.logs as WorkflowRunLogs | null ?? null,
-                    annotations: runResponse.data?.annotations as Record<string, unknown> | null ?? null,
-                };
-                setWorkflowRun(runData);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchWorkflowRun();
-    }, [params.workflowId, params.runId, auth]);
+        void lireLAppel();
+    }, [lireLAppel]);
 
     let returnValue = null;
     const isTextChatRun = workflowRun?.mode === WORKFLOW_RUN_MODES.TEXTCHAT;
     const showRunDetailsView = Boolean(workflowRun?.is_completed || isTextChatRun);
-    const userSplitRecordingUrl = workflowRun?.user_recording_url ?? null;
-    const botSplitRecordingUrl = workflowRun?.bot_recording_url ?? null;
-    const hasSplitTracks = Boolean(userSplitRecordingUrl && botSplitRecordingUrl);
     const workflowId = String(params.workflowId);
     const runId = String(params.runId);
 
     if (isLoading) {
         returnValue = (
-            <div className="h-full flex items-center justify-center">
-                <div className="w-full max-w-4xl p-6">
-                    <Card>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-48" />
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                            <Skeleton className="h-4 w-1/2" />
-                        </CardContent>
-                        <CardFooter className="flex gap-4">
-                            <Skeleton className="h-10 w-32" />
-                            <Skeleton className="h-10 w-32" />
-                        </CardFooter>
-                    </Card>
-                </div>
-            </div>
+            <PageStudio>
+                <EtatVide cas="chargement" lignes={5} />
+            </PageStudio>
+        );
+    }
+    else if (enErreur) {
+        returnValue = (
+            <PageStudio>
+                <EtatVide cas="erreur" reessayer={() => void lireLAppel()} />
+            </PageStudio>
         );
     }
     else if (showRunDetailsView) {
@@ -692,9 +328,13 @@ export default function WorkflowRunPage() {
         // (Transcription, Journal des événements, Agents et outils, Phrases du code, Coûts, Contrôle qualité, Contexte),
         // « créer un test depuis cette réplique » dans la Transcription. Les volets restent montés ; l'analyse du run
         // est lue une seule fois et partagée entre les onglets.
+        // V1b : la forme de la maquette (titre « Motif · Issue », lecteur, transcription et colonne de droite).
         const analyseLue = { analyse: analyse.analyse, erreur: analyse.erreur };
         const idAgent = Number(params.workflowId);
         const idRun = Number(params.runId);
+        const nomDeLAgent = workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`;
+        const note = workflowRun?.note_juge ?? null;
+        const noteDite = note === null ? null : langue === 'fr' ? String(note).replace('.', ',') : String(note);
         returnValue = (
             <PageStudio>
                 <div data-page-conversation>
@@ -731,33 +371,46 @@ export default function WorkflowRunPage() {
                         }
                     />
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                        <h1 className="w-full text-2xl font-semibold tracking-tight">{workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`}</h1>
-                        <span className="text-muted-foreground">{libelleDuCanal(workflowRun?.mode)}</span>
-                        {workflowRun?.created_at && (
-                            <span className="text-muted-foreground">{formatDateTime(workflowRun.created_at, organizationTimezone, langue)}</span>
-                        )}
-                        {workflowRun?.cost_info?.call_duration_seconds != null && (
-                            <span className="text-muted-foreground">{formatDuration(workflowRun.cost_info.call_duration_seconds, langue)}</span>
+                        <h1 className="w-full text-2xl font-semibold tracking-tight" data-titre-conversation>
+                            {titreDeLaConversation(workflowRun?.gathered_context ?? null, nomDeLAgent)}
+                        </h1>
+                        <span className="text-muted-foreground">
+                            {nomDeLAgent}
+                            {workflowRun?.version_number != null && ` · v${workflowRun.version_number}`}
+                        </span>
+                        <span className="text-muted-foreground">
+                            {[
+                                libelleDuCanal(workflowRun?.mode, tp),
+                                workflowRun?.created_at ? formatDateTime(workflowRun.created_at, organizationTimezone, langue) : '',
+                                workflowRun?.cost_info?.call_duration_seconds != null
+                                    ? formatDuration(workflowRun.cost_info.call_duration_seconds, langue)
+                                    : '',
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </span>
+                        {noteDite !== null && (
+                            <span className="flex items-center gap-1.5" data-note-du-juge>
+                                <Star className="size-4 fill-current text-(--acc)" /> {tp({ en: 'judge', fr: 'juge' })} {noteDite}/5
+                            </span>
                         )}
                         <span className="ml-auto flex gap-2">
-                            <CopyDebugIdButton label="Agent ID" value={workflowId} />
-                            <CopyDebugIdButton label="Run ID" value={runId} />
+                            <CopyDebugIdButton label={tp({ en: 'Agent ID', fr: "N° de l'agent" })} value={workflowId} />
+                            <CopyDebugIdButton label={tp({ en: 'Run ID', fr: "N° de l'appel" })} value={runId} />
                         </span>
                     </div>
                 </div>
 
-                {!isTextChatRun && hasSplitTracks && (
-                    <SplitTracksSection userRecordingUrl={userSplitRecordingUrl as string} botRecordingUrl={botSplitRecordingUrl as string} />
-                )}
+                <LecteurConversation
+                    pisteAppelant={workflowRun?.user_recording_url ?? null}
+                    pisteAgent={workflowRun?.bot_recording_url ?? null}
+                    enregistrement={workflowRun?.recording_url ?? null}
+                    ecrit={isTextChatRun}
+                />
 
                 <div className="space-y-6">
-                    <FenetreDuRun
-                        workflowId={idAgent}
-                        runId={idRun}
-                        recordingKey={workflowRun?.recording_url ?? null}
-                        blocs={['simulation', 'resume', 'apres-appel']}
-                        lue={analyseLue}
-                    />
+                    {/* L'essai d'un appelant simulé (scénario joué et verdict du juge) : seulement sur ce genre d'appel. */}
+                    <FenetreDuRun workflowId={idAgent} runId={idRun} blocs={['simulation']} lue={analyseLue} />
 
                     <OngletsPage
                         defaut="transcription"
@@ -766,54 +419,34 @@ export default function WorkflowRunPage() {
                                 id: 'transcription',
                                 titre: tp({ en: 'Transcript', fr: 'Transcription' }),
                                 contenu: (
-                                    <div className="space-y-6" data-onglet-conversation="transcription">
-                                        {!isTextChatRun && (
-                                            <div className="flex flex-wrap gap-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-muted-foreground">Preview:</span>
-                                                    <MediaPreviewButton
-                                                        recordingUrl={workflowRun?.recording_url}
-                                                        transcriptUrl={workflowRun?.transcript_url}
-                                                        runId={idRun}
-                                                        onOpenPreview={openPreview}
-                                                    />
-                                                </div>
-                                                <div className="flex items-center gap-2 border-l border-border pl-4">
-                                                    <span className="text-sm text-muted-foreground">Download:</span>
-                                                    <Button
-                                                        onClick={() => downloadFile(workflowRun?.transcript_url ?? null)}
-                                                        disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
-                                                        size="sm"
-                                                        className="gap-2"
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                        Transcript
-                                                    </Button>
-                                                    <Button
-                                                        onClick={() => downloadFile(workflowRun?.recording_url ?? null)}
-                                                        disabled={!workflowRun?.recording_url || !auth.isAuthenticated}
-                                                        size="sm"
-                                                        className="gap-2"
-                                                    >
-                                                        <Video className="h-4 w-4" />
-                                                        Recording
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {/* [.mark] builder lot 6 : créer un test depuis une réplique de cet appel */}
-                                        <BoutonCreerUnTest
-                                            workflowId={idAgent}
-                                            runId={idRun}
-                                            evenements={workflowRun?.logs?.realtime_feedback_events as never}
-                                            rangInitial={rangDemande}
-                                        />
-                                        <FenetreDuRun
+                                    <div data-onglet-conversation="transcription">
+                                        <VueTranscription
                                             workflowId={idAgent}
                                             runId={idRun}
                                             recordingKey={workflowRun?.recording_url ?? null}
-                                            blocs={['conversation']}
                                             lue={analyseLue}
+                                            avant={
+                                                <>
+                                                    {!isTextChatRun && workflowRun?.recording_url && (
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="text-sm text-muted-foreground">{tp({ en: 'Preview', fr: 'Aperçu' })} :</span>
+                                                            <MediaPreviewButton
+                                                                recordingUrl={workflowRun?.recording_url}
+                                                                transcriptUrl={workflowRun?.transcript_url}
+                                                                runId={idRun}
+                                                                onOpenPreview={openPreview}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {/* [.mark] builder lot 6 : créer un test depuis une réplique de cet appel */}
+                                                    <BoutonCreerUnTest
+                                                        workflowId={idAgent}
+                                                        runId={idRun}
+                                                        evenements={workflowRun?.logs?.realtime_feedback_events as never}
+                                                        rangInitial={rangDemande}
+                                                    />
+                                                </>
+                                            }
                                         />
                                     </div>
                                 ),
@@ -823,11 +456,19 @@ export default function WorkflowRunPage() {
                                 titre: tp({ en: 'Event log', fr: 'Journal des événements' }),
                                 contenu: (
                                     <div className="space-y-6" data-onglet-conversation="journal">
-                                        <div className="h-[60vh] min-h-0">
-                                            <ConversationRailFrame className="h-full">
-                                                <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
-                                            </ConversationRailFrame>
-                                        </div>
+                                        <JournalDesEvenements evenements={workflowRun?.logs?.realtime_feedback_events} />
+                                        <Collapsible>
+                                            <CollapsibleTrigger className="cursor-pointer text-sm font-medium text-muted-foreground hover:font-semibold hover:text-foreground">
+                                                {tp({ en: 'Detailed thread (messages, tools, hand-overs)', fr: 'Fil détaillé (messages, outils, passations)' })}
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <div className="mt-3 h-[60vh] min-h-0">
+                                                    <ConversationRailFrame className="h-full">
+                                                        <RealtimeFeedback mode="historical" logs={workflowRun?.logs ?? null} />
+                                                    </ConversationRailFrame>
+                                                </div>
+                                            </CollapsibleContent>
+                                        </Collapsible>
                                         <FenetreDuRun
                                             workflowId={idAgent}
                                             runId={idRun}
@@ -885,14 +526,14 @@ export default function WorkflowRunPage() {
                                 contenu: (
                                     <div className="space-y-6" data-onglet-conversation="qualite">
                                         <ContextDisplay
-                                            title="QA Results"
-                                            context={(workflowRun?.annotations ?? null) as Record<string, string | number | boolean | object> | null}
+                                            title={tp({ en: 'Quality results', fr: 'Résultats du contrôle qualité' })}
+                                            context={(workflowRun?.annotations ?? null) as Contexte}
                                         />
                                         {workflowRun?.gathered_context?.trace_url && (
                                             <Button asChild size="sm" variant="outline" className="gap-2">
                                                 <a href={String(workflowRun.gathered_context.trace_url)} target="_blank" rel="noopener noreferrer">
                                                     <ExternalLink className="h-4 w-4" />
-                                                    View Trace
+                                                    {tp({ en: 'View the trace', fr: 'Voir la trace' })}
                                                 </a>
                                             </Button>
                                         )}
@@ -903,9 +544,9 @@ export default function WorkflowRunPage() {
                                 id: 'contexte',
                                 titre: tp({ en: 'Context', fr: 'Contexte' }),
                                 contenu: (
-                                    <div className="grid gap-6 md:grid-cols-2" data-onglet-conversation="contexte">
-                                        <ContextDisplay title="Initial Context" context={workflowRun?.initial_context ?? null} />
-                                        <ContextDisplay title="Gathered Context" context={workflowRun?.gathered_context ?? null} />
+                                    <div className="grid gap-10 md:grid-cols-2" data-onglet-conversation="contexte">
+                                        <ContextDisplay title={tp({ en: 'Initial context', fr: 'Contexte initial' })} context={workflowRun?.initial_context ?? null} />
+                                        <ContextDisplay title={tp({ en: 'Gathered context', fr: 'Contexte recueilli' })} context={workflowRun?.gathered_context ?? null} />
                                     </div>
                                 ),
                             },
@@ -917,23 +558,17 @@ export default function WorkflowRunPage() {
     }
     else {
         returnValue = (
-            <div className="flex h-full items-center justify-center p-6">
-                <Card className="w-full max-w-xl border-border">
-                    <CardHeader className="space-y-2">
-                        <CardTitle className="text-2xl">Run Details Unavailable</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            This run does not have a details view yet. Go back to the workflow to continue testing or make changes.
-                        </p>
-                    </CardHeader>
-                    <CardFooter>
-                        <Button asChild className="gap-2">
-                            <Link href={`/workflow/${params.workflowId}`}>
-                                Customize Agent
-                            </Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
+            <PageStudio>
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center" data-testid="appel-sans-detail">
+                    <Phone className="size-8 text-(--acc)" strokeWidth={1.75} />
+                    <p className="flex items-center gap-1.5 text-base font-semibold">
+                        {tp({ en: 'This call has no details yet', fr: "Cet appel n'a pas encore de détail" })}
+                    </p>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href={`/agents/${params.workflowId}`}>{tp({ en: 'Open the agent', fr: "Ouvrir l'agent" })}</Link>
+                    </Button>
+                </div>
+            </PageStudio>
         );
     }
 
@@ -941,7 +576,6 @@ export default function WorkflowRunPage() {
         <WorkflowLayout>
             {returnValue}
             {dialog}
-
         </WorkflowLayout>
     );
 }

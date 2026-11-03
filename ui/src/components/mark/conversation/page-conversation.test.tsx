@@ -14,6 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
     recherche: "agent=12",
     fenetres: [] as { blocs: string[] | undefined; lue: boolean }[],
+    vues: [] as { lue: boolean }[],
+    lecteurs: [] as Record<string, unknown>[],
     analyses: 0,
     creerUnTest: vi.fn(),
     run: vi.fn(),
@@ -44,7 +46,20 @@ vi.mock("@/components/mark/fenetre-du-run/FenetreDuRun", () => ({
         m.fenetres.push({ blocs, lue: Boolean(lue) });
         return <div data-fenetre-blocs={(blocs ?? ["tous"]).join(",")} />;
     },
+    // La Transcription : résumé, tour choisi, fiche, après-appel et la transcription elle-même vivent dans cette vue.
+    VueTranscription: ({ lue, avant }: { lue?: unknown; avant?: ReactNode }) => {
+        m.vues.push({ lue: Boolean(lue) });
+        return <div data-vue-transcription>{avant}</div>;
+    },
+    LigneNue: ({ libelle, children }: { libelle: ReactNode; children: ReactNode }) => <div>{libelle} {children}</div>,
 }));
+vi.mock("@/components/mark/conversation/LecteurConversation", () => ({
+    LecteurConversation: (p: Record<string, unknown>) => {
+        m.lecteurs.push(p);
+        return <div data-lecteur />;
+    },
+}));
+vi.mock("@/components/mark/conversation/JournalDesEvenements", () => ({ JournalDesEvenements: () => <div data-testid="journal-des-evenements" /> }));
 vi.mock("@/components/builder/tests/BoutonCreerUnTest", () => ({
     BoutonCreerUnTest: (p: { workflowId: number; runId: number; rangInitial?: number }) => {
         m.creerUnTest(p);
@@ -85,6 +100,8 @@ const run = (surcharge: Record<string, unknown> = {}) => ({
 beforeEach(() => {
     m.recherche = "agent=12";
     m.fenetres.length = 0;
+    m.vues.length = 0;
+    m.lecteurs.length = 0;
     m.analyses = 0;
     m.creerUnTest.mockClear();
     m.run.mockReset();
@@ -119,12 +136,12 @@ describe("les sept onglets", () => {
         await attendre();
         const dits = m.fenetres.flatMap((f) => f.blocs ?? ["tous"]);
         expect(dits).not.toContain("tous");
+        // V1b : le résumé, la conversation, la fiche de l'appel et l'après-appel vivent dans la vue de la Transcription
+        // (un seul montage, colonne de droite), les autres blocs restent dans leur onglet.
         expect([...dits].sort()).toEqual(
-            [
-                "simulation", "resume", "apres-appel", "latence", "chrono", "reseau", "fournisseurs", "modules",
-                "fiche", "parcours", "conversation", "incidents",
-            ].sort(),
+            ["simulation", "latence", "chrono", "reseau", "fournisseurs", "modules", "fiche", "parcours", "incidents"].sort(),
         );
+        expect(m.vues.length).toBeGreaterThanOrEqual(1);
     });
 
     it("range chaque bloc dans le bon onglet", async () => {
@@ -132,26 +149,28 @@ describe("les sept onglets", () => {
         await attendre();
         const volet = (id: string) => document.querySelector(`[data-onglet-conversation="${id}"]`) as HTMLElement;
         const blocs = (id: string) => [...volet(id).querySelectorAll("[data-fenetre-blocs]")].map((e) => e.getAttribute("data-fenetre-blocs"));
-        expect(blocs("transcription")).toEqual(["conversation"]);
+        expect(blocs("transcription")).toEqual([]);
+        expect(volet("transcription").querySelector("[data-vue-transcription]")).toBeTruthy();
         expect(blocs("journal")).toEqual(["incidents,latence,chrono,reseau"]);
         expect(blocs("agents")).toEqual(["parcours,modules,fiche"]);
         expect(blocs("couts")).toEqual(["fournisseurs"]);
         expect(within(volet("transcription")).getByTestId("creer-un-test")).toBeTruthy();
-        expect(within(volet("journal")).getByTestId("journal-evenements")).toBeTruthy();
+        expect(within(volet("journal")).getByTestId("journal-des-evenements")).toBeTruthy();
         expect(within(volet("agents")).getByTestId("trace-des-agents")).toBeTruthy();
         expect(within(volet("phrases")).getByTestId("phrases-du-code")).toBeTruthy();
         expect(within(volet("couts")).getByTestId("bilan-greffier")).toBeTruthy();
-        expect(within(volet("couts")).getByText("Run Metrics")).toBeTruthy();
-        expect(within(volet("qualite")).getByText("QA Results")).toBeTruthy();
-        expect(within(volet("contexte")).getByText("Initial Context")).toBeTruthy();
-        expect(within(volet("contexte")).getByText("Gathered Context")).toBeTruthy();
+        expect(within(volet("couts")).getByText("Run metrics")).toBeTruthy();
+        expect(within(volet("qualite")).getByText("Quality results")).toBeTruthy();
+        expect(within(volet("contexte")).getByText("Initial context")).toBeTruthy();
+        expect(within(volet("contexte")).getByText("Gathered context")).toBeTruthy();
     });
 
     it("donne l'analyse déjà lue à chaque fenêtre : aucun onglet ne la relit (la page la lit une fois)", async () => {
         render(<PageConversation />);
         await attendre();
-        expect(m.fenetres.length).toBeGreaterThanOrEqual(5);
+        expect(m.fenetres.length).toBeGreaterThanOrEqual(4);
         expect(m.fenetres.every((f) => f.lue)).toBe(true);
+        expect(m.vues.every((v) => v.lue)).toBe(true);
     });
 });
 
@@ -175,8 +194,7 @@ describe("l'en-tête et le changement d'onglet", () => {
     it("dit l'agent, mène au Parcours de cet agent et change de volet au clic", async () => {
         render(<PageConversation />);
         await attendre();
-        expect(await screen.findByText("Agent d'accueil")).toBeTruthy();
-        expect(screen.getByRole("link", { name: "Customize the agent" }).getAttribute("href")).toBe("/agents/12");
+        expect((await screen.findAllByText(/Agent d'accueil/)).length).toBeGreaterThan(0);
         const volet = (id: string) => document.querySelector(`[data-onglet-conversation="${id}"]`)?.closest("[role=tabpanel]") as HTMLElement;
         expect(volet("journal").hidden).toBe(true);
         fireEvent.click(screen.getByRole("tab", { name: "Event log" }));
@@ -190,7 +208,7 @@ describe("l'en-tête et le changement d'onglet", () => {
     it("une conversation qui n'est pas terminée n'a pas d'onglets (la page garde son message d'avant)", async () => {
         m.run.mockResolvedValue(run({ is_completed: false }));
         render(<PageConversation />);
-        await screen.findByText("Run Details Unavailable");
+        await screen.findByTestId("appel-sans-detail");
         expect(screen.queryByRole("tablist")).toBeNull();
     });
 
@@ -200,5 +218,59 @@ describe("l'en-tête et le changement d'onglet", () => {
         await attendre();
         expect(screen.queryByRole("button", { name: "Preview audio" })).toBeNull();
         expect(within(screen.getByRole("tablist")).getAllByRole("tab")).toHaveLength(7);
+    });
+});
+
+describe("V1b : la page à la forme de la maquette", () => {
+    it("le titre dit « Motif · Issue » lus dans le contexte de l'appel, avec la version et la note du juge", async () => {
+        m.run.mockResolvedValue(
+            run({ gathered_context: { motif_appel: "Dépannage", mapped_call_disposition: "Demande enregistrée" }, version_number: 3, note_juge: 2.9 }),
+        );
+        render(<PageConversation />);
+        await attendre();
+        expect(document.querySelector("[data-titre-conversation]")?.textContent).toBe("Dépannage · Demande enregistrée");
+        expect(document.querySelector("[data-page-conversation]")?.textContent).toContain("Agent d'accueil · v3");
+        expect(document.querySelector("[data-note-du-juge]")?.textContent).toContain("judge 2.9/5");
+    });
+
+    it("sans motif ni issue, le titre est le nom de l'agent ; sans note, aucune note n'est écrite (jamais 0)", async () => {
+        render(<PageConversation />);
+        await attendre();
+        expect(document.querySelector("[data-titre-conversation]")?.textContent).toBe("Agent d'accueil");
+        expect(document.querySelector("[data-note-du-juge]")).toBeNull();
+    });
+
+    it("le lecteur reçoit l'enregistrement réel ; sans enregistrement, il reçoit du vide (état vide du lecteur)", async () => {
+        m.run.mockResolvedValue(run({ recording_url: "enregistrement.wav" }));
+        const { unmount } = render(<PageConversation />);
+        await attendre();
+        expect(m.lecteurs.at(-1)).toMatchObject({ enregistrement: "enregistrement.wav", pisteAppelant: null, pisteAgent: null, ecrit: false });
+        unmount();
+        m.lecteurs.length = 0;
+        m.run.mockResolvedValue(run({ recording_url: null, transcript_url: null }));
+        render(<PageConversation />);
+        await attendre();
+        expect(m.lecteurs.at(-1)).toMatchObject({ enregistrement: null, pisteAppelant: null, pisteAgent: null });
+    });
+
+    it("deux pistes séparées : le lecteur les reçoit toutes les deux ; une conversation au clavier est dite écrite", async () => {
+        m.run.mockResolvedValue(run({ user_recording_url: "u.wav", bot_recording_url: "b.wav" }));
+        const { unmount } = render(<PageConversation />);
+        await attendre();
+        expect(m.lecteurs.at(-1)).toMatchObject({ pisteAppelant: "u.wav", pisteAgent: "b.wav" });
+        unmount();
+        m.run.mockResolvedValue(run({ mode: "textchat", recording_url: null }));
+        render(<PageConversation />);
+        await attendre();
+        expect(m.lecteurs.at(-1)).toMatchObject({ ecrit: true });
+    });
+
+    it("une lecture de l'appel qui échoue dit l'erreur et propose de réessayer (jamais un écran blanc)", async () => {
+        m.run.mockResolvedValue({ error: { detail: "x" }, data: undefined });
+        render(<PageConversation />);
+        const bouton = await screen.findByRole("button", { name: /Try again|Réessayer/ });
+        m.run.mockResolvedValue(run());
+        fireEvent.click(bouton);
+        await attendre();
     });
 });

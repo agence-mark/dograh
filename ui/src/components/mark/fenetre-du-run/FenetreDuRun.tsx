@@ -13,11 +13,11 @@
  * A block the server could not compute says "unavailable"; data the run does not hold says
  * "not captured". Never an empty card (R1).
  */
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Timer } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet } from "@/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -25,6 +25,7 @@ import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 import { SectionApresAppel } from "./SectionApresAppel";
 import type {
     AnalyseDuRun,
@@ -153,57 +154,64 @@ function Section({
     const { t } = useLangue();
     const [ouvert, setOuvert] = useState(ouverte);
     return (
-        <Card className="border-border" data-testid={testId}>
+        <section className="border-b border-border last:border-0" data-testid={testId}>
             <Collapsible open={ouvert} onOpenChange={setOuvert}>
-                <CardHeader className="pb-3">
-                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-4 text-left">
-                        <CardTitle className="text-lg">{t(titre)}</CardTitle>
-                        <span className="flex items-center gap-3 text-sm text-muted-foreground">
-                            {bloc.status === "ok" ? resume : null}
-                            <ChevronDown className={cn("h-4 w-4 transition-transform", ouvert && "rotate-180")} />
-                        </span>
-                    </CollapsibleTrigger>
-                </CardHeader>
+                <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 py-3 text-left">
+                    <h3 className="text-base font-semibold">{t(titre)}</h3>
+                    <span className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {bloc.status === "ok" ? resume : null}
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", ouvert && "rotate-180")} />
+                    </span>
+                </CollapsibleTrigger>
                 <CollapsibleContent>
-                    <CardContent>{bloc.status === "ok" ? children : <EtatDuBloc bloc={bloc} />}</CardContent>
+                    <div className="pb-4">{bloc.status === "ok" ? children : <EtatDuBloc bloc={bloc} />}</div>
                 </CollapsibleContent>
             </Collapsible>
-        </Card>
+        </section>
     );
 }
 
+/** Une ligne « libellé · valeur » de la maquette : tableau nu, trait fin entre les lignes, jamais de cadre. */
+export function LigneNue({ libelle, children, testId }: { libelle: ReactNode; children: ReactNode; testId?: string }) {
+    return (
+        <div className="flex gap-4 py-2.5 text-sm" data-testid={testId}>
+            <span className="w-28 shrink-0 text-muted-foreground">{libelle}</span>
+            <span className="min-w-0 flex-1">{children}</span>
+        </div>
+    );
+}
+
+/** Le résumé de l'appel, nu (sans carte) : ce que l'en-tête ne dit pas déjà. Les précisions vont dans un « ! ». */
 function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incidents }) {
     const { t } = useLangue();
     if (resume.status !== "ok") return <EtatDuBloc bloc={resume} />;
     const nombre = resume.incident_count ?? 0;
+    const versionLue = resume.version && resume.version.status !== "not_captured" ? resume.version : null;
     return (
-        <div className="space-y-2 text-sm" data-testid="fenetre-resume">
-            <p>
-                {t({ en: "Channel", fr: "Canal" })} : {t(CANAUX[resume.channel ?? "phone"] ?? CANAUX.phone)} ·{" "}
-                {t({ en: "Duration", fr: "Durée" })} : {dureeLisible(resume.duration_secs)} ·{" "}
-                {t({ en: "Agent version", fr: "Version de l'agent" })} : <code>{resume.definition_id ?? "–"}</code> ·{" "}
-                {t({ en: "Outcome", fr: "Issue" })} : {resume.disposition ?? "–"}
-            </p>
-            <p className="text-muted-foreground" data-testid="fenetre-version">
-                {resume.version && resume.version.status !== "not_captured" ? (
+        <div className="divide-y divide-border" data-testid="fenetre-resume">
+            <LigneNue libelle={t({ en: "Code", fr: "Code" })} testId="fenetre-version">
+                {versionLue ? (
                     <>
-                        {t({ en: "Code", fr: "Code" })} : <code>{resume.version.app_version ?? "–"}</code> ·{" "}
-                        {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
-                        <code>{resume.version.commit ? resume.version.commit.slice(0, 8) : "–"}</code> ·{" "}
-                        {t({ en: "agent version", fr: "version de l'agent" })} :{" "}
-                        <code>{resume.version.version_number ?? "–"}</code> (<code>{resume.version.definition_status ?? "–"}</code>)
+                        <code>{versionLue.app_version ?? "–"}</code> · {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
+                        <code>{versionLue.commit ? versionLue.commit.slice(0, 8) : "–"}</code> ·{" "}
+                        {t({ en: "agent version", fr: "version de l'agent" })} : <code>{versionLue.version_number ?? "–"}</code> (
+                        <code>{versionLue.definition_status ?? "–"}</code>)
                     </>
                 ) : (
-                    t({
-                        en: "Code version: not captured (run older than this capture).",
-                        fr: "Version du code : non captée (run antérieur à cette capture).",
-                    })
+                    <span className="inline-flex items-center gap-2 text-muted-foreground">
+                        –
+                        <Info>
+                            {t({
+                                en: "Code version not captured: the run is older than this capture.",
+                                fr: "Version du code non captée : l'appel est antérieur à cette capture.",
+                            })}
+                        </Info>
+                    </span>
                 )}
-            </p>
-            <p data-testid="fenetre-cout">
+            </LigneNue>
+            <LigneNue libelle={t({ en: "Estimated cost", fr: "Coût estimé" })} testId="fenetre-cout">
                 {resume.cost?.status === "ok" ? (
                     <>
-                        {t({ en: "Estimated cost", fr: "Coût estimé" })} :{" "}
                         <strong>
                             {resume.cost.total?.toFixed(4)} {resume.cost.currency}
                         </strong>{" "}
@@ -219,21 +227,26 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                             : ""}
                     </>
                 ) : (
-                    <span className="text-muted-foreground">
-                        {t({
-                            en: "Estimated cost: not captured (no price table in the organization settings, or no consumption recorded).",
-                            fr: "Coût estimé : non capté (pas de table des prix dans les paramètres de l'organisation, ou aucune consommation enregistrée).",
-                        })}
+                    <span className="inline-flex items-center gap-2 text-muted-foreground">
+                        {t({ en: "not captured", fr: "non capté" })}
+                        <Info>
+                            {t({
+                                en: "No price table in the organization settings, or no consumption recorded.",
+                                fr: "Pas de table des prix dans les paramètres de l'organisation, ou aucune consommation enregistrée.",
+                            })}
+                        </Info>
                     </span>
                 )}
-            </p>
+            </LigneNue>
             {nombre > 0 && incidents.status === "ok" && (
-                <p className="font-medium text-destructive" role="alert">
-                    {t({
-                        en: `${nombre} incident(s) on this call: see Incidents.`,
-                        fr: `${nombre} incident(s) sur cet appel : voir Incidents.`,
-                    })}
-                </p>
+                <LigneNue libelle={t({ en: "Incidents", fr: "Incidents" })}>
+                    <span className="font-medium text-destructive" role="alert">
+                        {t({
+                            en: `${nombre} incident(s) on this call: see Incidents.`,
+                            fr: `${nombre} incident(s) sur cet appel : voir Incidents.`,
+                        })}
+                    </span>
+                </LigneNue>
             )}
         </div>
     );
@@ -675,7 +688,22 @@ function BlocParcours({ parcours }: { parcours: Parcours }) {
     );
 }
 
-function BlocConversation({ conversation, recordingKey }: { conversation: Conversation; recordingKey?: string | null }) {
+/** Les lignes d'une conversation, à la forme de la maquette : qui · étape, la latence à droite, le texte dessous. */
+function BlocConversation({
+    conversation,
+    recordingKey,
+    latence,
+    choisi,
+    onChoisir,
+    incidents,
+}: {
+    conversation: Conversation;
+    recordingKey?: string | null;
+    latence?: Latence;
+    choisi?: number | null;
+    onChoisir?: (tour: number | null) => void;
+    incidents?: Incidents;
+}) {
     const { t } = useLangue();
     const audio = useRef<HTMLAudioElement>(null);
     const [adresse, setAdresse] = useState<string | null>(null);
@@ -692,18 +720,14 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
         lecteur.currentTime = Math.max(0, debut);
         await lecteur.play().catch(() => undefined);
     };
+    const lignes = conversation.lines ?? [];
+    const tourDeLatence = (tour: number | null) => (tour == null ? undefined : latence?.turns?.find((x) => x.turn === tour));
+    const faute = (tour: number | null) =>
+        tour != null && (incidents?.items ?? []).some((i) => i.turn === tour && i.fatal);
     return (
-        <div className="space-y-2 text-sm">
-            <p className="text-xs text-muted-foreground">
-                {recordingKey
-                    ? t({
-                          en: "Click a line to play the recording from there (approximate: the clock starts at the first event of the run).",
-                          fr: "Cliquez une ligne pour écouter l'enregistrement à partir de là (approximatif : l'horloge part du premier événement du run).",
-                      })
-                    : t({ en: "No recording for this run.", fr: "Aucun enregistrement pour ce run." })}
-            </p>
+        <div className="text-sm">
             {(conversation.marks ?? []).length > 0 && (
-                <ul className="space-y-1" data-testid="marques-de-conversation">
+                <ul className="space-y-1 pb-3" data-testid="marques-de-conversation">
                     {(conversation.marks ?? []).map((m, i) => (
                         <li key={i} className="text-muted-foreground">
                             {m.at_secs == null ? "–" : `${m.at_secs.toFixed(1)} s`} · {t({ en: "Turn", fr: "Tour" })}{" "}
@@ -712,29 +736,223 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
                     ))}
                 </ul>
             )}
-            <audio ref={audio} controls={Boolean(adresse)} className={cn("w-full", !adresse && "hidden")} />
-            <ul className="space-y-1">
-                {(conversation.lines ?? []).map((ligne, i) => (
-                    <li key={i}>
-                        <button
-                            type="button"
-                            data-testid="ligne-de-conversation"
-                            className="grid w-full grid-cols-[4rem_5rem_1fr] gap-2 rounded px-1 text-left hover:bg-muted"
-                            onClick={() => ecouter(ligne.start_secs)}
-                        >
-                            <span className="text-muted-foreground">
-                                {ligne.start_secs == null ? "–" : `${ligne.start_secs.toFixed(1)} s`}
-                            </span>
-                            <span className="font-medium">
-                                {ligne.speaker === "caller"
-                                    ? t({ en: "Caller", fr: "Appelant" })
-                                    : t({ en: "Agent", fr: "Agent" })}
-                            </span>
-                            <span>{ligne.text}</span>
-                        </button>
-                    </li>
-                ))}
+            <audio ref={audio} controls={Boolean(adresse)} className={cn("mb-3 w-full", !adresse && "hidden")} />
+            <ul className="divide-y divide-border">
+                {lignes.map((ligne, i) => {
+                    const tour = tourDeLatence(ligne.turn);
+                    const lente = Boolean(tour?.slow);
+                    const choisie = choisi != null && ligne.turn === choisi;
+                    return (
+                        <li key={i}>
+                            <button
+                                type="button"
+                                data-testid="ligne-de-conversation"
+                                aria-pressed={choisie}
+                                title={
+                                    recordingKey
+                                        ? t({
+                                              en: "Select the turn, play the recording from here",
+                                              fr: "Choisir ce tour, écouter l'enregistrement à partir d'ici",
+                                          })
+                                        : undefined
+                                }
+                                className={cn(
+                                    "w-full cursor-pointer px-3 py-3 text-left hover:bg-muted/40",
+                                    choisie && "bg-(--acc-soft) hover:bg-(--acc-soft)",
+                                    faute(ligne.turn) && "border-l-2 border-destructive",
+                                )}
+                                onClick={() => {
+                                    onChoisir?.(ligne.turn);
+                                    void ecouter(ligne.start_secs);
+                                }}
+                            >
+                                <span className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span
+                                        className={cn(
+                                            "font-medium",
+                                            ligne.speaker === "agent" ? "text-(--acc-text)" : "text-foreground",
+                                        )}
+                                    >
+                                        {ligne.speaker === "caller"
+                                            ? t({ en: "Caller", fr: "Appelant" })
+                                            : t({ en: "Agent", fr: "Agent" })}
+                                    </span>
+                                    {tour?.step && <span>· {tour.step}</span>}
+                                    {ligne.start_secs != null && (
+                                        <span className="tabular-nums">· {ligne.start_secs.toFixed(1)} s</span>
+                                    )}
+                                    {ligne.speaker === "agent" && tour?.measured && tour.silence_secs != null && (
+                                        <span
+                                            className={cn(
+                                                "ml-auto flex items-center gap-1 tabular-nums",
+                                                lente && "text-(--marque-danger-texte)",
+                                            )}
+                                        >
+                                            <Timer className="size-3" /> {tour.silence_secs.toFixed(2)} s
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="block text-sm text-foreground">{ligne.text}</span>
+                            </button>
+                        </li>
+                    );
+                })}
             </ul>
+        </div>
+    );
+}
+
+const ETAPES_DU_TOUR: { cle: keyof EtapesDuTour; titre: Texte }[] = [
+    { cle: "turn_closed", titre: { en: "Wait for the end of the turn", fr: "Attente de fin de tour" } },
+    { cle: "request_sent", titre: { en: "Request sent", fr: "Requête partie" } },
+    { cle: "first_model_word", titre: { en: "First model word", fr: "Premier mot du modèle" } },
+    { cle: "first_sentence", titre: { en: "First sentence", fr: "Première phrase" } },
+    { cle: "sent_to_voice", titre: { en: "Sent to the voice", fr: "Envoi à la voix" } },
+    { cle: "first_sound", titre: { en: "First sound", fr: "Premier son" } },
+];
+
+/** La durée de chaque étape d'un tour : l'écart entre deux jalons du chronomètre (les jalons sont comptés depuis le dernier mot de l'appelant). */
+export function etapesDuTour(jalons: EtapesDuTour): { cle: keyof EtapesDuTour; secs: number | null }[] {
+    let precedent = 0;
+    return ETAPES_DU_TOUR.map(({ cle }) => {
+        const valeur = jalons[cle];
+        if (typeof valeur !== "number") return { cle, secs: null };
+        const secs = Math.max(0, valeur - precedent);
+        precedent = valeur;
+        return { cle, secs };
+    });
+}
+
+/** Un bloc de la colonne de droite : cadre léger de la maquette, titre, lignes. */
+function BlocDeColonne({ titre, children, testId }: { titre: ReactNode; children: ReactNode; testId: string }) {
+    return (
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm" data-testid={testId}>
+            <p className="font-medium">{titre}</p>
+            {children}
+        </div>
+    );
+}
+
+type TourDeChrono = NonNullable<Chronometre["turns"]>[number];
+
+function BlocDuTour({ chrono }: { chrono: TourDeChrono }) {
+    const { t } = useLangue();
+    const etapes = etapesDuTour(chrono.stages);
+    const plafond = Math.max(0.5, ...etapes.map((e) => e.secs ?? 0));
+    return (
+        <BlocDeColonne titre={t({ en: "This turn, step by step", fr: "Ce tour, étape par étape" })} testId="colonne-tour">
+            {chrono.measured ? (
+                etapes.map((e) => (
+                    <div key={e.cle} className="flex items-center gap-2">
+                        <span className="flex-1 text-muted-foreground">
+                            {t(ETAPES_DU_TOUR.find((x) => x.cle === e.cle)!.titre)}
+                        </span>
+                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                            <div
+                                className="h-full bg-(--acc)"
+                                style={{ width: `${Math.min(100, ((e.secs ?? 0) / plafond) * 100)}%` }}
+                            />
+                        </div>
+                        <span className="w-14 text-right tabular-nums">{e.secs == null ? "–" : secondes(e.secs)}</span>
+                    </div>
+                ))
+            ) : (
+                <p className="text-muted-foreground">
+                    {t({ en: "not measured", fr: "non mesuré" })} :{" "}
+                    {t(RAISONS[chrono.not_measured_reason ?? ""] ?? { en: "unknown", fr: "inconnu" })}
+                </p>
+            )}
+        </BlocDeColonne>
+    );
+}
+
+function BlocFicheDeColonne({ fiche }: { fiche: Fiche }) {
+    const { t } = useLangue();
+    const champs = (fiche.fields ?? []).filter((c) => !c.empty);
+    if (fiche.status !== "ok" || champs.length === 0) return null;
+    return (
+        <BlocDeColonne titre={t({ en: "Call record", fr: "Fiche de l'appel" })} testId="colonne-fiche">
+            {champs.map((c) => (
+                <div key={c.name} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 truncate text-muted-foreground" title={c.name}>
+                        {c.name}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words">{texteDeValeur(c.value)}</span>
+                    <span className="text-xs text-(--marque-succes-texte)">
+                        {c.sure === false ? t({ en: "To confirm", fr: "À confirmer" }) : (c.source ?? "")}
+                    </span>
+                </div>
+            ))}
+        </BlocDeColonne>
+    );
+}
+
+/**
+ * [.mark] V1b : l'onglet Transcription de la page d'une conversation, à la forme de la maquette : la transcription à
+ * gauche, à droite « Ce tour, étape par étape » (le tour choisi dans la transcription), la fiche de l'appel et
+ * l'après-appel.
+ */
+export function VueTranscription({
+    workflowId,
+    runId,
+    recordingKey,
+    lue,
+    avant,
+}: {
+    workflowId: number;
+    runId: number;
+    recordingKey?: string | null;
+    lue: { analyse: AnalyseDuRun | null; erreur: string | null };
+    /** Ce que la page met au-dessus de la transcription (créer un test, téléchargements). */
+    avant?: ReactNode;
+}) {
+    const { t } = useLangue();
+    const { analyse, erreur } = lue;
+    const [choisi, setChoisi] = useState<number | null | undefined>(undefined);
+    if (erreur)
+        return (
+            <p className="text-sm text-destructive" role="alert" data-testid="fenetre-du-run">
+                {t({ en: "Run analysis unavailable", fr: "Analyse du run indisponible" })} : {erreur}
+            </p>
+        );
+    if (!analyse)
+        return (
+            <p className="text-sm text-muted-foreground" data-testid="fenetre-du-run-chargement">
+                {t({ en: "Loading the run analysis…", fr: "Chargement de l'analyse du run…" })}
+            </p>
+        );
+    // Par défaut : le tour le plus lent (là où l'on regarde en premier), sinon le premier tour mesuré.
+    const tours = analyse.latency.turns ?? [];
+    const parDefaut = tours.find((x) => x.slow)?.turn ?? tours.find((x) => x.measured)?.turn ?? null;
+    const tourChoisi = choisi === undefined ? parDefaut : choisi;
+    const chrono = tourChoisi == null ? undefined : analyse.chrono?.turns?.find((x) => x.turn === tourChoisi);
+    return (
+        <div className="grid gap-10 lg:grid-cols-[1fr_360px]" data-testid="vue-transcription">
+            <div className="min-w-0 space-y-4">
+                {avant}
+                <p className="text-base font-semibold">{t({ en: "Transcript", fr: "Transcription" })}</p>
+                {analyse.conversation.status === "ok" ? (
+                    <BlocConversation
+                        conversation={analyse.conversation}
+                        recordingKey={recordingKey}
+                        latence={analyse.latency}
+                        choisi={tourChoisi}
+                        onChoisir={setChoisi}
+                        incidents={analyse.incidents}
+                    />
+                ) : (
+                    <EtatDuBloc bloc={analyse.conversation} />
+                )}
+            </div>
+            <div className="space-y-4" data-testid="colonne-de-droite">
+                <section data-testid="bloc-summary">
+                    <p className="pb-1 font-medium">{t({ en: "Summary", fr: "Résumé" })}</p>
+                    <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
+                </section>
+                {chrono && <BlocDuTour chrono={chrono} />}
+                <BlocFicheDeColonne fiche={analyse.record} />
+                <SectionApresAppel workflowId={workflowId} runId={runId} />
+            </div>
         </div>
     );
 }
@@ -1018,7 +1236,7 @@ export function FenetreDuRun({
             )}
             {voir("conversation") && (
                 <Section titre={{ en: "Conversation", fr: "Conversation" }} bloc={analyse.conversation} testId="bloc-conversation">
-                    <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} />
+                    <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} latence={analyse.latency} incidents={analyse.incidents} />
                 </Section>
             )}
             {voir("incidents") && (
