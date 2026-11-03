@@ -6,7 +6,7 @@
  * dernier message, défilement automatique avec « revenir en bas », saisie flottante (pas de trait, fondu en bas du fil).
  * L'écran ne porte aucun état du travail : tout est relu depuis la table (rechargement sans perte).
  */
-import { ArrowDown, ArrowUp, Pencil, RotateCw, Square } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Pencil, RotateCw, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -14,8 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { CarteDuPlan, CarteQuestion, LigneAction } from "./cartes";
+import { CarteCorrection, CarteDepense, CartePropositionTest, CarteRapport } from "./cartes-c2";
 import type { EtapeDuPlan, LigneDuFil } from "./evenements";
 import { Markdown } from "./Markdown";
+import { RevueChampParChamp } from "./RevueChampParChamp";
+import { CarteSousAgents, libelleEtat, ListeDesSousAgents, type SousAgent, useSousAgents } from "./SousAgents";
 import { useFil } from "./useFil";
 
 const T = {
@@ -31,12 +34,19 @@ const T = {
     travaille: { en: "The builder is working...", fr: "Le builder travaille..." },
     changements: { en: "change(s) to validate", fr: "changement(s) à valider" },
     redemarrage: { en: "Stopped by a restart of the server.", fr: "Arrêtée par un redémarrage du serveur." },
+    principale: { en: "Main conversation", fr: "Conversation principale" },
+    lectureSeule: { en: "Read only: a sub-agent receives no message.", fr: "Lecture seule : un sous-agent ne reçoit pas de message." },
+    revoir: { en: "Review the changes", fr: "Relire les changements" },
+    cacher: { en: "Hide the review", fr: "Masquer la relecture" },
     plafond: { en: "Ceiling reached: raise it in the builder settings, then resume.", fr: "Plafond atteint : relevez-le dans les réglages du builder, puis reprenez." },
 } satisfies Record<string, Texte>;
 
-export function FilDuBuilder({ filId }: { filId: number }) {
-    const { t } = useLangue();
-    const { fil, lignes, erreur, enCours, dernier, envoyer, arreter, reprendre, modifierDernier } = useFil(filId);
+export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: number; lectureSeule?: boolean; retour?: () => void }) {
+    const { t, langue } = useLangue();
+    const { fil, lignes, erreur, enCours, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
+    const [vu, setVu] = useState<number | null>(null);
+    const [revue, setRevue] = useState(false);
+    const sous = useSousAgents(filId, enCours && !lectureSeule);
     const [saisie, setSaisie] = useState("");
     const [edition, setEdition] = useState<string | null>(null);
     const [enBas, setEnBas] = useState(true);
@@ -60,11 +70,17 @@ export function FilDuBuilder({ filId }: { filId: number }) {
     };
     const derniereQuestion = [...lignes].reverse().find((l) => l.genre === "carte" && l.carte.type === "question");
 
-    return (
-        <div className="relative flex h-[calc(100vh-8rem)] flex-col">
+    const principal = (
+        <div className={`relative flex h-[calc(100vh-8rem)] flex-col ${vu !== null ? "hidden" : ""}`}>
             <div className="flex items-center justify-between gap-2 pb-2">
+                {lectureSeule && retour && (
+                    <button type="button" className="flex cursor-pointer items-center gap-1 text-sm hover:font-semibold" onClick={retour}>
+                        <ArrowLeft className="size-4" /> {t(T.principale)}
+                    </button>
+                )}
                 <h1 className="truncate text-lg font-semibold">{fil?.titre ?? ""}</h1>
                 <p className="shrink-0 text-xs text-muted-foreground">
+                    {lectureSeule && fil ? `${libelleEtat(fil.etat, langue)} · ` : ""}
                     {fil ? `${fil.jetons.toLocaleString()} · $${fil.cout.toFixed(2)} · ${Math.round(fil.jauge * 100)} %` : ""}
                     {fil && fil.changements > 0 ? ` · ${fil.changements} ${t(T.changements)}` : ""}
                 </p>
@@ -75,10 +91,16 @@ export function FilDuBuilder({ filId }: { filId: number }) {
                         key={i}
                         ligne={l}
                         edition={edition}
-                        peutModifier={!enCours && dernier?.id === (l.genre === "message" ? l.id : -1)}
+                        peutModifier={!lectureSeule && !enCours && dernier?.id === (l.genre === "message" ? l.id : -1)}
                         modifier={() => setEdition(l.genre === "message" ? l.texte : "")}
-                        questionActive={!enCours && l === derniereQuestion}
+                        questionActive={!lectureSeule && !enCours && l === derniereQuestion}
                         repondre={(texte) => void envoyer(texte)}
+                        actif={!lectureSeule && !enCours}
+                        accorder={(id, accord) => void repondreDepense(id, accord)}
+                        filId={filId}
+                        sousAgents={sous.sous_agents}
+                        voir={setVu}
+                        recharger={sous.recharger}
                     />
                 ))}
                 {edition !== null && (
@@ -113,7 +135,25 @@ export function FilDuBuilder({ filId }: { filId: number }) {
             )}
             {/* Saisie flottante : aucun trait entre le fil et la saisie, un fondu en bas du fil. */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pt-10">
+                {lectureSeule ? (
+                    <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-2 rounded-xl bg-card p-3 text-sm text-muted-foreground shadow-lg">
+                        <span>{t(T.lectureSeule)}</span>
+                        {enCours && (
+                            <Button size="sm" variant="outline" onClick={() => void arreter()}>
+                                <Square className="size-4" /> {t(T.arreter)}
+                            </Button>
+                        )}
+                    </div>
+                ) : (
                 <div className="pointer-events-auto mx-auto max-w-3xl space-y-2 rounded-xl bg-card p-3 shadow-lg">
+                    {fil && fil.changements > 0 && (
+                        <div className="space-y-2">
+                            <button type="button" className="cursor-pointer text-sm font-semibold" onClick={() => setRevue((v) => !v)}>
+                                {fil.changements} {t(T.changements)} · {revue ? t(T.cacher) : t(T.revoir)}
+                            </button>
+                            {revue && <RevueChampParChamp filId={filId} workflowId={fil.workflow_id ?? null} apres={() => void rafraichir()} />}
+                        </div>
+                    )}
                     {fil?.etat === "arretee" && (
                         <div className="flex items-center gap-2 text-sm">
                             <span className="font-semibold">{t(T.arretee)}</span>
@@ -133,6 +173,14 @@ export function FilDuBuilder({ filId }: { filId: number }) {
                         }}
                     />
                     <div className="flex justify-end gap-2">
+                        <ListeDesSousAgents
+                            filId={filId}
+                            actifDansLeChat={fil?.sous_agents_actifs ?? true}
+                            sousAgents={sous.sous_agents}
+                            choisi={vu}
+                            choisir={setVu}
+                            recharger={sous.recharger}
+                        />
                         {enCours ? (
                             <Button size="sm" variant="outline" onClick={() => void arreter()}>
                                 <Square className="size-4" /> {t(T.arreter)}
@@ -144,8 +192,15 @@ export function FilDuBuilder({ filId }: { filId: number }) {
                         )}
                     </div>
                 </div>
+                )}
             </div>
         </div>
+    );
+    return (
+        <>
+            {principal}
+            {vu !== null && <FilDuBuilder filId={vu} lectureSeule retour={() => setVu(null)} />}
+        </>
     );
 }
 
@@ -156,6 +211,12 @@ function Ligne({
     questionActive,
     repondre,
     edition,
+    actif,
+    accorder,
+    filId,
+    sousAgents,
+    voir,
+    recharger,
 }: {
     ligne: LigneDuFil;
     peutModifier: boolean;
@@ -163,6 +224,12 @@ function Ligne({
     questionActive: boolean;
     repondre: (texte: string) => void;
     edition: string | null;
+    actif: boolean;
+    accorder: (id: string, accord: boolean) => void;
+    filId: number;
+    sousAgents: SousAgent[];
+    voir: (id: number) => void;
+    recharger: () => void;
 }) {
     const { t } = useLangue();
     switch (ligne.genre) {
@@ -193,6 +260,15 @@ function Ligne({
                         active={questionActive}
                     />
                 );
+            }
+            if (ligne.carte.type === "rapport") return <CarteRapport carte={ligne.carte} />;
+            if (ligne.carte.type === "depense") {
+                return <CarteDepense carte={ligne.carte} active={actif} repondre={(accord) => accorder(String(ligne.carte.id), accord)} />;
+            }
+            if (ligne.carte.type === "correction") return <CarteCorrection carte={ligne.carte} active={actif} repondre={repondre} />;
+            if (ligne.carte.type === "proposition_test") return <CartePropositionTest carte={ligne.carte} />;
+            if (ligne.carte.type === "delegation") {
+                return <CarteSousAgents carte={ligne.carte} sousAgents={sousAgents} voir={voir} recharger={recharger} filId={filId} />;
             }
             return null;
         }

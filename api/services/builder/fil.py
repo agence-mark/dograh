@@ -32,7 +32,12 @@ MESSAGE_DE_REPRISE = (
 )
 ETAT_DE_FIN = {"fin": "terminee", "tours": "terminee", "plafond": "arretee", "erreur": "erreur", "arret": "arretee"}
 
+# C2 : ce que la conversation garde en plus de l'historique (plan en cases, dépenses annoncées, rapport de fin).
+CLES_GARDEES = ("plan", "depenses", "rapport")
+
 _TACHES: dict[int, asyncio.Task] = {}
+# Le cerveau et les réglages de chaque conversation en cours : un sous-agent (``deleguer``) s'en sert pour son propre cerveau.
+CERVEAUX: dict[int, tuple[Cerveau, ReglagesCerveau]] = {}
 
 
 class ErreurFil(Exception):
@@ -90,6 +95,7 @@ def _conversation_de(fil) -> dict[str, Any]:
         "messages": list(h.get("messages", [])),
         "depense": {"jetons": fil.jetons or 0, "cout": fil.cout or 0.0, **dict(h.get("depense") or {})},
         "dernier_message": h.get("dernier_message"),
+        **{cle: h[cle] for cle in CLES_GARDEES if cle in h},
     }
 
 
@@ -129,6 +135,7 @@ async def _sauver(org: int, fil_id: int, conv: dict[str, Any], reglages: Reglage
             "messages": conv["messages"],
             "depense": depense,
             "dernier_message": conv.get("dernier_message"),
+            **{cle: conv[cle] for cle in CLES_GARDEES if cle in conv},
         },
         jetons=int(depense.get("jetons", 0)),
         cout=float(depense.get("cout", 0.0)),
@@ -145,7 +152,17 @@ async def creer(user, workflow_id: int | None, titre: str, demarrage: str | None
     return await db_client.creer_fil(user.selected_organization_id, user.id, workflow_id, titre[:TITRE_MAX] or "Nouvelle conversation", demarrage)
 
 
-async def lancer(user, fil, message: str, cerveau: Cerveau, reglages: ReglagesCerveau, *, evenement_de_message: dict[str, Any] | None = None) -> None:
+async def lancer(
+    user,
+    fil,
+    message: str,
+    cerveau: Cerveau,
+    reglages: ReglagesCerveau,
+    *,
+    evenement_de_message: dict[str, Any] | None = None,
+    actions_permises: frozenset[str] | None = None,
+    extras: dict[str, Any] | None = None,
+) -> None:
     """Pose le message de la personne et démarre la tâche. Rend la main tout de suite."""
     if en_cours(fil.id):
         raise ErreurFil("The builder is already working on this conversation.", "en_cours")
@@ -153,7 +170,10 @@ async def lancer(user, fil, message: str, cerveau: Cerveau, reglages: ReglagesCe
     conv = _conversation_de(fil)
     conv["dernier_message"] = await noter(fil.id, evenement_de_message or {"type": "message", "role": "user", "texte": message})
     await db_client.modifier_fil(org, fil.id, etat="en_cours")
-    ctx = Contexte(user=user, workflow_id=fil.workflow_id)
+    ctx = Contexte(user=user, workflow_id=fil.workflow_id, actions_permises=actions_permises)
+    conv.update(extras or {})
+    conv["fil_id"] = fil.id
+    CERVEAUX[fil.id] = (cerveau, reglages)
     _TACHES[fil.id] = asyncio.create_task(_courir(org, fil.id, ctx, message, cerveau, reglages, conv))
 
 
@@ -196,6 +216,7 @@ async def _courir(org: int, fil_id: int, ctx: Contexte, message: str, cerveau: C
         await db_client.modifier_fil(org, fil_id, etat=etat)
     finally:
         _TACHES.pop(fil_id, None)
+        CERVEAUX.pop(fil_id, None)
 
 
 async def arreter(org: int, fil_id: int) -> str:

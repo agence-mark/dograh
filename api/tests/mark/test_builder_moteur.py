@@ -106,8 +106,9 @@ def test_aucune_action_interdite_n_est_dans_le_registre():
         with pytest.raises(ValueError):
             registre.enregistrer(registre.Action(nom=nom, description="", parametres=registre.BaseModel, fonction=None))
     # Aucune action de passage en Recette, de rejet, d'acceptation ou de publication n'existe, sous aucun nom.
+    # ``tests_supprimer`` (C2) PROPOSE seulement : rien n'est effacé par le builder, une personne supprime depuis l'onglet Tests.
     for nom in registre.REGISTRE:
-        assert not any(mot in nom for mot in ("publi", "supprim", "delete", "recette", "rejet", "accept", "retour"))
+        assert not any(mot in nom for mot in ("publi", "supprim", "delete", "recette", "rejet", "accept", "retour")) or nom == "tests_supprimer"
 
 
 async def test_une_erreur_du_cerveau_est_rendue_puis_la_conversation_se_ferme_proprement(monde):

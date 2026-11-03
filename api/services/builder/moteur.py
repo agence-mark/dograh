@@ -142,7 +142,7 @@ async def _tours(
 
     message_du_jour = {"role": "user", "content": message}
     conv["messages"].append(message_du_jour)
-    outils = outils_du_moteur()
+    outils = [o for o in outils_du_moteur() if ctx.actions_permises is None or o["name"] in ctx.actions_permises]
     ctx.conversation = conv
 
     for _tour in range(reglages.tours_outils_max):

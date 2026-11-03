@@ -15,6 +15,7 @@ from api.db.models_builder import MarkBuilderConversationModel, MarkBuilderEvene
 
 CHAMPS_MODIFIABLES = frozenset(
     {"titre", "etat", "historique", "jetons", "cout", "jauge", "changements", "workflow_id", "demarrage"}
+    | {"genre", "delegation_id", "usage", "tache", "modele", "resultat", "sous_agents_actifs"}
 )
 
 
@@ -27,6 +28,7 @@ class BuilderFilClient(BaseDBClient):
         titre: str,
         demarrage: str | None = None,
         parent_id: int | None = None,
+        **sous_agent: Any,
     ) -> MarkBuilderConversationModel:
         async with self.async_session() as session:
             fil = MarkBuilderConversationModel(
@@ -37,6 +39,7 @@ class BuilderFilClient(BaseDBClient):
                 titre=titre[:200],
                 demarrage=demarrage,
                 historique={},
+                **sous_agent,
             )
             session.add(fil)
             await session.commit()
@@ -120,3 +123,17 @@ class BuilderFilClient(BaseDBClient):
             touches = [(int(o), int(i)) for o, i in resultat.all()]
             await session.commit()
             return touches
+
+    async def lister_les_enfants(self, organization_id: int, parent_id: int) -> list[MarkBuilderConversationModel]:
+        """Les sous-agents d'une conversation, dans l'ordre de création."""
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                select(MarkBuilderConversationModel)
+                .where(
+                    MarkBuilderConversationModel.organization_id == organization_id,
+                    MarkBuilderConversationModel.parent_id == parent_id,
+                )
+                .order_by(MarkBuilderConversationModel.id)
+                .execution_options(populate_existing=True)
+            )
+            return list(resultat.scalars().all())

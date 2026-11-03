@@ -16,6 +16,8 @@ from api.services.builder.actions import contexte_client  # noqa: F401,E402 -- l
 from api.services.builder.actions import dialogue  # noqa: F401,E402 -- U5 (E26) : la carte plan et la carte question
 from api.services.builder.actions import methode  # noqa: F401,E402 -- U7 (M2) : builder_methode et builder_conventions pour Claude Code
 from api.services.builder.actions import juge  # noqa: F401,E402 -- U6 : juge_a_faire, juge_lire, juge_ecrire pour Claude Code
+from api.services.builder.actions import rapport_et_tests  # noqa: F401,E402 -- C2 : rapport, dépense, tests lus, correction
+from api.services.builder import sous_agents  # noqa: F401,E402 -- C2 (E96) : l'action deleguer
 from api.services.builder.actions.registre import (  # noqa: F401
     INTERDITES,
     REGISTRE,

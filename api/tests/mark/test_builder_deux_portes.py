@@ -49,6 +49,12 @@ ARGUMENTS = {
     "tests_creer": {"workflow_id": AGENT, "nom": "t", "scenario": "s"},
     "tests_rejouer": {"workflow_id": AGENT},
     "tests_modifier": {"workflow_id": AGENT, "test": "t"},
+    # C2 : tests lus, proposition de suppression, bilan d'une correction, modifications de la conversation.
+    "tests_lister": {"workflow_id": AGENT},
+    "tests_lire": {"workflow_id": AGENT, "test": "t"},
+    "tests_supprimer": {"workflow_id": AGENT, "test": "t"},
+    "correction_bilan": {"workflow_id": AGENT},
+    "modifications_lister": {"workflow_id": AGENT},
     # Lot 3 (dossiers, fiche classée, base de connaissances) et B48 (objets de l'agent).
     "depot_ajouter_site": {"workflow_id": AGENT, "adresse": "https://exemple.test"},
     "fiche_creer_les_objets": {"workflow_id": AGENT},
@@ -141,7 +147,7 @@ EXISTANTS = {
 
 
 # U5 (E26) : les cartes du chat (plan, question) n'ont de sens qu'à l'écran, jamais dans Claude Code.
-ECRAN_SEULEMENT = {"plan_mettre_a_jour", "question_poser"}
+ECRAN_SEULEMENT = {"plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer", "deleguer"}
 
 
 def test_les_outils_deja_exposes_sont_dans_le_registre_et_pas_inscrits_deux_fois():

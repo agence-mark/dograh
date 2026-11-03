@@ -63,6 +63,9 @@ class VueFil(BaseModel):
     cree_le: Any
     modifie_le: Any
     en_cours: bool
+    genre: str = "principal"
+    parent_id: int | None = None
+    sous_agents_actifs: bool = True
 
 
 def _vue(fil) -> VueFil:
@@ -79,7 +82,16 @@ def _vue(fil) -> VueFil:
         cree_le=fil.cree_le,
         modifie_le=fil.modifie_le,
         en_cours=service_fil.en_cours(fil.id),
+        genre=fil.genre or "principal",
+        parent_id=fil.parent_id,
+        sous_agents_actifs=bool(fil.sous_agents_actifs),
     )
+
+
+def _pas_un_sous_agent(fil) -> None:
+    """C2 (E96) : un sous-agent est lu, arrêté, jamais écrit à ni relancé par une personne."""
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent receives no message.")
 
 
 def _refus(erreur: service_fil.ErreurFil) -> HTTPException:
@@ -174,6 +186,7 @@ class MessageDuFil(BaseModel):
 @router.post("/fils/{fil_id}/messages", response_model=VueFil)
 async def envoyer_un_message(fil_id: int, demande: MessageDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
     fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
     try:
         await service_fil.lancer(user, fil, demande.message, cerveau, reglages)
@@ -192,6 +205,7 @@ async def arreter_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_se
 @router.post("/fils/{fil_id}/reprendre", response_model=VueFil)
 async def reprendre_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
     try:
         await service_fil.reprendre(user, fil, cerveau, reglages)
@@ -205,6 +219,7 @@ async def modifier_le_dernier_message(
     fil_id: int, demande: MessageDuFil, user: UserModel = Depends(get_user_with_selected_organization)
 ):
     fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
     try:
         await service_fil.modifier_le_dernier_message(user, fil, demande.message, cerveau, reglages)
