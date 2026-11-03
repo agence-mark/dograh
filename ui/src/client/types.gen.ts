@@ -2574,6 +2574,16 @@ export type ChangerUnTest = {
 };
 
 /**
+ * ChoixDeRecette
+ */
+export type ChoixDeRecette = {
+    /**
+     * Recette
+     */
+    recette: string;
+};
+
+/**
  * ChoixTraducteurs
  */
 export type ChoixTraducteurs = {
@@ -3714,6 +3724,10 @@ export type CreateWorkflowTemplateRequest = {
      * Activity Description
      */
     activity_description: string;
+    /**
+     * Recette
+     */
+    recette?: string | null;
 };
 
 /**
@@ -3776,6 +3790,10 @@ export type CreerPrincipalRequest = {
      * Folder Id
      */
     folder_id?: number | null;
+    /**
+     * Recette
+     */
+    recette?: string | null;
 };
 
 /**
@@ -17663,6 +17681,56 @@ export type VueFil = {
 };
 
 /**
+ * VueOptions
+ */
+export type VueOptions = {
+    /**
+     * Sauvegarde Avant Modification
+     */
+    sauvegarde_avant_modification?: boolean;
+    /**
+     * Recette Par Defaut
+     */
+    recette_par_defaut?: string;
+};
+
+/**
+ * VueRecetteDeLAgent
+ */
+export type VueRecetteDeLAgent = {
+    /**
+     * Recette
+     */
+    recette: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Indiquee
+     */
+    indiquee: boolean;
+    /**
+     * Modifiable
+     */
+    modifiable: boolean;
+};
+
+/**
+ * VueRecettes
+ */
+export type VueRecettes = {
+    /**
+     * Defaut
+     */
+    defaut: string | null;
+    /**
+     * Recettes
+     */
+    recettes: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * VueReglagesCerveau
  *
  * Ce que l'écran lit : les mêmes réglages, et SEULEMENT si une clé est posée.
@@ -24755,6 +24823,281 @@ export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetRespons
 };
 
 export type LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponse = LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponses[keyof LireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGetResponses];
+
+export type ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Numero
+         */
+        numero: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/versions/{numero}/apercu';
+};
+
+export type ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetError = ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetErrors[keyof ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetErrors];
+
+export type ApercuAvantDeRevenirApiV1BuilderAgentsWorkflowIdVersionsNumeroApercuGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLesOptionsApiV1BuilderOptionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/options';
+};
+
+export type LireLesOptionsApiV1BuilderOptionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesOptionsApiV1BuilderOptionsGetError = LireLesOptionsApiV1BuilderOptionsGetErrors[keyof LireLesOptionsApiV1BuilderOptionsGetErrors];
+
+export type LireLesOptionsApiV1BuilderOptionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueOptions;
+};
+
+export type LireLesOptionsApiV1BuilderOptionsGetResponse = LireLesOptionsApiV1BuilderOptionsGetResponses[keyof LireLesOptionsApiV1BuilderOptionsGetResponses];
+
+export type ReglerLesOptionsApiV1BuilderOptionsPutData = {
+    body: VueOptions;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/options';
+};
+
+export type ReglerLesOptionsApiV1BuilderOptionsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLesOptionsApiV1BuilderOptionsPutError = ReglerLesOptionsApiV1BuilderOptionsPutErrors[keyof ReglerLesOptionsApiV1BuilderOptionsPutErrors];
+
+export type ReglerLesOptionsApiV1BuilderOptionsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueOptions;
+};
+
+export type ReglerLesOptionsApiV1BuilderOptionsPutResponse = ReglerLesOptionsApiV1BuilderOptionsPutResponses[keyof ReglerLesOptionsApiV1BuilderOptionsPutResponses];
+
+export type ListerLesRecettesApiV1BuilderRecettesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/recettes';
+};
+
+export type ListerLesRecettesApiV1BuilderRecettesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesRecettesApiV1BuilderRecettesGetError = ListerLesRecettesApiV1BuilderRecettesGetErrors[keyof ListerLesRecettesApiV1BuilderRecettesGetErrors];
+
+export type ListerLesRecettesApiV1BuilderRecettesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueRecettes;
+};
+
+export type ListerLesRecettesApiV1BuilderRecettesGetResponse = ListerLesRecettesApiV1BuilderRecettesGetResponses[keyof ListerLesRecettesApiV1BuilderRecettesGetResponses];
+
+export type LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/recette';
+};
+
+export type LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetError = LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetErrors[keyof LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetErrors];
+
+export type LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueRecetteDeLAgent;
+};
+
+export type LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetResponse = LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetResponses[keyof LireLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecetteGetResponses];
+
+export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutData = {
+    body: ChoixDeRecette;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/recette';
+};
+
+export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutError = ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutErrors[keyof ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutErrors];
+
+export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueRecetteDeLAgent;
+};
+
+export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponse = ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses[keyof ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses];
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;
