@@ -97,6 +97,25 @@ function headersToRows(headers: Record<string, string> | undefined | null): KeyV
     return Object.entries(headers).map(([key, value]) => ({ key, value }));
 }
 
+/** [.mark] U3 sexies : les clés de `config` que l'éditeur complet ne dessine pas et ne doit pas effacer. */
+const REGLAGES_AJOUTES_U3_SEXIES = [
+    "en_tetes_ext",
+    "chemins_gardes",
+    "copies_dans_la_fiche",
+    "reponses_simulees",
+    "phrase_avant_mode",
+    "mode_execution",
+    "interruption_appelant",
+    "son_pendant_enregistrement_id",
+    "phrase_attente",
+    "seuil_patience_ms",
+    "phrase_repli",
+    "reglages_outils",
+    "transport",
+    "dernier_essai",
+    "premier_essai",
+];
+
 export default function ToolDetailPage() {
     const { toolUuid } = useParams<{ toolUuid: string }>();
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
@@ -785,6 +804,31 @@ export default function ToolDetailPage() {
                         },
                     },
                 };
+            }
+
+            // [.mark] U3 sexies : cet éditeur ne connaît pas les réglages ajoutés (en-têtes, réponse, comportement, essai,
+            // emplacement des paramètres…) ; il les garde tels quels au lieu de les effacer à l'enregistrement. Seules ces
+            // clés sont reprises : les champs qu'il connaît (essais, corps…) restent ceux qu'il envoie, effacés compris.
+            const definitionEnvoyee = requestBody.definition as { config?: Record<string, unknown> } | undefined;
+            const configGardee = (tool.definition as { config?: Record<string, unknown> } | undefined)?.config;
+            if (definitionEnvoyee?.config && configGardee) {
+                for (const cle of REGLAGES_AJOUTES_U3_SEXIES) {
+                    if (configGardee[cle] !== undefined && configGardee[cle] !== null) definitionEnvoyee.config[cle] = configGardee[cle];
+                }
+                const anciens = new Map(
+                    ((configGardee.parameters as Record<string, unknown>[] | undefined) ?? []).map((p) => [p.name, p]),
+                );
+                if (Array.isArray(definitionEnvoyee.config.parameters)) {
+                    definitionEnvoyee.config.parameters = (definitionEnvoyee.config.parameters as Record<string, unknown>[]).map((p) => {
+                        const ancien = anciens.get(p.name);
+                        if (!ancien) return p;
+                        const reprise: Record<string, unknown> = { ...p };
+                        for (const cle of ["emplacement", "valeurs_permises", "defaut"]) {
+                            if (ancien[cle] !== undefined && ancien[cle] !== null) reprise[cle] = ancien[cle];
+                        }
+                        return reprise;
+                    });
+                }
             }
 
             const response = await updateToolApiV1ToolsToolUuidPut({
