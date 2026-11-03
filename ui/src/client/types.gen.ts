@@ -282,6 +282,24 @@ export type ActionEquipe = {
 };
 
 /**
+ * ActionRelancee
+ */
+export type ActionRelancee = {
+    /**
+     * Action Id
+     */
+    action_id: number;
+    /**
+     * Etape
+     */
+    etape: string;
+    /**
+     * Statut
+     */
+    statut: string;
+};
+
+/**
  * ActionReprise
  *
  * One value the takeover writes (or would write).
@@ -961,6 +979,47 @@ export type AutoscaleMetricResponse = {
      * Value
      */
     value: number;
+};
+
+/**
+ * AvisPublic
+ */
+export type AvisPublic = {
+    /**
+     * Etoiles
+     */
+    etoiles: number;
+    /**
+     * Obtenu
+     */
+    obtenu?: 'oui' | 'en_partie' | 'non' | null;
+    /**
+     * Raisons
+     */
+    raisons?: Array<string>;
+    /**
+     * Commentaire
+     */
+    commentaire?: string | null;
+    /**
+     * Rappel Demande
+     */
+    rappel_demande?: boolean;
+    /**
+     * Publication Acceptee
+     */
+    publication_acceptee?: boolean;
+    contact?: ContactVisiteur | null;
+};
+
+/**
+ * AvisRecu
+ */
+export type AvisRecu = {
+    /**
+     * Ok
+     */
+    ok?: boolean;
 };
 
 /**
@@ -2717,6 +2776,24 @@ export type Conservation = {
      * Source
      */
     source?: string | null;
+};
+
+/**
+ * ContactVisiteur
+ */
+export type ContactVisiteur = {
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
 };
 
 /**
@@ -5435,6 +5512,50 @@ export type EtatDuRenvoi = {
 };
 
 /**
+ * EvenementJour
+ */
+export type EvenementJour = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Jour
+     */
+    jour: string;
+    /**
+     * Affiche
+     */
+    affiche: number;
+    /**
+     * Ouvert
+     */
+    ouvert: number;
+};
+
+/**
+ * EvenementPublic
+ */
+export type EvenementPublic = {
+    /**
+     * Cle
+     */
+    cle?: string | null;
+    /**
+     * Token
+     */
+    token?: string | null;
+    /**
+     * Chemin
+     */
+    chemin?: string;
+    /**
+     * Evenement
+     */
+    evenement: 'affiche' | 'ouvert';
+};
+
+/**
  * ExotelConfigurationRequest
  */
 export type ExotelConfigurationRequest = {
@@ -6417,6 +6538,10 @@ export type InitEmbedRequest = {
     context_variables?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Mode
+     */
+    mode?: 'voix' | 'ecrit' | null;
 };
 
 /**
@@ -10533,6 +10658,21 @@ export type PublierGroupeResponse = {
      */
     deja_a_jour?: Array<number>;
     refus?: RefusOutput | null;
+};
+
+/**
+ * RappelPublic
+ */
+export type RappelPublic = {
+    /**
+     * Chemin
+     */
+    chemin?: string;
+    contact: ContactVisiteur;
+    /**
+     * Message
+     */
+    message?: string | null;
 };
 
 /**
@@ -24360,6 +24500,60 @@ export type ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses = {
 
 export type ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponse = ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses[keyof ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses];
 
+export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Du
+         */
+        du?: string | null;
+        /**
+         * Au
+         */
+        au?: string | null;
+    };
+    url: '/api/v1/organizations/agents-site/evenements';
+};
+
+export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetError = GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetErrors[keyof GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetErrors];
+
+export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetResponses = {
+    /**
+     * Response Get Evenements Des Agents De Site Api V1 Organizations Agents Site Evenements Get
+     *
+     * Successful Response
+     */
+    200: Array<EvenementJour>;
+};
+
+export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetResponse = GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetResponses[keyof GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetResponses];
+
 export type LireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGetData = {
     body?: never;
     headers?: {
@@ -25305,6 +25499,54 @@ export type PostNuitApiV1OrganizationsApresAppelNuitPostResponses = {
 };
 
 export type PostNuitApiV1OrganizationsApresAppelNuitPostResponse = PostNuitApiV1OrganizationsApresAppelNuitPostResponses[keyof PostNuitApiV1OrganizationsApresAppelNuitPostResponses];
+
+export type PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Action Id
+         */
+        action_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/apres-appel/actions/{action_id}/relancer';
+};
+
+export type PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostError = PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostErrors[keyof PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostErrors];
+
+export type PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ActionRelancee;
+};
+
+export type PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostResponse = PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostResponses[keyof PostRelancerActionApiV1OrganizationsApresAppelActionsActionIdRelancerPostResponses];
 
 export type PostRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPostData = {
     body?: never;
@@ -32748,6 +32990,103 @@ export type PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostRes
 };
 
 export type PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponse = PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses[keyof PostPublicChatMessageApiV1PublicEmbedChatSessionTokenMessagesPostResponses];
+
+export type PostAvisApiV1PublicEmbedAvisSessionTokenPostData = {
+    body: AvisPublic;
+    path: {
+        /**
+         * Session Token
+         */
+        session_token: string;
+    };
+    query?: never;
+    url: '/api/v1/public/embed/avis/{session_token}';
+};
+
+export type PostAvisApiV1PublicEmbedAvisSessionTokenPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAvisApiV1PublicEmbedAvisSessionTokenPostError = PostAvisApiV1PublicEmbedAvisSessionTokenPostErrors[keyof PostAvisApiV1PublicEmbedAvisSessionTokenPostErrors];
+
+export type PostAvisApiV1PublicEmbedAvisSessionTokenPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvisRecu;
+};
+
+export type PostAvisApiV1PublicEmbedAvisSessionTokenPostResponse = PostAvisApiV1PublicEmbedAvisSessionTokenPostResponses[keyof PostAvisApiV1PublicEmbedAvisSessionTokenPostResponses];
+
+export type PostRappelApiV1PublicEmbedRappelClePostData = {
+    body: RappelPublic;
+    path: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    query?: never;
+    url: '/api/v1/public/embed/rappel/{cle}';
+};
+
+export type PostRappelApiV1PublicEmbedRappelClePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRappelApiV1PublicEmbedRappelClePostError = PostRappelApiV1PublicEmbedRappelClePostErrors[keyof PostRappelApiV1PublicEmbedRappelClePostErrors];
+
+export type PostRappelApiV1PublicEmbedRappelClePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvisRecu;
+};
+
+export type PostRappelApiV1PublicEmbedRappelClePostResponse = PostRappelApiV1PublicEmbedRappelClePostResponses[keyof PostRappelApiV1PublicEmbedRappelClePostResponses];
+
+export type PostEvenementApiV1PublicEmbedEvenementPostData = {
+    body: EvenementPublic;
+    path?: never;
+    query?: never;
+    url: '/api/v1/public/embed/evenement';
+};
+
+export type PostEvenementApiV1PublicEmbedEvenementPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEvenementApiV1PublicEmbedEvenementPostError = PostEvenementApiV1PublicEmbedEvenementPostErrors[keyof PostEvenementApiV1PublicEmbedEvenementPostErrors];
+
+export type PostEvenementApiV1PublicEmbedEvenementPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvisRecu;
+};
+
+export type PostEvenementApiV1PublicEmbedEvenementPostResponse = PostEvenementApiV1PublicEmbedEvenementPostResponses[keyof PostEvenementApiV1PublicEmbedEvenementPostResponses];
 
 export type InitiateCallApiV1PublicAgentUuidPostData = {
     body: TriggerCallRequest;
