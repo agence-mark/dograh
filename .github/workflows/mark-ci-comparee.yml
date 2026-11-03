@@ -232,7 +232,10 @@ jobs:
           export PYTHONPATH="$racine:$RUNNER_TEMP/outils-mark"
           export MARK_SONDE_FICHIER="$rapports/sonde-memoire.json"
           set +e
+          # [.mark] Builder partie 2, C5 : un test qui depasse 120 s ecrit la pile de chaque fil dans le journal (sans
+          # arreter la suite) ; un depassement de la limite du job dit alors QUEL test bloquait. Les 25 plus lents aussi.
           pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
+            -o faulthandler_timeout=120 --durations=25 \
             --junitxml="$rapports/junit.xml"
           code=$?
           set -e
