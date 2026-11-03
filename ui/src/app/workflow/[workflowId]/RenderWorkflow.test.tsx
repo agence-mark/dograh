@@ -97,3 +97,18 @@ it('draws the floating bar of the canvas, whose tools disappear on a past versio
     expect(screen.queryByRole('button', { name: 'General prompt' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Fit the view' })).toBeTruthy();
 });
+
+it('opens the window of a node on Enter (keyboard), as the double-click does, and only on Enter', async () => {
+    const { useOuvertureNoeud } = await import('@/components/mark/agent/ouverture-noeud');
+    useOuvertureNoeud.setState({ demande: null });
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    const noeud = document.createElement('div');
+    noeud.className = 'react-flow__node';
+    noeud.setAttribute('data-id', '7');
+    noeud.tabIndex = 0;
+    screen.getByTestId('canvas').appendChild(noeud);
+    fireEvent.keyDown(noeud, { key: 'ArrowDown' });
+    expect(useOuvertureNoeud.getState().demande).toBeNull();
+    fireEvent.keyDown(noeud, { key: 'Enter' });
+    expect(useOuvertureNoeud.getState().demande?.id).toBe('7');
+});

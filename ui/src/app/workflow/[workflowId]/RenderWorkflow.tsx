@@ -743,7 +743,18 @@ function RenderWorkflow({
                 <div className="flex-1 min-h-0">
                     <div className="relative flex h-full min-w-0">
                         <div className={`min-w-0 flex-1 bg-(--canevas) ${panneauOuvert ? "lg:pr-[436px]" : ""}`}>
-                        <div className="relative h-full">
+                        {/* [.mark] V1b : au clavier, Entrée sur un nœud (il prend le focus par Tab) ouvre sa fenêtre, comme le double-clic. */}
+                        <div
+                            className="relative h-full"
+                            onKeyDown={(evenement) => {
+                                const cible = evenement.target as HTMLElement;
+                                if (evenement.key !== 'Enter' || !cible.classList?.contains('react-flow__node')) return;
+                                const id = cible.getAttribute('data-id');
+                                if (!id) return;
+                                evenement.preventDefault();
+                                demanderOuverture(id);
+                            }}
+                        >
                             <ReactFlow
                                 key={activeVersionId ?? 'current'}
                                 nodes={noeudsAffiches}

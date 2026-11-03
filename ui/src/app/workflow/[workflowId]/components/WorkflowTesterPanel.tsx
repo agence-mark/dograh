@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Mic, Phone, RefreshCw, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
@@ -162,8 +162,26 @@ export function WorkflowTesterPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeDemande?.cle]);
 
+    // [.mark] V1b : le panneau s'ouvre au clavier comme à la souris. Le focus entre dans le panneau (sur l'onglet du mode
+    // choisi) et Échap le ferme, sauf quand une liste ouverte (qui prend l'Échap pour elle) l'a déjà utilisé.
+    const racine = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!modeDemande || !isVisible) return;
+        const minuterie = window.setTimeout(() => racine.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus(), 50);
+        return () => window.clearTimeout(minuterie);
+    }, [modeDemande?.cle, isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
     return (
-        <div className={cn("flex h-full min-h-0 flex-col bg-background", className)}>
+        <div
+            ref={racine}
+            className={cn("flex h-full min-h-0 flex-col bg-background", className)}
+            onKeyDown={(e) => {
+                if (e.key === "Escape" && onClose && !e.defaultPrevented) {
+                    e.stopPropagation();
+                    onClose();
+                }
+            }}
+        >
             <Tabs
                 value={activeMode}
                 onValueChange={handleModeChange}
