@@ -238,6 +238,24 @@ export type Acceptation = {
 };
 
 /**
+ * AccepterRequest
+ */
+export type AccepterRequest = {
+    /**
+     * Prenom
+     */
+    prenom: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Mot De Passe
+     */
+    mot_de_passe: string;
+};
+
+/**
  * ActionEquipe
  *
  * l-agent-collegue, L8: what the agent did for the team during the call, read in the record.
@@ -2167,6 +2185,16 @@ export type ChampRequisDuRappel = {
 };
 
 /**
+ * ChangerRoleRequest
+ */
+export type ChangerRoleRequest = {
+    /**
+     * Role Id
+     */
+    role_id: number;
+};
+
+/**
  * ChangerUnTest
  */
 export type ChangerUnTest = {
@@ -2678,6 +2706,70 @@ export type ContextDestinationRule = {
      * Routes
      */
     routes: Array<ContextDestinationRoute>;
+};
+
+/**
+ * ConversationEquipe
+ */
+export type ConversationEquipe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Name
+     */
+    workflow_name: string | null;
+    /**
+     * Organization Id
+     */
+    organization_id: number | null;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Is Completed
+     */
+    is_completed: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * ConversationsEquipeResponse
+ */
+export type ConversationsEquipeResponse = {
+    /**
+     * Conversations
+     */
+    conversations: Array<ConversationEquipe>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
 };
 
 /**
@@ -4672,6 +4764,42 @@ export type Equipe = {
 };
 
 /**
+ * EspaceResponse
+ */
+export type EspaceResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Provider Id
+     */
+    provider_id: string;
+    /**
+     * Espace
+     */
+    espace: string;
+    /**
+     * Selectionne
+     */
+    selectionne: boolean;
+};
+
+/**
+ * EspacesResponse
+ */
+export type EspacesResponse = {
+    /**
+     * Espaces
+     */
+    espaces: Array<EspaceResponse>;
+};
+
+/**
  * EssaiMail
  */
 export type EssaiMail = {
@@ -6104,6 +6232,112 @@ export type IntegrationToolDefinition = {
 };
 
 /**
+ * InvitationCreeeResponse
+ */
+export type InvitationCreeeResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role Nom
+     */
+    role_nom: string;
+    /**
+     * Expire Le
+     */
+    expire_le: string;
+    /**
+     * Lien
+     */
+    lien: string;
+    /**
+     * Envoye
+     */
+    envoye: boolean;
+};
+
+/**
+ * InvitationLueResponse
+ */
+export type InvitationLueResponse = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role Nom
+     */
+    role_nom: string;
+};
+
+/**
+ * InvitationRequest
+ */
+export type InvitationRequest = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role Id
+     */
+    role_id: number;
+};
+
+/**
+ * InvitationResponse
+ */
+export type InvitationResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role Id
+     */
+    role_id: number;
+    /**
+     * Role Nom
+     */
+    role_nom: string;
+    /**
+     * Expire Le
+     */
+    expire_le: string;
+};
+
+/**
+ * InvitationsResponse
+ */
+export type InvitationsResponse = {
+    /**
+     * Invitations
+     */
+    invitations: Array<InvitationResponse>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
  * Inworld
  *
  * Inworld AI streaming text-to-speech with built-in and cloned voices. Defaults to the Ashley system voice on inworld-tts-2.
@@ -6153,6 +6387,72 @@ export type InworldTtsConfiguration = {
  * ItemKind
  */
 export type ItemKind = 'node' | 'edge' | 'workflow';
+
+/**
+ * JournalLigne
+ */
+export type JournalLigne = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Quand
+     */
+    quand: string;
+    /**
+     * User Id
+     */
+    user_id: number | null;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Prenom
+     */
+    prenom: string | null;
+    /**
+     * Nom
+     */
+    nom: string | null;
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Organization Id
+     */
+    organization_id: number | null;
+    /**
+     * Detail
+     */
+    detail: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * JournalResponse
+ */
+export type JournalResponse = {
+    /**
+     * Lignes
+     */
+    lignes: Array<JournalLigne>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
 
 /**
  * LancementSerie
@@ -6999,6 +7299,58 @@ export type MembreDuGroupe = {
 };
 
 /**
+ * MembreResponse
+ */
+export type MembreResponse = {
+    /**
+     * User Id
+     */
+    user_id: number;
+    /**
+     * Email
+     */
+    email: string | null;
+    /**
+     * Prenom
+     */
+    prenom: string | null;
+    /**
+     * Nom
+     */
+    nom: string | null;
+    /**
+     * Role Id
+     */
+    role_id: number;
+    /**
+     * Role Nom
+     */
+    role_nom: string;
+};
+
+/**
+ * MembresResponse
+ */
+export type MembresResponse = {
+    /**
+     * Membres
+     */
+    membres: Array<MembreResponse>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
  * MentionApplication
  *
  * What an agent keeps of the last template applied to it (M4): a copy of the name, never a link.
@@ -7601,6 +7953,28 @@ export type ModificationPlanificateur = {
 };
 
 /**
+ * ModifierProfilRequest
+ */
+export type ModifierProfilRequest = {
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Langue
+     */
+    langue?: string | null;
+    /**
+     * Alertes Mail
+     */
+    alertes_mail?: boolean | null;
+};
+
+/**
  * ModuleDeLAgent
  */
 export type ModuleDeLAgent = {
@@ -7696,6 +8070,20 @@ export type ModulesOrganisation = {
      * Modules
      */
     modules: Array<ModuleVue>;
+};
+
+/**
+ * MotDePasseRequest
+ */
+export type MotDePasseRequest = {
+    /**
+     * Actuel
+     */
+    actuel: string;
+    /**
+     * Nouveau
+     */
+    nouveau: string;
 };
 
 /**
@@ -8892,6 +9280,24 @@ export type ParametreVue = {
 };
 
 /**
+ * PermissionResponse
+ */
+export type PermissionResponse = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Groupe
+     */
+    groupe: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+};
+
+/**
  * Personne
  */
 export type Personne = {
@@ -9396,6 +9802,44 @@ export type ProcessDocumentRequestSchema = {
      * Retrieval mode: 'chunked' for vector search or 'full_document' for full text retrieval
      */
     retrieval_mode?: string;
+};
+
+/**
+ * ProfilResponse
+ */
+export type ProfilResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Email
+     */
+    email: string | null;
+    /**
+     * Prenom
+     */
+    prenom: string | null;
+    /**
+     * Nom
+     */
+    nom: string | null;
+    /**
+     * Role
+     */
+    role: string | null;
+    /**
+     * Permissions
+     */
+    permissions: Array<string>;
+    /**
+     * Langue
+     */
+    langue: string;
+    /**
+     * Alertes Mail
+     */
+    alertes_mail: boolean;
 };
 
 /**
@@ -10632,6 +11076,40 @@ export type ReglePhrase = {
 };
 
 /**
+ * ReglerEspaceRequest
+ *
+ * Seuls les champs envoyés changent : ``nom_affichage`` (vide ou null = retiré), ``labo``.
+ */
+export type ReglerEspaceRequest = {
+    /**
+     * Nom Affichage
+     */
+    nom_affichage?: string | null;
+    /**
+     * Labo
+     */
+    labo?: boolean | null;
+};
+
+/**
+ * ReglerEspaceResponse
+ */
+export type ReglerEspaceResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Espace
+     */
+    espace: string;
+};
+
+/**
  * RejetDeBase
  */
 export type RejetDeBase = {
@@ -11052,6 +11530,70 @@ export type RimeTtsConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * RoleRequest
+ */
+export type RoleRequest = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Labo Ouvert
+     */
+    labo_ouvert?: boolean;
+    /**
+     * Tous Les Clients
+     */
+    tous_les_clients?: boolean;
+    /**
+     * Permissions
+     */
+    permissions?: Array<string>;
+    /**
+     * Organisations
+     */
+    organisations?: Array<number>;
+};
+
+/**
+ * RoleResponse
+ */
+export type RoleResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Fixe
+     */
+    fixe: boolean;
+    /**
+     * Labo Ouvert
+     */
+    labo_ouvert: boolean;
+    /**
+     * Tous Les Clients
+     */
+    tous_les_clients: boolean;
+    /**
+     * Permissions
+     */
+    permissions: Array<string>;
+    /**
+     * Organisations
+     */
+    organisations: Array<number>;
+    /**
+     * Membres
+     */
+    membres: number;
 };
 
 /**
@@ -25001,6 +25543,928 @@ export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGe
 };
 
 export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponse = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses];
+
+export type ListerLesEspacesApiV1EspacesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/espaces';
+};
+
+export type ListerLesEspacesApiV1EspacesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesEspacesApiV1EspacesGetError = ListerLesEspacesApiV1EspacesGetErrors[keyof ListerLesEspacesApiV1EspacesGetErrors];
+
+export type ListerLesEspacesApiV1EspacesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EspacesResponse;
+};
+
+export type ListerLesEspacesApiV1EspacesGetResponse = ListerLesEspacesApiV1EspacesGetResponses[keyof ListerLesEspacesApiV1EspacesGetResponses];
+
+export type ConversationsDeLEquipeApiV1EspacesConversationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Organization Id
+         *
+         * Une seule organisation (sinon toutes celles que le rôle ouvre)
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/espaces/conversations';
+};
+
+export type ConversationsDeLEquipeApiV1EspacesConversationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConversationsDeLEquipeApiV1EspacesConversationsGetError = ConversationsDeLEquipeApiV1EspacesConversationsGetErrors[keyof ConversationsDeLEquipeApiV1EspacesConversationsGetErrors];
+
+export type ConversationsDeLEquipeApiV1EspacesConversationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConversationsEquipeResponse;
+};
+
+export type ConversationsDeLEquipeApiV1EspacesConversationsGetResponse = ConversationsDeLEquipeApiV1EspacesConversationsGetResponses[keyof ConversationsDeLEquipeApiV1EspacesConversationsGetResponses];
+
+export type ReglerUnEspaceApiV1EspacesOrganizationIdPutData = {
+    body: ReglerEspaceRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/{organization_id}';
+};
+
+export type ReglerUnEspaceApiV1EspacesOrganizationIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerUnEspaceApiV1EspacesOrganizationIdPutError = ReglerUnEspaceApiV1EspacesOrganizationIdPutErrors[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutErrors];
+
+export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglerEspaceResponse;
+};
+
+export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponse = ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses];
+
+export type MonProfilApiV1EquipeMarkMoiGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/moi';
+};
+
+export type MonProfilApiV1EquipeMarkMoiGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MonProfilApiV1EquipeMarkMoiGetError = MonProfilApiV1EquipeMarkMoiGetErrors[keyof MonProfilApiV1EquipeMarkMoiGetErrors];
+
+export type MonProfilApiV1EquipeMarkMoiGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProfilResponse;
+};
+
+export type MonProfilApiV1EquipeMarkMoiGetResponse = MonProfilApiV1EquipeMarkMoiGetResponses[keyof MonProfilApiV1EquipeMarkMoiGetResponses];
+
+export type ModifierMonProfilApiV1EquipeMarkMoiPatchData = {
+    body: ModifierProfilRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/moi';
+};
+
+export type ModifierMonProfilApiV1EquipeMarkMoiPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierMonProfilApiV1EquipeMarkMoiPatchError = ModifierMonProfilApiV1EquipeMarkMoiPatchErrors[keyof ModifierMonProfilApiV1EquipeMarkMoiPatchErrors];
+
+export type ModifierMonProfilApiV1EquipeMarkMoiPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProfilResponse;
+};
+
+export type ModifierMonProfilApiV1EquipeMarkMoiPatchResponse = ModifierMonProfilApiV1EquipeMarkMoiPatchResponses[keyof ModifierMonProfilApiV1EquipeMarkMoiPatchResponses];
+
+export type ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostData = {
+    body: MotDePasseRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/moi/mot-de-passe';
+};
+
+export type ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostError = ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostErrors[keyof ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostErrors];
+
+export type ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostResponse = ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostResponses[keyof ChangerMonMotDePasseApiV1EquipeMarkMoiMotDePassePostResponses];
+
+export type CatalogueApiV1EquipeMarkPermissionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/permissions';
+};
+
+export type CatalogueApiV1EquipeMarkPermissionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CatalogueApiV1EquipeMarkPermissionsGetError = CatalogueApiV1EquipeMarkPermissionsGetErrors[keyof CatalogueApiV1EquipeMarkPermissionsGetErrors];
+
+export type CatalogueApiV1EquipeMarkPermissionsGetResponses = {
+    /**
+     * Response Catalogue Api V1 Equipe Mark Permissions Get
+     *
+     * Successful Response
+     */
+    200: Array<PermissionResponse>;
+};
+
+export type CatalogueApiV1EquipeMarkPermissionsGetResponse = CatalogueApiV1EquipeMarkPermissionsGetResponses[keyof CatalogueApiV1EquipeMarkPermissionsGetResponses];
+
+export type ListerLesRolesApiV1EquipeMarkRolesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/roles';
+};
+
+export type ListerLesRolesApiV1EquipeMarkRolesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesRolesApiV1EquipeMarkRolesGetError = ListerLesRolesApiV1EquipeMarkRolesGetErrors[keyof ListerLesRolesApiV1EquipeMarkRolesGetErrors];
+
+export type ListerLesRolesApiV1EquipeMarkRolesGetResponses = {
+    /**
+     * Response Lister Les Roles Api V1 Equipe Mark Roles Get
+     *
+     * Successful Response
+     */
+    200: Array<RoleResponse>;
+};
+
+export type ListerLesRolesApiV1EquipeMarkRolesGetResponse = ListerLesRolesApiV1EquipeMarkRolesGetResponses[keyof ListerLesRolesApiV1EquipeMarkRolesGetResponses];
+
+export type CreerUnRoleApiV1EquipeMarkRolesPostData = {
+    body: RoleRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/roles';
+};
+
+export type CreerUnRoleApiV1EquipeMarkRolesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnRoleApiV1EquipeMarkRolesPostError = CreerUnRoleApiV1EquipeMarkRolesPostErrors[keyof CreerUnRoleApiV1EquipeMarkRolesPostErrors];
+
+export type CreerUnRoleApiV1EquipeMarkRolesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: RoleResponse;
+};
+
+export type CreerUnRoleApiV1EquipeMarkRolesPostResponse = CreerUnRoleApiV1EquipeMarkRolesPostResponses[keyof CreerUnRoleApiV1EquipeMarkRolesPostResponses];
+
+export type SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/roles/{role_id}';
+};
+
+export type SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteError = SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteErrors[keyof SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteErrors];
+
+export type SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteResponse = SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteResponses[keyof SupprimerUnRoleApiV1EquipeMarkRolesRoleIdDeleteResponses];
+
+export type ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutData = {
+    body: RoleRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Role Id
+         */
+        role_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/roles/{role_id}';
+};
+
+export type ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutError = ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutErrors[keyof ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutErrors];
+
+export type ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: RoleResponse;
+};
+
+export type ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutResponse = ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutResponses[keyof ModifierUnRoleApiV1EquipeMarkRolesRoleIdPutResponses];
+
+export type ListerLesMembresApiV1EquipeMarkMembresGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/equipe-mark/membres';
+};
+
+export type ListerLesMembresApiV1EquipeMarkMembresGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesMembresApiV1EquipeMarkMembresGetError = ListerLesMembresApiV1EquipeMarkMembresGetErrors[keyof ListerLesMembresApiV1EquipeMarkMembresGetErrors];
+
+export type ListerLesMembresApiV1EquipeMarkMembresGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MembresResponse;
+};
+
+export type ListerLesMembresApiV1EquipeMarkMembresGetResponse = ListerLesMembresApiV1EquipeMarkMembresGetResponses[keyof ListerLesMembresApiV1EquipeMarkMembresGetResponses];
+
+export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutData = {
+    body: ChangerRoleRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/membres/{user_id}/role';
+};
+
+export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutError = ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutErrors[keyof ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutErrors];
+
+export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponse = ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses[keyof ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses];
+
+export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/membres/{user_id}';
+};
+
+export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteError = RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteErrors[keyof RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteErrors];
+
+export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteResponse = RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteResponses[keyof RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteResponses];
+
+export type ListerLesInvitationsApiV1EquipeMarkInvitationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/equipe-mark/invitations';
+};
+
+export type ListerLesInvitationsApiV1EquipeMarkInvitationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesInvitationsApiV1EquipeMarkInvitationsGetError = ListerLesInvitationsApiV1EquipeMarkInvitationsGetErrors[keyof ListerLesInvitationsApiV1EquipeMarkInvitationsGetErrors];
+
+export type ListerLesInvitationsApiV1EquipeMarkInvitationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: InvitationsResponse;
+};
+
+export type ListerLesInvitationsApiV1EquipeMarkInvitationsGetResponse = ListerLesInvitationsApiV1EquipeMarkInvitationsGetResponses[keyof ListerLesInvitationsApiV1EquipeMarkInvitationsGetResponses];
+
+export type InviterApiV1EquipeMarkInvitationsPostData = {
+    body: InvitationRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/invitations';
+};
+
+export type InviterApiV1EquipeMarkInvitationsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InviterApiV1EquipeMarkInvitationsPostError = InviterApiV1EquipeMarkInvitationsPostErrors[keyof InviterApiV1EquipeMarkInvitationsPostErrors];
+
+export type InviterApiV1EquipeMarkInvitationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: InvitationCreeeResponse;
+};
+
+export type InviterApiV1EquipeMarkInvitationsPostResponse = InviterApiV1EquipeMarkInvitationsPostResponses[keyof InviterApiV1EquipeMarkInvitationsPostResponses];
+
+export type AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Invitation Id
+         */
+        invitation_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/invitations/{invitation_id}';
+};
+
+export type AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteError = AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteErrors[keyof AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteErrors];
+
+export type AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteResponse = AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteResponses[keyof AnnulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDeleteResponses];
+
+export type LireLeJournalApiV1EquipeMarkJournalGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Organization Id
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/equipe-mark/journal';
+};
+
+export type LireLeJournalApiV1EquipeMarkJournalGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeJournalApiV1EquipeMarkJournalGetError = LireLeJournalApiV1EquipeMarkJournalGetErrors[keyof LireLeJournalApiV1EquipeMarkJournalGetErrors];
+
+export type LireLeJournalApiV1EquipeMarkJournalGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: JournalResponse;
+};
+
+export type LireLeJournalApiV1EquipeMarkJournalGetResponse = LireLeJournalApiV1EquipeMarkJournalGetResponses[keyof LireLeJournalApiV1EquipeMarkJournalGetResponses];
+
+export type LireUneInvitationApiV1AuthInvitationJetonGetData = {
+    body?: never;
+    path: {
+        /**
+         * Jeton
+         */
+        jeton: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/invitation/{jeton}';
+};
+
+export type LireUneInvitationApiV1AuthInvitationJetonGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUneInvitationApiV1AuthInvitationJetonGetError = LireUneInvitationApiV1AuthInvitationJetonGetErrors[keyof LireUneInvitationApiV1AuthInvitationJetonGetErrors];
+
+export type LireUneInvitationApiV1AuthInvitationJetonGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: InvitationLueResponse;
+};
+
+export type LireUneInvitationApiV1AuthInvitationJetonGetResponse = LireUneInvitationApiV1AuthInvitationJetonGetResponses[keyof LireUneInvitationApiV1AuthInvitationJetonGetResponses];
+
+export type AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostData = {
+    body: AccepterRequest;
+    path: {
+        /**
+         * Jeton
+         */
+        jeton: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/invitation/{jeton}/accepter';
+};
+
+export type AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostError = AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostErrors[keyof AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostErrors];
+
+export type AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AuthResponse;
+};
+
+export type AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostResponse = AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostResponses[keyof AccepterUneInvitationApiV1AuthInvitationJetonAccepterPostResponses];
 
 export type GetDefaultConfigurationsApiV1UserConfigurationsDefaultsGetData = {
     body?: never;
