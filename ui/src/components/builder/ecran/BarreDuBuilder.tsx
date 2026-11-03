@@ -22,16 +22,16 @@ export function BarreDuBuilder({ ouvert, onToggle, testsHref }: { ouvert: boolea
         <>
             <Button
                 type="button"
-                variant={ouvert ? "default" : "outline"}
-                className="flex items-center gap-2 border-border"
+                variant={ouvert ? "secondary" : "ghost"}
+                size="sm"
                 aria-pressed={ouvert}
                 data-bouton="builder-ia"
                 aria-label={t(T.builder)}
                 title={t(T.builder)}
                 onClick={onToggle}
             >
-                <Sparkles className="h-4 w-4" aria-hidden />
-                <span className="hidden 2xl:inline">{t(T.builder)}</span>
+                <Sparkles className="size-3.5 text-(--acc)" aria-hidden />
+                {t(T.builder)}
             </Button>
             {/* U3 : « Tests » est un onglet de la page de l'agent ; le lien ne s'affiche que s'il est demandé. */}
             {testsHref && (

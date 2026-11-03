@@ -327,7 +327,7 @@ export function PanneauBuilder({ contexte, noeuds }: { contexte: ContexteDuPanne
     return (
         <FournisseurDuPanneau value={contexte}>
             <aside
-                className={`flex h-full min-h-0 flex-col border-l bg-background ${pleinEcran ? "fixed inset-0 z-40 w-full" : "w-[420px] shrink-0"}`}
+                className={`flex h-full min-h-0 flex-col bg-card ${pleinEcran ? "fixed inset-0 z-40 w-full" : "w-[420px] shrink-0"}`}
                 aria-label={t(T.titre)}
                 data-panneau="builder-ia"
             >

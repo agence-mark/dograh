@@ -3,7 +3,7 @@
 import {
     Bot,
     Check,
-    Clock,
+    ChevronRight,
     Copy,
     Download,
     ExternalLink,
@@ -11,13 +11,11 @@ import {
     Loader2,
     Pause,
     Play,
-    UserRound,
     Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { notifier } from "@/components/mark/notifications";
 
 import WorkflowLayout from '@/app/workflow/WorkflowLayout';
 import {
@@ -30,9 +28,11 @@ import { FenetreDuRun, useAnalyseDuRun } from '@/components/mark/fenetre-du-run/
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
 import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { useLangue } from '@/components/mark/langue/langue';
+import { notifier } from "@/components/mark/notifications";
+import { useNomEspace } from '@/components/mark/studio/nom-espace';
 import { OngletsPage } from '@/components/mark/studio/onglets-page';
+import { EnteteStudio, PageStudio } from '@/components/mark/studio/shell-studio';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
-import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,6 +65,15 @@ interface WorkflowRunResponse {
 
 const WAVEFORM_BAR_COUNT = 96;
 type SplitTrackPlaybackMode = 'both' | 'user' | 'bot';
+
+/** Le canal de l'appel, dit comme la maquette (Navigateur, Clavier, Téléphone…). */
+function libelleDuCanal(mode?: string | null) {
+    if (!mode) return '';
+    if (mode === WORKFLOW_RUN_MODES.SMALL_WEBRTC || mode === WORKFLOW_RUN_MODES.WEBRTC) return 'Navigateur';
+    if (mode === WORKFLOW_RUN_MODES.TEXTCHAT) return 'Clavier';
+    if (mode === WORKFLOW_RUN_MODES.SIMULATED) return 'Appelant simulé';
+    return 'Téléphone';
+}
 
 function formatDuration(seconds?: number | null) {
     if (seconds == null || Number.isNaN(seconds)) return 'N/A';
@@ -423,120 +432,70 @@ function SplitTracksSection({
     const playbackTargetLabel = playbackMode === 'both' ? 'split tracks' : `${playbackMode} track`;
 
     return (
-        <Card className="border-border">
-            <audio
-                ref={userAudioRef}
-                src={signedUrls.user ?? undefined}
-                preload="metadata"
-                className="hidden"
-                onEnded={handleTrackEnded}
-            />
-            <audio
-                ref={botAudioRef}
-                src={signedUrls.bot ?? undefined}
-                preload="metadata"
-                className="hidden"
-                onEnded={handleTrackEnded}
-            />
-            <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Split Tracks</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2" role="group" aria-label="Playback tracks">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-pressed={userTrackActive}
-                            aria-label={playbackMode === 'user' ? 'Play both tracks' : 'Play user track only'}
-                            onClick={() => handleTrackButtonClick('user')}
-                            className={cn(
-                                'gap-1.5',
-                                userTrackActive
-                                    ? ''
-                                    : 'text-primary-foreground/70 opacity-60'
-                            )}
-                        >
-                            <UserRound className="h-4 w-4" />
-                            User
-                        </Button>
-                        <span className="h-4 w-px bg-border" />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-pressed={botTrackActive}
-                            aria-label={playbackMode === 'bot' ? 'Play both tracks' : 'Play bot track only'}
-                            onClick={() => handleTrackButtonClick('bot')}
-                            className={cn(
-                                'gap-1.5',
-                                botTrackActive
-                                    ? ''
-                                    : 'text-primary-foreground/70 opacity-60'
-                            )}
-                        >
-                            <Bot className="h-4 w-4" />
-                            Bot
-                        </Button>
+        <div className="flex items-center gap-4 rounded-xl border bg-card p-4" data-lecteur-conversation>
+            <audio ref={userAudioRef} src={signedUrls.user ?? undefined} preload="metadata" className="hidden" onEnded={handleTrackEnded} />
+            <audio ref={botAudioRef} src={signedUrls.bot ?? undefined} preload="metadata" className="hidden" onEnded={handleTrackEnded} />
+            <Button
+                type="button"
+                size="icon"
+                className="rounded-full"
+                onClick={togglePlayback}
+                disabled={!canPlay}
+                aria-label={isPlaying ? `Pause ${playbackTargetLabel}` : `Play ${playbackTargetLabel}`}
+            >
+                {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+            </Button>
+            <div className="relative h-10 min-w-0 flex-1 overflow-hidden">
+                <WaveformLane peaks={peaks.user} track="user" position="top" isActive={userTrackActive} />
+                <WaveformLane peaks={peaks.bot} track="bot" position="bottom" isActive={botTrackActive} />
+                {canPlay && (
+                    <div className="pointer-events-none absolute inset-0">
+                        <div className="absolute bottom-0 top-0 w-px bg-foreground/50" style={{ left: `${progressPercent}%` }} />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadFile(userRecordingUrl)}
-                            className="gap-2"
-                        >
-                            <Download className="h-4 w-4" />
-                            User
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadFile(botRecordingUrl)}
-                            className="gap-2"
-                        >
-                            <Download className="h-4 w-4" />
-                            Bot
-                        </Button>
+                )}
+                {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs text-muted-foreground">
+                        <Loader2 className="mr-2 size-3.5 animate-spin" />
                     </div>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant={isPlaying ? 'default' : 'outline'}
-                        onClick={togglePlayback}
-                        disabled={!canPlay}
-                        aria-label={isPlaying ? `Pause ${playbackTargetLabel}` : `Play ${playbackTargetLabel}`}
-                        className="h-10 w-10 shrink-0"
-                    >
-                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </Button>
-                    <div className="relative h-36 min-w-0 flex-1 overflow-hidden rounded-lg border border-border/70 bg-background">
-                        <div className="absolute left-3 right-3 top-1/2 h-px bg-border/80" />
-                        <WaveformLane peaks={peaks.user} track="user" position="top" isActive={userTrackActive} />
-                        <WaveformLane peaks={peaks.bot} track="bot" position="bottom" isActive={botTrackActive} />
-                        {canPlay && (
-                            <div className="pointer-events-none absolute inset-x-3 inset-y-3">
-                                <div
-                                    className="absolute top-0 bottom-0 w-px bg-foreground/50"
-                                    style={{ left: `${progressPercent}%` }}
-                                />
-                            </div>
-                        )}
-                        {isLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs text-muted-foreground">
-                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                Loading
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                )}
+            </div>
+            <span className="inline-flex rounded-md border p-0.5 text-xs" role="group" aria-label="Playback tracks">
+                <button
+                    type="button"
+                    aria-pressed={playbackMode === 'both'}
+                    onClick={() => playbackMode !== 'both' && handleTrackButtonClick(playbackMode === 'user' ? 'user' : 'bot')}
+                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'both' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
+                >
+                    Les deux pistes
+                </button>
+                <button
+                    type="button"
+                    aria-pressed={playbackMode === 'user'}
+                    aria-label={playbackMode === 'user' ? 'Play both tracks' : 'Play user track only'}
+                    onClick={() => handleTrackButtonClick('user')}
+                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'user' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
+                >
+                    Appelant
+                </button>
+                <button
+                    type="button"
+                    aria-pressed={playbackMode === 'bot'}
+                    aria-label={playbackMode === 'bot' ? 'Play both tracks' : 'Play bot track only'}
+                    onClick={() => handleTrackButtonClick('bot')}
+                    className={cn('cursor-pointer rounded px-2 py-0.5', playbackMode === 'bot' ? 'bg-foreground text-background' : 'text-muted-foreground hover:font-medium')}
+                >
+                    Agent
+                </button>
+            </span>
+            <span className="flex items-center">
+                <Button type="button" variant="ghost" size="icon" className="size-8" title="Télécharger la piste de l'appelant" aria-label="Télécharger la piste de l'appelant" onClick={() => downloadFile(userRecordingUrl)}>
+                    <Download className="size-4" />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" className="size-8" title="Télécharger la piste de l'agent" aria-label="Télécharger la piste de l'agent" onClick={() => downloadFile(botRecordingUrl)}>
+                    <Bot className="size-4" />
+                </Button>
+            </span>
+        </div>
     );
 }
 
@@ -633,8 +592,8 @@ export default function WorkflowRunPage() {
     const organizationTimezone = useOrganizationTimezone();
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
     const [workflowName, setWorkflowName] = useState<string | null>(null);
-    const customizeButtonRef = useRef<HTMLButtonElement>(null);
     const { t: tp } = useLangue();
+    const nomEspace = useNomEspace('labo', null);
     // [.mark] U3 : l'analyse du run est lue UNE fois, les onglets s'en partagent les blocs.
     const analyse = useAnalyseDuRun(Number(params.workflowId), Number(params.runId));
 
@@ -734,33 +693,61 @@ export default function WorkflowRunPage() {
         const idAgent = Number(params.workflowId);
         const idRun = Number(params.runId);
         returnValue = (
-            <div className="min-h-[calc(100svh-49px)] w-full overflow-y-auto bg-background" data-page-conversation>
-                <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 space-y-2">
-                            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                                {isTextChatRun ? tp({ en: 'Text chat session', fr: 'Session de chat écrit' }) : tp({ en: 'Conversation', fr: 'Conversation' })}
-                            </p>
-                            <h1 className="flex items-center gap-2 truncate text-2xl font-semibold tracking-tight">
-                                <Bot className="h-5 w-5 shrink-0 text-muted-foreground" />
-                                {workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`}
-                            </h1>
-                            {workflowRun?.created_at && (
-                                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <Clock className="h-4 w-4" />
-                                    {formatDateTime(workflowRun.created_at, organizationTimezone)}
-                                </p>
-                            )}
-                            <div className="flex flex-wrap gap-2 pt-1">
-                                <CopyDebugIdButton label="Agent ID" value={workflowId} />
-                                <CopyDebugIdButton label="Run ID" value={runId} />
-                            </div>
-                        </div>
-                        <Button asChild ref={customizeButtonRef} className="cursor-pointer gap-2 self-start">
-                            <Link href={`/agents/${params.workflowId}`}>{tp({ en: 'Customize the agent', fr: "Personnaliser l'agent" })}</Link>
-                        </Button>
+            <PageStudio>
+                <div data-page-conversation>
+                    <EnteteStudio
+                        nom={
+                            <nav aria-label="Fil d'Ariane" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+                                <Link href="/labo" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
+                                    {nomEspace ?? 'Labo'}
+                                </Link>
+                                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                                <Link href="/labo/conversations" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
+                                    Conversations
+                                </Link>
+                                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate font-medium">Appel n° {runId}</span>
+                            </nav>
+                        }
+                        actions={
+                            <>
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/agents/${params.workflowId}`}>{tp({ en: 'Open the agent', fr: "Ouvrir l'agent" })}</Link>
+                                </Button>
+                                {!isTextChatRun && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => downloadFile(workflowRun?.transcript_url ?? null)}
+                                        disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
+                                    >
+                                        <Download className="size-3.5" /> Transcription
+                                    </Button>
+                                )}
+                            </>
+                        }
+                    />
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                        <h1 className="w-full text-2xl font-semibold tracking-tight">{workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`}</h1>
+                        <span className="text-muted-foreground">{libelleDuCanal(workflowRun?.mode)}</span>
+                        {workflowRun?.created_at && (
+                            <span className="text-muted-foreground">{formatDateTime(workflowRun.created_at, organizationTimezone)}</span>
+                        )}
+                        {workflowRun?.cost_info?.call_duration_seconds != null && (
+                            <span className="text-muted-foreground">{formatDuration(workflowRun.cost_info.call_duration_seconds)}</span>
+                        )}
+                        <span className="ml-auto flex gap-2">
+                            <CopyDebugIdButton label="Agent ID" value={workflowId} />
+                            <CopyDebugIdButton label="Run ID" value={runId} />
+                        </span>
                     </div>
+                </div>
 
+                {!isTextChatRun && hasSplitTracks && (
+                    <SplitTracksSection userRecordingUrl={userSplitRecordingUrl as string} botRecordingUrl={botSplitRecordingUrl as string} />
+                )}
+
+                <div className="space-y-6">
                     <FenetreDuRun
                         workflowId={idAgent}
                         runId={idRun}
@@ -825,12 +812,6 @@ export default function WorkflowRunPage() {
                                             blocs={['conversation']}
                                             lue={analyseLue}
                                         />
-                                        {!isTextChatRun && hasSplitTracks && (
-                                            <SplitTracksSection
-                                                userRecordingUrl={userSplitRecordingUrl as string}
-                                                botRecordingUrl={botSplitRecordingUrl as string}
-                                            />
-                                        )}
                                     </div>
                                 ),
                             },
@@ -928,7 +909,7 @@ export default function WorkflowRunPage() {
                         ]}
                     />
                 </div>
-            </div>
+            </PageStudio>
         );
     }
     else {
@@ -958,16 +939,6 @@ export default function WorkflowRunPage() {
             {returnValue}
             {dialog}
 
-            {/* Onboarding Tooltip for Customize Workflow */}
-            {showRunDetailsView && (
-                <OnboardingTooltip
-                    tooltipKey="customize_workflow"
-                    title='Customize Your Workflow'
-                    targetRef={customizeButtonRef}
-                    message="Edit your workflow to adjust the voice agent's behavior, add new steps, or modify the conversation flow."
-                    showNext={false}
-                />
-            )}
         </WorkflowLayout>
     );
 }

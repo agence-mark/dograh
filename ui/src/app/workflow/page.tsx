@@ -7,12 +7,8 @@ import {
     listFoldersApiV1FolderGet,
 } from '@/client/sdk.gen';
 import type { FolderResponse, LienDeGroupe, WorkflowListResponse } from '@/client/types.gen';
-import { Card, CardContent } from '@/components/ui/card';
-import { CreateWorkflowButton } from "@/components/workflow/CreateWorkflowButton";
-import { AgentFolderView } from '@/components/workflow/folders/AgentFolderView';
-import { CreateFolderButton } from '@/components/workflow/folders/CreateFolderButton';
-import { FolderSection } from '@/components/workflow/folders/FolderSection';
-import { UploadWorkflowButton } from '@/components/workflow/UploadWorkflowButton';
+import { ListeAgents } from '@/components/mark/agent/ListeAgents';
+import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { getServerAccessToken, getServerAuthProvider } from '@/lib/auth/server';
 import logger from '@/lib/logger';
 
@@ -97,34 +93,13 @@ async function WorkflowList({ dossierOuvertId }: { dossierOuvertId: number | nul
         }
 
         return (
-            <>
-                {/* Active Workflows Section */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold mb-4">Active Agents</h2>
-                    {activeWorkflows.length > 0 || folders.length > 0 ? (
-                        <AgentFolderView
-                            workflows={activeWorkflows}
-                            folders={folders}
-                            liens={liens}
-                            servis={servis}
-                            dossierOuvertId={dossierOuvertId}
-                        />
-                    ) : (
-                        <Card>
-                            <CardContent className="p-8 text-center text-muted-foreground">
-                                No active workflows found. Create your first workflow to get started.
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-
-                {/* Archived Section — collapsible, same design as the folder/Uncategorized sections */}
-                {archivedWorkflows.length > 0 && (
-                    <div className="mb-8">
-                        <FolderSection kind="archived" workflows={archivedWorkflows} />
-                    </div>
-                )}
-            </>
+            <ListeAgents
+                actifs={activeWorkflows}
+                archives={archivedWorkflows}
+                dossiers={folders}
+                liens={liens}
+                dossierOuvertId={dossierOuvertId}
+            />
         );
     } catch (err) {
         logger.error(`Error fetching workflows: ${err}`);
@@ -134,61 +109,6 @@ async function WorkflowList({ dossierOuvertId }: { dossierOuvertId: number | nul
             </div>
         );
     }
-}
-
-async function PageContent({ dossierOuvertId }: { dossierOuvertId: number | null }) {
-
-    const workflowList = await WorkflowList({ dossierOuvertId });
-
-    return (
-        <div className="container mx-auto px-4 py-8">
-            {/* Your Workflows Section */}
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Your Agents</h1>
-                    <div className="flex gap-2">
-                        <UploadWorkflowButton />
-                        <CreateFolderButton />
-                        <CreateWorkflowButton />
-                    </div>
-                </div>
-                {workflowList}
-            </div>
-        </div>
-    );
-}
-
-function WorkflowsLoading() {
-    return (
-        <div className="container mx-auto px-4 py-8">
-            {/* Get Started Section Loading */}
-            <div className="mb-12">
-                <div className="h-8 w-48 bg-muted rounded mb-6"></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Array.from({ length: 3 }, (_, i) => (
-                        <Card key={i}>
-                            <CardContent className="p-0">
-                                <div className="h-40 bg-muted/70" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            </div>
-
-            {/* Your Workflows Section Loading */}
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="h-8 w-48 bg-muted rounded"></div>
-                    <div className="h-10 w-32 bg-muted rounded"></div>
-                </div>
-                <Card>
-                    <CardContent className="p-0">
-                        <div className="h-96 bg-muted/70" />
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    );
 }
 
 export default async function WorkflowPage({
@@ -201,8 +121,8 @@ export default async function WorkflowPage({
     const dossierOuvertId = Number.isInteger(brut) && brut > 0 ? brut : null;
     return (
         <WorkflowLayout showFeaturesNav={true}>
-            <Suspense fallback={<WorkflowsLoading />}>
-                <PageContent dossierOuvertId={dossierOuvertId} />
+            <Suspense fallback={<EtatVide cas="chargement" lignes={6} />}>
+                <WorkflowList dossierOuvertId={dossierOuvertId} />
             </Suspense>
         </WorkflowLayout>
 

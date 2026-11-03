@@ -62,13 +62,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     !pathname.startsWith("/auth") &&
     !["/connexion", "/invitation"].includes(pathname);
 
-  // Only the exact editor page /workflow/<id> (and /agents/<id>): it carries its own bar and folds the menu (E5).
-  const isWorkflowEditor = /^\/(workflow|agents)\/\d+$/.test(pathname);
+  // [.mark] K2: a page of an agent (the flow and its tabs) folds the menu (E5) and fills the frame's top bar itself.
+  const isWorkflowEditor = /^\/(workflow|agents)\/\d+(\/(settings|tests|runs|versions|site))?$/.test(pathname);
 
   // [.mark] U1: the frame of the studio replaces Dograh's sidebar and header.
   if (shouldShowSidebar) {
     return (
-        <ShellStudio replie={isWorkflowEditor} sansEntete={isWorkflowEditor}>
+        <ShellStudio replie={isWorkflowEditor}>
           <BackendStatusBanner />
           {children}
         </ShellStudio>

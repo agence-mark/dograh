@@ -13,7 +13,8 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useLangue } from "@/components/mark/langue/langue";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,6 +24,37 @@ import { useNomEspace } from "./nom-espace";
 import { type CompteurMenu, SidebarStudio } from "./sidebar-studio";
 
 export type Miette = { libelle: string; href?: string };
+
+/**
+ * K2 : la barre du haut d'une page d'agent est posée par la page, dans trois emplacements du cadre (le nom, ce qui suit
+ * le nom, les actions). La page garde son état (version, essai, publication) et le cadre garde sa barre : un portail,
+ * jamais une seconde barre.
+ */
+type Emplacements = {
+    nom: HTMLElement | null;
+    milieu: HTMLElement | null;
+    actions: HTMLElement | null;
+    declarer: (personnalisee: boolean) => void;
+};
+const EnteteContexte = createContext<Emplacements | null>(null);
+
+/** Pose le contenu de la barre du haut du cadre : `nom` à la place du fil d'Ariane, `milieu` après lui, `actions` à droite. */
+export function EnteteStudio({ nom, milieu, actions }: { nom?: React.ReactNode; milieu?: React.ReactNode; actions?: React.ReactNode }) {
+    const ctx = useContext(EnteteContexte);
+    const declarer = ctx?.declarer;
+    useEffect(() => {
+        declarer?.(true);
+        return () => declarer?.(false);
+    }, [declarer]);
+    if (!ctx) return null;
+    return (
+        <>
+            {nom && ctx.nom && createPortal(nom, ctx.nom)}
+            {milieu && ctx.milieu && createPortal(milieu, ctx.milieu)}
+            {actions && ctx.actions && createPortal(actions, ctx.actions)}
+        </>
+    );
+}
 
 // L'état de la barre (dépliée ou repliée) est un choix de la personne, gardé par son navigateur.
 export const CLE_BARRE = "mark.barre";
@@ -62,6 +94,10 @@ export function ShellStudio({
     const pathname = usePathname();
     const [choix, setChoix] = useState(true);
     const [forcee, setForcee] = useState<boolean | null>(replie ? false : null);
+    const [elNom, setElNom] = useState<HTMLElement | null>(null);
+    const [elMilieu, setElMilieu] = useState<HTMLElement | null>(null);
+    const [elActions, setElActions] = useState<HTMLElement | null>(null);
+    const [personnalisee, setPersonnalisee] = useState(false);
 
     useEffect(() => {
         setChoix(lireBarre());
@@ -94,6 +130,7 @@ export function ShellStudio({
             }}
             className="bg-sidebar"
         >
+            <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee }}>
             <SidebarStudio compteurs={compteurs} />
             <div className="h-svh w-full overflow-hidden lg:py-2 lg:pr-2">
                 <div className="relative flex h-full w-full overflow-hidden bg-background lg:rounded-xl lg:border">
@@ -101,8 +138,10 @@ export function ShellStudio({
                         {!sansEntete && (
                             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
                                 <SidebarTrigger className="-ml-1" />
+                                <div ref={setElNom} className="contents" />
                                 <nav
                                     aria-label={t({ en: "Breadcrumb", fr: "Fil d'Ariane" })}
+                                    hidden={personnalisee}
                                     className={`flex min-w-0 items-center gap-1.5 text-sm ${milieu ? "shrink" : "flex-1"}`}
                                 >
                                     {fil.map((m, i) => (
@@ -118,9 +157,13 @@ export function ShellStudio({
                                         </span>
                                     ))}
                                 </nav>
-                                {milieu && <div className="flex min-w-0 flex-1 items-center self-stretch">{milieu}</div>}
+                                <div className={`min-w-0 items-center self-stretch ${milieu || personnalisee ? "flex flex-1" : "hidden"}`}>
+                                    {milieu}
+                                    <div ref={setElMilieu} className="contents" />
+                                </div>
                                 <div data-barre-actions="" className="flex items-center gap-2">
                                     {actions}
+                                    <div ref={setElActions} className="contents" />
                                 </div>
                             </header>
                         )}
@@ -128,6 +171,7 @@ export function ShellStudio({
                     </div>
                 </div>
             </div>
+            </EnteteContexte.Provider>
         </SidebarProvider>
     );
 }

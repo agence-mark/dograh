@@ -24,6 +24,9 @@ const m = vi.hoisted(() => ({ versions: vi.fn(), groupe: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...r }: { children: React.ReactNode; href: string }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }) }));
+vi.mock("@/components/flow/renderer", () => ({
+    useNodeSpecs: () => ({ specs: [{ name: "agentNode", display_name: "Agent Step", category: "call_node", properties: [] }] }),
+}));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "UTC" }));
 vi.mock("@/client/sdk.gen", () => ({
@@ -102,19 +105,29 @@ describe("l'onglet Versions", () => {
         expect(adresseDeLaVersion(12, v(20, "published"), false)).toBe("/agents/12?version=20");
     });
 
+    const ouvrirLigne = async (ligne: HTMLElement) => {
+        const declencheur = within(ligne).getByRole("button", { name: /Version menu/ });
+        fireEvent.pointerDown(declencheur, { button: 0, ctrlKey: false });
+        fireEvent.click(declencheur);
+        return await screen.findByRole("menu");
+    };
+
     it("liste les versions d'une page, nomme l'état et marque la version en cours", async () => {
         m.versions.mockImplementation(async ({ query }: { query: { status?: string } }) =>
             query.status === "draft" ? { data: [v(21, "draft")] } : { data: [v(21, "draft"), v(20, "published"), v(19, "archived")] },
         );
         render(<PageVersions agentId={12} />);
-        await screen.findByText("v21");
+        await screen.findByText("v21 draft");
         const lignes = document.querySelectorAll("tbody tr");
         expect(lignes).toHaveLength(3);
-        expect(lignes[0].textContent).toContain("Draft");
+        expect(lignes[0].textContent).toContain("v21 draft");
         expect(lignes[0].textContent).toContain("current");
-        expect(lignes[1].textContent).toContain("Published");
-        expect(within(lignes[1] as HTMLElement).getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/agents/12?version=20");
-        expect(within(lignes[0] as HTMLElement).getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/agents/12");
+        expect(lignes[1].textContent).toContain("v20 published");
+        const menu1 = await ouvrirLigne(lignes[1] as HTMLElement);
+        expect(within(menu1).getByText("Open").closest("a")?.getAttribute("href")).toBe("/agents/12?version=20");
+        fireEvent.keyDown(menu1, { key: "Escape" });
+        const menu0 = await ouvrirLigne(lignes[0] as HTMLElement);
+        expect(within(menu0).getByText("Open").closest("a")?.getAttribute("href")).toBe("/agents/12");
         // Une page de 25 : une ligne de plus est demandée pour savoir s'il y a une suite, jamais tout l'historique.
         const liste = m.versions.mock.calls.map((c) => c[0].query).find((q: { status?: string }) => !q.status);
         expect(liste).toEqual({ limit: 26, offset: 0 });
@@ -125,10 +138,13 @@ describe("l'onglet Versions", () => {
             query.status === "draft" ? { data: [] } : { data: [v(20, "published"), v(19, "archived")] },
         );
         render(<PageVersions agentId={12} />);
-        await screen.findByText("v20");
+        await screen.findByText("v20 published");
         const lignes = document.querySelectorAll("tbody tr");
-        expect(within(lignes[0] as HTMLElement).getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/agents/12");
-        expect(within(lignes[1] as HTMLElement).getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/agents/12?version=19");
+        const menu0 = await ouvrirLigne(lignes[0] as HTMLElement);
+        expect(within(menu0).getByText("Open").closest("a")?.getAttribute("href")).toBe("/agents/12");
+        fireEvent.keyDown(menu0, { key: "Escape" });
+        const menu1 = await ouvrirLigne(lignes[1] as HTMLElement);
+        expect(within(menu1).getByText("Open").closest("a")?.getAttribute("href")).toBe("/agents/12?version=19");
     });
 
     it("compare une version à la précédente en relisant la paire au bon rang", async () => {
@@ -138,8 +154,9 @@ describe("l'onglet Versions", () => {
             return { data: [v(20, "published"), v(19, "archived")] };
         });
         render(<PageVersions agentId={12} />);
-        await screen.findByText("v20");
-        fireEvent.click(screen.getByRole("button", { name: /Compare with the previous one \(v20\)/ }));
+        await screen.findByText("v20 published");
+        const menu = await ouvrirLigne(document.querySelectorAll("tbody tr")[0] as HTMLElement);
+        fireEvent.click(within(menu).getByText("Compare with the previous one"));
         expect((await screen.findByTestId("diff")).textContent).toBe("v19->v20");
         expect(m.versions.mock.calls.some((c) => c[0].query.limit === 2 && c[0].query.offset === 0)).toBe(true);
     });
@@ -150,8 +167,9 @@ describe("l'onglet Versions", () => {
             return query.limit === 2 ? { data: [v(1, "archived")] } : { data: [v(1, "archived")] };
         });
         render(<PageVersions agentId={12} />);
-        await screen.findByText("v1");
-        fireEvent.click(screen.getByRole("button", { name: /Compare with the previous one/ }));
+        await screen.findByText("v1 archived");
+        const menu = await ouvrirLigne(document.querySelectorAll("tbody tr")[0] as HTMLElement);
+        fireEvent.click(within(menu).getByText("Compare with the previous one"));
         await waitFor(() => expect(m.versions.mock.calls.some((c) => c[0].query.limit === 2)).toBe(true));
         expect(screen.queryByTestId("diff")).toBeNull();
     });
@@ -167,20 +185,33 @@ describe("la barre du canevas", () => {
             onAjuster: vi.fn(),
             onRanger: vi.fn(),
         };
-        render(<BarreCanevas lectureSeule={false} {...actions} {...surcharge} />);
+        render(<BarreCanevas lectureSeule={false} zoom={80} changementDuBuilder={false} noeuds={[]} {...actions} {...surcharge} />);
         return actions;
     };
+    const ouvrirNoeud = async () => {
+        const noeud = screen.getByRole("button", { name: "Node" });
+        fireEvent.pointerDown(noeud, { button: 0, ctrlKey: false });
+        fireEvent.click(noeud);
+        return await screen.findByRole("menu");
+    };
 
-    it("branche chaque bouton sur son geste", () => {
+    it("branche chaque bouton sur son geste, et dit le zoom", async () => {
         const a = monter({ bibliothequeHref: "/labo/bibliotheque" });
         fireEvent.click(screen.getByRole("button", { name: "General prompt" }));
-        fireEvent.click(screen.getByRole("button", { name: "Node" }));
         fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
         fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
         fireEvent.click(screen.getByRole("button", { name: "Fit the view" }));
-        fireEvent.click(screen.getByRole("button", { name: "Tidy up" }));
-        for (const f of Object.values(a)) expect(f).toHaveBeenCalledTimes(1);
+        expect(a.onPromptGeneral).toHaveBeenCalledTimes(1);
+        expect(a.onZoomAvant).toHaveBeenCalledTimes(1);
+        expect(a.onZoomArriere).toHaveBeenCalledTimes(1);
+        expect(a.onAjuster).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("80 %")).toBeTruthy();
         expect(screen.getByRole("link", { name: "Library" }).getAttribute("href")).toBe("/labo/bibliotheque");
+        // Le menu « Nœud » liste les types que le serveur sait poser, et range les nœuds.
+        fireEvent.click(within(await ouvrirNoeud()).getByText("Agent Step"));
+        expect(a.onAjouter).toHaveBeenCalledWith("agentNode");
+        fireEvent.click(within(await ouvrirNoeud()).getByText("Tidy up the nodes"));
+        expect(a.onRanger).toHaveBeenCalledTimes(1);
     });
 
     it("n'a pas de lien « Bibliothèque » hors du Labo, et en lecture seule garde le zoom et « Ajuster »", () => {
@@ -188,7 +219,6 @@ describe("la barre du canevas", () => {
         expect(screen.queryByRole("link", { name: "Library" })).toBeNull();
         expect(screen.queryByRole("button", { name: "General prompt" })).toBeNull();
         expect(screen.queryByRole("button", { name: "Node" })).toBeNull();
-        expect(screen.queryByRole("button", { name: "Tidy up" })).toBeNull();
         expect(screen.getByRole("button", { name: "Zoom in" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "Fit the view" })).toBeTruthy();
     });

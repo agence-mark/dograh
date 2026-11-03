@@ -2,7 +2,10 @@ import { useCallback } from "react";
 
 import type { NodeSpec } from "@/client/types.gen";
 
+import { useLangue } from "@/components/mark/langue/langue";
+
 import { evaluateDisplayOptions } from "./displayOptions";
+import { localiserLaPropriete } from "./libelles-fr";
 import { PropertyInput, type RendererContext } from "./PropertyInput";
 import { getPropertyColumnSpan } from "./propertyRendererOptions";
 
@@ -43,6 +46,7 @@ const COLUMN_SPAN_CLASS: Record<number, string> = {
  * grouped fields (e.g. `pre_call_fetch`) live as separate flat fields here.
  */
 export function NodeEditForm({ spec, values, onChange, context, masquer = [], seulement }: NodeEditFormProps) {
+    const { langue } = useLangue();
     const setProp = useCallback(
         (propName: string, propValue: unknown) => {
             onChange({ ...values, [propName]: propValue });
@@ -64,7 +68,7 @@ export function NodeEditForm({ spec, values, onChange, context, masquer = [], se
                             className={`col-span-12 ${COLUMN_SPAN_CLASS[columnSpan]}`}
                         >
                             <PropertyInput
-                                spec={p}
+                                spec={localiserLaPropriete(p, langue)}
                                 value={values[p.name]}
                                 onChange={(v) => setProp(p.name, v)}
                                 context={context}

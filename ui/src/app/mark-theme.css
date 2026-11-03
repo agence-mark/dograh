@@ -65,6 +65,13 @@
   --primary-disabled: #a3a3a3;
   --primary-disabled-foreground: #fafafa;
 
+  /* Le canevas d'un agent (K2) : fond, points, liaisons et leur pointe. */
+  --canevas: #fafafa;
+  --canevas-point: #e7e7ea;
+  --liaison: #c4c4cc;
+  --liaison-survol: #9a9aa4;
+  --liaison-fleche: #b5b5bd;
+
   /* The blue accent: --acc (lines, borders, icons), --acc-soft (tinted ground),
      --acc-text (text on the tinted ground), --acc-fill (full surface under white text),
      --acc-line (the gates' lines, lighter than a selected one). */
@@ -152,6 +159,12 @@
   --bubble-agent: #2a2a2a;
   --primary-disabled: #3a3a3a;
   --primary-disabled-foreground: #9a9a9a;
+
+  --canevas: #151515;
+  --canevas-point: #2a2a2a;
+  --liaison: #4a4a4a;
+  --liaison-survol: #7a7a7a;
+  --liaison-fleche: #5c5c5c;
 
   --acc: #5b97f5;
   --acc-soft: #17243a;
@@ -300,11 +313,11 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
 .react-flow__node[data-builder-badge]::after {
     content: attr(data-builder-badge);
     position: absolute;
-    top: -0.75rem;
-    right: -0.5rem;
+    top: -0.625rem;
+    right: 0.75rem;
     z-index: 5;
     border-radius: 9999px;
-    background: var(--signal-warn);
+    background: var(--foreground);
     color: var(--background);
     padding: 0 0.5rem;
     font-size: 0.7rem;

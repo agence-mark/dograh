@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from loguru import logger
@@ -902,6 +902,64 @@ class WorkflowClient(BaseDBClient):
             except Exception as e:
                 await session.rollback()
                 raise e
+
+    async def get_etat_des_versions_pour_liste(
+        self, workflow_ids: list[int]
+    ) -> dict[int, dict]:
+        """[.mark] K2: what the agents list shows per agent, in two queries for the whole list.
+
+        Per agent: the number of the version shown (the published one, else the draft), its state
+        (``publiee`` | ``brouillon`` | ``brouillon_modifie`` = a published version with a draft above it),
+        the date of the last change (newest definition) and the calls of the last 7 days.
+        """
+        if not workflow_ids:
+            return {}
+        depuis = datetime.now(UTC) - timedelta(days=7)
+        async with self.async_session() as session:
+            definitions = await session.execute(
+                select(
+                    WorkflowDefinitionModel.workflow_id,
+                    WorkflowDefinitionModel.status,
+                    WorkflowDefinitionModel.version_number,
+                    WorkflowDefinitionModel.created_at,
+                ).where(
+                    WorkflowDefinitionModel.workflow_id.in_(workflow_ids),
+                    WorkflowDefinitionModel.status.in_(("draft", "published")),
+                )
+            )
+            appels = await session.execute(
+                select(
+                    WorkflowRunModel.workflow_id,
+                    func.count(WorkflowRunModel.id),
+                )
+                .where(
+                    WorkflowRunModel.workflow_id.in_(workflow_ids),
+                    WorkflowRunModel.created_at >= depuis,
+                )
+                .group_by(WorkflowRunModel.workflow_id)
+            )
+            appels_par_agent = dict(appels.all())
+
+        par_agent: dict[int, dict] = {i: {} for i in workflow_ids}
+        for workflow_id, statut, numero, cree_le in definitions.all():
+            fiche = par_agent[workflow_id]
+            fiche[statut] = numero
+            dernier = fiche.get("modifie_le")
+            if cree_le is not None and (dernier is None or cree_le > dernier):
+                fiche["modifie_le"] = cree_le
+        resultat: dict[int, dict] = {}
+        for workflow_id, fiche in par_agent.items():
+            publiee = "published" in fiche
+            brouillon = "draft" in fiche
+            resultat[workflow_id] = {
+                "version_numero": fiche.get("published") if publiee else fiche.get("draft"),
+                "version_etat": (
+                    "brouillon_modifie" if publiee and brouillon else "publiee" if publiee else "brouillon"
+                ),
+                "modifie_le": fiche.get("modifie_le"),
+                "appels_7j": appels_par_agent.get(workflow_id, 0),
+            }
+        return resultat
 
     async def get_workflow_run_counts(self, workflow_ids: list[int]) -> dict[int, int]:
         """Get run counts for multiple workflows in a single query.
