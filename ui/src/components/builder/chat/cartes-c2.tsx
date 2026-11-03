@@ -6,6 +6,7 @@
  * Pas de cadre autour des cartes (convention de l'écran) : un titre, du texte, des boutons.
  */
 import { Check, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -188,9 +189,9 @@ export function CartePropositionTest({ carte }: { carte: CarteDuFil }) {
             {carte.genre === "criteres" && (
                 <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify(carte.criteres, null, 2)}</pre>
             )}
-            <a className="mt-1 inline-block cursor-pointer text-sm hover:font-semibold" href={`/agents/${String(carte.workflow_id)}/tests`}>
+            <Link className="mt-1 inline-block cursor-pointer text-sm hover:font-semibold" href={`/agents/${String(carte.workflow_id)}/tests`}>
                 {t(T.ouvrir)}
-            </a>
+            </Link>
         </section>
     );
 }

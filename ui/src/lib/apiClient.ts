@@ -1,6 +1,7 @@
 import type { Client } from '@/client/client';
 import type { CreateClientConfig } from '@/client/client.gen';
 import { ENTETE_ORGANISATION, organisationPourRequeteAttendue, sansOrganisation } from '@/lib/espaceCourant';
+import { fetchPartage } from '@/lib/fetch-partage';
 
 export function getServerBackendUrl() {
     return process.env.BACKEND_URL || 'http://api:8000';
@@ -48,6 +49,8 @@ export const createClientConfig: CreateClientConfig = (config) => {
     return {
         ...config,
         baseUrl,
+        // [.mark] L : deux lectures identiques en vol partagent une requête (navigateur seulement).
+        ...(isServer ? {} : { fetch: fetchPartage }),
     };
 };
 
