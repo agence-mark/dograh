@@ -1576,6 +1576,38 @@ export type BilanDuPassage = {
 };
 
 /**
+ * Body_deposer_un_document_api_v1_builder_bibliotheque_depot_post
+ */
+export type BodyDeposerUnDocumentApiV1BuilderBibliothequeDepotPost = {
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Fichier
+     */
+    fichier: Blob | File;
+    /**
+     * Titre
+     */
+    titre?: string | null;
+    /**
+     * Licence
+     */
+    licence?: string;
+    /**
+     * Dossier
+     */
+    dossier?: string;
+    /**
+     * Etiquettes
+     *
+     * Labels separated by commas.
+     */
+    etiquettes?: string;
+};
+
+/**
  * Body_deposer_un_fichier_api_v1_builder_depot__workflow_id__post
  */
 export type BodyDeposerUnFichierApiV1BuilderDepotWorkflowIdPost = {
@@ -2329,6 +2361,17 @@ export type ChampRequisDuRappel = {
 };
 
 /**
+ * ChangementDeFamille
+ */
+export type ChangementDeFamille = {
+    /**
+     * Libelle
+     */
+    libelle?: string | null;
+    fiche?: Fiche | null;
+};
+
+/**
  * ChangerRoleRequest
  */
 export type ChangerRoleRequest = {
@@ -2932,6 +2975,24 @@ export type ConversationsEquipeResponse = {
      * Offset
      */
     offset: number;
+};
+
+/**
+ * CopieDeScenario
+ */
+export type CopieDeScenario = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Copier Quand Meme
+     */
+    copier_quand_meme?: boolean;
+    /**
+     * Nom
+     */
+    nom?: string | null;
 };
 
 /**
@@ -4797,6 +4858,14 @@ export type Element = {
      * Versions
      */
     versions: Array<Version>;
+    /**
+     * Dossier
+     */
+    dossier?: string;
+    /**
+     * Etiquettes
+     */
+    etiquettes?: Array<string>;
 };
 
 /**
@@ -5667,6 +5736,24 @@ export type ExternalPbxFieldMapping = {
      * Destination Field
      */
     destination_field: string;
+};
+
+/**
+ * Fiche
+ */
+export type Fiche = {
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Quand
+     */
+    quand?: string;
+    /**
+     * Comment
+     */
+    comment?: string;
 };
 
 /**
@@ -8795,6 +8882,26 @@ export type NodeTypesResponse = {
 };
 
 /**
+ * NomDossier
+ */
+export type NomDossier = {
+    /**
+     * Chemin
+     */
+    chemin: string;
+};
+
+/**
+ * NomEtiquette
+ */
+export type NomEtiquette = {
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * NomRequest
  */
 export type NomRequest = {
@@ -8885,13 +8992,36 @@ export type NouvelleCle = {
 };
 
 /**
+ * NouvelleFamille
+ */
+export type NouvelleFamille = {
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Groupe
+     */
+    groupe?: string;
+    /**
+     * Cible
+     */
+    cible?: string;
+    fiche?: Fiche | null;
+};
+
+/**
  * NouvelleProposition
  */
 export type NouvelleProposition = {
     /**
      * Type
      */
-    type: 'version' | 'passage_recette' | 'rejet';
+    type: 'version' | 'passage_recette' | 'rejet' | 'fiche' | 'famille';
     /**
      * Famille
      */
@@ -9767,6 +9897,20 @@ export type PageDAlertes = {
 };
 
 /**
+ * PageDElements
+ */
+export type PageDElements = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Elements
+     */
+    elements: Array<Resume>;
+};
+
+/**
  * PageDeTri
  */
 export type PageDeTri = {
@@ -10560,7 +10704,7 @@ export type Proposition = {
     /**
      * Type
      */
-    type: 'version' | 'passage_recette' | 'rejet';
+    type: 'version' | 'passage_recette' | 'rejet' | 'fiche' | 'famille';
     /**
      * Famille
      */
@@ -10750,6 +10894,22 @@ export type PublierGroupeResponse = {
      */
     deja_a_jour?: Array<number>;
     refus?: RefusOutput | null;
+};
+
+/**
+ * Rangement
+ */
+export type Rangement = {
+    /**
+     * Dossier
+     *
+     * Empty string takes the element out of its folder.
+     */
+    dossier?: string | null;
+    /**
+     * Etiquettes
+     */
+    etiquettes?: Array<string> | null;
 };
 
 /**
@@ -11901,6 +12061,23 @@ export type ResultatCopieEtablissement = {
 };
 
 /**
+ * ResultatDepot
+ */
+export type ResultatDepot = {
+    element: Element;
+    /**
+     * Cree
+     */
+    cree: boolean;
+    /**
+     * Comparatif
+     */
+    comparatif?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * ResultatRattachement
  */
 export type ResultatRattachement = {
@@ -12027,6 +12204,18 @@ export type Resume = {
      * Utilisee Par
      */
     utilisee_par?: number;
+    /**
+     * Dossier
+     */
+    dossier?: string;
+    /**
+     * Etiquettes
+     */
+    etiquettes?: Array<string>;
+    /**
+     * Extrait
+     */
+    extrait?: string | null;
 };
 
 /**
@@ -15614,6 +15803,20 @@ export type VueDepot = {
 };
 
 /**
+ * VueEtiquette
+ */
+export type VueEtiquette = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Elements
+     */
+    elements: number;
+};
+
+/**
  * VueFamille
  */
 export type VueFamille = {
@@ -15637,6 +15840,11 @@ export type VueFamille = {
      * Mode
      */
     mode: string;
+    /**
+     * Du Code
+     */
+    du_code?: boolean;
+    fiche?: Fiche;
 };
 
 /**
@@ -19683,6 +19891,761 @@ export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses = {
 };
 
 export type ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponse = ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses[keyof ListerLesFamillesApiV1BuilderBibliothequeFamillesGetResponses];
+
+export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostData = {
+    body: NouvelleFamille;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles';
+};
+
+export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostError = CreerUneFamilleApiV1BuilderBibliothequeFamillesPostErrors[keyof CreerUneFamilleApiV1BuilderBibliothequeFamillesPostErrors];
+
+export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: VueFamille;
+};
+
+export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponse = CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses[keyof CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses];
+
+export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles/{famille}';
+};
+
+export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteError = SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteErrors[keyof SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteErrors];
+
+export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteResponse = SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteResponses[keyof SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteResponses];
+
+export type ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutData = {
+    body: ChangementDeFamille;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles/{famille}';
+};
+
+export type ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutError = ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutErrors[keyof ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutErrors];
+
+export type ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFamille;
+};
+
+export type ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutResponse = ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutResponses[keyof ModifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePutResponses];
+
+export type SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query: {
+        /**
+         * Chemin
+         */
+        chemin: string;
+    };
+    url: '/api/v1/builder/bibliotheque/familles/{famille}/dossiers';
+};
+
+export type SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteError = SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteErrors[keyof SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteErrors];
+
+export type SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteResponses = {
+    /**
+     * Response Supprimer Un Dossier Api V1 Builder Bibliotheque Familles  Famille  Dossiers Delete
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteResponse = SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteResponses[keyof SupprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDeleteResponses];
+
+export type ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles/{famille}/dossiers';
+};
+
+export type ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetError = ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetErrors[keyof ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetErrors];
+
+export type ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetResponses = {
+    /**
+     * Response Lister Les Dossiers Api V1 Builder Bibliotheque Familles  Famille  Dossiers Get
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetResponse = ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetResponses[keyof ListerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGetResponses];
+
+export type CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostData = {
+    body: NomDossier;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles/{famille}/dossiers';
+};
+
+export type CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostError = CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostErrors[keyof CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostErrors];
+
+export type CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostResponses = {
+    /**
+     * Response Creer Un Dossier Api V1 Builder Bibliotheque Familles  Famille  Dossiers Post
+     *
+     * Successful Response
+     */
+    201: Array<string>;
+};
+
+export type CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostResponse = CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostResponses[keyof CreerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPostResponses];
+
+export type SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    url: '/api/v1/builder/bibliotheque/etiquettes';
+};
+
+export type SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteError = SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteErrors[keyof SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteErrors];
+
+export type SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteResponses = {
+    /**
+     * Response Supprimer Une Etiquette Api V1 Builder Bibliotheque Etiquettes Delete
+     *
+     * Successful Response
+     */
+    200: Array<VueEtiquette>;
+};
+
+export type SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteResponse = SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteResponses[keyof SupprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDeleteResponses];
+
+export type ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/etiquettes';
+};
+
+export type ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetError = ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetErrors[keyof ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetErrors];
+
+export type ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetResponses = {
+    /**
+     * Response Lister Les Etiquettes Api V1 Builder Bibliotheque Etiquettes Get
+     *
+     * Successful Response
+     */
+    200: Array<VueEtiquette>;
+};
+
+export type ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetResponse = ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetResponses[keyof ListerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGetResponses];
+
+export type CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostData = {
+    body: NomEtiquette;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/etiquettes';
+};
+
+export type CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostError = CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostErrors[keyof CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostErrors];
+
+export type CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostResponses = {
+    /**
+     * Response Creer Une Etiquette Api V1 Builder Bibliotheque Etiquettes Post
+     *
+     * Successful Response
+     */
+    201: Array<VueEtiquette>;
+};
+
+export type CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostResponse = CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostResponses[keyof CreerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPostResponses];
+
+export type RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutData = {
+    body: NomEtiquette;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Ancien
+         */
+        ancien: string;
+    };
+    url: '/api/v1/builder/bibliotheque/etiquettes';
+};
+
+export type RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutError = RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutErrors[keyof RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutErrors];
+
+export type RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutResponses = {
+    /**
+     * Response Renommer Une Etiquette Api V1 Builder Bibliotheque Etiquettes Put
+     *
+     * Successful Response
+     */
+    200: Array<VueEtiquette>;
+};
+
+export type RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutResponse = RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutResponses[keyof RenommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPutResponses];
+
+export type ParcourirApiV1BuilderBibliothequeParcourirGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Famille
+         */
+        famille?: string | null;
+        /**
+         * Statut
+         */
+        statut?: Statut | null;
+        /**
+         * Dossier
+         */
+        dossier?: string | null;
+        /**
+         * Etiquette
+         */
+        etiquette?: Array<string> | null;
+        /**
+         * Q
+         */
+        q?: string;
+        /**
+         * Limite
+         */
+        limite?: number;
+        /**
+         * Decalage
+         */
+        decalage?: number;
+    };
+    url: '/api/v1/builder/bibliotheque/parcourir';
+};
+
+export type ParcourirApiV1BuilderBibliothequeParcourirGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ParcourirApiV1BuilderBibliothequeParcourirGetError = ParcourirApiV1BuilderBibliothequeParcourirGetErrors[keyof ParcourirApiV1BuilderBibliothequeParcourirGetErrors];
+
+export type ParcourirApiV1BuilderBibliothequeParcourirGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDElements;
+};
+
+export type ParcourirApiV1BuilderBibliothequeParcourirGetResponse = ParcourirApiV1BuilderBibliothequeParcourirGetResponses[keyof ParcourirApiV1BuilderBibliothequeParcourirGetResponses];
+
+export type DeposerUnDocumentApiV1BuilderBibliothequeDepotPostData = {
+    body: BodyDeposerUnDocumentApiV1BuilderBibliothequeDepotPost;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/depot';
+};
+
+export type DeposerUnDocumentApiV1BuilderBibliothequeDepotPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeposerUnDocumentApiV1BuilderBibliothequeDepotPostError = DeposerUnDocumentApiV1BuilderBibliothequeDepotPostErrors[keyof DeposerUnDocumentApiV1BuilderBibliothequeDepotPostErrors];
+
+export type DeposerUnDocumentApiV1BuilderBibliothequeDepotPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatDepot;
+};
+
+export type DeposerUnDocumentApiV1BuilderBibliothequeDepotPostResponse = DeposerUnDocumentApiV1BuilderBibliothequeDepotPostResponses[keyof DeposerUnDocumentApiV1BuilderBibliothequeDepotPostResponses];
+
+export type RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostData = {
+    body: Rangement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/{famille}/{slug}/rangement';
+};
+
+export type RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostError = RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostErrors[keyof RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostErrors];
+
+export type RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Element;
+};
+
+export type RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostResponse = RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostResponses[keyof RangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPostResponses];
+
+export type ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostData = {
+    body: CopieDeScenario;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/scenarios-types/{slug}/examiner';
+};
+
+export type ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostError = ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostErrors[keyof ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostErrors];
+
+export type ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostResponses = {
+    /**
+     * Response Examiner Un Scenario Api V1 Builder Bibliotheque Scenarios Types  Slug  Examiner Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostResponse = ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostResponses[keyof ExaminerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPostResponses];
+
+export type CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostData = {
+    body: CopieDeScenario;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/scenarios-types/{slug}/copier';
+};
+
+export type CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostError = CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostErrors[keyof CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostErrors];
+
+export type CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostResponses = {
+    /**
+     * Response Copier Un Scenario Api V1 Builder Bibliotheque Scenarios Types  Slug  Copier Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostResponse = CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostResponses[keyof CopierUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugCopierPostResponses];
 
 export type ListerLesElementsApiV1BuilderBibliothequeGetData = {
     body?: never;
