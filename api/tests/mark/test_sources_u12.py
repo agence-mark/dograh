@@ -160,6 +160,33 @@ async def test_claude_code_joue_l_appelant_tour_par_tour_et_le_code_verifie(banc
     assert encore["ok"] is False and encore["code"] == "introuvable"
 
 
+async def test_un_appel_d_essai_continue_dans_un_autre_processus_ou_apres_un_redemarrage(banc, monkeypatch):
+    from api.services.builder import actions as _actions  # noqa: F401
+    from api.services.builder.actions import appelant_claude_code as outils
+    from api.services.builder.tests_agent import jeu
+
+    await _un_test_libre()
+    moteur = MoteurFactice(["Bonjour.", "Noté, au revoir."], fin_au_tour=1)
+    execution.DEPENDANCES.moteur = moteur.en_moteur
+    ouvert = await registre.executer("test_demarrer", {"workflow_id": AGENT, "test": "libre"}, mcp())
+    outils._SESSIONS.clear()  # un autre worker, ou le serveur redémarré : plus rien en mémoire, tout est en base
+    relues = []
+
+    async def reouvrir(contexte, appel, ligne, workflow):
+        relues.append((contexte.organisation_id, appel, ligne["test"]))
+        return jeu.Session(appel, set(ligne["fins"]))
+
+    monkeypatch.setattr(outils, "_reouvrir", reouvrir)
+    tour = await registre.executer("test_tour", {"appel": ouvert["appel"], "replique": "Au revoir."}, mcp())
+    assert tour["ok"] and tour["tour"] == 1 and relues == [(ORG_CLIENT, ouvert["appel"], "libre")]
+    outils._SESSIONS.clear()
+    fin = await registre.executer("test_finir", {"appel": ouvert["appel"]}, mcp())
+    assert fin["ok"] and fin["reussi"] is True
+    # un appel fini n existe plus nulle part (ni en mémoire ni en base)
+    outils._SESSIONS.clear()
+    assert (await registre.executer("test_tour", {"appel": ouvert["appel"], "replique": "x"}, mcp()))["code"] == "introuvable"
+
+
 async def test_l_appel_d_une_autre_organisation_est_introuvable_et_sur_cle_les_outils_refusent(banc, monkeypatch):
     await _un_test_libre()
     execution.DEPENDANCES.moteur = MoteurFactice(["Bonjour.", "Au revoir."], fin_au_tour=1).en_moteur

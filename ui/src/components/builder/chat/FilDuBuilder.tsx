@@ -10,6 +10,9 @@ import { ArrowDown, ArrowLeft, ArrowUp, Pencil, RotateCw, Square } from "lucide-
 import { useEffect, useRef, useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { AvertissementClaudeCode, EnDirect, LigneLecture, MarqueClaudeCode } from "@/components/mark/sources/marques";
+import { LigneLive } from "@/components/mark/sources/useModifications";
+import { useSources } from "@/components/mark/sources/useSources";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -41,9 +44,14 @@ const T = {
     plafond: { en: "Ceiling reached: raise it in the builder settings, then resume.", fr: "Plafond atteint : relevez-le dans les réglages du builder, puis reprenez." },
 } satisfies Record<string, Texte>;
 
-export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: number; lectureSeule?: boolean; retour?: () => void }) {
+export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false, retour }: { filId: number; lectureSeule?: boolean; retour?: () => void }) {
     const { t, langue } = useLangue();
     const { fil, lignes, erreur, enCours, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
+    const { sources } = useSources();
+    // U12 : une conversation menee dans Claude Code se lit seulement ; sur Claude Code, la saisie du chat de l'ecran est fermee.
+    const claudeCode = fil?.genre === "claude_code";
+    const lectureSeule = lectureSeuleDemandee || claudeCode;
+    const ferme = !claudeCode && sources?.builder === "claude_code";
     const [vu, setVu] = useState<number | null>(null);
     const [revue, setRevue] = useState(false);
     const sous = useSousAgents(filId, enCours && !lectureSeule);
@@ -63,7 +71,7 @@ export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: n
     };
     const envoi = async () => {
         const texte = saisie.trim();
-        if (!texte || enCours) return;
+        if (!texte || enCours || ferme) return;
         setSaisie("");
         setEnBas(true);
         await envoyer(texte);
@@ -78,7 +86,16 @@ export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: n
                         <ArrowLeft className="size-4" /> {t(T.principale)}
                     </button>
                 )}
-                <h1 className="truncate text-lg font-semibold">{fil?.titre ?? ""}</h1>
+                <div className="flex min-w-0 flex-col">
+                    <h1 className="truncate text-lg font-semibold">{fil?.titre ?? ""}</h1>
+                    {claudeCode && (
+                        <span className="flex items-center gap-2">
+                            <MarqueClaudeCode par={fil?.auteur} />
+                            {fil?.etat === "en_cours" && <EnDirect />}
+                        </span>
+                    )}
+                    <LigneLive objet={`conversation:${filId}`} />
+                </div>
                 <p className="shrink-0 text-xs text-muted-foreground">
                     {lectureSeule && fil ? `${libelleEtat(fil.etat, langue)} · ` : ""}
                     {fil ? `${fil.jetons.toLocaleString()} · $${fil.cout.toFixed(2)} · ${Math.round(fil.jauge * 100)} %` : ""}
@@ -135,7 +152,11 @@ export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: n
             )}
             {/* Saisie flottante : aucun trait entre le fil et la saisie, un fondu en bas du fil. */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pt-10">
-                {lectureSeule ? (
+                {claudeCode ? (
+                    <div className="pointer-events-auto mx-auto max-w-3xl rounded-xl bg-card p-3 shadow-lg">
+                        <LigneLecture />
+                    </div>
+                ) : lectureSeule ? (
                     <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-2 rounded-xl bg-card p-3 text-sm text-muted-foreground shadow-lg">
                         <span>{t(T.lectureSeule)}</span>
                         {enCours && (
@@ -166,12 +187,13 @@ export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: n
                         rows={2}
                         value={saisie}
                         placeholder={t(T.ecrire)}
-                        disabled={enCours}
+                        disabled={enCours || ferme}
                         onChange={(e) => setSaisie(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void envoi();
                         }}
                     />
+                    {ferme && <AvertissementClaudeCode />}
                     <div className="flex justify-end gap-2">
                         <ListeDesSousAgents
                             filId={filId}
@@ -186,7 +208,7 @@ export function FilDuBuilder({ filId, lectureSeule = false, retour }: { filId: n
                                 <Square className="size-4" /> {t(T.arreter)}
                             </Button>
                         ) : (
-                            <Button size="sm" disabled={!saisie.trim()} onClick={() => void envoi()} aria-label={t(T.envoyer)}>
+                            <Button size="sm" disabled={!saisie.trim() || ferme} onClick={() => void envoi()} aria-label={t(T.envoyer)}>
                                 <ArrowUp className="size-4" /> {t(T.envoyer)}
                             </Button>
                         )}

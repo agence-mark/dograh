@@ -21,14 +21,17 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from api.services import sources_cerveaux
-from api.services.builder import brouillon, consignes
+from api.services.builder import brouillon, consignes, stock
 from api.services.builder.actions._commun import agent_de_l_organisation
 from api.services.builder.actions.registre import Action, Contexte, ErreurAction, enregistrer
 from api.services.builder.tests_agent import execution, jeu, stockage, verdict
 
-# (organisation, appel) -> la session ouverte. Un appel d'essai dure quelques minutes ; un redémarrage du serveur le perd (on le relance).
+# (organisation, appel) -> la session ouverte, gardée par ce processus. L'état qui doit survivre à un autre worker ou à un redémarrage
+# vit dans la ligne ``MARK_APPEL_ESSAI:<appel>`` de l'organisation (test, lignes, tours) ; la session du moteur se relit en base (``_reouvrir``).
 _SESSIONS: dict[tuple[int, int], dict[str, Any]] = {}
 SESSIONS_MAX = 50
+PREFIXE_APPEL = "MARK_APPEL_ESSAI:"
+PERIME_APRES_S = 2 * 3600
 
 
 class _Demarrer(BaseModel):
@@ -74,7 +77,7 @@ async def _demarrer(contexte: Contexte, p: _Demarrer) -> dict[str, Any]:
     scenario = test.get("scenario") or {}
     personnage = await jeu.personnage_de(scenario)
     lignes: list[tuple[str, str]] = [("agent", ouverture.texte)] if ouverture.texte else []
-    _SESSIONS[(contexte.organisation_id, int(session.run_id))] = {
+    ouverte = {
         "session": session,
         "moteur": moteur,
         "test": test,
@@ -83,6 +86,8 @@ async def _demarrer(contexte: Contexte, p: _Demarrer) -> dict[str, Any]:
         "tours": 0,
         "termine": ouverture.termine,
     }
+    _SESSIONS[(contexte.organisation_id, int(session.run_id))] = ouverte
+    await _ranger(contexte.organisation_id, int(session.run_id), ouverte, session)
     maxi = max(1, min(int(scenario.get("tours_max") or jeu.TOURS_MAX_PAR_DEFAUT), jeu.TOURS_MAX_ABSOLU))
     return {
         "ok": True,
@@ -96,16 +101,72 @@ async def _demarrer(contexte: Contexte, p: _Demarrer) -> dict[str, Any]:
     }
 
 
-def _session(contexte: Contexte, appel: int) -> dict[str, Any]:
-    ouverte = _SESSIONS.get((contexte.organisation_id, appel))
-    if ouverte is None:
+async def _ranger(organisation: int, appel: int, ouverte: dict[str, Any], session: Any = None) -> None:
+    """Garde en base ce qu'un autre processus doit savoir pour continuer cet appel d'essai."""
+    session = session or ouverte["session"]
+    await stock.ecrire(
+        organisation,
+        f"{PREFIXE_APPEL}{appel}",
+        {
+            "workflow_id": ouverte["workflow_id"],
+            "test": ouverte["test"]["slug"],
+            "lignes": [list(x) for x in ouverte["lignes"]][-80:],
+            "tours": ouverte["tours"],
+            "termine": bool(ouverte["termine"]),
+            "fins": sorted(getattr(session, "noeuds_de_fin", None) or []),
+            "le": stockage.maintenant(),
+        },
+    )
+
+
+async def _reouvrir(contexte: Contexte, appel: int, ligne: dict[str, Any], workflow: Any) -> Any:
+    """La session du moteur d'un appel d'essai ouvert par un autre processus : relue en base avec l'organisation de la personne."""
+    from api.db import db_client
+
+    texte = await db_client.get_workflow_run_text_session(appel, organization_id=contexte.organisation_id)
+    if texte is None:
+        raise ErreurAction("This practice call is no longer open: open another with test_demarrer.", "introuvable")
+    return jeu.Session(appel, set(ligne.get("fins") or []), etat={"texte": texte, "workflow": workflow})
+
+
+async def _session(contexte: Contexte, appel: int) -> dict[str, Any]:
+    cle = (contexte.organisation_id, appel)
+    ouverte = _SESSIONS.get(cle)
+    if ouverte is not None:
+        return ouverte
+    ligne = await stock.lire(contexte.organisation_id, f"{PREFIXE_APPEL}{appel}")
+    if ligne is None or _perime(ligne):
         raise ErreurAction("No open practice call under this id for your organization: open one with test_demarrer.", "introuvable")
+    workflow = await agent_de_l_organisation(contexte, ligne["workflow_id"])
+    try:
+        test = await stockage.lire(contexte.organisation_id, workflow.id, ligne["test"])
+    except stockage.ErreurTest:
+        raise ErreurAction("The test of this practice call no longer exists.", "introuvable") from None
+    ouverte = {
+        "session": await _reouvrir(contexte, appel, ligne, workflow),
+        "moteur": execution.DEPENDANCES.moteur(),
+        "test": test,
+        "workflow_id": workflow.id,
+        "lignes": [tuple(x) for x in ligne.get("lignes") or []],
+        "tours": int(ligne.get("tours") or 0),
+        "termine": bool(ligne.get("termine")),
+    }
+    _SESSIONS[cle] = ouverte
     return ouverte
+
+
+def _perime(ligne: dict[str, Any]) -> bool:
+    from datetime import UTC, datetime
+
+    try:
+        return (datetime.now(UTC) - datetime.fromisoformat(str(ligne.get("le")))).total_seconds() > PERIME_APRES_S
+    except ValueError:
+        return True
 
 
 async def _tour(contexte: Contexte, p: _Tour) -> dict[str, Any]:
     await _exiger_claude_code(contexte)
-    ouverte = _session(contexte, p.appel)
+    ouverte = await _session(contexte, p.appel)
     scenario = ouverte["test"].get("scenario") or {}
     maxi = max(1, min(int(scenario.get("tours_max") or jeu.TOURS_MAX_PAR_DEFAUT), jeu.TOURS_MAX_ABSOLU))
     if ouverte["termine"]:
@@ -118,12 +179,13 @@ async def _tour(contexte: Contexte, p: _Tour) -> dict[str, Any]:
     if reponse.texte:
         ouverte["lignes"].append(("agent", reponse.texte))
     ouverte["termine"] = bool(reponse.termine)
+    await _ranger(contexte.organisation_id, p.appel, ouverte)
     return {"ok": True, "appel": p.appel, "agent_dit": reponse.texte, "termine": ouverte["termine"], "tour": ouverte["tours"], "tours_max": maxi}
 
 
 async def _finir(contexte: Contexte, p: _Finir) -> dict[str, Any]:
     await _exiger_claude_code(contexte)
-    ouverte = _session(contexte, p.appel)
+    ouverte = await _session(contexte, p.appel)
     test, moteur = ouverte["test"], ouverte["moteur"]
     workflow = await agent_de_l_organisation(contexte, ouverte["workflow_id"])
     try:
@@ -134,6 +196,7 @@ async def _finir(contexte: Contexte, p: _Finir) -> dict[str, Any]:
         except Exception:  # noqa: BLE001 -- un run non clos ne fait pas échouer le test
             logger.debug("[tests-agent] appel d'essai non clos")
         _SESSIONS.pop((contexte.organisation_id, p.appel), None)
+        await stock.supprimer(contexte.organisation_id, f"{PREFIXE_APPEL}{p.appel}")
     criteres = verdict.evaluer_criteres(test["criteres"], obs)
     reussi = verdict.reussi(criteres)
     essai = {

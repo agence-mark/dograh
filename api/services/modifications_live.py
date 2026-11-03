@@ -53,6 +53,7 @@ async def lire_apres(organisation: int, apres: int, objet: str | None = None) ->
         (
             int(m.id),
             {
+                "type": "modification",
                 "objet": m.objet,
                 "action": m.action,
                 "source": m.source,

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { listerLesFilsApiV1BuilderFilsGet, type VueFil } from "@/client";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { EnDirect, MarqueClaudeCode } from "@/components/mark/sources/marques";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { useAuth } from "@/lib/auth";
 
@@ -42,7 +43,15 @@ export function ListeDesFils({ limite, workflowId }: { limite?: number; workflow
             {fils.slice(0, limite).map((f) => (
                 <li key={f.id}>
                     <Link href={`/labo/builder/${f.id}`} className="flex cursor-pointer items-center justify-between gap-3 py-2 hover:font-semibold">
-                        <span className="truncate text-sm">{f.titre}</span>
+                        <span className="flex min-w-0 flex-col">
+                            <span className="truncate text-sm">{f.titre}</span>
+                            {f.genre === "claude_code" && (
+                                <span className="flex items-center gap-2">
+                                    <MarqueClaudeCode par={f.auteur} />
+                                    {f.etat === "en_cours" && <EnDirect />}
+                                </span>
+                            )}
+                        </span>
                         <span className="shrink-0 text-xs text-muted-foreground">
                             {f.changements > 0 ? `${f.changements} ${t(T.changements)} · ` : ""}
                             {t(T[f.etat as keyof typeof T] ?? T.nouvelle)} · ${f.cout.toFixed(2)}

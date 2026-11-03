@@ -8,6 +8,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { getWorkflowApiV1WorkflowFetchWorkflowIdGet } from "@/client/sdk.gen";
+import { LigneLive } from "@/components/mark/sources/useModifications";
 import { useAuth } from "@/lib/auth";
 
 import { ActionsAgent } from "./ActionsAgent";
@@ -19,6 +20,8 @@ type Fiche = { nom: string; uuid: string | null; numero: number | null; statut: 
 export function EntetePageAgent({ agentId, onglet, children }: { agentId: number; onglet: OngletAgent; children: ReactNode }) {
     const { user, loading: authLoading } = useAuth();
     const [fiche, setFiche] = useState<Fiche | null>(null);
+    // U12 : une ecriture (Claude Code, le builder, un collegue) sur cet agent relit l'ecran seul (l'onglet est remonte).
+    const [lecture, setLecture] = useState(0);
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -35,7 +38,7 @@ export function EntetePageAgent({ agentId, onglet, children }: { agentId: number
         return () => {
             annule = true;
         };
-    }, [agentId, authLoading, user]);
+    }, [agentId, authLoading, user, lecture]);
 
     return (
         <div className="flex min-h-full flex-col">
@@ -54,7 +57,12 @@ export function EntetePageAgent({ agentId, onglet, children }: { agentId: number
                     />
                 }
             />
-            <div className="min-h-0 flex-1">{children}</div>
+            <div className="px-6 empty:hidden">
+                <LigneLive objet={`agent:${agentId}`} quand={() => setLecture((n) => n + 1)} />
+            </div>
+            <div key={lecture} className="min-h-0 flex-1">
+                {children}
+            </div>
         </div>
     );
 }
