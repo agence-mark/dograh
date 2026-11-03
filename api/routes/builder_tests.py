@@ -73,6 +73,8 @@ class ChangerUnTest(BaseModel):
     ouverture: str | None = None
     tours_max: int | None = Field(default=None, ge=2, le=40)
     questions_juge: list[str] | None = None
+    corrige: dict[str, Any] | None = None
+    comportements: list[str] | None = None
 
 
 class NoteDuJuge(BaseModel):

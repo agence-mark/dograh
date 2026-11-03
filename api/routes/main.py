@@ -22,6 +22,7 @@ from api.routes.export_agent import router as export_agent_router
 from api.routes.relation import router as relation_router
 from api.routes.relation_portail import router as relation_portail_router
 from api.routes.etiquettes import router as etiquettes_router
+from api.routes.ameliorations import router as ameliorations_router
 from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
@@ -100,6 +101,7 @@ router.include_router(appel_simule_router)
 router.include_router(cles_router)
 # [.mark] passages-fiables (lot G): the triage queue and the alerts.
 router.include_router(tri_router)
+router.include_router(ameliorations_router)
 # [.mark] The establishments of the organization (chantier l-agent-travaille, L1),
 # mounted BEFORE the organization router so its paths are never read as parameters.
 router.include_router(etablissements_router)

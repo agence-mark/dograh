@@ -37,7 +37,8 @@ class _TestACreer(BaseModel):
         default_factory=list,
         description=(
             "Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, "
-            "mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite."
+            "mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, "
+            "rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values)."
         ),
     )
     obligatoire: bool = Field(default=False, description="A required test blocks the publication when it fails.")
@@ -52,6 +53,11 @@ class _TestACreer(BaseModel):
     origine: str = Field(default="manuel", description="client | recette | code | manuel | fiche")
     description: str = ""
     questions_juge: list[str] = Field(default_factory=list, description="Questions for the non-blocking judge.")
+    corrige: dict[str, Any] | None = Field(
+        default=None,
+        description="Expected end state: {issue, actions: [tools called], champs: {field: value}, rien_d_autre: true}; compiled into criteria.",
+    )
+    comportements: list[str] = Field(default_factory=list, description="One or two caller behaviours the test plays (never more).")
 
 
 class _TestAModifier(BaseModel):
@@ -69,6 +75,8 @@ class _TestAModifier(BaseModel):
     ouverture: str | None = None
     tours_max: int | None = Field(default=None, ge=2, le=40)
     questions_juge: list[str] | None = None
+    corrige: dict[str, Any] | None = None
+    comportements: list[str] | None = None
 
 
 class _TestsARejouer(BaseModel):
@@ -127,6 +135,8 @@ async def _tests_creer(contexte: Contexte, parametres: BaseModel) -> dict[str, A
             ouverture=parametres.ouverture,
             tours_max=parametres.tours_max,
             questions_juge=parametres.questions_juge,
+            corrige=parametres.corrige,
+            comportements=parametres.comportements,
         )
     except (stockage.ErreurTest, ErreurTestRejouable) as erreur:
         raise ErreurAction(str(erreur)) from None

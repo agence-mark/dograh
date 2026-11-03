@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.builder.donnees_fictives import CLES_TECHNIQUES, est_fictive, rendre_fictif
+from api.services.builder.tests_agent import corrige as etat_final
 from api.services.builder.tests_agent import stockage, verdict
 from api.services.tests_rejouables.modele import ErreurTestRejouable
 
@@ -42,13 +43,19 @@ async def creer(
     ouverture: str | None = None,
     tours_max: int | None = None,
     questions_juge: list[str] | None = None,
+    corrige: dict[str, Any] | None = None,
+    comportements: list[str] | None = None,
 ) -> dict[str, Any]:
     """Crée et range un test. ``stockage.ErreurTest`` ou ``ErreurTestRejouable`` avec la raison."""
     nom = " ".join(nom.split())[:LONGUEUR_NOM_MAX]
     if not nom:
         raise stockage.ErreurTest("A test needs a name.")
-    criteres = verdict.valider_criteres(criteres)
+    # U8 (F) : le corrigé (état final attendu) se compile en critères jugés par le code ; un ou deux comportements au plus.
+    corrige_propre = etat_final.valider(corrige) if corrige else None
+    criteres = verdict.valider_criteres(etat_final.fusionner(criteres, corrige_propre) if criteres or corrige_propre else criteres)
     test: dict[str, Any] = {
+        "corrige": corrige_propre,
+        "comportements": etat_final.comportements_valides(comportements),
         "version": stockage.VERSION,
         "nom": nom,
         "description": description,
@@ -108,6 +115,8 @@ async def modifier(
     personnage: str | None = None,
     ouverture: str | None = None,
     tours_max: int | None = None,
+    corrige: dict[str, Any] | None = None,
+    comportements: list[str] | None = None,
 ) -> dict[str, Any]:
     """U3 (E47) : modification COMPLÈTE d'un test existant, même validation qu'à la création.
 
@@ -123,6 +132,19 @@ async def modifier(
         test["nom"] = nom
     if description is not None:
         test["description"] = description
+    if comportements is not None:
+        test["comportements"] = etat_final.comportements_valides(comportements)
+    if corrige is not None:
+        # un corrigé vide le retire ; sinon il remplace l'ancien et ses critères compilés sont recalculés
+        nouveau = etat_final.valider(corrige) if corrige else None
+        base = list(test.get("criteres") or [])
+        if test.get("corrige"):
+            compile_ancien = {repr(sorted(c.items())) for c in etat_final.en_criteres(test["corrige"])}
+            base = [c for c in (test.get("criteres") or []) if repr(sorted(c.items())) not in compile_ancien]
+        if nouveau is not None:
+            base = etat_final.fusionner(base, nouveau)
+        test["corrige"] = nouveau
+        criteres = base if criteres is None else etat_final.fusionner(criteres, nouveau)
     if criteres is not None:
         criteres = verdict.valider_criteres(criteres)
         test["criteres"] = criteres
@@ -192,6 +214,9 @@ def en_resume(test: dict[str, Any]) -> dict[str, Any]:
         "genre": "conversation" if test.get("scenario") else "replique",
         "description": test.get("description", ""),
         "criteres": len(test.get("criteres") or []),
+        "corrige": test.get("corrige"),
+        "comportements": list(test.get("comportements") or []),
+        "construction": etat_final.construction(test),
         "source": test.get("source") or {},
         "cree_le": test.get("cree_le"),
         "modifie_le": test.get("modifie_le") or test.get("cree_le"),

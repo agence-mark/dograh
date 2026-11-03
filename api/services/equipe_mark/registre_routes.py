@@ -129,6 +129,9 @@ REGLES: tuple[Regle, ...] = (
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),
+    # U8 : la boucle (« À améliorer ») et la page Qualité. Lire = voir les conversations ; changer un problème = modifier un agent.
+    _r(LECTURE, r"^/(ameliorations(/.*)?|qualite(/.*)?)$", P("conversations.voir")),
+    _r(ECRITURE, r"^/ameliorations(/.*)?$", P("agents.modifier")),
     _r({"GET"}, r"^/s3/(signed-url|file-metadata)$", P("conversations.voir")),
     _r({"POST"}, r"^/s3/presigned-upload-url$", P("agents.modifier")),
     # ------------------------------------------------------------------ clés et comptes techniques

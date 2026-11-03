@@ -104,6 +104,12 @@ async def _ecrire(contexte: Contexte, p: _Ecrire) -> dict[str, Any]:
     }
     if item["type"] == "appel":
         await appels.ecrire_dans_le_run(int(item["run_id"]), resultat)
+        # U8 (B) : un critère raté par Claude Code entre aussi dans « À améliorer » (même chemin que le juge sur clé).
+        from api.services.boucle import ingestion
+
+        run, _ = await db_client.get_workflow_run_with_context(int(item["run_id"]))
+        if run is not None:
+            await ingestion.ingerer_un_appel_juge(run, contexte.organisation_id, verifies, lignes)
     else:
         from api.services.builder import stock
 

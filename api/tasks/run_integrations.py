@@ -204,6 +204,14 @@ async def run_integrations_post_workflow_run(_ctx, workflow_run_id: int):
         # we should unregister an existing langfuse credentials for that org.
         set_current_org_id(organization_id)
 
+        # [.mark] U8 : le bilan de la boucle (version, indicateurs, motif, traces du code). Ne lève jamais, jamais bloquant.
+        try:
+            from api.services.boucle.ingestion import bilan_de_l_appel
+
+            await bilan_de_l_appel(workflow_run, organization_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Loop summary skipped: {type(e).__name__}")
+
         # [.mark] U6 (J3) : le juge des vrais appels, si l'agent l'a allumé. Ne lève jamais, jamais bloquant.
         try:
             from api.services.juge.appels import apres_appel as juger_le_vrai_appel

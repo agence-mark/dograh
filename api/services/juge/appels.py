@@ -106,8 +106,9 @@ async def apres_appel(run: Any, organisation: int) -> None:
         await ecrire_dans_le_run(
             run.id, {"etat": "juge", "source": "cle_api", "modele": juge.modele, "juge_le": file.maintenant(), **rendu, **mention}
         )
-        await a_ameliorer.signaler(
-            organisation, {"id": f"appel-{run.id}", "type": "appel", "workflow_id": run.workflow_id, "run_id": run.id}, rendu["verdicts"], "cle_api"
-        )
+        # U8 (B) : un critère raté entre dans « À améliorer » avec sa réplique fautive (ne lève jamais).
+        from api.services.boucle import ingestion
+
+        await ingestion.ingerer_un_appel_juge(run, organisation, rendu.get("verdicts") or [], dossier["lignes"])
     except Exception as erreur:  # noqa: BLE001 -- un juge en panne n'abîme ni l'appel ni l'après-appel
         logger.warning(f"[juge] appel {getattr(run, 'id', '?')} non jugé : {type(erreur).__name__}")

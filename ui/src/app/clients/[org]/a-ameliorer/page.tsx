@@ -1,2 +1,2 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/a-trier/page";
+// [.mark] U8 : « À améliorer » du client (la même page : le serveur lit l'organisation de l'adresse).
+export { PageAAmeliorer as default } from "@/components/mark/ameliorer/PageAAmeliorer";
