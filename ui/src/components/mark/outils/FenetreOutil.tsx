@@ -153,7 +153,7 @@ export function FenetreOutil({
                         libelle={t({ en: "Description for the model", fr: "Description pour le modèle" })}
                         info={t({ en: "States exactly when the agent should call the tool and what it gets back.", fr: "Dit exactement quand l'agent doit appeler l'outil et ce qu'il en reçoit." })}
                     >
-                        <Input value={description} onChange={(e) => setDescription(e.target.value)} aria-label="Description" />
+                        <Input value={description} onChange={(e) => setDescription(e.target.value)} aria-label={t({ en: "Description", fr: "Description" })} />
                     </BlocChamp>
                     <LigneChamp libelle={t({ en: "Access", fr: "Accès" })}>
                         <Marque>{ecrit ? t({ en: "Writes", fr: "Écrit" }) : t({ en: "Reads", fr: "Lit" })}</Marque>
