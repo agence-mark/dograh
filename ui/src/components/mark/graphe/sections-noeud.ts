@@ -104,6 +104,13 @@ export function sectionsAMontrer(proprietesVisibles: string[], blocs: SectionNoe
     return ORDRE_DES_SECTIONS.filter((s) => presentes.has(s));
 }
 
+/** L'ordre des champs de l'onglet Conversation, comme la maquette : le prompt d'abord, puis l'accueil, puis les interrupteurs. */
+const ORDRE_CONVERSATION = Object.keys(PAR_PROPRIETE).filter((nom) => PAR_PROPRIETE[nom] === "conversation");
+
 /** Les propriétés (visibles) d'un onglet. */
-export const proprietesDeLaSection = (proprietesVisibles: string[], section: SectionNoeud): string[] =>
-    proprietesVisibles.filter((nom) => nom !== PROPRIETE_DU_NOM && sectionDeLaPropriete(nom) === section);
+export const proprietesDeLaSection = (proprietesVisibles: string[], section: SectionNoeud): string[] => {
+    const noms = proprietesVisibles.filter((nom) => nom !== PROPRIETE_DU_NOM && sectionDeLaPropriete(nom) === section);
+    if (section !== "conversation") return noms;
+    const rang = (nom: string) => (ORDRE_CONVERSATION.includes(nom) ? ORDRE_CONVERSATION.indexOf(nom) : ORDRE_CONVERSATION.length);
+    return noms.map((nom, i) => ({ nom, i })).sort((a, b) => rang(a.nom) - rang(b.nom) || a.i - b.i).map(({ nom }) => nom);
+};

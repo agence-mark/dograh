@@ -134,7 +134,7 @@ export function ShellStudio({
             <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee }}>
             <SidebarStudio compteurs={compteurs} />
             <div className="h-svh w-full overflow-hidden lg:py-2 lg:pr-2">
-                <div className="relative flex h-full w-full overflow-hidden bg-background lg:rounded-xl lg:border">
+                <div id="cadre-studio" className="relative flex h-full w-full overflow-hidden bg-background lg:rounded-xl lg:border">
                     <div className="flex min-w-0 flex-1 flex-col">
                         {!sansEntete && (
                             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

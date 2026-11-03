@@ -175,13 +175,12 @@ describe("[.mark] the « Simulated caller » tab, mounted in Dograh's tester pan
         await screen.findByText("Panne urgente");
     });
 
-    it("lets each of the three labels wrap under its icon instead of running into its neighbour", () => {
-        // The real widths are checked in Playwright (P13); here, the classes that make it possible.
+    it("draws the three tabs as the mock-up does: one line, underlined, none of them wrapping", () => {
+        // K2 : les onglets de l'essai sont des onglets au trait (maquette `panneau-essai.tsx`), plus des pastilles à icône.
         render(<WorkflowTesterPanel workflowId={34} disabled={false} disabledReason={null} />);
         for (const onglet of screen.getAllByRole("tab")) {
-            expect(onglet.className).toContain("whitespace-normal");
-            expect(onglet.className).toContain("flex-col");
-            expect(onglet.className).not.toContain("whitespace-nowrap");
+            expect(onglet.className).toContain("border-b-2");
+            expect(onglet.className).not.toContain("flex-col");
         }
     });
 });
@@ -190,13 +189,13 @@ describe("[.mark] running a series", () => {
     it("shows the cap before the first call, runs the picked scenarios, follows and stops the series", async () => {
         render(<AppelantSimule workflowId={34} />);
         await screen.findByText("Panne urgente");
-        expect(texte(screen.getByTestId("estimation"))).toContain("unknown until the first call · cap 5");
-        expect(bouton("Run 0 call(s)").disabled).toBe(true);
+        expect(texte(screen.getByTestId("estimation"))).toContain("cost unknown before the first call · cap 5");
+        expect(bouton("Run the series").disabled).toBe(true);
 
         fireEvent.click(screen.getByLabelText("Panne urgente"));
         fireEvent.click(screen.getByLabelText("Devis"));
         m.getSeries.mockResolvedValue({ data: [SERIE] });
-        fireEvent.click(bouton("Run 2 call(s)"));
+        fireEvent.click(bouton("Run the series"));
         await waitFor(() => expect(m.lancer).toHaveBeenCalledTimes(1));
         expect(m.lancer.mock.calls[0][0]).toEqual({ path: { workflow_id: 34 }, body: { scenario_ids: ["s1", "s2"] } });
 
@@ -218,7 +217,7 @@ describe("[.mark] running a series", () => {
         await screen.findByText("Horaires");
         for (const nom of ["Panne urgente", "Devis", "Horaires"]) fireEvent.click(screen.getByLabelText(nom));
         expect(screen.getByText("A series is 2 calls at most.")).toBeTruthy();
-        expect(bouton("Run 3 call(s)").disabled).toBe(true);
+        expect(bouton("Run the series").disabled).toBe(true);
     });
 
     it("estimates from the calls already played", () => {
@@ -229,7 +228,7 @@ describe("[.mark] running a series", () => {
     it("says it in French", async () => {
         enFrancais(<AppelantSimule workflowId={34} />);
         await screen.findByText("Panne urgente");
-        expect(texte(screen.getByTestId("estimation"))).toContain("Coût estimé : inconnu avant le premier appel · plafond 5");
+        expect(texte(screen.getByTestId("estimation"))).toContain("coût inconnu avant le premier appel · plafond 5");
     });
 });
 

@@ -9,6 +9,7 @@ import {
 } from "@xyflow/react";
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet,updateWorkflowApiV1WorkflowWorkflowIdPut } from '@/client';
@@ -518,6 +519,12 @@ function RenderWorkflow({
         [onNodesChange],
     );
     const panneauOuvert = builderOuvert || isTesterRailOpen;
+    // [.mark] K2b : les panneaux de droite flottent sur tout le cadre du studio, barre d'agent comprise (maquette `superpose`) :
+    // ils s'y posent par un portail ; sans cadre (test, autre page), ils restent dans la zone du canevas.
+    const [cadreStudio, setCadreStudio] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        setCadreStudio(document.getElementById('cadre-studio'));
+    }, []);
     const noeudsAffiches = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
     const liaisonsAffichees = affichageDuBuilder ? affichageDuBuilder.edges : edges;
 
@@ -674,6 +681,28 @@ function RenderWorkflow({
         phrasesDeLEtape,
     ]);
 
+    const panneauFlottant = (
+        <div className="absolute bottom-2 right-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
+            {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
+            {isTesterRailOpen && (
+                <aside className="hidden h-full w-[420px] shrink-0 xl:block">
+                    <WorkflowTesterPanel
+                        workflowId={workflowId}
+                        initialContextVariables={templateContextVariables}
+                        ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
+                        disabled={testerDisabledReason !== null}
+                        disabledReason={testerDisabledReason}
+                        isVisible={isDesktopViewport}
+                        onClose={() => setIsTesterRailOpen(false)}
+                        onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                        modeDemande={modeEssai}
+                    />
+                </aside>
+            )}
+        </div>
+    );
+    const panneauPose = cadreStudio ? createPortal(panneauFlottant, cadreStudio) : panneauFlottant;
+
     return (
         <WorkflowProvider value={workflowContextValue}>
             <ProposerLaPublicationDuGroupe
@@ -783,26 +812,7 @@ function RenderWorkflow({
                         </div>
 
                         {/* K2 : les panneaux de droite flottent au-dessus du canevas, comme la maquette (« superpose »). */}
-                        {panneauOuvert && (
-                            <div className="absolute bottom-2 right-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
-                                {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
-                                {isTesterRailOpen && (
-                                    <aside className="hidden h-full w-[420px] shrink-0 xl:block">
-                                        <WorkflowTesterPanel
-                                            workflowId={workflowId}
-                                            initialContextVariables={templateContextVariables}
-                                            ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
-                                            disabled={testerDisabledReason !== null}
-                                            disabledReason={testerDisabledReason}
-                                            isVisible={isDesktopViewport}
-                                            onClose={() => setIsTesterRailOpen(false)}
-                                            onRuntimeNodeTransition={handleRuntimeNodeTransition}
-                                            modeDemande={modeEssai}
-                                        />
-                                    </aside>
-                                )}
-                            </div>
-                        )}
+                        {panneauOuvert && panneauPose}
                     </div>
 
                     <Sheet open={isTesterSheetOpen} onOpenChange={setIsTesterSheetOpen}>

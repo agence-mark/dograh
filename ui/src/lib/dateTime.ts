@@ -4,15 +4,16 @@ export function getLocalTimezone() {
 
 type DateInput = Date | number | string;
 
-export function formatDateTime(value: DateInput, timezone?: string | null) {
-    return new Date(value).toLocaleString('en-US', {
+export function formatDateTime(value: DateInput, timezone?: string | null, langue: 'fr' | 'en' = 'en') {
+    // [.mark] K2b : une date lue en français se dit en français (« 3 nov. 2026, 13:59 »), à 24 heures.
+    return new Date(value).toLocaleString(langue === 'fr' ? 'fr-FR' : 'en-US', {
         timeZone: timezone || getLocalTimezone(),
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true,
+        hour12: langue !== 'fr',
     });
 }
 

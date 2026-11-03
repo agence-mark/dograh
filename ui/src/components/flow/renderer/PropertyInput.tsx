@@ -234,7 +234,7 @@ function NumberWidget({ spec, value, onChange }: WidgetProps) {
                     const next = e.target.value;
                     onChange(next === "" ? undefined : parseFloat(next));
                 }}
-                placeholder={spec.placeholder ?? undefined}
+                placeholder={spec.placeholder ?? (spec.default != null ? String(spec.default) : undefined)}
                 className={isCompact ? "w-full" : "w-32"}
             />
         </div>
@@ -260,7 +260,8 @@ const CHOIX_COTE_A_COTE_MAX = 4;
 function OptionsWidget({ spec, value, onChange }: WidgetProps) {
     const options = spec.options ?? [];
     if (options.length > 0 && options.length <= CHOIX_COTE_A_COTE_MAX) {
-        const actif = String((value as string | number | undefined) ?? "");
+        // Un champ jamais touché n'écrit rien : le choix actif est alors celui que le serveur donne par défaut, sinon le premier.
+        const actif = String((value as string | number | undefined) ?? spec.default ?? options[0].value);
         return (
             <div className="grid gap-2">
                 <StackedLabel spec={spec} />

@@ -338,6 +338,9 @@ export function ListeAgents({
         </div>
     );
 
+    const motsDuFiltre =
+        q || [...etats.map(libelleEtat), ...etiquettes, typeof dossier === "number" ? (dossiers.find((d) => d.id === dossier)?.name ?? "") : ""].filter(Boolean).join(", ");
+
     return (
         <PageStudio>
             <TitrePage
@@ -413,11 +416,12 @@ export function ListeAgents({
                             />
                         </div>
                         {visibles.length === 0 ? (
-                            <EtatVide
-                                cas="filtre"
-                                recherche={q || [...etats.map(libelleEtat), ...etiquettes, typeof dossier === "number" ? (dossiers.find((d) => d.id === dossier)?.name ?? "") : ""].filter(Boolean).join(", ")}
-                                effacer={effacerTout}
-                            />
+                            // K2b : sans recherche ni filtre, une liste vide est « Aucun agent » (état premier), pas « Aucun résultat pour «  » ».
+                            motsDuFiltre === "" ? (
+                                <EtatVide cas="premier" icone={Workflow} titre={t(T.aucun)} />
+                            ) : (
+                                <EtatVide cas="filtre" recherche={motsDuFiltre} effacer={effacerTout} />
+                            )
                         ) : (
                             <table className="w-full text-sm">
                                 <thead className="border-b text-xs text-muted-foreground">

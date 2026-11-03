@@ -75,10 +75,12 @@ function libelleDuCanal(mode?: string | null) {
     return 'Téléphone';
 }
 
-function formatDuration(seconds?: number | null) {
+function formatDuration(seconds?: number | null, langue: 'fr' | 'en' = 'en') {
     if (seconds == null || Number.isNaN(seconds)) return 'N/A';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
+    // [.mark] K2b : « 1 min 14 s » en français (maquette), « 1m 14s » en anglais.
+    if (langue === 'fr') return mins === 0 ? `${secs} s` : `${mins} min ${secs} s`;
     if (mins === 0) return `${secs}s`;
     return `${mins}m ${secs}s`;
 }
@@ -509,18 +511,19 @@ function RunMetricsSection({
     gatheredContext: Record<string, string | number | boolean | object> | null;
 }) {
     const metrics = getTranscriptMetrics(logs, gatheredContext);
+    const { t, langue } = useLangue();
 
     return (
         <Card className="border-border">
             <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Run Metrics</CardTitle>
+                <CardTitle className="text-lg">{t({ en: 'Run metrics', fr: "Mesures de l'appel" })}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <MetricCard label="Duration" value={formatDuration(costInfo?.call_duration_seconds)} />
-                <MetricCard label="User Turns" value={String(metrics.userTurns)} />
-                <MetricCard label="Bot Turns" value={String(metrics.botTurns)} />
-                <MetricCard label="Tool Calls" value={String(metrics.toolCalls)} />
-                <MetricCard label="Nodes Visited" value={String(metrics.visitedNodes)} />
+                <MetricCard label={t({ en: 'Duration', fr: 'Durée' })} value={formatDuration(costInfo?.call_duration_seconds, langue)} />
+                <MetricCard label={t({ en: 'Caller turns', fr: "Tours de l'appelant" })} value={String(metrics.userTurns)} />
+                <MetricCard label={t({ en: 'Agent turns', fr: "Tours de l'agent" })} value={String(metrics.botTurns)} />
+                <MetricCard label={t({ en: 'Tool calls', fr: "Appels d'outils" })} value={String(metrics.toolCalls)} />
+                <MetricCard label={t({ en: 'Steps visited', fr: 'Étapes visitées' })} value={String(metrics.visitedNodes)} />
             </CardContent>
         </Card>
     );
@@ -592,7 +595,7 @@ export default function WorkflowRunPage() {
     const organizationTimezone = useOrganizationTimezone();
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
     const [workflowName, setWorkflowName] = useState<string | null>(null);
-    const { t: tp } = useLangue();
+    const { t: tp, langue } = useLangue();
     const nomEspace = useNomEspace('labo', null);
     // [.mark] U3 : l'analyse du run est lue UNE fois, les onglets s'en partagent les blocs.
     const analyse = useAnalyseDuRun(Number(params.workflowId), Number(params.runId));
@@ -731,10 +734,10 @@ export default function WorkflowRunPage() {
                         <h1 className="w-full text-2xl font-semibold tracking-tight">{workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`}</h1>
                         <span className="text-muted-foreground">{libelleDuCanal(workflowRun?.mode)}</span>
                         {workflowRun?.created_at && (
-                            <span className="text-muted-foreground">{formatDateTime(workflowRun.created_at, organizationTimezone)}</span>
+                            <span className="text-muted-foreground">{formatDateTime(workflowRun.created_at, organizationTimezone, langue)}</span>
                         )}
                         {workflowRun?.cost_info?.call_duration_seconds != null && (
-                            <span className="text-muted-foreground">{formatDuration(workflowRun.cost_info.call_duration_seconds)}</span>
+                            <span className="text-muted-foreground">{formatDuration(workflowRun.cost_info.call_duration_seconds, langue)}</span>
                         )}
                         <span className="ml-auto flex gap-2">
                             <CopyDebugIdButton label="Agent ID" value={workflowId} />
