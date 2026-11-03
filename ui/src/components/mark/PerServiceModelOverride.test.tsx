@@ -207,7 +207,9 @@ describe("[.mark] per-service override", () => {
         fireEvent.click(screen.getByRole("switch"));
         fireEvent.click(screen.getByText("Save Per-Service Override"));
 
-        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
+        // Une faute de saisie se lit sous le champ, pas dans une notification.
+        expect(await screen.findByRole("alert")).toBeTruthy();
+        expect(lireNotifications()).toHaveLength(0);
         expect(onSave).not.toHaveBeenCalled();
     });
 

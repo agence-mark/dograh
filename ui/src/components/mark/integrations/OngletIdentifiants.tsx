@@ -133,6 +133,7 @@ function FenetreIdentifiant({
     const supprimer = async () => {
         const r = await deleteCredentialApiV1CredentialsCredentialUuidDelete({ path: { credential_uuid: identifiant.uuid } });
         if (r.error) return setErreur(detailFromError(r.error, "Not deleted"));
+        notifier.succes({ fr: "Identifiant supprimé.", en: "Credential deleted." });
         apres();
         fermer();
     };
@@ -205,6 +206,7 @@ function FenetreNouvelIdentifiant({ fermer, apres, libelleSorte }: { fermer: () 
         if ((sorte === "basic_auth" || sorte === "custom_header") && !champ1.trim()) return setErreur(t({ en: "Fill the first field.", fr: "Remplissez le premier champ." }));
         const r = await createCredentialApiV1CredentialsPost({ body: { name: nom.trim(), credential_type: sorte, credential_data: donnees() } });
         if (r.error) return setErreur(detailFromError(r.error, "Not created"));
+        notifier.succes({ fr: "Identifiant créé.", en: "Credential created." });
         apres();
         fermer();
     };

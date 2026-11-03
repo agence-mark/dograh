@@ -54,6 +54,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
             ? await modifierUnRoleApiV1EquipeMarkRolesRoleIdPut({ path: { role_id: role.id }, body: corps })
             : await creerUnRoleApiV1EquipeMarkRolesPost({ body: corps });
         if (res.error) notifier.echec({ fr: "Rôle non enregistré. Réessayez.", en: "Role not saved. Try again." }, { erreur: res.error });
+        else notifier.succes({ fr: "Rôle enregistré.", en: "Role saved." });
         void charger();
     };
 
@@ -134,6 +135,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                                   const res = await supprimerUnRoleApiV1EquipeMarkRolesRoleIdDelete({ path: { role_id: role.id } });
                                   if (res.error) notifier.echec({ fr: "Rôle non supprimé. Réessayez.", en: "Role not deleted. Try again." }, { erreur: res.error });
                                   else {
+                                      notifier.succes({ fr: "Rôle supprimé.", en: "Role deleted." });
                                       setOuvert(null);
                                       void charger();
                                   }

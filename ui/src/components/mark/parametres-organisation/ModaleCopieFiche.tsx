@@ -9,6 +9,7 @@
  * place) nor the immediate closing. The copy is written at once, by the server, with the same controls
  * as a save: this window hands back what the server made so the list can be read again.
  */
+import { notifier } from "@/components/mark/notifications";
 import { useEffect, useState } from "react";
 
 import { copierEtablissementApiV1OrganizationsEtablissementsCopierPost } from "@/client/sdk.gen";
@@ -60,6 +61,7 @@ export function ModaleCopieFiche({
             setErreur(detailFromError(reponse.error, "Copy failed"));
             return;
         }
+        notifier.succes({ fr: "Fiche copiée.", en: "Sheet copied." });
         onFermer(reponse.data);
     };
 

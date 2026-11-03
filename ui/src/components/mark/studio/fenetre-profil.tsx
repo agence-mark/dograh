@@ -42,6 +42,7 @@ export function FenetreProfil({
                 return;
             }
             apres?.(res.data);
+            notifier.succes({ fr: "Profil enregistré.", en: "Profile saved." });
             if (corps.langue) choisir(corps.langue as Langue);
         }
         const actuel = String(v.actuel);

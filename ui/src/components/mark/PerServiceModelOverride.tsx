@@ -28,6 +28,7 @@
  */
 
 import { type ReactNode, useState } from "react";
+import { ErreurChamp } from "@/components/mark/erreur-champ";
 import { notifier } from "@/components/mark/notifications";
 
 import { ServiceConfigurationForm } from "@/components/ServiceConfigurationForm";
@@ -87,6 +88,7 @@ export function PerServiceModelOverride({
     const hasFullOverride = Boolean(workflowConfigurations.model_configuration_v2_override);
     const [enabled, setEnabled] = useState(Boolean(savedOverrides));
     const [isRemoving, setIsRemoving] = useState(false);
+    const [erreurService, setErreurService] = useState<string | null>(null);
 
     const saveOverrides = async (config: Record<string, unknown>) => {
         const modelOverrides = config.model_overrides as ModelOverrides | undefined;
@@ -94,9 +96,10 @@ export function PerServiceModelOverride({
         // announcing "saved". Deleting is a deliberate act: it has its own
         // button below.
         if (!modelOverrides || Object.keys(modelOverrides).length === 0) {
-            notifier.echec({ fr: "Activez au moins un service, ou retirez le remplacement.", en: "Enable at least one service, or remove the override." });
+            setErreurService(t({ fr: "Activez au moins un service, ou retirez le remplacement.", en: "Enable at least one service, or remove the override." }));
             return;
         }
+        setErreurService(null);
 
         const next = withoutAnyOverride(workflowConfigurations);
         next.model_overrides = modelOverrides;
@@ -162,6 +165,7 @@ export function PerServiceModelOverride({
                     voixVerrouillee={voixVerrouillee}
                 />
             )}
+            <ErreurChamp>{enabled ? erreurService : null}</ErreurChamp>
 
             {!enabled && savedOverrides && (
                 <button
