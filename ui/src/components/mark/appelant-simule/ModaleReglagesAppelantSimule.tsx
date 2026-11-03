@@ -31,9 +31,10 @@ import { detailFromError } from "@/lib/apiError";
 
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 
-// Same list as the server (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py).
-export const MODELES_SIMULATEUR: RoleSimule["modele"][] = [
+// Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
+export const MODELES_SIMULATEUR: string[] = [
     "mistral/mistral-small-latest",
     "mistral/mistral-medium-latest",
     "mistral/mistral-large-latest",
@@ -47,7 +48,7 @@ const BORNES = {
 
 /** The settings as read, with every part present (the server fills the defaults; the generated
  * type leaves them optional). */
-type Role = Required<Pick<RoleSimule, "modele" | "consigne" | "temperature">> & { identifiant: string | null };
+type Role = Required<Pick<RoleSimule, "modele" | "consigne" | "temperature" | "source">> & { identifiant: string | null };
 export type ReglagesComplets = Omit<ReglagesAppelantSimule, "appelant" | "juge" | "voix"> & {
     appelant: Role;
     juge: Role;
@@ -55,6 +56,7 @@ export type ReglagesComplets = Omit<ReglagesAppelantSimule, "appelant" | "juge" 
 };
 
 const role = (r: RoleSimule | undefined): Role => ({
+    source: r?.source ?? "cle_api",
     modele: r?.modele ?? "mistral/mistral-small-latest",
     consigne: r?.consigne ?? "",
     temperature: r?.temperature ?? 0,
@@ -90,26 +92,55 @@ export const fautesDesReglages = (r: ReglagesComplets, t: (texte: Texte) => stri
 function Role({
     titre,
     role,
+    juge = false,
     onChange,
 }: {
     titre: Texte;
     role: Role;
+    juge?: boolean;
     onChange: (morceau: Partial<Role>) => void;
 }) {
     const { t } = useLangue();
     return (
         <fieldset className="space-y-2 rounded border border-border p-3">
             <legend className="px-1 text-sm font-medium">{t(titre)}</legend>
+            <label className="block space-y-1 text-xs text-muted-foreground">
+                <span>
+                    {t({ en: "Source", fr: "Source" })}{" "}
+                    {role.source === "claude_code" && (
+                        <Info>
+                            {juge
+                                ? t({
+                                      en: "On Claude Code the judge is the same model as the builder: every verdict says so. Put it back on an API key when you can.",
+                                      fr: "Sur Claude Code, le juge est du même modèle que le builder : chaque verdict le dit. Repassez-le sur une clé d'API dès que possible.",
+                                  })
+                                : t({
+                                      en: "Played by a Claude Code session, with no API call.",
+                                      fr: "Joué par une session Claude Code, sans appel d'API.",
+                                  })}
+                        </Info>
+                    )}
+                </span>
+                <select
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+                    value={role.source}
+                    onChange={(e) => onChange({ source: e.target.value as Role["source"] })}
+                    aria-label={`${t(titre)} · ${t({ en: "Source", fr: "Source" })}`}
+                >
+                    <option value="cle_api">{t({ en: "API key", fr: "Clé d'API" })}</option>
+                    <option value="claude_code">{t({ en: "Claude Code (subscription)", fr: "Claude Code (abonnement)" })}</option>
+                </select>
+            </label>
             <div className="grid gap-2 sm:grid-cols-2">
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Model", fr: "Modèle" })}</span>
                     <select
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={role.modele}
-                        onChange={(e) => onChange({ modele: e.target.value as Role["modele"] })}
+                        onChange={(e) => onChange({ modele: e.target.value })}
                         aria-label={`${t(titre)} · ${t({ en: "Model", fr: "Modèle" })}`}
                     >
-                        {MODELES_SIMULATEUR.map((m) => (
+                        {(MODELES_SIMULATEUR.includes(role.modele) ? MODELES_SIMULATEUR : [role.modele, ...MODELES_SIMULATEUR]).map((m) => (
                             <option key={m} value={m}>
                                 {m}
                             </option>
@@ -223,6 +254,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                         />
                         <Role
                             titre={{ en: "Judge", fr: "Juge" }}
+                            juge
                             role={brouillon.juge}
                             onChange={(m) => changer({ juge: { ...brouillon.juge, ...m } })}
                         />

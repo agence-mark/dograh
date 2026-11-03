@@ -24,7 +24,8 @@ from typing import Any
 from loguru import logger
 
 from api.services.builder import brouillon
-from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau, fabriquer
+from api.services.builder.cerveau import independance as independance_mod
+from api.services.builder.cerveau.appel import Cerveau
 from api.services.builder.tests_agent import diagnostic, jeu, juge, stockage, verdict
 from api.services.builder.tests_agent.jeu import AppelantParCerveau, Moteur
 from api.services.tests_rejouables.modele import (
@@ -42,8 +43,8 @@ class Dependances:
     # (TestRejouable, agent_id, essais, organisation_id) -> ResultatTest ; le rejeu d'un tour (tests_rejouables.rejeu).
     rejouer_un_tour: Callable[..., Awaitable[Any]] | None = None
     moteur: Callable[[], Moteur] = jeu.moteur_texte
-    # (user) -> Cerveau | None : le cerveau de l'appelant simulé et du juge (celui du builder).
-    cerveau: Callable[[Any], Awaitable[Cerveau | None]] | None = None
+    # (user, role) -> Cerveau | None, role = « appelant » ou « juge » : les tests remplacent les deux d'un coup.
+    cerveau: Callable[..., Awaitable[Cerveau | None]] | None = None
     noms_d_outils: Callable[[Any, int], Awaitable[set[str]]] | None = None
     ecart: dict[str, Any] = field(default_factory=dict)
 
@@ -59,21 +60,69 @@ async def _rejouer_un_tour(*args: Any, **kwargs: Any):
     return await rejouer(*args, **kwargs)
 
 
-async def cerveau_du_builder(user: Any) -> Cerveau | None:
-    """Le cerveau réglé pour le builder (le même que la conversation). ``None`` : non réglé."""
-    if DEPENDANCES.cerveau is not None:
-        return await DEPENDANCES.cerveau(user)
-    from api.services.builder.cerveau import reglages as reglages_cerveau
+@dataclass
+class CerveauxDesTests:
+    """L'appelant simulé et le juge d'une suite (U6) : chacun son fournisseur et sa clé (Réglages du Labo)."""
+
+    appelant: Any = None  # CerveauCompte | None
+    juge: Any = None  # CerveauCompte | None
+    source_appelant: str = "cle_api"
+    source_juge: str = "cle_api"
+    independance: independance_mod.Independance = field(default_factory=independance_mod.Independance)
+
+    def depense(self) -> dict[str, Any] | None:
+        comptes = {id(c): c for c in (self.appelant, self.juge) if c is not None}.values()
+        if not comptes:
+            return None
+        return {"jetons": sum(c.depense["jetons"] for c in comptes), "cout": round(sum(c.depense["cout"] for c in comptes), 6)}
+
+    def atteint(self) -> str | None:
+        return next((q for c in (self.appelant, self.juge) if c is not None and (q := c.atteint()) is not None), None)
+
+
+async def _modele_de_l_agent(workflow: Any, organisation_id: int) -> str | None:
+    from api.services.configuration.ai_model_configuration import get_effective_ai_model_configuration_for_workflow
 
     try:
-        organisation = await reglages_cerveau.organisation_des_reglages(user)
-        reglages = await reglages_cerveau.lire(organisation)
-        cle = await reglages_cerveau.lire_la_cle(organisation, reglages)
-        if not reglages.modele or not cle:
-            return None
-        return fabriquer(reglages, cle)
-    except ErreurCerveau:
+        effective = await get_effective_ai_model_configuration_for_workflow(
+            organization_id=organisation_id, workflow_configurations=await brouillon.configurations_courantes(workflow)
+        )
+        return getattr(effective.llm, "model", None) if effective.llm is not None else None
+    except Exception:  # noqa: BLE001 -- un modèle illisible : pas de refus sur ce motif, jamais un test en panne
         return None
+
+
+async def cerveaux_des_tests(user: Any, workflow: Any) -> CerveauxDesTests:
+    """Les cerveaux de l'appelant simulé et du juge. ``None`` : non réglé (ou source Claude Code)."""
+    if DEPENDANCES.cerveau is not None:
+        brut_a = await DEPENDANCES.cerveau(user, "appelant")
+        brut_j = await DEPENDANCES.cerveau(user, "juge")
+        appelant = CerveauCompte(brut_a, getattr(brut_a, "reglages", None)) if brut_a is not None else None
+        juge_c = appelant if brut_j is brut_a else (CerveauCompte(brut_j, getattr(brut_j, "reglages", None)) if brut_j is not None else None)
+        return CerveauxDesTests(appelant, juge_c)
+    from api.services.appel_simule import reglages as appel_simule
+    from api.services.builder.cerveau import reglages as reglages_cerveau
+    from api.services.builder.cerveau import simules
+
+    organisation_id = user.selected_organization_id
+    try:
+        roles = await appel_simule.lire_reglages(organisation_id)
+        base = await reglages_cerveau.lire(await reglages_cerveau.organisation_des_reglages(user))
+    except Exception:  # noqa: BLE001
+        return CerveauxDesTests()
+    modele_agent = await _modele_de_l_agent(workflow, organisation_id)
+    controle = independance_mod.controler(
+        source_juge=roles.juge.source, modele_juge=roles.juge.modele, modele_builder=base.modele, modele_agent=modele_agent
+    )
+    appelant_brut = await simules.cerveau_du_role(organisation_id, roles.appelant, base)
+    juge_brut = None if controle.refuse else await simules.cerveau_du_role(organisation_id, roles.juge, base)
+    return CerveauxDesTests(
+        CerveauCompte(appelant_brut, simules.reglages_du_role(roles.appelant, base)) if appelant_brut is not None else None,
+        CerveauCompte(juge_brut, simules.reglages_du_role(roles.juge, base)) if juge_brut is not None else None,
+        roles.appelant.source,
+        roles.juge.source,
+        controle,
+    )
 
 
 # --- le plafond du rejeu (C2) ----------------------------------------------------------------------------------------------
@@ -153,15 +202,21 @@ async def _essais_d_une_replique(test: dict[str, Any], workflow: Any, organisati
     return sorties
 
 
-async def _essais_d_une_conversation(test: dict[str, Any], workflow: Any, user: Any, n: int, cerveau: Cerveau | None) -> list[dict[str, Any]]:
+async def _essais_d_une_conversation(
+    test: dict[str, Any], workflow: Any, user: Any, n: int, cerveau: Cerveau | None, source: str = "cle_api"
+) -> list[dict[str, Any]]:
     if cerveau is None:
-        return [
-            {"numero": i + 1, "erreur": "No brain set for the simulated caller (builder settings).", "criteres": [], "reussi": False, "lignes": []}
-            for i in range(n)
-        ]
+        raison = (
+            "The simulated caller is set on Claude Code: it plays through a Claude Code session, not here."
+            if source == "claude_code"
+            else "No brain set for the simulated caller (Labo settings > Simulated caller)."
+        )
+        return [{"numero": i + 1, "erreur": raison, "criteres": [], "reussi": False, "lignes": []} for i in range(n)]
     scenario = test.get("scenario") or {}
     personnage = await jeu.personnage_de(scenario)
-    appelant = AppelantParCerveau(cerveau, jeu.consigne_de_l_appelant(personnage, scenario))
+    from api.services.builder import consignes
+
+    appelant = AppelantParCerveau(cerveau, jeu.consigne_de_l_appelant(personnage, scenario, await consignes.consigne_appelant()))
     moteur = DEPENDANCES.moteur()
     sorties = []
     for i in range(1, n + 1):
@@ -244,6 +299,23 @@ async def _noms_d_outils(workflow: Any, organisation_id: int, graphe: dict[str, 
     return {o.nom for o in (await _outils(graphe, organisation_id)).values()}
 
 
+async def _avis_du_juge(cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """L'avis du juge sur le premier essai, toujours à part (jamais dans le verdict). D9 : refusé s'il noterait son propre travail ;
+    sur Claude Code il n'est pas rendu ici (le juge attend une session) et la mention d'exemption accompagne tout avis."""
+    if cerveaux.independance.refuse:
+        return {"bloquant": False, "avis": [], "erreur": cerveaux.independance.refus}
+    mention = {"mention": cerveaux.independance.mention} if cerveaux.independance.mention else {}
+    if cerveaux.source_juge == "claude_code":
+        return {"bloquant": False, "avis": [], "a_juger": True, **mention}
+    if cerveaux.juge is None:
+        return None
+    try:
+        avis = await juge.juger(cerveaux.juge, [(r, t) for r, t in essais[0]["lignes"]], test["questions_juge"])
+    except PlafondDuRejeu as atteint:
+        return {"bloquant": False, "avis": [], "erreur": "replay ceiling reached", "plafond": atteint.quoi}
+    return {**avis, **mention}
+
+
 # --- la suite ------------------------------------------------------------------------------------------------------------------
 
 
@@ -279,20 +351,19 @@ async def rejouer_la_suite(
     empreinte_rejouee = _boucle.empreinte_du_brouillon(graphe, await brouillon.configurations_courantes(workflow))
     etapes = diagnostic.noms_de_etapes(graphe)
     outils = await _noms_d_outils(workflow, organisation_id, graphe)
-    cerveau = None
+    cerveaux = CerveauxDesTests()
     if any(t.get("scenario") or t.get("questions_juge") for t in voulus):
-        brut = await cerveau_du_builder(user)
-        cerveau = CerveauCompte(brut, getattr(brut, "reglages", None)) if brut is not None else None
+        cerveaux = await cerveaux_des_tests(user, workflow)
 
     resultats: list[dict[str, Any]] = []
     echecs: list[dict[str, Any]] = []
     plafond: str | None = None
     for test in voulus:
-        if cerveau is not None and (plafond := cerveau.atteint()) is not None:
+        if (plafond := cerveaux.atteint()) is not None:
             break
         try:
             if test.get("scenario"):
-                essais = await _essais_d_une_conversation(test, workflow, user, repetitions, cerveau)
+                essais = await _essais_d_une_conversation(test, workflow, user, repetitions, cerveaux.appelant, cerveaux.source_appelant)
             else:
                 essais = await _essais_d_une_replique(test, workflow, organisation_id, repetitions)
         except ErreurTestRejouable as erreur:
@@ -302,11 +373,10 @@ async def rejouer_la_suite(
             break
         statut = _statut_d_un_test(essais)
         avis = None
-        if avec_le_juge and cerveau is not None and test.get("questions_juge") and essais and essais[0].get("lignes"):
-            try:
-                avis = await juge.juger(cerveau, [(r, t) for r, t in essais[0]["lignes"]], test["questions_juge"])
-            except PlafondDuRejeu as atteint:
-                plafond, avis = atteint.quoi, {"bloquant": False, "avis": [], "erreur": "replay ceiling reached"}
+        if avec_le_juge and test.get("questions_juge") and essais and essais[0].get("lignes"):
+            avis = await _avis_du_juge(cerveaux, test, essais)
+            if avis is not None and avis.get("plafond"):
+                plafond = avis.pop("plafond")
         reussis = sum(1 for e in essais if e["reussi"])
         entree = {
             "slug": test["slug"],
@@ -357,7 +427,7 @@ async def rejouer_la_suite(
         "elements": elements,
         "resultats": resultats,
         "plafond": plafond,
-        "depense": dict(cerveau.depense) if cerveau is not None else None,
+        "depense": cerveaux.depense(),
         "question": (
             f"The replay's ceiling ({plafond}) is reached after {len(resultats)} of {len(voulus)} tests: raise the ceiling or replay the rest?"
             if plafond is not None

@@ -29,11 +29,10 @@ MODELES_SIMULATEUR = (
     "mistral/mistral-medium-latest",
     "mistral/mistral-large-latest",
 )
-ModeleSimulateur = Literal[
-    "mistral/mistral-small-latest",
-    "mistral/mistral-medium-latest",
-    "mistral/mistral-large-latest",
-]
+# U6 (J1, J2) : tout fournisseur, « fournisseur/modèle » (code agnostique). La liste ci-dessus n'est plus qu'une suggestion
+# de l'écran ; la clé vient de la bibliothèque de clés.
+ModeleSimulateur = str
+SourceCerveau = Literal["cle_api", "claude_code"]
 
 # Generic prompts: how to play a caller on the phone, how to judge a call. Nothing of a trade.
 CONSIGNE_APPELANT = (
@@ -56,9 +55,21 @@ MAX_CHAMPS_ATTENDUS = 40
 
 
 class RoleSimule(BaseModel):
-    modele: ModeleSimulateur = Field(
-        default="mistral/mistral-small-latest", description="Model, from the list."
+    source: SourceCerveau = Field(
+        default="cle_api",
+        description="Where the brain comes from: an API key of the key library, or Claude Code (the person's subscription).",
     )
+    modele: str = Field(
+        default="mistral/mistral-small-latest",
+        min_length=1,
+        max_length=200,
+        description="« provider/model », any provider of the key library.",
+    )
+    format: Literal["openai", "anthropic"] | None = Field(
+        default=None,
+        description="Wire format when the provider is not one the code knows (openai-compatible by default).",
+    )
+    adresse: str = Field(default="", max_length=500, description="Base address of a provider the code does not know.")
     identifiant: str | None = Field(
         default=None,
         max_length=36,

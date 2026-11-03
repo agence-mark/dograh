@@ -113,7 +113,7 @@ async def test_la_porte_a_deux_appels_et_la_regle_de_descente_n_existent_que_che
 async def test_les_dix_huit_comportements_et_les_six_personnages_sont_complets(verse):
     elements = await tous()
     comportements = [k for k in elements if k[0] == "personnages-appelant" and k[1].startswith("comportement-")]
-    personnages = [k for k in elements if k[0] == "personnages-appelant" and not k[1].startswith("comportement-")]
+    personnages = [k for k in elements if k[0] == "personnages-appelant" and not k[1].startswith("comportement-") and k[1] != "consigne"]  # U6 : « consigne » est la consigne générale, pas un personnage
     assert len(comportements) == 18 and len(personnages) == 6
     for famille, slug in comportements + personnages:
         contenu = (await service.lire_element(famille, slug)).courante.contenu

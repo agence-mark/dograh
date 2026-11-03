@@ -29,6 +29,8 @@ ADRESSE_PAR_DEFAUT: dict[str, str] = {
 class ReglagesPublics(BaseModel):
     """Tout ce qui se règle SAUF la clé (ni la clé ni son identifiant : ce que l'écran lit)."""
 
+    # U6 (D9) : « cle_api » (le fournisseur ci-dessous) ou « claude_code » (l'abonnement de la personne, par le MCP).
+    source: Literal["cle_api", "claude_code"] = "cle_api"
     format: FormatDuFil = "anthropic"
     modele: str = Field(default="", max_length=200)
     # Vide : l'adresse du fournisseur du format. Pour un fournisseur compatible OpenAI (Mistral, Gemini…).
