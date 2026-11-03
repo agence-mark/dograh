@@ -970,6 +970,12 @@ class EmbedTokenModel(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     updated_at = Column(DateTime(timezone=True), nullable=True)
+    # [.mark] Widget public (builder partie 2, U10) : le site qui regroupe les jetons d'un même site (facultatif)
+    # et les réglages posés par .mark (plafonds, durée maximale, limite par adresse).
+    site_id = Column(
+        Integer, ForeignKey("mark_embed_sites.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    reglages_mark = Column(JSON, nullable=True)
 
     # Relationships
     workflow = relationship("WorkflowModel")
