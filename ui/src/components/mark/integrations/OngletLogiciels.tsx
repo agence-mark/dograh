@@ -24,6 +24,7 @@ import {
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, ConnexionVue, PropositionConnecteur } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
+import { ActionDePage } from "./action-de-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -152,12 +153,12 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
                               })}
                     </Info>
                 }
-                action={
-                    <Button onClick={() => setCatalogueOuvert(true)}>
-                        <LayoutGrid className="size-4" /> {t({ en: "Catalogue", fr: "Catalogue" })}
-                    </Button>
-                }
             />
+            <ActionDePage onglet="logiciels">
+                <Button onClick={() => setCatalogueOuvert(true)}>
+                    <LayoutGrid className="size-4" /> {t({ en: "Catalogue", fr: "Catalogue" })}
+                </Button>
+            </ActionDePage>
             {lignes.length === 0 ? (
                 <EtatVide cas="premier" icone={Plug} titre={t({ en: "No software connected", fr: "Aucun logiciel branché" })} />
             ) : (

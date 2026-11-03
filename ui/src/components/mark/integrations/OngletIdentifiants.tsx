@@ -7,9 +7,10 @@
  * servent (« Utilisé par », calculé par le serveur) et le remplacement de la valeur : un champ d'écriture seule, la
  * valeur enregistrée n'est jamais lue ni affichée. Un identifiant de la bibliothèque de clés se gère dans « Clés ».
  */
-import { KeyRound } from "lucide-react";
+import { KeyRound, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
+import { ActionDePage } from "./action-de-page";
 
 import {
     createCredentialApiV1CredentialsPost,
@@ -30,7 +31,7 @@ import { BlocChamp, Champs, FenetreOnglets, LigneChamp } from "../studio/fenetre
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
 import { Paginee } from "../studio/pagination";
-import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
+import { Cellule, Ligne, Tableau } from "../studio/tableau";
 
 type Sorte = "api_key" | "bearer_token" | "basic_auth" | "custom_header";
 
@@ -69,11 +70,11 @@ export function OngletIdentifiants() {
 
     return (
         <div>
-            <TitreTableau
-                titre={t({ en: "Credentials", fr: "Identifiants" })}
-                info={<Info>{t({ en: "Stored encrypted. A value is never shown again: it can only be replaced.", fr: "Rangés chiffrés. Une valeur ne s'affiche jamais : on peut seulement la remplacer." })}</Info>}
-                action={<Button onClick={() => setOuvert("nouveau")}>{t({ en: "New credential", fr: "Nouvel identifiant" })}</Button>}
-            />
+            <ActionDePage onglet="identifiants">
+                <Button onClick={() => setOuvert("nouveau")}>
+                    <Plus className="size-4" aria-hidden /> {t({ en: "New credential", fr: "Nouvel identifiant" })}
+                </Button>
+            </ActionDePage>
             {identifiants.length === 0 ? (
                 <EtatVide cas="premier" icone={KeyRound} titre={t({ en: "No credential", fr: "Aucun identifiant" })} />
             ) : (

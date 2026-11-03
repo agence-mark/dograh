@@ -380,7 +380,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         <div className="flex items-center gap-2">
                             <Bot className="size-5 text-(--acc)" aria-hidden />
                             <p className="font-medium">Builder IA</p>
-                            <Info>{t(T.builderRole)}</Info>
+                            <Info>{`${t(T.builderRole)} ${t(T.interrupteurInfo)}`}</Info>
                             <Switch
                                 className="ml-auto"
                                 aria-label={t(T.interrupteur)}
@@ -389,10 +389,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                                 onCheckedChange={(v) => regler({ builder_coupe: !v })}
                             />
                         </div>
-                        <p className="-mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                            {t(T.interrupteur)}
-                            <Info>{t(T.interrupteurInfo)}</Info>
-                        </p>
+
                         <p className="flex items-center gap-1.5 text-sm font-medium">
                             {t(T.modeleEtCle)}
                             <Info>{t(T.modeleRegle)}</Info>

@@ -10,7 +10,8 @@
  * modèle) et le comportement commun à tous ses outils.
  */
 import { notifier } from "@/components/mark/notifications";
-import { Server } from "lucide-react";
+import { ActionDePage } from "./action-de-page";
+import { Plus, Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createToolApiV1ToolsPost, listToolsApiV1ToolsGet, testerLaConnexionMcpApiV1ToolsMcpTesterPost, updateToolApiV1ToolsToolUuidPut } from "@/client/sdk.gen";
@@ -29,7 +30,6 @@ import { EtatVide } from "../studio/etat-vide";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp, Segmente } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
-import { TitreTableau } from "../studio/tableau";
 
 type Reglage = "autorise" | "confirmer" | "desactive";
 type Decouvert = { name: string; description?: string };
@@ -58,18 +58,18 @@ export function OngletServeursMcp() {
     if (!serveurs) return <EtatVide cas="chargement" />;
     return (
         <div>
-            <TitreTableau
-                titre={t({ en: "MCP servers", fr: "Serveurs MCP" })}
-                action={<Button onClick={() => setOuvert("nouveau")}>{t({ en: "Connect a server", fr: "Brancher un serveur" })}</Button>}
-            />
+            <ActionDePage onglet="mcp">
+                <Button onClick={() => setOuvert("nouveau")}>
+                    <Plus className="size-4" aria-hidden /> {t({ en: "Add an MCP server", fr: "Ajouter un serveur MCP" })}
+                </Button>
+            </ActionDePage>
             {serveurs.length === 0 ? (
                 <EtatVide cas="premier" icone={Server} titre={t({ en: "No MCP server", fr: "Aucun serveur MCP" })} />
             ) : (
                 <Tableau
                     colonnes={[
                         { titre: t({ en: "Server", fr: "Serveur" }) },
-                        { titre: t({ en: "Transport", fr: "Transport" }) },
-                        { titre: t({ en: "Address", fr: "Adresse" }) },
+                        { titre: t({ en: "Connection", fr: "Connexion" }) },
                         { titre: t({ en: "Tools", fr: "Outils" }), droite: true },
                     ]}
                 >
@@ -77,9 +77,10 @@ export function OngletServeursMcp() {
                         const c = configDe(s);
                         return (
                             <Ligne key={s.tool_uuid} onClick={() => setOuvert(s)}>
-                                <Cellule principale>{s.name}</Cellule>
-                                <Cellule>{texte(c, "transport") === "sse" ? "SSE" : "HTTP"}</Cellule>
-                                <Cellule>{texte(c, "url")}</Cellule>
+                                <Cellule principale sous={texte(c, "url")}>
+                                    {s.name}
+                                </Cellule>
+                                <Cellule>{texte(c, "transport") === "sse" ? "SSE" : "Streamable HTTP"}</Cellule>
                                 <Cellule droite>{liste<Decouvert>(c, "discovered_tools").length}</Cellule>
                             </Ligne>
                         );
