@@ -5,6 +5,7 @@ from api.db.conservation_client import ConservationClient
 from api.db.embed_token_client import EmbedTokenClient
 from api.db.equipe_client import EquipeClient
 from api.db.espaces_client import EspacesClient
+from api.db.site_client import SiteClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
@@ -67,6 +68,8 @@ class DBClient(
     # [.mark] builder partie 2, U2 ter: roles, members, invitations and the journal of the .mark team.
     EquipeClient,
     EspacesClient,
+    # [.mark] builder partie 2, U10: public widget sites, paths per agent, monthly usage.
+    SiteClient,
 ):
     """
     Unified database client that combines all specialized database operations.

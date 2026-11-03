@@ -932,6 +932,27 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
     if refus_du_builder is not None:
         raise HTTPException(status_code=422, detail=refus_du_builder)
 
+    # [.mark] U10 / S2 (D153, D163) : le canal est « telephone » ou « site » ; un agent de site ne porte aucun outil
+    # de transfert d'appel (ni vers un numéro, ni vers une personne de l'équipe).
+    from api.services.groupe.agents_servis import outils_des_etapes
+    from api.services.site_mark import canal as canal_site
+
+    canal_brouillon = (draft.workflow_configurations or {}).get(canal_site.CLE_CANAL)
+    if canal_brouillon is not None and canal_brouillon not in canal_site.CANAUX:
+        raise HTTPException(
+            status_code=422, detail="The agent's channel is « telephone » or « site »."
+        )
+    if canal_brouillon == canal_site.SITE:
+        uuids = outils_des_etapes(draft.workflow_json)
+        outils = (
+            list(await db_client.get_tools_by_uuids(uuids, user.selected_organization_id))
+            if uuids
+            else []
+        )
+        refus_canal = canal_site.refus_transfert_sur_agent_de_site(canal_site.SITE, outils)
+        if refus_canal:
+            raise HTTPException(status_code=422, detail=refus_canal)
+
     try:
         published = await db_client.publish_workflow_draft(workflow_id)
     except ValueError as e:

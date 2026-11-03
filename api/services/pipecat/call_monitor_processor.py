@@ -121,6 +121,11 @@ class CallMonitorProcessor(FrameProcessor):
         self._max_duration_end_task_callback = max_duration_end_task_callback
         self._end_task_frame_pushed = False
 
+    @property
+    def bot_speaking(self) -> bool:
+        """[.mark] U10 / S1 : le bot parle en ce moment (le minuteur de durée du widget attend la fin de la phrase)."""
+        return self._bot_speaking
+
     def bind_user(self, aggregator, *, idle_timeout: float) -> None:
         """Observe accepted turns; Pipecat's own idle timer must be disabled."""
         if self.user_aggregator is not aggregator:
