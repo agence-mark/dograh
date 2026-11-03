@@ -11,7 +11,7 @@ import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { MENU_CLIENT, MENU_LABO, toutesLesEntrees } from "@/components/mark/studio/navigation-studio";
+import { MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "@/components/mark/studio/navigation-studio";
 
 import { destinationDe, REDIRECTIONS } from "./redirections";
 
@@ -110,6 +110,18 @@ describe("redirections (U1)", () => {
         expect(existsSync(join(APP, "labo", "sons", "page.tsx"))).toBe(false);
     });
 
+    it("les clés sont dans Modèles et clés, les alertes dans Qualité, anciennes adresses comprises (K1b)", () => {
+        expect(destinationDe("/cles")).toBe("/labo/modeles?onglet=cles");
+        expect(destinationDe("/labo/cles")).toBe("/labo/modeles?onglet=cles");
+        expect(destinationDe("/clients/acme/cles")).toBe("/clients/acme/modeles?onglet=cles");
+        expect(destinationDe("/alertes")).toBe("/labo/qualite?onglet=alertes");
+        expect(destinationDe("/labo/alertes")).toBe("/labo/qualite?onglet=alertes");
+        expect(destinationDe("/clients/acme/alertes")).toBe("/clients/acme/qualite?onglet=alertes");
+        for (const a of ["labo/cles", "labo/alertes", "clients/[org]/cles", "clients/[org]/alertes", "cles", "alertes"]) {
+            expect(existsSync(join(APP, ...a.split("/"), "page.tsx")), a).toBe(false);
+        }
+    });
+
     it("une adresse nouvelle n'est pas redirigée", () => {
         for (const a of ["/labo", "/labo/agents", "/agents/12", "/conversations/9", "/clients/acme/agents"]) {
             expect(destinationDe(a), a).toBeNull();
@@ -117,7 +129,7 @@ describe("redirections (U1)", () => {
     });
 
     it("le menu mène à des pages qui existent, dans les deux espaces, détails compris", () => {
-        for (const [groupes, base] of [[MENU_LABO, "/labo"], [MENU_CLIENT, "/clients/acme"]] as const) {
+        for (const [groupes, base] of [[MENU_LABO, "/labo"], [MENU_CLIENT, "/clients/acme"], [MENU_RELATION, "/relation"]] as const) {
             for (const e of toutesLesEntrees(groupes)) {
                 expect(pageExistePour(e.adresse(base)), e.adresse(base)).toBe(true);
                 for (const s of e.sous ?? []) expect(pageExistePour(`${e.adresse(base)}/${s.suite.replace(/\[[^\]]+\]/g, "7")}`), s.suite).toBe(true);

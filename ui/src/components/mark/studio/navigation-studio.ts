@@ -11,15 +11,17 @@
  * `provisoire` : entrée gardée le temps que son écran de destination existe (E109), à retirer ensuite.
  */
 import {
-    BellRing,
     BookOpen,
     Bot,
+    Building2,
     ChartLine,
     Database,
+    DoorOpen,
     Inbox,
     KeyRound,
     LayoutGrid,
     type LucideIcon,
+    Mail,
     Megaphone,
     MessagesSquare,
     Phone,
@@ -28,13 +30,12 @@ import {
     Sparkles,
     Star,
     Store,
-    Users,
     Wrench,
 } from "lucide-react";
 
 import type { Texte } from "@/components/mark/langue/langue";
 
-export type Espace = "labo" | "client";
+export type Espace = "labo" | "client" | "relation";
 
 export type EntreeMenu = {
     id: string;
@@ -83,33 +84,42 @@ const CAMPAGNES = e("campagnes", { en: "Campaigns", fr: "Campagnes" }, Megaphone
 const BASE = e("base", { en: "Data and automations", fr: "Base et automatisations" }, Database, "base", "/settings", { alias: true });
 const INTEGRATIONS = e("integrations", { en: "Integrations", fr: "Intégrations" }, Plug, "integrations", "/settings", { alias: true, prefixes: ["/labo/connecteurs", "/clients/[org]/connecteurs"] });
 const MODELES = e("modeles", { en: "Models and keys", fr: "Modèles et clés" }, KeyRound, "modeles", "/model-configurations");
-const CLES = e("cles", { en: "Keys", fr: "Clés" }, KeyRound, "cles", "/cles", { provisoire: true });
 const TELEPHONIE = e("telephonie", { en: "Telephony", fr: "Téléphonie" }, Phone, "telephonie", "/telephony-configurations", {
     sous: [{ suite: "[configId]", actuelle: "/telephony-configurations/[configId]" }],
 });
+// K1b : les alertes sont un onglet de Qualité, les clés un onglet de Modèles et clés (décision d'Evan, 04/11).
 const QUALITE = e("qualite", { en: "Quality", fr: "Qualité" }, ChartLine, "qualite", "/reports");
 const CONVERSATIONS = e("conversations", { en: "Conversations", fr: "Conversations" }, MessagesSquare, "conversations", "/usage", {
     prefixes: ["/conversations"],
 });
 const REGLAGES = e("reglages", { en: "Settings", fr: "Réglages" }, Settings2, "reglages", "/settings");
-const ALERTES = e("alertes", { en: "Alerts", fr: "Alertes" }, BellRing, "alertes", "/alertes", { provisoire: true });
 
-/** Hub « Relation clients » (U3 septies, E78) : adresses globales, hors de l'espace d'un client. */
+/**
+ * Espace « Relation clients » (U3 septies, E78 ; K1b, décision d'Evan 04/11 : un espace à part, comme la maquette
+ * `/relation`, choisi dans le sélecteur d'espace). Adresses globales, hors de l'espace d'un client.
+ */
 const relation = (id: string, titre: Texte, icone: LucideIcon, chemin: string): EntreeMenu => ({
     ...e(id, titre, icone, "", chemin),
     adresse: () => chemin,
 });
-const RELATION: GroupeMenu = {
-    id: "relation",
-    label: { en: "CUSTOMER RELATIONS", fr: "RELATION CLIENTS" },
-    entrees: [
-        relation("relation-accueil", { en: "Home", fr: "Accueil" }, LayoutGrid, "/relation"),
-        relation("relation-messages", { en: "Messages", fr: "Messages" }, MessagesSquare, "/relation/messages"),
-        relation("relation-clients", { en: "Customers", fr: "Clients" }, Users, "/relation/clients"),
-        relation("relation-avis", { en: "Reviews and testimonials", fr: "Avis et témoignages" }, Star, "/relation/avis"),
-        relation("relation-entrees", { en: "Portal entries", fr: "Entrées dans les portails" }, Inbox, "/relation/entrees"),
-    ],
-};
+export const MENU_RELATION: GroupeMenu[] = [
+    {
+        id: "haut",
+        entrees: [
+            relation("relation-accueil", { en: "Home", fr: "Accueil" }, LayoutGrid, "/relation"),
+            relation("relation-messages", { en: "Messages", fr: "Messages" }, Mail, "/relation/messages"),
+        ],
+    },
+    {
+        id: "clients",
+        label: { en: "CLIENTS", fr: "CLIENTS" },
+        entrees: [
+            relation("relation-clients", { en: "Customers", fr: "Clients" }, Building2, "/relation/clients"),
+            relation("relation-avis", { en: "Reviews and testimonials", fr: "Avis et témoignages" }, Star, "/relation/avis"),
+            relation("relation-entrees", { en: "Portal entries", fr: "Entrées dans les portails" }, DoorOpen, "/relation/entrees"),
+        ],
+    },
+];
 
 /** Espace Labo (E3, E31) : toutes les rubriques d'un client, plus l'atelier. */
 export const MENU_LABO: GroupeMenu[] = [
@@ -122,10 +132,9 @@ export const MENU_LABO: GroupeMenu[] = [
         label: { en: "BUILD", fr: "CONSTRUIRE" },
         entrees: [AGENTS, BIBLIOTHEQUE, OUTILS, CONNAISSANCES, ENTREPRISE, CAMPAGNES],
     },
-    { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, CLES, TELEPHONIE] },
-    { id: "mesurer", label: { en: "MEASURE", fr: "MESURER" }, entrees: [QUALITE, CONVERSATIONS, ALERTES] },
+    { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, TELEPHONIE] },
+    { id: "mesurer", label: { en: "MEASURE", fr: "MESURER" }, entrees: [QUALITE, CONVERSATIONS] },
     { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES] },
-    RELATION,
 ];
 
 /** Espace Client (E3, E57) : le même ensemble, sans l'atelier, avec l'accueil du client. */
@@ -142,9 +151,9 @@ export const MENU_CLIENT: GroupeMenu[] = [
     {
         id: "agents",
         label: { en: "AGENTS", fr: "AGENTS" },
-        entrees: [AGENTS, CONVERSATIONS, ALERTES, CAMPAGNES, CONNAISSANCES, ENTREPRISE, OUTILS],
+        entrees: [AGENTS, CONVERSATIONS, QUALITE, CAMPAGNES, CONNAISSANCES, ENTREPRISE, OUTILS],
     },
-    { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, CLES, TELEPHONIE] },
+    { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, TELEPHONIE] },
     {
         id: "organisation",
         label: { en: "ORGANIZATION", fr: "ORGANISATION" },
@@ -152,14 +161,16 @@ export const MENU_CLIENT: GroupeMenu[] = [
     },
 ];
 
-/** L'espace d'une adresse : `/clients/<org>/...` est un client, tout le reste est le Labo. */
+/** L'espace d'une adresse : `/clients/<org>/...` est un client, `/relation/...` la Relation clients, tout le reste est le Labo. */
 export function espaceDe(pathname: string): { espace: Espace; base: string; org: string | null } {
+    if (pathname === "/relation" || pathname.startsWith("/relation/")) return { espace: "relation", base: "/relation", org: null };
     const m = pathname.match(/^\/clients\/([^/]+)/);
     if (m) return { espace: "client", base: `/clients/${m[1]}`, org: decodeURIComponent(m[1]) };
     return { espace: "labo", base: "/labo", org: null };
 }
 
-export const menuDe = (espace: Espace): GroupeMenu[] => (espace === "client" ? MENU_CLIENT : MENU_LABO);
+export const menuDe = (espace: Espace): GroupeMenu[] =>
+    espace === "client" ? MENU_CLIENT : espace === "relation" ? MENU_RELATION : MENU_LABO;
 
 export const toutesLesEntrees = (groupes: GroupeMenu[]): EntreeMenu[] => groupes.flatMap((g) => g.entrees);
 

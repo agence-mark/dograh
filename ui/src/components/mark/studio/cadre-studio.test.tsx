@@ -9,7 +9,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
-import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, toutesLesEntrees } from "./navigation-studio";
+import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
 import { ShellStudio } from "./shell-studio";
 
 let chemin = "/workflow";
@@ -56,7 +56,7 @@ const titres = (groupes: typeof MENU_LABO) => toutesLesEntrees(groupes).map((x) 
 
 describe("menus (E3, E31)", () => {
     it("le Labo : tous les moments du métier, dans l'ordre", () => {
-        expect(MENU_LABO.map((g) => g.label?.fr ?? "")).toEqual(["", "CONSTRUIRE", "BRANCHER", "MESURER", "RÉGLER", "RELATION CLIENTS"]);
+        expect(MENU_LABO.map((g) => g.label?.fr ?? "")).toEqual(["", "CONSTRUIRE", "BRANCHER", "MESURER", "RÉGLER"]);
         for (const attendu of [
             "Builder IA", "Chat", "À améliorer", "Agents", "Bibliothèque", "Outils", "Connaissances", "Entreprise",
             "Campagnes", "Base et automatisations", "Intégrations", "Modèles et clés", "Téléphonie", "Qualité",
@@ -64,6 +64,19 @@ describe("menus (E3, E31)", () => {
         ]) {
             expect(titres(MENU_LABO), attendu).toContain(attendu);
         }
+    });
+
+    it("Clés, Alertes et Relation clients ne sont plus des entrées du Labo ni du client (K1b)", () => {
+        for (const menu of [MENU_LABO, MENU_CLIENT]) {
+            const ids = toutesLesEntrees(menu).map((x) => x.id);
+            for (const parti of ["cles", "alertes", "relation-accueil", "relation-messages"]) expect(ids, parti).not.toContain(parti);
+        }
+        expect(MENU_LABO.some((g) => g.id === "relation")).toBe(false);
+    });
+
+    it("la Relation clients est un espace à part, avec son menu (comme la maquette)", () => {
+        expect(MENU_RELATION.map((g) => g.label?.fr ?? "")).toEqual(["", "CLIENTS"]);
+        expect(titres(MENU_RELATION)).toEqual(["Accueil", "Messages", "Clients", "Avis et témoignages", "Entrées dans les portails"]);
     });
 
     it("le client : le même ensemble, sans l'atelier, avec son accueil", () => {
@@ -79,10 +92,11 @@ describe("menus (E3, E31)", () => {
     });
 
     it("aucune fonction en moins : tous les écrans de l'ancien menu restent atteignables", () => {
+        // « /cles » et « /alertes » ne sont plus des entrées : ce sont des onglets, atteints par redirection (K1b).
         const liens = new Set(toutesLesEntrees(MENU_LABO).map((x) => x.actuelle));
         for (const ancien of [
             "/workflow", "/campaigns", "/model-configurations", "/telephony-configurations", "/tools", "/files",
-            "/usage", "/reports", "/cles", "/bibliotheque", "/a-trier", "/alertes", "/settings",
+            "/usage", "/reports", "/bibliotheque", "/a-trier", "/settings",
         ]) {
             expect(liens.has(ancien), ancien).toBe(true);
         }
@@ -98,6 +112,10 @@ describe("menus (E3, E31)", () => {
     it("l'espace se lit dans l'adresse", () => {
         expect(espaceDe("/workflow")).toEqual({ espace: "labo", base: "/labo", org: null });
         expect(espaceDe("/clients/acme/agents")).toEqual({ espace: "client", base: "/clients/acme", org: "acme" });
+        expect(espaceDe("/relation")).toEqual({ espace: "relation", base: "/relation", org: null });
+        expect(espaceDe("/relation/clients/7")).toEqual({ espace: "relation", base: "/relation", org: null });
+        expect(entreeActive(MENU_RELATION, "/relation/clients/7", "/relation")?.id).toBe("relation-clients");
+        expect(entreeActive(MENU_RELATION, "/relation", "/relation")?.id).toBe("relation-accueil");
     });
 
     it("l'entrée surlignée suit l'adresse ; un alias ne prend pas la place du propriétaire", () => {
@@ -122,6 +140,18 @@ describe("barre latérale", () => {
         expect(screen.getByRole("link", { name: "Qualité" }).getAttribute("href")).toBe("/labo/qualite");
         expect(screen.getByRole("link", { name: "Agents" }).getAttribute("data-active")).toBe("true");
         expect(document.querySelector("[data-espace='labo']")).not.toBeNull();
+    });
+
+    it("montre le menu de la Relation clients dans /relation, sans fil d'Ariane doublé sur l'accueil", () => {
+        chemin = "/relation";
+        monter();
+        expect(screen.getByRole("link", { name: "Messages" }).getAttribute("href")).toBe("/relation/messages");
+        expect(screen.getByRole("link", { name: "Entrées dans les portails" }).getAttribute("href")).toBe("/relation/entrees");
+        expect(screen.queryByRole("link", { name: "Agents" })).toBeNull();
+        expect(document.querySelector("[data-espace='relation']")).not.toBeNull();
+        const fil = screen.getByRole("navigation", { name: "Fil d'Ariane" });
+        expect(within(fil).getByText("Relation clients")).toBeTruthy();
+        expect(within(fil).queryByText("Accueil")).toBeNull();
     });
 
     it("montre le menu du client dans /clients/<org>", () => {
