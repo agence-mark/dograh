@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.services.builder.donnees_fictives import est_fictive, rendre_fictif
+from api.services.builder.donnees_fictives import CLES_TECHNIQUES, est_fictive, rendre_fictif
 from api.services.builder.tests_agent import stockage, verdict
 from api.services.tests_rejouables.modele import ErreurTestRejouable
 
@@ -84,7 +84,7 @@ async def creer(
     else:
         raise stockage.ErreurTest("Give a reply (replique or run_id + rang) or a scenario.")
     test = rendre_fictif(test)
-    if not est_fictive(test):
+    if not _contenu_fictif(test):
         raise stockage.ErreurTest("The test still holds data that looks real: nothing was kept.")
     test["slug"] = await _slug_libre(organisation_id, workflow_id, nom)
     await stockage.ecrire(organisation_id, workflow_id, test)
@@ -158,12 +158,18 @@ async def modifier(
         if historique is not None:
             test["historique"] = list(historique)
     test = rendre_fictif(test)
-    if not est_fictive(test):
+    if not _contenu_fictif(test):
         raise stockage.ErreurTest("The test still holds data that looks real: nothing was kept.")
     test["modifie_le"] = stockage.maintenant()
     await stockage.ecrire(organisation_id, workflow_id, test)
     await stockage.effacer_les_resultats(organisation_id, workflow_id, slug)
     return test
+
+
+def _contenu_fictif(test: dict[str, Any]) -> bool:
+    """Le CONTENU du test est fictif. Les clés techniques (dont `cree_par`, l'adresse de la personne qui crée) n'en font pas
+    partie : les compter refusait tout test créé par une adresse qui n'est pas en `.test`."""
+    return est_fictive({cle: valeur for cle, valeur in test.items() if cle not in CLES_TECHNIQUES})
 
 
 async def _slug_libre(organisation_id: int, workflow_id: int, nom: str) -> str:

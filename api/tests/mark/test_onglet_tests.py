@@ -146,3 +146,16 @@ def test_les_executions_passees_et_les_ressources_sont_lues_dans_les_donnees(mon
     assert set(r) == {"etapes", "outils", "issues", "champs", "personnages", "scenarios_types"}
     assert r["etapes"] and r["personnages"] == [] and r["scenarios_types"] == []
     assert client_pour(AUTRE).get(f"/builder/tests/{AGENT}/ressources").status_code == 404
+
+
+def test_un_test_se_cree_aussi_quand_la_personne_a_une_vraie_adresse_mail():
+    """K3 : l'adresse de l'auteur est une clé technique, pas une donnée du test. Avant, tout test créé depuis l'écran
+    par une personne dont l'adresse n'est pas en `.test` était refusé (« data that looks real ») ; les tests de la suite
+    n'utilisaient que des adresses fictives et ne le voyaient pas."""
+    vraie = utilisateur(3, ORG_CLIENT)
+    vraie.email = "prenom.nom@gmail.com"
+    c = client_pour(vraie)
+    r = creer(c, nom="Auteur réel")
+    assert r.status_code == 200, r.text
+    slug = r.json()["test"]["slug"]
+    assert c.patch(f"/builder/tests/{AGENT}/{slug}", json={"obligatoire": True}).status_code == 200
