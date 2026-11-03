@@ -1,2 +1,2 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/workflow/page";
+// [.mark] U9 : l'accueil d'un client (ses agents, ses branchements, ce qui reste à améliorer), lu dans l'organisation de l'adresse.
+export { default } from "@/components/mark/client/AccueilClient";

@@ -26,6 +26,7 @@ from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, ORG_MARK, utilisate
 
 CLE = "cle-factice-VALEUR-SECRETE-0123456789"
 EQUIPE = utilisateur(1, ORG_CLIENT)  # membre de l'organisation .mark, au travail chez un client
+EQUIPE_DU_LABO = utilisateur(1, ORG_MARK)  # la même personne, au travail dans le Labo : seul endroit d'où elle écrit la bibliothèque (U2 quater, E57)
 AUTRE = utilisateur(2, 8)  # une autre organisation, pas de l'équipe
 CONCEPTION = conception.Conception(objectif="o", reussite="r")
 
@@ -193,7 +194,7 @@ NOUVEAU = {"slug": "qualifier", "titre": "Qualifier", "contenu": {"texte": "v1"}
 
 
 def test_toute_organisation_lit_la_bibliotheque_et_seule_l_equipe_ecrit(monde):
-    equipe, autre = client_pour(EQUIPE), client_pour(AUTRE)
+    equipe, autre = client_pour(EQUIPE_DU_LABO), client_pour(AUTRE)
     assert equipe.post("/builder/bibliotheque/moules-etape", json=NOUVEAU).status_code == 201
     assert autre.post("/builder/bibliotheque/moules-etape", json={**NOUVEAU, "slug": "autre"}).status_code == 403
     assert [e["slug"] for e in autre.get("/builder/bibliotheque", params={"famille": "moules-etape"}).json()] == ["qualifier"]
@@ -212,7 +213,7 @@ def test_toute_organisation_lit_la_bibliotheque_et_seule_l_equipe_ecrit(monde):
 
 
 def test_versions_retour_arriere_et_statuts_par_l_ecran(monde):
-    c = client_pour(EQUIPE)
+    c = client_pour(EQUIPE_DU_LABO)
     c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
     c.post("/builder/bibliotheque/moules-etape/qualifier/versions", json={"contenu": {"texte": "v2"}, "notes": "plus court"})
     sans_banc = c.post("/builder/bibliotheque/moules-etape/qualifier/statut", json={"version": 2, "statut": "recette"})
@@ -231,7 +232,7 @@ def test_versions_retour_arriere_et_statuts_par_l_ecran(monde):
 
 
 async def test_utilisee_par_n_agents_et_import_avec_comparatif_par_l_ecran(monde):
-    c = client_pour(EQUIPE)
+    c = client_pour(EQUIPE_DU_LABO)
     c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
     await service.enregistrer_utilisation("moules-etape", "qualifier", 1, ORG_CLIENT, AGENT)
     assert client_pour(EQUIPE).get("/builder/bibliotheque/moules-etape/qualifier/utilisation").json() == {
@@ -248,7 +249,7 @@ async def test_utilisee_par_n_agents_et_import_avec_comparatif_par_l_ecran(monde
 
 
 async def test_les_propositions_se_decident_par_l_ecran(monde):
-    c = client_pour(EQUIPE)
+    c = client_pour(EQUIPE_DU_LABO)
     c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
     creee = c.post(
         "/builder/bibliotheque/propositions",
@@ -366,7 +367,7 @@ async def test_la_liste_des_agents_d_une_recette_est_filtree_sur_l_organisation_
     """Revue N3 : l'équipe .mark voit tous les clients ; toute autre personne ne voit que les agents de sa propre organisation."""
     from api.routes import builder_tests
 
-    c = client_pour(EQUIPE)
+    c = client_pour(EQUIPE_DU_LABO)
     c.post("/builder/bibliotheque/moules-etape", json=NOUVEAU)
     await service.enregistrer_utilisation("moules-etape", "qualifier", 1, ORG_CLIENT, AGENT)
     await service.enregistrer_utilisation("moules-etape", "qualifier", 1, 8, 77)  # un agent de l'organisation de AUTRE

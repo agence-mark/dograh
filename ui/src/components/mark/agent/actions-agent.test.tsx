@@ -6,7 +6,7 @@
  *     « Builder IA » est dans la barre quand l'éditeur le branche, et mène au Parcours sinon ? « Publier » est grisé AVEC sa
  *     raison tant que les changements du builder sont à relire ? Les cinq onglets sont là, chacun un lien ? « Essayer »
  *     ouvre le bon onglet du panneau d'essai (ou le Parcours depuis un autre onglet) ? Le menu « ⋯ » garde appels, étiquettes,
- *     dupliquer, télécharger, identifiant, et « Exporter vers un client » y est grisé avec sa raison (H2) ?
+ *     dupliquer, télécharger, identifiant, et « Exporter vers un client » y ouvre sa fenêtre (H2) ?
  */
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -26,6 +26,9 @@ vi.mock("@/client/sdk.gen", () => ({
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet: vi.fn(async () => ({ data: {} })),
     lireLesEtiquettesApiV1EtiquettesGet: vi.fn(async () => ({ data: { etiquettes: [{ nom: "Recette", nb_agents: 1 }], par_agent: { "5": ["Recette"] } } })),
     poserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPut: vi.fn(),
+    ciblesApiV1ExportAgentWorkflowIdCiblesGet: vi.fn(async () => ({ data: { sens: "exporter", cibles: [{ id: 7, nom: "Nuances de Feu", deja_copie: null }] } })),
+    releveApiV1ExportAgentWorkflowIdReleveGet: vi.fn(),
+    copierApiV1ExportAgentWorkflowIdCopierPost: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
 vi.mock("../site/useAgentDeSite", () => ({ useAgentDeSite: () => false }));
@@ -114,7 +117,7 @@ describe("les actions de la barre avec l'éditeur", () => {
         expect(within(menu2).queryByText("Phone call")).toBeNull();
     });
 
-    it("le menu ⋯ garde appels, étiquettes, dupliquer, télécharger, identifiant ; « Exporter » y est grisé avec sa raison", async () => {
+    it("le menu ⋯ garde appels, étiquettes, dupliquer, télécharger, identifiant ; « Exporter » y ouvre la fenêtre de l'export", async () => {
         render(<ActionsAgent {...base} workflowUuid="abc" editeur={editeur()} />);
         const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
         expect(within(menu).getByText("See the calls").closest("a")?.getAttribute("href")).toBe("/agents/5/runs");
@@ -123,8 +126,11 @@ describe("les actions de la barre avec l'éditeur", () => {
         expect(within(menu).getByText("Download (JSON)")).toBeTruthy();
         expect(within(menu).getByText("Copy the identifier")).toBeTruthy();
         const exporter = within(menu).getByText("Export to a client").closest("[role=menuitem]");
-        expect(exporter?.getAttribute("aria-disabled")).toBe("true");
-        expect(exporter?.getAttribute("title")).toBeTruthy();
+        expect(exporter?.getAttribute("aria-disabled")).toBeNull();
+        fireEvent.click(within(menu).getByText("Export to a client"));
+        const fenetre = await screen.findByRole("dialog");
+        expect(within(fenetre).getByText("Export to a client")).toBeTruthy();
+        expect(await within(fenetre).findByText("Nuances de Feu")).toBeTruthy();
     });
 
     it("⋯ › Étiquettes ouvre la fenêtre des étiquettes de l'agent, avec celles qu'il porte déjà cochées", async () => {

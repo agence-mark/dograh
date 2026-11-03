@@ -20,8 +20,10 @@ BESOINS_AGENT = ("agent", "agent et fichiers")
 BESOINS_FICHIERS = ("fichiers", "agent et fichiers")
 
 
-async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL) -> list[dict[str, Any]]:
-    """Les démarrages à montrer : hors Rejeté, du plus utilisé au moins utilisé (à égalité, par titre)."""
+async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL, *, dans_le_labo: bool = True) -> list[dict[str, Any]]:
+    """Les démarrages à montrer : hors Rejeté, du plus utilisé au moins utilisé (à égalité, par titre).
+
+    ``dans_le_labo=False`` (l'espace d'un client, E57) écarte les cartes « proposées dans le Labo seulement »."""
     try:
         elements = await service.elements_de(FAMILLE)
         utilisations = {r.slug: r.utilisee_par for r in await service.lister(FAMILLE)}
@@ -32,6 +34,9 @@ async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL) -> list[dict[str, Any]
         if element.statut is Statut.REJETE:
             continue
         contenu = element.courante.contenu
+        proposee = "labo" if contenu.get("proposee_dans") == "labo" else "labo_et_clients"
+        if proposee == "labo" and not dans_le_labo:
+            continue
         cartes.append(
             {
                 "slug": element.slug,
@@ -40,6 +45,7 @@ async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL) -> list[dict[str, Any]
                 "demande": str(contenu.get("demande") or ""),
                 "besoin": str(contenu.get("besoin") or "rien"),
                 "icone": str(contenu.get("icone") or "etincelle"),
+                "proposee_dans": proposee,
                 "statut": element.statut.value,
                 "utilisations": utilisations.get(element.slug, 0),
             }
@@ -48,8 +54,8 @@ async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL) -> list[dict[str, Any]
     return cartes[:nombre]
 
 
-async def lire(slug: str) -> dict[str, Any] | None:
-    for carte in await plus_utilises(10_000):
+async def lire(slug: str, *, dans_le_labo: bool = True) -> dict[str, Any] | None:
+    for carte in await plus_utilises(10_000, dans_le_labo=dans_le_labo):
         if carte["slug"] == slug:
             return carte
     return None

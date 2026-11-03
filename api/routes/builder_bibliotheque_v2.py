@@ -34,7 +34,7 @@ def _refus(erreur: Exception) -> HTTPException:
 
 async def _equipe(user: UserModel) -> str:
     try:
-        await droits.exiger_l_equipe(user)
+        await droits.exiger_l_equipe_au_labo(user)
     except ErreurBibliotheque as erreur:
         raise _refus(erreur) from None
     return droits.nom_de_l_auteur(user)

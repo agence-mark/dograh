@@ -8,7 +8,7 @@
  * `?builder=1`), sans rien dupliquer.
  */
 import type { ReactFlowInstance } from "@xyflow/react";
-import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Phone, Pencil, Play, Send, Sparkles, Tag, Users } from "lucide-react";
+import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Phone, Pencil, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -37,6 +37,7 @@ import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
+import { FenetreCopieAgent } from "./copie/FenetreCopieAgent";
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
 import { FenetreDePublication } from "./publication/FenetreDePublication";
 import { adresseOnglet } from "./onglets-agent";
@@ -80,7 +81,8 @@ const T = {
     menuAgent: { en: "Agent menu", fr: "Menu de l'agent" },
     appels: { en: "See the calls", fr: "Voir les appels" },
     exporter: { en: "Export to a client", fr: "Exporter vers un client" },
-    exporterRaison: { en: "Arrives with the export lot (H2).", fr: "Arrive avec le lot de l'export (H2)." },
+    ramener: { en: "Bring back to the Labo", fr: "Ramener au Labo" },
+    avecTests: { en: "With its tests", fr: "Avec ses tests" },
     etiquettes: { en: "Labels", fr: "Étiquettes" },
     renommer: { en: "Rename", fr: "Renommer" },
     nomAgent: { en: "Agent name", fr: "Nom de l'agent" },
@@ -92,8 +94,8 @@ const T = {
     erreurs: { en: "errors", fr: "erreurs" },
     titreDuplication: { en: "Duplicate the agent", fr: "Dupliquer l'agent" },
     infoDuplication: {
-        en: "A copy in the same organization, as a draft. The tools, documents and keys stay the same: nothing is copied.",
-        fr: "Une copie dans la même organisation, en brouillon. Les outils, documents et clés restent les mêmes : rien n'est recopié.",
+        en: "A copy in the same organization, as a draft. The tools, documents and keys stay the same: nothing is copied. The tests follow only if you ask.",
+        fr: "Une copie dans la même organisation, en brouillon. Les outils, documents et clés restent les mêmes : rien n'est recopié. Les tests suivent seulement si vous le demandez.",
     },
     nomCopie: { en: "Name of the copy", fr: "Nom de la copie" },
     copie: { en: "(copy)", fr: "(copie)" },
@@ -125,7 +127,7 @@ export function ActionsAgent({
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
-    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | null>(null);
+    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | null>(null);
     const [labo, setLabo] = useState(true);
     useEffect(() => setLabo(typeof espaceRetenu() !== "number"), []);
 
@@ -162,10 +164,13 @@ export function ActionsAgent({
         setEnregistrement(false);
     };
 
-    const dupliquer = async (nomDeLaCopie: string) => {
+    const dupliquer = async (nomDeLaCopie: string, avecTests: boolean) => {
         if (duplication) return;
         setDuplication(true);
-        const promesse = duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost({ path: { workflow_id: agentId } });
+        const promesse = duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost({
+            path: { workflow_id: agentId },
+            query: { avec_tests: avecTests },
+        });
         notifier.suivre(promesse, {
             encours: { fr: "Duplication en cours…", en: "Duplicating…" },
             succes: { fr: "Agent dupliqué.", en: "Agent duplicated." },
@@ -332,9 +337,13 @@ export function ActionsAgent({
                     <DropdownMenuItem asChild>
                         <Link href={adresseOnglet(agentId, "appels")}>{t(T.appels)}</Link>
                     </DropdownMenuItem>
-                    {labo && (
-                        <DropdownMenuItem disabled title={t(T.exporterRaison)}>
+                    {labo ? (
+                        <DropdownMenuItem onClick={() => setFenetre("exporter")}>
                             <Send className="mr-2 size-4" /> {t(T.exporter)}
+                        </DropdownMenuItem>
+                    ) : (
+                        <DropdownMenuItem onClick={() => setFenetre("ramener")}>
+                            <Undo2 className="mr-2 size-4" /> {t(T.ramener)}
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => setFenetre("etiquettes")}>
@@ -365,6 +374,9 @@ export function ActionsAgent({
                     onPublie={() => void apresPublication()}
                 />
             )}
+            {(fenetre === "exporter" || fenetre === "ramener") && (
+                <FenetreCopieAgent agentId={agentId} nom={nom} sens={fenetre} fermer={() => setFenetre(null)} />
+            )}
             <FenetreEtiquettes agentId={agentId} ouvert={fenetre === "etiquettes"} onOuvertChange={(o) => setFenetre(o ? "etiquettes" : null)} />
             <FenetreChamps
                 ouverte={fenetre === "dupliquer"}
@@ -372,8 +384,15 @@ export function ActionsAgent({
                 valider={t(T.dupliquer)}
                 titre={t(T.titreDuplication)}
                 info={t(T.infoDuplication)}
-                sections={[{ champs: [{ id: "nom", t: "texte", l: t(T.nomCopie), v: `${nom} ${t(T.copie)}` }] }]}
-                onValider={(valeurs) => void dupliquer(String(valeurs.nom ?? ""))}
+                sections={[
+                    {
+                        champs: [
+                            { id: "nom", t: "texte", l: t(T.nomCopie), v: `${nom} ${t(T.copie)}` },
+                            { id: "tests", t: "inter", l: t(T.avecTests), v: true },
+                        ],
+                    },
+                ]}
+                onValider={(valeurs) => void dupliquer(String(valeurs.nom ?? ""), valeurs.tests === true)}
             />
             <FenetreChamps
                 ouverte={fenetre === "renommer"}

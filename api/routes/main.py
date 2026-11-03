@@ -18,6 +18,7 @@ from api.routes.cles import router as cles_router
 from api.routes.equipe_mark import router as equipe_mark_router
 from api.routes.equipe_mark import routeur_public as invitation_router
 from api.routes.espaces import router as espaces_router
+from api.routes.export_agent import router as export_agent_router
 from api.routes.relation import router as relation_router
 from api.routes.relation_portail import router as relation_portail_router
 from api.routes.etiquettes import router as etiquettes_router
@@ -133,6 +134,7 @@ router.include_router(etiquettes_router)
 router.include_router(equipe_mark_router)
 router.include_router(relation_router)
 router.include_router(relation_portail_router)
+router.include_router(export_agent_router)
 router.include_router(invitation_router)
 router.include_router(user_router)
 router.include_router(campaign_router)

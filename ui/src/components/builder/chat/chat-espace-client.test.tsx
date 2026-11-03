@@ -1,0 +1,76 @@
+/**
+ * [.mark] U2 quater (lot H2, E57) : le builder et le chat dans l'espace d'un client.
+ *
+ * Questions de ce fichier :
+ *
+ *     Les adresses de l'écran suivent l'espace (une conversation s'ouvre au Labo ou chez le client, jamais ailleurs) ?
+ *     Les pages « Builder IA » et « Chat » d'un client montent les vrais écrans du builder et non la liste des agents ?
+ *     Dans l'espace d'un client, le coût du builder n'est pas un lien vers les réglages du Labo ?
+ */
+import { cleanup, render, screen } from "@testing-library/react";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { adressesDe } from "./adresses";
+
+const m = vi.hoisted(() => ({ chemin: "/clients/7/builder", push: vi.fn() }));
+vi.mock("next/navigation", () => ({ usePathname: () => m.chemin, useRouter: () => ({ push: m.push }), useParams: () => ({}) }));
+vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
+vi.mock("@/components/mark/studio/nom-espace", () => ({ useNomEspace: (_e: string, org: string | null) => (org === "7" ? "Nuances de Feu" : "Labo") }));
+vi.mock("@/client", () => ({
+    getWorkflowsSummaryApiV1WorkflowSummaryGet: vi.fn(async () => ({ data: [] })),
+    lireLeCerveauApiV1BuilderCerveauGet: vi.fn(async () => ({ data: { modele: "un-modele", plafond_depense: 3 } })),
+    lireLesDemarragesApiV1BuilderDemarragesGet: vi.fn(async () => ({ data: [] })),
+    listerLesFilsApiV1BuilderFilsGet: vi.fn(async () => ({ data: [{ id: 9, titre: "Un chat", etat: "terminee", changements: 0, cout: 0.1 }] })),
+    ouvrirUnFilApiV1BuilderFilsPost: vi.fn(),
+}));
+
+afterEach(cleanup);
+
+describe("les adresses du builder suivent l'espace", () => {
+    it("chez un client : la conversation s'ouvre dans /clients/<org>/chat, pas de réglages du Labo", () => {
+        const a = adressesDe("/clients/7/builder");
+        expect(a.client).toBe(true);
+        expect(a.org).toBe("7");
+        expect(a.fil(9)).toBe("/clients/7/chat/9");
+        expect(a.reglages).toBeNull();
+    });
+    it("au Labo : la conversation s'ouvre dans /labo/builder, les réglages sont ceux du Labo", () => {
+        const a = adressesDe("/labo");
+        expect(a.client).toBe(false);
+        expect(a.fil(9)).toBe("/labo/builder/9");
+        expect(a.reglages).toBe("/labo/reglages");
+    });
+});
+
+describe("les pages du client montent les écrans du builder", () => {
+    const app = join(process.cwd(), "src", "app", "clients", "[org]");
+    it.each([
+        ["builder", "PageAccueil"],
+        ["chat", "PageHistorique"],
+        [join("chat", "[fil]"), "PageFil"],
+    ])("%s", (dossier, ecran) => {
+        const fichier = join(app, dossier, "page.tsx");
+        expect(existsSync(fichier)).toBe(true);
+        expect(readFileSync(fichier, "utf8")).toContain(`@/components/builder/chat/${ecran}`);
+    });
+});
+
+describe("l'écran dans l'espace d'un client", () => {
+    it("l'accueil dit pour qui on construit, et le coût n'y est pas un lien vers le Labo", async () => {
+        m.chemin = "/clients/7/builder";
+        const { default: PageAccueil } = await import("./PageAccueil");
+        render(<PageAccueil />);
+        expect(await screen.findByText(/Que construit-on pour Nuances de Feu \?|What do we build for Nuances de Feu \?/)).toBeTruthy();
+        const cout = await screen.findByText(/un-modele/);
+        expect(cout.closest("a")).toBeNull();
+    });
+    it("le chat d'un client ouvre ses conversations chez lui", async () => {
+        m.chemin = "/clients/7/chat";
+        const { default: PageHistorique } = await import("./PageHistorique");
+        render(<PageHistorique />);
+        const lien = await screen.findByText("Un chat");
+        expect(lien.closest("a")?.getAttribute("href")).toBe("/clients/7/chat/9");
+    });
+});

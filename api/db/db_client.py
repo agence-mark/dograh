@@ -7,6 +7,7 @@ from api.db.equipe_client import EquipeClient
 from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
 from api.db.builder_fil_client import BuilderFilClient
+from api.db.copie_agent_client import CopieAgentClient
 from api.db.relation_client import RelationClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
@@ -78,6 +79,8 @@ class DBClient(
     BuilderFilClient,
     # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
     RelationClient,
+    # [.mark] builder partie 2, U2 quinquies: copying a document or a recording from one organization to another.
+    CopieAgentClient,
 ):
     """
     Unified database client that combines all specialized database operations.

@@ -1625,6 +1625,7 @@ async def update_workflow(
 @router.post("/{workflow_id}/duplicate")
 async def duplicate_workflow_endpoint(
     workflow_id: int,
+    avec_tests: bool = Query(False, description="[.mark] Recopier aussi les tests de l'agent (jamais leurs résultats)"),
     user: UserModel = Depends(get_user),
 ) -> WorkflowResponse:
     """Duplicate a workflow including its definition, configuration, recordings, and triggers."""
@@ -1636,8 +1637,9 @@ async def duplicate_workflow_endpoint(
         )
 
         # [.mark] Lot 10 : la duplication d'un principal duplique son groupe.
+        nouveaux_specialises: list[int] = []
         try:
-            await dupliquer_les_specialises(
+            nouveaux_specialises = await dupliquer_les_specialises(
                 source_principal_id=workflow_id,
                 copie_principal_id=workflow.id,
                 organization_id=user.selected_organization_id,
@@ -1661,6 +1663,14 @@ async def duplicate_workflow_endpoint(
             raise HTTPException(
                 status_code=500,
                 detail="The group could not be duplicated; the incomplete copy was archived.",
+            )
+
+        # [.mark] U2 quinquies (E58) : « Dupliquer avec ses tests » recopie les tests de chaque agent sur sa copie (jamais leurs résultats).
+        if avec_tests:
+            from api.services.export_agent.ecriture import copier_les_tests_apres_duplication
+
+            await copier_les_tests_apres_duplication(
+                user.selected_organization_id, workflow_id, workflow.id, nouveaux_specialises
             )
 
         capture_event(

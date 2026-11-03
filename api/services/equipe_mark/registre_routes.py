@@ -155,6 +155,8 @@ REGLES: tuple[Regle, ...] = (
     _r(TOUTES, r"^/relation(/.*)?$", MEMBRE, par_defaut=True),
     # Côté portail : clé d'API du client seulement (la route refuse une session) ; une clé ne lit que son organisation.
     _r(TOUTES, r"^/organizations/relation(/.*)?$", MEMBRE, par_defaut=True),
+    # U2 quinquies (E58, E33) : copier un agent d'une organisation à une autre ; la route refuse en plus toute clé d'API.
+    _r(TOUTES, r"^/export-agent(/.*)?$", P("clients.exporter_ramener"), par_defaut=True),
     # ------------------------------------------------------------------ organisation
     _r({"POST"}, r"^/organizations$", P("clients.creer")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
