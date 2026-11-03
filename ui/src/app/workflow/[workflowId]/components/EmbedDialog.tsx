@@ -8,6 +8,7 @@ import {
     getEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenGet,
 } from "@/client/sdk.gen";
 import type { TextChatInactivityTimeoutConstraints, WidgetTexts } from "@/client/types.gen";
+import { PanneauSite } from "@/components/mark/site/PanneauSite";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
@@ -476,6 +477,9 @@ export function EmbedDialog({
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* [.mark] U10 / S2 : canal, site, chemins, apparence et réglages .mark d'un agent de site */}
+                        <PanneauSite workflowId={workflowId} />
+                        <Separator />
                         {/* Enable/Disable Toggle */}
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
