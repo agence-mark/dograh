@@ -73,7 +73,7 @@ export function OngletsPage({ onglets, defaut, espacement = "space-y-6" }: { ong
                 ))}
             </div>
             {onglets.map((o) => (
-                <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id}>
+                <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id} className="space-y-10">
                     {o.contenu}
                 </div>
             ))}

@@ -436,11 +436,21 @@ describe("[.mark] cloture-code F7: the « Objects » section of « Establishment
         const theme = document.querySelector('[data-theme="objets"]') as HTMLElement;
         await waitFor(() => expect(theme.querySelectorAll("[data-objet]").length).toBe(2));
         expect(theme.querySelector("#etablissement-objets")).not.toBeNull();
-        const marques = theme.querySelector('[data-objet="marques"]') as HTMLElement;
+        const marques = (theme.querySelector('[data-objet="marques"]') as HTMLElement).closest("tr") as HTMLElement;
         expect(marques.textContent).toContain("{{marques}}");
-        expect(marques.querySelector("[data-utilise-par]")!.textContent).toContain("Accueil");
-        expect(theme.querySelector('[data-objet="frais"] [data-utilise-par]')!.textContent).toMatch(/no agent|aucun agent/);
-        for (const champ of CHAMPS_REGLAGES_OBJETS) expect(theme.querySelector(`[data-reglage="${champ}"]`)).not.toBeNull();
+        // K4 : le tableau dit « 1 agent » (le nom des agents se lit dans la fenêtre de la variable).
+        expect(marques.querySelector("[data-utilise-par]")!.textContent).toMatch(/1 agent/);
+        expect((theme.querySelector('[data-objet="frais"]') as HTMLElement).closest("tr")!.querySelector("[data-utilise-par]")!.textContent).toMatch(/no agent|aucun agent/);
+        // Le plafond est une section en lignes : « Modifier » ouvre sa fenêtre, qui porte son champ.
+        expect(CHAMPS_REGLAGES_OBJETS).toEqual(["plafond_caracteres"]);
+        const lignes = await waitFor(() => {
+            const b = [...theme.querySelectorAll("button")].find((x) => /Edit|Modifier/.test(x.textContent ?? ""));
+            if (!b) throw new Error("plafond pas encore dessiné");
+            return b;
+        });
+        fireEvent.click(lignes);
+        await waitFor(() => expect(theme.querySelector('input[type="number"]')).not.toBeNull());
+        fireEvent.click(screen.getByRole("button", { name: /Cancel|Annuler/ }));
         // Une liste : ses colonnes et ses lignes ; une valeur : son type et sa valeur. Ensemble, tous les champs.
         const vus = new Set<string>();
         for (const nom of ["marques", "frais"]) {

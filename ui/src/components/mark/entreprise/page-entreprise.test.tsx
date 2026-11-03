@@ -38,7 +38,7 @@ vi.mock("@/app/recordings/RecordingsUploadDialog", () => ({
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
 const { PageEntreprise, ONGLETS_ENTREPRISE } = await import("./PageEntreprise");
-const { PageBase, ONGLETS_BASE } = await import("./PageBase");
+const { PageBase } = await import("./PageBase");
 const { PageParametresOrganisation, THEMES_RESTANTS } = await import("../parametres-organisation/PageParametresOrganisation");
 const { THEMES_ORGANISATION } = await import("../parametres-organisation/ThemesOrganisation");
 const { destinationDeLAncre } = await import("./anciennes-ancres");
@@ -93,23 +93,24 @@ describe("[.mark] l'écran Entreprise (U2 bis, E56)", () => {
         expect(volet("equipe").hidden).toBe(true);
     });
 
-    it("chaque sous-onglet porte le thème qu'il remplace, à plat (ni carte ni repli)", () => {
+    it("chaque sous-onglet a la forme de la maquette : lignes + tableaux, ou le thème à plat (jamais carte ni repli)", () => {
         rendre(<PageEntreprise />);
+        // K4 : Établissements = « Toute l'entreprise » en lignes (+ Modifier) ; Équipe et Rendez-vous = tableaux (ou la
+        // phrase « base à rattacher ») ; Variables = tableau ; Vérification et Écoute restent des thèmes à plat.
         const attendus: Record<string, string> = {
-            etablissements: "etablissement",
-            equipe: "equipe",
-            "rendez-vous": "rendez-vous",
-            objets: "objets",
-            verification: "verification",
-            ecoute: "ecoute",
+            etablissements: '[data-theme="etablissement"][data-lignes]',
+            equipe: "*",
+            "rendez-vous": "*",
+            objets: "#etablissement-objets",
+            verification: '[data-theme="verification"][data-plat]',
+            ecoute: '[data-theme="ecoute"][data-plat]',
         };
-        for (const [id, theme] of Object.entries(attendus)) {
+        for (const [id, marque] of Object.entries(attendus)) {
             fireEvent.click(onglet(id));
-            const section = volet(id).querySelector(`[data-theme="${theme}"]`) as HTMLElement;
-            expect(section, id).not.toBeNull();
-            if (id !== "objets") expect(section.hasAttribute("data-plat"), id).toBe(true);
+            expect(volet(id).querySelector(marque), id).not.toBeNull();
             expect(volet(id).hidden, id).toBe(false);
-            expect(volet(id).querySelector("button[aria-expanded]"), `${id} ne se replie pas`).toBeNull();
+            // « Modifier » (lignes) ouvre une fenêtre : seul un thème REPLIABLE a un bouton qui déplie en place.
+            expect(volet(id).querySelector("button[aria-expanded]:not([aria-haspopup])"), `${id} ne se replie pas`).toBeNull();
         }
     });
 
@@ -130,6 +131,12 @@ describe("[.mark] l'écran Entreprise (U2 bis, E56)", () => {
 
     it("changer d'onglet ne perd pas ce qui est tapé, et l'onglet montre la pastille", async () => {
         rendre(<PageEntreprise />);
+        // L'annonce se tape dans la fenêtre de « Toute l'entreprise » : « Modifier » l'ouvre.
+        fireEvent.click(await waitFor(() => {
+            const b = document.querySelector('[data-theme="etablissement"] button[aria-haspopup="dialog"]');
+            if (!b) throw new Error("bouton Modifier pas encore dessiné");
+            return b as HTMLElement;
+        }));
         const champ = await waitFor(() => {
             const c = document.getElementById("annonce_fermeture");
             if (!c) throw new Error("annonce pas encore dessinée");
@@ -166,13 +173,13 @@ describe("[.mark] l'écran Entreprise (U2 bis, E56)", () => {
 });
 
 describe("[.mark] l'écran Base et automatisations (U2, E52)", () => {
-    it("a deux sous-onglets : la base du client et l'après-appel, posés à plat", () => {
+    it("est UNE page (sans sous-onglets, comme la maquette) : deux intertitres, la base du client et l'après-appel, posés à plat", () => {
         rendre(<PageBase />);
-        expect([...document.querySelectorAll("[role='tab']")].map((o) => o.getAttribute("data-onglet"))).toEqual([...ONGLETS_BASE]);
-        expect(volet("base").querySelector('[data-theme="donnees"][data-plat]')).not.toBeNull();
-        fireEvent.click(onglet("apres-appel"));
-        expect(volet("apres-appel").hidden).toBe(false);
-        expect(volet("apres-appel").querySelector('[data-theme="apres-appel"][data-plat]')).not.toBeNull();
+        expect(document.querySelectorAll("[role='tab']").length).toBe(0);
+        expect(document.querySelector('#base [data-theme="donnees"][data-plat]')).not.toBeNull();
+        expect(document.querySelector('#apres-appel [data-theme="apres-appel"][data-plat]')).not.toBeNull();
+        // L'intertitre porte le titre : le thème n'en répète pas un visible.
+        expect(document.querySelector('#base h2.text-base')).toBeNull();
     });
 });
 
@@ -215,8 +222,8 @@ describe("[.mark] aucune fonction en moins (D8)", () => {
         expect(destinationDeLAncre("rendez-vous", "/labo")).toBe("/labo/entreprise?onglet=rendez-vous");
         expect(destinationDeLAncre("verification", "/labo")).toBe("/labo/entreprise?onglet=verification");
         expect(destinationDeLAncre("ecoute", "/labo")).toBe("/labo/entreprise?onglet=ecoute");
-        expect(destinationDeLAncre("donnees", "/labo")).toBe("/labo/base?onglet=base");
-        expect(destinationDeLAncre("apres-appel", "/labo")).toBe("/labo/base?onglet=apres-appel");
+        expect(destinationDeLAncre("donnees", "/labo")).toBe("/labo/base#base");
+        expect(destinationDeLAncre("apres-appel", "/labo")).toBe("/labo/base#apres-appel");
         for (const reste of ["organisation", "integrations", "developpeurs", ""]) expect(destinationDeLAncre(reste, "/labo"), reste).toBeNull();
     });
 });

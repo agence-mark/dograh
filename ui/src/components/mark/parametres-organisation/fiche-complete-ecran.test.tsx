@@ -131,22 +131,30 @@ const ouvrir = async (onFermer = vi.fn()) => {
 };
 const reglage = (cle: string) => document.querySelector(`[data-reglage="${cle}"]`);
 const enregistrer = () => screen.getByTestId("enregistrer-etablissements");
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+// [.mark] K4 : l'état forcé est une liste du design system (plus un <select>) : on l'ouvre et on choisit une option.
+const etatForce = () => screen.getByTestId("champ-etat-force").querySelector('[role="combobox"]') as HTMLElement;
+const choisirEtat = async (nom: RegExp) => {
+    fireEvent.pointerDown(etatForce(), { button: 0, ctrlKey: false });
+    fireEvent.click(etatForce());
+    fireEvent.click(await screen.findByRole("option", { name: nom }));
+};
 
 describe("[.mark] the fiche's immediate closing (C5)", () => {
     it("is drawn with its default, and found in the window", async () => {
         await ouvrir();
-        expect(document.getElementById("fiche-fermeture")).not.toBeNull();
-        expect(reglage("fiche.etat_force")).not.toBeNull();
-        expect(reglage("fiche.etat_force")?.textContent).toContain("Default: computed from the hours");
-        expect((document.getElementById("fiche-etat-force") as HTMLSelectElement).value).toBe("");
+        expect(screen.getByTestId("champ-etat-force")).not.toBeNull();
+        expect(etatForce().textContent).toContain("Computed from the opening hours");
         // The date only means something with a state (the server refuses it alone): not drawn without one.
-        expect(reglage("fiche.etat_force_jusqu_a")).toBeNull();
+        expect(document.getElementById("fiche-etat-force-jusqua")).toBeNull();
     });
 
     it("sends the state and its end, and clears both when it goes back to computed", async () => {
         await ouvrir();
-        fireEvent.change(document.getElementById("fiche-etat-force")!, { target: { value: "FERME" } });
-        expect(reglage("fiche.etat_force_jusqu_a")).not.toBeNull();
+        await choisirEtat(/Forced: closed/i);
+        expect(document.getElementById("fiche-etat-force-jusqua")).not.toBeNull();
         fireEvent.change(document.getElementById("fiche-etat-force-jusqua")!, { target: { value: "2026-12-26T09:00" } });
         fireEvent.click(enregistrer());
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
@@ -157,7 +165,7 @@ describe("[.mark] the fiche's immediate closing (C5)", () => {
         m.get.mockResolvedValue(catalogue({ ...CREIL, etat_force: "FERME", etat_force_jusqu_a: "2026-12-26T09:00:00" }));
         await ouvrir();
         expect((document.getElementById("fiche-etat-force-jusqua") as HTMLInputElement).value).toBe("2026-12-26T09:00");
-        fireEvent.change(document.getElementById("fiche-etat-force")!, { target: { value: "" } });
+        await choisirEtat(/Computed from the opening hours/i);
         fireEvent.click(enregistrer());
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
         expect(m.save.mock.calls[0][0].body.etablissements[0]).toMatchObject({ etat_force: null, etat_force_jusqu_a: null });

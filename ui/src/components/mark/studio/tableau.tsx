@@ -29,14 +29,23 @@ export function Tableau({ colonnes, children }: { colonnes: Colonne[]; children:
     );
 }
 
-export function Ligne({ href, onClick, children }: { href?: string; onClick?: () => void; children: React.ReactNode }) {
+/**
+ * Une ligne de tableau. [.mark] K4 : le routeur n'est lu que par une ligne qui mène à une adresse (`href`) ; une ligne qui
+ * ouvre une fenêtre (`onClick`) n'en a pas besoin, et se rend donc aussi hors de l'application (tests, fenêtres).
+ */
+function LigneLien({ href, children }: { href: string; children: React.ReactNode }) {
     const router = useRouter();
-    const actif = Boolean(href || onClick);
     return (
-        <tr
-            onClick={href ? () => router.push(href) : onClick}
-            className={actif ? "cursor-pointer hover:bg-muted/40 hover:font-medium" : ""}
-        >
+        <tr onClick={() => router.push(href)} className="cursor-pointer hover:bg-muted/40 hover:font-medium">
+            {children}
+        </tr>
+    );
+}
+
+export function Ligne({ href, onClick, children }: { href?: string; onClick?: () => void; children: React.ReactNode }) {
+    if (href) return <LigneLien href={href}>{children}</LigneLien>;
+    return (
+        <tr onClick={onClick} className={onClick ? "cursor-pointer hover:bg-muted/40 hover:font-medium" : ""}>
             {children}
         </tr>
     );

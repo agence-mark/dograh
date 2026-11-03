@@ -96,6 +96,7 @@ export const ThemeApresAppel = ({
     signaler,
     apresAppel,
     plat,
+    sansTitre,
 }: ProprietesThemeOrganisation & { apresAppel: ReturnType<typeof useApresAppel> }) => {
     const { t } = useLangue();
     const { ecran, setEcran, erreur } = apresAppel;
@@ -187,6 +188,7 @@ export const ThemeApresAppel = ({
         <Theme
             id="apres-appel"
             plat={plat}
+            sansTitre={sansTitre}
             icone={Mail}
             titre={TITRE_APRES_APPEL}
             description={{

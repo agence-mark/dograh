@@ -9,20 +9,21 @@
  *
  * Sans base rattachée, la section dit ce que le serveur répond et ne propose rien.
  */
-import { ChevronRight, Plus } from "lucide-react";
+import { Braces, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1OrganizationsObjetsReglagesPut } from "@/client/sdk.gen";
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
-import { ChampReglage } from "../ecran/ChampReglage";
-import { Intertitre } from "../ecran/Intertitre";
+import { SectionLue } from "../entreprise/section-lue";
 import { useLangue } from "../langue/langue";
+import { EtatVide } from "../studio/etat-vide";
+import { Info } from "../studio/marques";
+import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 import { CreateurVariable } from "../variables/CreateurVariable";
 import { JaugeObjet } from "./ModaleObjet";
 
@@ -56,99 +57,120 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
     const { t } = useLangue();
     const { vue, refus, relire } = useObjets();
     const [ouvert, setOuvert] = useState<ObjetAgent | "neuf" | null>(null);
-    const [plafond, setPlafond] = useState("");
-    const [erreurPlafond, setErreurPlafond] = useState<string | null>(null);
-    const [enCours, setEnCours] = useState(false);
     const enregistre = vue?.plafond_caracteres ?? 3000;
-    useEffect(() => setPlafond(String(enregistre)), [enregistre]);
     const nomDu = (id?: string | null) => etablissements.find((e) => e.id === id)?.nom ?? id;
 
-    const enregistrerPlafond = async () => {
-        const n = Number(plafond);
-        if (!Number.isInteger(n) || n < 100 || n > 50000) {
-            setErreurPlafond(t({ en: "Between 100 and 50,000 characters.", fr: "Entre 100 et 50 000 caractères." }));
+    const enregistrerPlafond = async (n: number) => {
+        const reponse = await putReglagesObjetsApiV1OrganizationsObjetsReglagesPut({ body: { plafond_caracteres: n } });
+        if (reponse.error) {
+            notifier.echec({ fr: "Le plafond n'a pas été enregistré.", en: "The ceiling was not saved." }, { erreur: detailFromError(reponse.error, "Ceiling refused") });
             return;
         }
-        setEnCours(true);
-        setErreurPlafond(null);
-        try {
-            const reponse = await putReglagesObjetsApiV1OrganizationsObjetsReglagesPut({ body: { plafond_caracteres: n } });
-            if (reponse.error) {
-                setErreurPlafond(detailFromError(reponse.error, "Ceiling refused"));
-                return;
-            }
-            notifier.succes({ fr: "Plafond enregistré.", en: "Ceiling saved." });
-            await relire();
-        } finally {
-            setEnCours(false);
-        }
+        notifier.succes({ fr: "Plafond enregistré.", en: "Ceiling saved." });
+        await relire();
     };
 
+    const genre = (o: ObjetAgent) =>
+        o.forme === "liste"
+            ? (o.colonnes ?? []).length > 1
+                ? t({ en: "Table", fr: "Tableau" })
+                : t({ en: "List", fr: "Liste" })
+            : o.type === "nombre" || o.type === "montant"
+              ? t({ en: "Number or amount", fr: "Nombre ou montant" })
+              : o.type === "oui_non"
+                ? t({ en: "Yes or no", fr: "Oui ou non" })
+                : o.type === "date"
+                  ? t({ en: "Date", fr: "Date" })
+                  : t({ en: "Word or sentence", fr: "Mot ou phrase" });
+    const contenu = (o: ObjetAgent) =>
+        o.forme === "liste"
+            ? (o.colonnes ?? []).length > 1
+                ? `${(o.lignes ?? []).length} ${t({ en: "rows", fr: "lignes" })} · ${(o.colonnes ?? []).length} ${t({ en: "columns", fr: "colonnes" })}`
+                : `${(o.lignes ?? []).length} ${t({ en: "items", fr: "éléments" })}`
+            : o.valeur || t({ en: "empty", fr: "vide" });
+
     return (
-        <Intertitre
-            id="etablissement-objets"
-            titre={{ en: "Variables", fr: "Variables" }}
-            description={{
-                en: "Business data the agent receives as {{technical name}}: a word, a number, a yes or no, a date, a list or a table. .mark creates them; the client keeps their content up to date in the portal.",
-                fr: "Des données métier que l'agent reçoit en {{nom technique}} : un mot, un nombre, un oui ou non, une date, une liste ou un tableau. .mark les crée ; le client en tient le contenu à jour dans le portail.",
-            }}
-        >
-            {refus ? (
-                <p className="text-sm text-muted-foreground" data-testid="objets-refus">
-                    {refus}
-                </p>
-            ) : !vue ? (
-                <p className="text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>
-            ) : (
-                <>
-                    <div className="space-y-2" data-testid="liste-objets">
-                        {(vue.objets ?? []).map((o) => (
-                            <button
-                                key={o.id}
-                                type="button"
-                                data-objet={o.nom}
-                                onClick={() => setOuvert(o)}
-                                className="flex w-full items-start justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:bg-muted/40"
-                            >
-                                <span className="min-w-0 flex-1 space-y-1">
-                                    <span className="block text-sm font-medium">
-                                        {o.etablissement ? `${nomDu(o.etablissement)} · ` : ""}
-                                        {o.libelle} <span className="font-mono text-xs text-muted-foreground">{`{{${o.nom}}}`}</span>
-                                    </span>
-                                    {o.description && <span className="block text-xs text-muted-foreground">{o.description}</span>}
-                                    <span className="block text-xs text-muted-foreground" data-utilise-par>
-                                        {(o.utilise_par ?? []).length > 0
-                                            ? `${t({ en: "Used by", fr: "Utilisé par" })} : ${(o.utilise_par ?? []).map((a) => a.nom).join(", ")}`
-                                            : t({ en: "Used by no agent", fr: "Utilisé par aucun agent" })}
-                                    </span>
-                                    <JaugeObjet taille={o.taille ?? 0} plafond={enregistre} />
-                                </span>
-                                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-                            </button>
-                        ))}
-                        {(vue.objets ?? []).length === 0 && (
-                            <p className="text-sm text-muted-foreground">{t({ en: "No variable yet.", fr: "Aucune variable pour l'instant." })}</p>
-                        )}
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => setOuvert("neuf")} data-testid="ajouter-objet">
-                        <Plus className="h-3.5 w-3.5" /> {t({ en: "Add a variable", fr: "Ajouter une variable" })}
+        <div id="etablissement-objets" data-section="objets">
+            <TitreTableau
+                titre={t({ en: "Variables", fr: "Variables" })}
+                info={
+                    <Info>
+                        {t({
+                            en: "Business data the agent receives as {{technical name}}: a word, a number, a yes or no, a date, a list or a table. .mark creates them; the client keeps their content up to date in the portal.",
+                            fr: "Des données métier que l'agent reçoit en {{nom technique}} : un mot, un nombre, un oui ou non, une date, une liste ou un tableau. .mark les crée ; le client en tient le contenu à jour dans le portail.",
+                        })}
+                    </Info>
+                }
+                action={
+                    <Button variant="outline" size="sm" onClick={() => setOuvert("neuf")} data-testid="ajouter-objet" disabled={!vue}>
+                        <Plus className="size-3.5" /> {t({ en: "Variable", fr: "Variable" })}
                     </Button>
-                    <ChampReglage
-                        cle="plafond_caracteres"
-                        idControle="objets-plafond"
-                        libelle={{ en: "Ceiling of one variable", fr: "Plafond d'une variable" }}
-                        aides={[{ en: "Characters of the text the agent receives; an object over it is not saved (here or in the portal).", fr: "Caractères du texte que reçoit l'agent ; un objet au-delà n'est pas enregistré (ici comme au portail)." }]}
-                        bornes={{ en: "100 to 50,000, default 3,000", fr: "100 à 50 000, 3 000 par défaut" }}
-                        erreur={erreurPlafond ? { en: erreurPlafond, fr: erreurPlafond } : null}
+                }
+            />
+            {refus ? (
+                <div data-testid="objets-refus">
+                    <EtatVide
+                        cas="premier"
+                        icone={Braces}
+                        titre={t({ en: "No database attached", fr: "Aucune base rattachée" })}
+                        info={t({ en: "Attach the client's database first (Data and automations): the variables live there.", fr: "Rattachez d'abord la base du client (Base et automatisations) : les variables y vivent." })}
+                    />
+                </div>
+            ) : !vue ? (
+                <EtatVide cas="chargement" />
+            ) : (vue.objets ?? []).length === 0 ? (
+                <EtatVide cas="premier" icone={Braces} titre={t({ en: "No variable yet", fr: "Aucune variable" })} />
+            ) : (
+                <div data-testid="liste-objets">
+                    <Tableau
+                        colonnes={[
+                            { titre: t({ en: "Variable", fr: "Variable" }) },
+                            { titre: t({ en: "Kind", fr: "Genre" }) },
+                            { titre: t({ en: "Value", fr: "Valeur" }) },
+                            { titre: t({ en: "Scope", fr: "Portée" }) },
+                            { titre: t({ en: "Used by", fr: "Utilisée par" }), droite: true },
+                        ]}
                     >
-                        <span className="flex items-center gap-2" data-reglage="plafond_caracteres">
-                            <Input id="objets-plafond" type="number" className="h-9 w-32" value={plafond} onChange={(e) => setPlafond(e.target.value)} />
-                            <Button size="sm" disabled={enCours || plafond === String(enregistre)} onClick={() => void enregistrerPlafond()} data-testid="enregistrer-plafond">
-                                {t({ en: "Save the ceiling", fr: "Enregistrer le plafond" })}
-                            </Button>
-                        </span>
-                    </ChampReglage>
-                </>
+                        {(vue.objets ?? []).map((o) => (
+                            <Ligne key={o.id} onClick={() => setOuvert(o)}>
+                                <Cellule principale sous={<span className="font-mono" data-objet={o.nom}>{`{{${o.nom}}}`}</span>}>
+                                    {o.libelle}
+                                </Cellule>
+                                <Cellule>{genre(o)}</Cellule>
+                                <Cellule>
+                                    <span className="inline-flex items-center gap-2">
+                                        {contenu(o)}
+                                        <JaugeObjet taille={o.taille ?? 0} plafond={enregistre} />
+                                    </span>
+                                </Cellule>
+                                <Cellule>{o.etablissement ? nomDu(o.etablissement) : t({ en: "the whole company", fr: "toute l'entreprise" })}</Cellule>
+                                <Cellule droite>
+                                    <span data-utilise-par>
+                                        {(o.utilise_par ?? []).length > 0
+                                            ? `${(o.utilise_par ?? []).length} ${t({ en: "agent", fr: "agent" })}${(o.utilise_par ?? []).length > 1 ? "s" : ""}`
+                                            : t({ en: "no agent", fr: "aucun agent" })}
+                                    </span>
+                                </Cellule>
+                            </Ligne>
+                        ))}
+                    </Tableau>
+                </div>
+            )}
+            {vue && (
+                <SectionLue
+                    titre={t({ en: "Ceiling of a variable", fr: "Plafond d'une variable" })}
+                    info={t({ en: "Characters of the text the agent receives; an object over it is not saved (here or in the portal).", fr: "Caractères du texte que reçoit l'agent ; un objet au-delà n'est pas enregistré (ici comme au portail)." })}
+                    lignes={[[t({ en: "Ceiling", fr: "Plafond" }), `${enregistre.toLocaleString("fr-FR")} ${t({ en: "characters", fr: "caractères" })}`]]}
+                    fenetre={{
+                        titre: t({ en: "Ceiling of a variable", fr: "Plafond d'une variable" }),
+                        sections: [{ champs: [{ id: "plafond", t: "nombre", l: t({ en: "Ceiling", fr: "Plafond" }), v: String(enregistre), min: 100, max: 50000, unite: t({ en: "characters", fr: "caractères" }), info: t({ en: "100 to 50,000, default 3,000.", fr: "100 à 50 000, 3 000 par défaut." }) }] }],
+                    }}
+                    verifier={(v) => {
+                        const n = Number(v.plafond);
+                        return Number.isInteger(n) && n >= 100 && n <= 50000 ? null : { plafond: t({ en: "Between 100 and 50,000 characters.", fr: "Entre 100 et 50 000 caractères." }) };
+                    }}
+                    onValider={(v) => void enregistrerPlafond(Number(v.plafond))}
+                />
             )}
             {ouvert && (
                 <CreateurVariable
@@ -161,6 +183,6 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                     }}
                 />
             )}
-        </Intertitre>
+        </div>
     );
 };

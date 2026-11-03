@@ -28,7 +28,6 @@
  */
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getEtablissementsApiV1OrganizationsEtablissementsGet,
@@ -45,13 +44,12 @@ import type {
     ReglagesAnnonceOuverture,
     ResultatCopieEtablissement,
 } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
-    DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -60,17 +58,17 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
-import { ChampReglage } from "../ecran/ChampReglage";
-import { Intertitre } from "../ecran/Intertitre";
+import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { type Texte, useLangue } from "../langue/langue";
 import { ETATS } from "../SectionAnnonceOuverture";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
+import { Liste } from "../studio/liste";
+import { Info } from "../studio/marques";
 import { BoutonAppliquerATous, type ReglageAppliquable } from "./BoutonAppliquerATous";
 import { FicheRendezVous } from "./FicheRendezVous";
 import { ModaleCopieFiche } from "./ModaleCopieFiche";
 import { libelleReglage, texteValeur } from "./reglages-rendez-vous";
 import { charge_utile_planificateur } from "./ThemeRendezVous";
-import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 
@@ -193,9 +191,18 @@ interface ProprietesModale {
     onFermer: (enregistre: boolean) => void;
     adresseOrganisation: AdresseEtablissement | null;
     annonceOrganisation: ReglagesAnnonceOuverture;
+    /**
+     * [.mark] K4 : la fenêtre d'UNE fiche (comme la maquette) : l'identifiant de la fiche à ouvrir, ou « nouveau ».
+     * Absent : l'ancienne fenêtre à liste (les établissements d'un coup).
+     */
+    fiche?: string | "nouveau";
 }
 
-/** F-8: the fiche's OWN field (nothing inherited): the field, its help, and what empty means. */
+/**
+ * F-8: the fiche's OWN field. [.mark] K4 (maquette) : le libellé et son « ! » (l'aide et ce que veut dire « vide »),
+ * le champ, les gestes ; plus de clé technique ni de phrase d'explication visible. Le sens de « vide » reste lisible
+ * par un lecteur d'écran (`sr-only`).
+ */
 const ChampPropre = ({
     id,
     libelle,
@@ -208,7 +215,7 @@ const ChampPropre = ({
     id: string;
     libelle: Texte;
     aide: Texte;
-    vide: Texte;
+    vide?: Texte;
     onVider?: () => void;
     /** D152: « Apply to all establishments », next to the field. */
     action?: React.ReactNode;
@@ -216,11 +223,14 @@ const ChampPropre = ({
 }) => {
     const { t } = useLangue();
     return (
-        <div className="space-y-1" data-testid={`champ-${id}`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-medium">{t(libelle)}</span>
-                <code className="text-xs text-muted-foreground">{id}</code>
-            </div>
+        <div className="space-y-2 py-3.5" data-testid={`champ-${id}`}>
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+                {t(libelle)}
+                <Info>
+                    {t(aide)}
+                    {vide ? ` ${t(vide)}` : ""}
+                </Info>
+            </p>
             {children}
             {(onVider || action) && (
                 <div className="flex flex-wrap items-center gap-2">
@@ -232,11 +242,26 @@ const ChampPropre = ({
                     {action}
                 </div>
             )}
-            <p className="text-xs text-muted-foreground">{t(aide)}</p>
-            <p className="text-xs text-muted-foreground" data-testid={`vide-${id}`}>
-                {t(vide)}
-            </p>
+            {vide && (
+                <span className="sr-only" data-testid={`vide-${id}`}>
+                    {t(vide)}
+                </span>
+            )}
         </div>
+    );
+};
+
+/** [.mark] K4 : une section de la fenêtre d'une fiche : titre en gras, champs séparés par un trait. */
+const SectionFiche = ({ titre, info, children }: { titre: Texte; info?: Texte; children: React.ReactNode }) => {
+    const { t } = useLangue();
+    return (
+        <section>
+            <p className="flex items-center gap-1.5 pb-1 text-sm font-semibold">
+                {t(titre)}
+                {info && <Info>{t(info)}</Info>}
+            </p>
+            <div className="divide-y">{children}</div>
+        </section>
     );
 };
 
@@ -245,7 +270,7 @@ const VIDE_RIEN: Texte = {
     fr: "Vide : rien pour cet établissement (rien n'est pris à l'organisation).",
 };
 
-export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation }: ProprietesModale) {
+export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation, fiche }: ProprietesModale) {
     const { t } = useLangue();
     const modifications = useDernieresModifications(ouverte);
     const [liste, setListe] = useState<Etablissement[] | null>(null);
@@ -273,6 +298,8 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     const [resultatCopie, setResultatCopie] = useState<{ nom: string; resultat: ResultatCopieEtablissement } | null>(null);
     // A copy was made while the window was open: the caller must read the list again, saved or not.
     const aCopie = useRef(false);
+    // [.mark] K4 : une fiche « nouveau » est ajoutée une seule fois, dès que la liste est lue.
+    const ajoutee = useRef(false);
 
     const charger = useCallback(async (choix?: string) => {
         const [catalogue, phrases, lecturePlanif] = await Promise.all([
@@ -312,8 +339,9 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         setChoisi(0);
         setResultatCopie(null);
         aCopie.current = false;
-        void charger();
-    }, [ouverte, charger]);
+        ajoutee.current = false;
+        void charger(fiche && fiche !== "nouveau" ? fiche : undefined);
+    }, [ouverte, charger, fiche]);
 
     const courant = liste && liste.length > 0 ? liste[Math.min(choisi, liste.length - 1)] : null;
     const modifier = (champ: Partial<Etablissement>) =>
@@ -451,27 +479,89 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         await charger(resultat.etablissement.id);
     };
 
+    // [.mark] K4 : en mode « fiche », la fiche « nouveau » est ajoutée une fois la liste lue.
+    useEffect(() => {
+        if (!ouverte || fiche !== "nouveau" || liste === null || ajoutee.current) return;
+        ajoutee.current = true;
+        ajouter();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ouverte, fiche, liste]);
+    const [retraitDemande, setRetraitDemande] = useState(false);
+    const modeFiche = fiche !== undefined;
+    const titreFenetre = modeFiche
+        ? fiche === "nouveau"
+            ? t({ en: "New establishment", fr: "Nouvel établissement" })
+            : (courant?.nom ?? "")
+        : t({ en: "Establishments", fr: "Établissements" });
+    const retirerEtEnregistrer = () => {
+        if (!courant || !liste) return;
+        const reste = liste.filter((e) => e !== courant);
+        void (async () => {
+            setEnCours(true);
+            const reponse = await saveEtablissementsApiV1OrganizationsEtablissementsPut({ body: charge_utile_etablissements(reste) });
+            setEnCours(false);
+            if (reponse.error) {
+                setErreur(detailFromError(reponse.error, "Establishments not saved"));
+                return;
+            }
+            notifier.succes({ fr: "Établissement retiré.", en: "Establishment removed." });
+            onFermer(true);
+        })();
+    };
+    const fenetreEtat = (
+        <div className="space-y-2 py-3.5" data-testid="champ-etat-force">
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+                {t({ en: "State of this establishment", fr: "État de cet établissement" })}
+                <Info>{t({ en: "Default: computed from the hours.", fr: "Défaut : calculé depuis les horaires." })}</Info>
+            </p>
+            {courant && (
+                <Liste
+                    valeur={courant.etat_force ?? ""}
+                    vide={t({ en: "Computed from the opening hours", fr: "Calculé depuis les horaires" })}
+                    options={ETATS.map((etat) => ({ valeur: etat.valeur, libelle: `${t({ en: "Forced:", fr: "Forcé :" })} ${t(etat.libelle)}` }))}
+                    taille="default"
+                    className="w-full"
+                    changer={(v) => modifier(v === "" ? { etat_force: null, etat_force_jusqu_a: null } : { etat_force: v as Etablissement["etat_force"] })}
+                />
+            )}
+        </div>
+    );
+
     return (
         <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer(aCopie.current))}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl" data-testid="modale-etablissements">
-                <DialogHeader>
-                    <DialogTitle>{t({ en: "Establishments", fr: "Établissements" })}</DialogTitle>
-                    <DialogDescription>
-                        {t({
-                            en: "One fiche per place: every call that serves it (the agent that chooses it in its theme « Business », or the number called) reads its hours, address, announcements, sentences, appointments, closing and transfer number alone, nothing is inherited. A new establishment starts from the starting values, then lives its own life. An empty announcement or sentence says nothing.",
-                            fr: "Une fiche par lieu : tout appel qui la sert (l'agent qui la choisit dans son thème « Établissement », ou le numéro appelé) en lit seuls les horaires, l'adresse, les annonces, les phrases, les rendez-vous, la fermeture et le numéro de transfert, rien n'est hérité. Un nouvel établissement part des valeurs de départ, puis vit sa vie. Une annonce ou une phrase vide ne dit rien.",
-                        })}
-                    </DialogDescription>
-                </DialogHeader>
-                {erreur && (
-                    <p className="text-sm text-destructive" role="alert" data-testid="erreur-etablissements">
-                        {erreur}
-                    </p>
-                )}
-                {liste === null ? (
-                    !erreur && <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
+            <DialogContent
+                className={`flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 ${modeFiche ? "sm:max-w-xl" : "sm:max-w-5xl"}`}
+                data-testid="modale-etablissements"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+                <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
+                    <DialogTitle className="flex items-center gap-2 text-lg">
+                        {titreFenetre}
+                        <Info>
+                            {fiche === "nouveau"
+                                ? t({
+                                      en: "A new establishment starts from the starting values, then lives its own life. An empty announcement or sentence says nothing.",
+                                      fr: "Un nouvel établissement part des valeurs de départ, puis vit sa vie. Une annonce ou une phrase vide ne dit rien.",
+                                  })
+                                : t({
+                                      en: "Every call that serves this fiche (the agent that chooses it in its theme « Business », or the number called) reads its hours, address, announcements, sentences, appointments, closing and transfer number alone, nothing is inherited. An empty announcement or sentence says nothing.",
+                                      fr: "Tout appel qui sert cette fiche (l'agent qui la choisit dans son thème « Établissement », ou le numéro appelé) en lit seuls les horaires, l'adresse, les annonces, les phrases, les rendez-vous, la fermeture et le numéro de transfert, rien n'est hérité. Une annonce ou une phrase vide ne dit rien.",
+                                  })}
+                        </Info>
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">{titreFenetre}</DialogDescription>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto bg-background px-6 py-5">
+                    {erreur && (
+                        <p className="pb-3 text-sm text-destructive" role="alert" data-testid="erreur-etablissements">
+                            {erreur}
+                        </p>
+                    )}
+                    {liste === null ? (
+                        !erreur && <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
+                    ) : (
+                        <div className={modeFiche ? "" : "grid gap-4 md:grid-cols-[14rem_1fr]"}>
+                            {!modeFiche && (
                         <div className="space-y-2">
                             <ul className="space-y-1" data-testid="liste-etablissements">
                                 {liste.map((e, i) => (
@@ -526,9 +616,9 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 </p>
                             )}
                         </div>
-
-                        {courant && (
-                            <div className="min-w-0 space-y-4" data-testid="fiche-etablissement">
+                            )}
+                            {courant && (
+                                <div className="min-w-0 space-y-8" data-testid="fiche-etablissement">
                                 {resultatCopie && (
                                     <p className="rounded border border-border bg-muted/40 p-2 text-sm" role="status" data-testid="resultat-copie">
                                         {t({ en: "Created from a copy:", fr: "Créée par copie :" })} <span className="font-medium">{resultatCopie.nom}</span>.{" "}
@@ -546,70 +636,51 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                               : t({ en: "No appointment settings to copy.", fr: "Aucun réglage de rendez-vous à copier." })}
                                     </p>
                                 )}
-                                <div className="space-y-1">
-                                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                        <label htmlFor="etablissement-nom" className="text-sm font-medium">
-                                            {t({ en: "Name", fr: "Nom" })}
-                                        </label>
-                                        <code className="text-xs text-muted-foreground">{courant.id}</code>
-                                    </div>
-                                    {/* U2 bis (E56): who wrote this fiche last, and from where (read from the journal). */}
-                                    <DerniereModificationFiche modification={modifications.parFiche[courant.id]} />
-                                    <Input
-                                        id="etablissement-nom"
-                                        value={courant.nom}
-                                        maxLength={100}
-                                        onChange={(e) => {
-                                            const nom = e.target.value;
-                                            if (idsEnregistres.includes(courant.id)) {
-                                                modifier({ nom });
-                                                return;
-                                            }
-                                            const autres = (liste ?? []).filter((x) => x !== courant).map((x) => x.id);
-                                            const id = identifiantPour(nom, autres);
-                                            suivreIdentifiant(courant.id, id);
-                                            modifier({ nom, id });
-                                        }}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        {t({ en: "Given to the agents as {{etablissement}}.", fr: "Donné aux agents comme {{etablissement}}." })}
-                                    </p>
-                                </div>
-
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <label htmlFor="etablissement-second-numero" className="text-sm font-medium">
-                                            {t({ en: "Second number", fr: "Second numéro" })}
-                                        </label>
+                                <SectionFiche
+                                    titre={{ en: "Fiche", fr: "Fiche" }}
+                                >
+                                    <div className="space-y-2 py-3.5">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium">
+<label htmlFor="etablissement-nom">{t({ en: "Name", fr: "Nom" })}</label>
+<Info>{t({ en: "Given to the agents as {{etablissement}}.", fr: "Donné aux agents comme {{etablissement}}." })}</Info>
+</div>
+                                        <DerniereModificationFiche modification={modifications.parFiche[courant.id]} />
                                         <Input
-                                            id="etablissement-second-numero"
-                                            value={courant.second_numero ?? ""}
-                                            placeholder="+33344000000"
-                                            onChange={(e) => modifier({ second_numero: e.target.value })}
+                                            id="etablissement-nom"
+                                            value={courant.nom}
+                                            maxLength={100}
+                                            onChange={(e) => {
+                                                const nom = e.target.value;
+                                                if (idsEnregistres.includes(courant.id)) {
+                                                    modifier({ nom });
+                                                    return;
+                                                }
+                                                const autres = (liste ?? []).filter((x) => x !== courant).map((x) => x.id);
+                                                const id = identifiantPour(nom, autres);
+                                                suivreIdentifiant(courant.id, id);
+                                                modifier({ nom, id });
+                                            }}
                                         />
-                                        <p className="text-xs text-muted-foreground">
-                                            {t({ en: "Reached when the agent cannot answer.", fr: "Joint quand l'agent ne peut pas répondre." })}
-                                        </p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label htmlFor="etablissement-numero-transfert" className="text-sm font-medium">
-                                            {t({ en: "Transfer number", fr: "Numéro de transfert" })}
-                                        </label>
-                                        <Input
-                                            id="etablissement-numero-transfert"
-                                            value={courant.numero_transfert ?? ""}
-                                            placeholder="+33344000000"
-                                            onChange={(e) => modifier({ numero_transfert: e.target.value })}
-                                        />
-                                        <p className="text-xs text-muted-foreground">
-                                            {t({
-                                                en: "Given to the agents as {{numero_transfert}}: write it in the transfer tool's destination.",
-                                                fr: "Donné aux agents comme {{numero_transfert}} : à écrire dans la destination de l'outil de transfert.",
-                                            })}
-                                        </p>
+                                    <div className="space-y-2 py-3.5">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium">
+<label htmlFor="etablissement-second-numero">{t({ en: "Second number", fr: "Second numéro" })}</label>
+<Info>{t({ en: "Reached when the agent cannot answer.", fr: "Joint quand l'agent ne peut pas répondre." })}</Info>
+</div>
+                                        <Input id="etablissement-second-numero" value={courant.second_numero ?? ""} placeholder="+33344000000" onChange={(e) => modifier({ second_numero: e.target.value })} />
                                     </div>
-                                </div>
-
+                                    <div className="space-y-2 py-3.5">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium">
+<label htmlFor="etablissement-numero-transfert">{t({ en: "Transfer number", fr: "Numéro de transfert" })}</label>
+<Info>
+                                                {t({
+                                                    en: "Given to the agents as {{numero_transfert}}: write it in the transfer tool's destination.",
+                                                    fr: "Donné aux agents comme {{numero_transfert}} : à écrire dans la destination de l'outil de transfert.",
+                                                })}
+                                            </Info>
+</div>
+                                        <Input id="etablissement-numero-transfert" value={courant.numero_transfert ?? ""} placeholder="+33344000000" onChange={(e) => modifier({ numero_transfert: e.target.value })} />
+                                    </div>
                                 <ChampPropre
                                     id="adresse"
                                     libelle={{ en: "Address", fr: "Adresse" }}
@@ -640,9 +711,15 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                     />
                                 </ChampPropre>
 
+
+                                </SectionFiche>
+                                <SectionFiche
+                                    titre={{ en: "Opening hours and closures", fr: "Horaires d'ouverture et fermetures" }}
+                                    info={{ en: "Same format as an agent's hours; a closure is a dated line (« 24/12/2026 : fermé »). They win over the hours of the agents that serve this establishment.", fr: "Même format que les horaires d'un agent ; une fermeture est une ligne datée (« 24/12/2026 : fermé »). Ils l'emportent sur les horaires des agents qui servent cet établissement." }}
+                                >
                                 <ChampPropre
                                     id="horaires_ouverture"
-                                    libelle={{ en: "Opening hours and closures", fr: "Horaires d'ouverture et fermetures" }}
+                                    libelle={{ en: "Hours", fr: "Horaires" }}
                                     aide={{
                                         en: "Same format as an agent's hours; a closure is a dated line (« 24/12/2026 : fermé »). They win over the hours of the agents that serve this establishment.",
                                         fr: "Même format que les horaires d'un agent ; une fermeture est une ligne datée (« 24/12/2026 : fermé »). Ils l'emportent sur les horaires des agents qui servent cet établissement.",
@@ -668,58 +745,11 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                     />
                                 </ChampPropre>
 
-                                {phrasesEtablissement.map((p) => {
-                                    const cle = `phrase:${p.variable}`;
-                                    const propre = (courant.phrases ?? {})[p.variable];
-                                    return (
-                                        <ChampPropre
-                                            key={cle}
-                                            id={p.variable}
-                                            libelle={{ en: p.description || p.variable, fr: p.description || p.variable }}
-                                            aide={{
-                                                en: `A sentence of the catalogue placed at the establishment's level, given to the agents as {{${p.variable}}}.`,
-                                                fr: `Une phrase du catalogue placée au niveau de l'établissement, donnée aux agents comme {{${p.variable}}}.`,
-                                            }}
-                                            vide={VIDE_RIEN}
-                                            action={appliquer("phrase", p.variable, { en: p.description || p.variable, fr: p.description || p.variable }, propre)}
-                                        >
-                                            <Textarea
-                                                id={`etablissement-phrase-${p.variable}`}
-                                                rows={2}
-                                                maxLength={1000}
-                                                value={propre ?? ""}
-                                                onChange={(e) => modifier({ phrases: { ...(courant.phrases ?? {}), [p.variable]: e.target.value } })}
-                                            />
-                                        </ChampPropre>
-                                    );
-                                })}
 
-                                <div className="space-y-1">
-                                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                        <label htmlFor="etablissement-termes" className="text-sm font-medium">
-                                            {t({ en: "Terms added to the trade vocabulary", fr: "Termes ajoutés au lexique métier" })}
-                                        </label>
-                                        <code className="text-xs text-muted-foreground">termes_lexique</code>
-                                    </div>
-                                    <Textarea
-                                        id="etablissement-termes"
-                                        rows={3}
-                                        placeholder={t({ en: "One brand or name per line", fr: "Une marque ou un nom par ligne" })}
-                                        value={termesSaisis[courant.id] ?? (courant.termes_lexique ?? []).map((x) => x.terme).join("\n")}
-                                        onChange={(e) => {
-                                            const texte = e.target.value;
-                                            setTermesSaisis((a) => ({ ...a, [courant.id]: texte }));
-                                            modifier({ termes_lexique: termesDepuisTexte(texte, courant.termes_lexique) });
-                                        }}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        {t({
-                                            en: "Recognised like the organization's names on this establishment's calls; a spelling already in the organization's vocabulary is ignored.",
-                                            fr: "Reconnus comme les noms de l'organisation sur les appels de cet établissement ; une orthographe déjà dans le lexique de l'organisation est ignorée.",
-                                        })}
-                                    </p>
-                                </div>
-
+                                </SectionFiche>
+                                <SectionFiche
+                                    titre={{ en: "Announcements", fr: "Annonces" }}
+                                >
                                 {(["annonce_fermeture", "annonce_pause"] as const).map((cle) => (
                                     <ChampPropre
                                         key={cle}
@@ -754,52 +784,47 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                     </ChampPropre>
                                 ))}
 
-                                <Intertitre
-                                    id="fiche-fermeture"
-                                    titre={{ en: "Immediate closing", fr: "Fermeture immédiate" }}
-                                    description={{
-                                        en: "Closes THIS fiche's agents now, whatever the hours say, and lifts itself at the date. The organization's « Close everything » closes the fiches that have no closing of their own.",
-                                        fr: "Ferme maintenant les agents de CETTE fiche, quoi que disent les horaires, et se lève à la date. Le « Tout fermer » de l'organisation ferme les fiches qui n'ont pas la leur.",
-                                    }}
-                                >
-                                    <ChampReglage
-                                        cle="fiche.etat_force"
-                                        idControle="fiche-etat-force"
-                                        libelle={{ en: "State of this establishment", fr: "État de cet établissement" }}
-                                        bornes={{ en: "Default: computed from the hours", fr: "Défaut : calculé depuis les horaires" }}
-                                    >
-                                        <select
-                                            id="fiche-etat-force"
-                                            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                                            value={courant.etat_force ?? ""}
-                                            onChange={(e) =>
-                                                modifier(
-                                                    e.target.value === ""
-                                                        ? { etat_force: null, etat_force_jusqu_a: null }
-                                                        : { etat_force: e.target.value as Etablissement["etat_force"] },
-                                                )
-                                            }
+                                {phrasesEtablissement.map((p) => {
+                                    const cle = `phrase:${p.variable}`;
+                                    const propre = (courant.phrases ?? {})[p.variable];
+                                    return (
+                                        <ChampPropre
+                                            key={cle}
+                                            id={p.variable}
+                                            libelle={{ en: p.description || p.variable, fr: p.description || p.variable }}
+                                            aide={{
+                                                en: `A sentence of the catalogue placed at the establishment's level, given to the agents as {{${p.variable}}}.`,
+                                                fr: `Une phrase du catalogue placée au niveau de l'établissement, donnée aux agents comme {{${p.variable}}}.`,
+                                            }}
+                                            vide={VIDE_RIEN}
+                                            action={appliquer("phrase", p.variable, { en: p.description || p.variable, fr: p.description || p.variable }, propre)}
                                         >
-                                            <option value="">{t({ en: "Computed from the opening hours", fr: "Calculé depuis les horaires" })}</option>
-                                            {ETATS.map((etat) => (
-                                                <option key={etat.valeur} value={etat.valeur}>
-                                                    {t({ en: "Forced:", fr: "Forcé :" })} {t(etat.libelle)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </ChampReglage>
+                                            <Textarea
+                                                id={`etablissement-phrase-${p.variable}`}
+                                                rows={2}
+                                                maxLength={1000}
+                                                value={propre ?? ""}
+                                                onChange={(e) => modifier({ phrases: { ...(courant.phrases ?? {}), [p.variable]: e.target.value } })}
+                                            />
+                                        </ChampPropre>
+                                    );
+                                })}
+
+
+                                </SectionFiche>
+                                <SectionFiche
+                                    titre={{ en: "Immediate closing", fr: "Fermeture immédiate" }}
+                                    info={{ en: "Closes THIS fiche's agents now, whatever the hours say, and lifts itself at the date. The organization's « Close everything » closes the fiches that have no closing of their own.", fr: "Ferme maintenant les agents de CETTE fiche, quoi que disent les horaires, et se lève à la date. Le « Tout fermer » de l'organisation ferme les fiches qui n'ont pas la leur." }}
+                                >
+                                    {fenetreEtat}
                                     {courant.etat_force && (
-                                        <ChampReglage
-                                            cle="fiche.etat_force_jusqu_a"
-                                            idControle="fiche-etat-force-jusqua"
+                                        <ChampPropre
+                                            id="etat_force_jusqu_a"
                                             libelle={{ en: "Until (Paris time)", fr: "Jusqu'au (heure de Paris)" }}
-                                            aides={[
-                                                {
-                                                    en: "This moment lifts the forced state by itself. Left empty, it holds until someone comes back here, and no reopening is announced.",
-                                                    fr: "Ce moment lève l'état forcé tout seul. Vide, il tient jusqu'à ce que quelqu'un revienne ici, et aucune réouverture n'est annoncée.",
-                                                },
-                                            ]}
-                                            bornes={{ en: "Default: no end date", fr: "Défaut : pas de date de fin" }}
+                                            aide={{
+                                                en: "This moment lifts the forced state by itself. Left empty, it holds until someone comes back here, and no reopening is announced.",
+                                                fr: "Ce moment lève l'état forcé tout seul. Vide, il tient jusqu'à ce que quelqu'un revienne ici, et aucune réouverture n'est annoncée.",
+                                            }}
                                         >
                                             <Input
                                                 id="fiche-etat-force-jusqua"
@@ -807,10 +832,34 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                                 value={courant.etat_force_jusqu_a ? courant.etat_force_jusqu_a.slice(0, 16) : ""}
                                                 onChange={(e) => modifier({ etat_force_jusqu_a: e.target.value || null })}
                                             />
-                                        </ChampReglage>
+                                        </ChampPropre>
                                     )}
-                                </Intertitre>
 
+                                </SectionFiche>
+                                <SectionFiche
+                                    titre={{ en: "Terms added to the trade vocabulary", fr: "Termes ajoutés au lexique métier" }}
+                                >
+                                    <ChampPropre
+                                        id="termes_lexique"
+                                        libelle={{ en: "One brand or name per line", fr: "Une marque ou un nom par ligne" }}
+                                        aide={{
+                                            en: "Recognised like the organization's names on this establishment's calls; a spelling already in the organization's vocabulary is ignored.",
+                                            fr: "Reconnus comme les noms de l'organisation sur les appels de cet établissement ; une orthographe déjà dans le lexique de l'organisation est ignorée.",
+                                        }}
+                                    >
+                                        <Textarea
+                                            id="etablissement-termes"
+                                            rows={3}
+                                            value={termesSaisis[courant.id] ?? (courant.termes_lexique ?? []).map((x) => x.terme).join("\n")}
+                                            onChange={(e) => {
+                                                const texte = e.target.value;
+                                                setTermesSaisis((a) => ({ ...a, [courant.id]: texte }));
+                                                modifier({ termes_lexique: termesDepuisTexte(texte, courant.termes_lexique) });
+                                            }}
+                                        />
+                                    </ChampPropre>
+
+                                </SectionFiche>
                                 {planificateur ? (
                                     <FicheRendezVous
                                         id={courant.id}
@@ -822,7 +871,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         }
                                     />
                                 ) : (
-                                    <Intertitre id="fiche-rendez-vous" titre={{ en: "Appointments and zone", fr: "Rendez-vous et zone" }}>
+                                    <SectionFiche titre={{ en: "Appointments and zone", fr: "Rendez-vous et zone" }}>
                                         <p className="text-sm text-muted-foreground" data-testid="fiche-rdv-sans-base">
                                             {t({
                                                 en: "The appointment rules and the zone live in the client's database: attach one in « Client data » first.",
@@ -830,10 +879,10 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                             })}
                                             {planificateurIndisponible ? ` (${planificateurIndisponible})` : ""}
                                         </p>
-                                    </Intertitre>
+                                    </SectionFiche>
                                 )}
-                            </div>
-                        )}
+                                </div>
+                            )}
                         {fautes.length > 0 && (
                             <ul className="text-sm text-destructive md:col-span-2" data-testid="fautes-etablissements">
                                 {fautes.map((f, i) => (
@@ -841,22 +890,36 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 ))}
                             </ul>
                         )}
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
                 <ModaleCopieFiche
                     ouverte={fenetreCopie}
                     fiches={liste ?? []}
                     sourceInitiale={courant?.id ?? ""}
                     onFermer={(resultat) => void copieFaite(resultat)}
                 />
-                <DialogFooter>
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-3">
+                    {modeFiche && fiche !== "nouveau" && courant && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mr-auto text-(--marque-danger-texte)"
+                            onClick={() => (retraitDemande ? retirerEtEnregistrer() : setRetraitDemande(true))}
+                            disabled={enCours}
+                            data-testid="retirer-etablissement"
+                        >
+                            <Trash2 className="size-3.5" />
+                            {retraitDemande ? t({ en: "Confirm: remove it", fr: "Confirmer le retrait" }) : t({ en: "Remove this establishment", fr: "Retirer cet établissement" })}
+                        </Button>
+                    )}
                     <Button variant="outline" onClick={() => onFermer(aCopie.current)}>
                         {t({ en: "Cancel", fr: "Annuler" })}
                     </Button>
                     <Button onClick={() => void enregistrer()} disabled={enCours || liste === null || fautes.length > 0} data-testid="enregistrer-etablissements">
                         {t({ en: "Save", fr: "Enregistrer" })}
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

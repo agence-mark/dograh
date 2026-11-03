@@ -10,7 +10,6 @@
  */
 import { Database } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getBaseClientApiV1OrganizationsBaseClientGet,
@@ -21,6 +20,7 @@ import {
     putConservationApiV1OrganizationsBaseClientConservationPut,
 } from "@/client/sdk.gen";
 import type { Conservation, EtatBaseClient } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -29,7 +29,9 @@ import { useAuth } from "@/lib/auth";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
+import { LigneLue } from "../entreprise/section-lue";
 import { type Texte, useLangue } from "../langue/langue";
+import { PointEtat } from "../studio/marques";
 import { SectionConservationAppels, useConservationAppels } from "./SectionConservationAppels";
 import { SectionListesValeurs, useListesValeurs } from "./SectionListesValeurs";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
@@ -95,6 +97,7 @@ export const ThemeDonneesClient = ({
     signaler,
     base,
     plat,
+    sansTitre,
 }: ProprietesThemeOrganisation & { base: ReturnType<typeof useBaseClient> }) => {
     const { t } = useLangue();
     const { etat, erreur, enCours, agir } = base;
@@ -132,6 +135,7 @@ export const ThemeDonneesClient = ({
         <Theme
             id="donnees"
             plat={plat}
+            sansTitre={sansTitre}
             icone={Database}
             titre={TITRE_DONNEES}
             description={{
@@ -153,7 +157,7 @@ export const ThemeDonneesClient = ({
                 <p className="text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>
             ) : (
                 <>
-                    <Intertitre id="donnees-base" titre={{ en: "Database", fr: "Base" }}>
+                    <Intertitre id="donnees-base" titre={{ en: "Client database", fr: "Base du client" }}>
                         {!etat.serveur_configure && (
                             <p className="text-sm text-destructive" data-testid="serveur-non-configure">
                                 {t({
@@ -163,19 +167,27 @@ export const ThemeDonneesClient = ({
                             </p>
                         )}
                         {rattachee ? (
-                            <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[12rem_1fr]" data-testid="etat-base-client">
-                                <dt className="text-muted-foreground">{t({ en: "Name", fr: "Nom" })}</dt>
-                                <dd className="font-mono">{etat.nom_base}</dd>
-                                <dt className="text-muted-foreground">{t({ en: "State", fr: "État" })}</dt>
-                                <dd>{etat.joignable ? t({ en: "reachable", fr: "joignable" }) : `${t({ en: "not reachable", fr: "injoignable" })}${etat.erreur ? ` : ${etat.erreur}` : ""}`}</dd>
-                                <dt className="text-muted-foreground">{t({ en: "Schema version", fr: "Version du schéma" })}</dt>
-                                <dd>
-                                    {etat.version ?? "—"} / {etat.version_attendue}
-                                    {enRetard && <span className="ml-2 text-destructive">{t({ en: "behind", fr: "en retard" })}</span>}
-                                </dd>
-                                <dt className="text-muted-foreground">{t({ en: "Last write", fr: "Dernière écriture" })}</dt>
-                                <dd>{etat.derniere_ecriture ? new Date(etat.derniere_ecriture).toLocaleString() : "—"}</dd>
-                            </dl>
+                            <div className="divide-y border-t" data-testid="etat-base-client">
+                                <LigneLue libelle={t({ en: "Name", fr: "Nom" })} valeur={<span className="font-mono text-xs">{etat.nom_base}</span>} />
+                                <LigneLue
+                                    libelle={t({ en: "State", fr: "État" })}
+                                    valeur={
+                                        <PointEtat etat={etat.joignable ? "publie" : "panne"}>
+                                            {etat.joignable ? t({ en: "reachable", fr: "joignable" }) : `${t({ en: "not reachable", fr: "injoignable" })}${etat.erreur ? ` : ${etat.erreur}` : ""}`}
+                                        </PointEtat>
+                                    }
+                                />
+                                <LigneLue
+                                    libelle={t({ en: "Schema version", fr: "Version du schéma" })}
+                                    valeur={
+                                        <>
+                                            {etat.version ?? "—"} / {etat.version_attendue}
+                                            {enRetard && <span className="ml-2 text-destructive">{t({ en: "behind", fr: "en retard" })}</span>}
+                                        </>
+                                    }
+                                />
+                                <LigneLue libelle={t({ en: "Last write", fr: "Dernière écriture" })} valeur={etat.derniere_ecriture ? new Date(etat.derniere_ecriture).toLocaleString() : "—"} />
+                            </div>
                         ) : (
                             <ChampReglage
                                 cle="nom_base"
