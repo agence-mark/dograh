@@ -5,6 +5,7 @@ import { Check, ChevronRight, Circle, Loader2, X } from "lucide-react";
 import { useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -12,6 +13,8 @@ import type { EtapeDuPlan, LigneDuFil } from "./evenements";
 
 const T = {
     plan: { en: "Plan", fr: "Plan" },
+    planInfo: { en: "The builder keeps this card up to date at every step it completes.", fr: "Le builder tient cette carte à jour à chaque étape franchie." },
+    sur: { en: "of", fr: "sur" },
     question: { en: "A question", fr: "Une question" },
     proposee: { en: "Proposed answer", fr: "Réponse proposée" },
     accepter: { en: "Use this answer", fr: "Prendre cette réponse" },
@@ -26,20 +29,33 @@ const T = {
 
 export function CarteDuPlan({ etapes }: { etapes: EtapeDuPlan[] }) {
     const { t } = useLangue();
+    const faites = etapes.filter((e) => e.etat === "fait").length;
+    // Forme de la maquette : une carte arrondie, « Plan (!) », « 4 sur 7 », la barre, une ligne par étape.
     return (
-        <section className="my-2 py-1" data-carte="plan">
-            <h4 className="mb-1 text-sm font-semibold">{t(T.plan)}</h4>
-            <ul className="space-y-1">
+        <section className="my-2 space-y-2.5 rounded-xl border bg-card px-4 py-3" data-carte="plan">
+            <div className="flex items-center">
+                <h4 className="flex flex-1 items-center gap-1.5 text-sm font-medium">
+                    {t(T.plan)}
+                    <Info>{t(T.planInfo)}</Info>
+                </h4>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                    {faites} {t(T.sur)} {etapes.length}
+                </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={etapes.length} aria-valuenow={faites}>
+                <div className="h-full rounded-full bg-(--acc)" style={{ width: `${etapes.length ? (faites / etapes.length) * 100 : 0}%` }} />
+            </div>
+            <ul className="space-y-1.5">
                 {etapes.map((e, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm" data-etat={e.etat}>
                         {e.etat === "fait" ? (
-                            <Check className="size-4 text-(--etat-fait)" />
+                            <Check className="size-4 text-(--etat-fait)" strokeWidth={2.5} />
                         ) : e.etat === "en_cours" ? (
-                            <Loader2 className="size-4 animate-spin text-(--acc)" />
+                            <Loader2 className="size-4 animate-spin" />
                         ) : (
                             <Circle className="size-4 text-muted-foreground" />
                         )}
-                        <span className={e.etat === "a_venir" ? "text-muted-foreground" : e.etat === "en_cours" ? "font-semibold" : ""}>{e.libelle}</span>
+                        <span className={e.etat === "a_venir" ? "" : e.etat === "en_cours" ? "font-medium" : "text-muted-foreground"}>{e.libelle}</span>
                     </li>
                 ))}
             </ul>

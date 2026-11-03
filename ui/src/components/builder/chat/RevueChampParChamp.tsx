@@ -17,6 +17,7 @@ import {
     restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost,
 } from "@/client";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
@@ -86,8 +87,13 @@ export function RevueChampParChamp({
             ? accepterLesChangementsApiV1BuilderFilsFilIdChangementsAccepterPost
             : refuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPost;
         const r = await appel({ path: { fil_id: filId }, body: { rangs } });
-        if (r.error) return setErreur(detailFromError(r.error, "The decision failed"));
+        if (r.error) {
+            setErreur(detailFromError(r.error, "The decision failed"));
+            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." });
+            return;
+        }
         setErreur(null);
+        notifier.succes(accepter ? { en: "Changes accepted.", fr: "Changements acceptés." } : { en: "Changes refused.", fr: "Changements refusés." });
         await charger();
         apres?.();
     };
@@ -96,8 +102,13 @@ export function RevueChampParChamp({
         if (workflowId === null) return;
         setAApercevoir(null);
         const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero } });
-        if (r.error) return setErreur(detailFromError(r.error, "The version could not be restored"));
+        if (r.error) {
+            setErreur(detailFromError(r.error, "The version could not be restored"));
+            notifier.echec({ en: "The version could not be restored. Try again.", fr: "La version n'a pas pu être restaurée. Réessayez." });
+            return;
+        }
         setErreur(null);
+        notifier.succes({ en: "Version restored.", fr: "Version restaurée." });
         await charger();
         apres?.();
     };

@@ -39,7 +39,7 @@ const T = {
     redemarrage: { en: "Stopped by a restart of the server.", fr: "Arrêtée par un redémarrage du serveur." },
     principale: { en: "Main conversation", fr: "Conversation principale" },
     lectureSeule: { en: "Read only: a sub-agent receives no message.", fr: "Lecture seule : un sous-agent ne reçoit pas de message." },
-    revoir: { en: "Review the changes", fr: "Relire les changements" },
+    revoir: { en: "See the changes", fr: "Voir les changements" },
     cacher: { en: "Hide the review", fr: "Masquer la relecture" },
     plafond: { en: "Ceiling reached: raise it in the builder settings, then resume.", fr: "Plafond atteint : relevez-le dans les réglages du builder, puis reprenez." },
 } satisfies Record<string, Texte>;
@@ -81,7 +81,7 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
     const derniereQuestion = [...lignes].reverse().find((l) => l.genre === "carte" && l.carte.type === "question");
 
     const principal = (
-        <div className={`relative flex h-[calc(100vh-8rem)] flex-col ${vu !== null ? "hidden" : ""}`}>
+        <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
             <div className="flex items-center justify-between gap-2 pb-2">
                 {lectureSeule && retour && (
                     <button type="button" className="flex cursor-pointer items-center gap-1 text-sm hover:font-semibold" onClick={retour}>
@@ -168,17 +168,26 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                         )}
                     </div>
                 ) : (
-                <div className="pointer-events-auto mx-auto max-w-3xl space-y-2 rounded-xl bg-card p-3 shadow-lg">
+                <div className="pointer-events-auto mx-auto max-w-3xl overflow-hidden rounded-2xl border bg-card shadow-lg">
                     {fil && fil.changements > 0 && (
-                        <div className="space-y-2">
-                            <button type="button" className="cursor-pointer text-sm font-semibold" onClick={() => setRevue((v) => !v)}>
-                                {fil.changements} {t(T.changements)} · {revue ? t(T.cacher) : t(T.revoir)}
-                            </button>
-                            {revue && <RevueChampParChamp filId={filId} workflowId={fil.workflow_id ?? null} apres={() => void rafraichir()} />}
+                        <div className="border-b">
+                            <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
+                                <span>
+                                    {fil.changements} {t(T.changements)}
+                                </span>
+                                <button type="button" className="cursor-pointer hover:font-semibold" onClick={() => setRevue((v) => !v)}>
+                                    {revue ? t(T.cacher) : t(T.revoir)}
+                                </button>
+                            </div>
+                            {revue && (
+                                <div className="px-3 pb-3">
+                                    <RevueChampParChamp filId={filId} workflowId={fil.workflow_id ?? null} apres={() => void rafraichir()} />
+                                </div>
+                            )}
                         </div>
                     )}
                     {fil?.etat === "arretee" && (
-                        <div className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center gap-2 px-3 pt-3 text-sm">
                             <span className="font-semibold">{t(T.arretee)}</span>
                             <Button size="sm" onClick={() => void reprendre()}>
                                 <RotateCw className="size-4" /> {t(T.reprendre)}
@@ -187,6 +196,7 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                     )}
                     <Textarea
                         rows={2}
+                        className="resize-none rounded-none border-0 px-4 shadow-none focus-visible:ring-0"
                         value={saisie}
                         placeholder={t(T.ecrire)}
                         disabled={enCours || ferme}
@@ -195,8 +205,7 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void envoi();
                         }}
                     />
-                    {ferme && <AvertissementClaudeCode />}
-                    <div className="flex justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 px-3 pb-3">
                         <ListeDesSousAgents
                             filId={filId}
                             actifDansLeChat={fil?.sous_agents_actifs ?? true}
@@ -210,13 +219,14 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                                 <Square className="size-4" /> {t(T.arreter)}
                             </Button>
                         ) : (
-                            <Button size="sm" disabled={!saisie.trim() || ferme} onClick={() => void envoi()} aria-label={t(T.envoyer)}>
-                                <ArrowUp className="size-4" /> {t(T.envoyer)}
+                            <Button size="icon" className="size-8 rounded-full" disabled={!saisie.trim() || ferme} onClick={() => void envoi()} aria-label={t(T.envoyer)} title={t(T.envoyer)}>
+                                <ArrowUp className="size-4" />
                             </Button>
                         )}
                     </div>
                 </div>
                 )}
+                {!claudeCode && !lectureSeule && ferme && <AvertissementClaudeCode className="pointer-events-auto mx-auto mt-2 max-w-3xl" />}
             </div>
         </div>
     );
@@ -265,7 +275,7 @@ function Ligne({
                             <Pencil className="size-4" />
                         </button>
                     )}
-                    <div className="max-w-[80%] rounded-xl bg-muted px-3 py-2 text-sm whitespace-pre-wrap">{ligne.texte}</div>
+                    <div className="max-w-[90%] rounded-2xl bg-foreground px-4 py-3 text-sm whitespace-pre-wrap text-background">{ligne.texte}</div>
                 </div>
             );
         case "texte":

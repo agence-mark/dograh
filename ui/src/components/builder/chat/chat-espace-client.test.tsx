@@ -7,9 +7,10 @@
  *     Les pages « Builder IA » et « Chat » d'un client montent les vrais écrans du builder et non la liste des agents ?
  *     Dans l'espace d'un client, le coût du builder n'est pas un lien vers les réglages du Labo ?
  */
-import { cleanup, render, screen } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { adressesDe } from "./adresses";
@@ -20,6 +21,7 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: fal
 vi.mock("@/components/mark/studio/nom-espace", () => ({ useNomEspace: (_e: string, org: string | null) => (org === "7" ? "Nuances de Feu" : "Labo") }));
 vi.mock("@/client", () => ({
     getWorkflowsSummaryApiV1WorkflowSummaryGet: vi.fn(async () => ({ data: [] })),
+    lireLesSourcesApiV1BuilderSourcesGet: vi.fn(async () => ({ data: { sources: { builder: "cle_api" } } })),
     lireLeCerveauApiV1BuilderCerveauGet: vi.fn(async () => ({ data: { modele: "un-modele", plafond_depense: 3 } })),
     lireLesDemarragesApiV1BuilderDemarragesGet: vi.fn(async () => ({ data: [] })),
     listerLesFilsApiV1BuilderFilsGet: vi.fn(async () => ({ data: [{ id: 9, titre: "Un chat", etat: "terminee", changements: 0, cout: 0.1 }] })),

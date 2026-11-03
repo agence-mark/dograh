@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { deciderDeLaConceptionApiV1BuilderConceptionWorkflowIdDecisionPost, lireLaConceptionApiV1BuilderConceptionWorkflowIdGet } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
@@ -79,8 +80,10 @@ export function CarteConception({ workflowId }: { workflowId: number }) {
         });
         if (reponse.error) {
             setErreur(detailFromError(reponse.error, t(T.echec)));
+            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." });
             return;
         }
+        notifier.succes(approuve ? { en: "Design approved.", fr: "Conception approuvée." } : { en: "Design sent back.", fr: "Conception renvoyée." });
         setRenvoi(false);
         setNote("");
         await charger();

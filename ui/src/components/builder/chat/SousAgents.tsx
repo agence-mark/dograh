@@ -16,9 +16,17 @@ import {
     reglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPut,
 } from "@/client";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+
+/** Une écriture de ce fichier dit son résultat (le client ne lève pas sur une erreur HTTP : on lit `error`). */
+const dire = (appel: Promise<{ error?: unknown }>, succes: { en: string; fr: string }) =>
+    appel.then((r) => {
+        if (r.error) notifier.echec({ en: "The action failed. Try again.", fr: "L'action a échoué. Réessayez." });
+        else notifier.succes(succes);
+    });
 
 const T = {
     titre: { en: "Sub-agents", fr: "Sous-agents" },
@@ -92,7 +100,7 @@ export function CarteSousAgents({
     const finis = groupe.filter((s) => !actif(s)).length;
     const cout = groupe.reduce((n, s) => n + s.cout, 0);
     const arreter = async (id: number) => {
-        await arreterUnFilApiV1BuilderFilsFilIdArreterPost({ path: { fil_id: id } });
+        await dire(arreterUnFilApiV1BuilderFilsFilIdArreterPost({ path: { fil_id: id } }), { en: "Sub-agent stopped.", fr: "Sous-agent arrêté." });
         recharger();
     };
     return (
@@ -110,7 +118,7 @@ export function CarteSousAgents({
                         size="sm"
                         variant="ghost"
                         onClick={async () => {
-                            await arreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPost({ path: { fil_id: filId } });
+                            await dire(arreterTousLesSousAgentsApiV1BuilderFilsFilIdSousAgentsArreterPost({ path: { fil_id: filId } }), { en: "Sub-agents stopped.", fr: "Sous-agents arrêtés." });
                             recharger();
                         }}
                     >
@@ -203,7 +211,7 @@ export function ListeDesSousAgents({
                             checked={actifDansLeChat}
                             aria-label={t(T.dansCeChat)}
                             onCheckedChange={async (valeur) => {
-                                await reglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPut({ path: { fil_id: filId }, body: { actif: valeur } });
+                                await dire(reglerLInterrupteurApiV1BuilderFilsFilIdSousAgentsInterrupteurPut({ path: { fil_id: filId }, body: { actif: valeur } }), valeur ? { en: "Sub-agents on for this chat.", fr: "Sous-agents activés pour ce chat." } : { en: "Sub-agents off for this chat.", fr: "Sous-agents coupés pour ce chat." });
                                 recharger();
                             }}
                         />

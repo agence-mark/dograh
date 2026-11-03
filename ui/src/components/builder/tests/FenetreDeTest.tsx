@@ -18,6 +18,7 @@ import {
     creerUnTestApiV1BuilderTestsWorkflowIdPost,
     rejouerLaSuiteApiV1BuilderTestsWorkflowIdRejouerPost,
 } from "@/client";
+import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { Info } from "@/components/mark/studio/marques";
@@ -97,6 +98,8 @@ export function FenetreDeTest({
     derniere?: { le: string; reussis: number; total: number } | null;
 }) {
     const { t, langue } = useLangue();
+    // K6 : tant que la fenêtre est ouverte, une modification de l'agent ailleurs ne la ferme pas (la saisie serait perdue).
+    useBrouillonLocal(true);
     const [sorte, setSorte] = useState<SorteDeTest>(test ? sorteDuTest(test) : "conversation");
     const [nom, setNom] = useState(test?.nom ?? "");
     const [description, setDescription] = useState(test?.description ?? "");
