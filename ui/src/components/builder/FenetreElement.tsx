@@ -203,9 +203,16 @@ export function FenetreElement({ element, nomDeFamille, utilisePar, dossiers, et
                         </p>
                     </>
                 ) : (
-                    <pre className="max-h-64 overflow-auto text-sm whitespace-pre-wrap" data-testid="contenu-courant">
-                        {JSON.stringify(courante.contenu, null, 2)}
-                    </pre>
+                    <div className="max-h-64 space-y-3 overflow-auto" data-testid="contenu-courant">
+                        {Object.entries((courante.contenu ?? {}) as Record<string, unknown>).map(([cle, valeur]) => (
+                            <div key={cle} className="space-y-1">
+                                {cle !== "texte" && <p className="text-xs text-muted-foreground">{cle}</p>}
+                                <p className="text-sm whitespace-pre-wrap">
+                                    {typeof valeur === "string" ? valeur : Array.isArray(valeur) && valeur.every((v) => typeof v === "string") ? valeur.join(" · ") : JSON.stringify(valeur, null, 2)}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 )}
                 {statut === "candidat" && (
                     <p className="sr-only" data-testid="avertissement-candidat">
