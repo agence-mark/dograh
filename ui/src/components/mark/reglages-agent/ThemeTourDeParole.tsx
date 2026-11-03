@@ -31,7 +31,7 @@
  * which writes Soniox's `endpoint_detection` (`fin-du-tour.ts`); frozen for Flux and ink-2, whose end
  * of turn is part of the model. Meant for A/B tests in a few clicks, then frozen in a settings template.
  */
-import { Repeat } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -193,7 +193,7 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
     return (
         <Theme
             id={ID_THEME_TOUR}
-            icone={Repeat}
+            icone={ArrowLeftRight}
             titre={TITRE_TOUR}
             description={{
                 en: "When the agent decides the caller has finished, and when the caller can cut it off.",

@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 
-import { lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet } from "@/client/sdk.gen";
+import { lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet, listerLesSitesApiV1OrganizationsSitesGet } from "@/client/sdk.gen";
 import type { EmplacementLu } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,14 +23,23 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
     const [emplacement, setEmplacement] = useState<EmplacementLu | null>(null);
+    const [nomDuSite, setNomDuSite] = useState<string | null>(null);
     const [refus, setRefus] = useState(false);
     const [ouvert, setOuvert] = useState(false);
 
     const lire = useCallback(async () => {
         try {
-            const reponse = await lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet({ path: { workflow_id: agentId } });
+            // Les deux lectures partent ensemble ; le nom du site est un confort : sans lui, la clé reste affichée.
+            const [reponse, sites] = await Promise.all([
+                lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet({ path: { workflow_id: agentId } }),
+                Promise.resolve()
+                    .then(() => listerLesSitesApiV1OrganizationsSitesGet())
+                    .catch(() => null),
+            ]);
             setRefus(!reponse.data);
             setEmplacement(reponse.data ?? null);
+            const site = (sites?.data ?? []).find((x) => x.id === reponse.data?.site_id);
+            setNomDuSite(site ? site.nom || site.allowed_domains?.[0] || null : null);
         } catch {
             setRefus(true);
         }
@@ -59,7 +68,7 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
     const chemins = emplacement.chemins ?? [];
     // K3 (maquette `OngletSite`) : le titre « Le module du site » avec son « ! » et le bouton, puis des lignes nues.
     const lignes: Array<[string, string, Record<string, string>]> = [
-        [t({ en: "Site", fr: "Site" }), emplacement.site_cle ?? t({ en: "No site chosen yet", fr: "Aucun site choisi" }), { "data-site-cle": "" }],
+        [t({ en: "Site", fr: "Site" }), nomDuSite ?? emplacement.site_cle ?? t({ en: "No site chosen yet", fr: "Aucun site choisi" }), { "data-site-cle": "" }],
         [t({ en: "Pages", fr: "Pages" }), chemins.length > 0 ? chemins.join(", ") : "—", { "data-chemins": "" }],
         [
             t({ en: "Script", fr: "Script" }),

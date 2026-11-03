@@ -105,7 +105,8 @@ export function WorkflowRunsTable({
     if (forme === "agent") {
         return (
             <div className="space-y-4" data-forme="appels-agent">
-                {showFilters && (
+                {/* Rien à filtrer tant qu'il n'y a aucun appel : la maquette montre alors l'état vide seul. */}
+                {showFilters && (runs.length > 0 || hasAppliedFilters) && (
                     <FilterBuilder
                         availableAttributes={availableAttributes}
                         activeFilters={activeFilters}

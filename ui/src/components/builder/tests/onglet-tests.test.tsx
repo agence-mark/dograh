@@ -150,7 +150,7 @@ describe("la liste de l'onglet", () => {
         expect(screen.getByText("2/3")).toBeTruthy();
         expect(screen.getByText(/Le numéro reste muet/)).toBeTruthy();
         expect(screen.getAllByText("–").length).toBeGreaterThan(0);
-        expect(screen.getByText("2026-10-31 11:00")).toBeTruthy();
+        expect(screen.getByText("31/10")).toBeTruthy();
         expect(screen.getAllByRole("checkbox")).toHaveLength(2);
         expect(parDossier(TESTS).map(([d]) => d)).toEqual(["Sécurité", ""]);
     });

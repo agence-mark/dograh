@@ -6,7 +6,7 @@
  * Dograh's « General » (option B of D6), the ambient noise -- its audio file
  * included -- and the speech cache.
  */
-import { Loader2, Pause, Play, Upload, Volume2, X } from "lucide-react";
+import { Loader2, Pause, Play, Upload, AudioLines, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "@/client/sdk.gen";
@@ -186,7 +186,7 @@ export const ThemeVoix = ({
     return (
         <Theme
             id={ID_THEME_VOIX}
-            icone={Volume2}
+            icone={AudioLines}
             titre={TITRE_VOIX}
             description={{ en: "How the agent's text is turned into speech.", fr: "Comment le texte de l'agent devient de la parole." }}
             resume={[

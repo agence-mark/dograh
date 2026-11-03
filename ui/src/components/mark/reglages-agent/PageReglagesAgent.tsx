@@ -15,7 +15,7 @@
  * The themes, in the order of a call: Agent, Services, Listening, Modules,
  * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Search, ShieldCheck, Volume2 } from "lucide-react";
+import { Bot, MapPin, NotebookPen, Timer, Cog, Blocks, Ear, MessageSquareQuote, Puzzle, ArrowLeftRight, Search, ShieldCheck, AudioLines } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
@@ -75,19 +75,19 @@ import { ID_THEME_VOIX, ThemeVoix, TITRE_VOIX } from "./ThemeVoix";
 /** The themes, in the order of a call (convention § 2). */
 export const THEMES_AGENT = [
     { id: ID_THEME_AGENT, titre: TITRE_AGENT, icone: Bot },
-    { id: ID_THEME_BRIQUES, titre: TITRE_BRIQUES, icone: Cpu },
+    { id: ID_THEME_BRIQUES, titre: TITRE_BRIQUES, icone: Blocks },
     { id: ID_THEME_ECOUTE, titre: TITRE_ECOUTE, icone: Ear },
     // cloture-code, F8 (M4): the modules, moved out of « Listening » and « Call data ».
     { id: ID_THEME_MODULES, titre: TITRE_MODULES, icone: Puzzle },
-    { id: ID_THEME_TOUR, titre: TITRE_TOUR, icone: Repeat },
-    { id: ID_THEME_VOIX, titre: TITRE_VOIX, icone: Volume2 },
-    { id: ID_THEME_RYTHME, titre: TITRE_RYTHME, icone: Clock },
-    { id: ID_THEME_PHRASES, titre: TITRE_PHRASES, icone: MessageSquareText },
-    { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: ClipboardList },
+    { id: ID_THEME_TOUR, titre: TITRE_TOUR, icone: ArrowLeftRight },
+    { id: ID_THEME_VOIX, titre: TITRE_VOIX, icone: AudioLines },
+    { id: ID_THEME_RYTHME, titre: TITRE_RYTHME, icone: Timer },
+    { id: ID_THEME_PHRASES, titre: TITRE_PHRASES, icone: MessageSquareQuote },
+    { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: NotebookPen },
     // builder-agent-vocal, lot 8: what our code does in the conversation, switch by switch.
     { id: ID_THEME_SECURITE, titre: TITRE_SECURITE, icone: ShieldCheck },
     { id: ID_THEME_INTERVENTIONS, titre: TITRE_INTERVENTIONS, icone: Cog },
-    { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: Building2 },
+    { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: MapPin },
 ] as const;
 
 interface ProprietesPage {

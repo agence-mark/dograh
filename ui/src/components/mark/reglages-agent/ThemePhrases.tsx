@@ -18,7 +18,7 @@
  * (`transfert_humain.phrase_mise_en_relation`), réglées avant ce thème, s'y montrent comme règles du groupe ; le
  * premier enregistrement les écrit comme règles et retire les anciennes clés (valeurs gardées).
  */
-import { MessageSquareText, Plus } from "lucide-react";
+import { MessageSquareQuote, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -313,7 +313,7 @@ export const ThemePhrases = ({
     return (
         <Theme
             id={ID_THEME_PHRASES}
-            icone={MessageSquareText}
+            icone={MessageSquareQuote}
             titre={TITRE_PHRASES}
             description={TEXTES.description}
             resume={[

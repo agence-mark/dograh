@@ -846,7 +846,7 @@ export const Reglage = ({
                         const lu = lire(brut, definition.lecture);
                         if (lu !== undefined) onChange(lu);
                     }}
-                    className={dansFenetre ? "h-8 w-24 border-transparent bg-transparent text-right text-lg font-semibold tabular-nums shadow-none" : undefined}
+                    className={dansFenetre ? "h-8 w-20 border-transparent bg-transparent px-1 text-right text-lg font-semibold tabular-nums shadow-none md:text-lg" : undefined}
                 />
             );
             if (!dansFenetre) {
@@ -969,6 +969,7 @@ export const Segments = ({
                     key={option.valeur}
                     type="button"
                     role="radio"
+                    data-valeur={option.valeur}
                     aria-checked={valeur === option.valeur}
                     disabled={desactive}
                     onClick={() => onChange(option.valeur)}

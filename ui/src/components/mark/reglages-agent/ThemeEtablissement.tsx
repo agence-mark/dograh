@@ -19,7 +19,7 @@
  * the theme is what it was. A specialised agent (`agent_principal_id`) has no menu: it serves the
  * establishment of the call.
  */
-import { Building2 } from "lucide-react";
+import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -264,7 +264,7 @@ export const ThemeEtablissement = ({
     return (
         <Theme
             id={ID_THEME_ETABLISSEMENT}
-            icone={Building2}
+            icone={MapPin}
             titre={TITRE_ETABLISSEMENT}
             description={{ en: "Hours, address and voicemail of this agent.", fr: "Horaires, adresse et messagerie vocale de cet agent." }}
             resume={[

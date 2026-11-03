@@ -61,6 +61,9 @@ import type {
     TestComplet,
 } from "./types";
 
+/** « 30/10 » : le jour et le mois, comme la maquette ; l'heure complète reste dans la fenêtre d'une exécution. */
+const jourMois = (iso?: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
+
 /** The tests grouped by folder, folders and tests in the order they come. */
 export function parDossier(tests: ResumeDeTest[]): Array<[string, ResumeDeTest[]]> {
     const groupes = new Map<string, ResumeDeTest[]>();
@@ -321,7 +324,19 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                     colonnes={[
                         { titre: "", largeur: "w-8" },
                         { titre: t({ en: "Test", fr: "Test" }) },
-                        { titre: t({ en: "Kind", fr: "Sorte" }) },
+                        {
+                            titre: (
+                                <span className="inline-flex items-center gap-1.5">
+                                    {t({ en: "Kind", fr: "Sorte" })}
+                                    <Info>
+                                        {t({
+                                            en: "Next reply and tool call are exact tests: replayed identically, they keep non-regression. The simulated conversation explores: the simulated caller varies from one attempt to the next.",
+                                            fr: "Réplique suivante et appel d'outil sont des tests exacts : rejoués à l'identique, ils gardent la non-régression. La conversation simulée explore : l'appelant simulé varie d'un essai à l'autre.",
+                                        })}
+                                    </Info>
+                                </span>
+                            ),
+                        },
                         { titre: t({ en: "Required", fr: "Obligatoire" }) },
                         { titre: t({ en: "Last result", fr: "Dernier résultat" }), droite: true },
                         { titre: t({ en: "Changed", fr: "Modifié" }), droite: true },
@@ -361,7 +376,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                                         "–"
                                     )}
                                 </Cellule>
-                                <Cellule droite>{dateCourte(l.modifie_le)}</Cellule>
+                                <Cellule droite>{jourMois(l.modifie_le)}</Cellule>
                             </Ligne>
                         ))}
                 </Tableau>

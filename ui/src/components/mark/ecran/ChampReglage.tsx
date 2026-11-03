@@ -165,7 +165,7 @@ export const ChampReglage = ({
             </div>
         );
         return (
-            <div id={`reglage-${cle}`} data-reglage={cle} data-aide={aides.map((a) => t(a)).join(" ")} className="scroll-mt-24 space-y-2 py-3.5">
+            <div id={`reglage-${cle}`} data-reglage={cle} data-aide={[...aides, ...(bornes ? [bornes] : [])].map((a) => t(a)).join(" ")} className="scroll-mt-24 space-y-2 py-3.5">
                 {disposition === "ligne" ? (
                     <div className="flex items-start gap-4">
                         {etiquetteMaquette}

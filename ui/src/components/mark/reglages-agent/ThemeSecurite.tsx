@@ -334,7 +334,7 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
                                 aria-invalid={errMots ? true : undefined}
                                 value={brouillon.jamais.mots}
                                 onChange={(e) => poser("jamais", { mots: Number(e.target.value) })}
-                                className="h-8 w-24 border-transparent bg-transparent text-right text-lg font-semibold tabular-nums shadow-none"
+                                className="h-8 w-20 border-transparent bg-transparent px-1 text-right text-lg font-semibold tabular-nums shadow-none md:text-lg"
                             />
                         </ChampReglage>
                         <ChampReglage

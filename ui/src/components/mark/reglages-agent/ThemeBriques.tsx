@@ -10,7 +10,7 @@
  * dialog (D4) -- or, switch off, our per-service override. This theme keeps
  * the buttons of what it contains (convention E6): each already saves at once.
  */
-import { Cpu, Loader2 } from "lucide-react";
+import { Blocks, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -133,7 +133,7 @@ export const ThemeBriques = ({
     return (
         <Theme
             id={ID_THEME_BRIQUES}
-            icone={Cpu}
+            icone={Blocks}
             titre={TITRE_BRIQUES}
             description={{ en: "The brain, transcription and voice of this agent.", fr: "Le cerveau, la transcription et la voix de cet agent." }}
             resume={[

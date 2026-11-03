@@ -11,7 +11,7 @@
  * (convention E4); what they send is what « General » sent: the mappings as
  * typed, the lead fields trimmed.
  */
-import { ClipboardList, Plus, Trash2Icon } from "lucide-react";
+import { NotebookPen, Plus, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -535,7 +535,7 @@ export const ThemeDonnees = ({
     return (
         <Theme
             id={ID_THEME_DONNEES}
-            icone={ClipboardList}
+            icone={NotebookPen}
             titre={TITRE_DONNEES}
             description={{ en: "What the agent writes down, and what is kept or passed on.", fr: "Ce que l'agent note, et ce qui est conservé ou transmis." }}
             resume={[
