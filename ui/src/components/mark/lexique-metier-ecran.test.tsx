@@ -630,18 +630,11 @@ describe("[.mark] le lexique, sur la page des réglages de la plateforme", () =>
     it("porte les deux cases et le budget", async () => {
         render(<PageReglagesPlateforme />);
         ouvrirOnglet("ecoute");
-        // Depuis la réorganisation de l'écran (d0bc5376), la carte vit dans le
-        // thème « écoute », fermé par défaut.
-        const entete = await waitFor(() => {
-            const bouton = document.querySelector('[data-theme="ecoute"] > button[aria-expanded], [data-theme="ecoute"][data-plat]');
-            if (!bouton) throw new Error("thème écoute absent");
-            return bouton as HTMLButtonElement;
-        });
-        if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+        // Écoute et sons est posée à plat dans son sous-onglet (forme de la maquette) : le lexique est un tableau, un
+        // clic sur un terme ouvre sa fenêtre, qui porte les deux cases.
         await screen.findByText(/212 \/ 500 tokens \(Deepgram\)/);
-        fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
-        await screen.findByLabelText("Term 1");
-        expect(screen.getByRole("switch", { name: "Listen for it 1" })).toBeTruthy();
-        expect(screen.getByRole("switch", { name: "The business offers it 1" })).toBeTruthy();
+        fireEvent.click(await screen.findByText("Edilkamin"));
+        expect(await screen.findByRole("switch", { name: /listen for it/i })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /the business offers it/i })).toBeTruthy();
     });
 });

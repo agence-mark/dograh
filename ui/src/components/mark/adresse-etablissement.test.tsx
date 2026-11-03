@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdresseEtablissement, OrganizationPreferences } from "@/client/types.gen";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
+import { lireNotifications } from "./notifications/magasin";
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
 import { SectionAdresseEtablissement } from "./SectionAdresseEtablissement";
 
@@ -239,7 +240,7 @@ const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation
 const ouvrirLeTheme = async (theme: string) => {
     ouvrirOnglet(theme);
     const entete = await waitFor(() => {
-        const trouve = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded], [data-theme="${theme}"][data-plat]`);
+        const trouve = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`);
         if (!trouve) throw new Error("page not drawn yet");
         return trouve as HTMLButtonElement;
     });
@@ -250,14 +251,15 @@ const ouvrirPlateforme = async () => {
     await ouvrirLeTheme("etablissement");
     await waitFor(() => expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull());
 };
-const ENREGISTRER = { name: "Save Establishments" };
+const ENREGISTRER = { name: "Save Whole company" };
 
 describe("[.mark] business address on the Platform Settings page", () => {
     it("is on the page, in the Business theme", async () => {
         await ouvrirPlateforme();
         expect(screen.getByText("Business address")).toBeTruthy();
         expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull();
-        expect(document.body.textContent).toMatch(/Helps recognise the towns callers name/);
+        // K1b : l'explication est dans le « ! », plus en phrase visible.
+        expect(document.body.textContent).not.toMatch(/Helps recognise the towns callers name/);
     });
 
     it("[trade vocabulary] the card is really mounted on the same page", async () => {
@@ -265,10 +267,9 @@ describe("[.mark] business address on the Platform Settings page", () => {
         // is mounted nowhere is a vocabulary nobody can fill.
         render(<PageReglagesPlateforme />);
         await ouvrirLeTheme("ecoute");
-        // 🆕 18/09 : la liste est passée dans une modale, la carte porte le résumé
-        // et le bouton qui l'ouvre.
-        expect(await screen.findByRole("button", { name: /open vocabulary/i })).toBeTruthy();
-        expect(document.body.textContent).toMatch(/0 terms/);
+        // La liste est un tableau posé dans « Écoute et sons » : sans terme, son état vide et ses boutons.
+        expect(await screen.findByText("No term yet")).toBeTruthy();
+        expect(screen.getByRole("button", { name: /^Import$/ })).toBeTruthy();
     });
 
     it("sends the chosen address with the other preferences", async () => {
@@ -380,7 +381,8 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         await ouvrirPlateforme();
         fireEvent.click(screen.getByRole("button", ENREGISTRER));
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
+        // Le retour passe par le module des notifications (plus par sonner) : un échec, et rien sous l'adresse.
+        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
         expect(screen.queryByRole("alert")).toBeNull();
     });
 });

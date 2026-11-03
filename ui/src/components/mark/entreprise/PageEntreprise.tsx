@@ -8,14 +8,14 @@
  * routage, Rendez-vous, Objets, Vérification de l'appelant, Écoute et sons. Chaque thème garde son composant, ses
  * champs et son enregistrement ; il est posé à plat dans son onglet (`plat`).
  */
-import { Fragment, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { FormeMaquette } from "../ecran/forme-maquette";
 import { useLangue } from "../langue/langue";
 import { usePreferencesOrganisation } from "../parametres-organisation/preferences";
 import type { ThemeOrganisation } from "../parametres-organisation/references/cas-organisation";
 import { useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
-import { ThemeEcouteOrganisation, ThemeEtablissementOrganisation } from "../parametres-organisation/ThemesOrganisation";
+import { ThemeEcouteOrganisation } from "../parametres-organisation/ThemesOrganisation";
 import { ThemeVerification } from "../parametres-organisation/ThemeVerification";
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
 import { OngletsPage } from "../studio/onglets-page";
@@ -31,13 +31,7 @@ type Etat = { modifie: boolean; enErreur: boolean };
 
 export const ONGLETS_ENTREPRISE = ["etablissements", "equipe", "rendez-vous", "objets", "verification", "ecoute"] as const;
 
-/**
- * `anciensThemes` : RÉSERVÉ AUX TESTS (`toutes-les-rubriques.tsx`). Monte les thèmes d'avant (réglages tous visibles) des
- * seuls Établissements, Vérification de l'appelant et Écoute et sons, pour que les tests d'inventaire prouvent qu'aucun
- * réglage n'a disparu. Équipe et Rendez-vous n'ont plus d'ancien thème (J) : leur inventaire est prouvé sur leurs
- * fenêtres (`inventaire-fenetres.test.tsx`).
- */
-export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }) {
+export function PageEntreprise() {
     const { t } = useLangue();
     const preferences = usePreferencesOrganisation();
     const annonce = useAnnonceOuverture();
@@ -54,11 +48,9 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
     const etat = (id: ThemeOrganisation) => etats[id] ?? { modifie: false, enErreur: false };
     const baseRattachee = base.etat ? Boolean(base.etat.nom_base) : null;
 
-    // Les anciens thèmes (tests d'inventaire) gardent leur forme d'avant, tous réglages visibles.
-    const Forme = anciensThemes ? Fragment : FormeMaquette;
     return (
         <PageStudio>
-            <Forme>
+            <FormeMaquette>
             <TitrePage
                 titre={t({ en: "Company", fr: "Entreprise" })}
                 info={t({
@@ -74,11 +66,7 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                         id: "etablissements",
                         titre: t({ en: "Establishments", fr: "Établissements" }),
                         ...etat("etablissement"),
-                        contenu: anciensThemes ? (
-                            <ThemeEtablissementOrganisation {...commun} preferences={preferences} annonce={annonce} sansObjets />
-                        ) : (
-                            <OngletEtablissements signaler={signaler} preferences={preferences} annonce={annonce} />
-                        ),
+                        contenu: <OngletEtablissements signaler={signaler} preferences={preferences} annonce={annonce} />,
                     },
                     {
                         id: "equipe",
@@ -106,11 +94,7 @@ export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }
                 ]}
             />
             </div>
-            </Forme>
+            </FormeMaquette>
         </PageStudio>
     );
-}
-
-export function PageEntreprise() {
-    return <PageEntrepriseAvec anciensThemes={false} />;
 }

@@ -174,7 +174,7 @@ const relever = (): AppelOrganisation[] =>
 
 const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     organisation: "Organization",
-    etablissement: "Establishments",
+    etablissement: "Whole company",
     equipe: "Team and routing",
     "rendez-vous": "Appointments",
     verification: "Caller verification",
@@ -192,7 +192,7 @@ const ouvrirLaPage = async () => {
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {
     ouvrirOnglet(theme);
-    const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
+    const entete = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     // Loaded: the fields replace « Loading... ».
     await waitFor(() => {
@@ -200,10 +200,26 @@ const ouvrirLeTheme = async (theme: ThemeOrganisation) => {
     });
 };
 
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+
+// Forme de la maquette : « Tout fermer » est une liste du design system (plus un <select>), jouée en l'ouvrant.
+const OPTION_ETAT: Record<string, RegExp> = { FERME: /forced: closed/i, PAUSE: /forced: on a break/i, "": /computed from/i };
+const choisirEtat = async (valeur: string) => {
+    const liste = document.querySelector('#reglage-etat_force [role="combobox"]') as HTMLElement;
+    fireEvent.pointerDown(liste, { button: 0, ctrlKey: false });
+    fireEvent.click(liste);
+    fireEvent.click(await screen.findByRole("option", { name: OPTION_ETAT[valeur] }));
+};
+
 const jouer = async (cas: CasOrganisation) => {
     await ouvrirLaPage();
     await ouvrirLeTheme(cas.theme);
-    for (const geste of cas.gestes) jouerGeste(geste);
+    for (const geste of cas.gestes) {
+        if (geste.type === "choisir" && geste.id === "etat_force") await choisirEtat(geste.valeur);
+        else jouerGeste(geste);
+    }
     if (!cas.enregistreSeul) {
         const nom = `Save ${TITRE_ANGLAIS[cas.theme]}`;
         const bouton = screen.getByRole("button", { name: nom }) as HTMLButtonElement;

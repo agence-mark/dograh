@@ -166,12 +166,23 @@ const ouvrirLaPage = async (enveloppe?: (n: ReactNode) => ReactNode) => {
 
 const ouvrirLeTheme = async (id: string) => {
     ouvrirOnglet(id);
-    const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded], [data-theme="${id}"][data-plat]`) as HTMLButtonElement;
+    const entete = document.querySelector(`[data-theme="${id}"] button[aria-expanded], [data-theme="${id}"][data-plat]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     await waitFor(() => {
         if (/Loading|Chargement/.test(document.getElementById(id)?.textContent ?? "")) throw new Error("still loading");
     });
     return document.getElementById(id) as HTMLElement;
+};
+
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+// Dans la fenêtre de la maquette, l'état forcé est une liste du design system (plus un <select>).
+const forcerEtat = async (nom: RegExp) => {
+    const liste = document.querySelector('#reglage-etat_force [role="combobox"]') as HTMLElement;
+    fireEvent.pointerDown(liste, { button: 0, ctrlKey: false });
+    fireEvent.click(liste);
+    fireEvent.click(await screen.findByRole("option", { name: nom }));
 };
 
 const bouton = (nom: string) => screen.getByRole("button", { name: nom }) as HTMLButtonElement;
@@ -183,13 +194,13 @@ describe("[.mark] the Platform Settings page in themes", () => {
             if ("horsEcran" in entree) continue;
             const theme = await ouvrirLeTheme(entree.theme);
             if (cle === "etat_force_jusqu_a") {
-                // Shown once a state is forced: it is, in the stored settings.
-                expect(document.getElementById("etat_force")).not.toBeNull();
+                // Shown once a state is forced.
+                await forcerEtat(/forced: closed/i);
             }
             await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), `${cle} in ${entree.theme}`).not.toBeNull());
         }
         // Reused as they are, in their themes.
-        expect((await ouvrirLeTheme("ecoute")).textContent).toMatch(/open vocabulary/i);
+        expect((await ouvrirLeTheme("ecoute")).textContent).toMatch(/No term yet/i);
         const developpeurs = await ouvrirLeTheme("developpeurs");
         expect(developpeurs.querySelector('[data-testid="mcp"]')).not.toBeNull();
         expect(developpeurs.querySelector('[data-testid="telemetrie"]')).not.toBeNull();
@@ -197,11 +208,14 @@ describe("[.mark] the Platform Settings page in themes", () => {
 
     it("[l-agent-travaille] the Establishments theme lists them and opens their modal (E4)", async () => {
         await ouvrirLaPage();
-        const theme = await ouvrirLeTheme("etablissement");
-        expect(theme.querySelector('[data-reglage="etablissements"]')).not.toBeNull();
-        expect(theme.textContent).toContain("Establishments of the organization");
-        fireEvent.click(screen.getByTestId("ouvrir-etablissements"));
-        await waitFor(() => expect(screen.getByTestId("ajouter-etablissement")).toBeTruthy());
+        // Forme de la maquette : la liste des fiches est un tableau (plus un réglage du thème), `+ Établissement` ouvre la
+        // fenêtre d'une nouvelle fiche, la reprise et les phrases ont leur bouton au-dessus du tableau.
+        ouvrirOnglet("etablissement");
+        expect(screen.getByTestId("ouvrir-reprise")).toBeTruthy();
+        expect(screen.getByTestId("ouvrir-phrases")).toBeTruthy();
+        expect(screen.getByTestId("creer-par-copie")).toBeTruthy();
+        fireEvent.click(screen.getByTestId("ajouter-etablissement"));
+        await waitFor(() => expect(document.body.textContent).toMatch(/New establishment|Nouvel établissement/i));
     });
 
     it("[agents-specialises, lot 11] « Close everything » is the old forced state, and the takeover opens its trial run", async () => {
@@ -209,10 +223,10 @@ describe("[.mark] the Platform Settings page in themes", () => {
         await ouvrirLaPage();
         const theme = await ouvrirLeTheme("etablissement");
         // The same control and the same keys (etat_force, etat_force_jusqu_a), relabelled.
-        expect(theme.querySelector('label[for="etat_force"]')?.textContent).toBe("Close everything");
+        expect(theme.querySelector('#reglage-etat_force label')?.textContent).toContain("Close everything");
         expect(theme.querySelector('[data-reglage="etat_force"]')).not.toBeNull();
         // The takeover is offered next to the establishments, and shows a trial run before writing anything.
-        expect(theme.querySelector('[data-reglage="reprise_des_fiches"]')).not.toBeNull();
+        expect(screen.getByTestId("ouvrir-reprise")).toBeTruthy();
         fireEvent.click(screen.getByTestId("ouvrir-reprise"));
         await waitFor(() => expect(screen.getByTestId("etat-reprise").textContent).toContain("Trial run, nothing written"));
         await waitFor(() => expect(m.reprise).toHaveBeenCalledWith({ body: { ecrire: false } }));
@@ -223,9 +237,9 @@ describe("[.mark] the Platform Settings page in themes", () => {
         // A PUT sent from the empty defaults would clear the whole row.
         m.getPreferences.mockReset().mockImplementation(() => new Promise(() => undefined));
         await ouvrirLaPage();
-        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Establishments"]]) {
+        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Whole company"]]) {
             ouvrirOnglet(theme);
-            const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
+            const entete = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
             fireEvent.click(entete);
             expect(bouton(`Save ${titre}`).disabled, theme).toBe(true);
         }
@@ -239,7 +253,7 @@ describe("[.mark] the Platform Settings page in themes", () => {
         const alerte = await screen.findByRole("alert");
         expect(alerte.textContent).toContain("adresse_etablissement");
         expect(alerte.textContent).toContain("Choose the town for this postal code before saving.");
-        expect(bouton("Save Establishments").disabled).toBe(true);
+        expect(bouton("Save Whole company").disabled).toBe(true);
         expect(document.querySelector('[data-onglet="etablissements"] [data-pastille="erreur"]')).not.toBeNull();
     });
 
@@ -250,13 +264,13 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
 
         // Untouched: the address alone is saved.
-        fireEvent.click(bouton("Save Establishments"));
+        fireEvent.click(bouton("Save Whole company"));
         await waitFor(() => expect(m.savePreferences).toHaveBeenCalledTimes(1));
         expect(m.saveAnnonce).not.toHaveBeenCalled();
 
         // A sentence typed over the unread one: named, and nothing saved.
         fireEvent.change(document.getElementById("annonce_fermeture")!, { target: { value: "Fermé." } });
-        await waitFor(() => expect(bouton("Save Establishments").disabled).toBe(true));
+        await waitFor(() => expect(bouton("Save Whole company").disabled).toBe(true));
         expect(document.querySelector('[data-erreur="annonce_fermeture"]')).not.toBeNull();
         expect(m.saveAnnonce).not.toHaveBeenCalled();
     });
@@ -286,10 +300,10 @@ describe("[.mark] the Platform Settings page in themes", () => {
             "Entreprise!",
             "Paramètres de la plateforme",
         ]);
-        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Établissements");
+        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Toute l'entreprise");
         const theme = await ouvrirLeTheme("etablissement");
         expect(theme.textContent).toContain("Quand l'entreprise est fermée");
-        expect(bouton("Enregistrer Établissements")).toBeTruthy();
+        expect(bouton("Enregistrer Toute l'entreprise")).toBeTruthy();
     });
 });
 
