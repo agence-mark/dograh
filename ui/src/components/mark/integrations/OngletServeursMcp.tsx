@@ -80,7 +80,7 @@ export function OngletServeursMcp() {
                                 <Cellule principale sous={texte(c, "url")}>
                                     {s.name}
                                 </Cellule>
-                                <Cellule>{texte(c, "transport") === "sse" ? "SSE" : "Streamable HTTP"}</Cellule>
+                                <Cellule>{texte(c, "transport") === "sse" ? t({ en: "SSE", fr: "SSE" }) : t({ en: "Streamable HTTP", fr: "Streamable HTTP" })}</Cellule>
                                 <Cellule droite>{liste<Decouvert>(c, "discovered_tools").length}</Cellule>
                             </Ligne>
                         );

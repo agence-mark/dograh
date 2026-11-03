@@ -90,13 +90,13 @@ export function UploadWorkflowButton() {
                 variant="outline"
             >
                 <Upload className="w-4 h-4 mr-2" />
-                Importer un agent (JSON)
+                Import an agent (JSON)
             </Button>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Importer un agent</DialogTitle>
+                        <DialogTitle>Import an agent</DialogTitle>
                     </DialogHeader>
                     <div
                         className={`mt-4 border-2 border-dashed rounded-lg p-8 text-center ${isDragging ? 'border-primary bg-primary/5' : 'border-border'
@@ -107,7 +107,7 @@ export function UploadWorkflowButton() {
                     >
                         <Upload className="w-8 h-8 mx-auto mb-4 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground mb-4">
-                            Glissez le fichier JSON de l'agent ici, ou choisissez-le.
+                            Drag the agent's JSON file here, or choose it.
                         </p>
                         <input
                             type="file"
@@ -120,7 +120,7 @@ export function UploadWorkflowButton() {
                             variant="outline"
                             onClick={() => document.getElementById('workflow-upload')?.click()}
                         >
-                            Choisir un fichier
+                            Choose a file
                         </Button>
                         {error && (
                             <p className="mt-4 text-sm text-destructive">{error}</p>

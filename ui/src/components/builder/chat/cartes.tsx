@@ -122,11 +122,11 @@ export function LigneAction({ ligne }: { ligne: Extract<LigneDuFil, { genre: "ac
                 <ChevronRight className={`size-3.5 transition-transform ${ouverte ? "rotate-90" : ""}`} />
                 <span>{ligne.nom}</span>
                 {!ligne.fini ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-label="en cours" />
+                    <Loader2 className="size-3.5 animate-spin" aria-label={t({ en: "running", fr: "en cours" })} />
                 ) : ligne.ok ? (
-                    <Check className="size-3.5 text-(--etat-fait)" aria-label="fait" />
+                    <Check className="size-3.5 text-(--etat-fait)" aria-label={t({ en: "done", fr: "fait" })} />
                 ) : (
-                    <X className="size-3.5 text-destructive" aria-label="échec" />
+                    <X className="size-3.5 text-destructive" aria-label={t({ en: "failed", fr: "échec" })} />
                 )}
             </button>
             {ouverte && (

@@ -164,10 +164,10 @@ export function WorkflowRunsTable({
                                 <div className="flex gap-2">
                                     <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
                                         <ChevronLeft className="h-4 w-4" />
-                                        Précédent
+                                        Previous
                                     </Button>
                                     <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                                        Suivant
+                                        Next
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>

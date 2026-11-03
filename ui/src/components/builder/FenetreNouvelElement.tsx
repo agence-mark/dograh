@@ -30,6 +30,9 @@ import { detailFromError } from "@/lib/apiError";
 import { ChoixEtiquettes } from "./ChoixEtiquettes";
 import { DepotDeDocument, STRUCTUREES } from "./DepotDeDocument";
 
+/** Exemple de contenu JSON : un code, jamais traduit. */
+const EXEMPLE_JSON = '{\n  "texte": ""\n}';
+
 const NOUVEAU = "__nouveau__";
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 const slugDe = (titre: string) =>
@@ -265,7 +268,7 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
                         value={texte}
                         className={structuree ? "font-mono text-xs" : ""}
                         aria-label={structuree ? t({ en: "Content (JSON)", fr: "Contenu (JSON)" }) : t({ en: "Content", fr: "Contenu" })}
-                        placeholder={structuree ? '{\n  "texte": ""\n}' : f?.fiche?.comment}
+                        placeholder={structuree ? EXEMPLE_JSON : f?.fiche?.comment}
                         onChange={(e) => setTexte(e.target.value)}
                     />
                 )}
