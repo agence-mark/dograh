@@ -44,6 +44,9 @@ async def apercu_avant_de_revenir(workflow_id: int, numero: int, user: UserModel
 
 class VueOptions(BaseModel):
     sauvegarde_avant_modification: bool = False
+    builder_coupe: bool = False
+    porte_ecran_coupee: bool = False
+    porte_claude_code_coupee: bool = False
     recette_par_defaut: str = Field(default="", max_length=64)
 
 

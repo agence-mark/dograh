@@ -33,6 +33,7 @@ from api.routes.builder_bibliotheque import router as routeur_bibliotheque
 from api.routes.builder_c2 import router as routeur_c2
 from api.routes.builder_m import router as routeur_m
 from api.routes.builder_i1 import router as routeur_i1
+from api.routes.builder_k7 import router as routeur_k7
 from api.routes.builder_contexte import router as routeur_contexte
 from api.routes.builder_fils import router as routeur_fils
 from api.services.auth.depends import get_user_with_selected_organization
@@ -54,6 +55,7 @@ router.include_router(routeur_fils)
 router.include_router(routeur_c2)
 router.include_router(routeur_m)
 router.include_router(routeur_i1)
+router.include_router(routeur_k7)
 
 NOM_CLE_DU_CERVEAU = "builder-cerveau"
 CLE_LONGUEUR = (8, 500)
@@ -101,6 +103,11 @@ def _flux(evenements: AsyncIterator[dict[str, Any]]) -> StreamingResponse:
 
 async def _cerveau_de(user: UserModel) -> tuple[Cerveau, ReglagesCerveau]:
     organisation = await reglages_cerveau.organisation_des_reglages(user)
+    # K7 : l'interrupteur du builder et la porte « Dans l'écran » (Réglages du Labo > Builder IA).
+    from api.services.builder import portes
+
+    if (refus := await portes.refus_de_l_ecran(organisation)) is not None:
+        raise HTTPException(status_code=409, detail=refus)
     reglages = await reglages_cerveau.lire(organisation)
     # U12 : sur Claude Code, le chat de l'écran n'écrit jamais à la place de la personne et ne fait aucun appel à un fournisseur.
     from api.services import sources_cerveaux
@@ -271,6 +278,7 @@ class ModificationDuCerveau(BaseModel):
     adresse: str = Field(default="", max_length=500)
     plafond_depense: float = Field(default=2.0, ge=0)
     plafond_jetons: int = Field(default=1_500_000, ge=1000)
+    plafond_mois: float = Field(default=0.0, ge=0)
     prix_entree_par_million: float = Field(default=0.0, ge=0)
     prix_sortie_par_million: float = Field(default=0.0, ge=0)
     plafond_rejeu_depense: float = Field(default=1.0, ge=0)

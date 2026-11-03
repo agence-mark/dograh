@@ -10,7 +10,7 @@ from typing import Any
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from api.db.base_client import BaseDBClient
 from api.db.models_builder import MarkBuilderConversationModel, MarkBuilderEvenementModel, MarkModificationModel
@@ -93,6 +93,21 @@ class BuilderFilClient(BaseDBClient):
                 .values(**champs)
             )
             await session.commit()
+
+    async def somme_des_couts_depuis(self, depuis: datetime) -> float:
+        """K7 : la dépense du builder depuis ``depuis``, toutes organisations (le coût du builder est celui de .mark). Les conversations
+        de premier niveau seulement : un sous-agent est déjà compté dans son parent. Une conversation compte en entier dès qu'elle a
+        bougé dans la période (on surestime plutôt que de laisser passer un plafond)."""
+        async with self.async_session() as session:
+            total = (
+                await session.execute(
+                    select(func.coalesce(func.sum(MarkBuilderConversationModel.cout), 0.0)).where(
+                        MarkBuilderConversationModel.parent_id.is_(None),
+                        MarkBuilderConversationModel.modifie_le >= depuis,
+                    )
+                )
+            ).scalar_one()
+            return float(total or 0.0)
 
     async def supprimer_fil(self, organization_id: int, fil_id: int) -> bool:
         """Supprime la conversation et, par cascade de la base, ses événements et ses sous-agents. Bornée à l'organisation (R0)."""

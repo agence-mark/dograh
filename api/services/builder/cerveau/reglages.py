@@ -38,6 +38,8 @@ class ReglagesPublics(BaseModel):
     # Plafonds par conversation : dépense en dollars (si les prix sont connus) ET jetons (toujours).
     plafond_depense: float = Field(default=2.0, ge=0)
     plafond_jetons: int = Field(default=1_500_000, ge=1000)
+    # K7 : plafond de dépense du builder pour tout le Labo sur le mois civil (UTC). 0 = aucun plafond (éteint par défaut).
+    plafond_mois: float = Field(default=0.0, ge=0)
     prix_entree_par_million: float = Field(default=0.0, ge=0)
     prix_sortie_par_million: float = Field(default=0.0, ge=0)
     # Plafonds par rejeu de la suite (C2) : appelant simulé et juge, la suite s'arrête et la question remonte à la personne.

@@ -91,3 +91,102 @@ async def test_supprimer_garde_fous(db_session, sans_preparation_des_organisatio
         assert (await c.delete(f"{B}/fils/{enfant.id}", headers=entetes(jeton, org))).status_code == 409
         assert (await c.put(f"{B}/fils/{enfant.id}/titre", json={"titre": "x"}, headers=entetes(jeton, org))).status_code == 409
     assert await db_client.lire_fil(org, fil["id"]) is not None
+
+
+# --- Réglages du Labo > Builder IA : les vraies données ------------------------------------------------------------------------------
+
+from datetime import UTC, datetime, timedelta  # noqa: E402
+
+from api.services.builder import depense, options, stock  # noqa: E402
+from api.services.builder.actions.registre import PORTE_MCP, REGISTRE, Contexte, executer  # noqa: E402
+from api.services.builder.bibliotheque import service as bibliotheque  # noqa: E402
+from api.services.builder.cerveau.reglages import ReglagesCerveau  # noqa: E402
+
+
+async def le_labo(db_session, monkeypatch, nom):
+    org, user, jeton, agent = await decor(db_session, nom)
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org))
+    return org, user, jeton, agent
+
+
+def donner_avec_plafond(monkeypatch, cerveau, plafond_mois):
+    monkeypatch.setattr(
+        "api.routes.builder._cerveau_de", AsyncMock(return_value=(cerveau, ReglagesCerveau(modele="m", plafond_mois=plafond_mois)))
+    )
+
+
+async def test_la_vue_des_cerveaux_lit_les_vraies_donnees(db_session, sans_preparation_des_organisations, monkeypatch):
+    org, _user, jeton, _agent = await le_labo(db_session, monkeypatch, "k7g")
+    await bibliotheque.creer("methode-builder", "methode", "Méthode du builder", {"texte": "La méthode."}, "test")
+    async with client_http() as c:
+        r = await c.get(f"{B}/cerveaux", headers=entetes(jeton, org))
+        assert r.status_code == 200, r.text
+        vue = r.json()
+        assert vue["builder"]["prompt"]["slug"] == "methode" and vue["builder"]["prompt"]["version"] == 1
+        assert vue["builder"]["prompt"]["statut"] == "candidat" and vue["builder"]["prompt"]["titre"] == "Méthode du builder"
+        # L'appelant et le juge : élément absent de la bibliothèque, le texte du code sert de secours (titre vide).
+        assert vue["appelant"]["prompt"]["titre"] is None and vue["juge"]["prompt"]["slug"] == "grille-juge"
+        recu = {x["cle"]: x["present"] for x in vue["builder"]["recoit"]}
+        assert recu["conventions"] is False and recu["preferences"] is False and recu["recettes_a_la_demande"] is True
+        # Les portes comptent les actions du registre de chaque porte.
+        assert vue["portes"]["ecran"] == {"ouverte": True, "actions": len([a for a in REGISTRE.values() if a.moteur])}
+        assert vue["portes"]["claude_code"]["actions"] == len([a for a in REGISTRE.values() if a.mcp])
+        assert vue["builder_actif"] is True and vue["plafond_du_mois"] == 0 and vue["depense_du_mois"] == 0
+        assert vue["limites_du_juge"]["passes_max"] == 3 and vue["limites_du_juge"]["accord_min"] == 0.8
+        # Réservé à l'équipe : un compte d'une autre organisation n'y lit rien.
+        autre_org, _u, autre_jeton, _a = await decor(db_session, "k7h")
+        assert (await c.get(f"{B}/cerveaux", headers=entetes(autre_jeton, autre_org))).status_code in (403, 404)
+
+
+async def test_l_interrupteur_et_les_portes_sont_eteints_par_defaut_puis_coupent(db_session, sans_preparation_des_organisations, monkeypatch):
+    org, user, jeton, agent = await le_labo(db_session, monkeypatch, "k7i")
+    ctx_mcp = Contexte(user=user, workflow_id=agent.id, porte=PORTE_MCP)
+    ctx_ecran = Contexte(user=user, workflow_id=agent.id)
+    # Par défaut : rien n'est coupé.
+    assert (await options.lire(org)) == options.Options()
+    assert (await executer("fiche_lire", {}, ctx_mcp)).get("code") != "porte_coupee"
+    async with client_http() as c:
+        # Porte de Claude Code coupée : l'écran continue, le MCP est refusé.
+        assert (await c.put(f"{B}/options", json={"porte_claude_code_coupee": True}, headers=entetes(jeton, org))).status_code == 200
+        assert (await executer("fiche_lire", {}, ctx_mcp))["code"] == "porte_coupee"
+        assert (await executer("fiche_lire", {}, ctx_ecran)).get("code") != "porte_coupee"
+        # Porte de l'écran coupée : les actions de l'écran sont refusées et le chat ne s'ouvre plus (409, avant tout cerveau).
+        await c.put(f"{B}/options", json={"porte_ecran_coupee": True}, headers=entetes(jeton, org))
+        assert (await executer("fiche_lire", {}, ctx_ecran))["code"] == "porte_coupee"
+        r = await c.post(f"{B}/fils", json={"message": "x", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert r.status_code == 409 and "door" in r.json()["detail"]
+        # L'interrupteur du builder coupe les deux portes d'un coup, et la vue le dit.
+        await c.put(f"{B}/options", json={"builder_coupe": True}, headers=entetes(jeton, org))
+        assert (await executer("fiche_lire", {}, ctx_mcp))["code"] == "porte_coupee"
+        vue = (await c.get(f"{B}/cerveaux", headers=entetes(jeton, org))).json()
+        assert vue["builder_actif"] is False and vue["portes"]["ecran"]["ouverte"] is False and vue["portes"]["claude_code"]["ouverte"] is False
+        # Rallumé : tout repart.
+        await c.put(f"{B}/options", json={}, headers=entetes(jeton, org))
+    assert (await executer("fiche_lire", {}, ctx_mcp)).get("code") != "porte_coupee"
+
+
+async def test_le_plafond_du_mois_refuse_de_demarrer_une_fois_atteint(db_session, sans_preparation_des_organisations, monkeypatch):
+    org, user, jeton, agent = await le_labo(db_session, monkeypatch, "k7j")
+    fil = await db_client.creer_fil(org, user.id, agent.id, "Ce mois-ci", None)
+    await db_client.modifier_fil(org, fil.id, cout=3.5)
+    assert round(await depense.du_mois(org), 2) == 3.5
+    assert await db_client.somme_des_couts_depuis(datetime.now(UTC) + timedelta(days=1)) == 0  # rien avant la période : ne compte pas
+    async with client_http() as c:
+        # Sans plafond (0 = aucun) : le chat démarre.
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("ok"))), 0.0)
+        r = await c.post(f"{B}/fils", json={"message": "un", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert r.status_code == 200, r.text
+        await service_fil.attendre(r.json()["id"])
+        # Plafond à 3 $ avec 3,5 $ déjà dépensés : refusé, en une phrase.
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("non"))), 3.0)
+        r = await c.post(f"{B}/fils", json={"message": "deux", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert r.status_code == 409 and "monthly ceiling" in r.json()["detail"]
+        # Le plafond posé par la route du cerveau est lu par la vue.
+        await stock.ecrire(org, "MARK_BUILDER_CERVEAU", ReglagesCerveau(modele="m", plafond_mois=3.0).model_dump(mode="json"))
+        vue = (await c.get(f"{B}/cerveaux", headers=entetes(jeton, org))).json()
+        assert vue["plafond_du_mois"] == 3.0 and vue["depense_du_mois"] >= 3.5
+        # Plafond relevé : le chat repart.
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("oui"))), 100.0)
+        r = await c.post(f"{B}/fils", json={"message": "trois", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert r.status_code == 200
+        await service_fil.attendre(r.json()["id"])
