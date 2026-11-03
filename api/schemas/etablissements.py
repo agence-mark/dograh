@@ -399,3 +399,17 @@ class DemandeEtatFiche(BaseModel):
         default=None,
         description="When the forced state lifts itself, Paris time. ``null``: until changed.",
     )
+
+
+class DerniereModification(BaseModel):
+    """[.mark] Builder partie 2 (U2 bis, E56) : qui a écrit une fiche en dernier, et d'où.
+
+    Lu dans le journal de la base du client, jamais stocké à part. ``origine`` : « portail » si l'écriture est
+    faite par le portail avec la clé de l'organisation (``X-Mark-Auteur``), « dograh » pour un compte de l'équipe
+    sur l'écran. ``auteur`` : le nom donné par le portail ; vide pour Dograh (le journal ne garde que l'identifiant
+    du compte, jamais un nom ni une adresse)."""
+
+    id: str
+    origine: Literal["portail", "dograh"]
+    auteur: str | None = None
+    le: datetime
