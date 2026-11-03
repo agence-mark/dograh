@@ -11,7 +11,7 @@
 import { FileDiff, FileText } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { WorkflowVersionDiffDialog } from "@/app/workflow/[workflowId]/components/WorkflowVersionDiffDialog";
 import { getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from "@/client/sdk.gen";
@@ -19,7 +19,6 @@ import type { WorkflowVersionResponse } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
 
@@ -108,23 +107,22 @@ export function PageVersions({ agentId }: { agentId: number }) {
                 query: { limit: 2, offset: page * PAR_PAGE + rang },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(T.echecComparaison)));
+                notifier.echec({ fr: "Comparaison impossible. Réessayez.", en: "Could not compare. Try again." }, { erreur: reponse.error });
                 return;
             }
             const [choisie, precedente] = reponse.data ?? [];
             // Un brouillon créé entre-temps décale tous les rangs : on recharge plutôt que de comparer deux autres versions.
             if (!choisie || choisie.id !== version.id) {
                 await charger();
-                toast.error(t(T.historiqueChange));
                 return;
             }
             if (!precedente || precedente.version_number >= choisie.version_number) {
-                toast.error(`v${choisie.version_number} ${t(T.sansPrecedente)}`);
+                notifier.information({ fr: `La version ${choisie.version_number} n'a pas de version précédente.`, en: `Version ${choisie.version_number} has no previous version.` });
                 return;
             }
             setPaire({ previousVersion: precedente, selectedVersion: choisie });
         } catch {
-            toast.error(t(T.echecComparaison));
+            notifier.echec({ fr: "Comparaison impossible. Réessayez.", en: "Could not compare. Try again." });
         } finally {
             setEnComparaison(null);
         }

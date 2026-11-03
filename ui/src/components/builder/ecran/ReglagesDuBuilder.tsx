@@ -8,7 +8,7 @@
  * empty field leaves the saved key alone. Only members of the .mark team may change the brain (the server decides).
  */
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
@@ -102,7 +102,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
         setOccupe(false);
         setCle("");
         setLus(reponse.data ?? null);
-        toast.success(t(T.enregistre));
+        notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
     };
 
     return (

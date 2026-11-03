@@ -10,7 +10,7 @@
  */
 import { FileUp, LayoutTemplate } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     exporterUnModeleApiV1OrganizationsModelesDeReglagesModeleIdExportGet,
@@ -23,7 +23,6 @@ import type { FichierDeModele, ListeDesModeles, ResumeDuModele } from "@/client/
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 import { useLangue } from "../../langue/langue";
 import { EtatVide } from "../../studio/etat-vide";
@@ -75,17 +74,17 @@ export const PageModelesDeReglages = () => {
         try {
             corps = JSON.parse(await fichier.text());
         } catch {
-            toast.error(t({ en: "This file is not a settings template.", fr: "Ce fichier n'est pas un modèle de réglages." }));
+            notifier.echec({ fr: "Ce fichier n'est pas un modèle de réglages.", en: "This file is not a settings template." });
             return;
         }
         // Le fichier part tel quel : le serveur nomme le réglage qu'il refuse.
         const reponse = await importerUnModeleApiV1OrganizationsModelesDeReglagesImportPost({ body: corps as never });
         if (fichierImport.current) fichierImport.current.value = "";
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+            notifier.echec({ fr: "Modèle non importé. Réessayez.", en: "Template not imported. Try again." }, { erreur: reponse.error });
             return;
         }
-        toast.success(t({ en: "Template imported.", fr: "Modèle importé." }));
+        notifier.succes({ fr: "Modèle importé.", en: "Template imported." });
         await charger();
     };
 
@@ -209,7 +208,7 @@ const FicheDuModele = ({
         const reponse = await renommerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdPatch({ path: { modele_id: modele.id }, body: { nom } });
         setEnCours(false);
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+            notifier.echec({ fr: "Modèle non modifié. Réessayez.", en: "Template not changed. Try again." }, { erreur: reponse.error });
             return;
         }
         await onChange();
@@ -220,10 +219,10 @@ const FicheDuModele = ({
         const reponse = await supprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDelete({ path: { modele_id: modele.id } });
         setEnCours(false);
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+            notifier.echec({ fr: "Modèle non supprimé. Réessayez.", en: "Template not deleted. Try again." }, { erreur: reponse.error });
             return;
         }
-        toast.success(t({ en: "Template deleted. The agents already set keep their settings.", fr: "Modèle supprimé. Les agents déjà réglés gardent leurs réglages." }));
+        notifier.succes({ fr: "Modèle supprimé. Les agents déjà réglés gardent leurs réglages.", en: "Template deleted. Agents already set keep their settings." });
         await onSupprime();
     };
 

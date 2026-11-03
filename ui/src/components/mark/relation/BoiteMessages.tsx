@@ -2,7 +2,7 @@
 
 import { Inbox, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     lireFilApiV1RelationClientsOrganizationIdFilsFilIdGet,
@@ -18,7 +18,6 @@ import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 
 import { ETATS_DEMANDE, MarqueEtat, quand } from "./commun";
 
@@ -137,7 +136,7 @@ function Conversation({ organisation, id, onChange }: { organisation: number; id
     const lire = useCallback(() => {
         lireFilApiV1RelationClientsOrganizationIdFilsFilIdGet({ path: { organization_id: organisation, fil_id: id } }).then((res) => {
             if (res.data) setFil(res.data);
-            else toast.error(detailFromError(res.error, t({ en: "The thread could not be read", fr: "Le fil n'a pas pu être lu" })));
+            else notifier.echec({ fr: "Fil illisible. Rechargez la page.", en: "Could not load the thread. Reload the page." }, { erreur: res.error });
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [organisation, id]);
@@ -145,7 +144,7 @@ function Conversation({ organisation, id, onChange }: { organisation: number; id
 
     const changer = async (corps: { etat?: "nouveau" | "en_cours" | "repondu" | "clos"; suivi?: "moi" | "personne"; etat_demande?: "nouvelle" | "proposee" | "a_coder" | "refusee" }) => {
         const res = await modifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatch({ path: { organization_id: organisation, fil_id: id }, body: corps });
-        if (res.error) return toast.error(detailFromError(res.error, t({ en: "Change failed", fr: "Modification impossible" })));
+        if (res.error) return notifier.echec({ fr: "Modification impossible. Réessayez.", en: "Could not change. Try again." }, { erreur: res.error });
         lire();
         onChange();
     };
@@ -158,7 +157,7 @@ function Conversation({ organisation, id, onChange }: { organisation: number; id
             body: { cote: onglet, texte },
         });
         setEnvoi(false);
-        if (res.error) return toast.error(detailFromError(res.error, t({ en: "Message not sent", fr: "Message non envoyé" })));
+        if (res.error) return notifier.echec({ fr: "Message non envoyé. Réessayez.", en: "Message not sent. Try again." }, { erreur: res.error, reessayer: () => void envoyer() });
         setTexte("");
         lire();
         onChange();

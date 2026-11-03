@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FournisseurLangue } from "../../langue/langue";
 import { BoutonModeles, TITRES_DES_SECTIONS } from "./ModaleModeles";
 import { PageModelesDeReglages } from "./PageModelesDeReglages";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const m = vi.hoisted(() => {
     const etat = {
@@ -81,6 +82,8 @@ const ouvrirLaModale = async (props: { modifie?: boolean; apres?: () => void; mo
 };
 
 beforeEach(() => {
+
+  viderNotifications();
     m.liste = { modeles: [MODELE], sections: SECTIONS };
     m.mention = null;
     m.reglees = [];
@@ -285,21 +288,19 @@ describe("[.mark] settings templates on screen", () => {
     it("sends an imported file as it is, and shows the server's refusal with the setting's name", async () => {
         const fichier = { format: "modele-de-reglages-mark", version_du_format: 1, nom: "Importe", valeurs: { reglage_inconnu: 1 } };
         m.refusImport = { detail: [{ msg: "Setting « reglage_inconnu » refused: this server does not know it.", loc: ["body", "valeurs", "reglage_inconnu"] }] };
-        const { toast } = await import("sonner");
         await ouvrirLaModale();
         const champ = document.querySelector("[data-import-modele]") as HTMLInputElement;
         fireEvent.change(champ, { target: { files: [new File([JSON.stringify(fichier)], "modele.json", { type: "application/json" })] } });
         await waitFor(() => expect(appelsDe("importer")).toHaveLength(1));
         expect(appelsDe("importer")[0].body).toEqual(fichier);
-        await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("reglage_inconnu")));
+        await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toEqual(expect.arrayContaining([expect.stringContaining("reglage_inconnu")])));
     });
 
     it("refuses a file that is not JSON without asking the server", async () => {
-        const { toast } = await import("sonner");
         await ouvrirLaModale();
         const champ = document.querySelector("[data-import-modele]") as HTMLInputElement;
         fireEvent.change(champ, { target: { files: [new File(["pas du json"], "x.json")] } });
-        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
         expect(appelsDe("importer")).toHaveLength(0);
     });
 });

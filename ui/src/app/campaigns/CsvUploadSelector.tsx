@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import { getPresignedUploadUrlApiV1S3PresignedUploadUrlPost } from '@/client/sdk.gen';
 import { Button } from '@/components/ui/button';
@@ -26,13 +26,13 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
     // Validate file type
     if (!file.name.endsWith('.csv')) {
-      toast.error('Please select a CSV file');
+      notifier.echec({ fr: "Choisissez un fichier CSV.", en: "Choose a CSV file." });
       return;
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      toast.error('File size must be less than 10MB');
+      notifier.echec({ fr: "Fichier trop lourd : 10 Mo au maximum.", en: "File too large: 10 MB maximum." });
       return;
     }
 
@@ -74,10 +74,10 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
       // Step 3: Notify parent with file_key
       onFileUploaded(presignedData.file_key, file.name);
-      toast.success(`File uploaded: ${file.name}`);
+      notifier.succes({ fr: `Fichier « ${file.name} » envoyé.`, en: `File "${file.name}" uploaded.` });
     } catch (error) {
       logger.error('Error uploading CSV:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload CSV file');
+      notifier.echec({ fr: "Envoi impossible. Vérifiez le fichier et réessayez.", en: "Upload failed. Check the file and try again." }, { erreur: error, reessayer: () => fileInputRef.current?.click() });
     } finally {
       setUploading(false);
       setUploadProgress(0);

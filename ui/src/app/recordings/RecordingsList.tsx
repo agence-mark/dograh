@@ -2,7 +2,7 @@
 
 import { AudioLines, Check, Pause, Pencil, Play, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete,
@@ -58,31 +58,38 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
         fetchRecordings();
     }, [fetchRecordings, refreshKey]);
 
-    const handleDelete = async (recordingId: string) => {
-        if (!confirm("Are you sure you want to delete this recording?")) return;
-
-        try {
-            const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
-                path: { recording_id: recordingId },
-            });
-
-            if (response.error) {
-                throw new Error("Failed to delete recording");
-            }
-
-            toast.success("Recording deleted");
-            fetchRecordings();
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to delete recording");
-            logger.error("Error deleting recording:", err);
-        }
+    // Suppression différée de 5 s (« Annuler ») : l'enregistrement disparaît de la liste, le serveur n'est appelé
+    // qu'ensuite. Remplace la confirmation avant.
+    const [masques, setMasques] = useState<string[]>([]);
+    const handleDelete = (recordingId: string) => {
+        setMasques((m) => [...m, recordingId]);
+        const remettre = () => setMasques((m) => m.filter((x) => x !== recordingId));
+        notifier.annulable(
+            { fr: "Enregistrement supprimé.", en: "Recording deleted." },
+            {
+                restaurer: remettre,
+                executer: async () => {
+                    try {
+                        const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
+                            path: { recording_id: recordingId },
+                        });
+                        if (response.error) throw response.error;
+                        void Promise.resolve(fetchRecordings()).finally(remettre);
+                    } catch (err) {
+                        remettre();
+                        notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: err });
+                        logger.error("Error deleting recording:", err);
+                    }
+                },
+            },
+        );
     };
 
     const handlePlay = async (rec: RecordingResponseSchema) => {
         try {
             await togglePlayback(rec.recording_id, rec.storage_key, rec.storage_backend);
         } catch {
-            toast.error("Failed to play recording");
+            notifier.echec({ fr: "Lecture impossible. Réessayez.", en: "Could not play the recording. Try again." });
         }
     };
 
@@ -125,7 +132,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
                 throw new Error(errData?.detail || "Failed to update recording ID");
             }
 
-            toast.success(`Recording ID updated to "${newId}". All workflow references have been updated.`);
+            notifier.succes({ fr: `Identifiant changé en « ${newId} ». Les agents concernés sont à jour.`, en: `ID changed to "${newId}". Affected agents are up to date.` });
             cancelEditing();
             fetchRecordings();
         } catch (err) {
@@ -134,6 +141,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
     };
 
     const filteredRecordings = recordings.filter((rec) => {
+        if (masques.includes(rec.recording_id)) return false;
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         const filename = (rec.metadata?.original_filename as string) || "";

@@ -17,7 +17,7 @@
  */
 import { ChevronDown, Download, FileUp, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     appliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPost,
@@ -218,14 +218,14 @@ export const ModaleModeles = ({
         try {
             const reponse = await action();
             if (reponse?.error) {
-                toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+                notifier.echec({ fr: "Modèle non enregistré. Réessayez.", en: "Template not saved. Try again." }, { erreur: reponse.error });
                 return false;
             }
-            if (succes) toast.success(succes);
+            if (succes) notifier.succes({ fr: "Modèle enregistré.", en: "Template saved." });
             await charger();
             return true;
         } catch {
-            toast.error(t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
+            notifier.echec({ fr: "Pas de réponse du serveur. Réessayez.", en: "No answer from the server. Try again." });
             return false;
         } finally {
             setEnCours(false);
@@ -275,7 +275,7 @@ export const ModaleModeles = ({
         try {
             corps = JSON.parse(await lireFichier(fichier));
         } catch {
-            toast.error(t({ en: "This file is not a settings template.", fr: "Ce fichier n'est pas un modèle de réglages." }));
+            notifier.echec({ fr: "Ce fichier n'est pas un modèle de réglages.", en: "This file is not a settings template." });
             return;
         }
         await geste(
@@ -564,13 +564,13 @@ const VueApplication = ({
                 body: { workflow_id: workflowId, sections: cochees, a_blanc: false },
             });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+                notifier.echec({ fr: "Modèle non appliqué. Réessayez.", en: "Template not applied. Try again." }, { erreur: reponse.error });
                 return;
             }
-            toast.success(t({ en: "Template applied to the draft.", fr: "Modèle appliqué au brouillon." }));
+            notifier.succes({ fr: "Modèle appliqué au brouillon.", en: "Template applied to the draft." });
             onFait();
         } catch {
-            toast.error(t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
+            notifier.echec({ fr: "Pas de réponse du serveur. Réessayez.", en: "No answer from the server. Try again." });
         } finally {
             setEnCours(false);
         }

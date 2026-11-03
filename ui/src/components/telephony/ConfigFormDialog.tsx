@@ -2,7 +2,8 @@
 
 import { Copy, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 
 import {
   createTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPost,
@@ -108,6 +109,9 @@ export function ConfigFormDialog({
   const [providers, setProviders] = useState<TelephonyProviderMetadata[]>([]);
   const [providerName, setProviderName] = useState<string>("");
   const [name, setName] = useState<string>("");
+  // Erreur de saisie : sous le champ, jamais une notification (15-notifications.md).
+  const { t } = useLangue();
+  const [nameError, setNameError] = useState<Texte | null>(null);
   const [isDefault, setIsDefault] = useState<boolean>(false);
   const [values, setValues] = useState<FieldValues>({});
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -188,9 +192,10 @@ export function ConfigFormDialog({
   const handleSubmit = async () => {
     if (!currentProvider) return;
     if (!isEdit && !name.trim()) {
-      toast.error("Name is required");
+      setNameError({ fr: "Donnez un nom à la configuration.", en: "Give the configuration a name." });
       return;
     }
+    setNameError(null);
 
     setSubmitting(true);
     try {
@@ -211,7 +216,7 @@ export function ConfigFormDialog({
           },
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save configuration"));
-        toast.success("Configuration updated");
+        notifier.succes({ fr: "Configuration modifiée.", en: "Configuration updated." });
       } else {
         const res = await createTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPost(
           {
@@ -224,12 +229,12 @@ export function ConfigFormDialog({
           },
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save configuration"));
-        toast.success("Configuration created");
+        notifier.succes({ fr: "Configuration créée.", en: "Configuration created." });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
+      notifier.echec({ fr: "Configuration non enregistrée. Vérifiez les champs et réessayez.", en: "Configuration not saved. Check the fields and try again." }, { erreur: err });
     } finally {
       setSubmitting(false);
     }
@@ -257,8 +262,8 @@ export function ConfigFormDialog({
                 type="button"
                 onClick={() => {
                   copyTextToClipboard(String(existing.id))
-                    .then(() => toast.success("Configuration ID copied"))
-                    .catch(() => toast.error("Failed to copy ID"));
+                    .then(() => notifier.succes({ fr: "Identifiant copié.", en: "ID copied." }))
+                    .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
                 }}
                 title="Click to copy"
                 className="group flex w-full items-center gap-2 rounded-md border bg-muted/20 p-2 text-left font-mono text-xs transition-colors hover:bg-muted/40"
@@ -275,8 +280,18 @@ export function ConfigFormDialog({
               id="cfg-name"
               placeholder="e.g. Twilio US prod"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(null);
+              }}
+              aria-invalid={nameError ? true : undefined}
+              aria-describedby={nameError ? "cfg-name-erreur" : undefined}
             />
+            {nameError && (
+              <p id="cfg-name-erreur" role="alert" className="text-sm text-destructive">
+                {t(nameError)}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -407,8 +422,8 @@ function FieldInput({ field, value, onChange, isEdit }: FieldInputProps) {
         type="button"
         onClick={() => {
           copyTextToClipboard(generated)
-            .then(() => toast.success(`${field.label} copied`))
-            .catch(() => toast.error("Failed to copy"));
+            .then(() => notifier.succes({ fr: `${field.label} copié.`, en: `${field.label} copied.` }))
+            .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
         }}
         title="Click to copy"
         className="group flex w-full items-center gap-2 rounded-md border bg-muted/20 p-2 text-left font-mono text-xs transition-colors hover:bg-muted/40"

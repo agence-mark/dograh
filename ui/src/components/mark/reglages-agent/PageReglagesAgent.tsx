@@ -17,7 +17,7 @@
  */
 import { Bot, Building2, ClipboardList, Clock, Cog, Cpu, Ear, MessageSquareText, Puzzle, Repeat, Search, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import { EmbedDialog } from "@/app/workflow/[workflowId]/components/EmbedDialog";
 import { useWorkflowState } from "@/app/workflow/[workflowId]/hooks/useWorkflowState";
@@ -123,6 +123,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const hasFetchedModelConfiguration = useRef(false);
 
     const workflowId = workflow.id;
+    useAgentCourant(workflowId);
 
     // What Dograh's page handed its state hook, unchanged.
     const initialFlow = useMemo(
@@ -241,21 +242,16 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
         async (cle: string) => {
             if (!resolue) return;
             if (dirtySections.size > 0) {
-                toast.error(
-                    t({
-                        en: "Save or cancel the pending changes first.",
-                        fr: "Enregistrez ou annulez d'abord les changements en cours.",
-                    }),
-                );
+                notifier.echec({ fr: "Enregistrez ou annulez d'abord les changements en cours.", en: "Save or cancel the pending changes first." });
                 return;
             }
             const heritee = heritage[cle]?.valeur_heritee ?? null;
             try {
                 await saveWorkflowConfigurations({ ...resolue, [cle]: heritee } as WorkflowConfigurations, nom);
                 setVersionEcran((v) => v + 1);
-                toast.success(`${t({ en: "Inherited value restored.", fr: "Valeur héritée rétablie." })} ${t({ en: "Publish the agent to apply the changes.", fr: "Publiez l'agent pour appliquer les changements." })}`);
+                notifier.succes({ fr: "Valeur héritée rétablie.", en: "Inherited value restored." }, { publier: true });
             } catch (erreur) {
-                toast.error(detailFromError(erreur, t({ en: "Not saved.", fr: "Non enregistré." })));
+                notifier.echec({ fr: "Non enregistré. Réessayez.", en: "Not saved. Try again." }, { erreur: erreur });
             }
         },
         [resolue, dirtySections, heritage, saveWorkflowConfigurations, nom, t],

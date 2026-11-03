@@ -5,7 +5,7 @@
  * (the new name applies everywhere, refused if it exists) or delete (removed from all its elements, never an element).
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost,
@@ -17,7 +17,6 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 
 interface Props {
     etiquettes: VueEtiquette[];
@@ -34,7 +33,7 @@ export function GestionDesEtiquettes({ etiquettes, fermer, apres }: Props) {
 
     const verifier = (reponse: { error?: unknown }, secours: string) => {
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, secours));
+            notifier.echec({ fr: "Étiquettes non enregistrées. Réessayez.", en: "Labels not saved. Try again." }, { erreur: reponse.error });
             return false;
         }
         apres();

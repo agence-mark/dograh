@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { AlertCircle, AlertTriangle, ArrowLeft, CalendarIcon, Check, Clock, Download, Info, Pause, Pencil, Phone, Play, RefreshCw, X } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     downloadCampaignReportApiV1CampaignCampaignIdReportGet,
@@ -91,7 +91,7 @@ export default function CampaignDetailPage() {
             }
         } catch (error) {
             console.error('Failed to fetch campaign:', error);
-            toast.error('Failed to load campaign details');
+            notifier.echec({ fr: "Détail de la campagne illisible. Rechargez la page.", en: "Could not load the campaign. Reload the page." });
         } finally {
             setIsLoadingCampaign(false);
         }
@@ -126,11 +126,11 @@ export default function CampaignDetailPage() {
                 // Open download URL in new tab
                 window.open(response.data.download_url, '_blank');
             } else {
-                toast.error('Failed to get download URL');
+                notifier.echec({ fr: "Téléchargement impossible. Réessayez.", en: "Download failed. Try again." });
             }
         } catch (error) {
             console.error('Failed to download CSV:', error);
-            toast.error('Failed to download CSV file');
+            notifier.echec({ fr: "Téléchargement impossible. Réessayez.", en: "Download failed. Try again." });
         }
     };
 
@@ -178,11 +178,11 @@ export default function CampaignDetailPage() {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error('Failed to download report');
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (error) {
             console.error('Failed to download report:', error);
-            toast.error('Failed to download report');
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloadingReport(false);
         }
@@ -212,7 +212,7 @@ export default function CampaignDetailPage() {
 
             if (response.data) {
                 setCampaign(response.data);
-                toast.success('Campaign started');
+                notifier.succes({ fr: "Campagne lancée.", en: "Campaign started." });
             } else if (response.error) {
                 // Extract error message from response
                 let errorMsg = 'Failed to start campaign';
@@ -221,11 +221,11 @@ export default function CampaignDetailPage() {
                 } else if (response.error && typeof response.error === 'object') {
                     errorMsg = (response.error as unknown as { detail?: string }).detail || JSON.stringify(response.error);
                 }
-                toast.error(errorMsg);
+                notifier.echec({ fr: "Campagne non lancée. Vérifiez les réglages et réessayez.", en: "Campaign not started. Check the settings and try again." }, { erreur: errorMsg });
             }
         } catch (error) {
             console.error('Failed to start campaign:', error);
-            toast.error('Failed to start campaign');
+            notifier.echec({ fr: "Campagne non lancée. Réessayez dans un instant.", en: "Campaign not started. Try again in a moment." });
         } finally {
             setIsExecutingAction(false);
         }
@@ -248,7 +248,7 @@ export default function CampaignDetailPage() {
 
             if (response.data) {
                 setCampaign(response.data);
-                toast.success('Campaign resumed');
+                notifier.succes({ fr: "Campagne reprise.", en: "Campaign resumed." });
             } else if (response.error) {
                 // Extract error message from response
                 let errorMsg = 'Failed to resume campaign';
@@ -257,11 +257,11 @@ export default function CampaignDetailPage() {
                 } else if (response.error && typeof response.error === 'object') {
                     errorMsg = (response.error as unknown as { detail?: string }).detail || JSON.stringify(response.error);
                 }
-                toast.error(errorMsg);
+                notifier.echec({ fr: "Campagne non reprise. Vérifiez les réglages et réessayez.", en: "Campaign not resumed. Check the settings and try again." }, { erreur: errorMsg });
             }
         } catch (error) {
             console.error('Failed to resume campaign:', error);
-            toast.error('Failed to resume campaign');
+            notifier.echec({ fr: "Campagne non reprise. Réessayez dans un instant.", en: "Campaign not resumed. Try again in a moment." });
         } finally {
             setIsExecutingAction(false);
         }
@@ -281,7 +281,7 @@ export default function CampaignDetailPage() {
     const handleRedial = async () => {
         if (!user || !campaign) return;
         if (!redialOnVoicemail && !redialOnNoAnswer && !redialOnBusy) {
-            toast.error('Select at least one reason to redial');
+            notifier.echec({ fr: "Cochez au moins un motif de rappel.", en: "Select at least one reason to redial." });
             return;
         }
         setIsRedialing(true);
@@ -303,7 +303,7 @@ export default function CampaignDetailPage() {
             });
 
             if (response.data) {
-                toast.success('Redial campaign created');
+                notifier.succes({ fr: "Campagne de rappel créée.", en: "Redial campaign created." });
                 setIsRedialDialogOpen(false);
                 router.push(`/campaigns/${response.data.id}`);
             } else if (response.error) {
@@ -313,11 +313,11 @@ export default function CampaignDetailPage() {
                 } else if (response.error && typeof response.error === 'object') {
                     errorMsg = (response.error as unknown as { detail?: string }).detail || JSON.stringify(response.error);
                 }
-                toast.error(errorMsg);
+                notifier.echec({ fr: "Rappel non créé. Vérifiez les motifs et réessayez.", en: "Redial not created. Check the reasons and try again." }, { erreur: errorMsg });
             }
         } catch (error) {
             console.error('Failed to redial campaign:', error);
-            toast.error('Failed to create redial campaign');
+            notifier.echec({ fr: "Rappel non créé. Réessayez dans un instant.", en: "Redial not created. Try again in a moment." });
         } finally {
             setIsRedialing(false);
         }
@@ -340,11 +340,11 @@ export default function CampaignDetailPage() {
 
             if (response.data) {
                 setCampaign(response.data);
-                toast.success('Campaign paused');
+                notifier.succes({ fr: "Campagne en pause.", en: "Campaign paused." });
             }
         } catch (error) {
             console.error('Failed to pause campaign:', error);
-            toast.error('Failed to pause campaign');
+            notifier.echec({ fr: "Pause impossible. Réessayez.", en: "Could not pause. Try again." });
         } finally {
             setIsExecutingAction(false);
         }

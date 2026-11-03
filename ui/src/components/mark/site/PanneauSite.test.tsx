@@ -40,6 +40,7 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: 
 vi.mock("sonner", () => ({ toast: { error: sdk.toastErreur, success: vi.fn() } }));
 
 import { PanneauSite } from "./PanneauSite";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const SITE = { id: 3, cle: "site_abc", nom: "Client", allowed_domains: ["client.fr"], dernier_chargement: null, script: '<script async src="https://x/embed/dograh-widget.js?site=site_abc"></script>' };
 const APPARENCE = {
@@ -65,6 +66,8 @@ function rendre() {
 }
 
 beforeEach(() => {
+
+  viderNotifications();
     Object.values(sdk).forEach((f) => f.mockReset());
     sdk.sites.mockResolvedValue({ data: [SITE] });
     sdk.canal.mockResolvedValue({ data: {} });
@@ -121,6 +124,6 @@ describe("PanneauSite", () => {
         sdk.canal.mockResolvedValue({ error: { detail: "This agent still answers a phone number." } });
         rendre();
         fireEvent.click(await screen.findByRole("switch"));
-        await waitFor(() => expect(sdk.toastErreur).toHaveBeenCalledWith("This agent still answers a phone number."));
+        await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toContain("This agent still answers a phone number."));
     });
 });

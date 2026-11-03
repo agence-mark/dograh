@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet,
@@ -178,7 +178,7 @@ export function useAnnonceOuverture() {
       }
       setReglages(reponse.data ?? reglages);
       setEnregistre(reponse.data ?? reglages);
-      toast.success(succes);
+      notifier.succes({ fr: "Annonce enregistrée.", en: "Announcement saved." });
       return true;
     } catch {
       setErreur("Failed to save the announcement settings");

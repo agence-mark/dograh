@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   deleteTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdDelete,
@@ -82,7 +82,7 @@ export default function TelephonyConfigurationsPage() {
       if (res.error) throw new Error(detailFromError(res.error));
       setItems(res.data?.configurations ?? []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load configurations");
+      notifier.echec({ fr: "Liste illisible. Rechargez la page.", en: "Could not load the list. Reload the page." }, { erreur: err });
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function TelephonyConfigurationsPage() {
       setEditTarget(res.data ?? null);
       setEditOpen(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load configuration");
+      notifier.echec({ fr: "Configuration illisible. Rechargez la page.", en: "Could not load the configuration. Reload the page." }, { erreur: err });
     }
   };
 
@@ -133,10 +133,10 @@ export default function TelephonyConfigurationsPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success(`${item.name} is now the default outbound configuration`);
+      notifier.succes({ fr: `« ${item.name} » devient la configuration par défaut pour les appels sortants.`, en: `"${item.name}" is now the default for outbound calls.` });
       fetchItems();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set default");
+      notifier.echec({ fr: "Changement impossible. Réessayez.", en: "Could not change the default. Try again." }, { erreur: err });
     }
   };
 
@@ -150,12 +150,10 @@ export default function TelephonyConfigurationsPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success(`${item.name} reactivated — reconnecting within a minute`);
+      notifier.succes({ fr: `« ${item.name} » réactivée. Reconnexion en cours, moins d'une minute.`, en: `"${item.name}" reactivated. Reconnecting, under a minute.` });
       fetchItems();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to reactivate configuration",
-      );
+      notifier.echec({ fr: "Réactivation impossible. Réessayez.", en: "Could not reactivate. Try again." }, { erreur: err });
     }
   };
 
@@ -170,11 +168,11 @@ export default function TelephonyConfigurationsPage() {
         },
       );
       if (res.error) throw new Error(detailFromError(res.error));
-      toast.success("Configuration deleted");
+      notifier.succes({ fr: "Configuration supprimée.", en: "Configuration deleted." });
       setDeleteTarget(null);
       fetchItems();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete configuration");
+      notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: err });
     }
   };
 
@@ -317,8 +315,8 @@ export default function TelephonyConfigurationsPage() {
                           e.preventDefault();
                           e.stopPropagation();
                           copyTextToClipboard(String(item.id))
-                            .then(() => toast.success("Configuration ID copied"))
-                            .catch(() => toast.error("Failed to copy ID"));
+                            .then(() => notifier.succes({ fr: "Identifiant copié.", en: "ID copied." }))
+                            .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
                         }}
                         title="Click to copy"
                         className="inline-flex items-center gap-1 self-start rounded font-mono text-xs text-muted-foreground hover:text-foreground"

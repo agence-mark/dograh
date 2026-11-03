@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     moveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPut,
@@ -114,14 +114,25 @@ export function WorkflowTable({
             });
 
             if (response.data) {
-                toast.success(`Workflow ${action.toLowerCase()}d successfully`);
+                notifier.reversible(
+                    action === 'Archive' ? { fr: "Agent archivé.", en: "Agent archived." } : { fr: "Agent restauré.", en: "Agent restored." },
+                    async () => {
+                        await updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut({
+                            path: { workflow_id: id },
+                            body: { status: currentStatus },
+                        });
+                        startTransition(() => {
+                            router.refresh();
+                        });
+                    },
+                );
                 startTransition(() => {
                     router.refresh();
                 });
             }
         } catch (error) {
             console.error(`Error ${action.toLowerCase()}ing workflow:`, error);
-            toast.error(`Failed to ${action.toLowerCase()} workflow`);
+            notifier.echec({ fr: "Opération impossible. Réessayez.", en: "Could not complete. Try again." });
         } finally {
             setLoadingWorkflowId(null);
         }
@@ -137,15 +148,25 @@ export function WorkflowTable({
             if (response.error) {
                 throw new Error('Failed to move agent');
             }
-            toast.success(
-                folderId === null ? 'Moved to Uncategorized' : 'Agent moved',
+            const precedent = workflows.find((w) => w.id === id)?.folder_id ?? null;
+            notifier.reversible(
+                folderId === null ? { fr: "Agent sorti du dossier.", en: "Agent moved out of the folder." } : { fr: "Agent déplacé.", en: "Agent moved." },
+                async () => {
+                    await moveWorkflowToFolderApiV1WorkflowWorkflowIdFolderPut({
+                        path: { workflow_id: id },
+                        body: { folder_id: precedent },
+                    });
+                    startTransition(() => {
+                        router.refresh();
+                    });
+                },
             );
             startTransition(() => {
                 router.refresh();
             });
         } catch (error) {
             console.error('Error moving workflow:', error);
-            toast.error('Failed to move agent');
+            notifier.echec({ fr: "Déplacement impossible. Réessayez.", en: "Could not move. Try again." });
         } finally {
             setMovingWorkflowId(null);
         }

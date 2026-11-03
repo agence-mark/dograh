@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react";
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet,updateWorkflowApiV1WorkflowWorkflowIdPut } from '@/client';
 import type { DocumentResponseSchema, RecordingResponseSchema, ToolResponse, WorkflowVersionResponse } from '@/client/types.gen';
@@ -26,7 +26,6 @@ import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierL
 import { useLangue } from "@/components/mark/langue/langue";
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { detailFromError } from '@/lib/apiError';
 import { espaceRetenu } from '@/lib/espaceCourant';
 import { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
@@ -86,6 +85,7 @@ function RenderWorkflow({
     user,
 }: RenderWorkflowProps) {
     const router = useRouter();
+    useAgentCourant(workflowId);
     const searchParams = useSearchParams();
     const { specs } = useNodeSpecs();
     const { hasCompletedAction } = useOnboarding();
@@ -190,7 +190,7 @@ function RenderWorkflow({
                 query: { limit: VERSIONS_PAGE_SIZE + 1, offset: 0 },
             });
             if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to load version history"));
+                notifier.echec({ fr: "Historique illisible. Rechargez la page.", en: "Could not load version history. Reload the page." }, { erreur: response.error });
                 return;
             }
             const data = response.data;

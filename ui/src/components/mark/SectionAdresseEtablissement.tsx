@@ -2,7 +2,7 @@
 
 import { MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import type { AdresseEtablissement } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ import { detailFromError } from "@/lib/apiError";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
-import { RAPPEL_PUBLICATION } from "./SectionReglagesPipecat";
 
 /**
  * [.mark] The "Business address for this agent" card of an agent's settings page.
@@ -84,13 +83,13 @@ export const SectionAdresseEtablissement = ({
         try {
             // The whole resolved configuration first, then our one key.
             await onSave({ ...workflowConfigurations, adresse_etablissement: valeur }, workflowName);
-            toast.success(`Business address saved. ${RAPPEL_PUBLICATION}`);
+            notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
             const message = e instanceof Error && e.message
                 ? e.message
                 : detailFromError(e, "Business address not saved. Check the entry and try again.");
             setErreur(message);
-            toast.error(`Business address not saved: ${message}`);
+            notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` });
         } finally {
             setIsSaving(false);
         }

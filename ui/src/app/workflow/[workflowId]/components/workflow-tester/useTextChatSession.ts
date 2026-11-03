@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     appendTextChatMessageApiV1WorkflowWorkflowIdTextChatSessionsRunIdMessagesPost,
@@ -19,7 +19,7 @@ import {
     type TurnActionState,
     type WorkflowRuntimeNodeTransition,
 } from "./types";
-import { extractSdkErrorMessage, getErrorMessage, getReplayCursorTurnId } from "./utils";
+import { extractSdkErrorMessage, getReplayCursorTurnId } from "./utils";
 
 /** The texts of the entries of `phrases_du_code` flagged `du_code` (written by `api/services/phrases/diseur.py`). */
 export const lirePhrasesDuCode = (contexte: Record<string, unknown> | null | undefined): string[] => {
@@ -93,7 +93,7 @@ export function useTextChatSession({
         } catch (error) {
             setSession(null);
             setStarted(false);
-            toast.error(getErrorMessage(error));
+            notifier.echec({ fr: "Test non démarré. Réessayez.", en: "Test not started. Try again." }, { erreur: error });
         } finally {
             setCreatingSession(false);
         }
@@ -185,7 +185,7 @@ export function useTextChatSession({
             setDraft("");
             setEditingTurnId(null);
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            notifier.echec({ fr: "Message non envoyé. Réessayez.", en: "Message not sent. Try again." }, { erreur: error });
         } finally {
             setSendingMessage(false);
             setActiveTurnAction(null);
@@ -209,9 +209,9 @@ export function useTextChatSession({
             setSession(toTextChatSession(response.data));
             setDraft("");
             setEditingTurnId(null);
-            toast.success("Chat ended");
+            notifier.succes({ fr: "Test terminé.", en: "Test ended." });
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            notifier.echec({ fr: "Fin du test impossible. Réessayez.", en: "Could not end the test. Try again." }, { erreur: error });
         } finally {
             setEndingSession(false);
         }

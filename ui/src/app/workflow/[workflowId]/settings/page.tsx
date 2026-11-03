@@ -5,7 +5,7 @@ import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, ClipboardList, Clock,
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import {
     downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet,
@@ -149,11 +149,11 @@ function ReportSection({ workflowId }: { workflowId: number }) {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error("Failed to download report");
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (err) {
             logger.error(`Failed to download workflow report: ${err}`);
-            toast.error("Failed to download report");
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloading(false);
         }
@@ -461,7 +461,7 @@ function GeneralSection({
                     }))
                     : current
             ));
-            toast.success(`General settings saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save general settings:", error);
         } finally {
@@ -1058,7 +1058,7 @@ function TemplateVariablesSection({
                 varsToSave = { ...varsToSave, [newKey]: newValue };
             }
             await onSave(varsToSave);
-            toast.success(`Template variables saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Variables enregistrées.", en: "Variables saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save variables:", error);
         } finally {
@@ -1157,7 +1157,7 @@ function DictionarySection({
         setIsSaving(true);
         try {
             await onSave(dictionaryValue);
-            toast.success(`Dictionary saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Dictionnaire enregistré.", en: "Dictionary saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save dictionary:", error);
         } finally {
@@ -1280,7 +1280,7 @@ function VoicemailSection({
             );
             setSystemPrompt(voicemailConfig.system_prompt || defaultAnswerClassifierPrompt);
             setPromptEdited(false);
-            toast.success(`Voicemail settings saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Messagerie enregistrée.", en: "Voicemail saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save voicemail settings:", error);
         } finally {
@@ -1387,9 +1387,9 @@ function AgentUuidSection({ workflowUuid }: { workflowUuid: string }) {
     const handleCopy = async () => {
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success("Agent UUID copied");
+            notifier.succes({ fr: "Identifiant copié.", en: "ID copied." });
         } catch {
-            toast.error("Failed to copy Agent UUID");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 
@@ -1471,7 +1471,7 @@ function WorkflowModelOverridesSection({
         const nextConfigurations = withoutModelConfigurationOverrides(workflowConfigurations);
         nextConfigurations.model_configuration_v2_override = configuration;
         await onSave(nextConfigurations, workflowName);
-        toast.success(`Model override saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+        notifier.succes({ fr: "Cerveau de l'agent enregistré.", en: "Agent brain saved." }, { publier: true });
     };
 
     const removeV2Override = async () => {
@@ -1479,7 +1479,7 @@ function WorkflowModelOverridesSection({
         try {
             await onSave(withoutModelConfigurationOverrides(workflowConfigurations), workflowName);
             setOverrideEnabled(false);
-            toast.success(`Organization model configuration saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Cerveau de l'organisation enregistré.", en: "Organization brain saved." }, { publier: true });
         } finally {
             setIsRemovingOverride(false);
         }
@@ -1608,6 +1608,8 @@ export default function WorkflowSettingsPage() {
     const [workflow, setWorkflow] = useState<WorkflowResponse | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Le bouton « Publier » des notifications publie l'agent de cette page.
+    useAgentCourant(workflow?.id);
 
     useEffect(() => {
         if (!authLoading && !user) {

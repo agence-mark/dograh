@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     createCampaignApiV1CampaignCreatePost,
@@ -109,7 +109,7 @@ export default function NewCampaignPage() {
             }
         } catch (error) {
             console.error('Failed to fetch telephony configurations:', error);
-            toast.error('Failed to load telephony configurations');
+            notifier.echec({ fr: "Configurations de téléphonie illisibles. Rechargez la page.", en: "Could not load telephony configurations. Reload the page." });
         } finally {
             setIsLoadingTelephonyConfigs(false);
         }
@@ -211,7 +211,7 @@ export default function NewCampaignPage() {
         setCreateError(null);
 
         if (!campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId) {
-            toast.error('Please fill in all fields');
+            notifier.echec({ fr: "Remplissez tous les champs.", en: "Fill in all fields." });
             return;
         }
 
@@ -219,12 +219,12 @@ export default function NewCampaignPage() {
         if (maxConcurrencyValue !== null && (
             !Number.isInteger(maxConcurrencyValue) || maxConcurrencyValue < 1 || maxConcurrencyValue > effectiveLimit
         )) {
-            toast.error(`Max concurrent calls must be between 1 and your organization limit (${effectiveLimit})`);
+            notifier.echec({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
             return;
         }
         const dialRate = Number(rateLimitPerSecond);
         if (!Number.isInteger(dialRate) || dialRate < 1 || dialRate > orgConcurrentLimit) {
-            toast.error(`Calls started per second must be between 1 and ${orgConcurrentLimit}`);
+            notifier.echec({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
             return;
         }
 
@@ -283,19 +283,19 @@ export default function NewCampaignPage() {
                 // Extract error message from API response
                 const errorMessage = detailFromError(response.error, 'Failed to create campaign');
                 setCreateError(errorMessage);
-                toast.error(errorMessage);
+                notifier.echec({ fr: "Campagne non créée. Vérifiez les réglages et réessayez.", en: "Campaign not created. Check the settings and try again." }, { erreur: errorMessage });
                 return;
             }
 
             if (response.data) {
-                toast.success('Campaign created successfully');
+                notifier.succes({ fr: "Campagne créée.", en: "Campaign created." });
                 router.push(`/campaigns/${response.data.id}`);
             }
         } catch (error: unknown) {
             console.error('Failed to create campaign:', error);
             const errorMessage = 'Failed to create campaign';
             setCreateError(errorMessage);
-            toast.error(errorMessage);
+            notifier.echec({ fr: "Campagne non créée. Réessayez dans un instant.", en: "Campaign not created. Try again in a moment." }, { erreur: errorMessage });
         } finally {
             setIsSubmitting(false);
         }

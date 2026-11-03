@@ -13,7 +13,7 @@
 import { Cpu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import type {
     ModelConfigurationPricingResponse,
@@ -97,13 +97,7 @@ export const ThemeBriques = ({
         setChangementDeCerveau(true);
         try {
             await onSave({ ...resolue, cerveau_propre: coche }, workflowName);
-            toast.success(
-                `${
-                    coche
-                        ? t({ en: "Own brain: this agent sets its own.", fr: "Cerveau propre : cet agent règle le sien." })
-                        : t({ en: "Brain set on the main agent again.", fr: "Cerveau réglé sur l'agent principal de nouveau." })
-                } ${rappel}`,
-            );
+            notifier.succes(coche ? { fr: "Cerveau propre : cet agent règle le sien.", en: "Own brain: this agent sets its own." } : { fr: "Cerveau hérité de l'organisation.", en: "Brain inherited from the organization." }, { publier: true });
         } finally {
             setChangementDeCerveau(false);
         }
@@ -122,7 +116,7 @@ export const ThemeBriques = ({
         const nextConfigurations = withoutModelConfigurationOverrides(resolue);
         nextConfigurations.model_configuration_v2_override = configuration;
         await onSave(nextConfigurations, workflowName);
-        toast.success(`${t({ en: "Model override saved.", fr: "Configuration propre à l'agent enregistrée." })} ${rappel}`);
+        notifier.succes({ fr: "Cerveau de l'agent enregistré.", en: "Agent brain saved." }, { publier: true });
     };
 
     const removeV2Override = async () => {
@@ -130,7 +124,7 @@ export const ThemeBriques = ({
         try {
             await onSave(withoutModelConfigurationOverrides(resolue), workflowName);
             setOverrideEnabled(false);
-            toast.success(`${t({ en: "Organization model configuration saved.", fr: "Configuration de l'organisation enregistrée." })} ${rappel}`);
+            notifier.succes({ fr: "Cerveau de l'organisation enregistré.", en: "Organization brain saved." }, { publier: true });
         } finally {
             setIsRemovingOverride(false);
         }

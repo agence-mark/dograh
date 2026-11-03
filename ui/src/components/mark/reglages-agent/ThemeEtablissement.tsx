@@ -22,7 +22,7 @@
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     AnswerSupervisorFields,
@@ -51,7 +51,7 @@ import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { memeAdresse, texteAdresse } from "../SectionAdresseEtablissement";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
-import { RAPPEL_PUBLICATION_TEXTE, useEnregistrementTheme } from "./enregistrement";
+import { useEnregistrementTheme } from "./enregistrement";
 import { EtablissementsServis, NumerosDeLagent, useEtablissementsDeLagent } from "./EtablissementsServis";
 import { erreursPanne, lirePanne, SectionPanneAgent } from "./SectionPanneAgent";
 import { nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
@@ -251,11 +251,11 @@ export const ThemeEtablissement = ({
         setErreurAdresse(null);
         try {
             await onSave({ ...resolue, adresse_etablissement: null }, workflowName);
-            toast.success(`${t({ en: "Business address saved.", fr: "Adresse enregistrée." })} ${t(RAPPEL_PUBLICATION_TEXTE)}`);
+            notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
             const message = e instanceof Error && e.message ? e.message : detailFromError(e, "Business address not saved.");
             setErreurAdresse(message);
-            toast.error(`${t({ en: "Business address not saved:", fr: "Adresse non enregistrée :" })} ${message}`);
+            notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` });
         } finally {
             setRetourOrganisation(false);
         }

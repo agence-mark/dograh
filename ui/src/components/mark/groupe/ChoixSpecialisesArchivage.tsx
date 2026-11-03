@@ -6,12 +6,11 @@
  * centrée ; rien n'est supprimé (archiver est réversible). Le choix part à la route du groupe.
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { archiverUnPrincipalApiV1WorkflowWorkflowIdGroupeArchiverPost } from "@/client/sdk.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 
@@ -51,13 +50,13 @@ export const ChoixSpecialisesArchivage = ({
                 body: { specialises },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Archivage impossible. Réessayez.", en: "Could not archive. Try again." }, { erreur: reponse.error });
                 return;
             }
-            toast.success(t(TEXTES.fait));
+            notifier.succes({ fr: "Agents archivés.", en: "Agents archived." });
             onFait();
         } catch {
-            toast.error(t(TEXTES.echec));
+            notifier.echec({ fr: "Archivage impossible. Réessayez.", en: "Could not archive. Try again." });
         } finally {
             setEnCours(false);
             onFerme();

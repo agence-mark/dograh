@@ -27,6 +27,7 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { SectionLexiqueMetier } from "./SectionLexiqueMetier";
 import { SectionReglagesPipecat } from "./SectionReglagesPipecat";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const organisation = { stt: { provider: "deepgram", model: "nova-3-general" } };
 
@@ -122,6 +123,8 @@ const offert = (rang: number) =>
     screen.getByRole("switch", { name: `The business offers it ${rang}` }).getAttribute("aria-checked");
 
 beforeEach(() => {
+
+  viderNotifications();
     toastMock.success.mockClear();
     toastMock.error.mockClear();
     sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockReset();
@@ -264,7 +267,8 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         await waitFor(() =>
             expect(sdk.importLexiqueApiV1OrganizationsLexiqueImportPost).toHaveBeenCalled(),
         );
-        expect(toastMock.success).toHaveBeenCalledWith("27 added, 3 already there");
+        expect(lireNotifications().map((n) => n.texte.en)).toContain("27 added, 3 already there.");
+        expect(lireNotifications().map((n) => n.texte.fr)).toContain("27 ajoutés, 3 déjà présents.");
         // The screen reads the vocabulary again: the import is the server's answer.
         expect(sdk.getLexiqueApiV1OrganizationsLexiqueGet.mock.calls.length).toBeGreaterThan(1);
     });

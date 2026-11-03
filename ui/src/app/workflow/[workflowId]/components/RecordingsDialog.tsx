@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LANGUAGE_DISPLAY_NAMES } from "@/constants/languages";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
+import { notifier } from "@/components/mark/notifications";
 
 interface RecordingsDialogProps {
     open: boolean;
@@ -340,10 +341,12 @@ export const RecordingsDialog = ({
 
     const handleDelete = async (recordingId: string) => {
         try {
-            await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
+            const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
                 path: { recording_id: recordingId },
             });
+            if (response.error) throw response.error;
             await fetchRecordings();
+            notifier.succes({ fr: "Enregistrement supprimé.", en: "Recording deleted." });
         } catch {
             setError("Failed to delete recording");
         }

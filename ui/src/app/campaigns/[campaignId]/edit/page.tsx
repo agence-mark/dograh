@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getCampaignApiV1CampaignCampaignIdGet,
@@ -161,7 +161,7 @@ export default function EditCampaignPage() {
             }
         } catch (error) {
             console.error('Failed to fetch campaign:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to load campaign');
+            notifier.echec({ fr: "Campagne illisible. Rechargez la page.", en: "Could not load the campaign. Reload the page." }, { erreur: error });
             router.replace(`/campaigns/${campaignId}`);
         } finally {
             setIsLoading(false);
@@ -183,13 +183,13 @@ export default function EditCampaignPage() {
         setSubmitError(null);
 
         if (!campaignName.trim()) {
-            toast.error('Campaign name is required');
+            notifier.echec({ fr: "Donnez un nom à la campagne.", en: "Give the campaign a name." });
             return;
         }
 
         const splitError = trafficSplitError(variants);
         if (splitChanged && splitError) {
-            toast.error(splitError);
+            notifier.echec({ fr: "Plages horaires incorrectes. Corrigez-les.", en: "Invalid time slots. Fix them." }, { erreur: splitError });
             return;
         }
 
@@ -197,24 +197,24 @@ export default function EditCampaignPage() {
         if (maxConcurrencyValue !== null && (
             !Number.isInteger(maxConcurrencyValue) || maxConcurrencyValue < 1 || maxConcurrencyValue > effectiveLimit
         )) {
-            toast.error(`Max concurrent calls must be between 1 and your organization limit (${effectiveLimit})`);
+            notifier.echec({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
             return;
         }
         const dialRate = Number(rateLimitPerSecond);
         if (!Number.isInteger(dialRate) || dialRate < 1 || dialRate > orgConcurrentLimit) {
-            toast.error(`Calls started per second must be between 1 and ${orgConcurrentLimit}`);
+            notifier.echec({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
             return;
         }
 
         // Validate schedule slots if enabled
         if (scheduleEnabled) {
             if (timeSlots.length === 0) {
-                toast.error('Add at least one time slot');
+                notifier.echec({ fr: "Ajoutez au moins une plage horaire.", en: "Add at least one time slot." });
                 return;
             }
             for (const slot of timeSlots) {
                 if (slot.start_time >= slot.end_time) {
-                    toast.error('Start time must be before end time for each slot');
+                    notifier.echec({ fr: "Chaque plage doit finir après son début.", en: "Each slot must end after it starts." });
                     return;
                 }
             }
@@ -272,19 +272,19 @@ export default function EditCampaignPage() {
             if (response.error) {
                 const errorMessage = detailFromError(response.error, 'Failed to update campaign');
                 setSubmitError(errorMessage);
-                toast.error(errorMessage);
+                notifier.echec({ fr: "Campagne non modifiée. Vérifiez les réglages et réessayez.", en: "Campaign not updated. Check the settings and try again." }, { erreur: errorMessage });
                 return;
             }
 
             if (response.data) {
-                toast.success('Campaign updated successfully');
+                notifier.succes({ fr: "Campagne modifiée.", en: "Campaign updated." });
                 router.push(`/campaigns/${campaignId}`);
             }
         } catch (error) {
             console.error('Failed to update campaign:', error);
             const errorMessage = 'Failed to update campaign';
             setSubmitError(errorMessage);
-            toast.error(errorMessage);
+            notifier.echec({ fr: "Campagne non modifiée. Réessayez dans un instant.", en: "Campaign not updated. Try again in a moment." }, { erreur: errorMessage });
         } finally {
             setIsSubmitting(false);
         }

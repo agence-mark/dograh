@@ -77,3 +77,6 @@ export async function organisationPourRequeteAttendue(pathname: string): Promise
     }
     return laboId;
 }
+
+/** Vrai pour l'équipe .mark : seuls ses comptes ouvrent le Labo (utilisé pour la ligne « Détails » des notifications). */
+export const compteDeLEquipe = () => laboId !== null;

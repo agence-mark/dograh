@@ -33,6 +33,7 @@ import { EditeurDeTableau, JaugeCaracteres, ResumeTableau } from "./EditeurDeTab
 import { COLONNE_DE_LISTE, formeDuGenre, type Genre, genreDe, GENRES, nomTechnique, phraseDePrompt, TYPE_DU_GENRE } from "./genres";
 import { type Tableau,texteRecu } from "./tableau-logique";
 import { COULEUR_SOURCE } from "./texte-etiquettes";
+import { notifier } from "@/components/mark/notifications";
 
 const MOTIF_NOM = /^[a-z][a-z0-9_]{0,62}$/;
 const TOUS = "__tous__";
@@ -162,6 +163,7 @@ export const CreateurVariable = ({
                 setErreur(detailFromError(reponse.error, "Variable refused"));
                 return;
             }
+            notifier.succes({ fr: "Variable enregistrée.", en: "Variable saved." });
             onFermer(true);
         } catch {
             setErreur("Variables: the server did not answer");
@@ -179,6 +181,7 @@ export const CreateurVariable = ({
                 setErreur(detailFromError(reponse.error, "Variable not deleted"));
                 return;
             }
+            notifier.succes({ fr: "Variable supprimée.", en: "Variable deleted." });
             onFermer(true);
         } finally {
             setEnCours(false);

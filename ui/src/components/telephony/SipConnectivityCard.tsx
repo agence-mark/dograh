@@ -2,7 +2,7 @@
 
 import { ChevronDown, Copy } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import type { SipConnectivityDetails } from "@/client/types.gen";
 import { Badge } from "@/components/ui/badge";
@@ -70,8 +70,8 @@ export function SipConnectivityCard({
 
   const copyValue = (value: string, label: string) => {
     copyTextToClipboard(value)
-      .then(() => toast.success(`${label} copied`))
-      .catch(() => toast.error(`Failed to copy ${label.toLowerCase()}`));
+      .then(() => notifier.succes({ fr: `${label} copiée.`, en: `${label} copied.` }))
+      .catch(() => notifier.echec({ fr: "Copie impossible.", en: "Could not copy." }));
   };
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
   createPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPost,
@@ -135,7 +135,7 @@ export function PhoneNumberDialog({
       const err = validateAddress(address, countryCode);
       if (err) {
         setAddressTouched(true);
-        toast.error(err);
+        notifier.echec({ fr: "Numéro refusé. Vérifiez-le et réessayez.", en: "Number rejected. Check it and try again." }, { erreur: err });
         return;
       }
     }
@@ -165,7 +165,7 @@ export function PhoneNumberDialog({
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save phone number"));
         providerSync = res.data?.provider_sync;
-        toast.success("Phone number updated");
+        notifier.succes({ fr: "Numéro modifié.", en: "Number updated." });
       } else {
         const res = await createPhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPost(
           {
@@ -184,18 +184,15 @@ export function PhoneNumberDialog({
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save phone number"));
         providerSync = res.data?.provider_sync;
-        toast.success("Phone number added");
+        notifier.succes({ fr: "Numéro ajouté.", en: "Number added." });
       }
       if (providerSync && !providerSync.ok) {
-        toast.warning(
-          providerSync.message ??
-            "Saved, but failed to sync inbound webhook to the provider.",
-        );
+        notifier.avertissement({ fr: "Numéro enregistré, mais l'adresse entrante n'a pas pu être posée chez l'opérateur.", en: "Number saved, but the inbound address could not be set at the provider." }, { erreur: providerSync.message });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save phone number");
+      notifier.echec({ fr: "Numéro non enregistré. Réessayez.", en: "Number not saved. Try again." }, { erreur: err });
     } finally {
       setSubmitting(false);
     }

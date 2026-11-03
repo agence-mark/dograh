@@ -3,7 +3,7 @@
 import { DoorOpen, MessageSquare, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost,
@@ -28,7 +28,6 @@ import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 
 import { BoiteMessages } from "./BoiteMessages";
 import { ADRESSE_PORTAIL, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
@@ -199,7 +198,7 @@ function BoutonPortail({ organisation }: { organisation: number }) {
         setEnvoi(true);
         const res = await ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost({ path: { organization_id: organisation }, body: {} });
         setEnvoi(false);
-        if (!res.data) return toast.error(detailFromError(res.error, t({ en: "The link could not be created", fr: "Le lien n'a pas pu être créé" })));
+        if (!res.data) return notifier.echec({ fr: "Lien non créé. Réessayez.", en: "Link not created. Try again." }, { erreur: res.error });
         window.open(lienDEntree(res.data.jeton), "_blank", "noopener");
     };
     return (
@@ -218,13 +217,13 @@ function NotesClient({ organisation }: { organisation: number }) {
     const [texte, setTexte] = useState("");
     const ajouter = async () => {
         const res = await ajouterNoteApiV1RelationClientsOrganizationIdNotesPost({ path: { organization_id: organisation }, body: { texte } });
-        if (res.error) return toast.error(detailFromError(res.error, t({ en: "Note not saved", fr: "Note non enregistrée" })));
+        if (res.error) return notifier.echec({ fr: "Note non enregistrée. Réessayez.", en: "Note not saved. Try again." }, { erreur: res.error });
         setTexte("");
         recharger();
     };
     const retirer = async (noteId: number) => {
         const res = await supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete({ path: { organization_id: organisation, note_id: noteId } });
-        if (res.error) return toast.error(detailFromError(res.error));
+        if (res.error) return notifier.echec({ fr: "Opération impossible. Réessayez.", en: "Could not complete. Try again." }, { erreur: res.error });
         recharger();
     };
     return (
@@ -353,7 +352,7 @@ function AjoutTemoignage({ organisation, fait }: { organisation: number; fait: (
     const [auteur, setAuteur] = useState("");
     const ajouter = async () => {
         const res = await ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost({ path: { organization_id: organisation }, body: { texte, auteur, accord: false } });
-        if (res.error) return toast.error(detailFromError(res.error, t({ en: "Testimonial not saved", fr: "Témoignage non enregistré" })));
+        if (res.error) return notifier.echec({ fr: "Témoignage non enregistré. Réessayez.", en: "Testimonial not saved. Try again." }, { erreur: res.error });
         setTexte("");
         setAuteur("");
         fait();

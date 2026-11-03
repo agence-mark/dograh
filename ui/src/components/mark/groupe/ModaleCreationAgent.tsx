@@ -18,14 +18,13 @@
 import { Bot, LayoutTemplate, Network } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { creerUnGroupeApiV1WorkflowGroupePost } from "@/client/sdk.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 
@@ -90,7 +89,7 @@ export const ModaleCreationAgent = ({
                 body: { name: propre, folder_id: dossierParentId },
             });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Agent non créé. Réessayez.", en: "Agent not created. Try again." }, { erreur: reponse.error });
                 return;
             }
             onOuvertChange(false);
@@ -100,7 +99,7 @@ export const ModaleCreationAgent = ({
             router.push(avecLeBuilder ? `/workflow/${reponse.data.workflow_id}?builder=1` : `/workflow?dossier=${reponse.data.folder_id}`);
             router.refresh();
         } catch {
-            toast.error(t(TEXTES.echec));
+            notifier.echec({ fr: "Agent non créé. Réessayez.", en: "Agent not created. Try again." });
         } finally {
             setEnCours(false);
         }

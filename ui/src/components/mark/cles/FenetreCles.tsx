@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { notifier } from "@/components/mark/notifications";
 
 export type Fournisseur = Cle["fournisseur"];
 
@@ -150,6 +151,7 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
             return;
         }
         onSupprimee();
+        notifier.succes({ fr: "Clé supprimée.", en: "Key deleted." });
     };
 
     return (
@@ -258,6 +260,7 @@ export function BibliothequeCles({
             return;
         }
         const ajoutee = reponse.data as Cle;
+        notifier.succes({ fr: "Clé ajoutée.", en: "Key added." });
         setNom("");
         setValeur("");
         setNomFournisseur("");
