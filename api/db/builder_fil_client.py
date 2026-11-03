@@ -94,6 +94,21 @@ class BuilderFilClient(BaseDBClient):
             )
             await session.commit()
 
+    async def supprimer_fil(self, organization_id: int, fil_id: int) -> bool:
+        """Supprime la conversation et, par cascade de la base, ses événements et ses sous-agents. Bornée à l'organisation (R0)."""
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                delete(MarkBuilderConversationModel)
+                .where(
+                    MarkBuilderConversationModel.id == fil_id,
+                    MarkBuilderConversationModel.organization_id == organization_id,
+                )
+                .returning(MarkBuilderConversationModel.id)
+            )
+            supprimee = resultat.first() is not None
+            await session.commit()
+            return supprimee
+
     async def ajouter_evenement(self, fil_id: int, genre: str, donnees: dict[str, Any]) -> int:
         async with self.async_session() as session:
             ligne = MarkBuilderEvenementModel(conversation_id=fil_id, type=genre[:40], donnees=donnees)

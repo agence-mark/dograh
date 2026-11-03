@@ -237,6 +237,17 @@ async def arreter(org: int, fil_id: int) -> str:
     return "arretee"
 
 
+async def supprimer(org: int, fil_id: int) -> bool:
+    """Coupe d'abord le travail (et celui de ses sous-agents), puis efface la conversation : événements et sous-agents partent avec
+    elle par cascade. Rend faux si la conversation n'existe pas dans cette organisation."""
+    for enfant in await db_client.lister_les_enfants(org, fil_id):
+        await arreter(org, enfant.id)
+    await arreter(org, fil_id)
+    _TACHES.pop(fil_id, None)
+    CERVEAUX.pop(fil_id, None)
+    return await db_client.supprimer_fil(org, fil_id)
+
+
 async def reprendre(user, fil, cerveau: Cerveau, reglages: ReglagesCerveau) -> None:
     if fil.etat not in ("arretee", "erreur") or en_cours(fil.id):
         raise ErreurFil("Only a stopped conversation can be resumed.", "pas_arretee")
