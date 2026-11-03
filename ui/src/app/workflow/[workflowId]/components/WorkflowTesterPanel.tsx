@@ -1,13 +1,13 @@
 "use client";
 
-import { Bot, Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Mic, Phone, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
 import { AppelantSimule, TitreOngletAppelantSimule } from "@/components/mark/appelant-simule/AppelantSimule";
+import { useLangue } from "@/components/mark/langue/langue";
 import { ChoixEtablissementEssai } from "@/components/mark/etablissements/ChoixEtablissementEssai";
-import { OnboardingTooltip } from "@/components/onboarding/OnboardingTooltip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,14 +24,13 @@ import type { WorkflowRuntimeNodeTransition } from "./workflow-tester/types";
 import { extractSdkErrorMessage } from "./workflow-tester/utils";
 
 // [.mark] One tab of the tester panel: icon above a label that may wrap (lot 0, direct-et-passe-muette).
-const ONGLET = "h-auto min-w-0 flex-col gap-0.5 whitespace-normal rounded-md px-1 py-1 text-center text-xs leading-tight";
+const ONGLET = "-mb-px h-auto flex-none cursor-pointer rounded-none border-0 border-b-2 border-transparent bg-transparent px-2.5 py-2 text-sm text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
 interface WorkflowTesterPanelProps {
     workflowId: number;
     initialContextVariables?: Record<string, string>;
     disabled: boolean;
     disabledReason: string | null;
-    showWebCallOnboarding?: boolean;
     isVisible?: boolean;
     className?: string;
     onClose?: () => void;
@@ -47,7 +46,6 @@ export function WorkflowTesterPanel({
     initialContextVariables,
     disabled,
     disabledReason,
-    showWebCallOnboarding = false,
     isVisible = true,
     className,
     onClose,
@@ -56,6 +54,7 @@ export function WorkflowTesterPanel({
     modeDemande = null,
 }: WorkflowTesterPanelProps) {
     const auth = useAuth();
+    const { t } = useLangue();
     const { markActionCompleted } = useOnboarding();
     const { isAuthenticated, loading: authLoading, getAccessToken } = auth;
     const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -67,7 +66,6 @@ export function WorkflowTesterPanel({
     const [voiceRunId, setVoiceRunId] = useState<number | null>(null);
     const [creatingVoiceRun, setCreatingVoiceRun] = useState(false);
     const [tokenReady, setTokenReady] = useState(false);
-    const runTestButtonRef = useRef<HTMLButtonElement>(null);
     // [.mark] The establishment the test plays (l-agent-travaille, E3). Empty: the agent's first.
     const [etablissementChoisi, setEtablissementEssai] = useState("");
     // With a fiche of its own the agent plays that one (the choice is not offered, so none is sent).
@@ -145,14 +143,6 @@ export function WorkflowTesterPanel({
         : null;
     const effectiveDisabledReason = disabledReason ?? authUnavailableReason;
     const testerBlocked = disabled || authUnavailableReason !== null;
-    const runTestTooltipEnabled =
-        showWebCallOnboarding &&
-        isVisible &&
-        activeMode === "audio" &&
-        !voiceRunId &&
-        tokenReady &&
-        !!accessToken &&
-        !testerBlocked;
 
     const handleModeChange = (value: string) => {
         const mode = value as "audio" | "text" | "simulated";
@@ -179,43 +169,31 @@ export function WorkflowTesterPanel({
                 onValueChange={handleModeChange}
                 className="min-h-0 flex-1 gap-0"
             >
-                <div className="border-b border-border/70 px-4 py-3">
-                    <div className="flex items-center gap-3">
-                        {/* [.mark] Three tabs in a narrow panel (direct-et-passe-muette, lot 0): icon above
-                            the label, label allowed to wrap, so no label runs into its neighbour. */}
-                        <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-3 rounded-lg bg-muted/60 p-1">
-                            <TabsTrigger value="audio" className={ONGLET}>
-                                <Mic className="h-4 w-4" />
-                                Test Audio
-                            </TabsTrigger>
-                            <TabsTrigger value="text" className={ONGLET}>
-                                <MessageSquareText className="h-4 w-4" />
-                                Test Chat
-                            </TabsTrigger>
-                            <TabsTrigger value="simulated" className={ONGLET}>
-                                <Bot className="h-4 w-4" />
-                                <TitreOngletAppelantSimule />
-                            </TabsTrigger>
-                        </TabsList>
-                        {onClose ? (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onClose}
-                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                                aria-label="Close tester panel"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        ) : null}
-                    </div>
-                    <ChoixEtablissementEssai
-                        valeur={etablissementEssai}
-                        ficheDeLagent={ficheDeLagent}
-                        onChange={setEtablissementEssai}
-                        desactive={voiceRunId !== null || chatActive}
-                    />
+                <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                    <p className="flex-1 text-sm font-medium">{t({ en: "Try the agent", fr: "Essayer l'agent" })}</p>
+                    {onClose ? (
+                        <Button variant="ghost" size="icon" className="size-8" onClick={onClose} aria-label={t({ en: "Close the test panel", fr: "Fermer le panneau d'essai" })}>
+                            <X className="size-4" />
+                        </Button>
+                    ) : null}
                 </div>
+                <ChoixEtablissementEssai
+                    valeur={etablissementEssai}
+                    ficheDeLagent={ficheDeLagent}
+                    onChange={setEtablissementEssai}
+                    desactive={voiceRunId !== null || chatActive}
+                />
+                <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b bg-transparent px-4 py-0">
+                    <TabsTrigger value="audio" className={ONGLET}>
+                        {t({ en: "Browser", fr: "Navigateur" })}
+                    </TabsTrigger>
+                    <TabsTrigger value="text" className={ONGLET}>
+                        {t({ en: "Keyboard", fr: "Clavier" })}
+                    </TabsTrigger>
+                    <TabsTrigger value="simulated" className={ONGLET}>
+                        <TitreOngletAppelantSimule />
+                    </TabsTrigger>
+                </TabsList>
 
                 <TabsContent value="audio" className="min-h-0 flex-1 px-4 py-4">
                     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -241,24 +219,21 @@ export function WorkflowTesterPanel({
                             <>
                                 {effectiveDisabledReason ? <DisabledNotice reason={effectiveDisabledReason} /> : null}
                                 <EmptyState
-                                    icon={<Phone className="h-7 w-7" />}
-                                    title="Call this agent in the browser"
-                                    description="Test the agent over a voice call. Some telephony-only tools, like call transfer, are not yet supported here."
+                                    icon={<Mic className="h-7 w-7" />}
+                                    title={t({ en: "Call in the browser", fr: "Appel dans le navigateur" })}
                                     action={
                                         <Button
-                                            ref={runTestButtonRef}
                                             onClick={createVoiceRun}
                                             disabled={creatingVoiceRun || testerBlocked}
                                         >
                                             {creatingVoiceRun ? (
                                                 <>
                                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                                    Starting test...
+                                                    {t({ en: "Starting…", fr: "Démarrage…" })}
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Phone className="h-4 w-4" />
-                                                    Run Test
+                                                    {t({ en: "Start the call", fr: "Lancer l'appel" })}
                                                 </>
                                             )}
                                         </Button>
@@ -313,14 +288,6 @@ export function WorkflowTesterPanel({
                 </TabsContent>
             </Tabs>
 
-            <OnboardingTooltip
-                tooltipKey="web_call"
-                targetRef={runTestButtonRef}
-                title="Try Your First Web Call"
-                message="Start a browser call here to hear the agent, inspect the transcript, and validate the workflow before you customize it further."
-                showNext={false}
-                enabled={runTestTooltipEnabled}
-            />
         </div>
     );
 }

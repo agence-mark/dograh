@@ -56,7 +56,7 @@ function renderPanel() {
 }
 
 async function startVoiceRun() {
-    const runTest = await screen.findByRole("button", { name: /run test/i });
+    const runTest = await screen.findByRole("button", { name: /start the call/i });
     fireEvent.click(runTest);
     const tester = await screen.findByTestId("voice-tester");
     return tester.textContent;
@@ -89,23 +89,23 @@ describe("WorkflowTesterPanel voice run lifecycle", () => {
         renderPanel();
         await startVoiceRun();
 
-        switchTo(/test chat/i);
+        switchTo(/keyboard/i);
         await waitFor(() => expect(screen.getByTestId("chat-panel")).toBeTruthy());
 
-        switchTo(/test audio/i);
+        switchTo(/browser/i);
 
         await waitFor(() =>
             expect(screen.queryByTestId("voice-tester")).toBeNull(),
         );
-        expect(screen.getByRole("button", { name: /run test/i })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /start the call/i })).toBeTruthy();
     });
 
     it("mints a fresh run on the next test rather than reusing the old one", async () => {
         renderPanel();
         await startVoiceRun();
 
-        switchTo(/test chat/i);
-        switchTo(/test audio/i);
+        switchTo(/keyboard/i);
+        switchTo(/browser/i);
         await waitFor(() =>
             expect(screen.queryByTestId("voice-tester")).toBeNull(),
         );

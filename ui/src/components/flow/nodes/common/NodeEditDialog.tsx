@@ -1,8 +1,9 @@
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, Sparkles } from "lucide-react";
 import { ReactNode, useCallback, useEffect, useState } from "react";
 
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { FlowNodeData } from "@/components/flow/types";
+import { useLangue } from "@/components/mark/langue/langue";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -14,20 +15,33 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface NodeEditDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     nodeData: FlowNodeData;
+    /** Le titre lu par les lecteurs d'écran (le nom de l'étape en est le titre visible). */
     title: string;
     children: ReactNode;
     onSave?: () => void;
     error?: string | null;
     isDirty?: boolean;
     documentationUrl?: string;
+    /** Le type de l'étape, en petit devant son nom (« Début », « Étape », « Fin »…). */
+    typeLabel?: string;
+    /** Le nom de l'étape, modifiable dans l'en-tête ; absent, l'en-tête n'a pas de champ de nom. */
+    nom?: string;
+    onNomChange?: (nom: string) => void;
+    /** « Demander au builder » : cite l'étape dans le panneau du builder. */
+    onDemanderAuBuilder?: () => void;
 }
 
+/**
+ * [.mark] K2 : la fenêtre d'un nœud, reprise de la maquette (`modale-noeud.tsx`, E55) : l'en-tête reste en haut (type, nom,
+ * « Demander au builder »), le pied en bas (Annuler, Enregistrer), le milieu défile. Centrée, corps blanc.
+ */
 export const NodeEditDialog = ({
     open,
     onOpenChange,
@@ -38,7 +52,12 @@ export const NodeEditDialog = ({
     error,
     isDirty = false,
     documentationUrl,
+    typeLabel,
+    nom,
+    onNomChange,
+    onDemanderAuBuilder,
 }: NodeEditDialogProps) => {
+    const { t } = useLangue();
     const readOnly = useWorkflowOptional()?.readOnly ?? false;
     const [showDiscardAlert, setShowDiscardAlert] = useState(false);
 
@@ -51,16 +70,17 @@ export const NodeEditDialog = ({
     }, [onSave]);
 
     // Intercept dialog close attempts when dirty
-    const handleOpenChange = useCallback((newOpen: boolean) => {
-        // If trying to close and form is dirty, show confirmation
-        if (!newOpen && isDirty) {
-            setShowDiscardAlert(true);
-            return;
-        }
-        onOpenChange(newOpen);
-    }, [isDirty, onOpenChange]);
+    const handleOpenChange = useCallback(
+        (newOpen: boolean) => {
+            if (!newOpen && isDirty) {
+                setShowDiscardAlert(true);
+                return;
+            }
+            onOpenChange(newOpen);
+        },
+        [isDirty, onOpenChange],
+    );
 
-    // Handle confirmed discard
     const handleConfirmDiscard = useCallback(() => {
         setShowDiscardAlert(false);
         onOpenChange(false);
@@ -71,88 +91,91 @@ export const NodeEditDialog = ({
         if (!open || readOnly) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+            if ((e.metaKey || e.ctrlKey) && e.key === "s") {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 handleSave();
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown, true);
-        return () => window.removeEventListener('keydown', handleKeyDown, true);
+        window.addEventListener("keydown", handleKeyDown, true);
+        return () => window.removeEventListener("keydown", handleKeyDown, true);
     }, [open, readOnly, handleSave]);
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent
-                className="max-h-[85vh] overflow-y-auto"
-                style={{ maxWidth: "1200px", width: "95vw" }}
-            >
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
-                        <DialogTitle>{title}</DialogTitle>
-                        {documentationUrl && (
-                            <a
-                                href={documentationUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors pr-6"
-                            >
-                                Docs
-                                <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
+            <DialogContent className="flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud">
+                <div className="shrink-0 px-6 pb-3 pr-12 pt-5">
+                    <DialogTitle className="sr-only">{title}</DialogTitle>
+                    <div className="flex items-center gap-2">
+                        {typeLabel && <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{typeLabel}</span>}
+                        {onNomChange && (
+                            <Input
+                                value={nom ?? ""}
+                                onChange={(e) => onNomChange(e.target.value)}
+                                disabled={readOnly}
+                                aria-label={t({ en: "Step name", fr: "Nom de l'étape" })}
+                                className="h-8 max-w-72 border-transparent px-1 text-lg font-semibold shadow-none hover:border-input"
+                            />
                         )}
+                        <div className="ml-auto flex items-center gap-1">
+                            {documentationUrl && (
+                                <a
+                                    href={documentationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    Docs
+                                    <ExternalLink className="size-3.5" />
+                                </a>
+                            )}
+                            {onDemanderAuBuilder && !readOnly && (
+                                <Button variant="ghost" size="sm" onClick={onDemanderAuBuilder}>
+                                    <Sparkles className="size-3.5 text-(--acc)" /> {t({ en: "Ask the builder", fr: "Demander au builder" })}
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                    <DialogDescription>
-                        Configure the settings for this node in your workflow.
-                    </DialogDescription>
                     {nodeData.invalid && nodeData.validationMessage && (
-                        <div className="mt-2 flex items-center gap-2 rounded-md bg-muted p-2 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" />
+                        <div className="mt-2 flex items-center gap-2 text-sm text-destructive">
+                            <AlertCircle className="size-4" />
                             <span>{nodeData.validationMessage}</span>
                         </div>
                     )}
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    {children}
                 </div>
-                {error && (
-                    <div className="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-destructive">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-                <DialogFooter>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={isDirty ? () => setShowDiscardAlert(true) : handleClose}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSave} disabled={readOnly}>
-                            {readOnly ? "Read Only" : "Save"}
-                        </Button>
-                    </div>
-                </DialogFooter>
+                <div className="min-h-0 flex-1 overflow-y-auto bg-background px-6 py-4">
+                    <div className="grid gap-4">{children}</div>
+                    {error && (
+                        <div className="mt-4 flex items-center gap-2 text-sm text-destructive">
+                            <AlertCircle className="size-4 shrink-0" />
+                            <span>{error}</span>
+                        </div>
+                    )}
+                </div>
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-3">
+                    <Button variant="outline" onClick={isDirty ? () => setShowDiscardAlert(true) : handleClose}>
+                        {t({ en: "Cancel", fr: "Annuler" })}
+                    </Button>
+                    <Button onClick={handleSave} disabled={readOnly}>
+                        {readOnly ? t({ en: "Read only", fr: "Lecture seule" }) : t({ en: "Save", fr: "Enregistrer" })}
+                    </Button>
+                </div>
             </DialogContent>
 
             {/* Discard changes confirmation dialog */}
             <AlertDialog open={showDiscardAlert} onOpenChange={setShowDiscardAlert}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+                        <AlertDialogTitle>{t({ en: "Discard changes?", fr: "Abandonner les changements ?" })}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            You have unsaved changes. Are you sure you want to discard them?
+                            {t({ en: "You have unsaved changes. Discard them?", fr: "Des changements ne sont pas enregistrés. Les abandonner ?" })}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleConfirmDiscard}
-                            className="bg-destructive text-white hover:bg-destructive/90"
-                        >
-                            Discard
+                        <AlertDialogCancel>{t({ en: "Keep editing", fr: "Continuer" })}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDiscard} className="bg-destructive text-white hover:bg-destructive/90">
+                            {t({ en: "Discard", fr: "Abandonner" })}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

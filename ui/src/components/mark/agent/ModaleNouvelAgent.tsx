@@ -31,7 +31,7 @@ const T = {
     nom: { en: "Name", fr: "Nom" },
     structure: { en: "Structure", fr: "Structure" },
     groupe: { en: "Group with specialists", fr: "Groupe avec spécialistes" },
-    groupePhrase: { en: "A greeter and one specialist per call reason.", fr: "Un accueil, un spécialiste par motif d'appel." },
+    groupePhrase: { en: "A greeter and one specialist per call reason. Our Tala recipe.", fr: "Un accueil, un spécialiste par motif d'appel. Notre recette façon Tala." },
     un: { en: "One agent", fr: "Un agent" },
     unPhrase: { en: "One prompt and a few steps. For a simple need or the site.", fr: "Un seul prompt et peu d'étapes. Pour un besoin simple ou le site." },
     depart: { en: "Starting point", fr: "Point de départ" },

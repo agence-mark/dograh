@@ -39,11 +39,13 @@ export function useGroupe(agentId: number) {
                 const reponse = await lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet({ path: { workflow_id: agentId } });
                 if (annule) return;
                 setGroupe(reponse.data ?? null);
-                for (const m of reponse.data?.specialises ?? []) {
-                    const fiche = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({ path: { workflow_id: m.id } });
-                    const noeuds = (fiche.data?.workflow_definition as { nodes?: Array<{ type?: string }> } | undefined)?.nodes ?? [];
-                    if (!annule) setEtapes((e) => ({ ...e, [m.id]: noeuds.filter((n) => n.type !== "globalNode").length }));
-                }
+                await Promise.all(
+                    (reponse.data?.specialises ?? []).map(async (m) => {
+                        const fiche = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({ path: { workflow_id: m.id } });
+                        const noeuds = (fiche.data?.workflow_definition as { nodes?: Array<{ type?: string }> } | undefined)?.nodes ?? [];
+                        if (!annule) setEtapes((e) => ({ ...e, [m.id]: noeuds.filter((n) => n.type !== "globalNode").length }));
+                    }),
+                );
             } catch {
                 if (!annule) setGroupe(null);
             }
@@ -84,7 +86,7 @@ export function GroupeSurCanevas({ agentId }: { agentId: number }) {
                         <path
                             key={c.id}
                             d={`M${x1} ${y1} C ${x1 + 50} ${y1}, ${xCarte - 50} ${y2}, ${xCarte} ${y2}`}
-                            stroke="#c4c4cc"
+                            stroke="var(--liaison)"
                             strokeWidth="1.5"
                             strokeDasharray="4 4"
                             fill="none"
@@ -98,7 +100,7 @@ export function GroupeSurCanevas({ agentId }: { agentId: number }) {
                     href={adresseOnglet(c.id, "parcours")}
                     data-specialise={c.id}
                     style={{ position: "absolute", left: xCarte, top: ancre.position.y + Y_PREMIERE + i * ECART }}
-                    className="nodrag nopan w-52 cursor-pointer rounded-xl border border-black/10 bg-card px-3.5 py-3 text-left shadow-[0_1px_2px_rgba(15,15,16,0.05)] hover:border-black/25"
+                    className="nodrag nopan w-52 cursor-pointer rounded-xl border border-black/10 bg-card px-3.5 py-3 text-left shadow-xs hover:border-black/25"
                 >
                     <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         <Workflow className="size-3" />

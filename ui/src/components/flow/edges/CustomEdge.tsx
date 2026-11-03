@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useWorkflow, useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
+import { useLangue } from "@/components/mark/langue/langue";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const FICHE = { none: 'Aucune', complete: 'Étape complète', field: 'Un champ a
 const PHRASE = { none: 'Aucune', text: 'Texte', audio: 'Enregistrement' } as const;
 
 const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeDetailsDialogProps) => {
+    const { t } = useLangue();
     const readOnly = useWorkflowOptional()?.readOnly ?? false;
     const { recordings } = useWorkflow();
     const enregistrements = recordings ?? [];
@@ -42,9 +44,9 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
         <FenetreChamps
             ouverte={open}
             fermer={() => onOpenChange(false)}
-            titre="Condition de passage"
-            info="Ce qui décide du passage d'une étape à l'autre : le libellé, la condition que lit le modèle, la condition sur la fiche et la phrase dite pendant la transition."
-            valider={readOnly ? 'Fermer' : 'Enregistrer'}
+            titre={t({ en: "Transition condition", fr: "Condition de passage" })}
+            info={t({ en: "What decides the move from one step to the next: the label, the condition the model reads, the condition on the record and the sentence said during the transition.", fr: "Ce qui décide du passage d'une étape à l'autre : le libellé, la condition que lit le modèle, la condition sur la fiche et la phrase dite pendant la transition." })}
+            valider={readOnly ? t({ en: 'Close', fr: 'Fermer' }) : t({ en: 'Save', fr: 'Enregistrer' })}
             pied={
                 readOnly ? undefined : (
                     <Button
@@ -55,7 +57,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
                             onOpenChange(false);
                         }}
                     >
-                        <Trash2 className="size-4" /> Supprimer la liaison
+                        <Trash2 className="size-4" /> {t({ en: 'Delete the link', fr: 'Supprimer la liaison' })}
                     </Button>
                 )
             }
@@ -70,36 +72,36 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
             sections={[
                 {
                     champs: [
-                        { id: 'label', t: 'texte', l: 'Libellé', v: data?.label ?? '' },
+                        { id: 'label', t: 'texte', l: t({ en: 'Label', fr: 'Libellé' }), v: data?.label ?? '' },
                         {
                             id: 'condition',
                             t: 'zone',
-                            l: 'Condition (pour le modèle)',
+                            l: t({ en: 'Condition (for the model)', fr: 'Condition (pour le modèle)' }),
                             v: data?.condition ?? '',
                             info: "Décrit quand cette porte doit s'ouvrir. Le modèle la lit pour choisir la sortie.",
                         },
                         {
                             id: 'fiche',
                             t: 'choix',
-                            l: 'Condition sur la fiche',
+                            l: t({ en: 'Condition on the record', fr: 'Condition sur la fiche' }),
                             o: Object.values(FICHE),
                             v: FICHE[recordModeOf(data?.condition_sur_la_fiche)],
                             info: "Le code n'ouvre la porte que si la condition est vraie. Les sorties se lisent dans l'ordre du canevas, la première vraie l'emporte.",
                         },
-                        { id: 'champ', t: 'texte', l: 'Champ', v: data?.condition_sur_la_fiche?.champ ?? '', si: ['fiche', [FICHE.field]] },
+                        { id: 'champ', t: 'texte', l: t({ en: 'Field', fr: 'Champ' }), v: data?.condition_sur_la_fiche?.champ ?? '', si: ['fiche', [FICHE.field]] },
                         {
                             id: 'vaut',
                             t: 'texte',
-                            l: 'Valeur',
+                            l: t({ en: 'Value', fr: 'Valeur' }),
                             v: data?.condition_sur_la_fiche?.vaut ?? '',
                             si: ['fiche', [FICHE.field]],
                             info: "Vide : n'importe quelle valeur. « refusé » pour un refus.",
                         },
-                        { id: 'phrase', t: 'choix', l: 'Phrase de transition', o: Object.values(PHRASE), v: PHRASE[phraseDepart] },
+                        { id: 'phrase', t: 'choix', l: t({ en: 'Transition sentence', fr: 'Phrase de transition' }), o: Object.values(PHRASE), v: PHRASE[phraseDepart] },
                         {
                             id: 'texte',
                             t: 'zone',
-                            l: 'Texte de la phrase',
+                            l: t({ en: 'Sentence text', fr: 'Texte de la phrase' }),
                             v: data?.transition_speech ?? '',
                             si: ['phrase', [PHRASE.text]],
                             info: "Dite juste avant de passer à l'étape suivante. Elle n'entre pas dans le contexte de la conversation : une phrase de remplissage qui réduit l'attente.",
@@ -109,7 +111,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
                                   {
                                       id: 'enregistrement',
                                       t: 'choix' as const,
-                                      l: 'Enregistrement',
+                                      l: t({ en: 'Recording', fr: 'Enregistrement' }),
                                       o: choixEnregistrement,
                                       v: enregistrementDepart ? libelleEnregistrement(enregistrementDepart) : choixEnregistrement[0],
                                       si: ['phrase', [PHRASE.audio]] as [string, string[]],
@@ -148,6 +150,7 @@ interface CustomEdgeProps extends EdgeProps {
 }
 
 export default function CustomEdge(props: CustomEdgeProps) {
+    const { t } = useLangue();
     const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style, selected, markerEnd } = props;
 
     const { getEdges, setNodes } = useReactFlow<FlowNode, FlowEdge>();
@@ -265,7 +268,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     markerEnd={markerEnd}
                     style={{
                         ...style,
-                        stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? '#9a9aa4' : '#c4c4cc',
+                        stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? 'var(--liaison-survol)' : 'var(--liaison)',
                         strokeWidth: 1.5,
                         transition: 'stroke 0.2s ease',
                     }}
@@ -296,7 +299,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                                 : 'border-black/10 bg-background text-muted-foreground',
                         )}
                     >
-                        {data?.label || data?.condition || 'Sans condition'}
+                        {data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })}
                     </button>
                 </div>
             </EdgeLabelRenderer>

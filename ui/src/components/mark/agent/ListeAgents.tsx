@@ -308,16 +308,16 @@ export function ListeAgents({
     const ligneDossier = (n: NoeudDeDossier, profondeur: number): React.ReactNode => (
         <div key={n.dossier.id}>
             <div
-                className={`group flex w-full items-center rounded-lg text-sm ${dossier === n.dossier.id ? "bg-accent font-medium text-accent-foreground" : "hover:bg-muted"}`}
+                className={`group relative flex w-full items-center rounded-lg text-sm ${dossier === n.dossier.id ? "bg-accent font-medium text-accent-foreground" : "hover:bg-muted"}`}
                 style={{ paddingLeft: profondeur * 14 }}
             >
                 <button type="button" onClick={() => setDossier(n.dossier.id)} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2 text-left">
                     <Folder className="size-4 shrink-0" /> <span className="truncate">{n.dossier.name}</span>
-                    <span className="ml-auto text-xs">{compte(n.dossier.id)}</span>
+                    <span className="ml-auto text-xs group-focus-within:invisible group-hover:invisible">{compte(n.dossier.id)}</span>
                 </button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="mr-1 size-6 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100" aria-label={t(T.menuDossier)}>
+                        <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 size-6 -translate-y-1/2 opacity-0 focus-visible:opacity-100 group-hover:opacity-100" aria-label={t(T.menuDossier)}>
                             <MoreHorizontal className="size-3.5" />
                         </Button>
                     </DropdownMenuTrigger>

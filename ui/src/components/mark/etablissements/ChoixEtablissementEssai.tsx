@@ -49,10 +49,10 @@ export function ChoixEtablissementEssai({
 
     if (ficheDeLagent || liste.length === 0) return null;
     return (
-        <label className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="choix-etablissement-essai">
+        <label className="flex shrink-0 items-center gap-2 border-b px-4 py-3 text-sm text-muted-foreground" data-testid="choix-etablissement-essai">
             {t({ en: "Establishment played", fr: "Établissement joué" })}
             <select
-                className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+                className="ml-auto min-w-0 max-w-[60%] cursor-pointer rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 value={valeur}
                 disabled={desactive}
                 onChange={(e) => onChange(e.target.value)}

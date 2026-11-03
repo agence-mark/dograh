@@ -16,7 +16,7 @@ export const BaseNode = forwardRef<
         ref={ref}
         className={cn(
             // Base styling - larger with max width, uses semantic colors
-            "relative w-[250px] cursor-pointer rounded-xl border bg-card px-3.5 py-3 text-card-foreground shadow-[0_1px_2px_rgba(15,15,16,0.05)]",
+            "relative w-[250px] cursor-pointer rounded-xl border bg-card px-3.5 py-3 text-card-foreground shadow-xs",
             // Border styling
             "border-black/10",
             className,

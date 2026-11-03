@@ -431,7 +431,7 @@ function RenderWorkflow({
     // Memoize defaultEdgeOptions to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
         type: "custom",
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#b5b5bd", width: 14, height: 14 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "var(--liaison-fleche)", width: 14, height: 14 },
     }), []);
 
     const displayNodes = useMemo(
@@ -517,6 +517,7 @@ function RenderWorkflow({
         },
         [onNodesChange],
     );
+    const panneauOuvert = builderOuvert || isTesterRailOpen;
     const noeudsAffiches = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
     const liaisonsAffichees = affichageDuBuilder ? affichageDuBuilder.edges : edges;
 
@@ -711,8 +712,9 @@ function RenderWorkflow({
 
                 {/* Workflow Canvas */}
                 <div className="flex-1 min-h-0">
-                    <div className="flex h-full min-w-0">
-                        <div className="relative min-w-0 flex-1 bg-[#fafafa]">
+                    <div className="relative flex h-full min-w-0">
+                        <div className={`min-w-0 flex-1 bg-(--canevas) ${panneauOuvert ? "lg:pr-[436px]" : ""}`}>
+                        <div className="relative h-full">
                             <ReactFlow
                                 key={activeVersionId ?? 'current'}
                                 nodes={noeudsAffiches}
@@ -754,7 +756,7 @@ function RenderWorkflow({
                                     variant={BackgroundVariant.Dots}
                                     gap={20}
                                     size={1}
-                                    color="#e7e7ea"
+                                    color="var(--canevas-point)"
                                 />
 
                             </ReactFlow>
@@ -778,24 +780,28 @@ function RenderWorkflow({
                                 bibliothequeHref={bibliothequeHref}
                             />
                         </div>
+                        </div>
 
-                        {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
-
-                        {isTesterRailOpen && (
-                            <aside className="hidden h-full w-[400px] shrink-0 border-l border-border xl:block">
-                                <WorkflowTesterPanel
-                                    workflowId={workflowId}
-                                    initialContextVariables={templateContextVariables}
-                                    ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
-                                    disabled={testerDisabledReason !== null}
-                                    disabledReason={testerDisabledReason}
-                                    showWebCallOnboarding={false}
-                                    isVisible={isDesktopViewport}
-                                    onClose={() => setIsTesterRailOpen(false)}
-                                    onRuntimeNodeTransition={handleRuntimeNodeTransition}
-                                    modeDemande={modeEssai}
-                                />
-                            </aside>
+                        {/* K2 : les panneaux de droite flottent au-dessus du canevas, comme la maquette (« superpose »). */}
+                        {panneauOuvert && (
+                            <div className="absolute bottom-2 right-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
+                                {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
+                                {isTesterRailOpen && (
+                                    <aside className="hidden h-full w-[420px] shrink-0 xl:block">
+                                        <WorkflowTesterPanel
+                                            workflowId={workflowId}
+                                            initialContextVariables={templateContextVariables}
+                                            ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
+                                            disabled={testerDisabledReason !== null}
+                                            disabledReason={testerDisabledReason}
+                                            isVisible={isDesktopViewport}
+                                            onClose={() => setIsTesterRailOpen(false)}
+                                            onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                                            modeDemande={modeEssai}
+                                        />
+                                    </aside>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -807,7 +813,6 @@ function RenderWorkflow({
                                 ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                 disabled={testerDisabledReason !== null}
                                 disabledReason={testerDisabledReason}
-                                showWebCallOnboarding={false}
                                 isVisible={isTesterSheetOpen}
                                 onRuntimeNodeTransition={handleRuntimeNodeTransition}
                                 modeDemande={modeEssai}
