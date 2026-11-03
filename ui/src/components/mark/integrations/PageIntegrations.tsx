@@ -21,7 +21,6 @@ export function PageIntegrations() {
     const propositions = usePropositions();
     return (
         <PageStudio>
-            <div className="space-y-6">
                 <TitrePage
                     titre={t({ en: "Integrations", fr: "Intégrations" })}
                     info={t({
@@ -36,7 +35,6 @@ export function PageIntegrations() {
                         { id: "identifiants", titre: t({ en: "Credentials", fr: "Identifiants" }), contenu: <OngletIdentifiants /> },
                     ]}
                 />
-            </div>
         </PageStudio>
     );
 }

@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
+import { Initiales } from "../integrations/OngletLogiciels";
 import { useLangue } from "../langue/langue";
 import { EtatVide } from "../studio/etat-vide";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
-import { Initiales } from "../integrations/OngletLogiciels";
 import { Paginee } from "../studio/pagination";
 import { PageStudio } from "../studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
@@ -89,7 +89,6 @@ export function PageOutils() {
 
     return (
         <PageStudio>
-        <div className="space-y-6">
             <TitrePage
                 titre={t({ en: "Tools", fr: "Outils" })}
                 info={t({
@@ -231,7 +230,6 @@ export function PageOutils() {
                     }}
                 />
             )}
-        </div>
         </PageStudio>
     );
 }

@@ -32,13 +32,13 @@ export const TYPES_DE_PROPOSITION: Record<"version" | "passage_recette" | "rejet
 };
 
 export const GROUPES: Record<string, Texte> = {
-    construit: { en: "What builds the agent", fr: "Ce qui construit l'agent" },
-    travaille: { en: "What makes the agent work", fr: "Ce qui fait travailler l'agent" },
-    regle: { en: "What sets the agent", fr: "Ce qui règle l'agent" },
-    suit: { en: "What follows the call", fr: "Ce qui suit l'appel" },
+    construit: { en: "Build the agent", fr: "Construire l'agent" },
+    travaille: { en: "Make the agent work", fr: "Faire travailler l'agent" },
+    regle: { en: "Set the agent", fr: "Régler l'agent" },
+    suit: { en: "Follow the call", fr: "Suivre l'appel" },
     site: { en: "The website", fr: "Le site" },
-    prouve: { en: "What proves the agent", fr: "Ce qui prouve l'agent" },
-    guide: { en: "What guides the builder", fr: "Ce qui guide le builder" },
+    prouve: { en: "Prove the agent", fr: "Prouver l'agent" },
+    guide: { en: "Guide the builder", fr: "Guider le builder" },
 };
 
 export const dateCourte = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");

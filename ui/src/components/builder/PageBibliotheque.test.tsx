@@ -219,11 +219,12 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
         await ouvrirLeMenu(/Labels/);
         fireEvent.click(await screen.findByText("Manage labels…"));
         const fenetre = await screen.findByTestId("gestion-etiquettes");
-        expect(fenetre.textContent).toContain("2 element(s)");
+        expect(within(fenetre).getByTestId("nb-urgence").textContent).toBe("2");
         m.renommerEtiquette.mockResolvedValue({ data: [{ nom: "panne", elements: 2 }] });
-        fireEvent.click(within(fenetre).getByRole("button", { name: "Rename" }));
-        fireEvent.change(within(fenetre).getByLabelText("New name"), { target: { value: "panne" } });
-        fireEvent.click(within(fenetre).getByRole("button", { name: "Rename" }));
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Rename urgence" }));
+        const champ = within(fenetre).getByLabelText("New name");
+        fireEvent.change(champ, { target: { value: "panne" } });
+        fireEvent.keyDown(champ, { key: "Enter" });
         await waitFor(() => expect(m.renommerEtiquette).toHaveBeenCalledWith({ query: { ancien: "urgence" }, body: { nom: "panne" } }));
     });
 
@@ -233,10 +234,21 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
         fireEvent.click(await screen.findByText("Manage labels…"));
         const fenetre = await screen.findByTestId("gestion-etiquettes");
         m.supprimerEtiquette.mockResolvedValue({ data: [] });
-        fireEvent.click(within(fenetre).getByRole("button", { name: "Delete" }));
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Delete urgence" }));
         expect(m.supprimerEtiquette).not.toHaveBeenCalled();
-        fireEvent.click(within(fenetre).getByRole("button", { name: /Remove from 2 element/ }));
+        expect(fenetre.textContent).toContain("Removed from 2 element(s)");
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Delete" }));
         await waitFor(() => expect(m.supprimerEtiquette).toHaveBeenCalledWith({ query: { nom: "urgence" } }));
+    });
+
+    it("creates a label from the « Labels » menu", async () => {
+        render(<PageBibliotheque />);
+        await ouvrirLeMenu(/Labels/);
+        m.creerEtiquette.mockResolvedValue({ data: [] });
+        const champ = await screen.findByLabelText("New label");
+        fireEvent.change(champ, { target: { value: "banc" } });
+        fireEvent.keyDown(champ, { key: "Enter" });
+        await waitFor(() => expect(m.creerEtiquette).toHaveBeenCalledWith({ body: { nom: "banc" } }));
     });
 
     it("drops a document: the file goes to the server and the result says it is a Candidate", async () => {

@@ -106,7 +106,6 @@ export function PageConnaissances() {
 
     return (
         <PageStudio>
-            <div className="space-y-6">
                 <TitrePage
                     titre={t({ en: "Knowledge", fr: "Connaissances" })}
                     info={t({
@@ -171,7 +170,6 @@ export function PageConnaissances() {
                         )}
                     </Paginee>
                 )}
-            </div>
             {depot && <FenetreDepot fermer={() => setDepot(false)} apres={() => void relire()} />}
             {ouvert && (
                 <FenetreDocument

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
     creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost,
+    creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost,
     lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet,
     lireUnElementApiV1BuilderBibliothequeFamilleSlugGet,
     listerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGet,
@@ -46,8 +47,8 @@ import { detailFromError } from "@/lib/apiError";
 
 import { ColonneDesFamilles } from "./ColonneDesFamilles";
 import { FenetreElement } from "./FenetreElement";
-import { FenetreFiche, FenetreNouvelleFamille } from "./FenetresDeFamille";
 import { FenetreNouvelElement } from "./FenetreNouvelElement";
+import { FenetreFiche, FenetreNouvelleFamille } from "./FenetresDeFamille";
 import { GestionDesEtiquettes } from "./GestionDesEtiquettes";
 import { type StatutDeLaBibliotheque, STATUTS } from "./libelles";
 import { PropositionsDeLaBibliotheque } from "./PropositionsDeLaBibliotheque";
@@ -317,6 +318,25 @@ export function PageBibliotheque() {
                                 <DropdownMenuItem onSelect={() => setGestion(true)}>
                                     <Pencil className="size-3.5" /> {t({ en: "Manage labels…", fr: "Gérer les étiquettes…" })}
                                 </DropdownMenuItem>
+                                <div className="p-1">
+                                    <Input
+                                        placeholder={t({ en: "New label", fr: "Nouvelle étiquette" })}
+                                        aria-label={t({ en: "New label", fr: "Nouvelle étiquette" })}
+                                        className="h-8 text-sm"
+                                        onKeyDown={(e) => {
+                                            e.stopPropagation();
+                                            if (e.key !== "Enter") return;
+                                            const champ = e.currentTarget;
+                                            const nom = champ.value.trim();
+                                            if (!nom) return;
+                                            champ.value = "";
+                                            void creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost({ body: { nom } }).then((r) => {
+                                                if (r.error) notifier.echec({ fr: "Étiquette non créée. Réessayez.", en: "Label not created. Try again." }, { erreur: r.error });
+                                                else void chargerLesEtiquettes();
+                                            });
+                                        }}
+                                    />
+                                </div>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

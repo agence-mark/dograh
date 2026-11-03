@@ -7,13 +7,13 @@
  */
 import { useState } from "react";
 
-import { ChoixEtiquettes } from "./ChoixEtiquettes";
-
 import { rangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPost } from "@/client";
 import type { Element as ElementBibliotheque, VueEtiquette } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { detailFromError } from "@/lib/apiError";
+
+import { ChoixEtiquettes } from "./ChoixEtiquettes";
 
 interface Props {
     element: ElementBibliotheque;

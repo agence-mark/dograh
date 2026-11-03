@@ -21,6 +21,7 @@ import { notifier } from "@/components/mark/notifications";
 import { Carte, ChampFenetre, FenetreLarge } from "@/components/mark/studio/fenetre-large";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Liste } from "@/components/mark/studio/liste";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -147,12 +148,12 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
             sous={
                 <span className="flex items-center gap-1.5">
                     {t({ en: "Enters as a Candidate", fr: "Entre en Candidat" })}
-                    <span className="sr-only">
+                    <Info>
                         {t({
                             en: "It becomes a Recipe when a bench has proven it and a person validates it.",
                             fr: "Il passe en Recette quand un banc l'a prouvé et qu'une personne le valide.",
                         })}
-                    </span>
+                    </Info>
                 </span>
             }
             pied={
