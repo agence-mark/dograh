@@ -17,6 +17,7 @@ PREFIXE_BUILDER = "MARK_BUILDER:"  # MARK_BUILDER:<workflow>:fiche | contexte | 
 PREFIXE_TESTS = "MARK_TESTS:"  # MARK_TESTS:<workflow>:<test>  (lot 6)
 PREFIXE_RESULTATS = "MARK_TESTS_RESULTATS:"  # MARK_TESTS_RESULTATS:<workflow>:<test>  (3 dernières exécutions)
 CLE_CERVEAU = "MARK_BUILDER_CERVEAU"  # réglages du cerveau, dans l'organisation des réglages .mark
+CLE_PRIX = "MARK_BUILDER_PRIX"  # table de prix par modèle (C2), même organisation que le cerveau
 CLE_PREFERENCES = "MARK_BUILDER_PREFERENCES"  # user_configurations (couche 3 du contexte permanent)
 
 # Bornes (R0-6).

@@ -27,7 +27,11 @@ from api.services.builder import brouillon
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau, fabriquer
 from api.services.builder.tests_agent import diagnostic, jeu, juge, stockage, verdict
 from api.services.builder.tests_agent.jeu import AppelantParCerveau, Moteur
-from api.services.tests_rejouables.modele import ErreurTestRejouable, depuis_json, refuser_si_protege
+from api.services.tests_rejouables.modele import (
+    ErreurTestRejouable,
+    depuis_json,
+    refuser_si_protege,
+)
 
 REPETITIONS_PAR_DEFAUT = 3
 LIGNES_GARDEES = 60
@@ -70,6 +74,51 @@ async def cerveau_du_builder(user: Any) -> Cerveau | None:
         return fabriquer(reglages, cle)
     except ErreurCerveau:
         return None
+
+
+# --- le plafond du rejeu (C2) ----------------------------------------------------------------------------------------------
+
+
+class PlafondDuRejeu(Exception):
+    def __init__(self, quoi: str):
+        super().__init__(quoi)
+        self.quoi = quoi
+
+
+class CerveauCompte:
+    """Le cerveau de l'appelant simulé et du juge, compté sur tout le rejeu (C2) : jetons et dollars (table de prix).
+
+    Avant chaque appel, si un plafond du rejeu est atteint, ``PlafondDuRejeu`` : la suite s'arrête, rien n'est inventé pour
+    les tests restants, et la question remonte à la personne (« continuer au-delà du plafond ? »)."""
+
+    def __init__(self, cerveau: Cerveau, reglages: Any):
+        self._cerveau = cerveau
+        self._reglages = reglages
+        self.depense: dict[str, Any] = {"jetons": 0, "cout": 0.0}
+
+    def atteint(self) -> str | None:
+        r = self._reglages
+        if r is None:
+            return None
+        if self.depense["jetons"] >= r.plafond_rejeu_jetons:
+            return "jetons"
+        if r.plafond_rejeu_depense > 0 and self.depense["cout"] >= r.plafond_rejeu_depense:
+            return "depense"
+        return None
+
+    async def tour(self, *, systeme: str, messages: list[dict[str, Any]], outils: list[dict[str, Any]]):
+        if (quoi := self.atteint()) is not None:
+            raise PlafondDuRejeu(quoi)
+        async for evenement in self._cerveau.tour(systeme=systeme, messages=messages, outils=outils):
+            if evenement.get("type") == "usage" and self._reglages is not None:
+                entree, sortie = int(evenement.get("entree", 0) or 0), int(evenement.get("sortie", 0) or 0)
+                self.depense["jetons"] += entree + sortie
+                self.depense["cout"] = round(
+                    self.depense["cout"]
+                    + (entree * self._reglages.prix_entree_par_million + sortie * self._reglages.prix_sortie_par_million) / 1_000_000,
+                    6,
+                )
+            yield evenement
 
 
 # --- un test ----------------------------------------------------------------------------------------------------------------
@@ -118,6 +167,8 @@ async def _essais_d_une_conversation(test: dict[str, Any], workflow: Any, user: 
     for i in range(1, n + 1):
         try:
             obs = await jeu.jouer_une_conversation(workflow, test, appelant, moteur)
+        except PlafondDuRejeu:
+            raise
         except Exception as erreur:  # noqa: BLE001 -- un essai en erreur compte pour raté, avec sa cause
             logger.warning(f"[tests-agent] essai {i} de {test['slug']} en erreur : {type(erreur).__name__}")
             sorties.append({"numero": i, "erreur": f"{type(erreur).__name__}: {str(erreur)[:160]}", "criteres": [], "reussi": False, "lignes": []})
@@ -230,11 +281,15 @@ async def rejouer_la_suite(
     outils = await _noms_d_outils(workflow, organisation_id, graphe)
     cerveau = None
     if any(t.get("scenario") or t.get("questions_juge") for t in voulus):
-        cerveau = await cerveau_du_builder(user)
+        brut = await cerveau_du_builder(user)
+        cerveau = CerveauCompte(brut, getattr(brut, "reglages", None)) if brut is not None else None
 
     resultats: list[dict[str, Any]] = []
     echecs: list[dict[str, Any]] = []
+    plafond: str | None = None
     for test in voulus:
+        if cerveau is not None and (plafond := cerveau.atteint()) is not None:
+            break
         try:
             if test.get("scenario"):
                 essais = await _essais_d_une_conversation(test, workflow, user, repetitions, cerveau)
@@ -242,10 +297,16 @@ async def rejouer_la_suite(
                 essais = await _essais_d_une_replique(test, workflow, organisation_id, repetitions)
         except ErreurTestRejouable as erreur:
             essais = [{"numero": 1, "erreur": str(erreur), "criteres": [], "reussi": False, "lignes": []}]
+        except PlafondDuRejeu as atteint:
+            plafond = atteint.quoi
+            break
         statut = _statut_d_un_test(essais)
         avis = None
         if avec_le_juge and cerveau is not None and test.get("questions_juge") and essais and essais[0].get("lignes"):
-            avis = await juge.juger(cerveau, [(r, t) for r, t in essais[0]["lignes"]], test["questions_juge"])
+            try:
+                avis = await juge.juger(cerveau, [(r, t) for r, t in essais[0]["lignes"]], test["questions_juge"])
+            except PlafondDuRejeu as atteint:
+                plafond, avis = atteint.quoi, {"bloquant": False, "avis": [], "erreur": "replay ceiling reached"}
         reussis = sum(1 for e in essais if e["reussi"])
         entree = {
             "slug": test["slug"],
@@ -268,7 +329,9 @@ async def rejouer_la_suite(
             {"le": stockage.maintenant(), "version": version, "empreinte": empreinte_rejouee, "statut": statut, "reussis": reussis, "total": len(essais), "essais": essais, "juge": avis},
         )
 
-    tout_vert = all(r["statut"] == "ok" for r in resultats)
+    if plafond is not None:
+        complete = False
+    tout_vert = bool(resultats) and all(r["statut"] == "ok" for r in resultats)
     refus = any(r["obligatoire"] and r["statut"] != "ok" for r in resultats)
     elements = [
         {
@@ -293,6 +356,17 @@ async def rejouer_la_suite(
         "version": version,
         "elements": elements,
         "resultats": resultats,
-        "message": "" if complete else "Only part of the suite was replayed: nothing is verified until the whole suite passes.",
+        "plafond": plafond,
+        "depense": dict(cerveau.depense) if cerveau is not None else None,
+        "question": (
+            f"The replay's ceiling ({plafond}) is reached after {len(resultats)} of {len(voulus)} tests: raise the ceiling or replay the rest?"
+            if plafond is not None
+            else None
+        ),
+        "message": (
+            f"Stopped: the replay's ceiling ({plafond}) is reached. Ask the person before going on."
+            if plafond is not None
+            else "" if complete else "Only part of the suite was replayed: nothing is verified until the whole suite passes."
+        ),
         "carte": {"type": "tests", "ok": bool(tout_vert and complete), "refus": refus, "elements": elements},
     }

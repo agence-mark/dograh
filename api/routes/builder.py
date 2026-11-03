@@ -36,7 +36,9 @@ from api.services.builder import actions, conception, contexte, correction, fich
 from api.services.builder.actions.registre import Contexte
 from api.services.builder.bibliotheque import droits
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
+from api.services.builder.cerveau import prix as prix_des_modeles
 from api.services.builder.cerveau import reglages as reglages_cerveau
+from api.services.builder.cerveau.prix import TableDesPrix
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau, fabriquer
 from api.services.builder.cerveau.marque import MARQUE_CLE_DU_CERVEAU
 from api.services.builder.cerveau.reglages import FormatDuFil, ReglagesCerveau, VueReglagesCerveau
@@ -255,6 +257,8 @@ class ModificationDuCerveau(BaseModel):
     plafond_jetons: int = Field(default=1_500_000, ge=1000)
     prix_entree_par_million: float = Field(default=0.0, ge=0)
     prix_sortie_par_million: float = Field(default=0.0, ge=0)
+    plafond_rejeu_depense: float = Field(default=1.0, ge=0)
+    plafond_rejeu_jetons: int = Field(default=400_000, ge=1000)
     fenetre: int = Field(default=200_000, ge=4000)
     sortie_max: int = Field(default=8192, ge=256)
     tours_outils_max: int = Field(default=12, ge=1, le=40)
@@ -300,6 +304,27 @@ async def regler_le_cerveau(
     reglages = ReglagesCerveau(**demande.model_dump(exclude={"cle"}), cle_ref=cle_ref)
     await reglages_cerveau.ecrire(organisation, reglages)
     return await reglages_cerveau.vue(organisation)
+
+
+@router.get("/prix", response_model=TableDesPrix)
+async def lire_la_table_des_prix(user: UserModel = Depends(get_user_with_selected_organization)):
+    """C2 : la table de prix par modèle (dollars par million de jetons). Réservée à l'équipe .mark, comme le cerveau."""
+    try:
+        await droits.exiger_l_equipe(user)
+    except ErreurBibliotheque as erreur:
+        raise _refus_bibliotheque(erreur) from None
+    return await prix_des_modeles.lire(await reglages_cerveau.organisation_des_reglages(user))
+
+
+@router.put("/prix", response_model=TableDesPrix)
+async def regler_la_table_des_prix(demande: TableDesPrix, user: UserModel = Depends(get_user_with_selected_organization)):
+    try:
+        await droits.exiger_l_equipe(user)
+    except ErreurBibliotheque as erreur:
+        raise _refus_bibliotheque(erreur) from None
+    organisation = await reglages_cerveau.organisation_des_reglages(user)
+    await prix_des_modeles.ecrire(organisation, demande)
+    return await prix_des_modeles.lire(organisation)
 
 
 class Preferences(BaseModel):

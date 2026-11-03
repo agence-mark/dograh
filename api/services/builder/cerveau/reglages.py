@@ -38,6 +38,9 @@ class ReglagesPublics(BaseModel):
     plafond_jetons: int = Field(default=1_500_000, ge=1000)
     prix_entree_par_million: float = Field(default=0.0, ge=0)
     prix_sortie_par_million: float = Field(default=0.0, ge=0)
+    # Plafonds par rejeu de la suite (C2) : appelant simulé et juge, la suite s'arrête et la question remonte à la personne.
+    plafond_rejeu_depense: float = Field(default=1.0, ge=0)
+    plafond_rejeu_jetons: int = Field(default=400_000, ge=1000)
     # Fenêtre de contexte du modèle (jetons) : le compactage se déclenche à 70 % (B45).
     fenetre: int = Field(default=200_000, ge=4000)
     sortie_max: int = Field(default=8192, ge=256)
@@ -61,8 +64,17 @@ async def organisation_des_reglages(user) -> int:
 
 
 async def lire(organisation: int) -> ReglagesCerveau:
+    """Les réglages, avec les prix du modèle pris dans la table de prix quand il y figure (C2 : la table prime)."""
+    from api.services.builder.cerveau import prix
+
     brut = await stock.lire(organisation, CLE_CERVEAU)
-    return ReglagesCerveau.model_validate(brut) if brut else ReglagesCerveau()
+    reglages = ReglagesCerveau.model_validate(brut) if brut else ReglagesCerveau()
+    ligne = (await prix.lire(organisation)).prix_de(reglages.modele) if reglages.modele else None
+    if ligne is not None:
+        reglages = reglages.model_copy(
+            update={"prix_entree_par_million": ligne.entree_par_million, "prix_sortie_par_million": ligne.sortie_par_million}
+        )
+    return reglages
 
 
 async def ecrire(organisation: int, reglages: ReglagesCerveau) -> None:

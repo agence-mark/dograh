@@ -13,13 +13,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.services.builder import brouillon
 from api.services.builder.actions.registre import Contexte, executer
 from api.services.builder.bibliotheque import service
 from api.services.builder.bibliotheque.modele import Banc
 from api.services.builder.cerveau.factice import CerveauFactice, texte, tour
 from api.services.builder.controle import service as service_controle
-from api.services.builder.controle.regles import ObjetConnu
 from api.services.builder.donnees_fictives import est_fictive
 from api.services.builder.tests_agent import (
     boucle,
@@ -36,7 +34,13 @@ from api.services.builder.tests_agent import (
 )
 from api.services.builder.tests_agent.verdict import ObservationConversation
 from api.services.tests_rejouables.rejeu import Essai, ResultatTest
-from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, ORG_MARK, graphe_depart, utilisateur
+from api.tests.mark.builder_commun import (
+    AGENT,
+    ORG_CLIENT,
+    ORG_MARK,
+    graphe_depart,
+    utilisateur,
+)
 
 EQUIPE = Contexte(user=utilisateur(1), workflow_id=AGENT)
 OBLIGATOIRE = {"type": "texte_absent", "texte": "outil_interne"}
@@ -519,6 +523,21 @@ async def test_tout_vert_sur_le_brouillon_courant_la_publication_passe_et_l_inte
     assert await publication.verifier_avant_publication(banc.workflows[AGENT], brouillon_v(2), ORG_CLIENT) is None
 
 
+async def test_c1_le_contournement_de_la_garde_est_journalise_avec_l_agent_et_la_personne(banc, monkeypatch):
+    from loguru import logger
+
+    lignes: list[str] = []
+    puits = logger.add(lambda m: lignes.append(str(m)), level="WARNING")
+    try:
+        await un_test("a", obligatoire=True)
+        monkeypatch.setenv(publication.INTERRUPTEUR, "1")
+        agent = banc.workflows[AGENT]
+        assert await publication.verifier_avant_publication(agent, brouillon_v(2), ORG_CLIENT, 77) is None
+    finally:
+        logger.remove(puits)
+    assert any("publication sans garde" in l and f"agent {agent.id}" in l and "personne 77" in l for l in lignes)
+
+
 async def test_un_brouillon_modifie_sans_changer_de_numero_n_est_pas_publie_avant_un_nouveau_rejeu(banc):
     """Revue R1 : ``save_workflow_draft`` ne change pas le numéro de version ; seule l'empreinte (graphe + réglages) le voit."""
     await un_test("a", obligatoire=True)
@@ -702,3 +721,55 @@ async def test_l_export_est_un_fichier_sans_organisation_et_sans_donnee_reelle(b
     assert lot["tests"][0]["executions"][0]["statut"] == "ok"
     assert b"agent-42" in export.en_octets(lot)
     assert {o for (o, _cle) in banc.configs} == {ORG_CLIENT}  # aucune écriture hors de l'organisation de l'agent
+
+
+# --- C2 (partie 2, lot 0) : table de prix par modèle et plafond par rejeu ------------------------------------------------------------
+
+
+async def test_c2_le_plafond_du_rejeu_arrete_la_suite_et_pose_la_question(banc):
+    from api.services.builder.cerveau.reglages import ReglagesCerveau
+
+    for nom in ("Libre-1", "Libre-2"):
+        await executer("tests_creer", {"nom": nom, "scenario": "Prendre un rendez-vous.", "criteres": [{"type": "sans_redite"}]}, EQUIPE)
+    execution.DEPENDANCES.moteur = MoteurFactice(["Bonjour.", "Noté, au revoir."], fin_au_tour=1).en_moteur
+    cerveau = CerveauFactice(*[tour(texte("Un rendez-vous."), entree=900, sortie=200) for _ in range(10)])
+    cerveau.reglages = ReglagesCerveau(modele="m", plafond_rejeu_jetons=1000, prix_entree_par_million=1.0)
+    execution.DEPENDANCES.cerveau = AsyncMock(return_value=cerveau)
+    r = await executer("tests_rejouer", {"repetitions": 1}, EQUIPE)
+    assert r["plafond"] == "jetons" and r["ok"] is False and r["partiel"] is True
+    assert r["total"] == 1 and r["question"] and "ceiling" in r["message"]  # le second test n'est pas joué, rien d'inventé
+    assert r["depense"]["jetons"] >= 1000 and r["depense"]["cout"] > 0
+
+
+async def test_c2_sous_le_plafond_le_rejeu_ne_s_arrete_pas(banc):
+    from api.services.builder.cerveau.reglages import ReglagesCerveau
+
+    await executer("tests_creer", {"nom": "Libre", "scenario": "x", "criteres": [{"type": "sans_redite"}]}, EQUIPE)
+    execution.DEPENDANCES.moteur = MoteurFactice(["Bonjour.", "Noté, au revoir."], fin_au_tour=1).en_moteur
+    cerveau = CerveauFactice(*[tour(texte("Un rendez-vous.")) for _ in range(5)])
+    cerveau.reglages = ReglagesCerveau(modele="m")
+    execution.DEPENDANCES.cerveau = AsyncMock(return_value=cerveau)
+    r = await executer("tests_rejouer", {"repetitions": 1}, EQUIPE)
+    assert r["plafond"] is None and r["question"] is None and r["total"] == 1
+
+
+async def test_c2_la_table_de_prix_prime_sur_les_prix_saisis_et_refuse_un_doublon(banc):
+    from pydantic import ValidationError
+
+    from api.services.builder.cerveau import prix, reglages
+    from api.services.builder.cerveau.reglages import ReglagesCerveau
+
+    await reglages.ecrire(ORG_MARK, ReglagesCerveau(modele="claude-x", prix_entree_par_million=9.0, prix_sortie_par_million=9.0))
+    assert (await reglages.lire(ORG_MARK)).prix_entree_par_million == 9.0  # sans table : le repli des réglages
+    await prix.ecrire(ORG_MARK, prix.TableDesPrix(modeles=[prix.PrixDUnModele(modele="claude-x", entree_par_million=3.0, sortie_par_million=15.0)]))
+    lus = await reglages.lire(ORG_MARK)
+    assert (lus.prix_entree_par_million, lus.prix_sortie_par_million) == (3.0, 15.0)
+    with pytest.raises(ValidationError):
+        prix.TableDesPrix(modeles=[prix.PrixDUnModele(modele="a"), prix.PrixDUnModele(modele="a")])
+
+
+def test_c2_les_plafonds_du_rejeu_ont_une_valeur_par_defaut():
+    from api.services.builder.cerveau.reglages import ReglagesCerveau
+
+    r = ReglagesCerveau()
+    assert r.plafond_rejeu_jetons == 400_000 and r.plafond_rejeu_depense == 1.0

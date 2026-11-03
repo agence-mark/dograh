@@ -43,6 +43,11 @@ async def corriger(
     tour = 0
     raison = "vert" if verifie else "tours"
     while not verifie and tour < reglages.tours_correction_max:
+        if resultat.get("plafond"):
+            # C2 : le plafond du rejeu arrête la boucle, et la question remonte à la personne.
+            raison = "plafond_rejeu"
+            yield {"type": "erreur", "code": "plafond_rejeu", "message": resultat.get("question") or resultat.get("message", "")}
+            break
         tour += 1
         conversation = await _depense_de_la_conversation(ctx)
         if (atteint := moteur.plafond_atteint(conversation, reglages)) is not None:
