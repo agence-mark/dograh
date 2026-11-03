@@ -187,7 +187,7 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
 
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
 };
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {

@@ -9,7 +9,7 @@
  *   - « Create by copy » (F2): the request, the list read again, the notice of what was not copied, refused while
  *     something waits to be saved;
  *   - the takeover: the trial run first, written only on the second click, what it cannot decide listed apart;
- *   - the places of a person: boxes, none ticked = the whole company (M5), both fields emptied;
+ *   (the places of a person (M5) : prouvés sur la fenêtre d'une personne, `entreprise/inventaire-fenetres.test.tsx`;)
  *   - the test window: the choice of the establishment only for an agent without a fiche (C8).
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -20,7 +20,6 @@ import { ChoixEtablissementEssai } from "../etablissements/ChoixEtablissementEss
 import { FournisseurLangue } from "../langue/langue";
 import { ModaleEtablissements } from "./ModaleEtablissements";
 import { ModaleReprise } from "./ModaleReprise";
-import { charge_utile_equipe, lieuxDe, ThemeEquipe } from "./ThemeEquipe";
 
 const m = vi.hoisted(() => ({
     get: vi.fn(),
@@ -378,65 +377,6 @@ describe("[.mark] the takeover of the fiches and agents", () => {
             </FournisseurLangue>,
         );
         await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toContain("Nothing was changed"));
-    });
-});
-
-describe("[.mark] the places of a person (M5)", () => {
-    const rendre = () => {
-        window.localStorage.setItem("mark.langue", "en");
-        m.get.mockResolvedValue(catalogue(CREIL, SENLIS));
-        render(
-            <FournisseurLangue>
-                <ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />
-            </FournisseurLangue>,
-        );
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-    };
-
-    it("draws one box per fiche, ticked as the person's places, none ticked = the whole company", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil", "senlis"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        const cases = [...lieux.querySelectorAll("input")] as HTMLInputElement[];
-        expect(cases.map((c) => c.checked)).toEqual([true, true]);
-        expect(lieux.textContent).toContain("Magasin de Creil");
-        fireEvent.click(cases[0]);
-        fireEvent.click(cases[1]);
-        expect(lieux.textContent).toContain("None ticked: the whole company.");
-    });
-
-    it("sends the list and empties both fields to put a person back on the whole company", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil", "senlis"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        // Untick Creil: the list is Senlis alone, the legacy field mirrors its first.
-        fireEvent.click(lieux.querySelectorAll("input")[0]);
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0]).toMatchObject({ etablissements: ["senlis"], etablissement: "senlis" });
-    });
-
-    it("empties both fields when no box is ticked", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        fireEvent.click(lieux.querySelectorAll("input")[0]);
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        const personne = m.saveEquipe.mock.calls[0][0].body.personnes[0];
-        expect(personne.etablissements).toEqual([]);
-        expect(personne.etablissement).toBeNull();
-    });
-
-    it("reads an older answer (a single place) as a list", () => {
-        expect(lieuxDe({ etablissement: "creil" })).toEqual(["creil"]);
-        expect(lieuxDe({ etablissement: null })).toEqual([]);
-        expect(lieuxDe({ etablissement: "creil", etablissements: [] })).toEqual([]);
-        const charge = charge_utile_equipe({ personnes: [{ cle: "p1", prenom: "A", etablissement: "creil" }], sujets: [] });
-        expect(charge.personnes?.[0]).toMatchObject({ etablissements: ["creil"], etablissement: "creil" });
     });
 });
 

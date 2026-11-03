@@ -33,7 +33,7 @@ import {
     OUI_NON,
     texteValeur,
 } from "../parametres-organisation/reglages-rendez-vous";
-import { charge_utile_planificateur } from "../parametres-organisation/ThemeRendezVous";
+import { charge_utile_planificateur } from "../parametres-organisation/charge-utile-planificateur";
 import { EtatVide } from "../studio/etat-vide";
 import { type Champ, FenetreChamps, type Valeurs } from "../studio/fenetre-champs";
 import { Liste } from "../studio/liste";

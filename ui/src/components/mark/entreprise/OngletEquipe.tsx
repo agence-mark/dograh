@@ -3,7 +3,7 @@
 /**
  * [.mark] K4 : « Équipe et routage » comme la maquette (`entreprise.tsx`, OngletEquipe) : deux tableaux nus (Personnes,
  * Routage par sujet) ; un clic sur une ligne ouvre la fenêtre de CETTE personne ou de CE sujet. Mêmes routes, mêmes
- * champs que l'ancienne fenêtre d'équipe (`ThemeEquipe`) : l'enregistrement renvoie l'équipe entière avec la ligne
+ * champs que l'ancienne fenêtre d'équipe (l'ancien thème d'équipe) : l'enregistrement renvoie l'équipe entière avec la ligne
  * changée (la route remplace tout), jamais une donnée inventée. L'écriture dit son résultat par `notifier`.
  */
 import { Plus, Trash2, Users } from "lucide-react";
@@ -24,7 +24,7 @@ import { detailFromError } from "@/lib/apiError";
 import { useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { identifiantPour } from "../parametres-organisation/ModaleEtablissements";
-import { charge_utile_equipe, DESCRIPTION_MAX, lieuxDe } from "../parametres-organisation/ThemeEquipe";
+import { charge_utile_equipe, DESCRIPTION_MAX, lieuxDe } from "../parametres-organisation/charge-utile-equipe";
 import { EtatVide } from "../studio/etat-vide";
 import { FenetreChamps, type Valeurs } from "../studio/fenetre-champs";
 import { Info, PointEtat } from "../studio/marques";
