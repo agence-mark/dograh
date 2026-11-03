@@ -1000,6 +1000,32 @@ export type AutoscaleMetricResponse = {
 };
 
 /**
+ * AvisClient
+ */
+export type AvisClient = {
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Client
+     */
+    client: string;
+    /**
+     * Note
+     */
+    note: number | null;
+    /**
+     * Avis
+     */
+    avis: number;
+    /**
+     * Temoignages
+     */
+    temoignages: Array<TemoignageOut>;
+};
+
+/**
  * AvisPublic
  */
 export type AvisPublic = {
@@ -2687,6 +2713,32 @@ export type CleTypeRendezVous = {
      * Etablissement
      */
     etablissement?: string | null;
+};
+
+/**
+ * ClientOut
+ */
+export type ClientOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Ouverts
+     */
+    ouverts: number;
+    /**
+     * Non Lus
+     */
+    non_lus: number;
+    /**
+     * Demandes Nouvelles
+     */
+    demandes_nouvelles: number;
 };
 
 /**
@@ -5520,6 +5572,90 @@ export type EnteteDeRequete = {
 };
 
 /**
+ * EntreeCreee
+ */
+export type EntreeCreee = {
+    /**
+     * Entree Id
+     */
+    entree_id: number;
+    /**
+     * Jeton
+     */
+    jeton: string;
+    /**
+     * Expire Le
+     */
+    expire_le: string;
+    /**
+     * Valable Secondes
+     */
+    valable_secondes: number;
+};
+
+/**
+ * EntreeIn
+ */
+export type EntreeIn = {
+    /**
+     * Motif
+     */
+    motif?: string | null;
+};
+
+/**
+ * EntreeOut
+ */
+export type EntreeOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Client
+     */
+    client: string;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Motif
+     */
+    motif: string | null;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    /**
+     * Utilise Le
+     */
+    utilise_le: string | null;
+};
+
+/**
+ * EntreeVerifiee
+ */
+export type EntreeVerifiee = {
+    /**
+     * Entree Id
+     */
+    entree_id: number;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Motif
+     */
+    motif: string | null;
+};
+
+/**
  * Equipe
  */
 export type Equipe = {
@@ -6097,6 +6233,172 @@ export type FichierDeModele = {
     valeurs: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * FilIn
+ */
+export type FilIn = {
+    /**
+     * Sorte
+     */
+    sorte?: 'message' | 'demande_logiciel';
+    /**
+     * Sujet
+     */
+    sujet: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Logiciel
+     */
+    logiciel?: string | null;
+    /**
+     * Catalogue
+     */
+    catalogue?: string | null;
+};
+
+/**
+ * FilOut
+ */
+export type FilOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Client
+     */
+    client: string;
+    /**
+     * Sorte
+     */
+    sorte: string;
+    /**
+     * Sujet
+     */
+    sujet: string;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Suivi Par
+     */
+    suivi_par: number | null;
+    /**
+     * Suivi Nom
+     */
+    suivi_nom: string | null;
+    /**
+     * Lu Par Mark
+     */
+    lu_par_mark: boolean;
+    /**
+     * Logiciel
+     */
+    logiciel: string | null;
+    /**
+     * Catalogue
+     */
+    catalogue: string | null;
+    /**
+     * Etat Demande
+     */
+    etat_demande: string | null;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    /**
+     * Modifie Le
+     */
+    modifie_le: string;
+    dernier?: MessageOut | null;
+    /**
+     * Messages
+     */
+    messages?: Array<MessageOut> | null;
+};
+
+/**
+ * FilPatch
+ */
+export type FilPatch = {
+    /**
+     * Etat
+     */
+    etat?: 'nouveau' | 'en_cours' | 'repondu' | 'clos' | null;
+    /**
+     * Suivi
+     */
+    suivi?: 'moi' | 'personne' | null;
+    /**
+     * Lu
+     */
+    lu?: boolean | null;
+    /**
+     * Etat Demande
+     */
+    etat_demande?: 'nouvelle' | 'proposee' | 'a_coder' | 'refusee' | null;
+    /**
+     * Catalogue
+     */
+    catalogue?: string | null;
+};
+
+/**
+ * FilPortail
+ */
+export type FilPortail = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Sorte
+     */
+    sorte: string;
+    /**
+     * Sujet
+     */
+    sujet: string;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Logiciel
+     */
+    logiciel: string | null;
+    /**
+     * Catalogue
+     */
+    catalogue: string | null;
+    /**
+     * Etat Demande
+     */
+    etat_demande: string | null;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    /**
+     * Modifie Le
+     */
+    modifie_le: string;
+    dernier?: MessagePortail | null;
+    /**
+     * Messages
+     */
+    messages?: Array<MessagePortail> | null;
 };
 
 /**
@@ -8582,6 +8884,58 @@ export type MessageDuFil = {
 };
 
 /**
+ * MessageOut
+ */
+export type MessageOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Cote
+     */
+    cote: 'client' | 'mark' | 'interne';
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+};
+
+/**
+ * MessagePortail
+ */
+export type MessagePortail = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Cote
+     */
+    cote: 'client' | 'mark';
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+};
+
+/**
  * MiniMaxLLMConfiguration
  */
 export type MiniMaxLlmConfiguration = {
@@ -9455,6 +9809,38 @@ export type NoteDuJuge = {
      * Ok
      */
     ok: boolean;
+};
+
+/**
+ * NoteIn
+ */
+export type NoteIn = {
+    /**
+     * Texte
+     */
+    texte: string;
+};
+
+/**
+ * NoteOut
+ */
+export type NoteOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
 };
 
 /**
@@ -14786,6 +15172,60 @@ export type TelnyxConfigurationRequest = {
 };
 
 /**
+ * TemoignageIn
+ */
+export type TemoignageIn = {
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Accord
+     */
+    accord?: boolean;
+};
+
+/**
+ * TemoignageOut
+ */
+export type TemoignageOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Accord
+     */
+    accord: boolean;
+};
+
+/**
+ * TemoignagePatch
+ */
+export type TemoignagePatch = {
+    /**
+     * Accord
+     */
+    accord: boolean;
+};
+
+/**
  * TermeLexique
  *
  * One name or word of the trade.
@@ -16236,6 +16676,16 @@ export type VerdictEssai = {
      * Manquants
      */
     manquants?: Array<string>;
+};
+
+/**
+ * VerifierIn
+ */
+export type VerifierIn = {
+    /**
+     * Jeton
+     */
+    jeton: string;
 };
 
 /**
@@ -18393,6 +18843,30 @@ export type ApiRoutesClesSuppression = {
      * Usages
      */
     usages: Array<Usage>;
+};
+
+/**
+ * MessageIn
+ */
+export type ApiRoutesRelationMessageIn = {
+    /**
+     * Cote
+     */
+    cote: 'mark' | 'interne';
+    /**
+     * Texte
+     */
+    texte: string;
+};
+
+/**
+ * MessageIn
+ */
+export type ApiRoutesRelationPortailMessageIn = {
+    /**
+     * Texte
+     */
+    texte: string;
 };
 
 /**
@@ -30579,6 +31053,989 @@ export type LireLeJournalApiV1EquipeMarkJournalGetResponses = {
 };
 
 export type LireLeJournalApiV1EquipeMarkJournalGetResponse = LireLeJournalApiV1EquipeMarkJournalGetResponses[keyof LireLeJournalApiV1EquipeMarkJournalGetResponses];
+
+export type ListerClientsApiV1RelationClientsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/relation/clients';
+};
+
+export type ListerClientsApiV1RelationClientsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerClientsApiV1RelationClientsGetError = ListerClientsApiV1RelationClientsGetErrors[keyof ListerClientsApiV1RelationClientsGetErrors];
+
+export type ListerClientsApiV1RelationClientsGetResponses = {
+    /**
+     * Response Lister Clients Api V1 Relation Clients Get
+     *
+     * Successful Response
+     */
+    200: Array<ClientOut>;
+};
+
+export type ListerClientsApiV1RelationClientsGetResponse = ListerClientsApiV1RelationClientsGetResponses[keyof ListerClientsApiV1RelationClientsGetResponses];
+
+export type MaFileApiV1RelationFileGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/relation/file';
+};
+
+export type MaFileApiV1RelationFileGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MaFileApiV1RelationFileGetError = MaFileApiV1RelationFileGetErrors[keyof MaFileApiV1RelationFileGetErrors];
+
+export type MaFileApiV1RelationFileGetResponses = {
+    /**
+     * Response Ma File Api V1 Relation File Get
+     *
+     * Successful Response
+     */
+    200: Array<FilOut>;
+};
+
+export type MaFileApiV1RelationFileGetResponse = MaFileApiV1RelationFileGetResponses[keyof MaFileApiV1RelationFileGetResponses];
+
+export type ListerFilsApiV1RelationFilsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Etat
+         */
+        etat?: 'nouveau' | 'en_cours' | 'repondu' | 'clos' | null;
+        /**
+         * Sorte
+         */
+        sorte?: 'message' | 'demande_logiciel' | null;
+        /**
+         * Suivi
+         */
+        suivi?: 'moi' | null;
+        /**
+         * A Traiter
+         */
+        a_traiter?: boolean;
+        /**
+         * Client
+         */
+        client?: number | null;
+        /**
+         * Q
+         */
+        q?: string | null;
+    };
+    url: '/api/v1/relation/fils';
+};
+
+export type ListerFilsApiV1RelationFilsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerFilsApiV1RelationFilsGetError = ListerFilsApiV1RelationFilsGetErrors[keyof ListerFilsApiV1RelationFilsGetErrors];
+
+export type ListerFilsApiV1RelationFilsGetResponses = {
+    /**
+     * Response Lister Fils Api V1 Relation Fils Get
+     *
+     * Successful Response
+     */
+    200: Array<FilOut>;
+};
+
+export type ListerFilsApiV1RelationFilsGetResponse = ListerFilsApiV1RelationFilsGetResponses[keyof ListerFilsApiV1RelationFilsGetResponses];
+
+export type LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/fils/{fil_id}';
+};
+
+export type LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetError = LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetErrors[keyof LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetErrors];
+
+export type LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FilOut;
+};
+
+export type LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetResponse = LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetResponses[keyof LireFilApiV1RelationClientsOrganizationIdFilsFilIdGetResponses];
+
+export type ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchData = {
+    body: FilPatch;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/fils/{fil_id}';
+};
+
+export type ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchError = ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchErrors[keyof ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchErrors];
+
+export type ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchResponse = ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchResponses[keyof ModifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatchResponses];
+
+export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostData = {
+    body: ApiRoutesRelationMessageIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/fils/{fil_id}/messages';
+};
+
+export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostError = RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostErrors[keyof RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostErrors];
+
+export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: MessageOut;
+};
+
+export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponse = RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponses[keyof RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponses];
+
+export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/notes';
+};
+
+export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetError = ListerNotesApiV1RelationClientsOrganizationIdNotesGetErrors[keyof ListerNotesApiV1RelationClientsOrganizationIdNotesGetErrors];
+
+export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetResponses = {
+    /**
+     * Response Lister Notes Api V1 Relation Clients  Organization Id  Notes Get
+     *
+     * Successful Response
+     */
+    200: Array<NoteOut>;
+};
+
+export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetResponse = ListerNotesApiV1RelationClientsOrganizationIdNotesGetResponses[keyof ListerNotesApiV1RelationClientsOrganizationIdNotesGetResponses];
+
+export type AjouterNoteApiV1RelationClientsOrganizationIdNotesPostData = {
+    body: NoteIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/notes';
+};
+
+export type AjouterNoteApiV1RelationClientsOrganizationIdNotesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AjouterNoteApiV1RelationClientsOrganizationIdNotesPostError = AjouterNoteApiV1RelationClientsOrganizationIdNotesPostErrors[keyof AjouterNoteApiV1RelationClientsOrganizationIdNotesPostErrors];
+
+export type AjouterNoteApiV1RelationClientsOrganizationIdNotesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: NoteOut;
+};
+
+export type AjouterNoteApiV1RelationClientsOrganizationIdNotesPostResponse = AjouterNoteApiV1RelationClientsOrganizationIdNotesPostResponses[keyof AjouterNoteApiV1RelationClientsOrganizationIdNotesPostResponses];
+
+export type SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Note Id
+         */
+        note_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/notes/{note_id}';
+};
+
+export type SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteError = SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteErrors[keyof SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteErrors];
+
+export type SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteResponse = SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteResponses[keyof SupprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDeleteResponses];
+
+export type AvisEtTemoignagesApiV1RelationAvisGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/relation/avis';
+};
+
+export type AvisEtTemoignagesApiV1RelationAvisGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AvisEtTemoignagesApiV1RelationAvisGetError = AvisEtTemoignagesApiV1RelationAvisGetErrors[keyof AvisEtTemoignagesApiV1RelationAvisGetErrors];
+
+export type AvisEtTemoignagesApiV1RelationAvisGetResponses = {
+    /**
+     * Response Avis Et Temoignages Api V1 Relation Avis Get
+     *
+     * Successful Response
+     */
+    200: Array<AvisClient>;
+};
+
+export type AvisEtTemoignagesApiV1RelationAvisGetResponse = AvisEtTemoignagesApiV1RelationAvisGetResponses[keyof AvisEtTemoignagesApiV1RelationAvisGetResponses];
+
+export type AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostData = {
+    body: TemoignageIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/temoignages';
+};
+
+export type AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostError = AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostErrors[keyof AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostErrors];
+
+export type AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: TemoignageOut;
+};
+
+export type AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostResponse = AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostResponses[keyof AjouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPostResponses];
+
+export type SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Temoignage Id
+         */
+        temoignage_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/temoignages/{temoignage_id}';
+};
+
+export type SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteError = SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteErrors[keyof SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteErrors];
+
+export type SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteResponse = SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteResponses[keyof SupprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDeleteResponses];
+
+export type ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchData = {
+    body: TemoignagePatch;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+        /**
+         * Temoignage Id
+         */
+        temoignage_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/temoignages/{temoignage_id}';
+};
+
+export type ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchError = ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchErrors[keyof ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchErrors];
+
+export type ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchResponse = ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchResponses[keyof ReglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatchResponses];
+
+export type ListerEntreesApiV1RelationEntreesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/relation/entrees';
+};
+
+export type ListerEntreesApiV1RelationEntreesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerEntreesApiV1RelationEntreesGetError = ListerEntreesApiV1RelationEntreesGetErrors[keyof ListerEntreesApiV1RelationEntreesGetErrors];
+
+export type ListerEntreesApiV1RelationEntreesGetResponses = {
+    /**
+     * Response Lister Entrees Api V1 Relation Entrees Get
+     *
+     * Successful Response
+     */
+    200: Array<EntreeOut>;
+};
+
+export type ListerEntreesApiV1RelationEntreesGetResponse = ListerEntreesApiV1RelationEntreesGetResponses[keyof ListerEntreesApiV1RelationEntreesGetResponses];
+
+export type OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostData = {
+    body: EntreeIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/entree';
+};
+
+export type OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostError = OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostErrors[keyof OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostErrors];
+
+export type OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostResponses = {
+    /**
+     * Successful Response
+     */
+    201: EntreeCreee;
+};
+
+export type OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostResponse = OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostResponses[keyof OuvrirSonPortailApiV1RelationClientsOrganizationIdEntreePostResponses];
+
+export type MesFilsApiV1OrganizationsRelationFilsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/relation/fils';
+};
+
+export type MesFilsApiV1OrganizationsRelationFilsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MesFilsApiV1OrganizationsRelationFilsGetError = MesFilsApiV1OrganizationsRelationFilsGetErrors[keyof MesFilsApiV1OrganizationsRelationFilsGetErrors];
+
+export type MesFilsApiV1OrganizationsRelationFilsGetResponses = {
+    /**
+     * Response Mes Fils Api V1 Organizations Relation Fils Get
+     *
+     * Successful Response
+     */
+    200: Array<FilPortail>;
+};
+
+export type MesFilsApiV1OrganizationsRelationFilsGetResponse = MesFilsApiV1OrganizationsRelationFilsGetResponses[keyof MesFilsApiV1OrganizationsRelationFilsGetResponses];
+
+export type EcrireAMarkApiV1OrganizationsRelationFilsPostData = {
+    body: FilIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/relation/fils';
+};
+
+export type EcrireAMarkApiV1OrganizationsRelationFilsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EcrireAMarkApiV1OrganizationsRelationFilsPostError = EcrireAMarkApiV1OrganizationsRelationFilsPostErrors[keyof EcrireAMarkApiV1OrganizationsRelationFilsPostErrors];
+
+export type EcrireAMarkApiV1OrganizationsRelationFilsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FilPortail;
+};
+
+export type EcrireAMarkApiV1OrganizationsRelationFilsPostResponse = EcrireAMarkApiV1OrganizationsRelationFilsPostResponses[keyof EcrireAMarkApiV1OrganizationsRelationFilsPostResponses];
+
+export type MonFilApiV1OrganizationsRelationFilsFilIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/relation/fils/{fil_id}';
+};
+
+export type MonFilApiV1OrganizationsRelationFilsFilIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MonFilApiV1OrganizationsRelationFilsFilIdGetError = MonFilApiV1OrganizationsRelationFilsFilIdGetErrors[keyof MonFilApiV1OrganizationsRelationFilsFilIdGetErrors];
+
+export type MonFilApiV1OrganizationsRelationFilsFilIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FilPortail;
+};
+
+export type MonFilApiV1OrganizationsRelationFilsFilIdGetResponse = MonFilApiV1OrganizationsRelationFilsFilIdGetResponses[keyof MonFilApiV1OrganizationsRelationFilsFilIdGetResponses];
+
+export type RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostData = {
+    body: ApiRoutesRelationPortailMessageIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/relation/fils/{fil_id}/messages';
+};
+
+export type RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostError = RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostErrors[keyof RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostErrors];
+
+export type RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: MessagePortail;
+};
+
+export type RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostResponse = RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostResponses[keyof RepondreAMarkApiV1OrganizationsRelationFilsFilIdMessagesPostResponses];
+
+export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostData = {
+    body: VerifierIn;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/relation/entree/verifier';
+};
+
+export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostError = VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostErrors[keyof VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostErrors];
+
+export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EntreeVerifiee;
+};
+
+export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponse = VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses[keyof VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses];
 
 export type LireUneInvitationApiV1AuthInvitationJetonGetData = {
     body?: never;

@@ -30,7 +30,8 @@ const ANCIENNES_ADRESSES = [
 /** Les adresses qui gardent leur page : l'identification, l'accueil technique et les routes de service. */
 const ADRESSES_QUI_RESTENT = ["/", "/after-sign-in", "/connexion", "/invitation", "/profil", "/auth/signup", "/handler/[...stack]", "/superadmin", "/superadmin/runs", "/impersonate"];
 
-const NOUVELLES_RACINES = ["labo", "clients", "agents", "conversations"];
+// `relation` : le Hub « Relation clients » (U3 septies, E78), adresses neuves hors des espaces.
+const NOUVELLES_RACINES = ["labo", "clients", "agents", "conversations", "relation"];
 
 const exemple = (adresse: string) => adresse.replace(/\[[^\]]+\]/g, "7");
 

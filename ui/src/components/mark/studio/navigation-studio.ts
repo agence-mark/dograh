@@ -28,7 +28,9 @@ import {
     Plug,
     Settings2,
     Sparkles,
+    Star,
     Store,
+    Users,
     Wrench,
 } from "lucide-react";
 
@@ -95,6 +97,23 @@ const REGLAGES = e("reglages", { en: "Settings", fr: "Réglages" }, Settings2, "
 const ALERTES = e("alertes", { en: "Alerts", fr: "Alertes" }, BellRing, "alertes", "/alertes", { provisoire: true });
 const DEVELOPPEURS = e("developpeurs", { en: "Developers", fr: "Développeurs" }, Code, "developpeurs", "/api-keys", { provisoire: true });
 
+/** Hub « Relation clients » (U3 septies, E78) : adresses globales, hors de l'espace d'un client. */
+const relation = (id: string, titre: Texte, icone: LucideIcon, chemin: string): EntreeMenu => ({
+    ...e(id, titre, icone, "", chemin),
+    adresse: () => chemin,
+});
+const RELATION: GroupeMenu = {
+    id: "relation",
+    label: { en: "CUSTOMER RELATIONS", fr: "RELATION CLIENTS" },
+    entrees: [
+        relation("relation-accueil", { en: "Home", fr: "Accueil" }, LayoutGrid, "/relation"),
+        relation("relation-messages", { en: "Messages", fr: "Messages" }, MessagesSquare, "/relation/messages"),
+        relation("relation-clients", { en: "Customers", fr: "Clients" }, Users, "/relation/clients"),
+        relation("relation-avis", { en: "Reviews and testimonials", fr: "Avis et témoignages" }, Star, "/relation/avis"),
+        relation("relation-entrees", { en: "Portal entries", fr: "Entrées dans les portails" }, Inbox, "/relation/entrees"),
+    ],
+};
+
 /** Espace Labo (E3, E31) : toutes les rubriques d'un client, plus l'atelier. */
 export const MENU_LABO: GroupeMenu[] = [
     {
@@ -109,6 +128,7 @@ export const MENU_LABO: GroupeMenu[] = [
     { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, CLES, TELEPHONIE] },
     { id: "mesurer", label: { en: "MEASURE", fr: "MESURER" }, entrees: [QUALITE, CONVERSATIONS, ALERTES] },
     { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES, DEVELOPPEURS] },
+    RELATION,
 ];
 
 /** Espace Client (E3, E57) : le même ensemble, sans l'atelier, avec l'accueil du client. */

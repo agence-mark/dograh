@@ -56,7 +56,7 @@ const titres = (groupes: typeof MENU_LABO) => toutesLesEntrees(groupes).map((x) 
 
 describe("menus (E3, E31)", () => {
     it("le Labo : tous les moments du métier, dans l'ordre", () => {
-        expect(MENU_LABO.map((g) => g.label?.fr ?? "")).toEqual(["", "CONSTRUIRE", "BRANCHER", "MESURER", "RÉGLER"]);
+        expect(MENU_LABO.map((g) => g.label?.fr ?? "")).toEqual(["", "CONSTRUIRE", "BRANCHER", "MESURER", "RÉGLER", "RELATION CLIENTS"]);
         for (const attendu of [
             "Builder IA", "Chat", "À améliorer", "Agents", "Bibliothèque", "Outils", "Connaissances", "Entreprise",
             "Campagnes", "Base et automatisations", "Intégrations", "Modèles et clés", "Téléphonie", "Qualité",
