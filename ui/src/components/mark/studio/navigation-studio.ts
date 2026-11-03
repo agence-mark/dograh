@@ -81,7 +81,7 @@ const CAMPAGNES = e("campagnes", { en: "Campaigns", fr: "Campagnes" }, Megaphone
     ],
 });
 const BASE = e("base", { en: "Data and automations", fr: "Base et automatisations" }, Database, "base", "/settings", { alias: true });
-const INTEGRATIONS = e("integrations", { en: "Integrations", fr: "Intégrations" }, Plug, "connecteurs", "/settings", { alias: true });
+const INTEGRATIONS = e("integrations", { en: "Integrations", fr: "Intégrations" }, Plug, "integrations", "/settings", { alias: true, prefixes: ["/labo/connecteurs", "/clients/[org]/connecteurs"] });
 const MODELES = e("modeles", { en: "Models and keys", fr: "Modèles et clés" }, KeyRound, "modeles", "/model-configurations");
 const CLES = e("cles", { en: "Keys", fr: "Clés" }, KeyRound, "cles", "/cles", { provisoire: true });
 const TELEPHONIE = e("telephonie", { en: "Telephony", fr: "Téléphonie" }, Phone, "telephonie", "/telephony-configurations", {

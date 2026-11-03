@@ -553,6 +553,24 @@ export type AgentUtilisateur = {
 };
 
 /**
+ * AgentVu
+ */
+export type AgentVu = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Etapes
+     */
+    etapes: Array<string>;
+};
+
+/**
  * AgentsServis
  */
 export type AgentsServis = {
@@ -2978,6 +2996,26 @@ export type ConversationsEquipeResponse = {
 };
 
 /**
+ * CopieDansLaFiche
+ *
+ * [.mark] U3 sexies (E74) : une valeur de la réponse recopiée dans la fiche de l'appel (``gathered_context``).
+ */
+export type CopieDansLaFiche = {
+    /**
+     * Chemin
+     *
+     * Path in the answer, such as client.id or items.0.name.
+     */
+    chemin: string;
+    /**
+     * Cle
+     *
+     * Key written in the call record.
+     */
+    cle: string;
+};
+
+/**
  * CopieDeScenario
  */
 export type CopieDeScenario = {
@@ -4136,6 +4174,28 @@ export type DemandeEmplacement = {
 };
 
 /**
+ * DemandeEssai
+ */
+export type DemandeEssai = {
+    /**
+     * Arguments
+     */
+    arguments?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Mode
+     */
+    mode?: 'direct' | 'simule' | 'compte_de_test';
+    /**
+     * Outil Mcp
+     *
+     * For an MCP server: the tool to try.
+     */
+    outil_mcp?: string | null;
+};
+
+/**
  * DemandeEtablissementsDeLagent
  */
 export type DemandeEtablissementsDeLagent = {
@@ -4299,6 +4359,36 @@ export type DemandeSite = {
      * Allowed Domains
      */
     allowed_domains?: Array<string>;
+};
+
+/**
+ * DemandeTestMcp
+ */
+export type DemandeTestMcp = {
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Transport
+     */
+    transport?: 'streamable_http' | 'sse';
+    /**
+     * Timeout Secs
+     */
+    timeout_secs?: number;
+    /**
+     * Sse Read Timeout Secs
+     */
+    sse_read_timeout_secs?: number;
+    /**
+     * Credential Uuid
+     */
+    credential_uuid?: string | null;
+    /**
+     * En Tetes Ext
+     */
+    en_tetes_ext?: Array<EnteteDeRequete>;
 };
 
 /**
@@ -5246,6 +5336,38 @@ export type EndTextChatSessionRequest = {
 };
 
 /**
+ * EnteteDeRequete
+ *
+ * [.mark] U3 sexies (E74) : un en-tête de requête, en clair, tiré d'une variable ou secret (jamais réaffiché).
+ */
+export type EnteteDeRequete = {
+    /**
+     * Nom
+     *
+     * Header name.
+     */
+    nom: string;
+    /**
+     * Sorte
+     *
+     * text: the value as written; variable: a template such as {{initial_context.x}}; secret: the value lives in an encrypted credential of the organization and is never shown again.
+     */
+    sorte?: 'texte' | 'variable' | 'secret';
+    /**
+     * Valeur
+     *
+     * Text or template. Not for a secret.
+     */
+    valeur?: string | null;
+    /**
+     * Identifiant Uuid
+     *
+     * Credential holding the secret value. Only for a secret.
+     */
+    identifiant_uuid?: string | null;
+};
+
+/**
  * Equipe
  */
 export type Equipe = {
@@ -5682,6 +5804,40 @@ export type EvenementPublic = {
      * Evenement
      */
     evenement: 'affiche' | 'ouvert';
+};
+
+/**
+ * ExecutionVue
+ */
+export type ExecutionVue = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Date
+     */
+    date: string | null;
+    /**
+     * Outil Mcp
+     */
+    outil_mcp: string | null;
+    /**
+     * Reussie
+     */
+    reussie: boolean;
+    /**
+     * Duree Ms
+     */
+    duree_ms: number | null;
+    /**
+     * Etape
+     */
+    etape: string | null;
 };
 
 /**
@@ -6317,6 +6473,64 @@ export type HeritageReglagesResponse = {
  */
 export type HttpApiConfig = {
     /**
+     * Phrase Avant Mode
+     *
+     * Sentence said before the tool. auto: only if the tool is slow; always; never. Empty: always when a sentence is written (as before).
+     */
+    phrase_avant_mode?: 'auto' | 'toujours' | 'jamais' | null;
+    /**
+     * Mode Execution
+     *
+     * immediat: the tool starts at once; apres_la_phrase: it starts when the sentence is finished; arriere_plan: the model gets an immediate answer and the result lands in the call record (a tool that only reads).
+     */
+    mode_execution?: 'immediat' | 'apres_la_phrase' | 'arriere_plan';
+    /**
+     * Interruption Appelant
+     *
+     * The caller may cut the sentence said before and while the tool works.
+     */
+    interruption_appelant?: boolean;
+    /**
+     * Son Pendant Enregistrement Id
+     *
+     * Recording played once while the tool works, past the patience threshold.
+     */
+    son_pendant_enregistrement_id?: number | null;
+    /**
+     * Phrase Attente
+     *
+     * Said once if the tool has not finished after the patience threshold.
+     */
+    phrase_attente?: string | null;
+    /**
+     * Seuil Patience Ms
+     *
+     * Patience threshold in milliseconds.
+     */
+    seuil_patience_ms?: number;
+    /**
+     * Phrase Repli
+     *
+     * Said when the tool fails.
+     */
+    phrase_repli?: string | null;
+    /**
+     * Dernier Essai
+     *
+     * Server-managed: the last trial (success, mode, date).
+     */
+    dernier_essai?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Premier Essai
+     *
+     * Server-managed: who validated the first trial, and when.
+     */
+    premier_essai?: {
+        [key: string]: unknown;
+    } | null;
+    /**
      * Method
      *
      * HTTP method to use for the request.
@@ -6410,6 +6624,30 @@ export type HttpApiConfig = {
      * Encoding of the POST, PUT, and PATCH request body: 'json' sends application/json, 'form' sends application/x-www-form-urlencoded.
      */
     body_format?: 'json' | 'form';
+    /**
+     * En Tetes Ext
+     *
+     * Headers as text, variable or secret. A secret is read from a credential, never shown.
+     */
+    en_tetes_ext?: Array<EnteteDeRequete>;
+    /**
+     * Chemins Gardes
+     *
+     * Paths of the answer the model gets (others dropped). Empty: the whole answer.
+     */
+    chemins_gardes?: Array<string>;
+    /**
+     * Copies Dans La Fiche
+     *
+     * Values of the answer copied in the call record, before any filtering.
+     */
+    copies_dans_la_fiche?: Array<CopieDansLaFiche>;
+    /**
+     * Reponses Simulees
+     *
+     * Recorded answers served by the trial and the test bench only, never in a real call.
+     */
+    reponses_simulees?: Array<ReponseSimulee>;
 };
 
 /**
@@ -6839,6 +7077,22 @@ export type IntegrationToolConfig = {
     declencheurs?: {
         [key: string]: string;
     };
+    /**
+     * Dernier Essai
+     *
+     * Server-managed: the last trial (success, mode, date).
+     */
+    dernier_essai?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Premier Essai
+     *
+     * Server-managed: who validated the first trial, and when.
+     */
+    premier_essai?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -7837,11 +8091,101 @@ export type McpRefreshResponse = {
  */
 export type McpToolConfig = {
     /**
+     * Phrase Avant Mode
+     *
+     * Sentence said before the tool. auto: only if the tool is slow; always; never. Empty: always when a sentence is written (as before).
+     */
+    phrase_avant_mode?: 'auto' | 'toujours' | 'jamais' | null;
+    /**
+     * Mode Execution
+     *
+     * immediat: the tool starts at once; apres_la_phrase: it starts when the sentence is finished; arriere_plan: the model gets an immediate answer and the result lands in the call record (a tool that only reads).
+     */
+    mode_execution?: 'immediat' | 'apres_la_phrase' | 'arriere_plan';
+    /**
+     * Interruption Appelant
+     *
+     * The caller may cut the sentence said before and while the tool works.
+     */
+    interruption_appelant?: boolean;
+    /**
+     * Son Pendant Enregistrement Id
+     *
+     * Recording played once while the tool works, past the patience threshold.
+     */
+    son_pendant_enregistrement_id?: number | null;
+    /**
+     * Phrase Attente
+     *
+     * Said once if the tool has not finished after the patience threshold.
+     */
+    phrase_attente?: string | null;
+    /**
+     * Seuil Patience Ms
+     *
+     * Patience threshold in milliseconds.
+     */
+    seuil_patience_ms?: number;
+    /**
+     * Phrase Repli
+     *
+     * Said when the tool fails.
+     */
+    phrase_repli?: string | null;
+    /**
+     * Dernier Essai
+     *
+     * Server-managed: the last trial (success, mode, date).
+     */
+    dernier_essai?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Premier Essai
+     *
+     * Server-managed: who validated the first trial, and when.
+     */
+    premier_essai?: {
+        [key: string]: unknown;
+    } | null;
+    /**
      * Transport
      *
-     * MCP transport protocol.
+     * MCP transport protocol: streamable HTTP, or SSE.
      */
-    transport?: 'streamable_http';
+    transport?: 'streamable_http' | 'sse';
+    /**
+     * En Tetes Ext
+     *
+     * Free headers sent to the server (text, variable or secret).
+     */
+    en_tetes_ext?: Array<EnteteDeRequete>;
+    /**
+     * Reglages Outils
+     *
+     * Per MCP tool: allowed (default), confirm with the caller first, or disabled (a disabled tool is never offered to the model).
+     */
+    reglages_outils?: {
+        [key: string]: 'autorise' | 'confirmer' | 'desactive';
+    };
+    /**
+     * Custommessage
+     *
+     * Sentence said before a tool of this server.
+     */
+    customMessage?: string | null;
+    /**
+     * Custommessagetype
+     *
+     * Type of that sentence.
+     */
+    customMessageType?: 'text' | 'audio' | null;
+    /**
+     * Custommessagerecordingid
+     *
+     * Recording ID for an audio sentence.
+     */
+    customMessageRecordingId?: string | null;
     /**
      * Url
      *
@@ -9052,6 +9396,16 @@ export type NouvelleProposition = {
 };
 
 /**
+ * NouvelleValeur
+ */
+export type NouvelleValeur = {
+    /**
+     * Valeur
+     */
+    valeur: string;
+};
+
+/**
  * NouvelleVersion
  */
 export type NouvelleVersion = {
@@ -9857,6 +10211,50 @@ export type OrigineDuModele = {
 };
 
 /**
+ * OutilDecouvert
+ */
+export type OutilDecouvert = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string;
+};
+
+/**
+ * OutilMcpVu
+ */
+export type OutilMcpVu = {
+    /**
+     * Serveur Uuid
+     */
+    serveur_uuid: string;
+    /**
+     * Serveur
+     */
+    serveur: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Fonction
+     */
+    fonction: string;
+    /**
+     * Reglage
+     */
+    reglage: 'autorise' | 'confirmer' | 'desactive';
+};
+
+/**
  * OutilVu
  */
 export type OutilVu = {
@@ -10357,6 +10755,24 @@ export type Preferences = {
      * Texte
      */
     texte?: string;
+};
+
+/**
+ * PremierEssai
+ */
+export type PremierEssai = {
+    /**
+     * Valide Par
+     */
+    valide_par: string;
+    /**
+     * Valide Le
+     */
+    valide_le: string;
+    /**
+     * Mode
+     */
+    mode?: string | null;
 };
 
 /**
@@ -11940,6 +12356,36 @@ export type RejouerLaSuite = {
 };
 
 /**
+ * ReponseSimulee
+ *
+ * [.mark] U3 sexies (E74) : une réponse enregistrée, servie à l'essai et au banc seulement, jamais en appel réel.
+ */
+export type ReponseSimulee = {
+    /**
+     * Nom
+     */
+    nom?: string;
+    /**
+     * Quand
+     *
+     * Served when every given parameter has this value. Empty: served whatever the parameters.
+     */
+    quand?: {
+        [key: string]: string;
+    };
+    /**
+     * Statut
+     */
+    statut?: number;
+    /**
+     * Donnees
+     *
+     * The body of the answer.
+     */
+    donnees?: unknown;
+};
+
+/**
  * ResultatAction
  */
 export type ResultatAction = {
@@ -12168,6 +12614,24 @@ export type ResultatSecours = {
 };
 
 /**
+ * ResultatTestMcp
+ */
+export type ResultatTestMcp = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Outils
+     */
+    outils?: Array<OutilDecouvert>;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+};
+
+/**
  * Resume
  *
  * Une ligne de la liste : jamais le contenu entier.
@@ -12251,6 +12715,40 @@ export type ResumeDuModele = {
      * Version
      */
     version?: number;
+};
+
+/**
+ * ResumeOutil
+ */
+export type ResumeOutil = {
+    /**
+     * Executions
+     */
+    executions: number;
+    /**
+     * Reussies
+     */
+    reussies: number;
+    /**
+     * Echecs
+     */
+    echecs: number;
+    /**
+     * Reussite
+     */
+    reussite: number | null;
+    /**
+     * Duree Mediane Ms
+     */
+    duree_mediane_ms: number | null;
+    /**
+     * Nb Agents
+     */
+    nb_agents: number;
+    /**
+     * Jours
+     */
+    jours: number;
 };
 
 /**
@@ -13383,6 +13881,56 @@ export type SpeechmaticsSttConfiguration = {
 };
 
 /**
+ * StatistiquesOutil
+ */
+export type StatistiquesOutil = {
+    /**
+     * Executions
+     */
+    executions: number;
+    /**
+     * Reussies
+     */
+    reussies: number;
+    /**
+     * Echecs
+     */
+    echecs: number;
+    /**
+     * Reussite
+     */
+    reussite: number | null;
+    /**
+     * Duree Mediane Ms
+     */
+    duree_mediane_ms: number | null;
+    /**
+     * Jours
+     */
+    jours: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Par Page
+     */
+    par_page: number;
+    /**
+     * Total Executions
+     */
+    total_executions: number;
+    /**
+     * Dernieres Executions
+     */
+    dernieres_executions: Array<ExecutionVue>;
+    /**
+     * Agents
+     */
+    agents: Array<AgentVu>;
+};
+
+/**
  * Statut
  */
 export type Statut = 'candidat' | 'recette' | 'rejete';
@@ -14239,6 +14787,24 @@ export type ToolParameter = {
      * Whether this parameter is required when the tool is called.
      */
     required?: boolean;
+    /**
+     * Emplacement
+     *
+     * Where the value goes in the request: path, query, body or header. Empty: as before.
+     */
+    emplacement?: 'chemin' | 'requete' | 'corps' | 'en_tete' | null;
+    /**
+     * Valeurs Permises
+     *
+     * Closed list of allowed values. Empty: any value.
+     */
+    valeurs_permises?: Array<string> | null;
+    /**
+     * Defaut
+     *
+     * Value used when the model gives none. Must be an allowed value when a list is set.
+     */
+    defaut?: unknown | null;
 };
 
 /**
@@ -15269,6 +15835,24 @@ export type UtilisationObjets = {
 };
 
 /**
+ * UtilisePar
+ */
+export type UtilisePar = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Categorie
+     */
+    categorie: string;
+};
+
+/**
  * ValeurDeListe
  */
 export type ValeurDeListe = {
@@ -15319,6 +15903,20 @@ export type ValeurHeritee = {
 };
 
 /**
+ * ValeurRemplacee
+ */
+export type ValeurRemplacee = {
+    /**
+     * Uuid
+     */
+    uuid: string;
+    /**
+     * Remplacee
+     */
+    remplacee?: boolean;
+};
+
+/**
  * ValidateWorkflowResponse
  */
 export type ValidateWorkflowResponse = {
@@ -15358,6 +15956,60 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VerdictEssai
+ */
+export type VerdictEssai = {
+    /**
+     * Reussi
+     */
+    reussi: boolean;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Ecrit
+     */
+    ecrit: boolean;
+    /**
+     * Duree Ms
+     */
+    duree_ms: number;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Donnees
+     */
+    donnees?: unknown | null;
+    /**
+     * Statut Http
+     */
+    statut_http?: number | null;
+    /**
+     * Copies
+     */
+    copies?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Simulee
+     */
+    simulee?: boolean;
+    /**
+     * Requete
+     */
+    requete?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Manquants
+     */
+    manquants?: Array<string>;
 };
 
 /**
@@ -30256,6 +30908,385 @@ export type DownloadCampaignReportApiV1CampaignCampaignIdReportGetResponses = {
      */
     200: unknown;
 };
+
+export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/statistiques';
+};
+
+export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetError = StatistiquesDesOutilsApiV1ToolsStatistiquesGetErrors[keyof StatistiquesDesOutilsApiV1ToolsStatistiquesGetErrors];
+
+export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetResponses = {
+    /**
+     * Response Statistiques Des Outils Api V1 Tools Statistiques Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: ResumeOutil;
+    };
+};
+
+export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetResponse = StatistiquesDesOutilsApiV1ToolsStatistiquesGetResponses[keyof StatistiquesDesOutilsApiV1ToolsStatistiquesGetResponses];
+
+export type StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Tool Uuid
+         */
+        tool_uuid: string;
+    };
+    query?: {
+        /**
+         * Page
+         */
+        page?: number;
+    };
+    url: '/api/v1/tools/{tool_uuid}/statistiques';
+};
+
+export type StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetError = StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetErrors[keyof StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetErrors];
+
+export type StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: StatistiquesOutil;
+};
+
+export type StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetResponse = StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetResponses[keyof StatistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGetResponses];
+
+export type EssayerUnOutilApiV1ToolsToolUuidEssaiPostData = {
+    body: DemandeEssai;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Tool Uuid
+         */
+        tool_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/tools/{tool_uuid}/essai';
+};
+
+export type EssayerUnOutilApiV1ToolsToolUuidEssaiPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EssayerUnOutilApiV1ToolsToolUuidEssaiPostError = EssayerUnOutilApiV1ToolsToolUuidEssaiPostErrors[keyof EssayerUnOutilApiV1ToolsToolUuidEssaiPostErrors];
+
+export type EssayerUnOutilApiV1ToolsToolUuidEssaiPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VerdictEssai;
+};
+
+export type EssayerUnOutilApiV1ToolsToolUuidEssaiPostResponse = EssayerUnOutilApiV1ToolsToolUuidEssaiPostResponses[keyof EssayerUnOutilApiV1ToolsToolUuidEssaiPostResponses];
+
+export type ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Tool Uuid
+         */
+        tool_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/tools/{tool_uuid}/premier-essai';
+};
+
+export type ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostError = ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostErrors[keyof ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostErrors];
+
+export type ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PremierEssai;
+};
+
+export type ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostResponse = ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostResponses[keyof ValiderLePremierEssaiApiV1ToolsToolUuidPremierEssaiPostResponses];
+
+export type TesterLaConnexionMcpApiV1ToolsMcpTesterPostData = {
+    body: DemandeTestMcp;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/mcp/tester';
+};
+
+export type TesterLaConnexionMcpApiV1ToolsMcpTesterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TesterLaConnexionMcpApiV1ToolsMcpTesterPostError = TesterLaConnexionMcpApiV1ToolsMcpTesterPostErrors[keyof TesterLaConnexionMcpApiV1ToolsMcpTesterPostErrors];
+
+export type TesterLaConnexionMcpApiV1ToolsMcpTesterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatTestMcp;
+};
+
+export type TesterLaConnexionMcpApiV1ToolsMcpTesterPostResponse = TesterLaConnexionMcpApiV1ToolsMcpTesterPostResponses[keyof TesterLaConnexionMcpApiV1ToolsMcpTesterPostResponses];
+
+export type OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/mcp/decouverts';
+};
+
+export type OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetError = OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetErrors[keyof OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetErrors];
+
+export type OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetResponses = {
+    /**
+     * Response Outils Decouverts Des Serveurs Api V1 Tools Mcp Decouverts Get
+     *
+     * Successful Response
+     */
+    200: Array<OutilMcpVu>;
+};
+
+export type OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetResponse = OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetResponses[keyof OutilsDecouvertsDesServeursApiV1ToolsMcpDecouvertsGetResponses];
+
+export type UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/credentials/utilisation';
+};
+
+export type UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetError = UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetErrors[keyof UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetErrors];
+
+export type UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetResponses = {
+    /**
+     * Response Utilisation Des Identifiants Api V1 Credentials Utilisation Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: Array<UtilisePar>;
+    };
+};
+
+export type UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetResponse = UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetResponses[keyof UtilisationDesIdentifiantsApiV1CredentialsUtilisationGetResponses];
+
+export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutData = {
+    body: NouvelleValeur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Credential Uuid
+         */
+        credential_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/credentials/{credential_uuid}/valeur';
+};
+
+export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutError = RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutErrors[keyof RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutErrors];
+
+export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ValeurRemplacee;
+};
+
+export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponse = RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses[keyof RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses];
 
 export type ListCredentialsApiV1CredentialsGetData = {
     body?: never;
