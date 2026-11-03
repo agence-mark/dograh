@@ -99,7 +99,7 @@ describe("ChampVariables", () => {
         const champ = screen.getByTestId("champ-variables");
         const pastilles = champ.querySelectorAll("[data-cle]");
         expect([...pastilles].map((p) => p.getAttribute("data-source"))).toEqual(["fiche", "entreprise"]);
-        expect((pastilles[0] as HTMLElement).style.background).toMatch(/rgb\(4, 120, 87\)|#047857/i);
+        expect((pastilles[0] as HTMLElement).style.background).toContain("var(--source-fiche)");
         expect(lireDom(champ)).toBe("Bonjour {{prenom}} chez {{etablissement}}\nsuite");
     });
 

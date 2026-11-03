@@ -67,7 +67,7 @@ export function CarteNotification({ n, equipe }: { n: Notification; equipe: bool
                             fermer(n.cle);
                             n.bouton?.action();
                         }}
-                        className="shrink-0 cursor-pointer text-sm font-semibold text-[#0f1c2e] hover:font-bold dark:text-white"
+                        className="shrink-0 cursor-pointer text-sm font-semibold text-(--cta) hover:font-bold"
                     >
                         {t(n.bouton.libelle)}
                     </button>

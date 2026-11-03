@@ -11,7 +11,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 export function CadreAcces({ titre, sousTitre, children }: { titre: string; sousTitre?: ReactNode; children: ReactNode }) {
     const { t } = useLangue();
     return (
-        <main className="flex min-h-screen items-center justify-center bg-white px-4">
+        <main className="flex min-h-screen items-center justify-center bg-background px-4">
             <div className="w-full max-w-sm space-y-8">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/mark-lockup.svg" alt={t({ en: ".mark logo", fr: "Logo .mark" })} className="h-7" />

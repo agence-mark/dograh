@@ -33,7 +33,7 @@ import {
 const SOURCES: Source[] = ["entreprise", "appel", "fiche", "campagne"];
 
 const stylePastille = (couleur: string) =>
-    `background:${couleur};color:#fff;border-radius:4px;padding:0 6px;margin:0 1px;font-size:12px;line-height:20px;display:inline-block;user-select:all;cursor:pointer`;
+    `background:${couleur};color:white;border-radius:4px;padding:0 6px;margin:0 1px;font-size:12px;line-height:20px;display:inline-block;user-select:all;cursor:pointer`;
 
 const poserPastille = (span: HTMLElement, cle: string, brut: string, catalogue: VariableCatalogue[], connu: boolean) => {
     const source = connu ? sourceDe(cle, catalogue) : "appel";

@@ -61,12 +61,22 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
     it("contrast decisions of 27/09 hold, sauf le bouton à bordure, repris de la maquette (K1): dark borders and fields are firmer, node types have colours", () => {
         const css = sansCommentaires(theme());
         const sombre = css.match(/\.dark\s*\{[^}]*\}/)?.[0] ?? "";
-        expect(sombre).toMatch(/--border:\s*#333333/);
-        expect(sombre).toMatch(/--input:\s*#3a3a3a/);
+        expect(sombre).toMatch(/--border:\s*oklch\(1 0 0 \/ 10%\)/);
+        expect(sombre).toMatch(/--input:\s*oklch\(1 0 0 \/ 15%\)/);
         for (const jeton of ["--node-start", "--node-end", "--node-global"]) expect(css).toMatch(new RegExp(`${jeton}:`));
         const bouton = readFileSync(join(APP, "..", "components", "ui", "button.tsx"), "utf8");
         const outline = bouton.match(/outline:\s*"([^"]*)"/)?.[1] ?? "";
         expect(outline).toMatch(/(^|\s)bg-background(\s|$)/);
+    });
+
+    it("le mode nuit (N4) change le logo .mark et la mention de React Flow, et les deux logos existent", () => {
+        const css = sansCommentaires(theme());
+        expect(css).toMatch(/\.dark img\[src="\/mark-lockup\.svg"\]\s*\{\s*content:\s*url\("\/mark-lockup-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark img\[src="\/mark-symbol\.svg"\]\s*\{\s*content:\s*url\("\/mark-symbol-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark \.react-flow__attribution\s*\{\s*background-color:\s*var\(--card\)/);
+        for (const nom of ["mark-lockup-nuit.svg", "mark-symbol-nuit.svg"]) {
+            expect(readFileSync(join(APP, "..", "..", "public", nom), "utf8")).not.toMatch(/#0f1c2e|#111a26/);
+        }
     });
 
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {
@@ -77,7 +87,22 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         const css = sansCommentaires(theme());
         const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
         expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0f1c2e/);
-        expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*#f5f5f5/);
+        expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*oklch\(0\.922 0 0\)/);
+    });
+
+    it("le mode nuit (N4) déclare chaque jeton du mode clair, et prend ceux de base de la maquette", () => {
+        const css = sansCommentaires(theme());
+        const jetons = (bloc: string) => new Set([...bloc.matchAll(/(--[a-z0-9-]+):/g)].map((m) => m[1]));
+        const clair = jetons(css.match(/:root\s*\{[^}]*\}/g)?.[0] ?? "");
+        const sombre = css.match(/\.dark\s*\{[^}]*\}/)?.[0] ?? "";
+        const declares = jetons(sombre);
+        // --radius ne change pas de thème.
+        const manquants = [...clair].filter((j) => j !== "--radius" && !declares.has(j));
+        expect(manquants).toEqual([]);
+        expect(sombre).toMatch(/--background:\s*oklch\(0\.145 0 0\)/);
+        expect(sombre).toMatch(/--card:\s*oklch\(0\.205 0 0\)/);
+        expect(sombre).toMatch(/--muted:\s*oklch\(0\.269 0 0\)/);
+        expect(sombre).toMatch(/--sidebar:\s*oklch\(0\.205 0 0\)/);
     });
 
     it("the blue accent exists in both themes, and focus follows it (Evan, 27/09)", () => {

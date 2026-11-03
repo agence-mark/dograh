@@ -104,7 +104,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
                     asChild
                     isActive={active?.id === entree.id}
                     tooltip={t(entree.titre)}
-                    className="h-9 px-3 data-[active=true]:bg-(--acc-soft) data-[active=true]:font-medium data-[active=true]:text-(--acc-text) hover:font-medium"
+                    className="h-9 px-3 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground hover:font-medium"
                 >
                     <Link href={lienDe(entree, base)} onClick={() => isMobile && setOpenMobile(false)} translate="no">
                         <I className="shrink-0" />

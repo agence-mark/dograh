@@ -128,7 +128,7 @@ function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | b
                                 key={o}
                                 type="button"
                                 onClick={() => changer(o)}
-                                className={`rounded-md px-3 py-1 ${texte === o ? "bg-white font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                className={`rounded-md px-3 py-1 ${texte === o ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
                             >
                                 {o}
                             </button>

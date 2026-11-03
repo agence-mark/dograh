@@ -55,7 +55,7 @@ export function Surligne({ texte, q }: { texte: string; q: string }) {
         <>
             {morceaux.map((m, i) =>
                 m.toLowerCase() === q.toLowerCase() ? (
-                    <mark key={i} className="rounded bg-yellow-200 px-0.5 text-foreground">
+                    <mark key={i} className="rounded bg-(--surligne) px-0.5 text-foreground">
                         {m}
                     </mark>
                 ) : (
