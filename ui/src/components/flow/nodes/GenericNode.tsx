@@ -2,7 +2,7 @@ import { NodeProps, NodeToolbar, Position } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
 import { Check, Circle, Copy, Edit, type LucideIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
@@ -10,8 +10,10 @@ import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowSto
 import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
+import { evaluateDisplayOptions } from "@/components/flow/renderer/displayOptions";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
+import { useOuvertureNoeud } from "@/components/mark/agent/ouverture-noeud";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
 import {
     DeclenchementDeLAction,
@@ -20,9 +22,16 @@ import {
 } from "@/components/mark/graphe/DeclenchementDeLAction";
 import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
+import { OngletsNoeud } from "@/components/mark/graphe/OngletsNoeud";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
+import {
+    PROPRIETE_DU_NOM,
+    proprietesDeLaSection,
+    type SectionNoeud,
+    sectionsAMontrer,
+} from "@/components/mark/graphe/sections-noeud";
 import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
 import {
     agentQuiAgit,
@@ -511,6 +520,12 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         id,
         additionalData,
     });
+    // [.mark] E36 : la barre du canevas (« Prompt général ») demande l'ouverture de cette fenêtre.
+    const demandeOuverture = useOuvertureNoeud((s) => s.demande);
+    useEffect(() => {
+        if (demandeOuverture?.id === id) setOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [demandeOuverture?.cle]);
     const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif } =
         useWorkflow();
     // fiabilite-de-la-conversation: the start step shows « Truth of actions » as soon as the agent acts anywhere.
@@ -682,6 +697,149 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     const dialogTitle = spec ? `Edit ${spec.display_name}` : "Edit Node";
     const fallbackTitle = spec?.display_name ?? "Node";
 
+    // ── [.mark] La fenêtre du nœud, à onglets par sujet (E15) ─────────────
+    // Chaque onglet n'existe que si le type de nœud porte des champs ou des blocs de ce sujet.
+    const fenetre = (() => {
+        if (!open || !spec) return null;
+        const masque =
+            type === "endCall" && estPrincipal && Array.isArray(values.fins) && values.fins.length > 0 ? ["prompt"] : [];
+        const contexte = {
+            tools: tools ?? [],
+            documents: documents ?? [],
+            recordings: recordings ?? [],
+            champsFiche: champsFiche ?? [],
+            conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
+            onConditionsDeChampsChange: (next: ConditionDeChamp[] | undefined) =>
+                setValues((prev) => ({ ...prev, conditions_de_champs: next })),
+            mcpToolFilters: (values.mcp_tool_filters as Record<string, string[]> | undefined) ?? {},
+            onMcpToolFiltersChange: (next: Record<string, string[]>) =>
+                setValues((prev) => ({
+                    ...prev,
+                    mcp_tool_filters: Object.keys(next).length > 0 ? next : undefined,
+                })),
+        };
+        const formulaire = (noms: string[]) => (
+            <NodeEditForm spec={spec} values={values} onChange={setValues} masquer={masque} seulement={noms} context={contexte} />
+        );
+        const visibles = spec.properties
+            .filter((p) => !masque.includes(p.name) && evaluateDisplayOptions(p.display_options, values))
+            .map((p) => p.name);
+        const outilsDeLEtape = ((values.tool_uuids as string[] | undefined) ?? []).length > 0;
+        const etapeAgit = type === "agentNode" || type === "startCall";
+
+        // Les blocs .mark rangés par sujet : mêmes conditions qu'avant, seule leur place change.
+        const blocs: Partial<Record<SectionNoeud, ReactNode[]>> = {};
+        const poser = (section: SectionNoeud, bloc: ReactNode) => {
+            (blocs[section] ??= []).push(bloc);
+        };
+        if (etapeAgit) {
+            poser(
+                "outils",
+                <BriqueAgent
+                    key="brique"
+                    outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
+                    onChange={(uuids) => setValues((prev) => ({ ...prev, tool_uuids: uuids.length > 0 ? uuids : undefined }))}
+                />,
+            );
+        }
+        if (type === "agentNode" && typeof agentPrincipalId === "number") {
+            poser(
+                "agents",
+                <RetourAuPrincipal
+                    key="retour"
+                    agentPrincipalId={agentPrincipalId}
+                    coche={values.retour_au_principal === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, retour_au_principal: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (type === "agentNode" && estPrincipal) {
+            poser(
+                "agents",
+                <EtapeDeRetour
+                    key="etape-retour"
+                    coche={values.etape_de_retour === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (etapeAgit && travailActif) {
+            poser(
+                "agents",
+                <TravailDeFond
+                    key="travail"
+                    coche={values.travail_de_fond === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (etapeAgit && (outilsDeLEtape || (travailActif && values.travail_de_fond === true) || (type === "startCall" && agentAgit))) {
+            poser(
+                "garde",
+                <VeriteDesActions
+                    key="verite"
+                    coche={caseCochee(values.verite_des_actions, etapeEcrit)}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, verite_des_actions: valeurAEcrire(coche, etapeEcrit) }))}
+                />,
+            );
+        }
+        if (etapeAgit && (outilsDeLEtape || (travailActif && values.travail_de_fond === true))) {
+            poser(
+                "garde",
+                <DeclenchementDeLAction
+                    key="declenchement"
+                    position={positionLue(values.declenchement_de_l_action)}
+                    demandeType={typeof values.demande_type === "string" ? values.demande_type : ""}
+                    automatiquePossible={travailActif === true && values.travail_de_fond === true}
+                    champsDeclares={String(values.champs_etape ?? "").trim() !== ""}
+                    onChange={(position) => setValues((prev) => ({ ...prev, declenchement_de_l_action: positionEcrite(position) }))}
+                    onDemandeTypeChange={(texte) =>
+                        setValues((prev) => ({ ...prev, demande_type: texte.trim() === "" ? undefined : texte }))
+                    }
+                />,
+            );
+        }
+        if (etapeAgit) {
+            poser(
+                "phrases",
+                <PhrasesDeLEtape key="phrases-etape" etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />,
+            );
+        }
+        if (type === "endCall") {
+            poser(
+                "phrases",
+                <PhrasesDeFin
+                    key="phrases-fin"
+                    fins={values.fins as FinFigee[] | undefined}
+                    champsFiche={champsFiche ?? []}
+                    onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
+                />,
+            );
+        }
+        if (type === "trigger") {
+            poser("requete", <TriggerWebhookUrls key="urls" endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)} />);
+        }
+
+        const sections = sectionsAMontrer(visibles, Object.keys(blocs) as SectionNoeud[]).map((section) => {
+            const noms = proprietesDeLaSection(visibles, section);
+            return {
+                id: section,
+                contenu: (
+                    <>
+                        {noms.length > 0 && formulaire(noms)}
+                        {blocs[section]}
+                    </>
+                ),
+            };
+        });
+        return (
+            <OngletsNoeud
+                sections={sections}
+                entete={visibles.includes(PROPRIETE_DU_NOM) ? formulaire([PROPRIETE_DU_NOM]) : undefined}
+            />
+        );
+    })();
+
     return (
         <>
             <NodeContent
@@ -739,116 +897,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 isDirty={isDirty}
                 documentationUrl={docUrl}
             >
-                {open && spec && (
-                    <div className="grid gap-4">
-                        <NodeEditForm
-                            spec={spec}
-                            values={values}
-                            onChange={setValues}
-                            masquer={
-                                type === "endCall" && estPrincipal && Array.isArray(values.fins) && values.fins.length > 0
-                                    ? ["prompt"]
-                                    : []
-                            }
-                            context={{
-                                tools: tools ?? [],
-                                documents: documents ?? [],
-                                recordings: recordings ?? [],
-                                champsFiche: champsFiche ?? [],
-                                conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
-                                onConditionsDeChampsChange: (next) =>
-                                    setValues((prev) => ({ ...prev, conditions_de_champs: next })),
-                                mcpToolFilters:
-                                    (values.mcp_tool_filters as
-                                        | Record<string, string[]>
-                                        | undefined) ?? {},
-                                onMcpToolFiltersChange: (next) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        mcp_tool_filters:
-                                            Object.keys(next).length > 0
-                                                ? next
-                                                : undefined,
-                                    })),
-                            }}
-                        />
-                        {(type === "agentNode" || type === "startCall") && (
-                            <BriqueAgent
-                                outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
-                                onChange={(uuids) =>
-                                    setValues((prev) => ({ ...prev, tool_uuids: uuids.length > 0 ? uuids : undefined }))
-                                }
-                            />
-                        )}
-                        {type === "agentNode" && typeof agentPrincipalId === "number" && (
-                            <RetourAuPrincipal
-                                agentPrincipalId={agentPrincipalId}
-                                coche={values.retour_au_principal === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, retour_au_principal: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {type === "agentNode" && estPrincipal && (
-                            <EtapeDeRetour
-                                coche={values.etape_de_retour === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {(type === "agentNode" || type === "startCall") && travailActif && (
-                            <TravailDeFond
-                                coche={values.travail_de_fond === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {(type === "agentNode" || type === "startCall") &&
-                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
-                                (travailActif && values.travail_de_fond === true) ||
-                                (type === "startCall" && agentAgit)) && (
-                                <VeriteDesActions
-                                    coche={caseCochee(values.verite_des_actions, etapeEcrit)}
-                                    onChange={(coche) =>
-                                        setValues((prev) => ({ ...prev, verite_des_actions: valeurAEcrire(coche, etapeEcrit) }))
-                                    }
-                                />
-                            )}
-                        {(type === "agentNode" || type === "startCall") &&
-                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
-                                (travailActif && values.travail_de_fond === true)) && (
-                                <DeclenchementDeLAction
-                                    position={positionLue(values.declenchement_de_l_action)}
-                                    demandeType={typeof values.demande_type === "string" ? values.demande_type : ""}
-                                    automatiquePossible={travailActif === true && values.travail_de_fond === true}
-                                    champsDeclares={String(values.champs_etape ?? "").trim() !== ""}
-                                    onChange={(position) =>
-                                        setValues((prev) => ({ ...prev, declenchement_de_l_action: positionEcrite(position) }))
-                                    }
-                                    onDemandeTypeChange={(texte) =>
-                                        setValues((prev) => ({ ...prev, demande_type: texte.trim() === "" ? undefined : texte }))
-                                    }
-                                />
-                            )}
-                        {(type === "agentNode" || type === "startCall") && (
-                            <PhrasesDeLEtape etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />
-                        )}
-                        {type === "endCall" && (
-                            <PhrasesDeFin
-                                fins={values.fins as FinFigee[] | undefined}
-                                champsFiche={champsFiche ?? []}
-                                onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
-                            />
-                        )}
-                        {type === "trigger" && (
-                            <TriggerWebhookUrls
-                                endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)}
-                            />
-                        )}
-                    </div>
-                )}
+                {open && spec && fenetre}
             </NodeEditDialog>
         </>
     );

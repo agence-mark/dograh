@@ -37,7 +37,6 @@ vi.mock('@/components/flow/AddNodePanel', () => ({ default: () => null }));
 vi.mock('@/components/flow/edges/CustomEdge', () => ({ default: () => null }));
 vi.mock('@/components/flow/nodes/GenericNode', () => ({ GenericNode: () => null }));
 vi.mock('./components/PhoneCallDialog', () => ({ PhoneCallDialog: () => null }));
-vi.mock('./components/WorkflowVersionDiffDialog', () => ({ WorkflowVersionDiffDialog: () => null }));
 vi.mock('./components/WorkflowTesterPanel', () => ({
     WorkflowTesterPanel: ({ disabled }: { disabled: boolean }) => <div data-testid="tester" data-disabled={disabled} />,
 }));
@@ -48,14 +47,12 @@ vi.mock('@xyflow/react', () => ({
     ReactFlow: ({ nodesDraggable, children }: { nodesDraggable: boolean; children: ReactNode }) => <div data-testid="canvas" data-editable={nodesDraggable}>{children}</div>,
 }));
 vi.mock('./components/WorkflowEditorHeader', () => ({
-    WorkflowEditorHeader: ({ activeVersionLabel, onHistoryClick, onBackToDraft, saveWorkflow }: {
+    WorkflowEditorHeader: ({ activeVersionLabel, onBackToDraft, saveWorkflow }: {
         activeVersionLabel: string;
-        onHistoryClick: () => void;
         onBackToDraft: () => void;
         saveWorkflow: () => void;
     }) => <div>
         <span data-testid="version-label">{activeVersionLabel}</span>
-        <button onClick={onHistoryClick}>History</button>
         <button onClick={onBackToDraft}>Back to draft</button>
         <button onClick={saveWorkflow}>Save</button>
     </div>,
@@ -79,35 +76,21 @@ it.each(['archived', 'published'])('opens a linked %s version read-only before h
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(mocks.save).not.toHaveBeenCalled();
     expect(mocks.versions).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    await screen.findByRole('button', { name: /^v20/ });
     expect(screen.getByTestId('version-label').textContent).toContain('v3');
-    expect(screen.getByTestId('canvas').getAttribute('data-editable')).toBe('false');
 });
 
-it('updates shareable URLs from history and clears only the version when returning to the draft', async () => {
+it('clears only the version from the address when returning to the draft (the page of an agent is /agents/<id>)', async () => {
     render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} initialSelectedVersion={version(3, 'archived')} />);
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    fireEvent.click(await screen.findByRole('button', { name: /^v20/ }));
-    expect(mocks.push).toHaveBeenCalledWith('/workflow/12?version=20&source=campaign', { scroll: false });
     fireEvent.click(screen.getByRole('button', { name: 'Back to draft' }));
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/workflow/12?source=campaign', { scroll: false }));
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/agents/12?source=campaign', { scroll: false }));
 });
 
-it.each(['current', 'historical'])('selects the editable published version from the %s view when no draft exists', async view => {
-    mocks.query = view === 'current' ? 'source=campaign' : 'version=3&source=campaign';
-    mocks.versions.mockResolvedValue({ data: [version(20, 'published'), version(3, 'archived')] });
-    render(<RenderWorkflow
-        workflowId={12}
-        initialWorkflowName="Agent"
-        initialVersionNumber={20}
-        initialVersionStatus="published"
-        initialSelectedVersion={view === 'historical' ? version(3, 'archived') : undefined}
-        user={{ id: '1' }}
-    />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    fireEvent.click(await screen.findByRole('button', { name: /^v20/ }));
-
-    expect(mocks.push).toHaveBeenCalledWith('/workflow/12?source=campaign', { scroll: false });
+it('draws the floating bar of the canvas, whose tools disappear on a past version', () => {
+    const { unmount } = render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    expect(screen.getByRole('button', { name: 'General prompt' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tidy up' })).toBeTruthy();
+    unmount();
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} initialSelectedVersion={version(3, 'archived')} />);
+    expect(screen.queryByRole('button', { name: 'General prompt' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Fit the view' })).toBeTruthy();
 });

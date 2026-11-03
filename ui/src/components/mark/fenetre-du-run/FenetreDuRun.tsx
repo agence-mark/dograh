@@ -830,20 +830,28 @@ function BlocSimulation({ simulation }: { simulation: Simulation }) {
     );
 }
 
-export function FenetreDuRun({
-    workflowId,
-    runId,
-    recordingKey,
-}: {
-    workflowId: number;
-    runId: number;
-    recordingKey?: string | null;
-}) {
-    const { t } = useLangue();
+/** Les blocs de la fenêtre du run, nommés pour que la page d'une conversation les range dans ses onglets (U3). */
+export type BlocDuRun =
+    | "simulation"
+    | "resume"
+    | "apres-appel"
+    | "latence"
+    | "chrono"
+    | "reseau"
+    | "fournisseurs"
+    | "modules"
+    | "fiche"
+    | "parcours"
+    | "conversation"
+    | "incidents";
+
+/** L'analyse du run (`GET /workflow/{id}/runs/{run}/analyse`), lue une fois : plusieurs onglets la partagent. */
+export function useAnalyseDuRun(workflowId: number, runId: number, actif = true) {
     const [analyse, setAnalyse] = useState<AnalyseDuRun | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!actif) return;
         let annule = false;
         (async () => {
             try {
@@ -863,7 +871,30 @@ export function FenetreDuRun({
         return () => {
             annule = true;
         };
-    }, [workflowId, runId]);
+    }, [workflowId, runId, actif]);
+
+    return { analyse, erreur };
+}
+
+export function FenetreDuRun({
+    workflowId,
+    runId,
+    recordingKey,
+    blocs,
+    lue,
+}: {
+    workflowId: number;
+    runId: number;
+    recordingKey?: string | null;
+    /** Seulement ces blocs (U3 : un onglet de la conversation). Absent = tous, comme avant. */
+    blocs?: BlocDuRun[];
+    /** L'analyse déjà lue par la page (évite une seconde lecture quand plusieurs onglets montrent des blocs). */
+    lue?: { analyse: AnalyseDuRun | null; erreur: string | null };
+}) {
+    const { t } = useLangue();
+    const propre = useAnalyseDuRun(workflowId, runId, !lue);
+    const { analyse, erreur } = lue ?? propre;
+    const voir = (bloc: BlocDuRun) => !blocs || blocs.includes(bloc);
 
     if (erreur)
         return (
@@ -883,7 +914,7 @@ export function FenetreDuRun({
     const stats = analyse.latency.stats;
     return (
         <div className="space-y-4" data-testid="fenetre-du-run">
-            {analyse.simulation ? (
+            {voir("simulation") && analyse.simulation ? (
                 <Section
                     titre={{ en: "Simulation", fr: "Simulation" }}
                     bloc={{ status: "ok" }}
@@ -900,73 +931,93 @@ export function FenetreDuRun({
                     <BlocSimulation simulation={analyse.simulation} />
                 </Section>
             ) : null}
-            <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
-                <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
-            </Section>
+            {voir("resume") && (
+                <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
+                    <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
+                </Section>
+            )}
             {/* [.mark] l-agent-travaille, L4 (A9): shown only when the agent uses the after-call. */}
-            <SectionApresAppel workflowId={workflowId} runId={runId} />
-            <Section
-                titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
-                bloc={analyse.latency}
-                ouverte
-                testId="bloc-latency"
-                resume={
-                    stats
-                        ? t({
-                              en: `median ${secondes(stats.median_silence_secs)}`,
-                              fr: `médiane ${secondes(stats.median_silence_secs)}`,
-                          })
-                        : null
-                }
-            >
-                <BlocLatence latence={analyse.latency} />
-            </Section>
-            <Section
-                titre={{ en: "Turn stopwatch", fr: "Chronomètre par tour" }}
-                bloc={analyse.chrono ?? { status: "not_captured" }}
-                testId="bloc-chrono"
-                resume={t({
-                    en: `M2 median ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
-                    fr: `M2 médiane ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
-                })}
-            >
-                {analyse.chrono && <BlocChronometre chrono={analyse.chrono} />}
-            </Section>
-            <Section
-                titre={{ en: "Connections and network", fr: "Connexions et réseau" }}
-                bloc={analyse.network ?? { status: "not_captured" }}
-                testId="bloc-network"
-            >
-                {analyse.network && <BlocReseau reseau={analyse.network} />}
-            </Section>
-            <Section titre={{ en: "Providers", fr: "Fournisseurs" }} bloc={analyse.providers} testId="bloc-providers">
-                <BlocFournisseurs fournisseurs={analyse.providers} />
-            </Section>
-            <Section
-                titre={{ en: "Reading modules", fr: "Modules de lecture" }}
-                bloc={analyse.reading_modules}
-                testId="bloc-reading-modules"
-                resume={`${analyse.reading_modules.items?.length ?? 0}`}
-            >
-                <BlocModules modules={analyse.reading_modules} />
-            </Section>
-            <Section titre={{ en: "Record", fr: "Fiche" }} bloc={analyse.record} testId="bloc-record">
-                <BlocFiche fiche={analyse.record} />
-            </Section>
-            <Section titre={{ en: "Path", fr: "Parcours" }} bloc={analyse.path} testId="bloc-path">
-                <BlocParcours parcours={analyse.path} />
-            </Section>
-            <Section titre={{ en: "Conversation", fr: "Conversation" }} bloc={analyse.conversation} testId="bloc-conversation">
-                <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} />
-            </Section>
-            <Section
-                titre={{ en: "Incidents", fr: "Incidents" }}
-                bloc={analyse.incidents}
-                testId="bloc-incidents"
-                resume={`${analyse.incidents.items?.length ?? 0}`}
-            >
-                <BlocIncidents incidents={analyse.incidents} />
-            </Section>
+            {voir("apres-appel") && <SectionApresAppel workflowId={workflowId} runId={runId} />}
+            {voir("latence") && (
+                <Section
+                    titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
+                    bloc={analyse.latency}
+                    ouverte
+                    testId="bloc-latency"
+                    resume={
+                        stats
+                            ? t({
+                                  en: `median ${secondes(stats.median_silence_secs)}`,
+                                  fr: `médiane ${secondes(stats.median_silence_secs)}`,
+                              })
+                            : null
+                    }
+                >
+                    <BlocLatence latence={analyse.latency} />
+                </Section>
+            )}
+            {voir("chrono") && (
+                <Section
+                    titre={{ en: "Turn stopwatch", fr: "Chronomètre par tour" }}
+                    bloc={analyse.chrono ?? { status: "not_captured" }}
+                    testId="bloc-chrono"
+                    resume={t({
+                        en: `M2 median ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                        fr: `M2 médiane ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                    })}
+                >
+                    {analyse.chrono && <BlocChronometre chrono={analyse.chrono} />}
+                </Section>
+            )}
+            {voir("reseau") && (
+                <Section
+                    titre={{ en: "Connections and network", fr: "Connexions et réseau" }}
+                    bloc={analyse.network ?? { status: "not_captured" }}
+                    testId="bloc-network"
+                >
+                    {analyse.network && <BlocReseau reseau={analyse.network} />}
+                </Section>
+            )}
+            {voir("fournisseurs") && (
+                <Section titre={{ en: "Providers", fr: "Fournisseurs" }} bloc={analyse.providers} testId="bloc-providers">
+                    <BlocFournisseurs fournisseurs={analyse.providers} />
+                </Section>
+            )}
+            {voir("modules") && (
+                <Section
+                    titre={{ en: "Reading modules", fr: "Modules de lecture" }}
+                    bloc={analyse.reading_modules}
+                    testId="bloc-reading-modules"
+                    resume={`${analyse.reading_modules.items?.length ?? 0}`}
+                >
+                    <BlocModules modules={analyse.reading_modules} />
+                </Section>
+            )}
+            {voir("fiche") && (
+                <Section titre={{ en: "Record", fr: "Fiche" }} bloc={analyse.record} testId="bloc-record">
+                    <BlocFiche fiche={analyse.record} />
+                </Section>
+            )}
+            {voir("parcours") && (
+                <Section titre={{ en: "Path", fr: "Parcours" }} bloc={analyse.path} testId="bloc-path">
+                    <BlocParcours parcours={analyse.path} />
+                </Section>
+            )}
+            {voir("conversation") && (
+                <Section titre={{ en: "Conversation", fr: "Conversation" }} bloc={analyse.conversation} testId="bloc-conversation">
+                    <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} />
+                </Section>
+            )}
+            {voir("incidents") && (
+                <Section
+                    titre={{ en: "Incidents", fr: "Incidents" }}
+                    bloc={analyse.incidents}
+                    testId="bloc-incidents"
+                    resume={`${analyse.incidents.items?.length ?? 0}`}
+                >
+                    <BlocIncidents incidents={analyse.incidents} />
+                </Section>
+            )}
         </div>
     );
 }

@@ -87,7 +87,10 @@ const monter = async (type: "agentNode" | "endCall", regles: unknown[] = []) => 
         </ReactFlowProvider>,
     );
     fireEvent.doubleClick(screen.getByText("Étape"));
-    return await screen.findByRole("dialog");
+    const fenetre = await screen.findByRole("dialog");
+    // La fenêtre d'un nœud est à onglets par sujet (E15) : cette section est dans l'onglet « Phrases ».
+    fireEvent.click(fenetre.querySelector('[data-section="phrases"]') as HTMLElement);
+    return fenetre;
 };
 
 beforeEach(() => m.enregistrer.mockClear());

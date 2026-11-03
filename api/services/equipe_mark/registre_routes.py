@@ -106,6 +106,9 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/workflow/\{workflow_id\}/text-chat/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/workflow/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/workflow/.*$", MEMBRE, par_defaut=True),
+    # U3, E30 : les étiquettes des agents (lire = membre, poser = modifier un agent).
+    _r(ECRITURE, r"^/etiquettes(/.*)?$", P("agents.modifier"), par_defaut=True),
+    _r(LECTURE, r"^/etiquettes(/.*)?$", MEMBRE, par_defaut=True),
     _r(LECTURE, r"^/agents/.*$", MEMBRE, par_defaut=True),
     _r(ECRITURE, r"^/agents/.*$", P("agents.modifier"), par_defaut=True),
     _r(ECRITURE, r"^/workflow-recordings/.*$", P("agents.modifier"), par_defaut=True),

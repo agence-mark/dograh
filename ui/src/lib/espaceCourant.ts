@@ -46,6 +46,9 @@ const lireMemoire = (): number | "labo" | null => {
     }
 };
 
+/** L'espace que cet onglet a retenu en dernier (pour revenir d'une adresse neutre, `/agents/12`, à la bonne liste). */
+export const espaceRetenu = lireMemoire;
+
 /** À appeler à chaque changement d'adresse : retient l'espace de cet onglet pour les adresses neutres. */
 export function retenirEspace(pathname: string) {
     const espace = espaceDeAdresse(pathname);

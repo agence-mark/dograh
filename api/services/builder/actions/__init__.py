@@ -11,6 +11,7 @@ from api.services.builder.actions import (  # noqa: F401 -- l'import inscrit les
     controle_et_tests,  # lots 5 et 6 : remplit les points d'entree du controle, de l'essai et des tests
 )
 from api.services.builder.actions import objets  # noqa: F401,E402 -- B48 : les objets de l'agent
+from api.services.builder.actions import etiquettes  # noqa: F401,E402 -- U3 (E30) : les étiquettes des agents
 from api.services.builder.actions import contexte_client  # noqa: F401,E402 -- lot 3 : après points_d_entree, qu'il remplit
 from api.services.builder.actions.registre import (  # noqa: F401
     INTERDITES,

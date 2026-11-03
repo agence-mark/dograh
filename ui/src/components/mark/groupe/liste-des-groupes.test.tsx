@@ -24,6 +24,11 @@ vi.mock("next/navigation", () => ({
     useRouter: () => ({ refresh: m.refresh, push: m.push, replace: vi.fn(), back: vi.fn() }),
 }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "Europe/Paris" }));
+// La liste lit aussi les étiquettes des agents (U3, E30) : ici l'organisation n'en a aucune.
+vi.mock("@/lib/auth", () => {
+    const auth = { user: { id: "u" }, loading: false };
+    return { useAuth: () => auth };
+});
 vi.mock("@/client/sdk.gen", async (importOriginal) => {
     const enregistrer = (nom: string, reponse: unknown = { data: {}, error: undefined }) =>
         (options: unknown) => {
@@ -51,6 +56,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
         }),
         updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut: enregistrer("statut"),
         deleteFolderApiV1FolderFolderIdDelete: enregistrer("supprimerDossier"),
+        lireLesEtiquettesApiV1EtiquettesGet: () => Promise.resolve({ data: { etiquettes: [], par_agent: {} }, error: undefined }),
     });
 });
 

@@ -16,7 +16,7 @@ const T = {
     tests: { en: "Tests", fr: "Tests" },
 } satisfies Record<string, Texte>;
 
-export function BarreDuBuilder({ ouvert, onToggle, testsHref }: { ouvert: boolean; onToggle: () => void; testsHref: string }) {
+export function BarreDuBuilder({ ouvert, onToggle, testsHref }: { ouvert: boolean; onToggle: () => void; testsHref?: string }) {
     const { t } = useLangue();
     return (
         <>
@@ -33,12 +33,15 @@ export function BarreDuBuilder({ ouvert, onToggle, testsHref }: { ouvert: boolea
                 <Sparkles className="h-4 w-4" aria-hidden />
                 <span className="hidden 2xl:inline">{t(T.builder)}</span>
             </Button>
-            <Button asChild variant="outline" className="flex items-center gap-2 border-border">
-                <Link href={testsHref} data-bouton="tests" aria-label={t(T.tests)} title={t(T.tests)}>
-                    <FlaskConical className="h-4 w-4" aria-hidden />
-                    <span className="hidden 2xl:inline">{t(T.tests)}</span>
-                </Link>
-            </Button>
+            {/* U3 : « Tests » est un onglet de la page de l'agent ; le lien ne s'affiche que s'il est demandé. */}
+            {testsHref && (
+                <Button asChild variant="outline" className="flex items-center gap-2 border-border">
+                    <Link href={testsHref} data-bouton="tests" aria-label={t(T.tests)} title={t(T.tests)}>
+                        <FlaskConical className="h-4 w-4" aria-hidden />
+                        <span className="hidden 2xl:inline">{t(T.tests)}</span>
+                    </Link>
+                </Button>
+            )}
         </>
     );
 }

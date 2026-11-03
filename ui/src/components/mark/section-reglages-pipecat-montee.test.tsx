@@ -252,18 +252,12 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(container.querySelector('a[href="#tour"]')?.textContent).toContain("Turn taking");
     });
 
-    it("sits at the file path Next turns into the route, and the canvas SOURCE pushes to it", async () => {
-        // Honest title: the second half is a text assertion on their file --
-        // the same class of check thrown out one floor below, and acceptable
-        // only here. Two reasons: Next routes by file path, so the URL works
-        // whatever that button does, and the button is upstream code we do not
-        // own. What this really guarantees is the route; the gear is a
-        // convenience whose loss would not make the settings unreachable.
-        const canevas = readFileSync(
-            join(process.cwd(), "src/app/workflow/[workflowId]/RenderWorkflow.tsx"),
-            "utf8",
-        );
-        expect(canevas).toContain("/settings`");
+    it("sits at the file path Next turns into the route, and the agent bar's Settings tab leads to it", async () => {
+        // Honest title: the second half is a text assertion on our own file (the tab list of the agent page, U3),
+        // acceptable only here. Next routes by file path, so the URL works whatever the tab does; what this really
+        // guarantees is the route. The tab is a convenience whose loss would not make the settings unreachable.
+        const onglets = readFileSync(join(process.cwd(), "src/components/mark/agent/onglets-agent.ts"), "utf8");
+        expect(onglets).toContain('suite: "/settings"');
 
         // And the page file is where Next expects the route to live.
         expect(() =>
@@ -271,6 +265,10 @@ describe("[.mark] our settings are reachable on the settings page", () => {
                 join(process.cwd(), "src/app/workflow/[workflowId]/settings/page.tsx"),
                 "utf8",
             ),
+        ).not.toThrow();
+        // The agent route mounts that same page under the agent's tabs.
+        expect(() =>
+            readFileSync(join(process.cwd(), "src/app/agents/[workflowId]/settings/page.tsx"), "utf8"),
         ).not.toThrow();
     });
 

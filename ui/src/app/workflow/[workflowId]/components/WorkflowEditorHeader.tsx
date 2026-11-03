@@ -1,9 +1,39 @@
 "use client";
 
+/**
+ * [.mark] La barre d'un agent, onglet Parcours (U3, E37, E46).
+ *
+ * Première ligne : flèche retour, nom (un clic le renomme), version ⌄, puis à droite Essayer ⌄ (navigateur, téléphone,
+ * clavier, appelant simulé, jouer les tests), Builder IA, Publier (avec la raison s'il est grisé), Enregistrer et ⋮
+ * (appels, dupliquer, télécharger, copier l'UUID). Seconde ligne : le membre du groupe, les cinq onglets, et à droite
+ * « non enregistré » et les erreurs du parcours. L'historique des versions est l'onglet Versions (plus de panneau).
+ * « Exporter vers un client » n'est pas ici : il arrive avec H2.
+ */
 import { ReactFlowInstance } from "@xyflow/react";
-import { AlertCircle, ArrowLeft, Bot, Clipboard, Copy, Download, Eye, History, LoaderCircle, Menu, MoreVertical, Pencil, Phone, Rocket } from "lucide-react";
+import {
+    AlertCircle,
+    ArrowLeft,
+    ChevronDown,
+    Clipboard,
+    Copy,
+    Download,
+    Eye,
+    FlaskConical,
+    History,
+    Keyboard,
+    LoaderCircle,
+    Menu,
+    MoreVertical,
+    Pencil,
+    Phone,
+    Play,
+    Rocket,
+    Tag,
+    Users,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -13,21 +43,27 @@ import {
 import { WorkflowError } from "@/client/types.gen";
 import { BarreDuBuilder } from "@/components/builder/ecran/BarreDuBuilder";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
+import { FenetreEtiquettes } from "@/components/mark/agent/etiquettes/FenetreEtiquettes";
+import { adresseDesAgents } from "@/components/mark/agent/liste-des-agents";
+import { MenuMembre } from "@/components/mark/agent/MenuMembre";
+import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
+import { OngletsAgent } from "@/components/mark/agent/OngletsAgent";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { espaceRetenu } from "@/lib/espaceCourant";
+
+export type ModeEssai = "audio" | "text" | "simulated";
 
 interface WorkflowEditorHeaderProps {
     workflowName: string;
@@ -39,22 +75,64 @@ interface WorkflowEditorHeaderProps {
     saveWorkflow: (updateWorkflowDefinition?: boolean) => Promise<void>;
     user: { id: string; email?: string };
     onPhoneCallClick: () => void;
-    onTestAgentClick: () => void;
-    onHistoryClick: () => void;
+    /** Ouvre le panneau d'essai, sur l'onglet demandé. */
+    onTestAgentClick: (mode: ModeEssai) => void;
     activeVersionLabel?: string;
     isViewingHistoricalVersion: boolean;
     onBackToDraft: () => void;
     hasDraft: boolean;
     onPublished: () => void;
     renameWorkflow: (newName: string) => Promise<void>;
-    /** [.mark] builder-agent-vocal (lot 4): the « Builder AI » and « Tests » buttons, and why « Publish » is greyed. */
+    /** [.mark] builder-agent-vocal (lot 4) : le bouton « Builder IA », et pourquoi « Publier » est grisé. */
     builder?: {
         ouvert: boolean;
         onToggle: () => void;
-        testsHref: string;
         raisonDeBlocage: string | null;
     };
 }
+
+const T = {
+    retour: { en: "Back to the agents", fr: "Retour aux agents" },
+    menu: { en: "Open menu", fr: "Ouvrir le menu" },
+    menuAgent: { en: "Agent menu", fr: "Menu de l'agent" },
+    renommer: { en: "Rename the agent", fr: "Renommer l'agent" },
+    nomAgent: { en: "Agent name", fr: "Nom de l'agent" },
+    nomVide: { en: "The name cannot be empty", fr: "Le nom ne peut pas être vide" },
+    renommageEchoue: { en: "The agent could not be renamed", fr: "L'agent n'a pas pu être renommé" },
+    versionPassee: { en: "Read only", fr: "Lecture seule" },
+    retourBrouillon: { en: "Back to draft", fr: "Retour au brouillon" },
+    version: { en: "Version", fr: "Version" },
+    toutesLesVersions: { en: "All versions", fr: "Toutes les versions" },
+    essayer: { en: "Try", fr: "Essayer" },
+    navigateur: { en: "In the browser", fr: "Dans le navigateur" },
+    telephone: { en: "By phone", fr: "Par téléphone" },
+    clavier: { en: "With the keyboard", fr: "Au clavier" },
+    appelantSimule: { en: "With a simulated caller", fr: "Avec un appelant simulé" },
+    jouerLesTests: { en: "Play the tests", fr: "Jouer les tests" },
+    publier: { en: "Publish", fr: "Publier" },
+    publication: { en: "Publishing...", fr: "Publication..." },
+    publie: { en: "Agent published", fr: "Agent publié" },
+    publicationEchoue: { en: "The agent could not be published", fr: "L'agent n'a pas pu être publié" },
+    enregistrer: { en: "Save", fr: "Enregistrer" },
+    enregistrement: { en: "Saving...", fr: "Enregistrement..." },
+    nonEnregistre: { en: "Unsaved changes", fr: "Non enregistré" },
+    erreur: { en: "error", fr: "erreur" },
+    erreurs: { en: "errors", fr: "erreurs" },
+    erreursTitre: { en: "Errors in the flow", fr: "Erreurs du parcours" },
+    noeud: { en: "Node", fr: "Nœud" },
+    liaison: { en: "Link", fr: "Liaison" },
+    appels: { en: "Calls", fr: "Appels" },
+    dupliquer: { en: "Duplicate", fr: "Dupliquer" },
+    duplication: { en: "Duplicating...", fr: "Duplication..." },
+    duplique: { en: "Agent duplicated", fr: "Agent dupliqué" },
+    duplicationEchoue: { en: "The agent could not be duplicated", fr: "L'agent n'a pas pu être dupliqué" },
+    telecharger: { en: "Download (JSON)", fr: "Télécharger (JSON)" },
+    copierUuid: { en: "Copy the UUID", fr: "Copier l'UUID" },
+    etiquettes: { en: "Labels", fr: "Étiquettes" },
+    uuidCopie: { en: "UUID copied", fr: "UUID copié" },
+    uuidIndisponible: { en: "UUID not available", fr: "UUID indisponible" },
+    uuidEchoue: { en: "The UUID could not be copied", fr: "L'UUID n'a pas pu être copié" },
+} satisfies Record<string, Texte>;
 
 export const WorkflowEditorHeader = ({
     workflowName,
@@ -64,7 +142,6 @@ export const WorkflowEditorHeader = ({
     saveWorkflow,
     onPhoneCallClick,
     onTestAgentClick,
-    onHistoryClick,
     activeVersionLabel,
     isViewingHistoricalVersion,
     onBackToDraft,
@@ -75,16 +152,16 @@ export const WorkflowEditorHeader = ({
     renameWorkflow,
     builder,
 }: WorkflowEditorHeaderProps) => {
+    const { t } = useLangue();
     const router = useRouter();
     const { toggleSidebar } = useSidebar();
     const [savingWorkflow, setSavingWorkflow] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
     const [publishing, setPublishing] = useState(false);
-    // One discriminated-union state instead of (isEditingName, nameDraft,
-    // nameError, isRenaming): they're not independent — error and saving are
-    // mutually exclusive, and both are meaningless in the display state. The
-    // union makes the bad combinations unrepresentable and structurally
-    // prevents the Enter→disable-input→blur→re-fire race.
+    const [etiquettesOuvert, setEtiquettesOuvert] = useState(false);
+    const [retour, setRetour] = useState("/labo/agents");
+    useEffect(() => setRetour(adresseDesAgents(espaceRetenu())), []);
+    // Un seul état pour le renommage : l'erreur et l'enregistrement s'excluent, et ni l'un ni l'autre n'a de sens à l'affichage.
     type RenameState =
         | { kind: "display" }
         | { kind: "editing"; draft: string; error: string | null }
@@ -109,9 +186,9 @@ export const WorkflowEditorHeader = ({
             path: { workflow_id: workflowId },
         });
         toast.promise(promise, {
-            loading: "Publishing...",
-            success: "Workflow published successfully",
-            error: "Failed to publish workflow",
+            loading: t(T.publication),
+            success: t(T.publie),
+            error: t(T.publicationEchoue),
         });
         try {
             await promise;
@@ -121,10 +198,6 @@ export const WorkflowEditorHeader = ({
         }
     };
 
-    const handleBack = () => {
-        router.push("/workflow");
-    };
-
     const handleDuplicate = async () => {
         if (duplicating) return;
         setDuplicating(true);
@@ -132,14 +205,14 @@ export const WorkflowEditorHeader = ({
             path: { workflow_id: workflowId },
         });
         toast.promise(promise, {
-            loading: "Duplicating workflow...",
-            success: "Workflow duplicated successfully",
-            error: "Failed to duplicate workflow",
+            loading: t(T.duplication),
+            success: t(T.duplique),
+            error: t(T.duplicationEchoue),
         });
         try {
             const { data } = await promise;
             if (data?.id) {
-                router.push(`/workflow/${data.id}`);
+                router.push(adresseOnglet(data.id, "parcours"));
             }
         } finally {
             setDuplicating(false);
@@ -148,14 +221,14 @@ export const WorkflowEditorHeader = ({
 
     const handleCopyAgentUuid = async () => {
         if (!workflowUuid) {
-            toast.error("Agent UUID not available");
+            toast.error(t(T.uuidIndisponible));
             return;
         }
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success("Agent UUID copied");
+            toast.success(t(T.uuidCopie));
         } catch {
-            toast.error("Failed to copy Agent UUID");
+            toast.error(t(T.uuidEchoue));
         }
     };
 
@@ -185,34 +258,28 @@ export const WorkflowEditorHeader = ({
 
     const exitEditMode = () => {
         setRename({ kind: "display" });
-        // Return focus to the pencil button so keyboard users aren't stranded.
-        // Defer to next tick so React commits the input unmount first.
+        // Rend le focus au nom pour que le clavier ne reste pas sans repère.
         setTimeout(() => renameButtonRef.current?.focus(), 0);
     };
 
     const attemptSave = async () => {
-        // Only "editing" can initiate a save. This also guards against the
-        // blur fired when disabling the input transitions us to "saving".
+        // Seul « editing » peut lancer l'enregistrement (cela évite aussi le blur déclenché quand le champ se désactive).
         if (rename.kind !== "editing") return;
         const trimmed = rename.draft.trim();
         if (trimmed.length === 0) {
-            setRename({ ...rename, error: "Name cannot be empty" });
+            setRename({ ...rename, error: t(T.nomVide) });
             return;
         }
         if (trimmed === workflowName) {
-            // No-op: exit cleanly with no API call.
             exitEditMode();
             return;
         }
         setRename({ kind: "saving", draft: rename.draft });
         try {
             await renameWorkflow(trimmed);
-            // Success: store update already propagated workflowName. Exit edit mode.
             exitEditMode();
         } catch {
-            // Roll back: keep user's typed value, reopen the input, focus it,
-            // surface a sonner toast (matches existing duplicate/publish failure pattern).
-            toast.error("Failed to rename workflow");
+            toast.error(t(T.renommageEchoue));
             setRename({ kind: "editing", draft: trimmed, error: null });
             setTimeout(() => nameInputRef.current?.focus(), 0);
         }
@@ -229,9 +296,8 @@ export const WorkflowEditorHeader = ({
     };
 
     const handleRenameBlur = () => {
-        // Ignore the blur fired when the input is disabled during save.
         if (rename.kind !== "editing") return;
-        // On blur with empty/whitespace, revert silently to display mode so the user is never trapped.
+        // Un nom vide quand on quitte le champ : retour silencieux à l'affichage, personne n'est coincé.
         if (rename.draft.trim().length === 0) {
             exitEditMode();
             return;
@@ -239,280 +305,271 @@ export const WorkflowEditorHeader = ({
         void attemptSave();
     };
 
+    const raison = builder?.raisonDeBlocage ?? null;
+
     return (
-        <div className="flex items-center justify-between w-full h-14 px-4 bg-background border-b border-border">
-            {/* Left section: Mobile menu + Back button + Workflow name */}
-            <div className="flex items-center gap-3 mr-4">
-                <button
-                    onClick={toggleSidebar}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors md:hidden"
-                    aria-label="Open menu"
-                >
-                    <Menu className="w-5 h-5 text-muted-foreground" />
-                </button>
-                <button
-                    onClick={handleBack}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-                </button>
+        <div data-barre-agent>
+            <div className="flex h-14 w-full items-center justify-between border-b border-border bg-background px-4">
+                <div className="mr-4 flex items-center gap-3">
+                    <button
+                        onClick={toggleSidebar}
+                        className="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-accent md:hidden"
+                        aria-label={t(T.menu)}
+                    >
+                        <Menu className="size-5 text-muted-foreground" />
+                    </button>
+                    <Link
+                        href={retour}
+                        aria-label={t(T.retour)}
+                        className="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-accent"
+                    >
+                        <ArrowLeft className="size-5 text-muted-foreground" />
+                    </Link>
+
+                    <div className="flex items-center gap-1">
+                        {rename.kind !== "display" ? (
+                            <div className="flex flex-col gap-1">
+                                <Input
+                                    ref={nameInputRef}
+                                    value={rename.draft}
+                                    onChange={(e) => {
+                                        if (rename.kind === "editing") {
+                                            setRename({ ...rename, draft: e.target.value, error: null });
+                                        }
+                                    }}
+                                    onKeyDown={handleRenameKeyDown}
+                                    onBlur={handleRenameBlur}
+                                    disabled={rename.kind === "saving"}
+                                    autoFocus
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    aria-label={t(T.nomAgent)}
+                                    aria-invalid={rename.kind === "editing" && rename.error !== null}
+                                    className="h-8 max-w-xs border-border bg-muted text-base font-medium text-foreground"
+                                />
+                                {rename.kind === "editing" && rename.error && (
+                                    <span className="text-xs text-destructive" role="alert">
+                                        {rename.error}
+                                    </span>
+                                )}
+                            </div>
+                        ) : isViewingHistoricalVersion ? (
+                            <h1 className="max-w-[14rem] truncate text-base font-medium text-foreground md:max-w-md">{workflowName}</h1>
+                        ) : (
+                            // Le nom est le bouton : un clic le renomme.
+                            <button
+                                ref={renameButtonRef}
+                                type="button"
+                                onClick={enterEditMode}
+                                aria-label={`${t(T.renommer)} : ${workflowName}`}
+                                title={t(T.renommer)}
+                                className="group flex max-w-[14rem] cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-accent md:max-w-md"
+                            >
+                                <h1 className="truncate text-base font-medium text-foreground">{workflowName}</h1>
+                                <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" aria-hidden />
+                            </button>
+                        )}
+                    </div>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="cursor-pointer gap-1 hover:font-medium" data-menu-version>
+                                <History className="size-4 text-muted-foreground" aria-hidden />
+                                {activeVersionLabel ?? t(T.version)}
+                                <ChevronDown className="size-3.5" aria-hidden />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                                <Link href={adresseOnglet(workflowId, "versions")}>{t(T.toutesLesVersions)}</Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
 
                 <div className="flex items-center gap-2">
-                    {rename.kind !== "display" ? (
-                        <div className="flex flex-col gap-1">
-                            <Input
-                                ref={nameInputRef}
-                                value={rename.draft}
-                                onChange={(e) => {
-                                    // onChange can't fire while disabled (kind === "saving"),
-                                    // but the type guard is needed for the discriminated union.
-                                    if (rename.kind === "editing") {
-                                        setRename({ ...rename, draft: e.target.value, error: null });
-                                    }
-                                }}
-                                onKeyDown={handleRenameKeyDown}
-                                onBlur={handleRenameBlur}
-                                disabled={rename.kind === "saving"}
-                                autoFocus
-                                onFocus={(e) => e.currentTarget.select()}
-                                aria-label="Workflow name"
-                                aria-invalid={rename.kind === "editing" && rename.error !== null}
-                                className="h-8 max-w-xs bg-muted border-border text-foreground text-base font-medium"
-                            />
-                            {rename.kind === "editing" && rename.error && (
-                                <span className="text-xs text-destructive" role="alert">{rename.error}</span>
-                            )}
-                        </div>
-                    ) : (
+                    {isViewingHistoricalVersion && (
                         <>
-                            <h1 className="text-base font-medium text-foreground whitespace-nowrap truncate max-w-[14rem] md:max-w-md">
-                                <span className="md:hidden">
-                                    {workflowName.length > 8 ? `${workflowName.slice(0, 8)}…` : workflowName}
+                            <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5">
+                                <Eye className="size-4 text-foreground" />
+                                <span className="text-sm text-foreground">
+                                    {activeVersionLabel} · {t(T.versionPassee)}
                                 </span>
-                                <span className="hidden md:inline">{workflowName}</span>
-                            </h1>
-                            {!isViewingHistoricalVersion && (
-                                <button
-                                    ref={renameButtonRef}
-                                    type="button"
-                                    onClick={enterEditMode}
-                                    aria-label="Rename workflow"
-                                    className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors"
-                                >
-                                    <Pencil className="w-4 h-4 text-muted-foreground" />
-                                </button>
-                            )}
+                            </div>
+                            <Button onClick={onBackToDraft} className="cursor-pointer px-4">
+                                {t(T.retourBrouillon)}
+                            </Button>
                         </>
                     )}
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="cursor-pointer gap-1.5 hover:font-medium" data-menu-essayer>
+                                <Play className="size-4" aria-hidden />
+                                {t(T.essayer)}
+                                <ChevronDown className="size-3.5" aria-hidden />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onTestAgentClick("audio")} className="cursor-pointer hover:font-medium">
+                                <Play className="mr-2 size-4" />
+                                {t(T.navigateur)}
+                            </DropdownMenuItem>
+                            {!isViewingHistoricalVersion && (
+                                <DropdownMenuItem
+                                    disabled={isCallDisabled}
+                                    onClick={onPhoneCallClick}
+                                    className="cursor-pointer hover:font-medium"
+                                >
+                                    <Phone className="mr-2 size-4" />
+                                    {t(T.telephone)}
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => onTestAgentClick("text")} className="cursor-pointer hover:font-medium">
+                                <Keyboard className="mr-2 size-4" />
+                                {t(T.clavier)}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onTestAgentClick("simulated")} className="cursor-pointer hover:font-medium">
+                                <Users className="mr-2 size-4" />
+                                {t(T.appelantSimule)}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                                <Link href={adresseOnglet(workflowId, "tests")}>
+                                    <FlaskConical className="mr-2 size-4" />
+                                    {t(T.jouerLesTests)}
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* [.mark] Lot 4 du builder : « Builder IA » */}
+                    {builder && !isViewingHistoricalVersion && <BarreDuBuilder ouvert={builder.ouvert} onToggle={builder.onToggle} />}
+
+                    {!isViewingHistoricalVersion && hasDraft && raison && (
+                        <span className="max-w-40 truncate text-xs text-muted-foreground" data-raison-publication title={raison}>
+                            {raison}
+                        </span>
+                    )}
+                    {!isViewingHistoricalVersion && hasDraft && (
+                        <Button
+                            onClick={handlePublish}
+                            title={raison ?? undefined}
+                            disabled={isDirty || publishing || hasValidationErrors || Boolean(raison)}
+                            variant="outline"
+                            className="cursor-pointer border-border px-4"
+                        >
+                            {publishing ? (
+                                <>
+                                    <LoaderCircle className="mr-2 size-4 animate-spin" />
+                                    {t(T.publication)}
+                                </>
+                            ) : (
+                                <>
+                                    <Rocket className="mr-2 size-4" />
+                                    {t(T.publier)}
+                                </>
+                            )}
+                        </Button>
+                    )}
+
+                    {!isViewingHistoricalVersion && (
+                        <Button onClick={handleSave} disabled={!isDirty || savingWorkflow} className="cursor-pointer px-4">
+                            {savingWorkflow ? (
+                                <>
+                                    <LoaderCircle className="mr-2 size-4 animate-spin" />
+                                    {t(T.enregistrement)}
+                                </>
+                            ) : (
+                                t(T.enregistrer)
+                            )}
+                        </Button>
+                    )}
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t(T.menuAgent)}>
+                                <MoreVertical className="size-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                                <Link href={adresseOnglet(workflowId, "appels")}>
+                                    <History className="mr-2 size-4" />
+                                    {t(T.appels)}
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDuplicate} disabled={duplicating} className="cursor-pointer hover:font-medium">
+                                {duplicating ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <Copy className="mr-2 size-4" />}
+                                {duplicating ? t(T.duplication) : t(T.dupliquer)}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDownloadWorkflow} className="cursor-pointer hover:font-medium">
+                                <Download className="mr-2 size-4" />
+                                {t(T.telecharger)}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEtiquettesOuvert(true)} className="cursor-pointer hover:font-medium">
+                                <Tag className="mr-2 size-4" />
+                                {t(T.etiquettes)}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleCopyAgentUuid} disabled={!workflowUuid} className="cursor-pointer hover:font-medium">
+                                <Clipboard className="mr-2 size-4" />
+                                {t(T.copierUuid)}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
-            {/* Right section: Version + status + tester/call actions + save */}
-            <div className="flex items-center gap-3">
-                {/* Read-only banner when viewing a historical version */}
-                {isViewingHistoricalVersion && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
-                        <Eye className="w-4 h-4 text-foreground" />
-                        <span className="text-sm text-foreground">
-                            Viewing {activeVersionLabel} - Read only
-                        </span>
-                    </div>
-                )}
-
-                {/* Back to Draft button when viewing history */}
-                {isViewingHistoricalVersion && (
-                    <Button
-                        onClick={onBackToDraft}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-                    >
-                        Back to Draft
-                    </Button>
-                )}
-
-                {/* Version history button */}
-                <button
-                    onClick={onHistoryClick}
-                    className="flex h-9 shrink-0 items-center gap-2 px-3 rounded-md border border-primary bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-                >
-                    <History className="w-4 h-4 text-primary-foreground/70" />
-                    {activeVersionLabel && !isViewingHistoricalVersion && (
-                        <span className="text-sm font-medium whitespace-nowrap">{activeVersionLabel}</span>
-                    )}
-                </button>
-
-                {/* Unsaved changes indicator (hidden when viewing history) */}
-                {isDirty && !isViewingHistoricalVersion && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
-                        <div className="w-2 h-2 rounded-full bg-(--signal-warn)" />
-                        <span className="text-sm text-foreground">Unsaved changes</span>
-                    </div>
-                )}
-
-                {/* Validation errors indicator */}
-                {hasValidationErrors && (
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-background hover:bg-(--surface) hover:border-(--border-strong) transition-colors cursor-pointer">
-                                <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                                <AlertCircle className="w-4 h-4 text-destructive" />
-                                <span className="text-sm text-destructive">
-                                    {workflowValidationErrors.length} {workflowValidationErrors.length === 1 ? "error" : "errors"}
-                                </span>
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            align="end"
-                            className="w-80 bg-card border-border p-0"
-                        >
-                            <div className="px-4 py-3 border-b border-border">
-                                <h3 className="text-sm font-medium text-foreground">Validation Errors</h3>
-                            </div>
-                            <div className="max-h-64 overflow-y-auto">
-                                {workflowValidationErrors.map((error, index) => (
-                                    <div
-                                        key={index}
-                                        className="px-4 py-3 border-b border-border last:border-b-0"
-                                    >
-                                        <div className="flex items-start gap-2">
-                                            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                                            <div className="flex-1 min-w-0">
-                                                {(error.kind === "node" || error.kind === "edge") && error.id && (
-                                                    <p className="text-xs text-muted-foreground mb-1">
-                                                        {error.kind === "node" ? "Node" : "Edge"}: {error.id}
-                                                        {error.field && <span className="text-muted-foreground"> • {error.field}</span>}
-                                                    </p>
-                                                )}
-                                                <p className="text-sm text-foreground break-words">
-                                                    {error.message}
-                                                </p>
-                                            </div>
-                                        </div>
+            <FenetreEtiquettes agentId={workflowId} ouvert={etiquettesOuvert} onOuvertChange={setEtiquettesOuvert} />
+            <OngletsAgent
+                agentId={workflowId}
+                actif="parcours"
+                debut={<MenuMembre agentId={workflowId} onglet="parcours" />}
+                droite={
+                    <>
+                        {isDirty && !isViewingHistoricalVersion && (
+                            <span className="flex items-center gap-2 text-sm text-foreground" data-non-enregistre>
+                                <span className="size-2 rounded-full bg-(--acc)" />
+                                {t(T.nonEnregistre)}
+                            </span>
+                        )}
+                        {hasValidationErrors && (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent hover:font-medium">
+                                        <AlertCircle className="size-4 text-destructive" />
+                                        <span className="text-sm text-destructive">
+                                            {workflowValidationErrors.length} {workflowValidationErrors.length === 1 ? t(T.erreur) : t(T.erreurs)}
+                                        </span>
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-80 border-border bg-card p-0">
+                                    <div className="border-b border-border px-4 py-3">
+                                        <h3 className="text-sm font-medium text-foreground">{t(T.erreursTitre)}</h3>
                                     </div>
-                                ))}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                )}
-
-                {/* [.mark] Lot 4 du builder : « Builder AI » et « Tests » */}
-                {builder && !isViewingHistoricalVersion && <BarreDuBuilder {...builder} />}
-
-                {/* Publish button (only when on draft with no unsaved changes) */}
-                {!isViewingHistoricalVersion && hasDraft && builder?.raisonDeBlocage && (
-                    <span className="max-w-40 truncate text-xs text-muted-foreground" data-raison-publication title={builder.raisonDeBlocage}>
-                        {builder.raisonDeBlocage}
-                    </span>
-                )}
-                {!isViewingHistoricalVersion && hasDraft && (
-                    <Button
-                        onClick={handlePublish}
-                        title={builder?.raisonDeBlocage ?? undefined}
-                        disabled={isDirty || publishing || hasValidationErrors || Boolean(builder?.raisonDeBlocage)}
-                        variant="outline"
-                        className="border-border px-4"
-                    >
-                        {publishing ? (
-                            <>
-                                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
-                                Publishing...
-                            </>
-                        ) : (
-                            <>
-                                <Rocket className="w-4 h-4 mr-2" />
-                                Publish
-                            </>
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {workflowValidationErrors.map((error, index) => (
+                                            <div key={index} className="border-b border-border px-4 py-3 last:border-b-0">
+                                                <div className="flex items-start gap-2">
+                                                    <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                                                    <div className="min-w-0 flex-1">
+                                                        {(error.kind === "node" || error.kind === "edge") && error.id && (
+                                                            <p className="mb-1 text-xs text-muted-foreground">
+                                                                {error.kind === "node" ? t(T.noeud) : t(T.liaison)} : {error.id}
+                                                                {error.field && <span> • {error.field}</span>}
+                                                            </p>
+                                                        )}
+                                                        <p className="break-words text-sm text-foreground">{error.message}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         )}
-                    </Button>
-                )}
-
-                {!isViewingHistoricalVersion && (
-                    <Button
-                        variant="outline"
-                        className="flex items-center gap-2 border-border"
-                        disabled={isCallDisabled}
-                        onClick={onPhoneCallClick}
-                    >
-                        <Phone className="w-4 h-4" />
-                        Phone Call
-                    </Button>
-                )}
-
-                <Button
-                    variant="outline"
-                    className="flex items-center gap-2 border-border"
-                    onClick={onTestAgentClick}
-                >
-                    <Bot className="w-4 h-4" />
-                    Test Agent
-                </Button>
-
-                {/* Save button (only shown when editing the draft) */}
-                {!isViewingHistoricalVersion && (
-                    <Button
-                        onClick={handleSave}
-                        disabled={!isDirty || savingWorkflow}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-                    >
-                        {savingWorkflow ? (
-                            <>
-                                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
-                            </>
-                        ) : (
-                            "Save"
-                        )}
-                    </Button>
-                )}
-
-                {/* More options dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-foreground hover:bg-accent"
-                        >
-                            <MoreVertical className="w-5 h-5" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-card border-border">
-                        <DropdownMenuItem
-                            onClick={() => router.push(`/workflow/${workflowId}/runs`)}
-                            className="text-foreground hover:bg-accent cursor-pointer"
-                        >
-                            <History className="w-4 h-4 mr-2" />
-                            View Runs
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={handleDuplicate}
-                            disabled={duplicating}
-                            className="text-foreground hover:bg-accent cursor-pointer"
-                        >
-                            {duplicating ? (
-                                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <Copy className="w-4 h-4 mr-2" />
-                            )}
-                            {duplicating ? "Duplicating..." : "Duplicate Workflow"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={handleDownloadWorkflow}
-                            className="text-foreground hover:bg-accent cursor-pointer"
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download Workflow
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={handleCopyAgentUuid}
-                            disabled={!workflowUuid}
-                            className="text-foreground hover:bg-accent cursor-pointer"
-                        >
-                            <Clipboard className="w-4 h-4 mr-2" />
-                            Copy Agent UUID
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+                    </>
+                }
+            />
         </div>
     );
 };

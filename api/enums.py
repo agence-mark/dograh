@@ -255,6 +255,9 @@ class OrganizationConfigurationKey(Enum):
     # {"nom": "..."} is the name shown (otherwise provider_id). Free-text keys of the same table, no migration.
     MARK_ESPACE = "MARK_ESPACE"
     MARK_NOM_AFFICHAGE = "MARK_NOM_AFFICHAGE"
+    # [.mark] builder partie 2, U3 (E30): the labels of the agents, {"etiquettes": [...], "agents": {"<id>": [...]}}.
+    # Free-text key of the same table, no migration. Format: api/services/etiquettes/stockage.py
+    MARK_ETIQUETTES = "MARK_ETIQUETTES"
 
 
 class UserConfigurationKey(Enum):
