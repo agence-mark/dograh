@@ -3097,6 +3097,34 @@ export type CompteRendu = {
 };
 
 /**
+ * CompteurDesAmeliorations
+ */
+export type CompteurDesAmeliorations = {
+    /**
+     * A Trier
+     */
+    a_trier: number;
+    /**
+     * A Juger
+     */
+    a_juger: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * CompteurDesFils
+ */
+export type CompteurDesFils = {
+    /**
+     * En Attente
+     */
+    en_attente: number;
+};
+
+/**
  * CompteurSms
  */
 export type CompteurSms = {
@@ -24844,6 +24872,49 @@ export type OuvrirUnFilApiV1BuilderFilsPostResponses = {
 
 export type OuvrirUnFilApiV1BuilderFilsPostResponse = OuvrirUnFilApiV1BuilderFilsPostResponses[keyof OuvrirUnFilApiV1BuilderFilsPostResponses];
 
+export type CompterLesFilsApiV1BuilderFilsCompteurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/fils/compteur';
+};
+
+export type CompterLesFilsApiV1BuilderFilsCompteurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompterLesFilsApiV1BuilderFilsCompteurGetError = CompterLesFilsApiV1BuilderFilsCompteurGetErrors[keyof CompterLesFilsApiV1BuilderFilsCompteurGetErrors];
+
+export type CompterLesFilsApiV1BuilderFilsCompteurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteurDesFils;
+};
+
+export type CompterLesFilsApiV1BuilderFilsCompteurGetResponse = CompterLesFilsApiV1BuilderFilsCompteurGetResponses[keyof CompterLesFilsApiV1BuilderFilsCompteurGetResponses];
+
 export type SupprimerUnFilApiV1BuilderFilsFilIdDeleteData = {
     body?: never;
     headers?: {
@@ -29863,6 +29934,49 @@ export type LireLesAmeliorationsApiV1AmeliorationsGetResponses = {
 };
 
 export type LireLesAmeliorationsApiV1AmeliorationsGetResponse = LireLesAmeliorationsApiV1AmeliorationsGetResponses[keyof LireLesAmeliorationsApiV1AmeliorationsGetResponses];
+
+export type CompterLesAmeliorationsApiV1AmeliorationsCompteurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/ameliorations/compteur';
+};
+
+export type CompterLesAmeliorationsApiV1AmeliorationsCompteurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompterLesAmeliorationsApiV1AmeliorationsCompteurGetError = CompterLesAmeliorationsApiV1AmeliorationsCompteurGetErrors[keyof CompterLesAmeliorationsApiV1AmeliorationsCompteurGetErrors];
+
+export type CompterLesAmeliorationsApiV1AmeliorationsCompteurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteurDesAmeliorations;
+};
+
+export type CompterLesAmeliorationsApiV1AmeliorationsCompteurGetResponse = CompterLesAmeliorationsApiV1AmeliorationsCompteurGetResponses[keyof CompterLesAmeliorationsApiV1AmeliorationsCompteurGetResponses];
 
 export type LireLaFileAJugerApiV1AmeliorationsAJugerGetData = {
     body?: never;
