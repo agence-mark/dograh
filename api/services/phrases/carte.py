@@ -42,6 +42,9 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
         (NATURE_HORS, "Voix temps réel : accueil"),
         (NATURE_HORS, "Voix temps réel : message de fin"),
     ],
+    "site_mark/duree_max.py": [
+        (NATURE_SOCLE, "Phrase de fin d'une conversation du widget à sa durée maximale (code, non réglable)")
+    ],
     "travail/outils.py": [(NATURE_SOCLE, "Cerveau de fond au clavier : rien n'est dit")],
     "workflow/agent_runtime.py": [(NATURE_SOCLE, "Parole d'un agent (``speak``)")],
     "workflow/agent_transfer.py": [(NATURE_ACTION, "Annonce d'une passation, réglée sur l'outil")],
