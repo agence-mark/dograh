@@ -631,6 +631,25 @@
         style: 'background:' + k.raccrocher + ';color:' + surFond(k.raccrocher), onclick: function () { raccrocher(); },
       }, [icone('raccrocher')]));
       corps.appendChild(ligne);
+      if (conv.mode !== 'ecrit' && !apercu) {
+        // [.mark] S5 : en voix, le visiteur peut aussi écrire (un nom, un numéro). Le texte part sur la signalisation
+        // de la session ; refusé (trop vite, appel fini), il revient dans le champ.
+        var champVoix = el('input', { placeholder: textes.champ_saisie, 'aria-label': textes.champ_saisie, maxlength: '500', autocomplete: 'off' });
+        var envoyerVoix = el('button', {
+          type: 'button', 'data-zone': 'envoyerVoix', 'aria-label': textes.envoyer, title: textes.envoyer,
+          style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+        }, [icone('envoi')]);
+        var soumettreVoix = function () {
+          var t = champVoix.value.trim();
+          if (!t || !conv.ws || conv.ws.readyState !== 1) return;
+          conv.dernierTexte = t;
+          champVoix.value = '';
+          conv.ws.send(JSON.stringify({ type: 'texte-visiteur', payload: { texte: t } }));
+        };
+        envoyerVoix.addEventListener('click', soumettreVoix);
+        champVoix.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); soumettreVoix(); } });
+        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieVoix', style: 'background:' + k.champ_saisie + ';color:' + surFond(k.champ_saisie) }, [champVoix, envoyerVoix]));
+      }
       if (conv.mode === 'ecrit') {
         var champ = el('input', { placeholder: textes.champ_saisie, 'aria-label': textes.champ_saisie, maxlength: '4000', autocomplete: 'off' });
         var envoyer = el('button', {
@@ -949,6 +968,11 @@
             if (m.type === 'answer') await pc.setRemoteDescription({ type: 'answer', sdp: m.payload.sdp });
             else if (m.type === 'ice-candidate' && m.payload.candidate) {
               await pc.addIceCandidate({ candidate: m.payload.candidate.candidate, sdpMid: m.payload.candidate.sdpMid, sdpMLineIndex: m.payload.candidate.sdpMLineIndex });
+            } else if (m.type === 'texte-visiteur-resultat') {
+              if (m.payload && m.payload.ok === false && conv.dernierTexte) {
+                var zone = scene.querySelector('[data-zone="saisieVoix"] input');
+                if (zone && !zone.value) zone.value = conv.dernierTexte;
+              }
             } else if (m.type === 'call-ended') terminerLaConversation();
           } catch (e) { /* un message illisible ne coupe pas la conversation */ }
         };

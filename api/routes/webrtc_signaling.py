@@ -516,6 +516,23 @@ class SignalingManager:
             await self._handle_ice_candidate(payload, connection_key)
         elif msg_type == "renegotiate":
             await self._handle_renegotiation(ws, payload, connection_key)
+        elif msg_type == "texte-visiteur" and flux_public:
+            # [.mark] U10 / S5 : le texte tapé par le visiteur du widget. Réservé à la signalisation publique
+            # (l'écran de test a son propre chemin) ; la run est celle de la session, jamais une autre.
+            await self._handle_texte_visiteur(ws, payload, workflow_run_id)
+
+    async def _handle_texte_visiteur(self, ws: WebSocket, payload: dict, workflow_run_id: int):
+        """[.mark] U10 / S5 : passe le texte à la porte de la conversation et dit au widget ce qu'il en est."""
+        from api.services.site_mark import texte_visiteur
+
+        porte = texte_visiteur.porte_de(workflow_run_id)
+        code = texte_visiteur.TERMINE
+        if porte is not None:
+            texte = payload.get("texte") if isinstance(payload, dict) else None
+            code = await porte.recevoir(texte)
+        await self._send_json_if_connected(
+            ws, {"type": "texte-visiteur-resultat", "payload": {"ok": code == texte_visiteur.OK, "code": code}}
+        )
 
     async def _handle_offer(
         self,

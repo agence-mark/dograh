@@ -20,6 +20,7 @@ from pipecat.frames.frames import (
     EndFrame,
     FunctionCallFromLLM,
     FunctionCallResultProperties,
+    LLMMessagesAppendFrame,
     LLMRunFrame,
     SpeechBoundaryFrame,
 )
@@ -3100,6 +3101,24 @@ class PipecatEngine:
         return (
             self.answer_supervisor is None or not self.answer_supervisor.blocks_workflow
         )
+
+    async def injecter_texte_visiteur(self, texte: str) -> bool:
+        """[.mark] U10 / S5 : le texte tapé par le visiteur du widget entre comme un tour de l'utilisateur.
+
+        Sur le modèle de ``_handle_send_text`` de Pipecat : si l'agent parle, on l'interrompt et on vide le circuit
+        AVANT d'ajouter le message (sinon l'ajout dépasse la validation de la réponse interrompue), puis le modèle
+        répond. Rend ``False`` sans rien faire quand l'appel est fini ou pas encore monté. Ne lève pas pour cela."""
+        if self._call_disposed or self.call_worker is None or self._answer_user_aggregator is None:
+            return False
+        if self.call_monitor.bot_speaking:
+            await self._answer_user_aggregator.broadcast_interruption()
+            await self.drain_call_pipeline()
+            if self._call_disposed:
+                return False
+        await self.active_agent.queue_frame(
+            LLMMessagesAppendFrame(messages=[{"role": "user", "content": texte}], run_llm=True)
+        )
+        return True
 
     async def interrupt_screening_reply(self) -> bool:
         """Stop screening playback before greeting the human who picked up."""
