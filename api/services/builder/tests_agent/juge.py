@@ -17,7 +17,6 @@ import json
 import re
 from typing import Any
 
-from api.schemas.appel_simule import CONSIGNE_JUGE
 from api.services.builder import stock
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.constantes import cle_builder
@@ -60,13 +59,13 @@ def lire_les_reponses(texte: str, n: int) -> list[dict[str, Any]]:
     return sorties[:n]
 
 
-async def _une_passe(cerveau: Cerveau, lignes: list[tuple[str, str]], questions: list[str]) -> list[dict[str, Any]]:
+async def _une_passe(cerveau: Cerveau, lignes: list[tuple[str, str]], questions: list[str], consigne: str) -> list[dict[str, Any]]:
     demande = (
         f"Conversation :\n{_conversation(lignes)}\n\nQuestions :\n"
         + "\n".join(f"{i + 1}. {q}" for i, q in enumerate(questions))
         + f"\n\n{FORMAT}"
     )
-    texte = await completer(cerveau, CONSIGNE_JUGE, [{"role": "user", "content": demande}])
+    texte = await completer(cerveau, consigne, [{"role": "user", "content": demande}])
     return lire_les_reponses(texte, len(questions))
 
 
@@ -74,11 +73,14 @@ async def juger(cerveau: Cerveau, lignes: list[tuple[str, str]], questions: list
     """L'avis du juge sur ``questions``. Jamais bloquant ; une erreur du cerveau donne « pas d'avis », pas un échec du test."""
     if not questions:
         return {"bloquant": False, "avis": []}
+    from api.services.builder import consignes
+
+    consigne = await consignes.consigne_juge()  # U6 : lue en bibliothèque, le texte du code en secours
     passes: list[list[dict[str, Any]]] = []
     try:
-        passes.append(await _une_passe(cerveau, lignes, questions))
+        passes.append(await _une_passe(cerveau, lignes, questions, consigne))
         while len(passes) < PASSES_MAX and any(r["ok"] is None or r["confiance"] < SEUIL_DE_CONFIANCE for r in passes[0]):
-            passes.append(await _une_passe(cerveau, lignes, questions))
+            passes.append(await _une_passe(cerveau, lignes, questions, consigne))
     except ErreurCerveau as erreur:
         return {"bloquant": False, "avis": [], "erreur": erreur.message}
     avis = []

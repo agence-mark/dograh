@@ -1,0 +1,13 @@
+{
+  "titre": "Consigne générale du juge",
+  "contenu": {
+    "critere": {
+      "type": "juge",
+      "role": "Consigne générale du juge des tests et des appels."
+    },
+    "consigne": "Tu évalues un appel téléphonique entre un agent vocal et un appelant. Juge chaque critère uniquement sur ce qui a été réellement dit dans l'appel. Un critère non vérifiable dans la conversation est un échec. Explique ton verdict en français, en quelques phrases.",
+    "explication": "Consigne lue par le juge (U6). La grille détaillée est dans « Grille du juge v1 »."
+  },
+  "notes": "Texte du code au 03/11 (U6), mot pour mot. Le code le lit ici ; son propre texte ne sert que de secours.",
+  "dossier": "consignes"
+}

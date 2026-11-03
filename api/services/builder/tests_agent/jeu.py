@@ -39,13 +39,13 @@ class Appelant(Protocol):
     async def repondre(self, lignes: list[tuple[str, str]]) -> str: ...
 
 
-def consigne_de_l_appelant(personnage: dict[str, Any], scenario: dict[str, Any]) -> str:
+def consigne_de_l_appelant(personnage: dict[str, Any], scenario: dict[str, Any], base: str | None = None) -> str:
     """Le prompt de l'appelant : une base générique (parler comme au téléphone, ne jouer QUE l'appelant), puis le personnage
     (description, but, fin, comportements) et ce que le scénario donne à savoir. Rien de propre à un métier."""
     from api.schemas.appel_simule import CONSIGNE_APPELANT
 
     morceaux = [
-        CONSIGNE_APPELANT,
+        base or CONSIGNE_APPELANT,  # U6 : la consigne lue en bibliothèque (``consignes``), le texte du code en secours
         "Tu ne joues QUE l'appelant : jamais l'agent, jamais de didascalie, jamais de guillemets, jamais de commentaire sur le jeu. "
         "Tu ne donnes que ce qu'on te demande, sans anticiper, sauf si ta fiche dit de donner deux informations d'un coup. "
         "Si l'agent se répète ou te redemande ce que tu as déjà dit, tu réagis comme une vraie personne.",
@@ -130,17 +130,27 @@ class Moteur:
     clore: Callable[[Session], Awaitable[None]]
 
 
-def termine_par_adieux(texte: str) -> bool:
+def termine_par_adieux(texte: str, adieux: tuple[str, ...] = ADIEUX) -> bool:
     n = verdict.normaliser(texte)
-    return any(a in n for a in ADIEUX)
+    return any(verdict.normaliser(a) in n for a in adieux)
 
 
 async def jouer_une_conversation(
-    workflow: Any, test: dict[str, Any], appelant: Appelant, moteur: Moteur, *, tours_max: int | None = None
+    workflow: Any,
+    test: dict[str, Any],
+    appelant: Appelant,
+    moteur: Moteur,
+    *,
+    tours_max: int | None = None,
+    adieux: tuple[str, ...] | None = None,
 ) -> ObservationConversation:
     """Une conversation complète ; l'observation est relue DANS LE JOURNAL du run (parité avec l'appel simulé)."""
     scenario = test.get("scenario") or {}
     maxi = max(1, min(int(tours_max or scenario.get("tours_max") or TOURS_MAX_PAR_DEFAUT), TOURS_MAX_ABSOLU))
+    if adieux is None:
+        from api.services.builder import consignes
+
+        adieux = await consignes.adieux()  # U6 : lus dans la consigne de la bibliothèque, ``ADIEUX`` en secours
     session, ouverture = await moteur.ouvrir(workflow, test)
     lignes: list[tuple[str, str]] = []
     if ouverture.texte:
@@ -158,7 +168,7 @@ async def jouer_une_conversation(
             if reponse.texte:
                 lignes.append(("agent", reponse.texte))
             termine = reponse.termine
-            if not termine and termine_par_adieux(a_dire) and termine_par_adieux(reponse.texte):
+            if not termine and termine_par_adieux(a_dire, adieux) and termine_par_adieux(reponse.texte, adieux):
                 break
             a_dire = ""
         return await moteur.lire(session)

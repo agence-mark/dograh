@@ -1,0 +1,17 @@
+{
+  "titre": "Consigne générale de l'appelant simulé",
+  "contenu": {
+    "description": "Consigne générale lue par l'appelant simulé des tests du builder, avant le personnage et le scénario.",
+    "consigne": "Tu joues une personne qui appelle une entreprise au téléphone. Tu parles français, en phrases courtes et naturelles, comme à l'oral. Tu ne sais que ce que ton rôle dit ; si l'on te demande un détail que ton rôle ne donne pas, invente-le plausible et garde-le cohérent jusqu'au bout. Tu ne joues jamais l'agent. Quand ton objectif est atteint, ou que l'agent conclut, dis au revoir.",
+    "adieux": [
+      "au revoir",
+      "bonne journee",
+      "bonne soiree",
+      "a bientot",
+      "bye",
+      "goodbye"
+    ]
+  },
+  "notes": "Texte du code au 03/11 (U6), mot pour mot. Le code le lit ici ; son propre texte ne sert que de secours. Les formules d'au revoir (adieux) terminent une conversation de test quand l'appelant et l'agent les disent tous deux.",
+  "dossier": "consignes"
+}

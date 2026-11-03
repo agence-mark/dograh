@@ -24,6 +24,9 @@ class Personnage(_Forme):
     but: str = Field(default="", max_length=1000)
     fin: str = Field(default="", max_length=600)
     comportements: list[str] = Field(default_factory=list, max_length=12)
+    # U6 : l'élément « consigne » porte la consigne générale de l'appelant simulé et ses formules d'au revoir (``ADIEUX``).
+    consigne: str = Field(default="", max_length=6000)
+    adieux: list[str] = Field(default_factory=list, max_length=30)
 
 
 class ScenarioType(_Forme):
@@ -38,6 +41,8 @@ class ScenarioType(_Forme):
 class CritereType(_Forme):
     critere: dict[str, Any]
     explication: str = Field(default="", max_length=600)
+    # U6 : l'élément « grille-juge » porte la consigne générale du juge.
+    consigne: str = Field(default="", max_length=6000)
 
     @field_validator("critere")
     @classmethod
