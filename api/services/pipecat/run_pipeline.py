@@ -1817,6 +1817,13 @@ async def _run_pipeline_impl(
     # Now set the task and transport output on the engine
     engine.call_worker = task
     engine.set_transport_output(transport.output())
+    # [.mark] U10 / S5 : la porte du texte tapé par le visiteur du widget (retirée à la fin de l'appel).
+    from api.services.site_mark import texte_visiteur as _texte_visiteur
+
+    _texte_visiteur.enregistrer_porte(
+        workflow_run_id,
+        _texte_visiteur.PorteTexte(_texte_visiteur.fabriquer_injecteur(engine, in_memory_logs_buffer)),
+    )
 
     from api.services.observability.call_events.runtime import create_session
 
@@ -2093,6 +2100,9 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
+
+        _retirer_porte_texte(workflow_run_id)
         # Close MCP sessions here, not in engine.cleanup(). The anyio cancel
         # scopes opened by MCPClient.start() in engine.initialize() are
         # task-affine; this finally runs in the same task as initialize(),

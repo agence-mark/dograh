@@ -408,6 +408,14 @@ describe('la voix', () => {
         micro.click();
         expect(piste.enabled).toBe(false);
         expect(racine().querySelector('button[aria-label="Rétablir le micro"]')?.getAttribute('aria-pressed')).toBe('true');
+        // S5 : le visiteur écrit pendant l'appel ; le texte part sur la signalisation, un refus le rend au champ.
+        const champ = racine().querySelector('[data-zone="saisieVoix"] input') as HTMLInputElement;
+        champ.value = '  Dupont, 06 12 34 56 78  ';
+        (racine().querySelector('[data-zone="envoyerVoix"]') as HTMLButtonElement).click();
+        expect(envoyes.find((m) => m.type === 'texte-visiteur')?.payload).toEqual({ texte: 'Dupont, 06 12 34 56 78' });
+        expect(champ.value).toBe('');
+        await ws.onmessage({ data: JSON.stringify({ type: 'texte-visiteur-resultat', payload: { ok: false, code: 'trop_rapide' } }) });
+        expect(champ.value).toBe('Dupont, 06 12 34 56 78');
         // L'agent raccroche.
         await ws.onmessage({ data: JSON.stringify({ type: 'call-ended', payload: {} }) });
         await attendre();
