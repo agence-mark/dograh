@@ -53,7 +53,7 @@ vi.mock("@/components/builder/chat/useFil", () => ({
         fil: filCourant.fil,
         lignes: [],
         erreur: null,
-        enCours: filCourant.fil.etat === "en_cours" && filCourant.fil.genre !== "claude_code",
+        enCours: filCourant.fil.etat === "en_cours",
         dernier: null,
         envoyer: vi.fn(),
         arreter: vi.fn(),
@@ -126,6 +126,7 @@ describe("la conversation Claude Code et le builder sur Claude Code", () => {
         expect(screen.getByText(/Conversation led in Claude Code: read only/)).toBeTruthy();
         expect(screen.getByText("Live")).toBeTruthy();
         expect(screen.queryByRole("textbox")).toBeNull();
+        expect(screen.queryByText(/builder is working/)).toBeNull(); // le travail se fait dans Claude Code, pas ici
     });
 
     it("le builder sur Claude Code ferme la saisie du chat de l'écran et le dit", async () => {

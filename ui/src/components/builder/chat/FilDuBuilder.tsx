@@ -46,11 +46,13 @@ const T = {
 
 export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false, retour }: { filId: number; lectureSeule?: boolean; retour?: () => void }) {
     const { t, langue } = useLangue();
-    const { fil, lignes, erreur, enCours, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
+    const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
     const { sources } = useSources();
     // U12 : une conversation menee dans Claude Code se lit seulement ; sur Claude Code, la saisie du chat de l'ecran est fermee.
     const claudeCode = fil?.genre === "claude_code";
     const lectureSeule = lectureSeuleDemandee || claudeCode;
+    // Le travail d'une conversation Claude Code se fait dans Claude Code : ni « Le builder travaille... » ni dépense à afficher ici.
+    const enCours = enCoursBrut && !claudeCode;
     const ferme = !claudeCode && sources?.builder === "claude_code";
     const [vu, setVu] = useState<number | null>(null);
     const [revue, setRevue] = useState(false);
@@ -97,8 +99,8 @@ export function FilDuBuilder({ filId, lectureSeule: lectureSeuleDemandee = false
                     <LigneLive objet={`conversation:${filId}`} />
                 </div>
                 <p className="shrink-0 text-xs text-muted-foreground">
-                    {lectureSeule && fil ? `${libelleEtat(fil.etat, langue)} · ` : ""}
-                    {fil ? `${fil.jetons.toLocaleString()} · $${fil.cout.toFixed(2)} · ${Math.round(fil.jauge * 100)} %` : ""}
+                    {lectureSeule && fil ? `${libelleEtat(fil.etat, langue)}${claudeCode ? "" : " · "}` : ""}
+                    {fil && !claudeCode ? `${fil.jetons.toLocaleString()} · $${fil.cout.toFixed(2)} · ${Math.round(fil.jauge * 100)} %` : ""}
                     {fil && fil.changements > 0 ? ` · ${fil.changements} ${t(T.changements)}` : ""}
                 </p>
             </div>
