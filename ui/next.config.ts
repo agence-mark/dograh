@@ -1,11 +1,17 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { REDIRECTIONS } from "./src/lib/redirections";
+
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   experimental: {
     serverSourceMaps: true,
+  },
+  // [.mark] La table unique des anciennes adresses (src/lib/redirections.ts).
+  async redirects() {
+    return REDIRECTIONS.map((r) => ({ ...r, permanent: false }));
   },
 };
 

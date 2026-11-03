@@ -612,8 +612,18 @@ function ContextDisplay({ title, context }: { title: string; context: Record<str
 }
 
 
+/**
+ * [.mark] U1 : l'adresse d'une conversation est `/conversations/<runId>?agent=<workflowId>` (aucune route d'API ne
+ * donne l'agent d'une conversation à partir de son seul numéro) ; l'ancienne `/workflow/<id>/run/<runId>` y redirige.
+ */
+function useParametresDeLaConversation() {
+    const params = useParams<{ workflowId?: string; runId: string }>();
+    const agent = useSearchParams()?.get('agent');
+    return { runId: params.runId, workflowId: params.workflowId ?? agent ?? '' };
+}
+
 export default function WorkflowRunPage() {
-    const params = useParams();
+    const params = useParametresDeLaConversation();
     // [.mark] builder lot 6 : la page « À trier » ouvre l'appel sur la réplique à tester (?creer_test=<rang>).
     const demande = Number(useSearchParams()?.get('creer_test'));
     const rangDemande = Number.isInteger(demande) && demande >= 1 ? demande : undefined;

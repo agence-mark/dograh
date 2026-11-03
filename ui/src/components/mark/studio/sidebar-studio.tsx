@@ -88,7 +88,7 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                     tooltip={t(entree.titre)}
                     className="h-9 px-3 data-[active=true]:bg-(--acc-soft) data-[active=true]:font-medium data-[active=true]:text-(--acc-text) hover:font-medium"
                 >
-                    <Link href={lienDe(entree)} onClick={() => isMobile && setOpenMobile(false)} translate="no">
+                    <Link href={lienDe(entree, base)} onClick={() => isMobile && setOpenMobile(false)} translate="no">
                         <I className="shrink-0" />
                         <span className="text-sm">{t(entree.titre)}</span>
                         {alerte && (

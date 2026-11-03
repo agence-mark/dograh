@@ -99,16 +99,20 @@ describe("menus (E3, E31)", () => {
         expect(entreeActive(MENU_LABO, "/a-trier", "/labo")?.id).toBe("a-ameliorer");
         expect(entreeActive(MENU_LABO, "/labo", "/labo")?.id).toBe("builder");
         expect(entreeActive(MENU_CLIENT, "/clients/acme", "/clients/acme")?.id).toBe("accueil");
+        expect(entreeActive(MENU_LABO, "/labo/agents", "/labo")?.id).toBe("agents");
+        expect(entreeActive(MENU_LABO, "/agents/12", "/labo")?.id).toBe("agents");
+        expect(entreeActive(MENU_LABO, "/conversations/5", "/labo")?.id).toBe("conversations");
+        expect(entreeActive(MENU_CLIENT, "/clients/acme/campagnes/new", "/clients/acme")?.id).toBe("campagnes");
         expect(entreeActive(MENU_LABO, "/inconnu", "/labo")).toBeNull();
     });
 });
 
 describe("barre latérale", () => {
-    it("montre le menu du Labo hors d'un client, en français par défaut, avec l'écran actuel pour lien", () => {
+    it("montre le menu du Labo hors d'un client, en français par défaut, avec les nouvelles adresses pour liens", () => {
         monter();
-        expect(screen.getByRole("link", { name: "Agents" }).getAttribute("href")).toBe("/workflow");
-        expect(screen.getByRole("link", { name: "Conversations" }).getAttribute("href")).toBe("/usage");
-        expect(screen.getByRole("link", { name: "Qualité" }).getAttribute("href")).toBe("/reports");
+        expect(screen.getByRole("link", { name: "Agents" }).getAttribute("href")).toBe("/labo/agents");
+        expect(screen.getByRole("link", { name: "Conversations" }).getAttribute("href")).toBe("/labo/conversations");
+        expect(screen.getByRole("link", { name: "Qualité" }).getAttribute("href")).toBe("/labo/qualite");
         expect(screen.getByRole("link", { name: "Agents" }).getAttribute("data-active")).toBe("true");
         expect(document.querySelector("[data-espace='labo']")).not.toBeNull();
     });
@@ -116,7 +120,8 @@ describe("barre latérale", () => {
     it("montre le menu du client dans /clients/<org>", () => {
         chemin = "/clients/acme/agents";
         monter();
-        expect(screen.getByRole("link", { name: "Accueil" })).toBeTruthy();
+        expect(screen.getByRole("link", { name: "Accueil" }).getAttribute("href")).toBe("/clients/acme");
+        expect(screen.getByRole("link", { name: "Agents" }).getAttribute("href")).toBe("/clients/acme/agents");
         expect(document.querySelector("[data-espace='client']")).not.toBeNull();
     });
 
