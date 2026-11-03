@@ -19,6 +19,7 @@ import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/dateTime";
 
 import { useLangue } from "../langue/langue";
 import { EtatVide } from "../studio/etat-vide";
@@ -35,7 +36,7 @@ const occupe = (d: DocumentResponseSchema) => d.processing_status === "processin
 const taille = (octets: number) => (octets < 1024 ? `${octets} o` : octets < 1024 * 1024 ? `${Math.round(octets / 1024)} Ko` : `${(octets / 1024 / 1024).toFixed(1)} Mo`);
 
 export function PageConnaissances() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { user, loading } = useAuth();
     const [documents, setDocuments] = useState<DocumentResponseSchema[] | null>(null);
     const [erreur, setErreur] = useState(false);
@@ -163,7 +164,7 @@ export function PageConnaissances() {
                                         </Cellule>
                                         <Cellule>{lecture(d)}</Cellule>
                                         <Cellule>{etat(d)}</Cellule>
-                                        <Cellule droite>{d.created_at.slice(0, 10)}</Cellule>
+                                        <Cellule droite>{formatDate(d.created_at, null, langue)}</Cellule>
                                     </Ligne>
                                 ))}
                             </Tableau>
@@ -211,7 +212,7 @@ function FenetreDocument({
     modifier: () => void;
     supprimer: () => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const ligne = (libelle: string, valeur: React.ReactNode) => (
         <div className="flex items-center gap-4 py-3 text-sm">
             <p className="flex-1 font-medium">{libelle}</p>
@@ -229,7 +230,7 @@ function FenetreDocument({
                     {ligne(t({ en: "State", fr: "État" }), etat)}
                     {ligne(t({ en: "Size", fr: "Taille" }), taille(d.file_size_bytes))}
                     {d.retrieval_mode !== "full_document" && d.processing_status === "completed" && ligne(t({ en: "Excerpts", fr: "Extraits" }), d.total_chunks)}
-                    {ligne(t({ en: "Added", fr: "Ajouté" }), d.created_at.slice(0, 10))}
+                    {ligne(t({ en: "Added", fr: "Ajouté" }), formatDate(d.created_at, null, langue))}
                     {d.has_live_content && occupe(d) && (
                         <p className="py-3 text-sm text-muted-foreground">
                             {t({ en: "Agents keep using the previous version until the update finishes.", fr: "Les agents gardent la version précédente jusqu'à la fin de la mise à jour." })}

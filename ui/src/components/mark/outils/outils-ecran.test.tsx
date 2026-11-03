@@ -113,6 +113,14 @@ describe("[.mark] le tableau des outils", () => {
         expect(screen.queryByText("Reserver")).toBeNull();
     });
 
+    it("V2 : la date de modification se lit en français, jamais en 2026-11-01", async () => {
+        m.liste.mockResolvedValue({ data: [HTTP] });
+        monter();
+        const ligne = (await screen.findByText("Reserver")).closest("tr")!;
+        expect(within(ligne).getByText(/1 nov\.? 2026/)).toBeTruthy();
+        expect(within(ligne).queryByText("2026-11-01")).toBeNull();
+    });
+
     it("dit « Aucun outil » quand l'organisation n'en a pas", async () => {
         m.liste.mockResolvedValue({ data: [] });
         monter();

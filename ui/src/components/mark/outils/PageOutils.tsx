@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import type { ToolResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/dateTime";
 
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { Initiales } from "../integrations/OngletLogiciels";
@@ -37,7 +38,7 @@ const STATUTS: { id: Statut; en: string; fr: string }[] = [
 ];
 
 export function PageOutils() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { outils, stats, erreur, relire } = useOutils();
     const connecteurs = useConnecteurs();
     const [statut, setStatut] = useState<Statut>("active");
@@ -192,7 +193,7 @@ export function PageOutils() {
                                         <Cellule droite>{s ? s.executions : "–"}</Cellule>
                                         <Cellule droite>{s && s.reussite !== null ? `${s.reussite} %` : "–"}</Cellule>
                                         <Cellule droite>{s ? s.nb_agents : "–"}</Cellule>
-                                        <Cellule droite>{(o.updated_at ?? o.created_at ?? "").slice(0, 10) || "–"}</Cellule>
+                                        <Cellule droite>{(o.updated_at ?? o.created_at) ? formatDate(o.updated_at ?? o.created_at ?? "", null, langue) : "–"}</Cellule>
                                     </Ligne>
                                 );
                             })}
