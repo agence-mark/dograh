@@ -11,11 +11,11 @@
  * Lot 11 (agents-specialises, C8): an agent that chose its fiche brings it to the test, so the choice is
  * shown only for an agent WITHOUT a fiche (a specialised agent tried on its own, for instance).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useRef, useState } from "react";
 
 import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
 import type { Etablissement } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";

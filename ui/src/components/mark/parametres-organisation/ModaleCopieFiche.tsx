@@ -9,12 +9,12 @@
  * place) nor the immediate closing. The copy is written at once, by the server, with the same controls
  * as a save: this window hands back what the server made so the list can be read again.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
-import { notifier } from "@/components/mark/notifications";
 import { useEffect, useState } from "react";
 
 import { copierEtablissementApiV1OrganizationsEtablissementsCopierPost } from "@/client/sdk.gen";
 import type { Etablissement, ResultatCopieEtablissement } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";

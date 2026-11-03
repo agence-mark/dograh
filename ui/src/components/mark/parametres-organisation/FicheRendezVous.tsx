@@ -13,8 +13,8 @@
  * The controls, bounds, labels and help are the ones of the theme « Appointments »
  * (`reglages-rendez-vous.ts`): one list for both screens.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import type { ReglagesPlanificateur } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 

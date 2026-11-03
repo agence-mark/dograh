@@ -7,13 +7,13 @@
  *  - Recette par défaut : celle que la fenêtre « Nouvel agent » propose, lue dans la bibliothèque.
  * Réservé à l'équipe .mark (le serveur décide) : sans réponse du serveur, rien ne s'affiche. Conçu sans maquette.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 
 import { lireLesOptionsApiV1BuilderOptionsGet, listerLesRecettesApiV1BuilderRecettesGet, reglerLesOptionsApiV1BuilderOptionsPut } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { optionsPartagees } from "@/components/mark/reglages/lectures-partagees";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";

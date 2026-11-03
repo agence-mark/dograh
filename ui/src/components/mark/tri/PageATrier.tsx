@@ -6,7 +6,6 @@
  * slow model), with a link to the call, a status (open · in progress · resolved · merged) and a filter by agent.
  * The server reads the last 30 days, the calls that carry a flag, 50 calls per page (R7).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -17,6 +16,7 @@ import {
 } from "@/client";
 import type { LigneDeTri } from "@/client/types.gen";
 import { ORIGINES_DE_TRI } from "@/components/builder/tests/libelles";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 

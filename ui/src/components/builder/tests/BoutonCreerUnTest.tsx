@@ -5,11 +5,11 @@
  * caller's replies of THIS call (counted from 1, final transcriptions only), then fills the criteria. The server cuts the call just
  * before that reply and replaces the personal data by fake ones.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useLangue } from "@/components/mark/langue/langue";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 
 import { NouveauTest } from "./NouveauTest";

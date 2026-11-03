@@ -52,15 +52,6 @@ const dateCourte = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const secondes = (valeur: number | null | undefined) =>
     typeof valeur === "number" ? `${valeur.toFixed(2)} s` : "–";
 
-/** [.mark] V1 : une durée d'appel se lit « 3 min 12 » (jamais « 192.00 s »). */
-const dureeLisible = (valeur: number | null | undefined) => {
-    if (typeof valeur !== "number") return "–";
-    const total = Math.round(valeur);
-    const minutes = Math.floor(total / 60);
-    const reste = total % 60;
-    return minutes === 0 ? `${reste} s` : `${minutes} min ${String(reste).padStart(2, "0")}`;
-};
-
 const NATURES: Record<NatureDePasse, Texte> = {
     reply: { en: "reply", fr: "réponse" },
     note: { en: "after note-taking", fr: "après une prise de notes" },
@@ -108,13 +99,6 @@ const MARQUES: Record<string, Texte> = {
 const BRIQUES: Record<string, Texte> = {
     transcription: { en: "Transcription", fr: "Transcription" },
     voice: { en: "Voice", fr: "Voix" },
-};
-
-const CANAUX: Record<string, Texte> = {
-    browser: { en: "browser", fr: "navigateur" },
-    keyboard: { en: "keyboard", fr: "clavier" },
-    phone: { en: "phone", fr: "téléphone" },
-    simulated: { en: "simulated caller", fr: "appelant simulé" },
 };
 
 function EtatDuBloc({ bloc }: { bloc: Bloc }) {

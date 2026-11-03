@@ -5,7 +5,6 @@
  * builder » de la bibliothèque, les 4 plus utilisés hors Rejeté). Un clic remplit la saisie (modifiable) ; la saisie demande ce
  * qui manque (un agent, des fichiers texte) et « Envoyer » reste grisé, raison au survol, tant qu'il manque quelque chose.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ArrowUp, Bot, FileText, FlaskConical, MessageSquare, Paperclip, Settings2, Sparkles, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +21,7 @@ import { SectionAAmeliorer } from "@/components/mark/ameliorer/SectionAAmeliorer
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { AvertissementClaudeCode } from "@/components/mark/sources/marques";
 import { useSources } from "@/components/mark/sources/useSources";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useMoi } from "@/components/mark/studio/moi";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";

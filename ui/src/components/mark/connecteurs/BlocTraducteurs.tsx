@@ -10,10 +10,8 @@
  * Acts at once with its own button, like the connections above it (E6, exceptions of the theme).
  * The organization is never chosen here: the server takes the signed-in user's (D6).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
@@ -21,6 +19,8 @@ import {
     putChoixTraducteursApiV1ConnecteursTraducteursChoixPut,
 } from "@/client/sdk.gen";
 import type { TraducteurVue } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";

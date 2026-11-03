@@ -12,16 +12,16 @@
  * The two pick-up announcements are two fiches of the catalogue: shown here, read-only,
  * with where they are edited (the announcement below, and each establishment).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getPhrasesApiV1OrganizationsPhrasesGet,
     savePhrasesApiV1OrganizationsPhrasesPut,
 } from "@/client/sdk.gen";
 import type { Phrase, ReglagesAnnonceOuverture } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,

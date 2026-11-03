@@ -1,10 +1,10 @@
 "use client";
 
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useRef, useState } from "react";
 
 import { getCommunesDuCodePostalApiV1OrganizationsCommunesGet } from "@/client/sdk.gen";
 import type { AdresseEtablissement, CommuneDuCodePostal } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { detailFromError } from "@/lib/apiError";

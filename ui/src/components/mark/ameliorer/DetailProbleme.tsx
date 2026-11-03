@@ -6,7 +6,6 @@
  * l'avancement et les gestes. Rien d'inventé : chaque ligne vient de `GET /ameliorations/{id}`, chaque geste d'une route réelle.
  * Forme non prévue par la maquette (provisoire, E-G1-2) : la personne chargée et l'origine se changent ici, comme dans l'ancien « À trier ».
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Check, Circle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +23,7 @@ import type { VueDetaillee } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Gravite, Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

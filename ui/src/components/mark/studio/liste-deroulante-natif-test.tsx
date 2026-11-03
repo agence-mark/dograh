@@ -12,7 +12,9 @@ import type { ReactNode } from "react";
 
 import type { PropsListeDeroulante } from "./liste-deroulante";
 
-export function ListeDeroulante({ placeholder: _attente, onChange, children, value, ...reste }: PropsListeDeroulante & { children?: ReactNode }) {
+export function ListeDeroulante({ onChange, children, value, ...reste }: PropsListeDeroulante & { children?: ReactNode }) {
+    // Le texte d'attente (`placeholder`) n'existe pas sur un <select> : il ne passe pas.
+    delete reste.placeholder;
     return (
         <select
             {...(reste as Record<string, unknown>)}

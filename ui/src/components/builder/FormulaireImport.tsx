@@ -4,12 +4,12 @@
  * [.mark] builder-agent-vocal (lot 2): create an element, or import one from the market with its origin
  * (source, licence, date). A re-import shows what changed since the last one. Always a Candidate.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useState } from "react";
 
 import { creerUnElementApiV1BuilderBibliothequeFamillePost, importerApiV1BuilderBibliothequeImportPost } from "@/client";
 import type { VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 

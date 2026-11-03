@@ -24,8 +24,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdresseEtablissement, OrganizationPreferences } from "@/client/types.gen";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { lireNotifications } from "./notifications/magasin";
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
+import { lireNotifications } from "./notifications/magasin";
 import { SectionAdresseEtablissement } from "./SectionAdresseEtablissement";
 
 const mocks = vi.hoisted(() => ({

@@ -9,7 +9,6 @@
  * of the agent's list: « Cancel » / « Save ». The words of a trade live in these scenarios, never
  * in the code.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -18,6 +17,8 @@ import {
     saveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPut,
 } from "@/client";
 import type { Comportements, ScenarioSimule } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -32,7 +33,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
-import { notifier } from "@/components/mark/notifications";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
     { champ: "presse", libelle: { en: "In a hurry", fr: "Pressé" } },

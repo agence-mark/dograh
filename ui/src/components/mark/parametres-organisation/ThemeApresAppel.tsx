@@ -9,10 +9,8 @@
  * night task (purge and counters). One « Save » for the theme (E6); the test mail, the recap now
  * and the purge now act at once.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getApresAppelApiV1OrganizationsApresAppelGet,
@@ -22,6 +20,8 @@ import {
     putApresAppelApiV1OrganizationsApresAppelPut,
 } from "@/client/sdk.gen";
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";

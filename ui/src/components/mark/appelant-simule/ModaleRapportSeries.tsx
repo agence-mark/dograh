@@ -6,12 +6,12 @@
  * incidents, cost), the comparison of two series side by side, and the export (CSV, one line per
  * call). Each call links to its run window.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getRapportSerieApiV1AppelSimuleSeriesSerieIdGet, getSeriesSimuleesApiV1AppelSimuleSeriesGet } from "@/client";
 import type { RapportSerie, SerieSimulee } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { detailFromError } from "@/lib/apiError";

@@ -7,9 +7,7 @@
  * ⛔ The key is written, never read back: the field starts empty, says « a key is saved » when there is one, and an
  * empty field leaves the saved key alone. Only members of the .mark team may change the brain (the server decides).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
@@ -19,6 +17,8 @@ import {
 } from "@/client";
 import type { VueReglagesCerveau } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";

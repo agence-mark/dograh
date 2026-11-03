@@ -8,7 +8,6 @@
  * le juge lisent leurs réglages existants et ouvrent la fenêtre de réglage qu'ils avaient déjà.
  * Chaque champ s'enregistre en le quittant, avec sa notification : il n'y a jamais de saisie en attente à perdre.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { BookOpen, Bot, DoorOpen, Gavel, Laptop, ListChecks, Monitor, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -32,6 +31,7 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

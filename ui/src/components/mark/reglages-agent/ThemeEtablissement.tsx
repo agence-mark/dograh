@@ -19,11 +19,9 @@
  * the theme is what it was. A specialised agent (`agent_principal_id`) has no menu: it serves the
  * establishment of the call.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     AnswerSupervisorFields,
@@ -33,6 +31,8 @@ import {
 import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
 import type { AdresseEtablissement, Etablissement } from "@/client/types.gen";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";

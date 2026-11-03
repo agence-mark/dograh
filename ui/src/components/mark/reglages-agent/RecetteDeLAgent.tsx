@@ -5,7 +5,6 @@
  * la liste des recettes vient de la bibliothèque. Elle se change tant qu'aucune version n'est publiée ; ensuite elle est montrée sans
  * pouvoir changer. Conçue sans maquette : composants de la maquette (`Info`), jetons seulement. Rien à l'écran sans réponse du serveur.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 
 import {
@@ -14,6 +13,7 @@ import {
     listerLesRecettesApiV1BuilderRecettesGet,
 } from "@/client/sdk.gen";
 import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";

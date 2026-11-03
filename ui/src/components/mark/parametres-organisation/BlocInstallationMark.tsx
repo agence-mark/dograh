@@ -9,13 +9,13 @@
  * save fixes it, any other organization is refused. Acts at once (its own button),
  * nothing of the theme's « Save ».
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import { getInstallationApiV1OrganizationsApresAppelInstallationGet, putInstallationApiV1OrganizationsApresAppelInstallationPut } from "@/client/sdk.gen";
 import type { EcranInstallation, ReglagesInstallation, ReglagesSmtp } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";

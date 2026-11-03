@@ -9,7 +9,6 @@
  * they are also added and deleted; never stored in these settings. A modal (E4) working on a copy:
  * « Cancel » / « Save ».
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useEffect, useState } from "react";
 
 import {
@@ -17,6 +16,8 @@ import {
     saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut,
 } from "@/client";
 import type { ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -33,7 +34,6 @@ import { detailFromError } from "@/lib/apiError";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
-import { notifier } from "@/components/mark/notifications";
 
 // Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
 export const MODELES_SIMULATEUR: string[] = [

@@ -8,9 +8,10 @@
  *     Ce qui était écrit pour le `<select>` du navigateur (bordure, fond, hauteur) ne se retrouve-t-il pas sur le
  *     déclencheur du design system, seul le placement étant gardé ? Plus aucun `<select>` du navigateur dans les écrans ?
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/ui/select", async () => await import("./select-natif-test"));

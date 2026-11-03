@@ -1,4 +1,3 @@
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import type {
@@ -13,11 +12,12 @@ import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
 import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Info } from "@/components/mark/studio/marques";
 import { ChampVariables } from "@/components/mark/variables/ChampVariables";
 import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";

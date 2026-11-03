@@ -41,9 +41,14 @@ export const Select = ({
     return <Contexte.Provider value={etat}>{children}</Contexte.Provider>;
 };
 
-export const SelectTrigger = ({ id, className: _classe, size: _taille, children: _enfants, ...attributs }: Record<string, unknown> & { id?: string; children?: ReactNode }) => {
+export const SelectTrigger = (props: Record<string, unknown> & { id?: string; children?: ReactNode }) => {
     const etat = useContext(Contexte);
-    etat.attributs = { id, ...attributs };
+    // La forme (className, size) et le contenu du déclencheur n'existent pas sur un <select> de test : seuls id, aria-* et data-* passent.
+    const attributs = { ...props };
+    delete attributs.className;
+    delete attributs.size;
+    delete attributs.children;
+    etat.attributs = attributs;
     return null;
 };
 

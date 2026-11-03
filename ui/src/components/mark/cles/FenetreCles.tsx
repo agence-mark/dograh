@@ -13,7 +13,6 @@
  * menu (P18). `SelecteurCle` is the drop-down a setting uses to pick a key of one provider, with
  * « Keys… » next to it. The providers are Dograh's own, served by the server (P19).
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -25,6 +24,8 @@ import {
     usagesDUneCleApiV1ClesUuidUsagesGet,
 } from "@/client";
 import type { Cle, Designation, Usage } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -40,7 +41,6 @@ import { detailFromError } from "@/lib/apiError";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
-import { notifier } from "@/components/mark/notifications";
 
 export type Fournisseur = Cle["fournisseur"];
 

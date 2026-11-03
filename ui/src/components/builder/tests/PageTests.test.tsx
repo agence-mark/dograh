@@ -14,9 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentsDeLaRecette } from "./AgentsDeLaRecette";
 import { BoutonCreerUnTest, repliquesDeLaPersonne } from "./BoutonCreerUnTest";
-import { fautesDeLaReplique } from "./DetailDunTest";
 import { critereDeLaLigne, NouveauTest } from "./NouveauTest";
-import { PageTests, parDossier } from "./PageTests";
 import type { ResumeDeTest } from "./types";
 
 const m = vi.hoisted(() => ({

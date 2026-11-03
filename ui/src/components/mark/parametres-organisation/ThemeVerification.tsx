@@ -11,10 +11,8 @@
  * (E6). Nothing runs until an agent switches « Caller verification » on (theme « Call data » of
  * the agent, V7). The SMS code is wired but never tried for real (V5): said here.
  */
-import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGet,
@@ -22,6 +20,10 @@ import {
     putVerificationAppelantApiV1OrganizationsVerificationAppelantPut,
 } from "@/client/sdk.gen";
 import type { LogicielDossier, ReglagesVerification } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -30,8 +32,6 @@ import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
 import { Puces } from "../studio/puces";
@@ -242,7 +242,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                         </label>
                                     ))}
                                 </div>
-                            
+
                                 )
 ) : (
                                 <span className="text-xs text-muted-foreground">{t({ en: "Control question off.", fr: "Question de contrôle éteinte." })}</span>
