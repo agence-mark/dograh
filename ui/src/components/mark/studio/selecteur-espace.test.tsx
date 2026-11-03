@@ -41,6 +41,6 @@ describe("sélecteur d'espace", () => {
 
     it("avant la réponse du serveur : un libellé sans fausse valeur", () => {
         monter("labo", null);
-        expect(screen.getByText("Labo .mark")).toBeTruthy();
+        expect(screen.getByText("Labo")).toBeTruthy();
     });
 });

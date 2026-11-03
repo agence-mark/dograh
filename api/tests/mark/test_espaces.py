@@ -148,3 +148,22 @@ async def test_la_vue_conversations_de_l_equipe_suit_le_role(db_session):
     async with client_http() as c:
         refuse = await c.get("/api/v1/espaces/conversations", headers=entetes(jeton_sans_role))
     assert refuse.status_code == 403  # un compte sans rôle d'équipe n'a pas cette vue
+
+
+async def test_l_organisation_du_labo_s_affiche_labo(db_session):
+    org = await creer_organisation(db_session, "esp-labo-nom")
+    _, jeton = await creer_compte(db_session, "adm-labo-nom@example.com", role="Administrateur", organisations=[org])
+    await espaces.definir_labo(org, True)
+    conf = await db_session.get_configuration(org, "MARK_NOM_AFFICHAGE")
+    assert conf is not None and conf.value == {"nom": "Labo"}
+    async with client_http() as c:
+        liste = await c.get("/api/v1/espaces", headers=entetes(jeton, org))
+    assert next(e for e in liste.json()["espaces"] if e["id"] == org)["nom"] == "Labo"
+
+
+async def test_un_nom_choisi_n_est_pas_ecrase_par_labo(db_session):
+    org = await creer_organisation(db_session, "esp-labo-nom-2")
+    await espaces.definir_nom_affichage(org, "Atelier")
+    await espaces.definir_labo(org, True)
+    conf = await db_session.get_configuration(org, "MARK_NOM_AFFICHAGE")
+    assert conf.value == {"nom": "Atelier"}

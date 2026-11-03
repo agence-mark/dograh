@@ -82,7 +82,7 @@ describe("menus (E3, E31)", () => {
         const liens = new Set(toutesLesEntrees(MENU_LABO).map((x) => x.actuelle));
         for (const ancien of [
             "/workflow", "/campaigns", "/model-configurations", "/telephony-configurations", "/tools", "/files",
-            "/api-keys", "/usage", "/reports", "/cles", "/bibliotheque", "/a-trier", "/alertes", "/settings",
+            "/usage", "/reports", "/cles", "/bibliotheque", "/a-trier", "/alertes", "/settings",
         ]) {
             expect(liens.has(ancien), ancien).toBe(true);
         }
@@ -160,11 +160,11 @@ describe("barre latérale", () => {
         expect(lien.querySelector("svg[aria-label]")).not.toBeNull();
     });
 
-    it("le pied : personne, langue, thème", () => {
+    it("le pied : la personne seule, ni langue ni thème (ils sont dans Réglages › Affichage, K1)", () => {
         monter();
         expect(screen.getByText("evan@exemple.fr")).toBeTruthy();
-        expect(screen.getByRole("group", { name: "Langue" })).toBeTruthy();
-        expect(screen.getByText("thème")).toBeTruthy();
+        expect(screen.queryByRole("group", { name: "Langue" })).toBeNull();
+        expect(screen.queryByText("thème")).toBeNull();
     });
 });
 
@@ -172,7 +172,7 @@ describe("cadre", () => {
     it("fil d'Ariane déduit de l'adresse : espace puis entrée du menu", () => {
         monter();
         const fil = screen.getByRole("navigation", { name: "Fil d'Ariane" });
-        expect(within(fil).getByText("Labo .mark")).toBeTruthy();
+        expect(within(fil).getByText("Labo")).toBeTruthy();
         expect(within(fil).getByText("Agents")).toBeTruthy();
     });
 

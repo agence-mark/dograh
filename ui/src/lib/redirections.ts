@@ -44,7 +44,7 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/recordings", destination: "/labo/entreprise?onglet=ecoute" },
     { source: "/labo/sons", destination: "/labo/entreprise?onglet=ecoute" },
     { source: "/clients/:org/sons", destination: "/clients/:org/entreprise?onglet=ecoute" },
-    { source: "/api-keys", destination: "/labo/developpeurs" },
+    { source: "/api-keys", destination: "/labo/reglages?onglet=organisation&section=developpeurs" },
     { source: "/usage", destination: "/labo/conversations" },
     { source: "/reports", destination: "/labo/qualite" },
     { source: "/bibliotheque", destination: "/labo/bibliotheque" },

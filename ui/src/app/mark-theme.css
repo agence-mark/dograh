@@ -203,40 +203,7 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
   padding-left: 3.5rem !important;
 }
 
-/* ---- Page titles (D5) ---------------------------------------------------- */
-
-/* Page titles only: the agent's name in the editor bar is an h1 too (`text-base`)
-   and keeps its size. */
-.app-surface h1:is([class~="text-2xl"], [class~="text-3xl"], [class~="text-4xl"]) {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-}
-
-/* ---- Shapes (D6) --------------------------------------------------------- */
-
-/* Fields: 44 px high, 12 px corners. Small selects (data-size="sm") and the
-   compact fields Dograh sets on purpose (`h-8`, next to small selects) keep theirs. */
-[data-slot="input"]:not([class~="h-8"]),
-[data-slot="select-trigger"][data-size="default"]:not([class~="h-8"]) {
-  height: 2.75rem;
-}
-[data-slot="input"],
-[data-slot="textarea"],
-[data-slot="select-trigger"] {
-  border-radius: var(--radius);
-}
-
-/* The main button, disabled: flat grey rather than a faded black. The WHOLE
-   class is compared: a calendar day carries `data-[selected-single=true]:bg-primary`
-   and is disabled when out of range; it must keep its own look. */
-[data-slot="button"][class~="bg-primary"]:disabled {
-  background-color: var(--primary-disabled);
-  color: var(--primary-disabled-foreground);
-  border-color: var(--primary-disabled);
-  opacity: 1;
-}
+/* Titres, champs, boutons et traits d'icônes : ceux de la maquette (lot K1, 04/11), aucune surcharge. */
 
 /* A full red surface in dark: white text on --destructive (#f16a6e) reads at ~3:1.
    The filled surfaces (buttons, "broken" labels) take a deeper red (~5.8:1);
@@ -289,18 +256,6 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
 }
 [data-slot="sidebar-content"]::-webkit-scrollbar {
   display: none;
-}
-
-/* ---- Icons (D14) --------------------------------------------------------- */
-
-/* A finer stroke everywhere (Dograh draws in 2). */
-svg.lucide {
-  stroke-width: 1.6;
-}
-/* Menu icons at 18 px (the first icon only: the telephony warning keeps its size). */
-[data-slot="sidebar-menu-button"] > svg:first-of-type {
-  width: 18px;
-  height: 18px;
 }
 
 /* ---- Signals ------------------------------------------------------------- */

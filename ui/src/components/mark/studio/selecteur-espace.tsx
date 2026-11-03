@@ -6,7 +6,7 @@
  * l'adresse de l'onglet (`lib/espaceCourant.ts`), jamais dans un réglage du compte : deux onglets, deux espaces.
  * « Nouveau client » crée une organisation (permission `clients.creer`, vérifiée par le serveur) et l'ouvre.
  */
-import { Building2, Check, FlaskConical, Loader2, Plus } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, FlaskConical, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -49,7 +50,7 @@ export function SelecteurEspace({ espace, org, className }: Props) {
     }, [loading, user]);
 
     const courant = espaces.find((e) => (espace === "labo" ? e.espace === "labo" : String(e.id) === org));
-    const libelle = courant?.nom ?? org ?? t({ en: "Lab .mark", fr: "Labo .mark" });
+    const libelle = courant?.nom ?? (espace === "labo" ? "Labo" : "");
     const labo = espaces.find((e) => e.espace === "labo");
     const clients = espaces.filter((e) => e.espace === "client");
 
@@ -59,10 +60,16 @@ export function SelecteurEspace({ espace, org, className }: Props) {
     };
 
     const ligne = (e: Espace) => (
-        <DropdownMenuItem key={e.id} onSelect={() => ouvrir(e)} className="cursor-pointer gap-2 hover:font-medium">
-            <Check className={`size-4 shrink-0 ${e.id === courant?.id ? "" : "opacity-0"}`} />
-            {e.espace === "labo" ? <FlaskConical className="size-4 shrink-0" /> : <Building2 className="size-4 shrink-0" />}
-            <span className="truncate">{e.nom}</span>
+        <DropdownMenuItem key={e.id} onSelect={() => ouvrir(e)} className="cursor-pointer hover:font-medium">
+            {e.espace === "labo" ? (
+                <span className="mr-2 flex size-5 items-center justify-center rounded bg-primary text-primary-foreground">
+                    <FlaskConical className="size-3 text-white" />
+                </span>
+            ) : (
+                <Building2 className="mr-2 size-4" />
+            )}
+            <span className="min-w-0 flex-1 truncate">{e.nom}</span>
+            {e.id === courant?.id && <Check className="ml-1 size-4" />}
         </DropdownMenuItem>
     );
 
@@ -73,7 +80,7 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                     <button
                         type="button"
                         data-espace={espace}
-                        className="flex w-full cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-left hover:bg-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:bg-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
                         <span
                             className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
@@ -88,15 +95,22 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                             </span>
                             <span className="block truncate text-sm font-medium">{libelle}</span>
                         </span>
+                        <ChevronsUpDown className="size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64">
-                    {labo && ligne(labo)}
-                    {labo && clients.length > 0 && <DropdownMenuSeparator />}
+                    {labo && (
+                        <>
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">{t({ en: "Our tool", fr: "Notre outil" })}</DropdownMenuLabel>
+                            {ligne(labo)}
+                            <DropdownMenuSeparator />
+                        </>
+                    )}
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">{t({ en: "Clients", fr: "Clients" })}</DropdownMenuLabel>
                     {clients.map(ligne)}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setNouveau(true)} className="cursor-pointer gap-2 hover:font-medium">
-                        <Plus className="size-4 shrink-0" />
+                    <DropdownMenuItem onSelect={() => setNouveau(true)} className="cursor-pointer hover:font-medium">
+                        <Plus className="mr-2 size-4" />
                         {t({ en: "New client", fr: "Nouveau client" })}
                     </DropdownMenuItem>
                 </DropdownMenuContent>

@@ -12,15 +12,13 @@
  */
 import {
     BellRing,
+    BookOpen,
     Bot,
     ChartLine,
-    Code,
     Database,
-    Folder,
     Inbox,
     KeyRound,
     LayoutGrid,
-    Library,
     type LucideIcon,
     Megaphone,
     MessagesSquare,
@@ -69,11 +67,11 @@ const BUILDER = e("builder", { en: "Builder AI", fr: "Builder IA" }, Sparkles, "
 const CHAT = e("chat", { en: "Chat", fr: "Chat" }, MessagesSquare, "chat", "/workflow", { alias: true });
 const A_AMELIORER = e("a-ameliorer", { en: "To improve", fr: "À améliorer" }, Inbox, "a-ameliorer", "/a-trier");
 const AGENTS = e("agents", { en: "Agents", fr: "Agents" }, Bot, "agents", "/workflow", { prefixes: ["/agents", "/workflow"] });
-const BIBLIOTHEQUE = e("bibliotheque", { en: "Library", fr: "Bibliothèque" }, Library, "bibliotheque", "/bibliotheque");
+const BIBLIOTHEQUE = e("bibliotheque", { en: "Library", fr: "Bibliothèque" }, BookOpen, "bibliotheque", "/bibliotheque");
 const OUTILS = e("outils", { en: "Tools", fr: "Outils" }, Wrench, "outils", "/tools", {
     sous: [{ suite: "[toolUuid]", actuelle: "/tools/[toolUuid]" }],
 });
-const CONNAISSANCES = e("connaissances", { en: "Knowledge", fr: "Connaissances" }, Folder, "connaissances", "/files");
+const CONNAISSANCES = e("connaissances", { en: "Knowledge", fr: "Connaissances" }, BookOpen, "connaissances", "/files");
 const ENTREPRISE = e("entreprise", { en: "Company", fr: "Entreprise" }, Store, "entreprise", "/settings", { alias: true });
 const CAMPAGNES = e("campagnes", { en: "Campaigns", fr: "Campagnes" }, Megaphone, "campagnes", "/campaigns", {
     sous: [
@@ -95,7 +93,6 @@ const CONVERSATIONS = e("conversations", { en: "Conversations", fr: "Conversatio
 });
 const REGLAGES = e("reglages", { en: "Settings", fr: "Réglages" }, Settings2, "reglages", "/settings");
 const ALERTES = e("alertes", { en: "Alerts", fr: "Alertes" }, BellRing, "alertes", "/alertes", { provisoire: true });
-const DEVELOPPEURS = e("developpeurs", { en: "Developers", fr: "Développeurs" }, Code, "developpeurs", "/api-keys", { provisoire: true });
 
 /** Hub « Relation clients » (U3 septies, E78) : adresses globales, hors de l'espace d'un client. */
 const relation = (id: string, titre: Texte, icone: LucideIcon, chemin: string): EntreeMenu => ({
@@ -127,7 +124,7 @@ export const MENU_LABO: GroupeMenu[] = [
     },
     { id: "brancher", label: { en: "CONNECT", fr: "BRANCHER" }, entrees: [BASE, INTEGRATIONS, MODELES, CLES, TELEPHONIE] },
     { id: "mesurer", label: { en: "MEASURE", fr: "MESURER" }, entrees: [QUALITE, CONVERSATIONS, ALERTES] },
-    { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES, DEVELOPPEURS] },
+    { id: "regler", label: { en: "SETTINGS", fr: "RÉGLER" }, entrees: [REGLAGES] },
     RELATION,
 ];
 
@@ -151,7 +148,7 @@ export const MENU_CLIENT: GroupeMenu[] = [
     {
         id: "organisation",
         label: { en: "ORGANIZATION", fr: "ORGANISATION" },
-        entrees: [REGLAGES, DEVELOPPEURS],
+        entrees: [REGLAGES],
     },
 ];
 
