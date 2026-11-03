@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
@@ -76,9 +77,9 @@ export function PageInvitation({ jeton }: { jeton: string }) {
                     fr: "Ce lien a déjà servi, a expiré (48 heures) ou n'existe pas. Demandez une nouvelle invitation.",
                 })}
             >
-                <a href="/connexion" className="block text-sm font-medium text-foreground hover:font-semibold">
+                <Link href="/connexion" className="block text-sm font-medium text-foreground hover:font-semibold">
                     {t({ en: "Go to sign-in", fr: "Aller à la connexion" })}
-                </a>
+                </Link>
             </CadreAcces>
         );
     }

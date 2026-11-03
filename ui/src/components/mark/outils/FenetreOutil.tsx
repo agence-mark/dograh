@@ -15,6 +15,7 @@
  * fusionnée avec les modifications.
  */
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -190,9 +191,9 @@ export function FenetreOutil({
                             fr: "Tous les champs de ce type (corps de la requête, valeurs préréglées, règles, destination…) dans l'éditeur du type.",
                         })}
                     >
-                        <a href={`/tools/${courant.tool_uuid}`} className="inline-flex cursor-pointer items-center gap-1.5 text-sm hover:font-medium">
+                        <Link href={`/tools/${courant.tool_uuid}`} className="inline-flex cursor-pointer items-center gap-1.5 text-sm hover:font-medium">
                             {t({ en: "Open", fr: "Ouvrir" })} <ExternalLink className="size-3.5" />
-                        </a>
+                        </Link>
                     </LigneChamp>
                     <LigneChamp libelle={courant.status === "archived" ? t({ en: "Restore", fr: "Restaurer" }) : t({ en: "Archive", fr: "Archiver" })}>
                         <Button variant="outline" size="sm" onClick={() => void archiver()}>
