@@ -75,7 +75,7 @@ async def get_voice_prompting_guide(
         return resultat
     return {
         "regles_mark": {
-            "lire_en_premier": "These are the .mark writing rules. They come BEFORE the upstream guide below: follow them first.",
+            "lire_en_premier": "These are the .mark writing rules. They come BEFORE the upstream guide below: follow them first. A rule with a `recette` belongs to that recipe only (facon-tala or facon-polyai): never mix the two.",
             "regles": regles,
         },
         **resultat,

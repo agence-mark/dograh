@@ -46,5 +46,5 @@ for _nom, _description, _fonction in (
     ),
 ):
     enregistrer(
-        Action(nom=_nom, description=_description, parametres=_Rien, fonction=_fonction, ecriture=False, moteur=False, mcp=True, groupe="bibliotheque")
+        Action(nom=_nom, description=_description, parametres=_Rien, fonction=_fonction, ecriture=False, groupe="bibliotheque")
     )

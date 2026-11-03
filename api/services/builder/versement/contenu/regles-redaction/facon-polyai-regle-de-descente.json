@@ -1,0 +1,11 @@
+{
+  "titre": "Règle de descente (façon PolyAI)",
+  "contenu": {
+    "texte": "# Règle de descente (recette façon PolyAI seulement)\n\nLe builder ne l'applique que sur un agent de cette recette. La recette façon Tala n'en hérite pas.\n\nUne consigne d'étape qui échoue à son test descend dans le **retour de l'outil** appelé au moment où le comportement est attendu. Un comportement qui doit être sûr va dans le **code de l'outil**.\n\nOrdre de descente : prompt général (jamais pour un défaut local) -> consigne de la tâche -> retour de l'outil -> code de l'outil.\n\nÀ chaque descente : la cause nommée, le test qui la prouve, puis toute la suite rejouée pour voir ce que le changement a cassé.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

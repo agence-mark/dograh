@@ -1,0 +1,11 @@
+{
+  "titre": "Pièces relevées chez Wren (façon PolyAI)",
+  "contenu": {
+    "texte": "# Pièces relevées pendant les passes de Wren du 03/11 (recette façon PolyAI seulement)\n\nChaque pièce est un candidat : elle n'est retenue qu'avec son banc.\n\n1. **Refus contrôlé.** L'outil dit non une première fois et dicte quoi proposer. Exemple : une demande d'humain pendant une réservation en cours renvoie `PAS TRANSFÉRÉ : proposer de terminer la réservation tout de suite ; ne rappeler le transfert que si l'appelant insiste encore`. Un état « déjà proposé » évite la boucle.\n2. **Vérification à la volée.** Un outil `verifier_⟦champ⟧` est appelé dès que l'appelant donne la valeur (un numéro, un code), pas à la confirmation. Il rend `VALIDE` ou `NON VALIDE` avec la consigne. Un plafond de tentatives mène à un transfert à motif.\n3. **Provenance dans la description d'un paramètre.** « Seulement si l'appelant l'a dit, jamais déduit d'une autre valeur. » Le code refuse une valeur vide plutôt que de l'accepter inventée.\n4. **Vérité métier dans le retour.** « Premier créneau libre : ⟦créneau⟧. Rien n'existe avant. » Le modèle ne promet jamais plus tôt.\n5. **Aveu franc.** Quand aucun outil ne permet l'action, l'agent le dit : il ne promet ni rappel, ni transfert, ni demande écrite que personne n'écrira.\n6. **Modification d'un rendez-vous pris pendant l'appel.** Elle passe par la même porte à deux appels : relecture de ce qui change, puis écriture sur un oui net.\n7. **Urgence tenue.** L'urgence ne change pas la sortie : terminer la réservation d'une urgence avant de passer la main.\n\nRègle générale : un défaut = une cause nommée = un test qui le prouve, puis toute la suite rejouée.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

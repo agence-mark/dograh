@@ -1,0 +1,11 @@
+{
+  "titre": "Conditions « fait accompli, au lieu de » (façon Tala)",
+  "contenu": {
+    "texte": "# Conditions de passage au gabarit « fait accompli + au lieu de » (recette façon Tala)\n\nGabarit : `[ce qui s'est passé, au passé composé]. Déclencher cette transition au lieu de [la tentation] / même si [la tentation].`\n\nUne condition dit un fait déjà accompli, puis nomme la tentation à ne pas suivre. Jamais deux ou trois mots seuls.\n\n## Situations types\n- **Demande identifiée** : L'appelant a exposé sa demande et le motif est identifié. Déclencher cette transition au lieu de poser d'autres questions d'accueil.\n- **Information obtenue** : Toutes les informations de cette étape ont été données et notées. Déclencher cette transition au lieu de reposer la dernière question.\n- **Urgence** : L'appelant a décrit une situation qui correspond à l'urgence de la fiche. Déclencher cette transition au lieu de finir les questions en cours.\n- **Demande d'humain** : L'appelant a demandé à parler à une personne. Déclencher cette transition même si cette question pourrait recevoir une réponse brève à cette étape.\n- **Fin** : L'appelant a clairement indiqué qu'il souhaite terminer. Déclencher cette transition au lieu de proposer autre chose.\n- **Retour depuis le récapitulatif** : L'appelant a corrigé ou ajouté une information pendant le récapitulatif. Déclencher cette transition même si cette question pourrait recevoir une réponse brève à cette étape.\n\n## Règles\n- Chaque étape a une sortie vers la fin.\n- Sur la sortie de l'accueil : un simple merci ou « d'accord » n'est pas une demande de fin.\n- Une condition ne cite que des faits visibles dans la conversation.\n"
+  },
+  "notes": "Bancs du 30/10/2026 : agent 274 (Small 4) et agent 288 au casque, fiche juste à 100 %. Le passage en Recette est un clic d'Evan.",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "titre": "Les dix principes (façon PolyAI)",
+  "contenu": {
+    "texte": "# Les dix principes de la recette façon PolyAI\n\n1. Les outils jugent, le prompt ne règle rien.\n2. Le message de retour de l'outil commande la suite.\n3. Un outil de départ par tâche, appelé avant toute question.\n4. Un prompt de tâche en objectifs avec la question exacte, pas en étapes figées.\n5. Une porte d'écriture en deux appels : relecture, puis oui net.\n6. Tous les paramètres à chaque appel, chaîne vide pour ce qui manque.\n7. Sécurité d'abord et sans parole.\n8. Le système gère ce que le modèle gère mal (accusé de réception pendant l'outil, silences comptés, fin d'appel par outil).\n9. Les dates se résolvent par une liste injectée, pas par le calcul du modèle.\n10. Aucune donnée métier hors de ce qu'un outil confirme.\n\nCette recette est distincte de la recette façon Tala. Les deux ne se fusionnent pas : elles sont éprouvées sur la même batterie, par la comparaison de versions.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

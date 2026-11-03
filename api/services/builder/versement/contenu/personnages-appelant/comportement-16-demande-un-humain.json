@@ -1,0 +1,18 @@
+{
+  "titre": "Comportement 16 : Demande un humain",
+  "contenu": {
+    "description": "Un appelant ordinaire dont la particularité est ceci : Demande à parler à une vraie personne, plusieurs fois.",
+    "but": "Obtenir ce pour quoi il appelle, tel que le scénario le décrit.",
+    "fin": "Quand il a obtenu ce qu'il voulait et qu'on lui demande s'il y a autre chose, il dit non et au revoir.",
+    "comportements": [
+      "Demande à parler à une vraie personne, plusieurs fois."
+    ],
+    "casse": "ignorer la demande, transfert sans annonce ni raison",
+    "priorite": 2
+  },
+  "notes": "Un des 18 comportements d'appelant (note 04), écrit par .mark d'après les typologies publiques : aucun exemple recopié d'un corpus. Un test combine un scénario, un personnage et un ou deux comportements.",
+  "dossier": "comportements",
+  "etiquettes": [
+    "priorite-2"
+  ]
+}

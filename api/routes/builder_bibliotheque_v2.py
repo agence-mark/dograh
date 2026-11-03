@@ -306,3 +306,51 @@ async def ranger_un_element(
         return await rangement.ranger(famille, slug, dossier=demande.dossier, etiquettes_posees=demande.etiquettes)
     except ErreurBibliotheque as erreur:
         raise _refus(erreur) from None
+
+
+# --- copier un scénario de test type dans un agent ----------------------------------------------------------------
+
+
+class CopieDeScenario(BaseModel):
+    workflow_id: int
+    copier_quand_meme: bool = False
+    nom: str | None = Field(default=None, max_length=200)
+
+
+async def _agent_de_l_organisation(user: UserModel, workflow_id: int):
+    from api.db import db_client
+
+    workflow = await db_client.get_workflow(workflow_id, organization_id=user.selected_organization_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"Agent {workflow_id} not found.")
+    return workflow
+
+
+@router.post("/scenarios-types/{slug}/examiner")
+async def examiner_un_scenario(
+    slug: str, demande: CopieDeScenario, user: UserModel = Depends(get_user_with_selected_organization)
+) -> dict[str, Any]:
+    """Ce que le scénario type cite et que l'agent n'a pas (étape, outil, issue, champ de la fiche, personnage)."""
+    from api.services.builder.bibliotheque import scenarios_types
+
+    workflow = await _agent_de_l_organisation(user, demande.workflow_id)
+    try:
+        return await scenarios_types.examiner(workflow, user.selected_organization_id, slug)
+    except ErreurBibliotheque as erreur:
+        raise _refus(erreur) from None
+
+
+@router.post("/scenarios-types/{slug}/copier")
+async def copier_un_scenario(
+    slug: str, demande: CopieDeScenario, user: UserModel = Depends(get_user_with_selected_organization)
+) -> dict[str, Any]:
+    """Copie le scénario type dans l'agent en test. Rien n'est copié tant que quelque chose manque, sauf « copier quand même »."""
+    from api.services.builder.bibliotheque import scenarios_types
+
+    workflow = await _agent_de_l_organisation(user, demande.workflow_id)
+    try:
+        return await scenarios_types.copier(
+            workflow, user.selected_organization_id, slug, droits.nom_de_l_auteur(user), copier_quand_meme=demande.copier_quand_meme, nom=demande.nom
+        )
+    except ErreurBibliotheque as erreur:
+        raise _refus(erreur) from None

@@ -1,0 +1,11 @@
+{
+  "titre": "Tâche en objectifs (façon PolyAI)",
+  "contenu": {
+    "texte": "# Tâche en objectifs, avec l'outil de départ (recette façon PolyAI)\n\nLe prompt de la tâche est chargé quand l'outil de départ est appelé. Il décrit des objectifs, pas des étapes figées : l'ordre s'adapte à la conversation, et ce que l'appelant a déjà dit se saute.\n\n```\nObjectifs de la tâche ⟦nom⟧ :\nMOTIF       : savoir pourquoi l'appelant appelle. Question : « ⟦question exacte⟧ »\nAPPAREIL    : ⟦ce qu'il faut savoir⟧. Si l'appelant l'a déjà nommé, le classer et ne pas demander. Correspondances : ⟦formulations de l'appelant -> valeur classée⟧.\nNOM         : « ⟦question exacte⟧ »\nTÉLÉPHONE   : suivre la dernière question de téléphone rendue par un outil. Dans son propre tour, jamais avec une proposition de créneau.\nADRESSE     : « ⟦question exacte⟧ ». Le code postal n'est donné que s'il est dit par l'appelant.\nCRÉNEAU     : proposer seulement ce que l'outil de disponibilité a rendu.\nCONFIRMER   : relire en une phrase puis attendre un oui net.\n\nAdapte l'ordre naturellement. Saute ce que tu as déjà.\n```\n\n## Règles de rédaction\n- Chaque objectif porte la question exacte entre guillemets quand la formulation compte (numéros, adresse).\n- Un objectif qui doit être sûr ne vit pas ici : il va dans le retour de l'outil ou dans son code (voir la règle de descente).\n- Aucune donnée métier (prix, délai, conseil) qu'un outil ne confirme pas.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Pressé",
+  "contenu": {
+    "description": "Un appelant pressé qui n'a pas de temps à perdre.",
+    "but": "Régler sa demande le plus vite possible.",
+    "fin": "Raccroche dès qu'il a ce qu'il veut.",
+    "comportements": [
+      "Coupe la parole de l'agent",
+      "Dit « je l'ai déjà dit » dès qu'on redemande"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

@@ -1,0 +1,11 @@
+{
+  "titre": "Porte d'écriture en deux appels (façon PolyAI)",
+  "contenu": {
+    "texte": "# Porte d'écriture en deux appels (recette façon PolyAI)\n\nChaque action d'écriture du catalogue sait fonctionner en porte à deux appels : réglage par outil (`porte_a_deux_appels = oui`).\n\n## Premier appel : la relecture\nL'outil est appelé sans `confirme`. Il n'écrit RIEN. Il vérifie les préalables, puis rend le texte exact à relire.\n- Préalable manquant : le retour dit lequel et ce qu'il faut demander (consigne).\n- Tout est prêt : `PAS ENCORE ENREGISTRÉ. Relire en une phrase : ⟦texte exact⟧. Attendre un oui net.`\n- Une relecture déjà faite : si un détail a changé depuis, le retour ne demande de relire QUE ce qui a changé.\n\n## Second appel : l'écriture\nL'outil est rappelé avec `confirme = oui`, seulement sur un oui net de l'appelant. Une correction n'est pas un oui.\n- Succès : `ENREGISTRÉ. Dire à l'appelant : ⟦créneau⟧ ; numéro de dossier ⟦numéro⟧.`\n- Créneau pris entre-temps : `DÉJÀ PRIS. S'excuser, rappeler l'outil de disponibilité.`\n- Détails refusés par le logiciel : `REFUSÉ. Faire confirmer nom et numéro.`\n- Issue incertaine du logiciel (délai, réponse inconnue) : l'outil garde l'issue en mémoire et ne réserve JAMAIS deux fois ; il rend `INCERTAIN` et la consigne de transfert à motif.\n\n## Tests à jouer (obligatoires)\n1. Aucune écriture sans `confirme = oui`.\n2. Une correction n'est pas un oui.\n3. La relecture ne reprend que ce qui a changé.\n4. Une issue incertaine ne réserve jamais deux fois.\n5. Le plafond de tentatives par information atteint mène à un transfert à motif.\n6. Un préalable manquant renvoie sa consigne.\n7. Même résultat au clavier et au téléphone.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

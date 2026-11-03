@@ -62,6 +62,12 @@ ARGUMENTS = {
     "objets_agent_lister": {},
     "objets_agent_ecrire": {"depuis": "a"},
     "etiquettes_agent": {"workflow_id": AGENT, "etiquettes": ["Recette"]},
+    # U7 (bibliothèque v2, MCP).
+    "bibliotheque_chercher": {"recherche": "x"},
+    "bibliotheque_ranger": {"famille": "moules-etape", "slug": "a", "dossier": "d"},
+    "tests_depuis_la_bibliotheque": {"slug": "s", "workflow_id": AGENT},
+    "builder_methode": {},
+    "builder_conventions": {},
 }
 
 

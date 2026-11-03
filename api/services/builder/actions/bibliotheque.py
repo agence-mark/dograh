@@ -95,6 +95,33 @@ async def _chercher(contexte: Contexte, parametres: _Chercher) -> dict[str, Any]
     return {"ok": True, "total": total, "elements": [e.model_dump(mode="json") for e in page]}
 
 
+class _ScenarioType(BaseModel):
+    slug: str = Field(description="The identifier of a typical scenario of the library (family scenarios-test).")
+    workflow_id: int | None = None
+    copier_quand_meme: bool = Field(default=False, description="Copy even if the agent lacks a step, tool, outcome or field the scenario cites.")
+    verifier_seulement: bool = Field(default=False, description="Only say what the agent lacks, copy nothing.")
+
+
+async def _scenario_type(contexte: Contexte, parametres: _ScenarioType) -> dict[str, Any]:
+    from api.services.builder.actions._commun import agent_de_l_organisation
+    from api.services.builder.bibliotheque import scenarios_types
+
+    workflow = await agent_de_l_organisation(contexte, parametres.workflow_id)
+    try:
+        if parametres.verifier_seulement:
+            return {"ok": True, **await scenarios_types.examiner(workflow, contexte.organisation_id, parametres.slug)}
+        rendu = await scenarios_types.copier(
+            workflow,
+            contexte.organisation_id,
+            parametres.slug,
+            getattr(contexte.user, "email", None),
+            copier_quand_meme=parametres.copier_quand_meme,
+        )
+    except ErreurBibliotheque as erreur:
+        raise _refus(erreur) from None
+    return {"ok": True, **rendu}
+
+
 class _Ranger(BaseModel):
     famille: str
     slug: str
@@ -284,6 +311,13 @@ for _nom, _description, _parametres, _fonction, _ecriture in (
         _Chercher,
         _chercher,
         False,
+    ),
+    (
+        "tests_depuis_la_bibliotheque",
+        "Copy a typical test scenario of the library into the agent as a test. It first says what the agent lacks (a step, tool, outcome or field the criteria cite, or a missing character); nothing is copied until the person accepts to copy anyway.",
+        _ScenarioType,
+        _scenario_type,
+        True,
     ),
     (
         "bibliotheque_ranger",

@@ -1,0 +1,28 @@
+{
+  "titre": "Capture : correction pendant la relecture",
+  "contenu": {
+    "but": "Corriger une valeur au moment où l'agent la relit.",
+    "personnage": "numero-en-desordre",
+    "criteres": [
+      {
+        "type": "coordonnees_prises",
+        "champs": [
+          "telephone"
+        ]
+      },
+      {
+        "type": "sans_redite"
+      }
+    ],
+    "questions_juge": [
+      "La valeur corrigée a-t-elle été relue à nouveau, seulement ce qui avait changé ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la politique de capture du domaine intake de tau2-bench (MIT) : épeler, relire, confirmer, puis comparer la fiche finale à la valeur exacte. Ce n'est pas une traduction ligne à ligne des tâches du corpus (non relu mot à mot). La mention de copyright du dépôt est à garder dans la fiche de l'élément : à compléter depuis son fichier LICENSE avant tout usage en production.",
+  "origine": {
+    "source": "sierra-research/tau2-bench, domaine intake (méthode de capture : épeler, relire, confirmer)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "capture"
+}

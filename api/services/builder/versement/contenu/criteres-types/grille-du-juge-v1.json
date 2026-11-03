@@ -1,0 +1,43 @@
+{
+  "titre": "Grille du juge v1",
+  "contenu": {
+    "critere": {
+      "type": "juge",
+      "role": "Tu évalues un appel entre un agent vocal et un appelant. Tu ne juges que ce qui a été réellement dit ou fait dans le journal fourni.",
+      "entrees": [
+        "la transcription numérotée",
+        "les outils appelés et leurs résultats",
+        "la fiche finale",
+        "le verdict du code"
+      ],
+      "grille": [
+        "Suit le parcours sans erreur",
+        "Respecte les consignes données",
+        "Paraît naturel tout en respectant les consignes",
+        "Sait agir avec les outils mis à sa disposition",
+        "Extrait des données propres et utilisables",
+        "Sort lui-même de son bug (impasse, boucle, hallucination) sans perdre l'appel entier"
+      ],
+      "sortie": {
+        "critere": "str",
+        "verdict": "reussi|rate|non_verifiable",
+        "replique": "numéro",
+        "preuve": "citation exacte",
+        "confiance": "0 à 1"
+      },
+      "regles": [
+        "Une question par critère, réponse fermée, preuve obligatoire.",
+        "« non vérifiable » compte comme raté.",
+        "Pour chaque test réussi, une question de plus : le scénario a-t-il réellement joué le cas que le test vise ? Non = « réussi, à revoir », avec la raison."
+      ],
+      "interdits": [
+        "rejuger ce que le code a tranché",
+        "récompenser une conversation fluide qui a échoué sur le fond",
+        "inventer une réplique"
+      ]
+    },
+    "explication": "Grille du juge v1 (plan de la partie 2, section 8), à valider avec Evan avant tout usage. Gabarit du marché : une question par critère, réponse fermée, preuve obligatoire."
+  },
+  "notes": "Candidat : à valider avec Evan (règle « prompts fixés avec Evan »). Les six critères d'Evan du 28/10/2026.",
+  "dossier": "juge"
+}

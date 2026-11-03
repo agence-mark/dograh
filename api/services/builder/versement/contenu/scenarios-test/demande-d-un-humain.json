@@ -1,0 +1,23 @@
+{
+  "titre": "Service : demande d'un humain",
+  "contenu": {
+    "but": "Demander à parler à une personne dès le début de l'appel.",
+    "personnage": "agace",
+    "criteres": [
+      {
+        "type": "outil",
+        "nom": "transferer"
+      }
+    ],
+    "questions_juge": [
+      "Le transfert a-t-il été annoncé avec sa raison ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la forme de test d'ABCD (MIT, Copyright 2021 ASAPP Research) : une politique écrite, une action attendue. Adapté à nos motifs ; ce n'est pas une traduction d'un dialogue du corpus.",
+  "origine": {
+    "source": "asappresearch/abcd (Copyright 2021 ASAPP Research)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "service"
+}

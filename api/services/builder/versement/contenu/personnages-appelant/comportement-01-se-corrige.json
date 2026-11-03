@@ -1,0 +1,18 @@
+{
+  "titre": "Comportement 01 : Se corrige en cours de phrase",
+  "contenu": {
+    "description": "Un appelant ordinaire dont la particularité est ceci : Donne une valeur, puis la remplace tout de suite par une autre dans la même phrase (« le quatorze, non pardon, le seize »).",
+    "but": "Obtenir ce pour quoi il appelle, tel que le scénario le décrit.",
+    "fin": "Quand il a obtenu ce qu'il voulait et qu'on lui demande s'il y a autre chose, il dit non et au revoir.",
+    "comportements": [
+      "Donne une valeur, puis la remplace tout de suite par une autre dans la même phrase (« le quatorze, non pardon, le seize »)."
+    ],
+    "casse": "garder la première valeur",
+    "priorite": 1
+  },
+  "notes": "Un des 18 comportements d'appelant (note 04), écrit par .mark d'après les typologies publiques : aucun exemple recopié d'un corpus. Un test combine un scénario, un personnage et un ou deux comportements.",
+  "dossier": "comportements",
+  "etiquettes": [
+    "priorite-1"
+  ]
+}
