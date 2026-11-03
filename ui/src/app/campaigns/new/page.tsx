@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,9 +15,8 @@ import type { TelephonyConfigurationListItem, TrafficVariantRequest } from '@/cl
 import { ErreurChamp } from "@/components/mark/erreur-champ";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { FenetreLibre } from "@/components/mark/studio/fenetre-libre";
 import { Info } from "@/components/mark/studio/marques";
-import { PageStudio } from "@/components/mark/studio/shell-studio";
-import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -29,12 +28,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { UnsavedChangesProvider, useUnsavedChanges } from '@/context/UnsavedChangesContext';
+import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../CampaignAdvancedSettings';
 import CsvUploadSelector from '../CsvUploadSelector';
+import CampaignsPage from '../page';
 import TrafficSplitEditor, { trafficSplitError } from '../TrafficSplitEditor';
 
 type Erreurs = Partial<Record<'nom' | 'repartition' | 'telephonie' | 'source' | 'simultanes' | 'cadence', string>>;
@@ -329,8 +329,10 @@ function FormulaireNouvelleCampagne() {
     useUnsavedChanges('campagne', touche || campaignName.trim() !== '' || sourceId !== '');
 
     // Handle back navigation
+    // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
+    const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        router.push('/campaigns');
+        confirmNavigate(() => router.push('/campaigns'));
     };
 
     // Handle CSV file upload
@@ -341,17 +343,16 @@ function FormulaireNouvelleCampagne() {
     };
 
     return (
-        <PageStudio>
-            <div className="mx-auto max-w-2xl space-y-8">
-                <Link href="/campaigns" className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-semibold hover:text-foreground">
-                    <ArrowLeft className="size-4" />
-                    {t({ en: 'Campaigns', fr: 'Campagnes' })}
-                </Link>
-                <TitrePage
-                    titre={t({ en: 'New campaign', fr: 'Nouvelle campagne' })}
-                    info={t({ en: 'Set up a campaign to run calls in series from a file.', fr: 'Prépare des appels sortants en série, depuis un fichier.' })}
-                />
-                <form onSubmit={handleSubmit} onChange={() => setTouche(true)} className="space-y-6">
+        <>
+            {/* La liste reste derrière, comme la maquette : la création est une fenêtre centrée posée dessus. */}
+            <CampaignsPage />
+            <FenetreLibre
+                ouverte
+                fermer={handleBack}
+                titre={t({ en: 'New campaign', fr: 'Nouvelle campagne' })}
+                info={t({ en: 'Set up a campaign to run calls in series from a file.', fr: 'Prépare des appels sortants en série, depuis un fichier.' })}
+                corps={
+                    <form id="nouvelle-campagne" onSubmit={handleSubmit} onChange={() => setTouche(true)} className="divide-y [&>*]:py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="campaign-name" className="flex items-center gap-1.5">
                                     {t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
@@ -509,24 +510,24 @@ function FormulaireNouvelleCampagne() {
                                 </div>
                             )}
 
-                            <div className="flex gap-4 pt-4">
-                                <Button
-                                    type="submit"
-                                    disabled={isSubmitting || !campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId}
-                                >
-                                    {isSubmitting ? t({ en: 'Creating...', fr: 'Création...' }) : t({ en: 'Create the campaign', fr: 'Créer la campagne' })}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleBack}
-                                    disabled={isSubmitting}
-                                >
-                                    {t({ en: 'Cancel', fr: 'Annuler' })}
-                                </Button>
-                            </div>
+
                         </form>
-            </div>
-        </PageStudio>
+                }
+                actions={
+                    <>
+                        <Button type="button" variant="outline" onClick={handleBack} disabled={isSubmitting}>
+                            {t({ en: 'Cancel', fr: 'Annuler' })}
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="nouvelle-campagne"
+                            disabled={isSubmitting || !campaignName || !!trafficSplitError(variants) || !sourceId || !selectedTelephonyConfigId}
+                        >
+                            {isSubmitting ? t({ en: 'Creating...', fr: 'Création...' }) : t({ en: 'Create the campaign', fr: 'Créer la campagne' })}
+                        </Button>
+                    </>
+                }
+            />
+        </>
     );
 }

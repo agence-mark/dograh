@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { UnsavedChangesProvider, useUnsavedChanges } from '@/context/UnsavedChangesContext';
+import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
@@ -299,8 +299,10 @@ function FormulaireCampagne() {
         }
     };
 
+    // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
+    const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        router.push(`/campaigns/${campaignId}`);
+        confirmNavigate(() => router.push(`/campaigns/${campaignId}`));
     };
 
     // Quitter avec des changements non enregistrés : le garde de l'application prévient.
