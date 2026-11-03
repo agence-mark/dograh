@@ -1405,5 +1405,13 @@
   "Your code": "Votre code",
   "Your Documents": "Vos documents",
   "Your organization has no default yet.": "Votre organisation n'a pas encore de valeur par défaut.",
-  "Your Tools": "Vos outils"
+  "Your Tools": "Vos outils",
+  "Judge grade": "Note du juge",
+  "Agent version": "Version de l'agent",
+  "Call reason": "Motif",
+  "Caller name or number": "Client (nom ou numéro)",
+  "Site widget": "Site internet",
+  "Enter version number": "Saisir un numéro de version",
+  "Enter call reason (partial match)": "Saisir un motif (correspondance partielle)",
+  "Enter caller name or number (partial match)": "Saisir un nom ou un numéro (correspondance partielle)"
 }

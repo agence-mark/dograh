@@ -52,6 +52,11 @@ const RUN = {
     caller_number: "+33344000000",
     called_number: null,
     disposition: "Rendez-vous créé",
+    client: "Claire Dupont",
+    motif: "Devis",
+    note_juge: 3.2,
+    version: 4,
+    canal: "site",
 };
 const page = (runs: unknown[], total = runs.length, pages = 1) => ({
     data: { runs, page: 1, limit: 50, total_count: total, total_pages: pages, total_dograh_tokens: 0, total_duration_seconds: 0 },
@@ -66,16 +71,16 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("[.mark] K8 : Conversations", () => {
-    it("un tableau nu : Quand, Agent, Type, Numéro, Issue, Durée, Médias ; jamais dans une carte", async () => {
+    it("un tableau nu : Quand, Agent, Version, Client, Motif, Canal, Issue, Durée, Note, Médias ; jamais dans une carte", async () => {
         m.historique.mockResolvedValue(page([RUN]));
         const { container } = monter();
         expect(await screen.findByText("Standard Nuances de Feu")).toBeTruthy();
         expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Conversations");
         expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
-            "Quand", "Agent", "Type d'appel", "Numéro", "Issue", "Durée", "Médias",
+            "Quand", "Agent", "Version", "Client", "Motif", "Canal", "Issue", "Durée", "Note", "Médias",
         ]);
         expect(screen.getByText("Rendez-vous créé")).toBeTruthy();
-        expect(screen.getByText("+33344000000")).toBeTruthy();
+        expect(screen.getByText("+33344000000")).toBeTruthy(); // le numéro reste, sous le nom
         expect(screen.getByText("2m 5s")).toBeTruthy();
         expect(container.querySelector('[data-slot="card"]')).toBeNull();
         expect(container.querySelector("table")?.parentElement?.className ?? "").not.toMatch(/border|shadow/);
@@ -112,5 +117,53 @@ describe("[.mark] K8 : Conversations", () => {
         await screen.findByText("Standard Nuances de Feu");
         fireEvent.click(screen.getByRole("button", { name: /Page suivante/ }));
         await waitFor(() => expect(m.historique).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ page: 2, limit: 50 }) })));
+    });
+
+    it("chaque colonne est lue de la ligne : client, motif, version, canal, note (pastille sous 3,5)", async () => {
+        m.historique.mockResolvedValue(page([RUN, { ...RUN, id: 42, client: null, motif: null, note_juge: null, version: null, canal: "telephony" }]));
+        const { container } = monter();
+        await screen.findAllByText("Standard Nuances de Feu");
+        expect(screen.getByText("Claire Dupont")).toBeTruthy();
+        expect(screen.getByText("Devis")).toBeTruthy();
+        expect(screen.getByText("v4")).toBeTruthy();
+        expect(screen.getByText("Site")).toBeTruthy();
+        expect(screen.getByText("Téléphone")).toBeTruthy();
+        expect(screen.getByText("3,2")).toBeTruthy();
+        expect(screen.getByText("–")).toBeTruthy(); // pas encore jugé : un tiret, jamais 0
+        expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+    });
+
+    it("les en-têtes Version et Note trient côté serveur", async () => {
+        m.historique.mockResolvedValue(page([RUN]));
+        monter();
+        await screen.findByText("Standard Nuances de Feu");
+        fireEvent.click(screen.getByRole("button", { name: /^Note/ }));
+        await waitFor(() => expect(m.historique).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ sort_by: "judge_note", sort_order: "desc" }) })));
+        fireEvent.click(screen.getByRole("button", { name: /^Version/ }));
+        await waitFor(() => expect(m.historique).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ sort_by: "version" }) })));
+    });
+
+    it("la recherche dans les transcriptions part après une pause, à partir de 3 lettres, et s'efface avec la case", async () => {
+        m.historique.mockResolvedValue(page([RUN]));
+        monter();
+        await screen.findByText("Standard Nuances de Feu");
+        const champ = screen.getByRole("textbox", { name: /Chercher dans les transcriptions/ });
+        fireEvent.change(champ, { target: { value: "de" } });
+        await new Promise((r) => setTimeout(r, 600));
+        expect(m.historique.mock.calls.every(([a]) => !("q" in a.query))).toBe(true); // 2 lettres : rien ne part
+        fireEvent.change(champ, { target: { value: "devis" } });
+        await waitFor(() => expect(m.historique).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ q: "devis", page: 1 }) })));
+        fireEvent.change(champ, { target: { value: "" } });
+        await waitFor(() => expect(m.historique.mock.calls.at(-1)?.[0].query).not.toHaveProperty("q"));
+    });
+
+    it("une recherche sans résultat montre l'état « filtre » avec le terme", async () => {
+        m.historique.mockResolvedValueOnce(page([RUN]));
+        m.historique.mockResolvedValue(page([]));
+        monter();
+        await screen.findByText("Standard Nuances de Feu");
+        fireEvent.change(screen.getByRole("textbox", { name: /Chercher dans les transcriptions/ }), { target: { value: "zzzz" } });
+        expect(await screen.findByText(/zzzz/)).toBeTruthy();
+        expect(screen.queryByText("Aucun appel encore")).toBeNull();
     });
 });

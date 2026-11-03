@@ -124,10 +124,33 @@ export const baseFilterAttributes: Record<string, Omit<FilterAttribute, "id">> =
         { label: "Text chat", value: "chat" },
         // [.mark] The simulated caller's calls (langwatch-et-fenetre-du-run, lot 3).
         { label: "Simulated caller", value: "simulated" },
+        // [.mark] C4 : les conversations lancées depuis le widget d'un site.
+        { label: "Site widget", value: "site" },
         { label: "All", value: "all" },
       ],
       defaultValue: "all",
     },
+  },
+  // [.mark] C4 : colonnes de Conversations (voir api/db/appels_liste.py).
+  judgeNote: {
+    type: "numberRange",
+    label: "Judge grade",
+    config: { min: 0, max: 5, step: 0.1, unit: "/ 5" },
+  },
+  agentVersion: {
+    type: "number",
+    label: "Agent version",
+    config: { placeholder: "Enter version number", min: 1, max: 99999, step: 1 },
+  },
+  callReason: {
+    type: "text",
+    label: "Call reason",
+    config: { placeholder: "Enter call reason (partial match)", maxLength: 80 },
+  },
+  callClient: {
+    type: "text",
+    label: "Caller name or number",
+    config: { placeholder: "Enter caller name or number (partial match)", maxLength: 80 },
   },
   campaignId: {
     type: "number",
@@ -214,6 +237,10 @@ export const usageFilterAttributes = createFilterAttributes(
     "dispositionCode",
     "callDirection",
     "callChannel",
+    "judgeNote",
+    "agentVersion",
+    "callReason",
+    "callClient",
     "callerNumber",
     "calledNumber",
     "runId",

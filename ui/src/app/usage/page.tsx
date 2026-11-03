@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Globe, PhoneIncoming } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Globe, PhoneIncoming, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
 
 import { downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet, getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet, getPreferencesApiV1OrganizationsPreferencesGet, getUsageHistoryApiV1OrganizationsUsageRunsGet, getWorkflowsSummaryApiV1WorkflowSummaryGet, savePreferencesApiV1OrganizationsPreferencesPut } from '@/client/sdk.gen';
@@ -13,12 +13,14 @@ import { FilterBuilder } from '@/components/filters/FilterBuilder';
 import { useLangue } from '@/components/mark/langue/langue';
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from '@/components/mark/studio/etat-vide';
+import { NoteJuge } from '@/components/mark/studio/marques';
 import { BarrePagination } from '@/components/mark/studio/pagination';
 import { PageStudio } from '@/components/mark/studio/shell-studio';
 import { Cellule, Ligne, Tableau } from '@/components/mark/studio/tableau';
 import { TitrePage } from '@/components/mark/studio/titre-page';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useUserConfig } from '@/context/UserConfigContext';
 import { useDispositionCodes } from '@/hooks/useDispositionCodes';
 import { detailFromError } from '@/lib/apiError';
@@ -82,6 +84,12 @@ export default function UsagePage() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
         return searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
     });
+    // [.mark] C4 : recherche dans les transcriptions (3 lettres au moins, envoyée après une courte pause). `recherche` est ce
+    // qu'on tape, `rechercheAppliquee` ce qui part au serveur (et dans l'adresse).
+    const [recherche, setRecherche] = useState(() => searchParams.get('q') ?? '');
+    const [rechercheAppliquee, setRechercheAppliquee] = useState(() => searchParams.get('q') ?? '');
+    const rechercheRef = useRef(rechercheAppliquee);
+    rechercheRef.current = rechercheAppliquee;
     const [isDownloadingReport, setIsDownloadingReport] = useState(false);
     const [agentFilterOptions, setAgentFilterOptions] = useState<NumberFilterOption[] | null>(null);
     const [isLoadingAgentFilterOptions, setIsLoadingAgentFilterOptions] = useState(false);
@@ -165,6 +173,7 @@ export default function UsagePage() {
                     page,
                     limit: 50,
                     ...buildUsageQueryParams(filters),
+                    ...(rechercheRef.current && { q: rechercheRef.current }),
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
                 },
@@ -337,12 +346,26 @@ export default function UsagePage() {
         });
     }, [availableUsageFilterAttributes]);
 
+    // La recherche part 400 ms après la dernière frappe, à partir de 3 lettres ; vider la case efface la recherche.
+    useEffect(() => {
+        const terme = recherche.trim();
+        if (terme === rechercheAppliquee || (terme.length > 0 && terme.length < 3)) return;
+        const minuteur = setTimeout(() => {
+            rechercheRef.current = terme;
+            setRechercheAppliquee(terme);
+            setCurrentPage(1);
+            updateUrlParams({ page: 1, filters: appliedFilters, sortBy, sortOrder });
+        }, 400);
+        return () => clearTimeout(minuteur);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recherche]);
+
     // Initial load - fetch when auth becomes available
     useEffect(() => {
         if (auth.isAuthenticated) {
             fetchUsageHistory(currentPage, appliedFilters, sortBy, sortOrder);
         }
-    }, [auth.isAuthenticated, currentPage, appliedFilters, sortBy, sortOrder, fetchUsageHistory]);
+    }, [auth.isAuthenticated, currentPage, appliedFilters, sortBy, sortOrder, rechercheAppliquee, fetchUsageHistory]);
 
     // Fetch daily usage when organizationPricing becomes available
     useEffect(() => {
@@ -362,6 +385,10 @@ export default function UsagePage() {
 
         if (params.page !== undefined) {
             newParams.set('page', params.page.toString());
+        }
+
+        if (rechercheRef.current) {
+            newParams.set('q', rechercheRef.current);
         }
 
         if (params.sortBy) {
@@ -436,25 +463,33 @@ export default function UsagePage() {
 
     const lignes = usageHistory?.runs ?? [];
     const avecCout = Boolean(organizationPricing?.price_per_second_usd);
-    // L'en-tête « Durée » trie : la flèche dit le sens courant.
-    const enteteDuree = (
-        <button type="button" className="inline-flex cursor-pointer items-center gap-1 hover:font-semibold" onClick={() => handleSort('duration')}>
-            {t({ en: 'Duration', fr: 'Durée' })}
-            {sortBy === 'duration' ? (
+    // Les en-têtes « Durée », « Version » et « Note » trient : la flèche dit le sens courant.
+    const enteteTriable = (champ: string, titre: string) => (
+        <button type="button" className="inline-flex cursor-pointer items-center gap-1 hover:font-semibold" onClick={() => handleSort(champ)}>
+            {titre}
+            {sortBy === champ ? (
                 sortOrder === 'asc' ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />
             ) : (
                 <ArrowUpDown className="size-3.5" />
             )}
         </button>
     );
+    const enteteDuree = enteteTriable('duration', t({ en: 'Duration', fr: 'Durée' }));
+    const canaux: Record<string, { en: string; fr: string }> = {
+        site: { en: 'Site', fr: 'Site' },
+        telephony: { en: 'Phone', fr: 'Téléphone' },
+        web: { en: 'Web', fr: 'Web' },
+        chat: { en: 'Chat', fr: 'Écrit' },
+        simulated: { en: 'Simulated', fr: 'Simulé' },
+    };
 
     return (
         <PageStudio>
             <TitrePage
                 titre={t({ en: 'Conversations', fr: 'Conversations' })}
                 info={t({
-                    en: 'Every call across all the agents, tests included. Use the filters to narrow them down.',
-                    fr: 'Tous les appels, essais compris, tous les agents confondus. Les filtres resserrent la liste.',
+                    en: 'Every call across all the agents, tests included. Use the filters to narrow them down. The search reads the 2,000 most recent calls of the period (the last 30 days unless you set a start date), 3 letters at least.',
+                    fr: "Tous les appels, essais compris, tous les agents confondus. Les filtres resserrent la liste. La recherche lit les 2 000 appels les plus récents de la période (les 30 derniers jours sans date de début), 3 lettres au moins.",
                 })}
                 action={
                     <div className="flex items-center gap-2">
@@ -536,6 +571,17 @@ export default function UsagePage() {
             {avecCout && <DailyUsageTable data={dailyUsage} isLoading={isLoadingDaily} />}
 
             <div className="space-y-3">
+                <div className="relative w-full max-w-72">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                    <Input
+                        value={recherche}
+                        onChange={(e) => setRecherche(e.target.value)}
+                        maxLength={80}
+                        aria-label={t({ en: 'Search in the transcripts', fr: 'Chercher dans les transcriptions' })}
+                        placeholder={t({ en: 'Search a word in the transcripts', fr: 'Chercher un mot dans les transcriptions' })}
+                        className="h-9 border-transparent bg-muted/50 pl-9 shadow-none focus-visible:bg-background"
+                    />
+                </div>
                 <FilterBuilder
                     availableAttributes={availableUsageFilterAttributes}
                     activeFilters={activeFilters}
@@ -566,10 +612,13 @@ export default function UsagePage() {
                         colonnes={[
                             { titre: t({ en: 'When', fr: 'Quand' }) },
                             { titre: t({ en: 'Agent', fr: 'Agent' }) },
-                            { titre: t({ en: 'Call type', fr: "Type d'appel" }) },
-                            { titre: t({ en: 'Phone number', fr: 'Numéro' }) },
+                            { titre: enteteTriable('version', t({ en: 'Version', fr: 'Version' })) },
+                            { titre: t({ en: 'Caller', fr: 'Client' }) },
+                            { titre: t({ en: 'Reason', fr: 'Motif' }) },
+                            { titre: t({ en: 'Channel', fr: 'Canal' }) },
                             { titre: t({ en: 'Outcome', fr: 'Issue' }) },
                             { titre: enteteDuree, droite: true },
+                            { titre: enteteTriable('judge_note', t({ en: 'Grade', fr: 'Note' })), droite: true },
                             ...(avecCout ? [{ titre: t({ en: 'Cost (USD)', fr: 'Coût (USD)' }), droite: true }] : []),
                             { titre: t({ en: 'Media', fr: 'Médias' }), droite: true },
                         ]}
@@ -580,12 +629,20 @@ export default function UsagePage() {
                                     {formatDateTime(run.created_at, effectiveTimezone, langue)}
                                 </Cellule>
                                 <Cellule>{run.workflow_name || t({ en: 'Unknown', fr: 'Inconnu' })}</Cellule>
-                                <Cellule>
-                                    <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                <Cellule>{run.version != null ? `v${run.version}` : '-'}</Cellule>
+                                <Cellule sous={run.client ? (run.call_type === 'inbound' ? run.caller_number : run.called_number) || undefined : undefined}>
+                                    {run.client || (run.call_type === 'inbound' ? run.caller_number : run.called_number) || '-'}
                                 </Cellule>
-                                <Cellule>{(run.call_type === 'inbound' ? run.caller_number : run.called_number) || '-'}</Cellule>
+                                <Cellule>{run.motif || '-'}</Cellule>
+                                <Cellule>
+                                    <span className="inline-flex items-center gap-2">
+                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                        {run.canal && canaux[run.canal] ? t(canaux[run.canal]) : ''}
+                                    </span>
+                                </Cellule>
                                 <Cellule>{run.disposition || '-'}</Cellule>
                                 <Cellule droite>{formatDuration(run.call_duration_seconds)}</Cellule>
+                                <Cellule droite><NoteJuge note={run.note_juge ?? null} /></Cellule>
                                 {avecCout && (
                                     <Cellule droite>
                                         {run.charge_usd !== undefined && run.charge_usd !== null ? `$${run.charge_usd.toFixed(2)}` : '-'}
@@ -624,8 +681,8 @@ export default function UsagePage() {
                         />
                     )}
                 </div>
-            ) : appliedFilters.length > 0 ? (
-                <EtatVide cas="filtre" recherche="" effacer={() => void handleClearFilters()} />
+            ) : appliedFilters.length > 0 || rechercheAppliquee ? (
+                <EtatVide cas="filtre" recherche={rechercheAppliquee} effacer={() => { setRecherche(''); rechercheRef.current = ''; setRechercheAppliquee(''); void handleClearFilters(); }} />
             ) : (
                 <EtatVide cas="premier" icone={PhoneIncoming} titre={t({ en: 'No call yet', fr: 'Aucun appel encore' })} />
             )}
