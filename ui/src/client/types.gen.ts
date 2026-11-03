@@ -8410,6 +8410,16 @@ export type MessageDuBuilder = {
 };
 
 /**
+ * MessageDuFil
+ */
+export type MessageDuFil = {
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * MiniMaxLLMConfiguration
  */
 export type MiniMaxLlmConfiguration = {
@@ -9283,6 +9293,24 @@ export type NoteDuJuge = {
      * Ok
      */
     ok: boolean;
+};
+
+/**
+ * NouveauFil
+ */
+export type NouveauFil = {
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Demarrage
+     */
+    demarrage?: string | null;
 };
 
 /**
@@ -16399,6 +16427,44 @@ export type VueConversation = {
 };
 
 /**
+ * VueDemarrage
+ */
+export type VueDemarrage = {
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Phrase
+     */
+    phrase: string;
+    /**
+     * Demande
+     */
+    demande: string;
+    /**
+     * Besoin
+     */
+    besoin: string;
+    /**
+     * Icone
+     */
+    icone: string;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Utilisations
+     */
+    utilisations: number;
+};
+
+/**
  * VueDepot
  */
 export type VueDepot = {
@@ -16497,6 +16563,60 @@ export type VueFamille = {
      */
     du_code?: boolean;
     fiche?: Fiche;
+};
+
+/**
+ * VueFil
+ */
+export type VueFil = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number | null;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Jetons
+     */
+    jetons: number;
+    /**
+     * Cout
+     */
+    cout: number;
+    /**
+     * Jauge
+     */
+    jauge: number;
+    /**
+     * Changements
+     */
+    changements: number;
+    /**
+     * Demarrage
+     */
+    demarrage: string | null;
+    /**
+     * Cree Le
+     */
+    cree_le: unknown;
+    /**
+     * Modifie Le
+     */
+    modifie_le: unknown;
+    /**
+     * En Cours
+     */
+    en_cours: boolean;
 };
 
 /**
@@ -22273,6 +22393,439 @@ export type RejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPo
      */
     200: unknown;
 };
+
+export type LireLesDemarragesApiV1BuilderDemarragesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/demarrages';
+};
+
+export type LireLesDemarragesApiV1BuilderDemarragesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesDemarragesApiV1BuilderDemarragesGetError = LireLesDemarragesApiV1BuilderDemarragesGetErrors[keyof LireLesDemarragesApiV1BuilderDemarragesGetErrors];
+
+export type LireLesDemarragesApiV1BuilderDemarragesGetResponses = {
+    /**
+     * Response Lire Les Demarrages Api V1 Builder Demarrages Get
+     *
+     * Successful Response
+     */
+    200: Array<VueDemarrage>;
+};
+
+export type LireLesDemarragesApiV1BuilderDemarragesGetResponse = LireLesDemarragesApiV1BuilderDemarragesGetResponses[keyof LireLesDemarragesApiV1BuilderDemarragesGetResponses];
+
+export type ListerLesFilsApiV1BuilderFilsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+    };
+    url: '/api/v1/builder/fils';
+};
+
+export type ListerLesFilsApiV1BuilderFilsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesFilsApiV1BuilderFilsGetError = ListerLesFilsApiV1BuilderFilsGetErrors[keyof ListerLesFilsApiV1BuilderFilsGetErrors];
+
+export type ListerLesFilsApiV1BuilderFilsGetResponses = {
+    /**
+     * Response Lister Les Fils Api V1 Builder Fils Get
+     *
+     * Successful Response
+     */
+    200: Array<VueFil>;
+};
+
+export type ListerLesFilsApiV1BuilderFilsGetResponse = ListerLesFilsApiV1BuilderFilsGetResponses[keyof ListerLesFilsApiV1BuilderFilsGetResponses];
+
+export type OuvrirUnFilApiV1BuilderFilsPostData = {
+    body: NouveauFil;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/fils';
+};
+
+export type OuvrirUnFilApiV1BuilderFilsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OuvrirUnFilApiV1BuilderFilsPostError = OuvrirUnFilApiV1BuilderFilsPostErrors[keyof OuvrirUnFilApiV1BuilderFilsPostErrors];
+
+export type OuvrirUnFilApiV1BuilderFilsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type OuvrirUnFilApiV1BuilderFilsPostResponse = OuvrirUnFilApiV1BuilderFilsPostResponses[keyof OuvrirUnFilApiV1BuilderFilsPostResponses];
+
+export type LireUnFilApiV1BuilderFilsFilIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}';
+};
+
+export type LireUnFilApiV1BuilderFilsFilIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnFilApiV1BuilderFilsFilIdGetError = LireUnFilApiV1BuilderFilsFilIdGetErrors[keyof LireUnFilApiV1BuilderFilsFilIdGetErrors];
+
+export type LireUnFilApiV1BuilderFilsFilIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type LireUnFilApiV1BuilderFilsFilIdGetResponse = LireUnFilApiV1BuilderFilsFilIdGetResponses[keyof LireUnFilApiV1BuilderFilsFilIdGetResponses];
+
+export type SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Last-Event-Id
+         */
+        'last-event-id'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: {
+        /**
+         * Depuis
+         */
+        depuis?: number | null;
+    };
+    url: '/api/v1/builder/fils/{fil_id}/evenements';
+};
+
+export type SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetError = SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetErrors[keyof SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetErrors];
+
+export type SuivreUnFilApiV1BuilderFilsFilIdEvenementsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostData = {
+    body: MessageDuFil;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/messages';
+};
+
+export type EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostError = EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostErrors[keyof EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostErrors];
+
+export type EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostResponse = EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostResponses[keyof EnvoyerUnMessageApiV1BuilderFilsFilIdMessagesPostResponses];
+
+export type ArreterUnFilApiV1BuilderFilsFilIdArreterPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/arreter';
+};
+
+export type ArreterUnFilApiV1BuilderFilsFilIdArreterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArreterUnFilApiV1BuilderFilsFilIdArreterPostError = ArreterUnFilApiV1BuilderFilsFilIdArreterPostErrors[keyof ArreterUnFilApiV1BuilderFilsFilIdArreterPostErrors];
+
+export type ArreterUnFilApiV1BuilderFilsFilIdArreterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type ArreterUnFilApiV1BuilderFilsFilIdArreterPostResponse = ArreterUnFilApiV1BuilderFilsFilIdArreterPostResponses[keyof ArreterUnFilApiV1BuilderFilsFilIdArreterPostResponses];
+
+export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/reprendre';
+};
+
+export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostError = ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostErrors[keyof ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostErrors];
+
+export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostResponse = ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostResponses[keyof ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostResponses];
+
+export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostData = {
+    body: MessageDuFil;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/modifier-dernier';
+};
+
+export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostError = ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostErrors[keyof ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostErrors];
+
+export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VueFil;
+};
+
+export type ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponse = ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses[keyof ModifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPostResponses];
 
 export type ParlerAuBuilderApiV1BuilderConversationPostData = {
     body: MessageDuBuilder;
