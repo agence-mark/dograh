@@ -55,8 +55,12 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const pathname = usePathname();
 
-  // The frame is hidden for root (/), /handler routes (Stack Auth routes) and /auth routes.
-  const shouldShowSidebar = pathname !== "/" && !pathname.startsWith("/handler") && !pathname.startsWith("/auth");
+  // The frame is hidden for root (/), /handler routes (Stack Auth routes) and /auth routes, plus the sign-in and invitation pages of the .mark team (U2 ter).
+  const shouldShowSidebar =
+    pathname !== "/" &&
+    !pathname.startsWith("/handler") &&
+    !pathname.startsWith("/auth") &&
+    !["/connexion", "/invitation"].includes(pathname);
 
   // Only the exact editor page /workflow/<id> (and /agents/<id>): it carries its own bar and folds the menu (E5).
   const isWorkflowEditor = /^\/(workflow|agents)\/\d+$/.test(pathname);

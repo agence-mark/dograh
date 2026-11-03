@@ -24,8 +24,8 @@ vi.mock("@/context/TelephonyConfigWarningsContext", () => ({
         vonageMissingSignatureSecretCount: 0,
     }),
 }));
-vi.mock("@/components/layout/SidebarOrganizationSwitcher", () => ({
-    SidebarOrganizationSwitcher: () => <div data-testid="selecteur-organisation" />,
+vi.mock("./selecteur-espace", () => ({
+    SelecteurEspace: ({ espace }: { espace: string }) => <div data-espace={espace} data-testid="selecteur-espace" />,
 }));
 vi.mock("@/components/layout/SidebarTeamSwitcher", () => ({ SidebarTeamSwitcher: () => <div /> }));
 vi.mock("@/components/ThemeSwitcher", () => ({ default: () => <button type="button">thème</button> }));
@@ -131,9 +131,9 @@ describe("barre latérale", () => {
         expect(screen.queryByPlaceholderText(/rechercher|search/i)).toBeNull();
     });
 
-    it("le sélecteur d'espace s'appuie sur le sélecteur d'organisation actuel", () => {
+    it("le sélecteur d'espace (U2) tient la place du sélecteur d'organisation", () => {
         monter();
-        expect(screen.getByTestId("selecteur-organisation")).toBeTruthy();
+        expect(screen.getByTestId("selecteur-espace")).toBeTruthy();
     });
 
     it("compteurs : l'emplacement existe, aucune fausse valeur tant qu'on n'en donne pas", () => {

@@ -3,6 +3,8 @@ from api.db.api_key_client import APIKeyClient
 from api.db.campaign_client import CampaignClient
 from api.db.conservation_client import ConservationClient
 from api.db.embed_token_client import EmbedTokenClient
+from api.db.equipe_client import EquipeClient
+from api.db.espaces_client import EspacesClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
@@ -62,6 +64,9 @@ class DBClient(
     VerrouClient,
     # [.mark] passages-fiables, lot G: the triage queue and the alerts (bounded reads of a run's JSON).
     TriClient,
+    # [.mark] builder partie 2, U2 ter: roles, members, invitations and the journal of the .mark team.
+    EquipeClient,
+    EspacesClient,
 ):
     """
     Unified database client that combines all specialized database operations.

@@ -25,8 +25,8 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
           logger.info('OSS auth initialized', { user: data.user });
         } else if (response.status === 401) {
           // No token - redirect to login (but not if already on auth pages)
-          if (!window.location.pathname.startsWith('/auth/')) {
-            window.location.href = '/auth/login';
+          if (!window.location.pathname.startsWith('/auth/') && !['/connexion', '/invitation'].includes(window.location.pathname)) {
+            window.location.href = '/connexion';
             return;
           }
         } else {
@@ -54,7 +54,7 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
   }, []);
 
   const redirectToLogin = React.useCallback(() => {
-    window.location.href = '/auth/login';
+    window.location.href = '/connexion';
   }, []);
 
   const logout = React.useCallback(async () => {
@@ -65,7 +65,7 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
     }
     setUser(null);
     tokenRef.current = null;
-    window.location.href = '/auth/login';
+    window.location.href = '/connexion';
   }, []);
 
   const contextValue = useMemo(() => ({

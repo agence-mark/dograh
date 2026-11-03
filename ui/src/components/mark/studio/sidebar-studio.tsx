@@ -4,15 +4,17 @@
  * [.mark] La barre latérale du studio (E2, E3, E60) : repliable en icônes, sélecteur d'espace en tête, menu par
  * moment du métier, pied (personne, langue, thème).
  *
- * - Le sélecteur d'espace s'appuie sur le sélecteur d'organisation actuel (patch n° 59) ; U2 le complète.
+ * - Le sélecteur d'espace (U2) liste les espaces que le rôle ouvre (`GET /espaces`) et mène à `/labo` ou `/clients/<id>`.
  * - Les compteurs de la barre ne sont PAS branchés ici : l'emplacement existe (`compteurs`), sans fausse valeur.
  * - Aucun champ de recherche (E60).
  */
-import { AlertTriangle, Building2,ChevronsUpDown, FlaskConical, LogOut } from "lucide-react";
+import "@/lib/espaces";
+
+import { AlertTriangle, Building2, ChevronsUpDown, FlaskConical, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
-import { SidebarOrganizationSwitcher } from "@/components/layout/SidebarOrganizationSwitcher";
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
 import { BoutonLangue } from "@/components/mark/langue/BoutonLangue";
 import { useLangue } from "@/components/mark/langue/langue";
@@ -41,9 +43,11 @@ import {
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
+import { retenirEspace } from "@/lib/espaceCourant";
 
 import { Pastille } from "./marques";
 import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
+import { SelecteurEspace } from "./selecteur-espace";
 
 /** Un compteur de la barre : fourni par la page qui le sait (ordre 18), jamais inventé ici. */
 export type CompteurMenu = { n: number; urgent?: boolean };
@@ -66,6 +70,8 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
     const replie = !isMobile && state === "collapsed";
 
     const { espace, base, org } = espaceDe(pathname);
+    // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).
+    useEffect(() => retenirEspace(pathname), [pathname]);
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 
@@ -117,32 +123,34 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/mark-symbol.svg" alt={t({ en: ".mark logo", fr: "Logo .mark" })} className="hidden h-6 group-data-[collapsible=icon]:block" />
                 </div>
-                {/* Sélecteur d'espace : le Labo ou le client dont l'adresse porte l'organisation. */}
-                <div
-                    data-espace={espace}
-                    className="flex items-center gap-2 rounded-lg border px-2.5 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
-                >
-                    <span
-                        className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
-                            espace === "labo" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"
-                        }`}
+                {/* Sélecteur d'espace : le Labo ou le client dont l'adresse porte l'organisation (U2, mode local). */}
+                {provider === "local" ? (
+                    <SelecteurEspace espace={espace} org={org} />
+                ) : (
+                    <div
+                        data-espace={espace}
+                        className="flex items-center gap-2 rounded-lg border px-2.5 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
-                        {espace === "labo" ? <FlaskConical className="size-4" /> : <Building2 className="size-4" />}
-                    </span>
-                    <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                        <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
-                            {espace === "labo" ? t({ en: "Space", fr: "Espace" }) : t({ en: "Client", fr: "Client" })}
+                        <span
+                            className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
+                                espace === "labo" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"
+                            }`}
+                        >
+                            {espace === "labo" ? <FlaskConical className="size-4" /> : <Building2 className="size-4" />}
                         </span>
-                        <span className="block truncate text-sm font-medium">{org ?? t({ en: "Lab .mark", fr: "Labo .mark" })}</span>
-                    </span>
-                </div>
+                        <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                            <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
+                                {espace === "labo" ? t({ en: "Space", fr: "Espace" }) : t({ en: "Client", fr: "Client" })}
+                            </span>
+                            <span className="block truncate text-sm font-medium">{org ?? t({ en: "Lab .mark", fr: "Labo .mark" })}</span>
+                        </span>
+                    </div>
+                )}
                 {provider === "stack" && (
                     <div className="mt-3 group-data-[collapsible=icon]:hidden" translate="no">
                         <SidebarTeamSwitcher />
                     </div>
                 )}
-                {/* Même emplacement : le sélecteur d'organisation (changer, créer) du mode local. */}
-                {provider === "local" && <SidebarOrganizationSwitcher className="mt-3 group-data-[collapsible=icon]:hidden" />}
             </SidebarHeader>
 
             <SidebarContent className="px-2 group-data-[collapsible=icon]:overflow-y-auto! [scrollbar-width:none]">
@@ -183,7 +191,18 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                     <DropdownMenuContent side="top" align="start" className="w-56">
                         {courriel && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{courriel}</DropdownMenuLabel>}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => logout()}>
+                        <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                            <Link href="/profil">
+                                <UserRound className="mr-2 size-4" /> {t({ en: "My profile", fr: "Mon profil" })}
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                            <Link href="/labo/reglages/equipe">
+                                <Users className="mr-2 size-4" /> {t({ en: "Team and roles", fr: "Équipe et rôles" })}
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => logout()} className="cursor-pointer hover:font-medium">
                             <LogOut className="mr-2 size-4" /> {t({ en: "Sign out", fr: "Se déconnecter" })}
                         </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -24,6 +24,9 @@ router = APIRouter(
 async def signup(request: SignupRequest):
     if not ENABLE_SIGNUP:
         raise HTTPException(status_code=403, detail="Signup is disabled")
+    # [.mark] U2 ter: only the FIRST account of an empty installation may sign up; everyone else joins by invitation.
+    if await db_client.compter_comptes() > 0:
+        raise HTTPException(status_code=403, detail="Signup is disabled")
 
     # Check if email is already taken
     existing_user = await db_client.get_user_by_email(request.email)
@@ -38,11 +41,23 @@ async def signup(request: SignupRequest):
         name=request.name,
     )
 
+    # [.mark] The first account becomes Administrator; a second first sign-up that lost the race is undone.
+    if not await db_client.reclamer_premier_compte(user.id):
+        await db_client.supprimer_compte(user.id)
+        raise HTTPException(status_code=403, detail="Signup is disabled")
+
     # Create organization for the user
     org_provider_id = f"org_{user.provider_id}"
     organization, _ = await db_client.get_or_create_organization_by_provider_id(
         org_provider_id=org_provider_id, user_id=user.id
     )
+
+    # [.mark] The organization of the first account is the installation's own: it becomes the Labo unless one is already designated.
+    from api.services.builder.constantes import organisation_bibliotheque
+    from api.services.equipe_mark.espaces import definir_labo, rafraichir_labo
+
+    if await rafraichir_labo(force=True) is None and organisation_bibliotheque() is None:
+        await definir_labo(organization.id, True)
 
     # Link user to organization
     await db_client.add_user_to_organization(user.id, organization.id)

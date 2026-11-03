@@ -31,7 +31,16 @@ IMPORT_MAX_OCTETS = 200_000
 
 
 def organisation_bibliotheque() -> int | None:
-    """L'organisation .mark de la bibliothèque, ou ``None`` si elle n'est pas réglée (lue à chaque appel)."""
+    """L'organisation .mark de la bibliothèque (le Labo), ou ``None`` si elle n'est pas réglée.
+
+    Source unique : l'organisation marquée Labo en base (``MARK_ESPACE``, lue par un cache court). La variable
+    ``MARK_BIBLIOTHEQUE_ORGANISATION_ID`` n'est que le repli tant qu'aucune organisation n'est marquée (C8).
+    """
+    from api.services.equipe_mark.espaces import labo_en_cache
+
+    marque = labo_en_cache()
+    if marque is not None:
+        return marque
     brut = (os.environ.get(VARIABLE_ORG_BIBLIOTHEQUE) or "").strip()
     return int(brut) if brut.isdigit() else None
 

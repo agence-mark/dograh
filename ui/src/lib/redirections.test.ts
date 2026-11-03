@@ -28,7 +28,7 @@ const ANCIENNES_ADRESSES = [
 ];
 
 /** Les adresses qui gardent leur page : l'identification, l'accueil technique et les routes de service. */
-const ADRESSES_QUI_RESTENT = ["/", "/after-sign-in", "/auth/login", "/auth/signup", "/handler/[...stack]", "/superadmin", "/superadmin/runs", "/impersonate"];
+const ADRESSES_QUI_RESTENT = ["/", "/after-sign-in", "/connexion", "/invitation", "/profil", "/auth/signup", "/handler/[...stack]", "/superadmin", "/superadmin/runs", "/impersonate"];
 
 const NOUVELLES_RACINES = ["labo", "clients", "agents", "conversations"];
 

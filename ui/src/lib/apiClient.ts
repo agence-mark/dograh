@@ -1,5 +1,6 @@
 import type { Client } from '@/client/client';
 import type { CreateClientConfig } from '@/client/client.gen';
+import { ENTETE_ORGANISATION, organisationPourRequeteAttendue, sansOrganisation } from '@/lib/espaceCourant';
 
 export function getServerBackendUrl() {
     return process.env.BACKEND_URL || 'http://api:8000';
@@ -61,6 +62,11 @@ export function setupAuthInterceptor(apiClient: Client, getAccessToken: () => Pr
     interceptorRegistered = true;
 
     apiClient.interceptors.request.use(async (request) => {
+        // [.mark] U2 : l'organisation vient de l'adresse de l'onglet ; le serveur contrôle le droit d'y entrer.
+        if (typeof window !== 'undefined' && !request.headers.get(ENTETE_ORGANISATION) && !sansOrganisation(request.url)) {
+            const organisation = await organisationPourRequeteAttendue(window.location.pathname);
+            if (organisation !== null) request.headers.set(ENTETE_ORGANISATION, String(organisation));
+        }
         if (request.headers.get('Authorization')) {
             return request;
         }
