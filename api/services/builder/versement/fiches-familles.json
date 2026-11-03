@@ -29,6 +29,7 @@
   "documents-conception-types": {"description": "La trame d'un document de conception et les hypothèses par défaut fréquentes.", "quand": "Quand le builder rédige la conception d'un agent.", "comment": "Une trame et ses hypothèses (jours fériés, appareil non couvert), marquées comme hypothèses."},
   "conventions-mark": {"description": "Les conventions de .mark que le builder connaît toujours (couche 1 de son contexte).", "quand": "Lu à chaque conversation du builder.", "comment": "Court, impératif, vrai. Une convention fausse se paie à chaque conversation."},
   "regles-redaction": {"description": "Les règles pour écrire un prompt vocal : méthodes, interdits mesurés, règles propres à la voix.", "quand": "Avant d'écrire ou de retoucher un prompt, par l'écran comme par Claude Code.", "comment": "Une règle par élément, avec ce qui la prouve. Ces règles passent avant le guide de l'amont."},
-  "methode-builder": {"description": "Le prompt du builder lui-même, versionné.", "quand": "Lu à chaque conversation du builder.", "comment": "Se modifie comme le reste, avec un banc avant d'être prouvé."}
+  "methode-builder": {"description": "Le prompt du builder lui-même, versionné.", "quand": "Lu à chaque conversation du builder.", "comment": "Se modifie comme le reste, avec un banc avant d'être prouvé."},
+  "demarrages-builder": {"description": "Les demandes types proposées en cartes sous la saisie du builder, sur l'accueil du Labo.", "quand": "Quand une demande revient souvent : on la fige ici au lieu de la réécrire.", "comment": "Une demande courte, à l'impératif, qui dit par quoi commencer. {agent} est remplacé par l'agent choisi. Champs : phrase, demande, besoin (rien, agent, fichiers, agent et fichiers), icone."}
  }
 }

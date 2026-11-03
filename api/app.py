@@ -79,6 +79,14 @@ async def lifespan(app: FastAPI):
 
         call_event_delivery.start()
 
+        # [.mark] builder partie 2, U5: a conversation left "en_cours" by a restart has no task behind it any more.
+        try:
+            from api.services.builder import fil as builder_fil
+
+            await builder_fil.au_demarrage()
+        except Exception as erreur:  # noqa: BLE001 -- fail-open: the builder never stops the server from starting
+            logger.warning(f"[builder] stopped conversations not marked at startup: {erreur!r}")
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()

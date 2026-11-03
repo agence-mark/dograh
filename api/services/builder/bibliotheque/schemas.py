@@ -7,7 +7,7 @@ objet libre (le code ne connaît pas leur métier).
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
@@ -59,6 +59,15 @@ class ModeleDeReglages(_Forme):
     valeurs: dict[str, Any] = Field(min_length=1)
 
 
+class Demarrage(_Forme):
+    """Une carte de l'accueil du Labo (E50) : ce que l'écran lit, champ par champ."""
+
+    phrase: str = Field(min_length=1, max_length=120)
+    demande: str = Field(min_length=1, max_length=4000)
+    besoin: Literal["rien", "agent", "fichiers", "agent et fichiers"] = "rien"
+    icone: Literal["agent", "amelioration", "test", "fichier", "etincelle"] = "etincelle"
+
+
 class Texte(_Forme):
     texte: str = Field(min_length=1)
 
@@ -70,6 +79,7 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "phrases-du-code": PhrasesDuCode,
     "lexiques": Lexique,
     "modeles-reglages": ModeleDeReglages,
+    "demarrages-builder": Demarrage,
 }
 
 

@@ -1,0 +1,13 @@
+{
+  "titre": "Créer un agent",
+  "contenu": {
+    "phrase": "depuis les dossiers d'audit",
+    "demande": "Crée un agent à partir des dossiers d'audit joints. Lis-les d'abord, pose-moi les questions sur les trous, puis rédige le document de conception avant de construire.",
+    "besoin": "fichiers",
+    "icone": "agent"
+  },
+  "notes": "Carte de départ de la maquette (E50). Versée en Candidat : le passage en Recette est un clic humain.",
+  "etiquettes": [
+    "accueil"
+  ]
+}

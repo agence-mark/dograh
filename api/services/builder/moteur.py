@@ -29,6 +29,11 @@ from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.cerveau.reglages import ReglagesCerveau
 
 DELAI_DU_VERROU_S = 600.0
+ETAT_SANS_AGENT = (
+    "## État actuel (relu sur le disque, c'est la vérité)\n"
+    "Cette conversation n'a pas encore d'agent : "
+    "crée-le avec create_workflow quand la demande est claire, ou lis d'abord les fichiers joints."
+)
 
 
 def _cout(entree: int, sortie: int, reglages: ReglagesCerveau) -> float:
@@ -103,11 +108,25 @@ async def conversation(
             logger.warning(f"[builder] agent {agent}: la conversation a été reprise par une autre demande, rien n'est écrasé")
 
 
+async def tours(
+    ctx: Contexte,
+    message: str,
+    cerveau: Cerveau,
+    reglages: ReglagesCerveau,
+    conv: dict[str, Any],
+    enregistrer=None,
+) -> AsyncIterator[dict[str, Any]]:
+    """Les tours de la conversation ``conv``. ``enregistrer(org, agent, conv)`` range l'état à chaque fin de tour : le disque
+    par agent (``contexte.enregistrer``) par défaut, la table des conversations (``fil.py``) pour le chat."""
+    async for evenement in _tours(ctx, message, cerveau, reglages, conv, enregistrer):
+        yield evenement
+
+
 async def _tours(
-    ctx: Contexte, message: str, cerveau: Cerveau, reglages: ReglagesCerveau, conv: dict[str, Any]
+    ctx: Contexte, message: str, cerveau: Cerveau, reglages: ReglagesCerveau, conv: dict[str, Any], enregistrer=None
 ) -> AsyncIterator[dict[str, Any]]:
     org, agent = ctx.organisation_id, ctx.workflow_id
-    assert agent is not None
+    # Sans agent (chat de l'accueil) : seule une conversation de la table peut tourner ainsi (``tours``), le builder crée l'agent.
     depense = conv["depense"]
     if (atteint := plafond_atteint(depense, reglages)) is not None:
         yield {"type": "erreur", "code": "plafond", "message": f"The conversation's ceiling is reached ({atteint}): raise it in the builder settings."}
@@ -118,7 +137,7 @@ async def _tours(
     usage_du_resume = await contexte.compacter_si_besoin(conv, cerveau, systeme, reglages.fenetre)
     if usage_du_resume:
         _ajouter_usage(depense, usage_du_resume["entree"], usage_du_resume["sortie"], reglages)
-    etat = await contexte.etat_du_disque(org, agent)
+    etat = await contexte.etat_du_disque(org, agent) if agent is not None else ETAT_SANS_AGENT
     bloc = (f"[Résumé de la conversation avant ce point]\n{conv['resume']}\n\n" if conv["resume"] else "") + etat
 
     message_du_jour = {"role": "user", "content": message}
@@ -168,6 +187,12 @@ async def _tours(
                 resultat = {"ok": False, "erreur": "The arguments were not valid JSON: send them again."}
             else:
                 resultat = await executer(appel["nom"], appel["arguments"], ctx)
+                if agent is None and appel["nom"] == "create_workflow" and resultat.get("ok", True):
+                    # L'agent vient de naître : la conversation lui est rattachée (tours suivants et table).
+                    nouveau = resultat.get("workflow_id") or resultat.get("id")
+                    if isinstance(nouveau, int):
+                        agent = ctx.workflow_id = nouveau
+                        conv["workflow_id"] = nouveau
             for operation in (resultat.get("operations") if isinstance(resultat.get("operations"), list) else []):
                 yield {"type": "operation", "operation": operation}
             if resultat.get("carte"):
@@ -187,6 +212,6 @@ async def _tours(
                     "content": contexte.tronquer(json.dumps(_sans_carte(resultat), ensure_ascii=False, default=str)),
                 }
             )
-        await contexte.enregistrer(org, agent, conv)
+        await (enregistrer or contexte.enregistrer)(org, agent, conv)
     logger.info(f"[builder] agent {agent}: tours d'actions épuisés")
     yield {"type": "fin", "raison": "tours"}

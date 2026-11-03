@@ -135,9 +135,13 @@ EXISTANTS = {
 }
 
 
+# U5 (E26) : les cartes du chat (plan, question) n'ont de sens qu'à l'écran, jamais dans Claude Code.
+ECRAN_SEULEMENT = {"plan_mettre_a_jour", "question_poser"}
+
+
 def test_les_outils_deja_exposes_sont_dans_le_registre_et_pas_inscrits_deux_fois():
     existants = {n for n, a in registre.REGISTRE.items() if not a.mcp}
-    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"}
+    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT
 
 
 @pytest.mark.parametrize("nom", sorted(EXISTANTS))
