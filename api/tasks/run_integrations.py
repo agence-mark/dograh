@@ -203,6 +203,15 @@ async def run_integrations_post_workflow_run(_ctx, workflow_run_id: int):
         # FIXME: If an org removes langfuse credentials during an exisitng deployment
         # we should unregister an existing langfuse credentials for that org.
         set_current_org_id(organization_id)
+
+        # [.mark] U6 (J3) : le juge des vrais appels, si l'agent l'a allumé. Ne lève jamais, jamais bloquant.
+        try:
+            from api.services.juge.appels import apres_appel as juger_le_vrai_appel
+
+            await juger_le_vrai_appel(workflow_run, organization_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Judge skipped: {type(e).__name__}")
+
         langfuse_config = await db_client.get_configuration_value(
             organization_id,
             OrganizationConfigurationKey.LANGFUSE_CREDENTIALS.value,

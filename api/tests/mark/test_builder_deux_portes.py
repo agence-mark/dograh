@@ -68,6 +68,10 @@ ARGUMENTS = {
     "tests_depuis_la_bibliotheque": {"slug": "s", "workflow_id": AGENT},
     "builder_methode": {},
     "builder_conventions": {},
+    # U6 : le juge dans Claude Code.
+    "juge_a_faire": {},
+    "juge_lire": {"id": "appel-1"},
+    "juge_ecrire": {"id": "appel-1", "verdicts": [{"critere": "c", "verdict": "reussi", "replique": 1, "preuve": "p", "confiance": 0.9}]},
 }
 
 

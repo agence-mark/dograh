@@ -18,7 +18,7 @@ FAMILLE_JUGE = "criteres-types"
 SLUG_JUGE = "grille-juge"
 
 
-async def _contenu(famille: str, slug: str) -> dict:
+async def contenu_de(famille: str, slug: str) -> dict:
     from api.services.builder.bibliotheque import service
 
     try:
@@ -38,14 +38,14 @@ async def _contenu(famille: str, slug: str) -> dict:
 async def consigne_appelant() -> str:
     from api.schemas.appel_simule import CONSIGNE_APPELANT
 
-    texte = (await _contenu(FAMILLE_APPELANT, SLUG_APPELANT)).get("consigne")
+    texte = (await contenu_de(FAMILLE_APPELANT, SLUG_APPELANT)).get("consigne")
     return texte.strip() if isinstance(texte, str) and texte.strip() else CONSIGNE_APPELANT
 
 
 async def consigne_juge() -> str:
     from api.schemas.appel_simule import CONSIGNE_JUGE
 
-    texte = (await _contenu(FAMILLE_JUGE, SLUG_JUGE)).get("consigne")
+    texte = (await contenu_de(FAMILLE_JUGE, SLUG_JUGE)).get("consigne")
     return texte.strip() if isinstance(texte, str) and texte.strip() else CONSIGNE_JUGE
 
 
@@ -53,7 +53,7 @@ async def adieux() -> tuple[str, ...]:
     """Les formules d'au revoir qui terminent une conversation de test. Le secours est ``jeu.ADIEUX``."""
     from api.services.builder.tests_agent import jeu
 
-    brut = (await _contenu(FAMILLE_APPELANT, SLUG_APPELANT)).get("adieux")
+    brut = (await contenu_de(FAMILLE_APPELANT, SLUG_APPELANT)).get("adieux")
     if isinstance(brut, list):
         formules = tuple(f for f in (str(x) for x in brut) if f.strip())
         if formules:

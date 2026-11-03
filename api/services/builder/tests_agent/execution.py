@@ -299,13 +299,36 @@ async def _noms_d_outils(workflow: Any, organisation_id: int, graphe: dict[str, 
     return {o.nom for o in (await _outils(graphe, organisation_id)).values()}
 
 
-async def _avis_du_juge(cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]]) -> dict[str, Any] | None:
+async def _ranger_a_juger(organisation_id: int, workflow_id: int, test: dict[str, Any], lignes: list[list[str]]) -> None:
+    """Sur Claude Code, le test attend dans « À juger » avec ses lignes et ses propres questions (un élément par test)."""
+    from api.services.juge import file
+
+    try:
+        await file.ajouter(
+            organisation_id,
+            {
+                "id": f"test-{workflow_id}-{test['slug']}",
+                "type": "test",
+                "workflow_id": workflow_id,
+                "test": test["slug"],
+                "criteres": list(test.get("questions_juge") or []),
+                "lignes": file.lignes_compactes([(r, t) for r, t in lignes]),
+            },
+        )
+    except Exception as erreur:  # noqa: BLE001 -- ranger n'abîme jamais la suite
+        logger.warning(f"[tests-agent] test non rangé à juger : {type(erreur).__name__}")
+
+
+async def _avis_du_juge(
+    cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]], organisation_id: int, workflow_id: int
+) -> dict[str, Any] | None:
     """L'avis du juge sur le premier essai, toujours à part (jamais dans le verdict). D9 : refusé s'il noterait son propre travail ;
     sur Claude Code il n'est pas rendu ici (le juge attend une session) et la mention d'exemption accompagne tout avis."""
     if cerveaux.independance.refuse:
         return {"bloquant": False, "avis": [], "erreur": cerveaux.independance.refus}
     mention = {"mention": cerveaux.independance.mention} if cerveaux.independance.mention else {}
     if cerveaux.source_juge == "claude_code":
+        await _ranger_a_juger(organisation_id, workflow_id, test, essais[0]["lignes"])
         return {"bloquant": False, "avis": [], "a_juger": True, **mention}
     if cerveaux.juge is None:
         return None
@@ -374,7 +397,7 @@ async def rejouer_la_suite(
         statut = _statut_d_un_test(essais)
         avis = None
         if avec_le_juge and test.get("questions_juge") and essais and essais[0].get("lignes"):
-            avis = await _avis_du_juge(cerveaux, test, essais)
+            avis = await _avis_du_juge(cerveaux, test, essais, organisation_id, workflow.id)
             if avis is not None and avis.get("plafond"):
                 plafond = avis.pop("plafond")
         reussis = sum(1 for e in essais if e["reussi"])

@@ -55,6 +55,7 @@ import {
     NIVEAUX_REGLAGES,
     propresParTheme,
 } from "./niveaux-et-recherche";
+import { JugeDesVraisAppels } from "./JugeDesVraisAppels";
 import { PreparationAgent } from "./PreparationAgent";
 import { ContexteErreursThemes } from "./theme-commun";
 import { ID_THEME_AGENT, ThemeAgent, TITRE_AGENT } from "./ThemeAgent";
@@ -454,6 +455,8 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                     )}
 
                     <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
+
+                    <JugeDesVraisAppels workflowId={workflowId} />
 
                     {resolue &&
                         niveauxVisibles.map((niveau) => (
