@@ -8,7 +8,7 @@
  * WHOLE suite (B38), the reason written on the faulty reply (B40), the diagnosis before any correction (B39), the history of the
  * corrections with the way back, and the export for the lab.
  */
-import { ChevronDown } from "lucide-react";
+import { CalendarClock, ChevronDown, FlaskConical, Play, Plus, Search, ShieldAlert, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -26,20 +26,30 @@ import {
 } from "@/client";
 import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
 import { useLangue } from "@/components/mark/langue/langue";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
-import { Liste } from "@/components/mark/studio/liste";
 import { Info, Marque } from "@/components/mark/studio/marques";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { detailFromError } from "@/lib/apiError";
 
 import { DepuisLaBibliotheque } from "./DepuisLaBibliotheque";
 import { DetailDunTest } from "./DetailDunTest";
 import { FenetreDeTest } from "./FenetreDeTest";
-import { CAUSES, dateCourte, STATUTS_DE_TEST } from "./libelles";
+import { CAUSES, dateCourte, ORIGINES_DE_TEST, STATUTS_DE_TEST } from "./libelles";
 import type {
     Correction,
     EtatDePublication,
@@ -68,6 +78,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const [suite, setSuite] = useState<ResultatDeSuite | null>(null);
     const [vue, setVue] = useState<"tests" | "passees">("tests");
     const [coches, setCoches] = useState<string[]>([]);
+    const [filtre, setFiltre] = useState("");
     const [essais, setEssais] = useState("3");
     const [fenetre, setFenetre] = useState<null | "nouveau" | "bibliotheque">(null);
     const [edition, setEdition] = useState<TestComplet | null>(null);
@@ -172,6 +183,8 @@ export function PageTests({ workflowId }: { workflowId: number }) {
 
     const obligatoires = (tests ?? []).filter((x) => x.obligatoire).map((x) => x.slug);
     const aucun = (tests?.length ?? 0) === 0;
+    const dossiersUtilises = [...new Set((tests ?? []).map((x) => x.dossier).filter(Boolean))];
+    const visibles = (tests ?? []).filter((x) => !filtre || x.nom.toLowerCase().includes(filtre.toLowerCase()));
     const bascule = (slug: string) => setCoches((c) => (c.includes(slug) ? c.filter((x) => x !== slug) : [...c, slug]));
 
     return (
@@ -182,125 +195,175 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                 </p>
             )}
             {publication?.brouillon && <BandeauDePublication etat={publication} />}
+            {/* [.mark] K3 : la barre de la maquette (`OngletTests`) : titre, Planifier, Attaquer, Jouer ⌄, Ajouter un test ⌄. */}
             <div className="flex flex-wrap items-center gap-2">
+                <p className="flex flex-1 items-center gap-2 text-lg font-semibold">
+                    {t({ en: "Tests", fr: "Tests" })}
+                    <Info>
+                        {t({
+                            en: "A test replays the agent on a situation and checks the result by the code. It passes only if all its attempts pass. A required test that fails blocks the publication. Only a whole-suite replay can verify the agent.",
+                            fr: "Un test rejoue l'agent sur une situation et vérifie le résultat par le code. Il réussit seulement si tous ses essais réussissent. Un test obligatoire qui échoue bloque la publication. Seul le rejeu de toute la suite peut vérifier l'agent.",
+                        })}
+                    </Info>
+                </p>
+                {/* Planifier et Attaquer l'agent : la maquette les montre, le serveur ne les a pas encore (U11) : posés, éteints. */}
+                <Button variant="ghost" disabled title={t({ en: "Planned for the « Prove before publishing » lot", fr: "Prévu au lot « Prouver avant de publier »" })}>
+                    <CalendarClock className="size-4" /> {t({ en: "Schedule", fr: "Planifier" })}
+                </Button>
+                <Button variant="ghost" disabled title={t({ en: "Planned for the « Prove before publishing » lot", fr: "Prévu au lot « Prouver avant de publier »" })}>
+                    <ShieldAlert className="size-4" /> {t({ en: "Attack the agent", fr: "Attaquer l'agent" })}
+                </Button>
+                <span className="inline-flex">
+                    <Button
+                        variant="outline"
+                        className="rounded-r-none"
+                        disabled={enCours || aucun}
+                        onClick={() => void jouer(coches.length > 0 ? coches : undefined)}
+                    >
+                        <Play className="size-4" />
+                        {enCours
+                            ? t({ en: "Replaying…", fr: "Rejeu en cours…" })
+                            : coches.length > 0
+                              ? `${t({ en: "Play the selection", fr: "Jouer la sélection" })} (${coches.length})`
+                              : t({ en: "Play all", fr: "Tout jouer" })}
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="rounded-l-none border-l-0 px-2" aria-label={t({ en: "More ways to play", fr: "Autres façons de jouer" })} disabled={enCours || aucun}>
+                                <ChevronDown className="size-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem disabled={obligatoires.length === 0} onSelect={() => void jouer(obligatoires)}>
+                                {t({ en: "Play the required tests", fr: "Jouer les obligatoires" })} ({obligatoires.length})
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => void jouer(undefined)}>{t({ en: "The whole suite", fr: "Toute la suite" })}</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t({ en: "Attempts per test", fr: "Essais par test" })}</DropdownMenuLabel>
+                            <DropdownMenuRadioGroup value={essais} onValueChange={setEssais}>
+                                {["1", "3", "5", "10"].map((n) => (
+                                    <DropdownMenuRadioItem key={n} value={n}>
+                                        {n}
+                                    </DropdownMenuRadioItem>
+                                ))}
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button>
+                            <Plus className="size-4" /> {t({ en: "Add a test", fr: "Ajouter un test" })}
+                            <ChevronDown className="size-3.5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-60">
+                        <DropdownMenuItem onSelect={() => setFenetre("nouveau")}>
+                            <Plus className="size-4" /> {t({ en: "Create a test", fr: "Créer un test" })}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={adresseOnglet(workflowId, "parcours")}>{t({ en: "The builder writes them", fr: "Le builder les écrit" })}</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a reply of a call", fr: "Depuis une réplique d'un appel" })}</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setFenetre("bibliotheque")}>{t({ en: "From the library", fr: "Depuis la bibliothèque" })}</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+            <div className="flex items-center gap-3">
                 <Segmente
                     valeur={vue === "tests" ? libelleTests : libellePassees}
                     options={[libelleTests, libellePassees]}
                     changer={(o) => setVue(o === libelleTests ? "tests" : "passees")}
                 />
-                <div className="ml-auto flex flex-wrap items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button disabled={enCours || aucun}>
-                                {enCours ? t({ en: "Replaying…", fr: "Rejeu en cours…" }) : t({ en: "Play all", fr: "Tout jouer" })}
-                                <ChevronDown className="size-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled={coches.length === 0} onSelect={() => void jouer(coches)}>
-                                {t({ en: "The selection", fr: "La sélection" })} ({coches.length})
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled={obligatoires.length === 0} onSelect={() => void jouer(obligatoires)}>
-                                {t({ en: "The required tests", fr: "Les tests obligatoires" })} ({obligatoires.length})
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => void jouer(undefined)}>{t({ en: "The whole suite", fr: "Toute la suite" })}</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                        {t({ en: "Attempts", fr: "Essais" })}
-                        <Liste className="w-16" valeur={essais} changer={setEssais} options={Array.from({ length: 10 }, (_, i) => String(i + 1))} />
-                        <Info>
-                            {t({
-                                en: "Each test is played this many times (1 to 10). Only a whole-suite replay can verify the agent.",
-                                fr: "Chaque test est joué ce nombre de fois (1 à 10). Seul le rejeu de toute la suite peut vérifier l'agent.",
-                            })}
-                        </Info>
-                    </span>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {t({ en: "Add a test", fr: "Ajouter un test" })}
-                                <ChevronDown className="size-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setFenetre("nouveau")}>{t({ en: "By hand", fr: "À la main" })}</DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href={adresseOnglet(workflowId, "parcours")}>{t({ en: "With the builder", fr: "Par le builder" })}</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a reply of a call", fr: "Depuis une réplique d'un appel" })}</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setFenetre("bibliotheque")}>{t({ en: "From the library", fr: "Depuis la bibliothèque" })}</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button variant="outline" disabled={aucun} onClick={() => void exporter()}>
-                        {t({ en: "Export for the lab", fr: "Exporter pour le labo" })}
-                    </Button>
-                </div>
+                <Button variant="ghost" size="sm" disabled={aucun} onClick={() => void exporter()}>
+                    {t({ en: "Export for the lab", fr: "Exporter pour le labo" })}
+                </Button>
+                {vue === "tests" && (
+                    <div className="relative ml-auto w-64">
+                        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={filtre}
+                            onChange={(e) => setFiltre(e.target.value)}
+                            aria-label={t({ en: "Search a test", fr: "Chercher un test" })}
+                            placeholder={t({ en: "Search a test", fr: "Chercher un test" })}
+                            className="h-8 pl-8"
+                        />
+                    </div>
+                )}
             </div>
+
+            {enCours && (
+                <div className="flex items-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm text-background" data-testid="jeu-en-cours">
+                    <Play className="size-4" />
+                    <span className="flex-1">
+                        {t({
+                            en: `Playing, ${essais} attempt(s) per test, on the draft. Outgoing tools are simulated: nothing leaves for the client.`,
+                            fr: `Joue, ${essais} essai(s) par test, sur le brouillon. Les outils sortants sont simulés : rien ne part chez le client.`,
+                        })}
+                    </span>
+                </div>
+            )}
             {message && <p className="text-sm text-muted-foreground">{message}</p>}
             {suite && <ResultatDeLaSuite suite={suite} />}
             {tests !== null && aucun && (
-                <p className="py-4 text-sm text-muted-foreground" data-testid="aucun-test">
-                    {t({
-                        en: "No test yet. Create one from a reply of a call (button on the call page, or from « To triage »), by hand, from the library, or ask the builder to write them from the client sheet.",
-                        fr: "Aucun test. Créez-en un depuis une réplique d'un appel (bouton sur la page de l'appel, ou depuis « À trier »), à la main, depuis la bibliothèque, ou demandez au builder de les écrire depuis la fiche du client.",
-                    })}
-                </p>
+                <div data-testid="aucun-test">
+                    <EtatVide cas="premier" icone={FlaskConical} titre={t({ en: "No test", fr: "Aucun test" })} />
+                </div>
             )}
-            {tests && !aucun && vue === "tests" && (
+            {tests && !aucun && vue === "tests" && visibles.length === 0 && (
+                <EtatVide cas="filtre" recherche={filtre} effacer={() => setFiltre("")} />
+            )}
+            {tests && !aucun && vue === "tests" && visibles.length > 0 && (
                 <Tableau
                     colonnes={[
                         { titre: "", largeur: "w-8" },
                         { titre: t({ en: "Test", fr: "Test" }) },
                         { titre: t({ en: "Kind", fr: "Sorte" }) },
                         { titre: t({ en: "Required", fr: "Obligatoire" }) },
-                        { titre: t({ en: "Last result", fr: "Dernier résultat" }) },
-                        { titre: t({ en: "Changed", fr: "Modifié" }) },
+                        { titre: t({ en: "Last result", fr: "Dernier résultat" }), droite: true },
+                        { titre: t({ en: "Changed", fr: "Modifié" }), droite: true },
                     ]}
                 >
-                    {parDossier(tests).flatMap(([dossier, lignes]) => [
-                        dossier ? (
-                            <tr key={`d-${dossier}`} data-testid="dossier-de-tests">
-                                <td colSpan={6} className="pt-4 pb-1 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                                    {dossier}
-                                </td>
-                            </tr>
-                        ) : null,
-                        ...lignes.map((l) => (
+                    {visibles.map((l) => (
                             <Ligne key={l.slug} onClick={() => void ouvrirLeTest(l.slug)}>
                                 <td className="py-3" onClick={(e) => e.stopPropagation()}>
                                     <Checkbox checked={coches.includes(l.slug)} onCheckedChange={() => bascule(l.slug)} aria-label={`${t({ en: "Select", fr: "Cocher" })} ${l.nom}`} />
                                 </td>
-                                <Cellule principale sous={l.description || undefined}>
+                                <Cellule
+                                    principale
+                                    sous={[l.dossier, l.origine ? t(ORIGINES_DE_TEST[l.origine] ?? { en: l.origine, fr: l.origine }) : "", l.description].filter(Boolean).join(" · ") || undefined}
+                                >
                                     {l.nom}
                                 </Cellule>
-                                <Cellule>{l.genre === "conversation" ? t({ en: "conversation", fr: "conversation" }) : t({ en: "reply", fr: "réplique" })}</Cellule>
-                                <Cellule>{l.obligatoire ? <Marque ton="danger">{t({ en: "required", fr: "obligatoire" })}</Marque> : ""}</Cellule>
                                 <Cellule>
+                                    {l.genre === "conversation"
+                                        ? t({ en: "Simulated conversation", fr: "Conversation simulée" })
+                                        : t({ en: "Next reply", fr: "Réplique suivante" })}
+                                </Cellule>
+                                <Cellule>{l.obligatoire ? t({ en: "Yes", fr: "Oui" }) : "–"}</Cellule>
+                                <Cellule droite className={l.derniere && l.derniere.reussis < l.derniere.total ? "font-medium !text-destructive" : ""}>
                                     {l.derniere ? (
                                         <button
                                             type="button"
-                                            className="cursor-pointer hover:font-medium"
+                                            className="cursor-pointer hover:font-semibold"
+                                            title={`v${l.derniere.version ?? "?"} · ${dateCourte(l.derniere.le)}`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 void ouvrirLExecution(l.slug);
                                             }}
                                         >
-                                            <span className={`rounded px-1.5 py-0.5 ${STATUTS_DE_TEST[l.derniere.statut].classe}`}>
-                                                {l.derniere.reussis}/{l.derniere.total}
-                                            </span>{" "}
-                                            v{l.derniere.version ?? "?"} · {dateCourte(l.derniere.le)}
+                                            {l.derniere.reussis}/{l.derniere.total}
                                         </button>
                                     ) : (
-                                        t({ en: "never replayed", fr: "jamais rejoué" })
+                                        "–"
                                     )}
                                 </Cellule>
-                                <Cellule>{dateCourte(l.modifie_le)}</Cellule>
+                                <Cellule droite>{dateCourte(l.modifie_le)}</Cellule>
                             </Ligne>
-                        )),
-                    ])}
+                        ))}
                 </Tableau>
             )}
             {tests && !aucun && vue === "passees" && (
@@ -337,6 +400,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                 <FenetreDeTest
                     workflowId={workflowId}
                     ressources={ressources}
+                    dossiers={dossiersUtilises}
                     onFermer={() => setFenetre(null)}
                     onFait={() => {
                         setFenetre(null);
@@ -360,6 +424,8 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                     key={edition.slug}
                     workflowId={workflowId}
                     test={edition}
+                    dossiers={dossiersUtilises}
+                    derniere={(tests ?? []).find((x) => x.slug === edition.slug)?.derniere ?? null}
                     ressources={ressources}
                     onFermer={() => setEdition(null)}
                     onSupprimer={() => void supprimer(edition.slug)}

@@ -145,12 +145,11 @@ describe("la liste de l'onglet", () => {
         render(<PageTests workflowId={42} />);
         await screen.findByText("Numéro dit");
         expect(m.liste).toHaveBeenCalledWith({ path: { workflow_id: 42 } });
-        const dossiers = screen.getAllByTestId("dossier-de-tests");
-        expect(dossiers).toHaveLength(1);
-        expect(dossiers[0].textContent).toContain("Sécurité");
+        // K3 (maquette) : le dossier se lit sous le nom du test, plus en ligne de titre.
+        expect(screen.getAllByText(/Sécurité/)).toHaveLength(1);
         expect(screen.getByText("2/3")).toBeTruthy();
-        expect(screen.getByText("Le numéro reste muet")).toBeTruthy();
-        expect(screen.getByText(/never replayed/i)).toBeTruthy();
+        expect(screen.getByText(/Le numéro reste muet/)).toBeTruthy();
+        expect(screen.getAllByText("–").length).toBeGreaterThan(0);
         expect(screen.getByText("2026-10-31 11:00")).toBeTruthy();
         expect(screen.getAllByRole("checkbox")).toHaveLength(2);
         expect(parDossier(TESTS).map(([d]) => d)).toEqual(["Sécurité", ""]);
@@ -179,7 +178,7 @@ describe("la liste de l'onglet", () => {
     it("dit comment créer un premier test quand il n'y en a pas, et grise « Tout jouer »", async () => {
         m.liste.mockResolvedValue({ data: { tests: [] } });
         render(<PageTests workflowId={42} />);
-        expect((await screen.findByTestId("aucun-test")).textContent).toContain("from a reply of a call");
+        expect((await screen.findByTestId("aucun-test")).textContent).toContain("No test");
         expect((screen.getByRole("button", { name: /Play all/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -194,7 +193,7 @@ describe("« Tout jouer »", () => {
     it("rejoue la suite entière avec le nombre d'essais et montre la raison, la réplique fautive et le diagnostic", async () => {
         render(<PageTests workflowId={42} />);
         await screen.findByText("Numéro dit");
-        ouvrir(/Play all/);
+        ouvrir(/More ways to play/);
         fireEvent.click(await screen.findByRole("menuitem", { name: "The whole suite" }));
         const echec = await screen.findByTestId("echec-de-la-suite");
         expect(m.rejouer).toHaveBeenCalledWith({ path: { workflow_id: 42 }, body: { repetitions: 3 } });
@@ -207,15 +206,11 @@ describe("« Tout jouer »", () => {
     it("rejoue la sélection cochée, puis les obligatoires", async () => {
         render(<PageTests workflowId={42} />);
         await screen.findByText("Numéro dit");
-        ouvrir(/Play all/);
-        expect((await screen.findByRole("menuitem", { name: /The selection/ })).getAttribute("aria-disabled")).toBe("true");
-        fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
         fireEvent.click(screen.getByRole("checkbox", { name: /Appelant pressé/ }));
-        ouvrir(/Play all/);
-        fireEvent.click(await screen.findByRole("menuitem", { name: /The selection/ }));
+        fireEvent.click(screen.getByRole("button", { name: /Play the selection \(1\)/ }));
         await waitFor(() => expect(m.rejouer).toHaveBeenCalledWith({ path: { workflow_id: 42 }, body: { repetitions: 3, tests: ["libre"] } }));
-        ouvrir(/Play all/);
-        fireEvent.click(await screen.findByRole("menuitem", { name: /The required tests/ }));
+        ouvrir(/More ways to play/);
+        fireEvent.click(await screen.findByRole("menuitem", { name: /Play the required tests/ }));
         await waitFor(() => expect(m.rejouer).toHaveBeenLastCalledWith({ path: { workflow_id: 42 }, body: { repetitions: 3, tests: ["numero-dit"] } }));
     });
 });
@@ -225,7 +220,7 @@ describe("la fenêtre d'un test", () => {
         render(<PageTests workflowId={42} />);
         await screen.findByText("Numéro dit");
         ouvrir(/Add a test/);
-        fireEvent.click(await screen.findByRole("menuitem", { name: "By hand" }));
+        fireEvent.click(await screen.findByRole("menuitem", { name: "Create a test" }));
         return await screen.findByTestId("fenetre-de-test");
     };
 
@@ -246,7 +241,7 @@ describe("la fenêtre d'un test", () => {
         const fenetre = await nouveau();
         fireEvent.click(within(fenetre).getByRole("button", { name: "Next reply" }));
         fireEvent.change(within(fenetre).getByLabelText("Test name"), { target: { value: "Suite" } });
-        fireEvent.click(within(fenetre).getByRole("button", { name: "Add a turn" }));
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Agent turn" }));
         fireEvent.change(within(fenetre).getByLabelText("Turn 1"), { target: { value: "Bonjour" } });
         fireEvent.change(within(fenetre).getByLabelText("Reply"), { target: { value: "Je veux un devis." } });
         fireEvent.change(within(fenetre).getByLabelText("Text"), { target: { value: "devis" } });
@@ -284,6 +279,9 @@ describe("la fenêtre d'un test", () => {
         render(<PageTests workflowId={42} />);
         fireEvent.click(await screen.findByText("Numéro dit"));
         const fenetre = await screen.findByTestId("fenetre-de-test");
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Delete" }));
+        // K3 (maquette) : un geste sûr, on demande confirmation avant de supprimer.
+        expect(m.supprimer).not.toHaveBeenCalled();
         fireEvent.click(within(fenetre).getByRole("button", { name: "Delete" }));
         await waitFor(() => expect(m.supprimer).toHaveBeenCalledWith({ path: { workflow_id: 42, slug: "numero-dit" } }));
     });
