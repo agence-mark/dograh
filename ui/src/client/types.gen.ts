@@ -20064,6 +20064,36 @@ export type WorkflowRunUsageResponse = {
      * Charge Usd
      */
     charge_usd?: number | null;
+    /**
+     * Client
+     *
+     * Who called: first and last name from the call's record.
+     */
+    client?: string | null;
+    /**
+     * Motif
+     *
+     * The call reason from the record.
+     */
+    motif?: string | null;
+    /**
+     * Note Juge
+     *
+     * The judge's grade out of 5; null until the call is judged.
+     */
+    note_juge?: number | null;
+    /**
+     * Version
+     *
+     * The agent version that handled the call.
+     */
+    version?: number | null;
+    /**
+     * Canal
+     *
+     * telephony, web, chat, simulated or site.
+     */
+    canal?: string | null;
 };
 
 /**
@@ -40777,7 +40807,11 @@ export type GetUsageHistoryApiV1OrganizationsUsageRunsGetData = {
          * | `dispositionCode` | `multiSelect` | `{ "codes": ["XFER", "DNC"] }`             | any of the codes in `gathered_context.mapped_call_disposition` |
          * | `duration`      | `numberRange` | `{ "min": 60, "max": 300 }`                  | call duration (seconds), inclusive bounds            |
          * | `callDirection` | `radio`       | `{ "status": "inbound" }`                    | `inbound` or `outbound`; any other value matches all |
-         * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, or `chat` — the group of run modes for that channel |
+         * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, `chat`, `simulated` (the group of run modes for that channel) or `site` (started from the site widget) |
+         * | `judgeNote`     | `numberRange` | `{ "min": 3.5, "max": 5 }`                   | the judge's grade out of 5 (unjudged calls never match) |
+         * | `agentVersion`  | `number`      | `{ "value": 3 }`                             | calls handled by that version number of their agent  |
+         * | `callReason`    | `text`        | `{ "value": "rdv" }`                         | substring of the call reason in the record           |
+         * | `callClient`    | `text`        | `{ "value": "dupont" }`                      | substring of the caller's name or number             |
          *
          * Unknown attributes and unsupported `type` values are silently ignored.
          *
@@ -40788,7 +40822,7 @@ export type GetUsageHistoryApiV1OrganizationsUsageRunsGetData = {
         /**
          * Sort By
          *
-         * Field to sort by ('duration'). Defaults to `created_at`.
+         * Field to sort by ('duration', 'judge_note', 'version'). Defaults to `created_at`.
          */
         sort_by?: string | null;
         /**
@@ -40797,6 +40831,12 @@ export type GetUsageHistoryApiV1OrganizationsUsageRunsGetData = {
          * Sort order ('asc' or 'desc').
          */
         sort_order?: string;
+        /**
+         * Q
+         *
+         * Search in the transcripts (3 letters at least). Bounded: only the 2000 most recent calls of the period are read (the last 30 days when no start date is given).
+         */
+        q?: string | null;
     };
     url: '/api/v1/organizations/usage/runs';
 };
@@ -40874,7 +40914,11 @@ export type DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetData = {
          * | `dispositionCode` | `multiSelect` | `{ "codes": ["XFER", "DNC"] }`             | any of the codes in `gathered_context.mapped_call_disposition` |
          * | `duration`      | `numberRange` | `{ "min": 60, "max": 300 }`                  | call duration (seconds), inclusive bounds            |
          * | `callDirection` | `radio`       | `{ "status": "inbound" }`                    | `inbound` or `outbound`; any other value matches all |
-         * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, or `chat` — the group of run modes for that channel |
+         * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, `chat`, `simulated` (the group of run modes for that channel) or `site` (started from the site widget) |
+         * | `judgeNote`     | `numberRange` | `{ "min": 3.5, "max": 5 }`                   | the judge's grade out of 5 (unjudged calls never match) |
+         * | `agentVersion`  | `number`      | `{ "value": 3 }`                             | calls handled by that version number of their agent  |
+         * | `callReason`    | `text`        | `{ "value": "rdv" }`                         | substring of the call reason in the record           |
+         * | `callClient`    | `text`        | `{ "value": "dupont" }`                      | substring of the caller's name or number             |
          *
          * Unknown attributes and unsupported `type` values are silently ignored.
          *
