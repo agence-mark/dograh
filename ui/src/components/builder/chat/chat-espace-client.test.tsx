@@ -7,9 +7,10 @@
  *     Les pages « Builder IA » et « Chat » d'un client montent les vrais écrans du builder et non la liste des agents ?
  *     Dans l'espace d'un client, le coût du builder n'est pas un lien vers les réglages du Labo ?
  */
-import { cleanup, render, screen } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { adressesDe } from "./adresses";
