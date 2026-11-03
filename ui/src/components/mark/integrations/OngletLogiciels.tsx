@@ -130,7 +130,7 @@ export function OngletLogiciels({ connecteurs }: { connecteurs: Connecteurs }) {
                                         <span className="block text-xs text-muted-foreground">
                                             {branche(c) ? t({ en: "Connected", fr: "Branché" }) : etatDe(c)}
                                             {" · "}
-                                            {c.actions.length} {t({ en: "actions", fr: "actions" })}
+                                            {c.actions.length} {c.actions.length > 1 ? t({ en: "actions", fr: "actions" }) : t({ en: "action", fr: "action" })}
                                         </span>
                                     </span>
                                 </button>
@@ -181,6 +181,22 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
         notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };
 
+    const ligneEtat = (
+            <LigneChamp
+                libelle={t({ en: "State", fr: "État" })}
+                info={
+                    connecteur.etat === "pret"
+                        ? t({ en: "Tried on a test account: ready to use.", fr: "Essayé sur un compte de test : prêt à servir." })
+                        : t({
+                              en: "Coded from the vendor's public documentation and proven on recorded answers. It is tried on a test account before being marked ready.",
+                              fr: "Codé d'après la documentation publique de l'éditeur et prouvé sur des réponses enregistrées. Il est essayé sur un compte de test avant d'être marqué prêt.",
+                          })
+                }
+            >
+                <span className="text-sm">{etatDe(connecteur)}</span>
+            </LigneChamp>
+    );
+
     return (
         <FenetreOnglets
             fermer={fermer}
@@ -216,27 +232,18 @@ function FenetreLogiciel({ connecteur, connecteurs, fermer }: { connecteur: Conn
                 ) : connecteur.interne ? (
                     <p className="text-sm text-muted-foreground">{t({ en: "Internal connector: nothing to connect.", fr: "Connecteur interne : rien à brancher." })}</p>
                 ) : !connecteurs.etat?.nango_configure ? (
+<Champs>
+                        {ligneEtat}
                     <p className="text-sm text-muted-foreground" id="connexions-nango-absent">
                         {t({
                             en: "No Nango on this installation (NANGO_URL, NANGO_SECRET_KEY): the integration tools fall back to their phrase.",
                             fr: "Pas de Nango sur cette installation (NANGO_URL, NANGO_SECRET_KEY) : les outils d'intégration disent leur phrase de repli.",
                         })}
                     </p>
+                    </Champs>
                 ) : (
                     <Champs>
-                        <LigneChamp
-                            libelle={t({ en: "State", fr: "État" })}
-                            info={
-                                connecteur.etat === "pret"
-                                    ? t({ en: "Tried on a test account: ready to use.", fr: "Essayé sur un compte de test : prêt à servir." })
-                                    : t({
-                                          en: "Coded from the vendor's public documentation and proven on recorded answers. It is tried on a test account before being marked ready.",
-                                          fr: "Codé d'après la documentation publique de l'éditeur et prouvé sur des réponses enregistrées. Il est essayé sur un compte de test avant d'être marqué prêt.",
-                                      })
-                            }
-                        >
-                            <span className="text-sm">{etatDe(connecteur)}</span>
-                        </LigneChamp>
+                        {ligneEtat}
                         {comptes.length === 0 && <p className="py-3 text-sm text-muted-foreground">{t({ en: "No account connected.", fr: "Aucun compte branché." })}</p>}
                         {comptes.map((c) => (
                             <LigneChamp
