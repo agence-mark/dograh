@@ -27,11 +27,33 @@ const m = vi.hoisted(() => ({
     propositions: vi.fn(),
     accepter: vi.fn(),
     refuser: vi.fn(),
+    etiquettes: vi.fn(),
+    dossiers: vi.fn(),
+    creerDossier: vi.fn(),
+    supprimerDossier: vi.fn(),
+    creerFamille: vi.fn(),
+    modifierFamille: vi.fn(),
+    ranger: vi.fn(),
+    deposer: vi.fn(),
+    creerEtiquette: vi.fn(),
+    renommerEtiquette: vi.fn(),
+    supprimerEtiquette: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
     listerLesFamillesApiV1BuilderBibliothequeFamillesGet: (...a: unknown[]) => m.familles(...a),
-    listerLesElementsApiV1BuilderBibliothequeGet: (...a: unknown[]) => m.elements(...a),
+    parcourirApiV1BuilderBibliothequeParcourirGet: (...a: unknown[]) => m.elements(...a),
+    listerLesEtiquettesApiV1BuilderBibliothequeEtiquettesGet: (...a: unknown[]) => m.etiquettes(...a),
+    listerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGet: (...a: unknown[]) => m.dossiers(...a),
+    creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost: (...a: unknown[]) => m.creerDossier(...a),
+    supprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDelete: (...a: unknown[]) => m.supprimerDossier(...a),
+    creerUneFamilleApiV1BuilderBibliothequeFamillesPost: (...a: unknown[]) => m.creerFamille(...a),
+    modifierUneFamilleApiV1BuilderBibliothequeFamillesFamillePut: (...a: unknown[]) => m.modifierFamille(...a),
+    rangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPost: (...a: unknown[]) => m.ranger(...a),
+    deposerUnDocumentApiV1BuilderBibliothequeDepotPost: (...a: unknown[]) => m.deposer(...a),
+    creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost: (...a: unknown[]) => m.creerEtiquette(...a),
+    renommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPut: (...a: unknown[]) => m.renommerEtiquette(...a),
+    supprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDelete: (...a: unknown[]) => m.supprimerEtiquette(...a),
     lireUnElementApiV1BuilderBibliothequeFamilleSlugGet: (...a: unknown[]) => m.element(...a),
     lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet: (...a: unknown[]) => m.usage(...a),
     creerUnElementApiV1BuilderBibliothequeFamillePost: (...a: unknown[]) => m.creer(...a),
@@ -46,9 +68,10 @@ vi.mock("@/client", () => ({
     preparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPost: () => Promise.resolve({ data: { agents: [] } }),
 }));
 
+const FICHE = { description: "What it is", quand: "When", comment: "How" };
 const FAMILLES = [
-    { slug: "moules-etape", libelle: "Step templates", groupe: "construit", cible: "x", mode: "fournit" },
-    { slug: "lexiques", libelle: "Lexicons", groupe: "regle", cible: "x", mode: "applique" },
+    { slug: "moules-etape", libelle: "Step templates", groupe: "construit", cible: "x", mode: "fournit", du_code: true, fiche: FICHE },
+    { slug: "lexiques", libelle: "Lexicons", groupe: "regle", cible: "x", mode: "applique", du_code: true, fiche: FICHE },
 ];
 const RESUMES = [
     { famille: "moules-etape", slug: "qualifier", titre: "Qualify", statut: "recette", version_courante: 2, auteur: "alice", date: "2026-10-30T10:00:00Z", banc: { description: "v12, 31 of 39" }, origine: null, utilisee_par: 3 },
@@ -64,7 +87,9 @@ const ELEMENT = {
 
 beforeEach(() => {
     m.familles.mockResolvedValue({ data: FAMILLES });
-    m.elements.mockResolvedValue({ data: RESUMES });
+    m.elements.mockResolvedValue({ data: { total: RESUMES.length, elements: RESUMES } });
+    m.etiquettes.mockResolvedValue({ data: [{ nom: "urgence", elements: 2 }] });
+    m.dossiers.mockResolvedValue({ data: ["rdv"] });
     m.element.mockResolvedValue({ data: ELEMENT });
     m.usage.mockResolvedValue({ data: { nombre: 2, agents: [] } });
     m.propositions.mockResolvedValue({ data: [] });
@@ -94,23 +119,134 @@ describe("[.mark] the Library page: the list", () => {
         expect(candidat.textContent).toContain("Used by 0 agent(s)");
     });
 
-    it("filters by family and by status, sending the filter to the server", async () => {
+    it("filters by family, status, sub-folder and label, sending the filter to the server, 25 per page", async () => {
         render(<PageBibliotheque />);
         await screen.findByTestId("element-lexiques-commun");
-        fireEvent.change(screen.getByLabelText("Filter by family"), { target: { value: "lexiques" } });
-        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: { famille: "lexiques", statut: undefined } }));
-        fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "candidat" } });
-        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: { famille: "lexiques", statut: "candidat" } }));
+        expect(m.elements).toHaveBeenCalledWith({ query: expect.objectContaining({ limite: 25, decalage: 0 }) });
+        fireEvent.click(screen.getByTestId("famille-lexiques"));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ famille: "lexiques" }) }));
+        expect(m.dossiers).toHaveBeenLastCalledWith({ path: { famille: "lexiques" } });
+        fireEvent.click(within(await screen.findByTestId("sous-dossiers")).getByRole("button", { name: "rdv" }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ famille: "lexiques", dossier: "rdv" }) }));
+        fireEvent.click(within(screen.getByTestId("filtre-etiquettes")).getByRole("button", { name: /urgence/ }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ etiquette: ["urgence"] }) }));
+    });
+
+    it("searches the whole library after the last keystroke and shows the matching passage", async () => {
+        m.elements.mockResolvedValue({ data: { total: 1, elements: [{ ...RESUMES[1], extrait: "…tuyau de poêle…" }] } });
+        render(<PageBibliotheque />);
+        fireEvent.change(await screen.findByLabelText("Search the whole library"), { target: { value: "tuyau" } });
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ q: "tuyau", decalage: 0 }) }));
+        expect((await screen.findByTestId("element-lexiques-commun")).textContent).toContain("tuyau de poêle");
+    });
+
+    it("asks the server for the next page when the list is longer than 25", async () => {
+        m.elements.mockResolvedValue({ data: { total: 60, elements: RESUMES } });
+        render(<PageBibliotheque />);
+        await screen.findByTestId("element-lexiques-commun");
+        fireEvent.click(screen.getByRole("button", { name: /next|suivant/i }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ decalage: 25 }) }));
     });
 
     it("says so when the filter finds nothing, and shows a refusal of the server as it comes", async () => {
-        m.elements.mockResolvedValueOnce({ data: [] });
+        m.elements.mockResolvedValueOnce({ data: { total: 0, elements: [] } });
         render(<PageBibliotheque />);
         expect(await screen.findByTestId("bibliotheque-vide")).toBeTruthy();
         cleanup();
         m.elements.mockResolvedValueOnce({ error: { detail: "The library organization is not configured" } });
         render(<PageBibliotheque />);
         expect((await screen.findByRole("alert")).textContent).toContain("not configured");
+    });
+});
+
+describe("[.mark] the Library page: families, sheets, labels, filing and drops", () => {
+    it("creates a family from the window and reads the families again", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(await screen.findByRole("button", { name: /New family/ }));
+        const nom = await screen.findByLabelText("Name");
+        fireEvent.change(nom, { target: { value: "Trades" } });
+        fireEvent.change(screen.getByLabelText("What it is"), { target: { value: "Trade sheets" } });
+        m.creerFamille.mockResolvedValue({ data: { ...FAMILLES[0], slug: "trades", libelle: "Trades", du_code: false } });
+        fireEvent.click(screen.getByRole("button", { name: "Create the family" }));
+        await waitFor(() => expect(m.creerFamille).toHaveBeenCalledOnce());
+        expect(m.creerFamille.mock.calls[0][0].body).toMatchObject({ slug: "trades", libelle: "Trades", fiche: { description: "Trade sheets" } });
+        await waitFor(() => expect(m.familles.mock.calls.length).toBeGreaterThan(1));
+    });
+
+    it("edits the sheet of a family", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(await screen.findByTestId("famille-lexiques"));
+        fireEvent.click(await screen.findByRole("button", { name: "Sheet of the family" }));
+        const champ = await screen.findByLabelText("When to use it");
+        expect((champ as HTMLTextAreaElement).value).toBe("When");
+        fireEvent.change(champ, { target: { value: "Before any search" } });
+        m.modifierFamille.mockResolvedValue({ data: FAMILLES[1] });
+        fireEvent.click(screen.getByRole("button", { name: "Save the sheet" }));
+        await waitFor(() =>
+            expect(m.modifierFamille).toHaveBeenCalledWith({
+                path: { famille: "lexiques" },
+                body: { fiche: { description: "What it is", quand: "Before any search", comment: "How" } },
+            }),
+        );
+    });
+
+    it("puts a label on an element without touching its versions", async () => {
+        await ouvrir();
+        const rangement = await screen.findByTestId("rangement");
+        m.ranger.mockResolvedValue({ data: { ...ELEMENT, etiquettes: ["urgence"], dossier: "" } });
+        fireEvent.click(within(rangement).getByText(/\+ Label/));
+        const champ = within(rangement).getByLabelText("Label to add");
+        fireEvent.change(champ, { target: { value: "urgence" } });
+        fireEvent.keyDown(champ, { key: "Enter" });
+        await waitFor(() =>
+            expect(m.ranger).toHaveBeenCalledWith({ path: { famille: "lexiques", slug: "commun" }, body: { etiquettes: ["urgence"] } }),
+        );
+    });
+
+    it("manages the labels: rename and delete go to the server, the count is shown", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(await screen.findByText("Manage labels…"));
+        const fenetre = await screen.findByTestId("gestion-etiquettes");
+        expect(fenetre.textContent).toContain("2 element(s)");
+        m.renommerEtiquette.mockResolvedValue({ data: [{ nom: "panne", elements: 2 }] });
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Rename" }));
+        fireEvent.change(within(fenetre).getByLabelText("New name"), { target: { value: "panne" } });
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Rename" }));
+        await waitFor(() => expect(m.renommerEtiquette).toHaveBeenCalledWith({ query: { ancien: "urgence" }, body: { nom: "panne" } }));
+    });
+
+    it("deletes a label only after the confirmation that says how many elements lose it", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(await screen.findByText("Manage labels…"));
+        const fenetre = await screen.findByTestId("gestion-etiquettes");
+        m.supprimerEtiquette.mockResolvedValue({ data: [] });
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Delete" }));
+        expect(m.supprimerEtiquette).not.toHaveBeenCalled();
+        fireEvent.click(within(fenetre).getByRole("button", { name: /Remove from 2 element/ }));
+        await waitFor(() => expect(m.supprimerEtiquette).toHaveBeenCalledWith({ query: { nom: "urgence" } }));
+    });
+
+    it("drops a document: the file goes to the server and the result says it is a Candidate", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
+        const depot = await screen.findByTestId("depot-document");
+        const fichier = new File(["# Rule"], "rule.md", { type: "text/markdown" });
+        fireEvent.change(depot.querySelector("[data-depot-fichier]") as HTMLInputElement, { target: { files: [fichier] } });
+        m.deposer.mockResolvedValue({ data: { element: ELEMENT, cree: true, comparatif: null } });
+        fireEvent.click(within(depot).getByRole("button", { name: "Drop as a Candidate" }));
+        await waitFor(() => expect(m.deposer).toHaveBeenCalledOnce());
+        expect(m.deposer.mock.calls[0][0].body).toMatchObject({ famille: "moules-etape", fichier, licence: "inconnue" });
+        expect((await within(depot).findByTestId("depot-resultat")).textContent).toContain("Dropped as a Candidate");
+    });
+
+    it("shows the refusal of a drop as it comes", async () => {
+        render(<PageBibliotheque />);
+        fireEvent.click(screen.getByRole("tab", { name: "Add" }));
+        const depot = await screen.findByTestId("depot-document");
+        fireEvent.change(depot.querySelector("[data-depot-fichier]") as HTMLInputElement, { target: { files: [new File(["x"], "x.exe")] } });
+        m.deposer.mockResolvedValue({ error: { detail: "The document is not read: Format not supported" } });
+        fireEvent.click(within(depot).getByRole("button", { name: "Drop as a Candidate" }));
+        expect((await within(depot).findByRole("alert")).textContent).toContain("Format not supported");
     });
 });
 
