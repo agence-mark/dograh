@@ -14,7 +14,8 @@ import { Info } from "./marques";
 
 /**
  * Fenêtre à champs (E55), reprise de la maquette (`modales.tsx`, K1) : en-tête fixe, corps blanc, champs séparés par un
- * trait, pied fixe. La première phrase d'une explication se lit sous le libellé, le reste est dans le « ! ». Les champs
+ * trait, pied fixe. Une explication n'est jamais une phrase visible : elle est dans le « ! » à côté du titre ou du libellé
+ * (décision d'Evan, 04/11, qui corrige aussi la maquette). Les champs
  * sont décrits par leurs données (type, libellé, valeur de départ) ; la fenêtre rend les valeurs saisies à `onValider`,
  * sans rien inventer. Un champ `si` n'apparaît que si un autre champ a l'une des valeurs listées.
  */
@@ -41,21 +42,15 @@ const depart = (sections: SectionChamps[]): Valeurs =>
         ),
     );
 
-/** La première phrase d'une explication (celle qui se lit sous le libellé) ; le reste va dans le « ! ». */
-const premiere = (a?: string) => (a ? a.split(/(?<=\.)\s/)[0] : "");
-
 function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | boolean; changer: (v: string | boolean) => void; erreur?: string }) {
     const { t } = useLangue();
     const texte = String(valeur);
-    const phrase = typeof c.info === "string" ? premiere(c.info) : "";
-    const reste = c.info && (typeof c.info !== "string" || c.info !== phrase) ? (typeof c.info === "string" ? c.info : c.info) : undefined;
     const entete = (
         <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-medium">
                 {c.l}
-                {reste && <Info>{reste}</Info>}
+                {c.info && <Info>{c.info}</Info>}
             </p>
-            {phrase && <p className="mt-0.5 text-xs text-muted-foreground">{phrase}</p>}
         </div>
     );
     if (c.t === "inter") {
@@ -161,17 +156,14 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     const lecture = valider === "Fermer" || valider === "Close";
-    const phrase = typeof info === "string" ? premiere(info) : "";
-    const reste = info && (typeof info !== "string" || info !== phrase) ? info : undefined;
     return (
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${taille} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">
                         {titre}
-                        {reste && <Info>{reste}</Info>}
+                        {info && <Info>{info}</Info>}
                     </DialogTitle>
-                    {phrase && <p className="mt-0.5 text-sm text-muted-foreground">{phrase}</p>}
                 </div>
                 {corps && <div className="min-h-0 flex-1 space-y-8 overflow-auto bg-background px-6 py-5">{corps}</div>}
                 {visibles.length > 0 && (

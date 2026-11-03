@@ -296,6 +296,22 @@ describe("fenêtres (E55, E71)", () => {
         expect(fermer).toHaveBeenCalled();
     });
 
+    it("fenêtre à champs : l'explication est dans le « ! », jamais une phrase visible (04/11)", () => {
+        avecLangue(
+            <FenetreChamps
+                ouverte
+                fermer={vi.fn()}
+                titre="Nouvelle clé"
+                info="Sert à joindre le fournisseur. Elle n'est jamais réaffichée."
+                valider="Enregistrer"
+                sections={[{ champs: [{ id: "nom", t: "texte", l: "Nom", info: "Le nom sous lequel on la retrouve. Choisissez-en un clair." }] }]}
+            />,
+        );
+        expect(screen.getAllByRole("button", { name: "Précision" })).toHaveLength(2);
+        expect(screen.queryByText(/Sert à joindre le fournisseur/)).toBeNull();
+        expect(screen.queryByText(/Le nom sous lequel on la retrouve/)).toBeNull();
+    });
+
     it("fermée, la fenêtre à champs ne rend rien", () => {
         const { container } = avecLangue(<FenetreChamps ouverte={false} fermer={vi.fn()} titre="x" sections={[]} valider="Ok" />);
         expect(container.textContent).toBe("");

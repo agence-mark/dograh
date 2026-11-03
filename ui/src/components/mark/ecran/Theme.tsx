@@ -67,8 +67,15 @@ export interface ProprietesTheme {
      * bouton d'enregistrement en pied. Les pastilles de changement restent à côté du titre.
      */
     plat?: boolean;
+    /**
+     * [.mark] K1b : les lignes en lecture de la section (libellé, valeur) quand la page montre ses thèmes en lignes avec
+     * un bouton « Modifier » (`ContexteLignes`). Les valeurs viennent de ce que le thème sait déjà ; jamais inventées.
+     */
+    lignes?: LigneLue[];
     children: ReactNode;
 }
+
+export type LigneLue = { libelle: Texte; valeur: ReactNode };
 
 /**
  * [.mark] U4 (E42, E44) : l'onglet Réglages d'un agent montre ses thèmes EN CARTES ; une carte ouvre la fenêtre du
@@ -84,6 +91,13 @@ export interface ValeurCartes {
     propres?: Record<string, number>;
 }
 export const ContexteCartes = createContext<ValeurCartes | null>(null);
+
+/**
+ * [.mark] K1b (décision d'Evan, 04/11, comme la maquette) : une page qui fournit ce contexte montre chaque thème en
+ * LIGNES EN LECTURE avec un bouton « Modifier » ; le bouton ouvre la fenêtre du thème (celle des cartes), qui porte
+ * tous ses réglages et son enregistrement : aucune fonction en moins.
+ */
+export const ContexteLignes = createContext<{ annuler: (id: string) => void } | null>(null);
 
 export const TEXTES_THEME = {
     modifie: { en: "Unsaved changes", fr: "Modifications non enregistrées" },
@@ -177,6 +191,7 @@ export const Theme = ({
     erreurs,
     enregistrement,
     plat = false,
+    lignes,
     children,
 }: ProprietesTheme) => {
     const { t } = useLangue();
@@ -226,6 +241,84 @@ export const Theme = ({
         ) : null;
 
     const cartes = useContext(ContexteCartes);
+    const enLignes = useContext(ContexteLignes);
+    const annuler = (cartes ?? enLignes)?.annuler ?? (() => undefined);
+    const fenetre = ouvert ? (
+        <FenetreDuTheme id={id} onFermer={onBasculer}>
+            <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
+                <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
+                    {t(titre)}
+                    <Info>{t(description)}</Info>
+                    <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
+                </h2>
+            </div>
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-background px-6 py-5">
+                {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
+            </div>
+            {enregistrement && !enLecture && (
+                <div className="flex flex-wrap items-center justify-end gap-3 border-t px-6 py-3" data-pied-fenetre>
+                    {erreurs.length > 0 && (
+                        <div role="alert" className="mr-auto space-y-1 text-xs text-destructive">
+                            <p>{t(TEXTES_THEME.aCorriger)}</p>
+                            <ul className="space-y-0.5">
+                                {erreurs.map((erreur) => (
+                                    <li key={erreur.cle} data-erreur={erreur.cle}>
+                                        <span className="font-medium">{erreur.libelle}</span>{" "}
+                                        <code className="text-[11px] opacity-70">{erreur.cle}</code> : {erreur.message}{" "}
+                                        <button type="button" className="cursor-pointer hover:font-semibold" onClick={erreur.afficher}>
+                                            {t(TEXTES_THEME.afficher)}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {erreurs.length === 0 && modifie && (
+                        <span className="mr-auto text-xs text-muted-foreground">{t(TEXTES_THEME.modifie)}</span>
+                    )}
+                    <Button type="button" variant="ghost" onClick={() => annuler(id)}>
+                        {t(TEXTES_THEME.annuler)}
+                    </Button>
+                    <Button
+                        type="button"
+                        aria-label={`${t(TEXTES_THEME.enregistrer)} ${t(titre)}`}
+                        onClick={enregistrement.onEnregistrer}
+                        disabled={bloque}
+                    >
+                        {enregistrement.enCours ? t(TEXTES_THEME.enregistrement) : t(TEXTES_THEME.enregistrer)}
+                    </Button>
+                </div>
+            )}
+        </FenetreDuTheme>
+    ) : null;
+
+    if (enLignes && !plat && !cartes) {
+        // [.mark] K1b : comme la maquette, un titre, « Modifier », puis les lignes en lecture (libellé gris, valeur).
+        return (
+            <section id={id} data-theme={id} data-lignes className="scroll-mt-20">
+                <div className="flex items-center gap-2">
+                    <h2 className="flex flex-1 items-center gap-1.5 text-base font-semibold">
+                        {t(titre)}
+                        <Info>{t(description)}</Info>
+                        <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
+                    </h2>
+                    <Button type="button" size="sm" aria-haspopup="dialog" aria-expanded={ouvert} onClick={onBasculer}>
+                        {t({ en: "Edit", fr: "Modifier" })}
+                    </Button>
+                </div>
+                <div className="mt-4 divide-y border-t">
+                    {(lignes ?? []).map((ligne, i) => (
+                        <div key={i} className="flex items-center gap-3 py-3 text-sm">
+                            <span className="w-64 shrink-0 text-muted-foreground">{t(ligne.libelle)}</span>
+                            <span className="min-w-0 flex-1">{ligne.valeur}</span>
+                        </div>
+                    ))}
+                </div>
+                {fenetre}
+            </section>
+        );
+    }
+
     if (cartes && !plat) {
         const propres = cartes.propres?.[id] ?? 0;
         const niveau = cartes.niveaux?.[id];
@@ -263,57 +356,7 @@ export const Theme = ({
                         )}
                     </span>
                 </button>
-                {ouvert && (
-                    <FenetreDuTheme id={id} onFermer={onBasculer}>
-                        <div className="flex items-start gap-3 border-b px-6 py-4 pr-12">
-                            <Icone className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                            <div className="min-w-0 space-y-1">
-                                <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
-                                    {t(titre)}
-                                    <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
-                                </h2>
-                                <p className="text-sm text-muted-foreground">{t(description)}</p>
-                            </div>
-                        </div>
-                        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-background px-6 py-5">
-                            {enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}
-                        </div>
-                        {enregistrement && !enLecture && (
-                            <div className="flex flex-wrap items-center justify-end gap-3 border-t px-6 py-3" data-pied-fenetre>
-                                {erreurs.length > 0 && (
-                                    <div role="alert" className="mr-auto space-y-1 text-xs text-destructive">
-                                        <p>{t(TEXTES_THEME.aCorriger)}</p>
-                                        <ul className="space-y-0.5">
-                                            {erreurs.map((erreur) => (
-                                                <li key={erreur.cle} data-erreur={erreur.cle}>
-                                                    <span className="font-medium">{erreur.libelle}</span>{" "}
-                                                    <code className="text-[11px] opacity-70">{erreur.cle}</code> : {erreur.message}{" "}
-                                                    <button type="button" className="cursor-pointer hover:font-semibold" onClick={erreur.afficher}>
-                                                        {t(TEXTES_THEME.afficher)}
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {erreurs.length === 0 && modifie && (
-                                    <span className="mr-auto text-xs text-muted-foreground">{t(TEXTES_THEME.modifie)}</span>
-                                )}
-                                <Button type="button" variant="ghost" onClick={() => cartes.annuler(id)}>
-                                    {t(TEXTES_THEME.annuler)}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    aria-label={`${t(TEXTES_THEME.enregistrer)} ${t(titre)}`}
-                                    onClick={enregistrement.onEnregistrer}
-                                    disabled={bloque}
-                                >
-                                    {enregistrement.enCours ? t(TEXTES_THEME.enregistrement) : t(TEXTES_THEME.enregistrer)}
-                                </Button>
-                            </div>
-                        )}
-                    </FenetreDuTheme>
-                )}
+                {fenetre}
             </section>
         );
     }
