@@ -67,6 +67,8 @@ export interface ProprietesTheme {
      * bouton d'enregistrement en pied. Les pastilles de changement restent à côté du titre.
      */
     plat?: boolean;
+    /** [.mark] K4 : posé à plat SANS son titre (la page porte déjà son intertitre, comme « Base et automatisations »). */
+    sansTitre?: boolean;
     /**
      * [.mark] K1b : les lignes en lecture de la section (libellé, valeur) quand la page montre ses thèmes en lignes avec
      * un bouton « Modifier » (`ContexteLignes`). Les valeurs viennent de ce que le thème sait déjà ; jamais inventées.
@@ -191,6 +193,7 @@ export const Theme = ({
     erreurs,
     enregistrement,
     plat = false,
+    sansTitre = false,
     lignes,
     children,
 }: ProprietesTheme) => {
@@ -364,9 +367,9 @@ export const Theme = ({
     if (plat) {
         return (
             <section id={id} data-theme={id} data-plat className="space-y-6">
-                <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold">{t(titre)}</h2>
-                    <Info>{t(description)}</Info>
+                <div className={sansTitre ? "flex items-center gap-2 empty:hidden" : "flex items-center gap-2"}>
+                    <h2 className={sansTitre ? "sr-only" : "text-base font-semibold"}>{t(titre)}</h2>
+                    {!sansTitre && <Info>{t(description)}</Info>}
                     <Pastilles modifie={modifie} enErreur={erreurs.length > 0} />
                 </div>
                 <div className="space-y-6">{enLecture ? <ZoneCommune>{children}</ZoneCommune> : children}</div>

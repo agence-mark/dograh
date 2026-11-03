@@ -25,26 +25,27 @@ export type Champ = { id: string; l: string; info?: React.ReactNode; si?: [strin
     | { t: "choix"; o: string[]; v?: string }
     | { t: "inter"; v?: boolean }
     | { t: "nombre"; v?: string; min?: number; max?: number; unite?: string }
+    | { t: "multi"; o: string[]; v?: string[] }
     | { t: "lu"; v: string }
     | { t: "secret"; v?: string }
 );
 
 export type SectionChamps = { titre?: string; info?: React.ReactNode; champs: Champ[] };
-export type Valeurs = Record<string, string | boolean>;
+export type Valeurs = Record<string, string | boolean | string[]>;
 
 const depart = (sections: SectionChamps[]): Valeurs =>
     Object.fromEntries(
         sections.flatMap((s) =>
-            s.champs.map((c): [string, string | boolean] => [
+            s.champs.map((c): [string, string | boolean | string[]] => [
                 c.id,
-                c.t === "inter" ? !!c.v : c.t === "choix" ? (c.v ?? c.o[0] ?? "") : ((c as { v?: string }).v ?? ""),
+                c.t === "inter" ? !!c.v : c.t === "choix" ? (c.v ?? c.o[0] ?? "") : c.t === "multi" ? (c.v ?? []) : ((c as { v?: string }).v ?? ""),
             ]),
         ),
     );
 
-function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | boolean; changer: (v: string | boolean) => void; erreur?: string }) {
+function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | boolean | string[]; changer: (v: string | boolean | string[]) => void; erreur?: string }) {
     const { t } = useLangue();
-    const texte = String(valeur);
+    const texte = Array.isArray(valeur) ? "" : String(valeur);
     const entete = (
         <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-medium">
@@ -100,6 +101,25 @@ function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | b
                     )}
                 </div>
             )}
+            {c.t === "multi" && (
+                <div className="flex flex-wrap gap-1.5">
+                    {c.o.map((o) => {
+                        const choisis = Array.isArray(valeur) ? valeur : [];
+                        const actif = choisis.includes(o);
+                        return (
+                            <button
+                                key={o}
+                                type="button"
+                                aria-pressed={actif}
+                                onClick={() => changer(actif ? choisis.filter((x) => x !== o) : [...choisis, o])}
+                                className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs ${actif ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:font-medium"}`}
+                            >
+                                {o}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
             {c.t === "choix" &&
                 (c.o.length >= 2 && c.o.length <= 3 ? (
                     <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm">
@@ -152,7 +172,7 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
     const { t } = useLangue();
     const [valeurs, setValeurs] = useState<Valeurs>(() => depart(sections));
     const [fautes, setFautes] = useState<Record<string, string>>({});
-    const visible = (c: Champ) => !c.si || c.si[1].includes(valeurs[c.si[0]]);
+    const visible = (c: Champ) => !c.si || c.si[1].includes(valeurs[c.si[0]] as string | boolean);
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     const lecture = valider === "Fermer" || valider === "Close";

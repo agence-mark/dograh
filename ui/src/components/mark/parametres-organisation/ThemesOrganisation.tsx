@@ -93,6 +93,8 @@ export interface ProprietesThemeOrganisation {
     signaler: (id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => void;
     /** [.mark] U2 bis / U2 (E116) : le thème posé à plat dans un sous-onglet (voir `Theme`). */
     plat?: boolean;
+    /** [.mark] K4 : posé à plat sans son titre (voir `Theme`). */
+    sansTitre?: boolean;
     /** [.mark] K1b : le titre que montre la page quand il diffère de celui du thème (« Général » dans Réglages › Organisation). */
     titre?: Texte;
 }
@@ -329,9 +331,12 @@ export const ThemeEtablissementOrganisation = ({
     signaler,
     plat,
     sansObjets,
+    sansListe,
 }: ProprietesThemeOrganisation & {
     preferences: EtatPreferences;
     annonce: EtatAnnonceOuverture;
+    /** [.mark] K4 : la liste des fiches a son tableau (`OngletEtablissements`) ; le thème ne garde que l'entreprise entière. */
+    sansListe?: boolean;
     /** [.mark] U2 bis : les objets ont leur sous-onglet (`ThemeObjets`), le thème ne les montre plus. */
     sansObjets?: boolean;
 }) => {
@@ -419,12 +424,18 @@ export const ThemeEtablissementOrganisation = ({
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={erreurs}
+            lignes={[
+                { libelle: { en: "Company address", fr: "Adresse de l'entreprise" }, valeur: adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "none", fr: "aucune" }) },
+                { libelle: { en: "Closed-business announcement", fr: "Annonce de fermeture" }, valeur: annonce.enregistre.annonce_fermeture?.trim() || t({ en: "none", fr: "aucune" }) },
+                { libelle: { en: "Close everything", fr: "Tout fermer" }, valeur: force === null ? t({ en: "no", fr: "non" }) : t({ en: "yes", fr: "oui" }) },
+            ]}
             enregistrement={{
                 onEnregistrer: () => void enregistrer(),
                 enCours: preferences.enCours || preferences.chargement || annonce.enregistrement || annonce.chargement,
                 actifSansModification: true,
             }}
         >
+            {!sansListe && (
             <Intertitre
                 id="etablissement-liste"
                 titre={{ en: "Establishments", fr: "Établissements" }}
@@ -524,6 +535,7 @@ export const ThemeEtablissementOrganisation = ({
                     annonceOrganisation={annonce.enregistre}
                 />
             </Intertitre>
+            )}
 
             {/* [.mark] cloture-code, F7 (D116): the agent's objects, next to the fiches and the sentences. */}
             {!sansObjets && <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />}

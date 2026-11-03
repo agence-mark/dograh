@@ -21,6 +21,9 @@ import { ThemeVerification } from "../parametres-organisation/ThemeVerification"
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
 import { OngletsPage } from "../studio/onglets-page";
 import { TitrePage } from "../studio/titre-page";
+import { OngletEquipe } from "./OngletEquipe";
+import { OngletEtablissements } from "./OngletEtablissements";
+import { OngletRendezVous } from "./OngletRendezVous";
 import { SonsEtCacheVoix } from "./SonsEtCacheVoix";
 import { ThemeObjets } from "./ThemeObjets";
 
@@ -28,7 +31,12 @@ type Etat = { modifie: boolean; enErreur: boolean };
 
 export const ONGLETS_ENTREPRISE = ["etablissements", "equipe", "rendez-vous", "objets", "verification", "ecoute"] as const;
 
-export function PageEntreprise() {
+/**
+ * `anciensThemes` : RÉSERVÉ AUX TESTS (`toutes-les-rubriques.tsx`). Monte les thèmes d'avant (réglages tous visibles) à la
+ * place des tableaux et fenêtres de la maquette, pour que les tests d'inventaire prouvent qu'aucun réglage n'a disparu :
+ * les tableaux et fenêtres ont leurs propres tests (`onglets-maquette.test.tsx`).
+ */
+export function PageEntrepriseAvec({ anciensThemes }: { anciensThemes: boolean }) {
     const { t } = useLangue();
     const preferences = usePreferencesOrganisation();
     const annonce = useAnnonceOuverture();
@@ -60,24 +68,30 @@ export function PageEntreprise() {
                         id: "etablissements",
                         titre: t({ en: "Establishments", fr: "Établissements" }),
                         ...etat("etablissement"),
-                        contenu: <ThemeEtablissementOrganisation {...commun} preferences={preferences} annonce={annonce} sansObjets />,
+                        contenu: anciensThemes ? (
+                            <ThemeEtablissementOrganisation {...commun} preferences={preferences} annonce={annonce} sansObjets />
+                        ) : (
+                            <OngletEtablissements signaler={signaler} preferences={preferences} annonce={annonce} />
+                        ),
                     },
                     {
                         id: "equipe",
                         titre: t({ en: "Team and routing", fr: "Équipe et routage" }),
-                        ...etat("equipe"),
-                        contenu: <ThemeEquipe {...commun} baseRattachee={baseRattachee} />,
+                        ...(anciensThemes ? etat("equipe") : {}),
+                        contenu: anciensThemes ? <ThemeEquipe {...commun} baseRattachee={baseRattachee} /> : <OngletEquipe baseRattachee={baseRattachee} />,
                     },
                     {
                         id: "rendez-vous",
                         titre: t({ en: "Appointments", fr: "Rendez-vous" }),
-                        ...etat("rendez-vous"),
-                        contenu: (
+                        ...(anciensThemes ? etat("rendez-vous") : {}),
+                        contenu: anciensThemes ? (
                             <ThemeRendezVous
                                 {...commun}
                                 baseRattachee={baseRattachee}
                                 adresseConnue={preferences.chargement ? null : Boolean(preferences.enregistrees.adresse_etablissement)}
                             />
+                        ) : (
+                            <OngletRendezVous baseRattachee={baseRattachee} />
                         ),
                     },
                     { id: "objets", titre: t({ en: "Variables", fr: "Variables" }), contenu: <ThemeObjets /> },
@@ -97,4 +111,8 @@ export function PageEntreprise() {
             />
         </div>
     );
+}
+
+export function PageEntreprise() {
+    return <PageEntrepriseAvec anciensThemes={false} />;
 }

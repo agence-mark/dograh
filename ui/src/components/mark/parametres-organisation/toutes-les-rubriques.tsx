@@ -10,7 +10,7 @@
  */
 import { fireEvent } from "@testing-library/react";
 
-import { PageEntreprise } from "../entreprise/PageEntreprise";
+import { PageEntrepriseAvec } from "../entreprise/PageEntreprise";
 import { PageParametresOrganisation } from "./PageParametresOrganisation";
 
 const ONGLET_DU_THEME: Record<string, string> = {
@@ -31,7 +31,7 @@ export function ouvrirOnglet(theme: string) {
 export default function ToutesLesRubriques() {
     return (
         <>
-            <PageEntreprise />
+            <PageEntrepriseAvec anciensThemes />
             <PageParametresOrganisation />
         </>
     );

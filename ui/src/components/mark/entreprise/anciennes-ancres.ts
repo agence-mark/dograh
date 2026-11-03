@@ -11,8 +11,8 @@ const ANCIENNES_ANCRES: Record<string, string> = {
     "rendez-vous": "entreprise?onglet=rendez-vous",
     verification: "entreprise?onglet=verification",
     ecoute: "entreprise?onglet=ecoute",
-    donnees: "base?onglet=base",
-    "apres-appel": "base?onglet=apres-appel",
+    donnees: "base#base",
+    "apres-appel": "base#apres-appel",
 };
 
 /** La destination d'une ancienne ancre (`etablissement`, `apres-appel`...), ou `null` si elle reste aux réglages. */
