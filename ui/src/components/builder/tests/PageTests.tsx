@@ -48,6 +48,7 @@ import { detailFromError } from "@/lib/apiError";
 
 import { DepuisLaBibliotheque } from "./DepuisLaBibliotheque";
 import { DetailDunTest } from "./DetailDunTest";
+import { FenetreAttaques } from "./FenetreAttaques";
 import { FenetreDeTest } from "./FenetreDeTest";
 import { CAUSES, dateCourte, ORIGINES_DE_TEST, STATUTS_DE_TEST } from "./libelles";
 import type {
@@ -87,6 +88,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const [edition, setEdition] = useState<TestComplet | null>(null);
     const [execution, setExecution] = useState<{ test: TestComplet; resultats: Execution[] } | null>(null);
     const [enCours, setEnCours] = useState(false);
+    const [attaque, setAttaque] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
 
@@ -209,11 +211,11 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                         })}
                     </Info>
                 </p>
-                {/* Planifier et Attaquer l'agent : la maquette les montre, le serveur ne les a pas encore (U11) : posés, éteints. */}
-                <Button variant="ghost" disabled title={t({ en: "Planned for the « Prove before publishing » lot", fr: "Prévu au lot « Prouver avant de publier »" })}>
+                {/* Planifier : la maquette le montre, le serveur ne l'a pas (U11 point 4) : posé, éteint. Attaquer l'agent : U11, construit. */}
+                <Button variant="ghost" disabled title={t({ en: "Not built yet: the scheduled replay", fr: "Pas encore construit : le rejeu planifié" })}>
                     <CalendarClock className="size-4" /> {t({ en: "Schedule", fr: "Planifier" })}
                 </Button>
-                <Button variant="ghost" disabled title={t({ en: "Planned for the « Prove before publishing » lot", fr: "Prévu au lot « Prouver avant de publier »" })}>
+                <Button variant="ghost" onClick={() => setAttaque(true)}>
                     <ShieldAlert className="size-4" /> {t({ en: "Attack the agent", fr: "Attaquer l'agent" })}
                 </Button>
                 <span className="inline-flex">
@@ -411,6 +413,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                 </div>
             )}
             <HistoriqueDesCorrections corrections={corrections} onRevenir={(id) => void revenir(id)} />
+            {attaque && <FenetreAttaques agentId={workflowId} fermer={() => setAttaque(false)} />}
             {fenetre === "nouveau" && (
                 <FenetreDeTest
                     workflowId={workflowId}

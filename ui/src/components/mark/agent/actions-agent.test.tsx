@@ -21,6 +21,7 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { promise: vi.fn(), suc
 vi.mock("@/client/sdk.gen", () => ({
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost: vi.fn(async () => ({ data: { id: 9 } })),
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost: vi.fn(),
+    controlesDePublicationApiV1BuilderPublicationWorkflowIdGet: vi.fn(async () => ({ data: { version: 2, bloque: false, controles: [], liste_vocale: [], deploiement_actif: false, forcable: true } })),
     getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet: vi.fn(async () => ({ data: [{ id: 1, version_number: 1, status: "published" }] })),
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet: vi.fn(async () => ({ data: {} })),
     lireLesEtiquettesApiV1EtiquettesGet: vi.fn(async () => ({ data: { etiquettes: [{ nom: "Recette", nb_agents: 1 }], par_agent: { "5": ["Recette"] } } })),
@@ -64,6 +65,12 @@ describe("les actions de la barre avec l'éditeur", () => {
         fireEvent.click(screen.getByRole("button", { name: "Builder AI" }));
         expect(ed.builder.onToggle).toHaveBeenCalledTimes(1);
         expect((screen.getByRole("button", { name: /Publish/ }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("« Publier » ouvre la fenêtre « Publier vX » au lieu de publier tout de suite (U11)", async () => {
+        render(<ActionsAgent {...base} editeur={editeur()} />);
+        fireEvent.click(screen.getByRole("button", { name: /Publish/ }));
+        expect(await screen.findByText("Publish v2")).toBeTruthy();
     });
 
     it("grise « Publier » avec la raison tant que les changements du builder sont à relire", () => {
