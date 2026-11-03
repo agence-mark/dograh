@@ -8,7 +8,7 @@ import { OSS_TOKEN_COOKIE } from '@/lib/auth/cookies';
 // `/embed` serves the public website widget (e.g. /embed/dograh-widget.js),
 // which must be fetchable without a session cookie so third-party sites can
 // embed it — otherwise the middleware 307-redirects the asset to /auth/login.
-const PUBLIC_PATHS = ['/auth/login', '/auth/signup', '/embed'];
+const PUBLIC_PATHS = ['/connexion', '/invitation', '/auth/login', '/auth/signup', '/embed'];
 
 let cachedAuthProvider: string | null = null;
 
@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
 
   // If no token, redirect to login
   if (!token) {
-    const loginUrl = new URL('/auth/login', request.url);
+    const loginUrl = new URL('/connexion', request.url);
     return NextResponse.redirect(loginUrl);
   }
 

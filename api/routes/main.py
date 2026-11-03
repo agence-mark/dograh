@@ -5,6 +5,7 @@ from fastapi import APIRouter, Header, HTTPException, Response, status
 from loguru import logger
 from pydantic import BaseModel
 
+from api.db import db_client
 from api.routes.agent_stream import router as agent_stream_router
 from api.routes.analyse_run import router as analyse_run_router
 from api.routes.appel_simule import router as appel_simule_router
@@ -13,6 +14,8 @@ from api.routes.builder import router as builder_router
 from api.routes.builder_tests import router as builder_tests_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
+from api.routes.equipe_mark import router as equipe_mark_router
+from api.routes.equipe_mark import routeur_public as invitation_router
 from api.routes.espaces import router as espaces_router
 from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
@@ -113,6 +116,9 @@ router.include_router(modules_router)
 router.include_router(verification_router)
 # [.mark] builder partie 2, U2: the spaces (Labo, clients), mounted before the organization router.
 router.include_router(espaces_router)
+# [.mark] U2 ter: the .mark team (roles, members, invitations, journal) and the public invitation page.
+router.include_router(equipe_mark_router)
+router.include_router(invitation_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
 router.include_router(credentials_router)
@@ -161,6 +167,16 @@ class HealthResponse(BaseModel):
     stack_publishable_client_key: str | None = None
 
 
+async def _inscription_ouverte(drapeau: bool) -> bool:
+    """[.mark] U2 ter: signup is open only while the installation is empty (the first account) and the flag allows it."""
+    if not drapeau:
+        return False
+    try:
+        return await db_client.compter_comptes() == 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     from api.constants import (
@@ -198,7 +214,7 @@ async def health() -> HealthResponse:
         auth_provider=AUTH_PROVIDER,
         turn_enabled=ENABLE_COTURN,
         force_turn_relay=FORCE_TURN_RELAY,
-        signup_enabled=ENABLE_SIGNUP,
+        signup_enabled=await _inscription_ouverte(ENABLE_SIGNUP),
         stack_project_id=STACK_AUTH_PROJECT_ID if is_stack else None,
         stack_publishable_client_key=(
             STACK_PUBLISHABLE_CLIENT_KEY if is_stack else None

@@ -10,7 +10,7 @@
  */
 import "@/lib/espaces";
 
-import { AlertTriangle, Building2,ChevronsUpDown, FlaskConical, LogOut } from "lucide-react";
+import { AlertTriangle, Building2, ChevronsUpDown, FlaskConical, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -191,7 +191,18 @@ export function SidebarStudio({ compteurs }: { compteurs?: Record<string, Compte
                     <DropdownMenuContent side="top" align="start" className="w-56">
                         {courriel && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{courriel}</DropdownMenuLabel>}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => logout()}>
+                        <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                            <Link href="/profil">
+                                <UserRound className="mr-2 size-4" /> {t({ en: "My profile", fr: "Mon profil" })}
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer hover:font-medium">
+                            <Link href="/labo/reglages/equipe">
+                                <Users className="mr-2 size-4" /> {t({ en: "Team and roles", fr: "Équipe et rôles" })}
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => logout()} className="cursor-pointer hover:font-medium">
                             <LogOut className="mr-2 size-4" /> {t({ en: "Sign out", fr: "Se déconnecter" })}
                         </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 
 from api.db.base_client import BaseDBClient
 from api.db.models import OrganizationModel, UserModel
@@ -482,3 +482,65 @@ class EquipeClient(BaseDBClient):
             )
             await session.commit()
             return resultat.rowcount > 0
+
+    # ------------------------------------------------------------------ gestes protégés
+    async def role_par_nom(self, nom: str) -> dict | None:
+        return next((r for r in await self.lister_roles() if r["nom"].lower() == nom.lower()), None)
+
+    async def changer_role_protege(self, user_id: int, role_id: int | None) -> str:
+        """Change le rôle d'un membre (``role_id``) ou le retire de l'équipe (``None``), SANS jamais laisser l'équipe sans administrateur.
+
+        Les lignes des administrateurs sont verrouillées pendant la vérification (``FOR UPDATE``) : deux retraits
+        simultanés ne peuvent pas retirer les deux derniers. Rend ``"ok"``, ``"dernier_administrateur"`` ou ``"inconnu"``.
+        """
+        async with self.async_session() as session:
+            admin_id = (
+                await session.execute(select(MarkRoleModel.id).where(MarkRoleModel.fixe.is_(True)))
+            ).scalars().first()
+            admins = (
+                await session.execute(
+                    select(MarkMembreModel.user_id)
+                    .where(MarkMembreModel.role_id == admin_id)
+                    .with_for_update()
+                )
+            ).scalars().all()
+            membre = await session.get(MarkMembreModel, user_id)
+            if membre is None:
+                return "inconnu"
+            if membre.role_id == admin_id and role_id != admin_id and len(admins) <= 1:
+                return "dernier_administrateur"
+            if role_id is None:
+                await session.delete(membre)
+            else:
+                membre.role_id = role_id
+            await session.commit()
+            return "ok"
+
+    async def reclamer_premier_compte(self, user_id: int) -> bool:
+        """Le premier compte d'une installation vide devient Administrateur ; vrai s'il l'est devenu.
+
+        Un verrou consultatif sérialise deux premières inscriptions simultanées : une seule gagne.
+        """
+        async with self.async_session() as session:
+            await session.execute(text("SELECT pg_advisory_xact_lock(7302, 1)"))
+            deja = (await session.execute(select(func.count()).select_from(MarkMembreModel))).scalar_one()
+            if deja:
+                return False
+            admin_id = (
+                await session.execute(select(MarkRoleModel.id).where(MarkRoleModel.fixe.is_(True)))
+            ).scalars().first()
+            session.add(MarkMembreModel(user_id=user_id, role_id=admin_id))
+            await session.commit()
+            return True
+
+    async def supprimer_compte(self, user_id: int) -> None:
+        async with self.async_session() as session:
+            await session.execute(delete(UserModel).where(UserModel.id == user_id))
+            await session.commit()
+
+    async def poser_mot_de_passe(self, user_id: int, empreinte: str) -> None:
+        async with self.async_session() as session:
+            await session.execute(
+                update(UserModel).where(UserModel.id == user_id).values(password_hash=empreinte)
+            )
+            await session.commit()

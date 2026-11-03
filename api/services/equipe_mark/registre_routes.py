@@ -126,6 +126,12 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/user/.*$", MEMBRE, par_defaut=True),
     _r(LECTURE, r"^/turn/credentials$", MEMBRE),
     _r({"GET"}, r"^/auth/me$", MEMBRE),
+    # ------------------------------------------------------------------ équipe .mark
+    _r(TOUTES, r"^/equipe-mark/moi(/.*)?$", MEMBRE),
+    _r({"GET"}, r"^/equipe-mark/permissions$", MEMBRE),
+    _r(ECRITURE, r"^/equipe-mark/roles(/.*)?$", P("roles.gerer")),
+    _r(ECRITURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
+    _r(LECTURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
     # ------------------------------------------------------------------ espaces
     _r({"GET"}, r"^/espaces$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),

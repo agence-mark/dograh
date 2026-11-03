@@ -17,6 +17,9 @@ export const REDIRECTIONS: Redirection[] = [
     // La création d'un agent par l'amont est remplacée par le builder (le constat C13 de l'accueil d'un compte neuf est à U2).
     { source: "/workflow/create", destination: "/labo" },
 
+    // La connexion a sa place dans le nouveau design (U2 ter) ; l'inscription libre n'existe plus que pour le premier compte.
+    { source: "/auth/login", destination: "/connexion" },
+
     // Agents, éditeur et conversations.
     { source: "/workflow", destination: "/labo/agents" },
     { source: "/workflow/:workflowId", destination: "/agents/:workflowId" },

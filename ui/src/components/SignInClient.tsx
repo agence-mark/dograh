@@ -21,7 +21,7 @@ export default function SignInClient() {
 
   useEffect(() => {
     if (provider === 'local') {
-      router.replace('/auth/login');
+      router.replace('/connexion');
     }
   }, [provider, router]);
 

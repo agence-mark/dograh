@@ -14,7 +14,7 @@ export default async function Home() {
   // [.mark] U2 (constat C13) : l'accueil d'un compte, c'est le builder du Labo, qu'il ait déjà des agents ou non.
   if (authProvider === 'local') {
     const accessToken = await getServerAccessToken();
-    redirect(accessToken ? '/labo' : '/auth/login');
+    redirect(accessToken ? '/labo' : '/connexion');
   }
 
   logger.debug('[HomePage] Getting server user...');
