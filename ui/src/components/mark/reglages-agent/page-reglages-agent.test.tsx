@@ -1227,6 +1227,8 @@ describe("[.mark] the background work settings (lot 4)", () => {
 
     it("offers the catalogue's tools minus a transfer, the end of the call and MCP, and saves the choice at once", async () => {
         await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        // K2b : les outils sont des pastilles ; la liste à cocher s'ouvre par « + outil ».
+        fireEvent.click(await screen.findByRole("button", { name: /^\+ tool$/ }));
         const outil = await screen.findByRole("checkbox", { name: /Chercher un creneau/ });
         expect(screen.queryByRole("checkbox", { name: /Passer a un humain/ })).toBeNull();
         expect(screen.queryByRole("checkbox", { name: /Raccrocher/ })).toBeNull();

@@ -286,6 +286,8 @@ export const CAS_AGENT: CasAgent[] = [
         { type: "cliquer", nom: "Save the fallback brain" },
     ], true, { travail_actif: true }),
     c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
+        // K2b : les outils sont des pastilles ; la liste à cocher s'ouvre par « + outil ».
+        { type: "cliquer", nom: "+ tool" },
         { type: "case", nom: "Chercher un créneau" },
     ], true, { travail_actif: true }),
     c("travail-delai", "ajout-mark", "briques", ["travail_delai_max_s"], [
