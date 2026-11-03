@@ -58,6 +58,18 @@ class LienDePassation(BaseModel):
     )
 
 
+class EmplacementSite(BaseModel):
+    """[.mark] U10 / S2 : où un agent de site est posé (D155, D188), et l'état de son widget."""
+
+    site_id: int | None = Field(default=None, description="Le site intégré ; vide : l'agent n'est posé nulle part.")
+    site_cle: str | None = Field(default=None, description="La clé publique du site (celle du script).")
+    chemins: list[str] = Field(default_factory=list, description="Les chemins servis ; « / » : tout le site.")
+    widget_actif: bool = Field(default=False, description="Un jeton actif pose le widget.")
+    dernier_chargement: str | None = Field(
+        default=None, description="Le dernier chargement du script vu sur le site (ISO 8601)."
+    )
+
+
 class AgentServi(BaseModel):
     id: int
     nom: str
@@ -83,6 +95,13 @@ class AgentServi(BaseModel):
     capacites: CapacitesAgent = Field(default_factory=CapacitesAgent)
     rattache: bool = Field(
         default=False, description="Rattaché au portail par .mark (D90)."
+    )
+    canal: Literal["telephone", "site"] = Field(
+        default="telephone",
+        description="Le canal de l'agent (D153) ; un spécialisé a celui de son principal.",
+    )
+    emplacement: EmplacementSite | None = Field(
+        default=None, description="Pour un agent de site : son site, ses chemins, l'état de son widget."
     )
 
 

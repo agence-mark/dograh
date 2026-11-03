@@ -1666,6 +1666,19 @@ async def list_phone_numbers(config_id: int, user: UserModel = Depends(get_user)
     )
 
 
+async def _refuser_numero_sur_agent_de_site(workflow_id: int, organization_id: int) -> None:
+    """[.mark] U10 / S2 (D153) : un numéro de téléphone ne mène jamais à un agent de site."""
+    from api.routes.agents_site import _canal_de_lagent
+    from api.services.site_mark.canal import refus_numero_sur_agent
+
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    if workflow is None:
+        return
+    refus = refus_numero_sur_agent(await _canal_de_lagent(workflow, organization_id, brouillon=True))
+    if refus:
+        raise HTTPException(status_code=409, detail=refus)
+
+
 @router.post(
     "/telephony-configs/{config_id}/phone-numbers",
     response_model=PhoneNumberResponse,
@@ -1681,6 +1694,9 @@ async def create_phone_number(
 
     if request.inbound_workflow_id is not None:
         await _ensure_workflow_belongs_to_org(
+            request.inbound_workflow_id, user.selected_organization_id
+        )
+        await _refuser_numero_sur_agent_de_site(
             request.inbound_workflow_id, user.selected_organization_id
         )
 
@@ -1779,6 +1795,9 @@ async def update_phone_number(
 
     if request.inbound_workflow_id is not None:
         await _ensure_workflow_belongs_to_org(
+            request.inbound_workflow_id, user.selected_organization_id
+        )
+        await _refuser_numero_sur_agent_de_site(
             request.inbound_workflow_id, user.selected_organization_id
         )
 
