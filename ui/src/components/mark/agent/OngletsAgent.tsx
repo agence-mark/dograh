@@ -22,6 +22,8 @@ export function OngletsAgent({ agentId, actif }: { agentId: number; actif: Ongle
                 <Link
                     key={o.id}
                     href={adresseOnglet(agentId, o.id)}
+                    // L : un onglet est une page entière ; préchargée en entier, elle s'ouvre sans attendre son code.
+                    prefetch
                     role="tab"
                     aria-selected={actif === o.id}
                     data-onglet={o.id}
