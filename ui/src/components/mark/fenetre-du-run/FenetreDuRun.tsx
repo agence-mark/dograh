@@ -172,10 +172,10 @@ function Section({
 }
 
 /** Une ligne « libellé · valeur » de la maquette : tableau nu, trait fin entre les lignes, jamais de cadre. */
-export function LigneNue({ libelle, children, testId }: { libelle: ReactNode; children: ReactNode; testId?: string }) {
+export function LigneNue({ libelle, children, testId, etroit }: { libelle: ReactNode; children: ReactNode; testId?: string; etroit?: boolean }) {
     return (
         <div className="flex gap-4 py-2.5 text-sm" data-testid={testId}>
-            <span className="w-28 shrink-0 text-muted-foreground">{libelle}</span>
+            <span className={cn("shrink-0 text-muted-foreground", etroit ? "w-28" : "w-44")}>{libelle}</span>
             <span className="min-w-0 flex-1">{children}</span>
         </div>
     );
@@ -189,7 +189,7 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
     const versionLue = resume.version && resume.version.status !== "not_captured" ? resume.version : null;
     return (
         <div className="divide-y divide-border" data-testid="fenetre-resume">
-            <LigneNue libelle={t({ en: "Code", fr: "Code" })} testId="fenetre-version">
+            <LigneNue etroit libelle={t({ en: "Code", fr: "Code" })} testId="fenetre-version">
                 {versionLue ? (
                     <>
                         <code>{versionLue.app_version ?? "–"}</code> · {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
@@ -209,7 +209,7 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                     </span>
                 )}
             </LigneNue>
-            <LigneNue libelle={t({ en: "Estimated cost", fr: "Coût estimé" })} testId="fenetre-cout">
+            <LigneNue etroit libelle={t({ en: "Estimated cost", fr: "Coût estimé" })} testId="fenetre-cout">
                 {resume.cost?.status === "ok" ? (
                     <>
                         <strong>
@@ -239,7 +239,7 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                 )}
             </LigneNue>
             {nombre > 0 && incidents.status === "ok" && (
-                <LigneNue libelle={t({ en: "Incidents", fr: "Incidents" })}>
+                <LigneNue etroit libelle={t({ en: "Incidents", fr: "Incidents" })}>
                     <span className="font-medium text-destructive" role="alert">
                         {t({
                             en: `${nombre} incident(s) on this call: see Incidents.`,

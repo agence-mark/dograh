@@ -184,7 +184,7 @@ function ContextDisplay({ title, context }: { title: string; context: Contexte }
 
     return (
         <section data-testid="contexte-de-l-appel">
-            <div className="flex items-center justify-between pb-1">
+            <div className="flex min-h-9 items-center justify-between pb-1">
                 <p className="text-base font-semibold">{title}</p>
                 {entrees.length > 0 && (
                     <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
