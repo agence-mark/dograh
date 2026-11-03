@@ -5512,6 +5512,36 @@ export type EtatDuRenvoi = {
 };
 
 /**
+ * EtiquetteResponse
+ */
+export type EtiquetteResponse = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Nb Agents
+     */
+    nb_agents: number;
+};
+
+/**
+ * EtiquettesResponse
+ */
+export type EtiquettesResponse = {
+    /**
+     * Etiquettes
+     */
+    etiquettes: Array<EtiquetteResponse>;
+    /**
+     * Par Agent
+     */
+    par_agent: {
+        [key: string]: Array<string>;
+    };
+};
+
+/**
  * EvenementJour
  */
 export type EvenementJour = {
@@ -10121,6 +10151,16 @@ export type PlivoConfigurationRequest = {
      * Plivo Application ID. The application's answer_url is updated when inbound workflows are attached to numbers on this account. If omitted, an application is auto-created on save and its id is stored on the configuration.
      */
     application_id?: string | null;
+};
+
+/**
+ * PoserEtiquettesRequest
+ */
+export type PoserEtiquettesRequest = {
+    /**
+     * Etiquettes
+     */
+    etiquettes?: Array<string>;
 };
 
 /**
@@ -26995,6 +27035,97 @@ export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses = {
 };
 
 export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponse = ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses];
+
+export type LireLesEtiquettesApiV1EtiquettesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/etiquettes';
+};
+
+export type LireLesEtiquettesApiV1EtiquettesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesEtiquettesApiV1EtiquettesGetError = LireLesEtiquettesApiV1EtiquettesGetErrors[keyof LireLesEtiquettesApiV1EtiquettesGetErrors];
+
+export type LireLesEtiquettesApiV1EtiquettesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtiquettesResponse;
+};
+
+export type LireLesEtiquettesApiV1EtiquettesGetResponse = LireLesEtiquettesApiV1EtiquettesGetResponses[keyof LireLesEtiquettesApiV1EtiquettesGetResponses];
+
+export type PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutData = {
+    body: PoserEtiquettesRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/etiquettes/agents/{workflow_id}';
+};
+
+export type PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutError = PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutErrors[keyof PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutErrors];
+
+export type PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EtiquettesResponse;
+};
+
+export type PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutResponse = PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutResponses[keyof PoserLesEtiquettesApiV1EtiquettesAgentsWorkflowIdPutResponses];
 
 export type MonProfilApiV1EquipeMarkMoiGetData = {
     body?: never;
