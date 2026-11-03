@@ -115,6 +115,9 @@ async def test_la_route_refuse_un_juge_du_modele_du_builder(monkeypatch):
 
     monkeypatch.setattr(independance, "modele_du_builder", AsyncMock(return_value="mistral-large-latest"))
     monkeypatch.setattr(route.stockage, "enregistrer_reglages", AsyncMock(side_effect=lambda org, r: r))
+    from api.services import sources_cerveaux
+
+    monkeypatch.setattr(sources_cerveaux, "ecrire_depuis_les_roles", AsyncMock())  # U12 : la ligne des sources est testée à part
     reglages = ReglagesAppelantSimule(
         appelant=RoleSimule(consigne="c"), juge=RoleSimule(consigne="j", modele="mistral/mistral-large-latest")
     )
@@ -162,7 +165,7 @@ async def _suite(banc, monkeypatch, roles, *, modele_agent="agent-m", modele_bui
         construits.append(role.modele)
         if not role.identifiant:
             return None
-        if role is roles.juge:
+        if role.modele == roles.juge.modele:  # U12 : les rôles relus portent la source effective (copies)
             return CerveauFactice(tour(texte('{"ok": true, "confiance": 0.9, "raison": "r"}')))
         return CerveauFactice(tour(texte("Un rendez-vous.")))
 

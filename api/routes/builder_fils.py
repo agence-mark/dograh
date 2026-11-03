@@ -14,6 +14,7 @@ joint est contrôlé de la même façon. Le travail tourne en tâche de fond : f
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -27,6 +28,8 @@ from api.services.builder import demarrages, fil as service_fil
 from api.services.mark_evenements import flux_sse, suivre
 
 router = APIRouter(tags=["builder"])
+
+DUREE_MAX_CLAUDE_CODE_S = 600.0
 
 
 async def _cerveau_de(user: UserModel):
@@ -66,6 +69,8 @@ class VueFil(BaseModel):
     genre: str = "principal"
     parent_id: int | None = None
     sous_agents_actifs: bool = True
+    # U12 : une conversation recopiée depuis Claude Code (genre « claude_code ») : lecture seule, auteur affiché « Claude Code · <prénom> ».
+    auteur: str | None = None
 
 
 def _vue(fil) -> VueFil:
@@ -85,6 +90,7 @@ def _vue(fil) -> VueFil:
         genre=fil.genre or "principal",
         parent_id=fil.parent_id,
         sous_agents_actifs=bool(fil.sous_agents_actifs),
+        auteur=fil.auteur,
     )
 
 
@@ -92,6 +98,8 @@ def _pas_un_sous_agent(fil) -> None:
     """C2 (E96) : un sous-agent est lu, arrêté, jamais écrit à ni relancé par une personne."""
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="A sub-agent receives no message.")
+    if fil.genre == "claude_code":  # U12 : on écrit dans Claude Code, on lit dans les deux
+        raise HTTPException(status_code=409, detail="This conversation is led in Claude Code: it is read-only here.")
 
 
 def _refus(erreur: service_fil.ErreurFil) -> HTTPException:
@@ -165,10 +173,14 @@ async def suivre_un_fil(
     """Le flux SSE : tout ce qui a été écrit après ``depuis`` (ou ``Last-Event-ID`` à la reconnexion), puis la suite en direct."""
     await _fil_ou_404(user, fil_id)
     org = user.selected_organization_id
+    fin_du_flux = asyncio.get_running_loop().time() + DUREE_MAX_CLAUDE_CODE_S
     reprise = depuis if depuis is not None else (int(last_event_id) if last_event_id and last_event_id.isdigit() else 0)
 
     async def est_fini() -> bool:
         courant = await db_client.lire_fil(org, fil_id)
+        if courant is not None and courant.genre == "claude_code":
+            # Une session Claude Code reprend à chaque message : le flux reste ouvert, borné à DUREE_MAX_CLAUDE_CODE_S (l'écran se reconnecte).
+            return asyncio.get_running_loop().time() >= fin_du_flux
         return courant is None or (courant.etat != "en_cours" and not service_fil.en_cours(fil_id))
 
     source = suivre(service_fil.canal(fil_id), lambda apres: service_fil.lire_apres(fil_id, apres), est_fini, reprise)
@@ -197,7 +209,9 @@ async def envoyer_un_message(fil_id: int, demande: MessageDuFil, user: UserModel
 
 @router.post("/fils/{fil_id}/arreter", response_model=VueFil)
 async def arreter_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
-    await _fil_ou_404(user, fil_id)
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "claude_code":
+        raise HTTPException(status_code=409, detail="This conversation is led in Claude Code: it is read-only here.")
     await service_fil.arreter(user.selected_organization_id, fil_id)
     return _vue(await _fil_ou_404(user, fil_id))
 

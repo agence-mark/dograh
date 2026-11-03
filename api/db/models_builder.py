@@ -56,6 +56,9 @@ class MarkBuilderConversationModel(Base):
     modele = Column(String(120), nullable=True)
     resultat = Column(JSON, nullable=True)
     sous_agents_actifs = Column(Boolean, nullable=False, default=True, server_default="true")
+    # U12 (I1) : une conversation recopiée depuis Claude Code (genre « claude_code ») garde sa session et son auteur.
+    session_externe = Column(String(80), nullable=True)
+    auteur = Column(String(120), nullable=True)
     cree_le = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC)
     )
@@ -78,6 +81,26 @@ class MarkBuilderEvenementModel(Base):
     )
     type = Column(String(40), nullable=False)
     donnees = Column(JSON, nullable=False, default=dict)
+    cree_le = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC)
+    )
+
+
+class MarkModificationModel(Base):
+    """U12 : une écriture sur un élément (agent, brouillon, tests, bibliothèque...), pour la mise à jour en direct de l'écran."""
+
+    __tablename__ = "mark_modifications"
+    __table_args__ = (
+        Index("ix_mark_modifications_org", "organization_id", "id"),
+        Index("ix_mark_modifications_objet", "organization_id", "objet", "id"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    objet = Column(String(80), nullable=False)
+    action = Column(String(80), nullable=False)
+    source = Column(String(20), nullable=False)
+    auteur = Column(String(120), nullable=True)
     cree_le = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC)
     )

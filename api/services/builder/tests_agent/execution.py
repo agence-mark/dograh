@@ -106,7 +106,10 @@ async def cerveaux_des_tests(user: Any, workflow: Any) -> CerveauxDesTests:
 
     organisation_id = user.selected_organization_id
     try:
-        roles = await appel_simule.lire_reglages(organisation_id)
+        from api.services import sources_cerveaux
+
+        # U12 : la source de l'appelant et du juge des tests est celle de la ligne des sources (Claude Code au départ).
+        roles = await sources_cerveaux.surcharger_les_roles(organisation_id, await appel_simule.lire_reglages(organisation_id))
         base = await reglages_cerveau.lire(await reglages_cerveau.organisation_des_reglages(user))
     except Exception:  # noqa: BLE001
         return CerveauxDesTests()

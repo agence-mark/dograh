@@ -206,7 +206,12 @@ async def get_reglages_appelant_simule(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     try:
-        return await stockage.lire_reglages(user.selected_organization_id)
+        # U12 : la source de l'appelant et du juge est celle de LA ligne des sources (un réglage par brique).
+        from api.services import sources_cerveaux
+
+        return await sources_cerveaux.surcharger_les_roles(
+            user.selected_organization_id, await stockage.lire_reglages(user.selected_organization_id)
+        )
     except Exception as erreur:  # noqa: BLE001
         raise _illisible("simulated caller settings", erreur) from None
 
@@ -234,6 +239,9 @@ async def save_reglages_appelant_simule(
     )
     if controle.refuse:
         raise HTTPException(status_code=422, detail=controle.refus)
+    from api.services import sources_cerveaux
+
+    await sources_cerveaux.ecrire_depuis_les_roles(org, request)
     return await stockage.enregistrer_reglages(org, request)
 
 

@@ -55,6 +55,18 @@ ARGUMENTS = {
     "tests_supprimer": {"workflow_id": AGENT, "test": "t"},
     "correction_bilan": {"workflow_id": AGENT},
     "modifications_lister": {"workflow_id": AGENT},
+    # U12 (I1) : l'appelant simulé joué par Claude Code, et la lecture du fork.
+    "test_demarrer": {"workflow_id": AGENT, "test": "t"},
+    "test_tour": {"appel": 1, "replique": "Bonjour"},
+    "test_finir": {"appel": 1},
+    "fork_resume": {},
+    "executions_lister": {"workflow_id": AGENT},
+    "a_ameliorer_lire": {},
+    "appels_lister": {"workflow_id": AGENT},
+    "appel_lire": {"run_id": 1},
+    "versions_lister": {"workflow_id": AGENT},
+    "chat_etat": {"fil_id": 1},
+    "qualite_lire": {},
     # Lot 3 (dossiers, fiche classée, base de connaissances) et B48 (objets de l'agent).
     "depot_ajouter_site": {"workflow_id": AGENT, "adresse": "https://exemple.test"},
     "fiche_creer_les_objets": {"workflow_id": AGENT},

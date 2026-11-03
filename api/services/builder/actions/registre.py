@@ -154,4 +154,21 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
     except Exception as erreur:  # noqa: BLE001 -- une action qui échoue ne fait pas tomber la conversation
         logger.warning(f"[builder] action {nom} en échec : {type(erreur).__name__}")
         return {"ok": False, "erreur": f"The action failed ({type(erreur).__name__}): {str(erreur)[:200]}"}
-    return resultat if isinstance(resultat, dict) else {"ok": True, "resultat": resultat}
+    resultat = resultat if isinstance(resultat, dict) else {"ok": True, "resultat": resultat}
+    if action.ecriture and resultat.get("ok", True) is not False:
+        await _publier_la_modification(action, arguments or {}, contexte, resultat)
+    return resultat
+
+
+async def _publier_la_modification(action: Action, arguments: dict[str, Any], contexte: Contexte, resultat: dict[str, Any]) -> None:
+    """U12 : toute écriture réussie, par l'écran ou par Claude Code, publie une modification (l'écran ouvert se rafraîchit seul).
+    Ne lève jamais : l'écriture est faite, son affichage en direct est un plus."""
+    try:
+        from api.services import modifications_live as live
+
+        cree = resultat.get("workflow_id") if isinstance(resultat.get("workflow_id"), int) else None
+        objet = live.objet_d_une_action(action.nom, action.groupe, arguments, contexte.workflow_id or cree)
+        source = "claude_code" if contexte.porte == PORTE_MCP else "ecran"
+        await live.noter(contexte.organisation_id, objet, action.nom, source=source, auteur=live.auteur_de(contexte.user))
+    except Exception:  # noqa: BLE001
+        logger.debug(f"[builder] modification de {action.nom} non publiée")

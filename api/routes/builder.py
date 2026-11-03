@@ -32,6 +32,7 @@ from api.enums import WebhookCredentialType
 from api.routes.builder_bibliotheque import router as routeur_bibliotheque
 from api.routes.builder_c2 import router as routeur_c2
 from api.routes.builder_m import router as routeur_m
+from api.routes.builder_i1 import router as routeur_i1
 from api.routes.builder_contexte import router as routeur_contexte
 from api.routes.builder_fils import router as routeur_fils
 from api.services.auth.depends import get_user_with_selected_organization
@@ -52,6 +53,7 @@ router.include_router(routeur_contexte)
 router.include_router(routeur_fils)
 router.include_router(routeur_c2)
 router.include_router(routeur_m)
+router.include_router(routeur_i1)
 
 NOM_CLE_DU_CERVEAU = "builder-cerveau"
 CLE_LONGUEUR = (8, 500)
@@ -100,6 +102,14 @@ def _flux(evenements: AsyncIterator[dict[str, Any]]) -> StreamingResponse:
 async def _cerveau_de(user: UserModel) -> tuple[Cerveau, ReglagesCerveau]:
     organisation = await reglages_cerveau.organisation_des_reglages(user)
     reglages = await reglages_cerveau.lire(organisation)
+    # U12 : sur Claude Code, le chat de l'écran n'écrit jamais à la place de la personne et ne fait aucun appel à un fournisseur.
+    from api.services import sources_cerveaux
+
+    if await sources_cerveaux.source_de(organisation, "builder", reglages.source) == "claude_code":
+        raise HTTPException(
+            status_code=409,
+            detail="The builder is set on Claude Code: write to it in a Claude Code session (Settings > Sources to change).",
+        )
     cle = await reglages_cerveau.lire_la_cle(organisation, reglages)
     if not reglages.modele or not cle:
         raise HTTPException(status_code=409, detail="Set the builder's brain first: model and key (builder settings).")

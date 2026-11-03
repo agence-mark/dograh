@@ -20,7 +20,7 @@ from api.db import db_client
 from api.services.builder.actions.registre import Action, Contexte, ErreurAction, enregistrer
 from api.services.builder.cerveau import independance
 from api.services.builder.consignes import consigne_juge
-from api.services.juge import appels, file
+from api.services.juge import a_ameliorer, appels, file
 from api.services.juge import verdicts as v
 
 
@@ -110,8 +110,10 @@ async def _ecrire(contexte: Contexte, p: _Ecrire) -> dict[str, Any]:
         await stock.ecrire(
             contexte.organisation_id, f"{file.PREFIXE_VERDICT_TEST}{item['workflow_id']}:{item.get('test')}", resultat
         )
+    # U12 : « À améliorer » se remplit comme sur clé d'API, par la même entrée unique.
+    points = await a_ameliorer.signaler(contexte.organisation_id, item, verifies, "claude_code")
     await file.retirer(contexte.organisation_id, item["id"])
-    return {"ok": True, "id": item["id"], "reussi": resultat["reussi"], "mention": resultat["mention"]}
+    return {"ok": True, "id": item["id"], "reussi": resultat["reussi"], "mention": resultat["mention"], "a_ameliorer": points}
 
 
 for _nom, _desc, _param, _fonction, _ecriture in (
