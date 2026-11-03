@@ -603,19 +603,6 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                         </Button>
                     </Carte>
                     <CartePrompt lu={appelant ? (vue?.appelant ?? null) : (vue?.juge ?? null)} />
-                </div>
-                <div className="space-y-4">
-                    <CarteRecoit lu={appelant ? (vue?.appelant ?? null) : (vue?.juge ?? null)} />
-                    <Carte>
-                        <p className="flex items-center gap-2 text-sm font-medium">
-                            <Wrench className="size-4 text-muted-foreground" aria-hidden />
-                            {t(T.ses_outils)}
-                        </p>
-                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            {t(T.aucunOutil)}
-                            <Info>{t(T.aucunOutilInfo)}</Info>
-                        </p>
-                    </Carte>
                     {appelant && (
                         <Carte>
                             <p className="text-sm font-medium">{t(T.serie)}</p>
@@ -643,6 +630,19 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                             </Ligne>
                         </Carte>
                     )}
+                </div>
+                <div className="space-y-4">
+                    <CarteRecoit lu={appelant ? (vue?.appelant ?? null) : (vue?.juge ?? null)} />
+                    <Carte>
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                            <Wrench className="size-4 text-muted-foreground" aria-hidden />
+                            {t(T.ses_outils)}
+                        </p>
+                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            {t(T.aucunOutil)}
+                            <Info>{t(T.aucunOutilInfo)}</Info>
+                        </p>
+                    </Carte>
                 </div>
             </div>
             <ModaleReglagesAppelantSimule
