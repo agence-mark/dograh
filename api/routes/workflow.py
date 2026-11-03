@@ -995,6 +995,10 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
     from api.services.modules.lecture import synchroniser_modules
 
     await synchroniser_modules(user.selected_organization_id)
+    # [.mark] U8 : les problèmes « Testée » de l'agent passent « Publiée » (ne lève jamais).
+    from api.services.boucle.avancement import apres_une_publication
+
+    await apres_une_publication(user.selected_organization_id, workflow_id)
 
     return {
         "id": published.id,

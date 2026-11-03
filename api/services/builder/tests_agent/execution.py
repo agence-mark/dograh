@@ -339,6 +339,22 @@ async def _avis_du_juge(
     return {**avis, **mention}
 
 
+async def _relire_un_test_reussi(cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]], statut: str) -> dict[str, Any] | None:
+    """U8 (F) : pour un test RÉUSSI, une question de plus au juge (le scénario a-t-il joué le cas visé ?). Rien si le test a échoué, s'il
+    n'a pas de scénario, si le juge est refusé (D9), sur Claude Code (il attend une session) ou sans cerveau : jamais un avis inventé."""
+    if statut != "ok" or not test.get("scenario") or not essais or not essais[0].get("lignes"):
+        return None
+    if cerveaux.independance.refuse or cerveaux.source_juge == "claude_code" or cerveaux.juge is None:
+        return None
+    try:
+        return await juge.relire(cerveaux.juge, [(r, t) for r, t in essais[0]["lignes"]], test)
+    except PlafondDuRejeu:
+        return None
+    except Exception as erreur:  # noqa: BLE001 -- la relecture est non bloquante : une panne du juge ne casse jamais le rejeu
+        logger.warning(f"[tests] relecture non rendue : {type(erreur).__name__}")
+        return None
+
+
 # --- la suite ------------------------------------------------------------------------------------------------------------------
 
 
@@ -401,6 +417,7 @@ async def rejouer_la_suite(
             if avis is not None and avis.get("plafond"):
                 plafond = avis.pop("plafond")
         reussis = sum(1 for e in essais if e["reussi"])
+        relecture = await _relire_un_test_reussi(cerveaux, test, essais, statut) if avec_le_juge else None
         entree = {
             "slug": test["slug"],
             "nom": test["nom"],
@@ -412,8 +429,23 @@ async def rejouer_la_suite(
             "total": len(essais),
             "essais": essais,
             "juge": avis,
+            "relecture": relecture,
         }
         resultats.append(entree)
+        # U8 (F) : un test qui échoue, ou « réussi, à revoir », entre dans « À améliorer » avec sa raison.
+        from api.services.boucle import ingestion
+
+        if statut != "erreur":
+            await ingestion.ingerer_un_test(
+                organisation_id,
+                workflow.id,
+                test,
+                reussis=reussis,
+                total=len(essais),
+                a_revoir=("review" if relecture and relecture.get("a_revoir") else None),
+                raison=(relecture or {}).get("raison") or next((e.get("raison") for e in essais if e.get("raison")), None),
+                version_numero=None,
+            )
         echecs += _echecs_d_un_test(test, essais, etapes, outils)
         await stockage.ajouter_un_resultat(
             organisation_id,
@@ -438,6 +470,11 @@ async def rejouer_la_suite(
     from api.services.builder.tests_agent import boucle
 
     await boucle.noter_la_version_testee(organisation_id, workflow.id, graphe, version, tout_vert and complete)
+    if tout_vert and complete:
+        # U8 : la suite entière est verte, les problèmes à faire de cet agent passent « Testée » (ne lève jamais).
+        from api.services.boucle import avancement
+
+        await avancement.apres_une_suite_verte(organisation_id, workflow.id)
     return {
         "ok": bool(tout_vert and complete),
         "echecs": echecs,

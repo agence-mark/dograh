@@ -126,3 +126,25 @@ async def noter(organization_id: int, workflow_id: int, identifiant: str, ok: bo
 
 async def notes(organization_id: int, workflow_id: int) -> list[dict[str, Any]]:
     return list((await stock.lire(organization_id, cle_des_notes(workflow_id)) or {}).get("notes") or [])
+
+
+# --- la relecture des tests réussis (U8, F ; Evan, 03/11, vu chez Wren) -------------------------------------------------------------
+
+
+def question_de_relecture(test: dict[str, Any]) -> str:
+    """La question de plus posée au juge pour un test RÉUSSI : le scénario a-t-il réellement joué le cas que le test vise ?"""
+    scenario = test.get("scenario") if isinstance(test.get("scenario"), dict) else {}
+    vise = str(scenario.get("but") or test.get("nom") or "").strip()[:600]
+    comportements = "; ".join(test.get("comportements") or [])
+    suite = f" Behaviours the test must play: {comportements}." if comportements else ""
+    return f"The test aims at this case: « {vise} ».{suite} Did the conversation really play that case (and not a neighbouring easy one)?"
+
+
+async def relire(cerveau: Cerveau, lignes: list[tuple[str, str]], test: dict[str, Any]) -> dict[str, Any] | None:
+    """``{a_revoir, raison, confiance}`` : « réussi, à revoir » quand le juge répond non avec assez de confiance. ``None`` : pas d'avis
+    (jamais un « à revoir » inventé). Non bloquant : la relecture n'entre ni dans le verdict du test ni dans ``ok``."""
+    rendu = await juger(cerveau, lignes, [question_de_relecture(test)])
+    avis = (rendu.get("avis") or [None])[0]
+    if not avis or avis.get("ok") is None:
+        return None
+    return {"a_revoir": avis["ok"] is False, "raison": str(avis.get("raison") or "")[:300], "serre": bool(avis.get("serre"))}

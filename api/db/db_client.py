@@ -6,6 +6,7 @@ from api.db.embed_token_client import EmbedTokenClient
 from api.db.equipe_client import EquipeClient
 from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
+from api.db.boucle_client import BoucleClient
 from api.db.builder_fil_client import BuilderFilClient
 from api.db.relation_client import RelationClient
 from api.db.apres_appel_client import ApresAppelClient
@@ -78,6 +79,8 @@ class DBClient(
     BuilderFilClient,
     # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
     RelationClient,
+    # [.mark] builder partie 2, U8: the improvement loop ("À améliorer") and the quality page.
+    BoucleClient,
 ):
     """
     Unified database client that combines all specialized database operations.

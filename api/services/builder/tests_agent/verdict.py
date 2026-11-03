@@ -38,6 +38,8 @@ TYPES_DE_CONVERSATION = (
     "coordonnees_prises",
     "sans_redite",
     "sans_rigidite",
+    "rien_d_autre",
+    "champs_justes",
 )
 TYPES = TYPES_DE_BASE + TYPES_DE_CONVERSATION
 # U3 (E47) : l'ancien critère ``merci_en_tete`` (le mot « merci » écrit dans le code) est LU comme ``texte_en_tete`` avec ses mots en
@@ -118,6 +120,14 @@ def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
                 raise ErreurTestRejouable("criterion « texte_en_tete » : « mots » (the words a reply must not start with) is empty")
             sauf = [str(m).strip() for m in c.get("sauf") or [] if str(m).strip()]
             c = {"type": "texte_en_tete", "mots": mots[:20], "max": max(0, int(c.get("max", 0))), **({"sauf": sauf[:20]} if sauf else {})}
+        if genre == "rien_d_autre":
+            # U8 (F) : aucune action non prévue. ``permis`` : les outils qui ont le droit d'être appelés (vide = aucun outil).
+            c = {"type": "rien_d_autre", "permis": [str(n).strip() for n in c.get("permis") or [] if str(n).strip()][:30]}
+        if genre == "champs_justes":
+            champs = c.get("champs")
+            if not (isinstance(champs, dict) and champs):
+                raise ErreurTestRejouable("criterion « champs_justes » : « champs » (field -> expected value) is empty")
+            c = {"type": "champs_justes", "champs": {str(k)[:80]: str(v)[:200] for k, v in list(champs.items())[:20]}}
         if genre == "coordonnees_prises" and not (isinstance(c.get("champs"), list) and c["champs"]):
             raise ErreurTestRejouable("criterion « coordonnees_prises » : « champs » is empty")
         propres.append(c)
@@ -230,6 +240,23 @@ def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> Resulta
         if len(tetes) > maxi:
             return ResultatCritere(critere, False, f"{len(tetes)} réplique(s) commencent par {libelle}", tetes[maxi], f"The reply starts with {libelle}: a tic.")
         return ResultatCritere(critere, True, f"{len(tetes)} réplique(s) commencent par {libelle}")
+    if genre == "rien_d_autre":
+        permis = {normaliser(n) for n in critere.get("permis") or []}
+        for o in obs.outils:
+            if normaliser(str(o.get("nom") or "")) not in permis:
+                return ResultatCritere(
+                    critere, False, f"outil non prévu : {o.get('nom')}", o.get("rang"), f"Tool « {o.get('nom')} » was called but the expected end state does not include it."
+                )
+        return ResultatCritere(critere, True, "aucune action non prévue")
+    if genre == "champs_justes":
+        faux = [(c, v) for c, v in critere["champs"].items() if normaliser(str(obs.fiche.get(c) if obs.fiche.get(c) is not None else "")) != normaliser(v)]
+        return _fin(
+            critere,
+            not faux,
+            f"champs justes : {len(critere['champs']) - len(faux)}/{len(critere['champs'])}",
+            derniere,
+            "Wrong or missing: " + ", ".join(f"{c} (expected « {v} »)" for c, v in faux) + ".",
+        )
     if genre == "coordonnees_prises":
         manquants = [c for c in critere["champs"] if obs.fiche.get(c) in (None, "", [])]
         return _fin(critere, not manquants, f"champs pris : {len(critere['champs']) - len(manquants)}/{len(critere['champs'])}", derniere, f"Not taken: {', '.join(map(str, manquants))}.")
