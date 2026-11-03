@@ -392,6 +392,7 @@ function LecteurUnique({ recordingUrl }: { recordingUrl: string }) {
 
     useEffect(() => {
         let actif = true;
+        const lecteur = audio.current;
         setAdresse(null);
         setPics(null);
         setCharge(true);
@@ -414,7 +415,7 @@ function LecteurUnique({ recordingUrl }: { recordingUrl: string }) {
         })();
         return () => {
             actif = false;
-            audio.current?.pause();
+            lecteur?.pause();
         };
     }, [recordingUrl]);
 
