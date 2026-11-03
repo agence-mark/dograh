@@ -803,7 +803,7 @@ function BlocConversation({
 }
 
 const ETAPES_DU_TOUR: { cle: keyof EtapesDuTour; titre: Texte }[] = [
-    { cle: "turn_closed", titre: { en: "Wait for the end of the turn", fr: "Attente de fin de tour" } },
+    { cle: "turn_closed", titre: { en: "End-of-turn wait", fr: "Attente de fin de tour" } },
     { cle: "request_sent", titre: { en: "Request sent", fr: "Requête partie" } },
     { cle: "first_model_word", titre: { en: "First model word", fr: "Premier mot du modèle" } },
     { cle: "first_sentence", titre: { en: "First sentence", fr: "Première phrase" } },
