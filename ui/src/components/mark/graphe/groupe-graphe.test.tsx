@@ -137,7 +137,7 @@ const monter = async (
             </WorkflowProvider>
         </ReactFlowProvider>,
     );
-    fireEvent.doubleClick(screen.getByText("Étape"));
+    fireEvent.doubleClick(screen.getAllByText("Étape")[0]);
     const fenetre = await screen.findByRole("dialog");
     if (ongletAOuvrir) {
         const onglet = fenetre.querySelector(`[data-section="${ongletAOuvrir}"]`) as HTMLElement | null;
@@ -503,7 +503,7 @@ describe("[.mark] phrases de fin du nœud de fin", () => {
         // le formulaire généré ne la dessine plus.
         expect(dialogue.querySelectorAll('[data-reglage="fins"]').length).toBe(1);
         expect(within(dialogue).queryAllByText("Fixed closing sentences").length).toBe(0);
-        expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(true);
+        expect(Array.from(dialogue.querySelectorAll("textarea, [contenteditable=true]")).some((z) => ((z as HTMLTextAreaElement).value ?? z.textContent) === "Consigne." || z.textContent === "Consigne.")).toBe(true);
     });
 
     it("chez un spécialisé aussi : une seule liste, qui s'écrit dans l'étape", async () => {
@@ -518,11 +518,11 @@ describe("[.mark] phrases de fin du nœud de fin", () => {
         const dialogue = await monter("endCall", {}, { estPrincipal: true });
         expect(dialogue.querySelector('[data-reglage="fins"]')).not.toBeNull();
         // Sans ligne, la zone de texte d'avant reste (rien n'est enregistré à sa place).
-        expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(true);
+        expect(Array.from(dialogue.querySelectorAll("textarea, [contenteditable=true]")).some((z) => ((z as HTMLTextAreaElement).value ?? z.textContent) === "Consigne." || z.textContent === "Consigne.")).toBe(true);
         fireEvent.change(document.getElementById("fin-phrase-defaut") as HTMLElement, { target: { value: "Merci de votre appel." } });
         // Une phrase par défaut écrite : la liste remplace la zone de texte.
         await waitFor(() =>
-            expect(Array.from(dialogue.querySelectorAll("textarea")).some((z) => z.value === "Consigne.")).toBe(false),
+            expect(Array.from(dialogue.querySelectorAll("textarea, [contenteditable=true]")).some((z) => ((z as HTMLTextAreaElement).value ?? z.textContent) === "Consigne." || z.textContent === "Consigne.")).toBe(false),
         );
         await enregistrerEtape(dialogue);
         expect(donneesDeLEtape().fins).toEqual([{ phrase: "Merci de votre appel." }]);

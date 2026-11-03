@@ -8,7 +8,7 @@
  * La version « en cours » est le brouillon s'il existe, sinon la publiée : son lien ouvre le Parcours modifiable
  * (`/agents/<id>`) ; toutes les autres ouvrent `?version=<n>`.
  */
-import { FileDiff, FileText } from "lucide-react";
+import { FileText, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -18,9 +18,9 @@ import { getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from "@/client/
 import type { WorkflowVersionResponse } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
 import { useAuth } from "@/lib/auth";
-import { formatDateTime } from "@/lib/dateTime";
 
 import { EtatVide } from "../studio/etat-vide";
 import { type EtatPoint, PointEtat } from "../studio/marques";
@@ -37,6 +37,7 @@ const T = {
     archivee: { en: "Archived", fr: "Archivée" },
     enCours: { en: "current", fr: "en cours" },
     ouvrir: { en: "Open", fr: "Ouvrir" },
+    menu: { en: "Version menu", fr: "Menu de la version" },
     comparer: { en: "Compare with the previous one", fr: "Comparer avec la précédente" },
     aucune: { en: "No version yet", fr: "Aucune version pour l'instant" },
     sansPrecedente: { en: "has no previous version", fr: "n'a pas de version précédente" },
@@ -46,6 +47,10 @@ const T = {
         fr: "L'historique a changé. Recommencez la comparaison.",
     },
 } satisfies Record<string, Texte>;
+
+/** « 31/10 14:02 » : le jour, le mois et l'heure, dans le fuseau de l'organisation (la maquette). */
+const dateCourte = (valeur: string, fuseau?: string | null) =>
+    new Date(valeur).toLocaleString("fr-FR", { timeZone: fuseau || undefined, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
 
 const POINT: Record<string, EtatPoint> = { draft: "brouillon", published: "publie", archived: "fini" };
 
@@ -139,38 +144,36 @@ export function PageVersions({ agentId }: { agentId: number }) {
     const nom = (statut: string) => (statut === "draft" ? T.brouillon : statut === "published" ? T.publiee : T.archivee);
 
     return (
-        <div className="mx-auto w-full max-w-4xl px-6 py-6" data-page-versions>
-            <Tableau colonnes={[{ titre: t(T.version) }, { titre: t(T.etat) }, { titre: t(T.date) }, { titre: "", droite: true }]}>
+        <div className="mx-auto w-full max-w-5xl px-6 py-6" data-page-versions>
+            <Tableau colonnes={[{ titre: t(T.version) }, { titre: t(T.date), droite: true }, { titre: "" }]}>
                 {lignes.map((v, i) => {
                     const courante = enCours(v);
                     return (
                         <Ligne key={v.id} href={adresseDeLaVersion(agentId, v, courante)}>
-                            <Cellule principale sous={courante ? t(T.enCours) : undefined}>
-                                v{v.version_number}
-                            </Cellule>
-                            <Cellule>
-                                <PointEtat etat={POINT[v.status] ?? "fini"}>{t(nom(v.status))}</PointEtat>
-                            </Cellule>
-                            <Cellule>{formatDateTime(v.published_at || v.created_at, fuseau)}</Cellule>
-                            <Cellule droite>
-                                <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button asChild variant="ghost" size="sm" className="cursor-pointer hover:font-medium">
-                                        <Link href={adresseDeLaVersion(agentId, v, courante)}>{t(T.ouvrir)}</Link>
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="cursor-pointer"
-                                        aria-label={`${t(T.comparer)} (v${v.version_number})`}
-                                        title={t(T.comparer)}
-                                        disabled={enComparaison !== null}
-                                        onClick={() => void comparer(v, i)}
-                                    >
-                                        <FileDiff className="size-4" />
-                                    </Button>
-                                </span>
-                            </Cellule>
+                            <td className="whitespace-nowrap py-3">
+                                <PointEtat etat={POINT[v.status] ?? "fini"}>
+                                    {`v${v.version_number} ${v.status === "draft" ? t(T.brouillon) : v.status === "published" ? t(T.publiee) : t(T.archivee)}`.toLowerCase()}
+                                </PointEtat>
+                                {courante && <span className="ml-2 text-xs text-muted-foreground">{t(T.enCours)}</span>}
+                            </td>
+                            <Cellule droite>{dateCourte(v.published_at || v.created_at, fuseau)}</Cellule>
+                            <td className="w-10 text-right" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button type="button" variant="ghost" size="icon" className="size-7 cursor-pointer" aria-label={`${t(T.menu)} (v${v.version_number})`}>
+                                            <MoreHorizontal className="size-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem asChild>
+                                            <Link href={adresseDeLaVersion(agentId, v, courante)}>{t(T.ouvrir)}</Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled={enComparaison !== null} onClick={() => void comparer(v, i)}>
+                                            {t(T.comparer)}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </td>
                         </Ligne>
                     );
                 })}

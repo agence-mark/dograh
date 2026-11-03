@@ -3,6 +3,7 @@ import '@xyflow/react/dist/style.css';
 import {
     Background,
     BackgroundVariant,
+    MarkerType,
     type NodeChange,
     ReactFlow,
 } from "@xyflow/react";
@@ -19,6 +20,7 @@ import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
+import { FilGroupe, GroupeSurCanevas } from "@/components/mark/graphe/GroupeSurCanevas";
 import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
 import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
@@ -29,7 +31,6 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { espaceRetenu } from '@/lib/espaceCourant';
 import { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
-import AddNodePanel from "../../../components/flow/AddNodePanel";
 import CustomEdge from "../../../components/flow/edges/CustomEdge";
 import { GenericNode } from "../../../components/flow/nodes/GenericNode";
 import { PhoneCallDialog } from './components/PhoneCallDialog';
@@ -90,8 +91,9 @@ function RenderWorkflow({
     const { specs } = useNodeSpecs();
     const { hasCompletedAction } = useOnboarding();
     const [isPhoneCallDialogOpen, setIsPhoneCallDialogOpen] = useState(false);
-    const [isTesterRailOpen, setIsTesterRailOpen] = useState(true);
+    const [isTesterRailOpen, setIsTesterRailOpen] = useState(false);
     const [isTesterSheetOpen, setIsTesterSheetOpen] = useState(false);
+    const [zoomPourCent, setZoomPourCent] = useState(80);
     const [isDesktopViewport, setIsDesktopViewport] = useState(false);
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
     const [, setVersionsLoading] = useState(false);
@@ -127,7 +129,6 @@ function RenderWorkflow({
         rfInstance,
         nodes,
         edges,
-        isAddNodePanelOpen,
         workflowName,
         isDirty,
         workflowValidationErrors,
@@ -135,7 +136,6 @@ function RenderWorkflow({
         setNodes,
         setEdges,
         setIsDirty,
-        setIsAddNodePanelOpen,
         handleNodeSelect,
         saveWorkflow,
         workflowConfigurations,
@@ -299,25 +299,14 @@ function RenderWorkflow({
         if (estPrincipal) setPropositionGroupe(true);
     }, [fetchVersions, estPrincipal]);
 
-    // Compute version label for the header.
-    // Uses currentVersionNumber/Status which update immediately from save responses,
-    // falling back to the versions list for history navigation.
-    const activeVersionLabel = useMemo(() => {
-        // When viewing a version from the history panel, use the versions list
+    // K2 : la version que dit la barre (point vert publiée, creux brouillon) : celle qu'on regarde, sinon la courante.
+    const versionAffichee = useMemo(() => {
         if (activeVersionId) {
             const v = versions.find((ver) => ver.id === activeVersionId)
                 ?? (initialSelectedVersion?.id === activeVersionId ? initialSelectedVersion : undefined);
-            if (v) {
-                const statusSuffix = v.status === "draft" ? " (Draft)" : v.status === "published" ? " (Published)" : "";
-                return `v${v.version_number}${statusSuffix}`;
-            }
+            if (v) return { numero: v.version_number ?? null, statut: v.status ?? null };
         }
-        // Otherwise use the immediately-available version info from save responses
-        if (currentVersionNumber != null) {
-            const statusSuffix = currentVersionStatus === "draft" ? " (Draft)" : currentVersionStatus === "published" ? " (Published)" : "";
-            return `v${currentVersionNumber}${statusSuffix}`;
-        }
-        return undefined;
+        return { numero: currentVersionNumber, statut: currentVersionStatus };
     }, [activeVersionId, versions, currentVersionNumber, currentVersionStatus, initialSelectedVersion]);
 
     const testerDisabledReason = useMemo(() => {
@@ -372,6 +361,16 @@ function RenderWorkflow({
     const shouldShowWebCallOnboarding = useMemo(() => {
         return (initialTotalRuns ?? 0) === 0 && !hasCompletedAction('web_call_started');
     }, [hasCompletedAction, initialTotalRuns]);
+
+    // K2 : les onglets autres que le Parcours envoient ici leur « Essayer » (`?essai=audio|text|simulated|telephone`).
+    const essaiDemande = searchParams.get('essai');
+    const essaiJoue = useRef(false);
+    useEffect(() => {
+        if (essaiJoue.current || !essaiDemande) return;
+        essaiJoue.current = true;
+        if (essaiDemande === 'telephone') setIsPhoneCallDialogOpen(true);
+        else if (essaiDemande === 'audio' || essaiDemande === 'text' || essaiDemande === 'simulated') handleOpenTester(essaiDemande);
+    }, [essaiDemande, handleOpenTester]);
 
     useEffect(() => {
         const syncViewport = () => {
@@ -431,8 +430,8 @@ function RenderWorkflow({
 
     // Memoize defaultEdgeOptions to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
-        animated: true,
-        type: "custom"
+        type: "custom",
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#b5b5bd", width: 14, height: 14 },
     }), []);
 
     const displayNodes = useMemo(
@@ -468,7 +467,7 @@ function RenderWorkflow({
         setCurrentVersionNumber(reponse.data?.version_number ?? null);
         setCurrentVersionStatus(reponse.data?.version_status ?? null);
         void fetchVersions(true);
-        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 300, maxZoom: 0.75 }), 100);
+        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 300, maxZoom: 0.8 }), 100);
         return true;
     }, [workflowId, setNodes, setEdges, setIsDirty, fetchVersions, rfInstance]);
 
@@ -524,7 +523,7 @@ function RenderWorkflow({
     // The nodes appear one by one: keep the whole graph in view while the operations arrive.
     useEffect(() => {
         if (builderOperations.length === 0) return;
-        const minuteur = setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.75 }), 60);
+        const minuteur = setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.8 }), 60);
         return () => clearTimeout(minuteur);
     }, [builderOperations.length, rfInstance]);
 
@@ -681,7 +680,7 @@ function RenderWorkflow({
                 ouvert={propositionGroupe}
                 onOuvertChange={setPropositionGroupe}
             />
-            <div className="flex flex-col h-screen min-w-fit">
+            <div className="flex h-full min-w-fit flex-col">
                 {/* New Workflow Editor Header */}
                 <WorkflowEditorHeader
                     workflowName={workflowName}
@@ -694,7 +693,8 @@ function RenderWorkflow({
                     user={user}
                     onPhoneCallClick={() => setIsPhoneCallDialogOpen(true)}
                     onTestAgentClick={handleOpenTester}
-                    activeVersionLabel={activeVersionLabel}
+                    versionNumber={versionAffichee.numero}
+                    versionStatus={versionAffichee.statut}
                     isViewingHistoricalVersion={isViewingHistoricalVersion}
                     onBackToDraft={handleBackToDraft}
                     hasDraft={hasDraft}
@@ -712,7 +712,7 @@ function RenderWorkflow({
                 {/* Workflow Canvas */}
                 <div className="flex-1 min-h-0">
                     <div className="flex h-full min-w-0">
-                        <div className="relative min-w-0 flex-1">
+                        <div className="relative min-w-0 flex-1 bg-[#fafafa]">
                             <ReactFlow
                                 key={activeVersionId ?? 'current'}
                                 nodes={noeudsAffiches}
@@ -733,11 +733,12 @@ function RenderWorkflow({
                                 edgeTypes={edgeTypes}
                                 onConnect={isViewingHistoricalVersion ? undefined : onConnect}
                                 minZoom={0.2}
+                                onMove={(_, vue) => setZoomPourCent(Math.round(vue.zoom * 100))}
                                 onInit={(instance) => {
                                     rfInstance.current = instance;
                                     // Center the workflow on load
                                     setTimeout(() => {
-                                        instance.fitView({ padding: 0.2, duration: 200, maxZoom: 0.75 });
+                                        instance.fitView({ padding: 0.2, duration: 200, maxZoom: 0.8 });
                                     }, 0);
                                 }}
                                 defaultEdgeOptions={defaultEdgeOptions}
@@ -748,20 +749,25 @@ function RenderWorkflow({
                                 zoomOnDoubleClick={false}
                                 deleteKeyCode={isViewingHistoricalVersion ? null : "Backspace"}
                             >
+                                <GroupeSurCanevas agentId={workflowId} />
                                 <Background
                                     variant={BackgroundVariant.Dots}
-                                    gap={16}
+                                    gap={20}
                                     size={1}
-                                    color="var(--border-strong)"
+                                    color="#e7e7ea"
                                 />
 
                             </ReactFlow>
 
+                            <FilGroupe agentId={workflowId} />
                             {/* [.mark] E36 : la barre flottante du canevas (prompt général, nœud, bibliothèque, zoom, ajuster, ranger) */}
                             <BarreCanevas
                                 lectureSeule={isViewingHistoricalVersion}
+                                zoom={zoomPourCent}
+                                changementDuBuilder={Boolean(builderAvant)}
+                                noeuds={nodes}
                                 onPromptGeneral={handlePromptGeneral}
-                                onAjouter={() => setIsAddNodePanelOpen(true)}
+                                onAjouter={handleNodeSelect}
                                 onZoomAvant={() => rfInstance.current?.zoomIn()}
                                 onZoomArriere={() => rfInstance.current?.zoomOut()}
                                 onAjuster={() => rfInstance.current?.fitView()}
@@ -783,7 +789,7 @@ function RenderWorkflow({
                                     ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                     disabled={testerDisabledReason !== null}
                                     disabledReason={testerDisabledReason}
-                                    showWebCallOnboarding={shouldShowWebCallOnboarding}
+                                    showWebCallOnboarding={false}
                                     isVisible={isDesktopViewport}
                                     onClose={() => setIsTesterRailOpen(false)}
                                     onRuntimeNodeTransition={handleRuntimeNodeTransition}
@@ -801,7 +807,7 @@ function RenderWorkflow({
                                 ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                 disabled={testerDisabledReason !== null}
                                 disabledReason={testerDisabledReason}
-                                showWebCallOnboarding={shouldShowWebCallOnboarding}
+                                showWebCallOnboarding={false}
                                 isVisible={isTesterSheetOpen}
                                 onRuntimeNodeTransition={handleRuntimeNodeTransition}
                                 modeDemande={modeEssai}
@@ -811,13 +817,6 @@ function RenderWorkflow({
                 </div>
 
                 <MenuDuNoeud menu={menuDuNoeud} onFermer={() => setMenuDuNoeud(null)} />
-
-                <AddNodePanel
-                    isOpen={isAddNodePanelOpen}
-                    onNodeSelect={handleNodeSelect}
-                    onClose={() => setIsAddNodePanelOpen(false)}
-                    nodes={nodes}
-                />
 
                 <PhoneCallDialog
                     open={isPhoneCallDialogOpen}

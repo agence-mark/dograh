@@ -16,9 +16,9 @@ export const BaseNode = forwardRef<
         ref={ref}
         className={cn(
             // Base styling - larger with max width, uses semantic colors
-            "relative rounded-lg border bg-card text-card-foreground min-w-[320px] max-w-[400px] min-h-[120px]",
+            "relative w-[250px] cursor-pointer rounded-xl border bg-card px-3.5 py-3 text-card-foreground shadow-[0_1px_2px_rgba(15,15,16,0.05)]",
             // Border styling
-            "border-border",
+            "border-black/10",
             className,
             // Selected state - prominent halo effect
             selected ? "border-(--acc) shadow-[0_0_0_3px_var(--acc-soft)]" : "",
@@ -28,7 +28,7 @@ export const BaseNode = forwardRef<
             hovered_through_edge ? "border-(--acc)/70" : "",
             !hovered_through_edge && selected_through_edge ? "border-(--acc)/45" : "",
             runtimeActive ? "ring-2 ring-foreground/60" : "",
-            !selected_through_edge && !hovered_through_edge && "hover:border-(--border-strong)",
+            !selected_through_edge && !hovered_through_edge && "hover:border-black/25",
         )}
         tabIndex={0}
         {...props}

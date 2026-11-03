@@ -1,6 +1,6 @@
 import { NodeProps, NodeToolbar, Position } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
-import { Check, Circle, Copy, Edit, type LucideIcon, Trash2Icon } from "lucide-react";
+import { Check, Circle, Copy, Edit, Flag, type LucideIcon, Play, Square, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -177,32 +177,35 @@ function resolveIntegrationSummary(
     return hasSecret ? "Configured" : "Not configured";
 }
 
-function getBadgeForSpec(
-    spec: NodeSpec | undefined,
-    variant: NodeStyleVariant,
-): { label: string; className: string } {
-    if (!spec) {
-        return { label: "Node", className: "bg-secondary text-secondary-foreground" };
-    }
-
+function getBadgeForSpec(spec: NodeSpec | undefined, variant: NodeStyleVariant): { label: string } {
+    if (!spec) return { label: "Nœud" };
     switch (variant) {
         case "start":
-            return { label: "Start Node", className: "bg-(--node-start) text-white" };
+            return { label: "Début" };
         case "agent":
-            return { label: "Agent Node", className: "bg-secondary text-secondary-foreground" };
+            return { label: "Étape" };
         case "end":
-            return { label: "End Node", className: "bg-(--node-end) text-white" };
+            return { label: "Fin" };
         case "global":
-            return { label: "Global Node", className: "bg-(--node-global) text-white" };
+            return { label: "Global" };
         case "trigger":
-            return { label: "API Trigger", className: "bg-secondary text-secondary-foreground" };
+            return { label: "Déclencheur" };
         case "webhook":
-            return { label: "Webhook", className: "bg-secondary text-secondary-foreground" };
+            return { label: "Webhook" };
         case "qa":
-            return { label: "QA Analysis", className: "bg-secondary text-secondary-foreground" };
+            return { label: "Contrôle qualité" };
         case "integration":
-            return { label: spec.display_name, className: "bg-secondary text-secondary-foreground" };
+            return { label: spec.display_name };
     }
+}
+
+/** Le texte de la carte : le prompt sans ses titres, tel que l'étape le dit (la maquette en montre deux lignes). */
+function resumeDuPrompt(prompt?: string): string {
+    return (prompt ?? "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"))
+        .join(" ");
 }
 
 // ─── Canvas preview dispatch ──────────────────────────────────────────────
@@ -312,39 +315,25 @@ function CanvasPreview({
         );
     }
 
-    // Default: prompt preview + tool/document badges (when spec declares them).
+    // Défaut : deux lignes du prompt (maquette). Les pastilles d'outils et de documents restent montées, cachées : elles
+    // retirent d'elles-mêmes les outils et documents qui n'existent plus ; leur liste se lit dans la fenêtre de l'étape.
     const hasToolRefs = spec.properties.some((p) => p.type === "tool_refs");
     const hasDocRefs = spec.properties.some((p) => p.type === "document_refs");
     return (
         <>
-            <p className="text-sm text-muted-foreground line-clamp-5 leading-relaxed">
-                {data.prompt || "No prompt configured"}
-            </p>
-            {hasToolRefs && data.tool_uuids && data.tool_uuids.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                        <LucideIcons.Wrench className="h-3 w-3" />
-                        <span>Tools:</span>
-                    </div>
+            <p className="line-clamp-2 text-xs text-muted-foreground">{resumeDuPrompt(data.prompt)}</p>
+            <div hidden>
+                {hasToolRefs && data.tool_uuids && data.tool_uuids.length > 0 && (
                     <ToolBadges
                         toolUuids={data.tool_uuids}
                         onStaleUuidsDetected={onStaleTools}
                         mcpToolFilters={data.mcp_tool_filters}
                     />
-                </div>
-            )}
-            {hasDocRefs && data.document_uuids && data.document_uuids.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                        <LucideIcons.FileText className="h-3 w-3" />
-                        <span>Documents:</span>
-                    </div>
-                    <DocumentBadges
-                        documentUuids={data.document_uuids}
-                        onStaleUuidsDetected={onStaleDocuments}
-                    />
-                </div>
-            )}
+                )}
+                {hasDocRefs && data.document_uuids && data.document_uuids.length > 0 && (
+                    <DocumentBadges documentUuids={data.document_uuids} onStaleUuidsDetected={onStaleDocuments} />
+                )}
+            </div>
         </>
     );
 }
@@ -686,11 +675,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
             ? { source: false, target: false }
             : { source: true, target: true });
     const badge = getBadgeForSpec(spec, styleVariant);
-    const Icon = spec ? resolveIcon(spec.icon) : Circle;
+    const Icon = styleVariant === "start" ? Play : styleVariant === "agent" ? Square : styleVariant === "end" ? Flag : spec ? resolveIcon(spec.icon) : Circle;
     const docUrl = spec?.docs_url ?? DOC_URL_BY_SPEC[type];
-    const contentLabel = spec?.properties.some((p) => p.name === "prompt")
-        ? "Prompt"
-        : "Details";
 
     // Edit dialog title: "Edit {display_name}". Webhook keeps the original
     // "Edit Webhook" wording — display_name is "Webhook" so it works out.
@@ -851,12 +837,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 title={data.name || fallbackTitle}
                 icon={<Icon />}
                 badgeLabel={badge.label}
-                badgeClassName={badge.className}
-                contentLabel={contentLabel}
                 hasSourceHandle={handles.source}
                 hasTargetHandle={handles.target}
                 onDoubleClick={() => setOpen(true)}
-                nodeId={id}
             >
                 {spec && (
                     <CanvasPreview

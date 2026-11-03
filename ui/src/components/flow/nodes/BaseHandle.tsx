@@ -7,27 +7,13 @@ export type BaseHandleProps = HandleProps;
 
 export const BaseHandle = forwardRef<HTMLDivElement, BaseHandleProps>(
     ({ className, children, type, ...props }, ref) => {
-        const isSource = type === 'source';
-        const isTarget = type === 'target';
-
         return (
             <Handle
                 ref={ref}
                 type={type}
                 {...props}
-                className={cn(
-                    "transition-all hover:!bg-primary",
-                    // Source (outgoing) has larger visible handle for easier connection
-                    isSource && "!h-[16px] !w-[16px] rounded-full",
-                    // Target (incoming) smaller rectangle
-                    isTarget && "!h-[10px] !w-[14px] rounded-sm",
-                    className,
-                )}
-                style={{
-                    border: 'none',
-                    background: 'var(--muted-foreground)',
-                    ...props.style,
-                }}
+                className={cn("!size-2 !rounded-full !border !border-solid !border-black/20 !bg-white transition-all hover:!border-primary", className)}
+                style={{ ...props.style }}
             >
                 {children}
             </Handle>
