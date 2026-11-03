@@ -242,14 +242,20 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(screen.getByRole("button", { name: "Save Listening" })).toBeTruthy();
     });
 
-    it("has an entry per theme in the navigation, pointing at a theme that exists", async () => {
-        // An entry whose id no element carries is an entry that does nothing, silently.
+    it("has a card per theme, in its level (Essential, Advanced, Engine)", async () => {
+        // U4 (E44): the themes are cards in three levels; a theme without its card cannot be opened, silently.
         const { container } = await rendreLaPage();
-        for (const id of ["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]) {
-            expect(container.querySelector(`a[href="#${id}"]`), id).not.toBeNull();
-            expect(container.querySelector(`#${id}`), id).not.toBeNull();
+        const niveaux: Record<string, string[]> = {
+            essentiel: ["agent", "etablissement", "voix", "phrases", "donnees"],
+            avance: ["briques", "ecoute", "modules", "tour", "rythme"],
+            moteur: ["interventions"],
+        };
+        for (const [niveau, ids] of Object.entries(niveaux)) {
+            for (const id of ids) {
+                expect(container.querySelector(`[data-niveau="${niveau}"] [data-theme="${id}"][data-carte]`), id).not.toBeNull();
+            }
         }
-        expect(container.querySelector('a[href="#tour"]')?.textContent).toContain("Turn taking");
+        expect(container.querySelector('[data-theme="tour"]')?.textContent).toContain("Turn taking");
     });
 
     it("sits at the file path Next turns into the route, and the agent bar's Settings tab leads to it", async () => {
@@ -272,7 +278,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         ).not.toThrow();
     });
 
-    it("[call record] is really mounted, with its switch, its field editor, its theme's Save button and navigation entry", async () => {
+    it("[call record] is really mounted, with its switch, its field editor, its theme's Save button and card", async () => {
         // Plan fiche au fil de l'eau, lot 5: a switch nobody can reach is a
         // switch nobody turns on.
         const { container } = await rendreLaPage();
@@ -281,7 +287,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(document.getElementById("fiche_au_fil_de_leau")?.getAttribute("aria-checked")).toBe("false");
         expect(screen.getByRole("button", { name: /edit fields/i })).toBeTruthy();
         expect(screen.getByRole("button", { name: "Save Call data" })).toBeTruthy();
-        expect(container.querySelector('a[href="#donnees"]')?.textContent).toContain("Call data");
+        expect(container.querySelector('[data-theme="donnees"][data-carte]')?.textContent).toContain("Call data");
     });
 
     it("[call record] the field editor of the MOUNTED theme offers the allowed values (PB3)", async () => {
@@ -312,12 +318,12 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(champ.value).toBe("reference*");
     });
 
-    it("[opening hours] are really mounted, with their field, their theme's Save button and navigation entry", async () => {
+    it("[opening hours] are really mounted, with their field, their theme's Save button and card", async () => {
         const { container } = await rendreLaPage();
         const theme = ouvrirLeTheme("etablissement");
         expect(theme.contains(document.getElementById("horaires_ouverture"))).toBe(true);
         expect(screen.getByRole("button", { name: "Save Business" })).toBeTruthy();
-        expect(container.querySelector('a[href="#etablissement"]')?.textContent).toContain("Business");
+        expect(container.querySelector('[data-theme="etablissement"][data-carte]')?.textContent).toContain("Business");
     });
 
     it("[verification-communes] the business address is mounted, with its fields, right after the opening hours", async () => {

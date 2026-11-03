@@ -104,6 +104,8 @@ REGLES: tuple[Regle, ...] = (
     _r({"POST"}, r"^/workflow/\{workflow_id\}/runs/\{run_id\}/renvoi-en-test$", P("tests.jouer")),
     _r(LECTURE, r"^/workflow/\{workflow_id\}/(runs.*|report)$", P("conversations.voir")),
     _r(LECTURE, r"^/workflow/\{workflow_id\}/text-chat/.*$", P("tests.jouer")),
+    # U4 : la préparation d'un agent et l'origine de ses réglages, calculées à la lecture (rien d'écrit).
+    _r(LECTURE, r"^/workflow/\{workflow_id\}/(preparation|heritage-reglages)$", MEMBRE),
     _r(ECRITURE, r"^/workflow/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/workflow/.*$", MEMBRE, par_defaut=True),
     # U3, E30 : les étiquettes des agents (lire = membre, poser = modifier un agent).

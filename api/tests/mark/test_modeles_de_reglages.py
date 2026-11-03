@@ -111,7 +111,7 @@ CONFIG_B = {
 
 
 @pytest.fixture
-async def monde(db_session, async_session):
+async def monde(db_session, async_session, monkeypatch):
     """Two organizations, each with a user; A holds an agent with its settings, B two agents."""
     async def _organisation(nom):
         org = OrganizationModel(provider_id=f"org-modeles-{nom}")
@@ -132,6 +132,8 @@ async def monde(db_session, async_session):
 
     org_a, user_a = await _organisation("a")
     org_b, user_b = await _organisation("b")
+    # D1 (E45): the templates live in the library, which belongs to the .mark organization (here: A).
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org_a.id))
     agent_a = await _agent(user_a, org_a, "Agent A", CONFIG_A)
     agent_b = await _agent(user_b, org_b, "Agent B", CONFIG_B)
     agent_b2 = await _agent(user_b, org_b, "Agent B2", {})
@@ -366,7 +368,9 @@ async def test_ni_le_modele_ni_le_fichier_ni_la_ligne_ne_portent_une_cle(monde, 
         modele = await _creer(client, "Sans cle", monde.agent_a.id)
         brut_fichier = (await client.get(f"{ROUTE}/{modele['id']}/export")).text
         brut_liste = (await client.get(ROUTE)).text
-    ligne = await db_session.get_configuration(monde.org_a.id, OrganizationConfigurationKey.MODELES_REGLAGES.value)
+    # The row the template is stored in (the library's), as the database holds it.
+    ligne = await db_session.get_configuration(monde.org_a.id, f"MARK_BIBLIO:modeles-reglages:{modele['id']}")
+    assert ligne is not None
     for texte in (brut_fichier, brut_liste, json.dumps(ligne.value)):
         assert CLE_SECRETE_A not in texte
         assert "api_key" not in texte
@@ -480,35 +484,37 @@ async def test_aller_retour_export_import_donne_les_memes_valeurs(monde, test_cl
     async with test_client_factory(monde.user_b) as client_b:
         premier = await client_b.post(f"{ROUTE}/import", json=fichier)
         second = await client_b.post(f"{ROUTE}/import", json=fichier)
-        assert premier.json()["nom"] == "Aller" and second.json()["nom"] == "Aller (2)"
+        # The library is shared: the template already carries the name « Aller », the file takes the next free one.
+        assert premier.json()["nom"] == "Aller (2)" and second.json()["nom"] == "Aller (3)"
         assert premier.json()["origine"] is None, "the origin of a file is another organization's agent"
         retour = (await client_b.get(f"{ROUTE}/{premier.json()['id']}/export")).json()
     assert retour["valeurs"] == fichier["valeurs"]
 
 
 # --------------------------------------------------------------------------- #
-# 6. One organization never sees another's templates (M1)
+# 6. The templates are the library's; the AGENTS stay each organization's (M1, D1)
 # --------------------------------------------------------------------------- #
 
 
-async def test_cloisonnement_entre_organisations(monde, test_client_factory, db_session):
+async def test_les_modeles_sont_ceux_de_la_bibliotheque_les_agents_restent_cloisonnes(monde, test_client_factory, db_session):
     async with test_client_factory(monde.user_a) as client_a:
-        modele = await _creer(client_a, "Prive a A", monde.agent_a.id)
+        modele = await _creer(client_a, "Partage", monde.agent_a.id)
     async with test_client_factory(monde.user_b) as client_b:
-        assert (await client_b.get(ROUTE)).json()["modeles"] == []
-        assert (await client_b.get(f"{ROUTE}/{modele['id']}/export")).status_code == 404
-        assert (await client_b.patch(f"{ROUTE}/{modele['id']}", json={"nom": "Pris"})).status_code == 404
-        assert (await client_b.delete(f"{ROUTE}/{modele['id']}")).status_code == 404
-        corps = {"workflow_id": monde.agent_b.id, "sections": ["tour"]}
-        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=corps)).status_code == 404
-        # B cannot freeze or set A's agent either.
+        # The library is shared: B reads and exports the template...
+        assert [m["nom"] for m in (await client_b.get(ROUTE)).json()["modeles"]] == ["Partage"]
+        assert (await client_b.get(f"{ROUTE}/{modele['id']}/export")).status_code == 200
+        # ... and applies it to ITS OWN agent...
+        ok = {"workflow_id": monde.agent_b.id, "sections": ["tour"], "a_blanc": True}
+        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=ok)).status_code == 200
+        # ... but never freezes, sets or reads the mention of A's agent.
         assert (await client_b.post(ROUTE, json={"nom": "Vol", "workflow_id": monde.agent_a.id})).status_code == 404
+        vol = {"workflow_id": monde.agent_a.id, "sections": ["tour"]}
+        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=vol)).status_code == 404
         assert (await client_b.get(f"{ROUTE}/agent/{monde.agent_a.id}")).status_code == 404
     async with test_client_factory(monde.user_a) as client_a:
         pris = {"workflow_id": monde.agent_b.id, "sections": ["tour"]}
         assert (await client_a.post(f"{ROUTE}/{modele['id']}/appliquer", json=pris)).status_code == 404
-        # A's row is intact.
-        assert [m["nom"] for m in (await client_a.get(ROUTE)).json()["modeles"]] == ["Prive a A"]
+        assert [m["nom"] for m in (await client_a.get(ROUTE)).json()["modeles"]] == ["Partage"]
     assert await db_session.get_draft_version(monde.agent_b.id) is None, "nothing was written on B's agent"
 
 

@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { BORNES } from "../bornes-reglages";
 import { type Texte, useLangue } from "../langue/langue";
+import { PastilleOrigine } from "./heritage";
 
 /** « > 0 · ≤ 10 · optional », from the bounds the server enforces. */
 export const texteBornes = (cle: string, facultatif = false): Texte | null => {
@@ -79,6 +80,7 @@ export const ChampReglage = ({
             <code className="text-[11px] text-muted-foreground/80" data-cle-technique={cle}>
                 {cle}
             </code>
+            <PastilleOrigine cle={cle} />
         </span>
     );
     return (

@@ -237,14 +237,15 @@ describe("[.mark] the agent page in themes", () => {
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
 
-    // Cloture-code, lot 5 (M11): the settings templates button sits in the FIXED header, next to the agent's name,
-    // outside the themes, and opens the centred modal.
-    it("has the settings templates button in the fixed header, outside the themes", async () => {
+    // Cloture-code, lot 5 (M11), then U4 (E44): the settings templates button sits in the page's toolbar, next to the
+    // search, outside the themes, and opens the centred modal.
+    it("has the settings templates button in the toolbar, outside the themes", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
-        const bouton = document.querySelector("header [data-bouton-modeles]") as HTMLElement;
-        expect(bouton, "the button is in the header").not.toBeNull();
+        const bouton = document.querySelector("[data-bouton-modeles]") as HTMLElement;
+        expect(bouton, "the button is in the toolbar").not.toBeNull();
         expect(document.querySelector("[data-theme] [data-bouton-modeles]")).toBeNull();
         fireEvent.click(bouton);
+        fireEvent.click(document.querySelector('[data-entree-modeles="gerer"]') as HTMLElement);
         await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
     });
 
@@ -499,9 +500,8 @@ describe("[.mark] the agent page in themes", () => {
     it("names a value out of range that another choice hides, blocks the theme, and « show » reveals it", async () => {
         // C9: the detector is shown under Flux now; the pause stays hidden there.
         await ouvrir({ user_speech_timeout: 11 }, FLUX);
-        // The red dot, on the theme and in the navigation, before anything is opened.
+        // The red dot, on the theme's card, before anything is opened.
         expect(document.querySelector('[data-theme="tour"] [data-pastille="erreur"]')).not.toBeNull();
-        await waitFor(() => expect(document.querySelector('[data-navigation="tour"] [data-pastille="erreur"]')).not.toBeNull());
 
         ouvrirLeTheme("tour");
         expect(document.getElementById("user_speech_timeout")).toBeNull();
@@ -1388,5 +1388,88 @@ describe("[.mark] the agent's improvement boxes (passages-fiables, lots F and G)
         const charge = appels[appels.length - 1][0];
         expect(charge.signaler_un_probleme).toBe(true);
         expect(charge.alertes_par_mail).toBe(true);
+    });
+});
+
+// builder partie 2, D1 (U4, E38, E42, E44): the cards, their windows, the search, the Engine level, « Cancel ».
+describe("[.mark] the agent page: cards, windows and search", () => {
+    const cartes = () => [...document.querySelectorAll("[data-theme][data-carte]")].map((e) => e.getAttribute("data-theme"));
+
+    it("draws the 11 themes as cards in three levels, in the order of the plan", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const niveaux = [...document.querySelectorAll("[data-niveau]")].map((n) => [
+            n.getAttribute("data-niveau"),
+            [...n.querySelectorAll("[data-theme][data-carte]")].map((c) => c.getAttribute("data-theme")),
+        ]);
+        expect(niveaux).toEqual([
+            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees"]],
+            ["avance", ["briques", "ecoute", "modules", "tour", "rythme"]],
+            ["moteur", ["interventions"]],
+        ]);
+        expect(cartes()).toHaveLength(11);
+    });
+
+    it("opens a theme in a centred window with a fixed header and footer, and closes it with Escape", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        expect(document.querySelector("[data-fenetre-theme]")).toBeNull();
+        ouvrirLeTheme("rythme");
+        const fenetre = document.querySelector('[data-fenetre-theme="rythme"]') as HTMLElement;
+        expect(fenetre.getAttribute("role")).toBe("dialog");
+        expect(fenetre.querySelector("[data-pied-fenetre]")).not.toBeNull();
+        expect(fenetre.querySelector('[data-reglage="max_call_duration"]')).not.toBeNull();
+        fireEvent.keyDown(document, { key: "Escape" });
+        await waitFor(() => expect(document.querySelector("[data-fenetre-theme]")).toBeNull());
+    });
+
+    it("« Cancel » forgets the draft of the theme and closes its window", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("rythme");
+        const champ = document.getElementById("max_call_duration") as HTMLInputElement;
+        const avant = champ.value;
+        fireEvent.change(champ, { target: { value: "777" } });
+        expect((document.getElementById("max_call_duration") as HTMLInputElement).value).toBe("777");
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+        await waitFor(() => expect(document.querySelector("[data-fenetre-theme]")).toBeNull());
+        ouvrirLeTheme("rythme");
+        expect((document.getElementById("max_call_duration") as HTMLInputElement).value).toBe(avant);
+    });
+
+    it("searches all the settings by label or technical name and opens the theme on the setting", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const champ = screen.getByLabelText("Search all settings");
+        fireEvent.change(champ, { target: { value: "max_call_duration" } });
+        const resultat = await waitFor(() => {
+            const r = document.querySelector('[data-resultat="max_call_duration"]');
+            if (!r) throw new Error("no result yet");
+            return r as HTMLElement;
+        });
+        fireEvent.click(resultat);
+        await waitFor(() => expect(document.querySelector('[data-fenetre-theme="rythme"] [data-reglage="max_call_duration"]')).not.toBeNull());
+        fireEvent.change(screen.getByLabelText("Search all settings"), { target: { value: "zzzzzz" } });
+        await waitFor(() => expect(document.querySelector('[data-recherche="aucun"]')).not.toBeNull());
+    });
+
+    it("hides the Engine level in a client's space, and its settings from the search", async () => {
+        window.history.pushState({}, "", "/clients/7/agents");
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA).catch(() => undefined);
+            await waitFor(() => expect(document.querySelector('[data-niveau="essentiel"]')).not.toBeNull());
+            await waitFor(() => expect(document.querySelector('[data-niveau="moteur"]')).toBeNull());
+            expect(cartes()).not.toContain("interventions");
+            fireEvent.change(screen.getByLabelText("Search all settings"), { target: { value: "laisser_la_parole" } });
+            await waitFor(() => expect(document.querySelector('[data-recherche="aucun"]')).not.toBeNull());
+        } finally {
+            window.history.pushState({}, "", "/");
+        }
+    });
+
+    it("shows the Engine level in the Labo", async () => {
+        window.history.pushState({}, "", "/labo/agents");
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+            expect(document.querySelector('[data-niveau="moteur"] [data-theme="interventions"]')).not.toBeNull();
+        } finally {
+            window.history.pushState({}, "", "/");
+        }
     });
 });

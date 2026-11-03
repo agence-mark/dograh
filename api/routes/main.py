@@ -40,6 +40,7 @@ from api.routes.credentials import router as credentials_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
 from api.routes.groupe import router as groupe_router
+from api.routes.reglages_agent import router as reglages_agent_router
 from api.routes.knowledge_base import router as knowledge_base_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
@@ -75,6 +76,7 @@ router.include_router(telephony_router)
 router.include_router(superuser_router)
 router.include_router(workflow_router)
 router.include_router(groupe_router)
+router.include_router(reglages_agent_router)
 # [.mark] builder-agent-vocal : le builder d'agent vocal (conversation, bibliothèque, cerveau)
 router.include_router(builder_router)
 router.include_router(builder_tests_router)  # [.mark] builder lot 6 : tests et boucle d'amelioration
