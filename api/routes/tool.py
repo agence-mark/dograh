@@ -378,6 +378,14 @@ async def update_tool(
     definition = None
     if request.definition:
         definition = request.definition.model_dump()
+        # [.mark] U3 sexies : le premier essai et le dernier essai sont écrits par le serveur ; une mise à jour les garde.
+        from api.services.outils_mark.essai import conserver_les_champs_du_serveur
+
+        existant = await db_client.get_tool_by_uuid(
+            tool_uuid, user.selected_organization_id, include_archived=True
+        )
+        if existant is not None:
+            definition = conserver_les_champs_du_serveur(existant.definition, definition)
         try:
             await validate_tool_references(
                 definition,

@@ -9,6 +9,7 @@ from api.db.site_client import SiteClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
+from api.db.outils_mark_client import OutilsMarkClient
 from api.db.folder_client import FolderClient
 from api.db.integration_client import IntegrationClient
 from api.db.knowledge_base_client import KnowledgeBaseClient
@@ -57,6 +58,7 @@ class DBClient(
     FolderClient,
     # [.mark] The establishments' reads (chantier l-agent-travaille).
     EtablissementsClient,
+    OutilsMarkClient,
     # [.mark] l-agent-travaille, L4: the after-call steps of a run.
     ApresAppelClient,
     # [.mark] cloture-code, lot 6: the retention of a call's copies (the nightly purge).

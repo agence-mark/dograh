@@ -69,6 +69,27 @@ class ToolParameter(BaseModel):
         default=True,
         description="Whether this parameter is required when the tool is called.",
     )
+    # [.mark] U3 sexies (E74) : où le paramètre part dans la requête, ses valeurs permises et son défaut.
+    # ``None`` : le comportement d'avant (corps pour POST/PUT/PATCH, requête pour GET/DELETE).
+    emplacement: Literal["chemin", "requete", "corps", "en_tete"] | None = Field(
+        default=None,
+        description="Where the value goes in the request: path, query, body or header. Empty: as before.",
+    )
+    valeurs_permises: list[str] | None = Field(
+        default=None,
+        max_length=100,
+        description="Closed list of allowed values. Empty: any value.",
+    )
+    defaut: Any | None = Field(
+        default=None,
+        description="Value used when the model gives none. Must be an allowed value when a list is set.",
+    )
+
+    @model_validator(mode="after")
+    def _defaut_permis(self) -> ToolParameter:
+        if self.defaut is not None and self.valeurs_permises and str(self.defaut) not in self.valeurs_permises:
+            raise ValueError(f"The default of {self.name} is not one of its allowed values.")
+        return self
 
 
 class PresetToolParameter(BaseModel):
@@ -94,7 +115,95 @@ class PresetToolParameter(BaseModel):
     )
 
 
-class HttpApiConfig(BaseModel):
+class EnteteDeRequete(BaseModel):
+    """[.mark] U3 sexies (E74) : un en-tête de requête, en clair, tiré d'une variable ou secret (jamais réaffiché)."""
+
+    nom: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9!#$%&'*+.^_`|~-]+$", description="Header name.")
+    sorte: Literal["texte", "variable", "secret"] = Field(
+        default="texte",
+        description=(
+            "text: the value as written; variable: a template such as {{initial_context.x}}; "
+            "secret: the value lives in an encrypted credential of the organization and is never shown again."
+        ),
+    )
+    valeur: str | None = Field(default=None, max_length=2000, description="Text or template. Not for a secret.")
+    identifiant_uuid: str | None = Field(
+        default=None, max_length=36, description="Credential holding the secret value. Only for a secret."
+    )
+
+    @model_validator(mode="after")
+    def _selon_la_sorte(self) -> EnteteDeRequete:
+        if self.sorte == "secret":
+            if not self.identifiant_uuid:
+                raise ValueError("A secret header names the credential that holds its value.")
+            if self.valeur:
+                raise ValueError("A secret header carries no value of its own.")
+        elif not (self.valeur or "").strip():
+            raise ValueError("A header needs a value.")
+        return self
+
+
+class CopieDansLaFiche(BaseModel):
+    """[.mark] U3 sexies (E74) : une valeur de la réponse recopiée dans la fiche de l'appel (``gathered_context``)."""
+
+    chemin: str = Field(min_length=1, max_length=200, description="Path in the answer, such as client.id or items.0.name.")
+    cle: str = Field(
+        min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]{0,63}$", description="Key written in the call record."
+    )
+
+
+class ReponseSimulee(BaseModel):
+    """[.mark] U3 sexies (E74) : une réponse enregistrée, servie à l'essai et au banc seulement, jamais en appel réel."""
+
+    nom: str = Field(default="Réponse simulée", max_length=80)
+    quand: dict[str, str] = Field(
+        default_factory=dict,
+        description="Served when every given parameter has this value. Empty: served whatever the parameters.",
+    )
+    statut: int = Field(default=200, ge=100, le=599)
+    donnees: Any = Field(default=None, description="The body of the answer.")
+
+
+class ComportementOutil(BaseModel):
+    """[.mark] U3 sexies point 3 (E74) : le comportement commun aux types qui appellent l'extérieur. Tout vit dans
+    ``definition.config`` (aucune migration). Les valeurs par défaut gardent le comportement d'avant."""
+
+    phrase_avant_mode: Literal["auto", "toujours", "jamais"] | None = Field(
+        default=None,
+        description=(
+            "Sentence said before the tool. auto: only if the tool is slow; always; never. "
+            "Empty: always when a sentence is written (as before)."
+        ),
+    )
+    mode_execution: Literal["immediat", "apres_la_phrase", "arriere_plan"] = Field(
+        default="immediat",
+        description=(
+            "immediat: the tool starts at once; apres_la_phrase: it starts when the sentence is finished; "
+            "arriere_plan: the model gets an immediate answer and the result lands in the call record "
+            "(a tool that only reads)."
+        ),
+    )
+    interruption_appelant: bool = Field(
+        default=False, description="The caller may cut the sentence said before and while the tool works."
+    )
+    son_pendant_enregistrement_id: int | None = Field(
+        default=None, description="Recording played once while the tool works, past the patience threshold."
+    )
+    phrase_attente: str | None = Field(
+        default=None, max_length=300, description="Said once if the tool has not finished after the patience threshold."
+    )
+    seuil_patience_ms: int = Field(default=1200, ge=0, le=15000, description="Patience threshold in milliseconds.")
+    phrase_repli: str | None = Field(default=None, max_length=300, description="Said when the tool fails.")
+    # Gérés par le serveur (la route d'essai les écrit, une mise à jour de l'outil les conserve).
+    dernier_essai: dict[str, Any] | None = Field(
+        default=None, description="Server-managed: the last trial (success, mode, date)."
+    )
+    premier_essai: dict[str, Any] | None = Field(
+        default=None, description="Server-managed: who validated the first trial, and when."
+    )
+
+
+class HttpApiConfig(ComportementOutil):
     """Configuration for HTTP API tools."""
 
     method: HttpMethod = Field(
@@ -199,6 +308,34 @@ class HttpApiConfig(BaseModel):
             "item and object values are sent as JSON strings."
         ),
     )
+
+    # [.mark] U3 sexies point 2 (E74)
+    en_tetes_ext: list[EnteteDeRequete] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Headers as text, variable or secret. A secret is read from a credential, never shown.",
+    )
+    chemins_gardes: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Paths of the answer the model gets (others dropped). Empty: the whole answer.",
+    )
+    copies_dans_la_fiche: list[CopieDansLaFiche] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Values of the answer copied in the call record, before any filtering.",
+    )
+    reponses_simulees: list[ReponseSimulee] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Recorded answers served by the trial and the test bench only, never in a real call.",
+    )
+
+    @model_validator(mode="after")
+    def _arriere_plan_seulement_en_lecture(self) -> HttpApiConfig:
+        if self.mode_execution == "arriere_plan" and self.method != "GET" and not self.sans_risque_de_doublon:
+            raise ValueError("The background mode is for a tool that only reads (GET, or marked without risk of duplicate).")
+        return self
 
     @field_validator("method", mode="before")
     @classmethod
@@ -490,13 +627,27 @@ class TransferCallConfig(BaseModel):
         return self
 
 
-class McpToolConfig(BaseModel):
+class McpToolConfig(ComportementOutil):
     """Configuration for a customer MCP server tool definition."""
 
-    transport: Literal["streamable_http"] = Field(
+    transport: Literal["streamable_http", "sse"] = Field(
         default="streamable_http",
-        description="MCP transport protocol.",
+        description="MCP transport protocol: streamable HTTP, or SSE.",
     )
+    # [.mark] U3 sexies point 6 (E74)
+    en_tetes_ext: list[EnteteDeRequete] = Field(
+        default_factory=list, max_length=30, description="Free headers sent to the server (text, variable or secret)."
+    )
+    reglages_outils: dict[str, Literal["autorise", "confirmer", "desactive"]] = Field(
+        default_factory=dict,
+        description=(
+            "Per MCP tool: allowed (default), confirm with the caller first, or disabled "
+            "(a disabled tool is never offered to the model)."
+        ),
+    )
+    customMessage: str | None = Field(default=None, description="Sentence said before a tool of this server.")
+    customMessageType: Literal["text", "audio"] | None = Field(default=None, description="Type of that sentence.")
+    customMessageRecordingId: str | None = Field(default=None, description="Recording ID for an audio sentence.")
     url: str = Field(
         description="MCP server URL. Must use http:// or https://.",
         json_schema_extra=_llm_hint("Use the server's streamable HTTP MCP endpoint."),
@@ -696,6 +847,15 @@ class IntegrationToolConfig(BaseModel):
     declencheurs: dict[str, str] = Field(
         default_factory=dict,
         description="Parameter of the action → field of the record that gives it (anticipation).",
+    )
+
+
+    # Gérés par le serveur (U3 sexies point 4) : voir ``ComportementOutil``.
+    dernier_essai: dict[str, Any] | None = Field(
+        default=None, description="Server-managed: the last trial (success, mode, date)."
+    )
+    premier_essai: dict[str, Any] | None = Field(
+        default=None, description="Server-managed: who validated the first trial, and when."
     )
 
     @model_validator(mode="after")

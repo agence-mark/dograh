@@ -13,7 +13,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 from loguru import logger
-from mcp.client.session_group import StreamableHttpParameters
+from mcp.client.session_group import SseServerParameters, StreamableHttpParameters
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.services.mcp_service import MCPClient
 
@@ -30,19 +30,34 @@ def build_streamable_http_params(
     credential: Optional["ExternalCredentialModel"],
     timeout_secs: int,
     sse_read_timeout_secs: int,
-) -> StreamableHttpParameters:
-    """Build Pipecat/MCP streamable-HTTP params, injecting the auth header
-    from an ExternalCredentialModel (reuses the http_api credential path)."""
+    transport: str = "streamable_http",
+    extra_headers: Optional[Dict[str, str]] = None,
+):
+    """Build Pipecat/MCP streamable-HTTP (or SSE) params, injecting the auth header
+    from an ExternalCredentialModel (reuses the http_api credential path).
+    [.mark] U3 sexies point 6 : transport SSE, en-têtes libres."""
     headers: Optional[Dict[str, str]] = None
     if credential is not None:
         auth = build_auth_header(credential)
         headers = auth or None
+    if extra_headers:
+        headers = {**(headers or {}), **extra_headers}
+    if transport == "sse":
+        return SseServerParameters(
+            url=url,
+            headers=headers,
+            timeout=float(timeout_secs),
+            sse_read_timeout=float(sse_read_timeout_secs),
+        )
     return StreamableHttpParameters(
         url=url,
         headers=headers,
         timeout=float(timeout_secs),
         sse_read_timeout=float(sse_read_timeout_secs),
     )
+
+
+PARAMETRE_ACCORD = "accord_appelant"
 
 
 class McpToolSession:
@@ -58,7 +73,14 @@ class McpToolSession:
         tools_filter: List[str],
         timeout_secs: int,
         sse_read_timeout_secs: int,
+        transport: str = "streamable_http",
+        extra_headers: Optional[Dict[str, str]] = None,
+        reglages_outils: Optional[Dict[str, str]] = None,
     ) -> None:
+        self._transport = transport
+        self._extra_headers = extra_headers
+        # [.mark] U3 sexies point 6 : réglage par outil du serveur (autorise, confirmer, desactive).
+        self._reglages = reglages_outils or {}
         self._tool_uuid = tool_uuid
         self._tool_name = tool_name
         self._url = url
@@ -132,6 +154,8 @@ class McpToolSession:
                 credential=self._credential,
                 timeout_secs=self._timeout_secs,
                 sse_read_timeout_secs=self._sse_read_timeout_secs,
+                transport=self._transport,
+                extra_headers=self._extra_headers,
             )
             self._client = MCPClient(params, tools_filter=self._tools_filter)
             await self._client.start()
@@ -226,11 +250,33 @@ class McpToolSession:
         Raw names are the pre-namespace MCP tool names (e.g. ``echo``, not
         ``mcp__slug__echo``).
         """
-        if allowed_raw_names is None:
-            return list(self._schemas)
-        return [
-            s for s in self._schemas if self._name_map.get(s.name) in allowed_raw_names
+        sorties = [
+            s
+            for s in self._schemas
+            if self._reglages.get(self._name_map.get(s.name)) != "desactive"
+            and (allowed_raw_names is None or self._name_map.get(s.name) in allowed_raw_names)
         ]
+        return [self._avec_accord(s) for s in sorties]
+
+    def _avec_accord(self, schema: FunctionSchema) -> FunctionSchema:
+        """[.mark] Confirmer avec l'appelant : le modèle doit passer ``accord_appelant`` (vrai) après avoir demandé."""
+        if self._reglages.get(self._name_map.get(schema.name)) != "confirmer":
+            return schema
+        return FunctionSchema(
+            name=schema.name,
+            description=(
+                f"{schema.description or ''} Before calling this tool, ask the caller for an explicit agreement; "
+                f"set {PARAMETRE_ACCORD} to true only once the caller said yes."
+            ).strip(),
+            properties={
+                **(schema.properties or {}),
+                PARAMETRE_ACCORD: {"type": "boolean", "description": "The caller explicitly agreed to this action."},
+            },
+            required=[*(schema.required or []), PARAMETRE_ACCORD],
+        )
+
+    def demande_un_accord(self, namespaced_name: str) -> bool:
+        return self._reglages.get(self._name_map.get(namespaced_name)) == "confirmer"
 
     def discovered_tools(self) -> List[Dict[str, str]]:
         """Raw MCP tool catalog for UI/cache: ``[{name, description}]``
@@ -253,6 +299,9 @@ class McpToolSession:
         original = self._name_map.get(namespaced_name)
         if original is None:
             raise RuntimeError(f"Unknown MCP function {namespaced_name}")
+        if self._reglages.get(original) == "desactive":
+            raise RuntimeError(f"MCP function {namespaced_name} is disabled")
+        arguments = {k: v for k, v in (arguments or {}).items() if k != PARAMETRE_ACCORD}
         result = await self._session.call_tool(original, arguments=arguments)
         text = ""
         for content in getattr(result, "content", []) or []:
@@ -277,6 +326,8 @@ async def discover_mcp_tools(
     credential: Optional["ExternalCredentialModel"],
     timeout_secs: int,
     sse_read_timeout_secs: int,
+    transport: str = "streamable_http",
+    extra_headers: Optional[Dict[str, str]] = None,
 ) -> List[Dict[str, str]]:
     """Open an ephemeral MCP session, list its tools, close it. Returns
     ``[{name, description}]`` (raw names). Never raises — on any connect
@@ -289,6 +340,8 @@ async def discover_mcp_tools(
         tools_filter=[],
         timeout_secs=timeout_secs,
         sse_read_timeout_secs=sse_read_timeout_secs,
+        transport=transport,
+        extra_headers=extra_headers,
     )
     await session.start()
     try:

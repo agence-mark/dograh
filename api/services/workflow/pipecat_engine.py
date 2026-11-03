@@ -3975,14 +3975,25 @@ class PipecatEngine:
                         )
                         continue
 
+                # [.mark] U3 sexies point 6 : transport, en-têtes libres, réglage par outil.
+                from api.services.outils_mark import mcp as mcp_mark
+
+                try:
+                    entetes_ext = await mcp_mark.entetes_du_serveur(cfg, organization_id)
+                except Exception as e:
+                    logger.warning(f"MCP tool '{tool.name}': headers unreadable: {e}")
+                    continue
                 session = McpToolSession(
                     tool_uuid=tool.tool_uuid,
                     tool_name=tool.name,
                     url=cfg["url"],
                     credential=credential,
-                    tools_filter=cfg["tools_filter"],
+                    tools_filter=mcp_mark.filtre_effectif(cfg, (tool.definition or {}).get("config", {})),
                     timeout_secs=cfg["timeout_secs"],
                     sse_read_timeout_secs=cfg["sse_read_timeout_secs"],
+                    transport=cfg.get("transport", "streamable_http"),
+                    extra_headers=entetes_ext,
+                    reglages_outils=cfg.get("reglages_outils") or {},
                 )
                 agent.mcp_sessions[tool.tool_uuid] = session
                 await session.start_managed()
