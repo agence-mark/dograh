@@ -8,9 +8,10 @@ La publication est refusée si :
 
 Jamais la moyenne (B42) : un seul test obligatoire rouge suffit. Les tests non obligatoires informent, ils ne bloquent pas.
 
-**Portée** : seuls les agents SUIVIS par le builder (qui ont des tests, ou une trace du builder) sont gardés. Un agent qui n'a
-rien de tout cela se publie comme avant (aucun agent existant n'est bloqué sans raison). Interrupteur d'urgence côté serveur :
-``MARK_PUBLICATION_SANS_GARDE=1``.
+**Portée** (constat C1, Evan 01/11) : les **tests obligatoires** gardent la publication de TOUT agent qui en a, suivi par le
+builder ou non. Le **contrôle du prompt** ne garde que les agents suivis par le builder (des tests, ou une trace du builder) : un
+agent ancien sans rien de tout cela se publie comme avant. Interrupteur d'urgence côté serveur, réservé à l'équipe (variable
+d'environnement) : ``MARK_PUBLICATION_SANS_GARDE=1`` ; chaque publication qui passe grâce à lui est **journalisée**.
 
 La forme rendue est celle de la validation (``is_valid`` + ``errors``) que l'écran sait déjà afficher, plus le détail.
 """
@@ -19,6 +20,8 @@ from __future__ import annotations
 
 import os
 from typing import Any
+
+from loguru import logger
 
 from api.services.builder import stock
 from api.services.builder.constantes import PREFIXE_BUILDER
@@ -64,16 +67,23 @@ def empreinte_du_brouillon_publie(brouillon: Any) -> str:
     return boucle.empreinte_du_brouillon(getattr(brouillon, "workflow_json", None), getattr(brouillon, "workflow_configurations", None))
 
 
-async def verifier_avant_publication(workflow: Any, brouillon: Any, organization_id: int) -> dict[str, Any] | None:
+async def verifier_avant_publication(
+    workflow: Any, brouillon: Any, organization_id: int, user_id: int | None = None
+) -> dict[str, Any] | None:
     """``None`` : on peut publier. Sinon le corps du refus (``is_valid`` faux + ``errors`` + détail)."""
     if os.environ.get(INTERRUPTEUR) == "1":
+        logger.warning(
+            f"[.mark] publication sans garde ({INTERRUPTEUR}=1) : organisation {organization_id}, agent {workflow.id}, "
+            f"version {getattr(brouillon, 'version_number', None)}, personne {user_id}"
+        )
         return None
-    if not await agent_suivi(organization_id, workflow.id):
-        return None
-    controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
     tests = await problemes_des_tests_obligatoires(
         organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
     )
+    if await agent_suivi(organization_id, workflow.id):
+        controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
+    else:
+        controle = {"ok": True, "elements": [], "bloquants": []}
     if controle["ok"] and not tests:
         return None
     erreurs = [{"kind": "node", "id": None, "field": "data.prompt", "message": f"[Prompt check] {e['message']}"} for e in controle["elements"] if e["statut"] == "echec"]

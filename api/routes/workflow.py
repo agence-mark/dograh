@@ -925,10 +925,10 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
         raise _validation_errors_http_exception(errors)
 
     # [.mark] builder-agent-vocal, lot 6 : la garde de publication (contrôle du prompt, tests obligatoires rejoués sur CE brouillon).
-    # Seuls les agents suivis par le builder sont gardés ; un refus a la forme de la validation (``is_valid`` + ``errors``).
+    # C1 : tout agent qui a des tests obligatoires est gardé ; un refus a la forme de la validation (``is_valid`` + ``errors``).
     from api.services.builder.tests_agent.publication import verifier_avant_publication
 
-    refus_du_builder = await verifier_avant_publication(workflow, draft, user.selected_organization_id)
+    refus_du_builder = await verifier_avant_publication(workflow, draft, user.selected_organization_id, user.id)
     if refus_du_builder is not None:
         raise HTTPException(status_code=422, detail=refus_du_builder)
 
