@@ -6,6 +6,7 @@ import { useState } from "react";
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
 import { CallTypeCell } from "@/components/CallTypeCell";
 import { FilterBuilder } from "@/components/filters/FilterBuilder";
+import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { MediaPreviewButton, MediaPreviewDialog } from "@/components/MediaPreviewDialog";
@@ -66,6 +67,15 @@ export interface WorkflowRunsTableProps {
     forme?: "agent";
 }
 
+/** [.mark] V1 : « 3m 12s » comme la page Conversations (jamais « 192.0 s »). */
+function dureeLisible(secondes: number) {
+    const total = Math.round(secondes);
+    const minutes = Math.floor(total / 60);
+    const reste = total % 60;
+    if (minutes === 0) return `${reste}s`;
+    return reste === 0 ? `${minutes}m` : `${minutes}m ${reste}s`;
+}
+
 export function WorkflowRunsTable({
     runs,
     loading,
@@ -94,6 +104,7 @@ export function WorkflowRunsTable({
 }: WorkflowRunsTableProps) {
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
     const organizationTimezone = useOrganizationTimezone();
+    const { t, langue } = useLangue();
 
     // Media preview dialog
     const mediaPreview = MediaPreviewDialog();
@@ -131,7 +142,7 @@ export function WorkflowRunsTable({
                     <>
                         <Tableau
                             colonnes={[
-                                { titre: "Quand" },
+                                { titre: t({ en: "When", fr: "Quand" }) },
                                 ...(showAgentVersion ? [{ titre: "Version" }] : []),
                                 { titre: "Type d'appel" },
                                 { titre: "Issue" },
@@ -140,7 +151,7 @@ export function WorkflowRunsTable({
                         >
                             {runs.map((run) => (
                                 <Ligne key={run.id} onClick={() => handleRowClick(run)}>
-                                    <Cellule principale>{formatDateTime(run.created_at, organizationTimezone)}</Cellule>
+                                    <Cellule principale>{formatDateTime(run.created_at, organizationTimezone, langue)}</Cellule>
                                     {showAgentVersion && (
                                         <Cellule>{run.version_number != null ? `v${run.version_number}` : "–"}</Cellule>
                                     )}
@@ -150,7 +161,7 @@ export function WorkflowRunsTable({
                                     <Cellule>{(run.gathered_context?.mapped_call_disposition as string | undefined) ?? "–"}</Cellule>
                                     <Cellule droite>
                                         {typeof run.cost_info?.call_duration_seconds === "number"
-                                            ? `${run.cost_info.call_duration_seconds.toFixed(1)} s`
+                                            ? dureeLisible(run.cost_info.call_duration_seconds)
                                             : "–"}
                                     </Cellule>
                                 </Ligne>
@@ -159,15 +170,15 @@ export function WorkflowRunsTable({
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between pt-2">
                                 <p className="text-sm text-muted-foreground">
-                                    Page {currentPage} / {totalPages}
+                                    {t({ en: "Page", fr: "Page" })} {currentPage} / {totalPages}
                                 </p>
                                 <div className="flex gap-2">
                                     <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
                                         <ChevronLeft className="h-4 w-4" />
-                                        Précédent
+                                        {t({ en: "Previous", fr: "Précédent" })}
                                     </Button>
                                     <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                                        Suivant
+                                        {t({ en: "Next", fr: "Suivant" })}
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>

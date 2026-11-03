@@ -784,7 +784,7 @@ function RenderWorkflow({
                                 <Background
                                     variant={BackgroundVariant.Dots}
                                     gap={20}
-                                    size={1}
+                                    size={2}
                                     color="var(--canevas-point)"
                                 />
 

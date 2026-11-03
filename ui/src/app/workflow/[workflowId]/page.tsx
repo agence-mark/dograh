@@ -7,6 +7,7 @@ import RenderWorkflow from '@/app/workflow/[workflowId]/RenderWorkflow';
 import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from '@/client/sdk.gen';
 import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
+import { EtatVide } from '@/components/mark/studio/etat-vide';
 import SpinLoader from '@/components/SpinLoader';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
