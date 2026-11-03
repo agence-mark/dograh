@@ -611,7 +611,11 @@ describe("Les deux cases « Listen for it » et « The business offers it »", (
 });
 
 // The card really MOUNTED on the Platform Settings page, with its two boxes and its budget.
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 describe("[.mark] le lexique, sur la page des réglages de la plateforme", () => {
     beforeEach(() => {
@@ -621,10 +625,11 @@ describe("[.mark] le lexique, sur la page des réglages de la plateforme", () =>
 
     it("porte les deux cases et le budget", async () => {
         render(<PageReglagesPlateforme />);
+        ouvrirOnglet("ecoute");
         // Depuis la réorganisation de l'écran (d0bc5376), la carte vit dans le
         // thème « écoute », fermé par défaut.
         const entete = await waitFor(() => {
-            const bouton = document.querySelector('[data-theme="ecoute"] > button[aria-expanded]');
+            const bouton = document.querySelector('[data-theme="ecoute"] > button[aria-expanded], [data-theme="ecoute"][data-plat]');
             if (!bouton) throw new Error("thème écoute absent");
             return bouton as HTMLButtonElement;
         });

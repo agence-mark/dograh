@@ -1,2 +1,2 @@
-// [.mark] U1 : cette adresse monte l'écran actuel dans le nouveau cadre (les écrans refondus le remplaceront).
-export { default } from "@/app/settings/page";
+// [.mark] U2 bis : l'écran Entreprise (six sous-onglets).
+export { PageEntreprise as default } from "@/components/mark/entreprise/PageEntreprise";

@@ -275,3 +275,21 @@ async def dernier_journal(connexion: asyncpg.Connection) -> int:
     return int(
         await connexion.fetchval("SELECT coalesce(max(id), 0) FROM mark.journal_modif")
     )
+
+
+async def dernieres_modifications(connexion: asyncpg.Connection) -> list[dict]:
+    """[.mark] Builder partie 2 (U2 bis) : pour chaque fiche, la dernière ligne du journal (qui, quand). Le journal
+    note la table ``site`` et la clé de la fiche ; les écritures qui ne changent rien ne sont pas journalisées."""
+    lignes = await connexion.fetch(
+        "SELECT DISTINCT ON (ligne_id) ligne_id, auteur, le FROM mark.journal_modif "
+        "WHERE table_nom = 'site' ORDER BY ligne_id, le DESC, id DESC"
+    )
+    cles = {
+        str(r["id"]): r["cle"]
+        for r in await connexion.fetch("SELECT id, cle FROM mark.site WHERE cle IS NOT NULL")
+    }
+    return [
+        {"id": cles[l["ligne_id"]], "auteur": l["auteur"], "le": l["le"]}
+        for l in lignes
+        if l["ligne_id"] in cles
+    ]

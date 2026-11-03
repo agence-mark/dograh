@@ -176,6 +176,7 @@ export const ThemeRendezVous = ({
     signaler,
     baseRattachee,
     adresseConnue = null,
+    plat,
 }: ProprietesThemeOrganisation & { baseRattachee: boolean | null; adresseConnue?: boolean | null }) => {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
@@ -332,6 +333,7 @@ export const ThemeRendezVous = ({
     return (
         <Theme
             id="rendez-vous"
+            plat={plat}
             icone={CalendarClock}
             titre={TITRE_RENDEZ_VOUS}
             description={{

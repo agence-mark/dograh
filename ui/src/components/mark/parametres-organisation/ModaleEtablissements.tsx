@@ -70,6 +70,7 @@ import { FicheRendezVous } from "./FicheRendezVous";
 import { ModaleCopieFiche } from "./ModaleCopieFiche";
 import { libelleReglage, texteValeur } from "./reglages-rendez-vous";
 import { charge_utile_planificateur } from "./ThemeRendezVous";
+import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 
 export const ETABLISSEMENTS_ENREGISTRES: Texte = { en: "Establishments saved", fr: "Établissements enregistrés" };
 
@@ -246,6 +247,7 @@ const VIDE_RIEN: Texte = {
 
 export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation }: ProprietesModale) {
     const { t } = useLangue();
+    const modifications = useDernieresModifications(ouverte);
     const [liste, setListe] = useState<Etablissement[] | null>(null);
     const [phrasesEtablissement, setPhrasesEtablissement] = useState<Phrase[]>([]);
     // The terms as typed: a line being written is kept until it is left.
@@ -551,6 +553,8 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         </label>
                                         <code className="text-xs text-muted-foreground">{courant.id}</code>
                                     </div>
+                                    {/* U2 bis (E56): who wrote this fiche last, and from where (read from the journal). */}
+                                    <DerniereModificationFiche modification={modifications.parFiche[courant.id]} />
                                     <Input
                                         id="etablissement-nom"
                                         value={courant.nom}

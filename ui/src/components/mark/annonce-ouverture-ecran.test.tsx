@@ -323,14 +323,18 @@ describe("[.mark] the announcement settings card", () => {
 // 3. The card is really MOUNTED on the Platform Settings page
 // --------------------------------------------------------------------------- //
 
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 describe("[.mark] the announcement settings, on the Platform Settings page", () => {
     it("is on the page, and its four settings can be reached there", async () => {
         render(<PageReglagesPlateforme />);
         // 🆕 Step 5 of reorganisation-ecran-reglages: in the « Business » theme.
         const entete = await waitFor(() => {
-            const trouve = document.querySelector('[data-theme="etablissement"] > button[aria-expanded]');
+            const trouve = document.querySelector('[data-theme="etablissement"] > button[aria-expanded], [data-theme="etablissement"][data-plat]');
             if (!trouve) throw new Error("page not drawn yet");
             return trouve as HTMLButtonElement;
         });
@@ -351,7 +355,7 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         // export (BigQuery, its only destination) is neutralised and absent
         // from the screen; the server refuses it anyway.
         render(<PageReglagesPlateforme />);
-        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(9));
         for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] > button[aria-expanded]")) fireEvent.click(entete);
         await screen.findByText("Closed-business announcement");
         expect(screen.queryByText("Call events")).toBeNull();

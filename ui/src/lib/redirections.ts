@@ -40,7 +40,10 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/tools", destination: "/labo/outils" },
     { source: "/tools/:toolUuid", destination: "/labo/outils/:toolUuid" },
     { source: "/files", destination: "/labo/connaissances" },
-    { source: "/recordings", destination: "/labo/sons" },
+    // Les enregistrements et le cache de la voix sont dans Entreprise › Écoute et sons (E56).
+    { source: "/recordings", destination: "/labo/entreprise?onglet=ecoute" },
+    { source: "/labo/sons", destination: "/labo/entreprise?onglet=ecoute" },
+    { source: "/clients/:org/sons", destination: "/clients/:org/entreprise?onglet=ecoute" },
     { source: "/api-keys", destination: "/labo/developpeurs" },
     { source: "/usage", destination: "/labo/conversations" },
     { source: "/reports", destination: "/labo/qualite" },

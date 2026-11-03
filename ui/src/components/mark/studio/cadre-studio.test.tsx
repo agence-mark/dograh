@@ -82,10 +82,17 @@ describe("menus (E3, E31)", () => {
         const liens = new Set(toutesLesEntrees(MENU_LABO).map((x) => x.actuelle));
         for (const ancien of [
             "/workflow", "/campaigns", "/model-configurations", "/telephony-configurations", "/tools", "/files",
-            "/recordings", "/api-keys", "/usage", "/reports", "/cles", "/bibliotheque", "/a-trier", "/alertes", "/settings",
+            "/api-keys", "/usage", "/reports", "/cles", "/bibliotheque", "/a-trier", "/alertes", "/settings",
         ]) {
             expect(liens.has(ancien), ancien).toBe(true);
         }
+    });
+
+    it("les enregistrements et le cache de la voix ne sont plus une entrée du menu : ils sont dans Entreprise (E56)", () => {
+        const ids = new Set(toutesLesEntrees(MENU_LABO).map((x) => x.id));
+        expect(ids.has("sons")).toBe(false);
+        expect(ids.has("entreprise")).toBe(true);
+        expect(toutesLesEntrees(MENU_CLIENT).some((x) => x.id === "sons")).toBe(false);
     });
 
     it("l'espace se lit dans l'adresse", () => {

@@ -225,7 +225,11 @@ describe("[.mark] business address field", () => {
 // 2. The organization's card, on the Platform Settings PAGE
 // --------------------------------------------------------------------------- //
 
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 /**
  * 🆕 Chantier reorganisation-ecran-reglages (step 5): the page is in themes.
@@ -233,8 +237,9 @@ const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
  * in « Integrations »; the vocabulary in « Listening ».
  */
 const ouvrirLeTheme = async (theme: string) => {
+    ouvrirOnglet(theme);
     const entete = await waitFor(() => {
-        const trouve = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`);
+        const trouve = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded], [data-theme="${theme}"][data-plat]`);
         if (!trouve) throw new Error("page not drawn yet");
         return trouve as HTMLButtonElement;
     });
