@@ -14,7 +14,7 @@ from sqlalchemy import delete, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from api.db.base_client import BaseDBClient
-from api.db.models import EmbedTokenModel
+from api.db.models import EmbedTokenModel, WorkflowModel, WorkflowRunModel
 from api.db.models_site import (
     MarkEmbedCheminModel,
     MarkEmbedSiteModel,
@@ -347,6 +347,50 @@ class SiteClient(BaseDBClient):
             await session.commit()
             await session.refresh(jeton)
             return jeton
+
+    # ------------------------------------------------------------------ l'avis, une seule fois (revue serveur, mineur 3)
+    async def reserver_avis(self, run_id: int, organization_id: int) -> bool:
+        """Prend, sous verrou de ligne, la place de l'avis de cette conversation : ``False`` si un avis y est déjà (ou en
+        cours d'écriture). Deux envois simultanés : un seul passe. Le run est lu AVEC l'organisation."""
+        async with self.async_session() as session:
+            run = (
+                await session.execute(
+                    select(WorkflowRunModel)
+                    .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                    .where(WorkflowRunModel.id == run_id, WorkflowModel.organization_id == organization_id)
+                    .with_for_update(of=WorkflowRunModel)
+                )
+            ).scalars().first()
+            if run is None:
+                return False
+            annotations = dict(run.annotations or {})
+            embed = dict(annotations.get("embed") or {})
+            if isinstance(embed.get("avis"), dict):
+                return False
+            embed["avis"] = {"en_cours": True}
+            run.annotations = {**annotations, "embed": embed}
+            await session.commit()
+            return True
+
+    async def rendre_avis(self, run_id: int, organization_id: int) -> None:
+        """Libère la place prise par ``reserver_avis`` quand l'écriture a échoué (le visiteur peut renvoyer)."""
+        async with self.async_session() as session:
+            run = (
+                await session.execute(
+                    select(WorkflowRunModel)
+                    .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                    .where(WorkflowRunModel.id == run_id, WorkflowModel.organization_id == organization_id)
+                    .with_for_update(of=WorkflowRunModel)
+                )
+            ).scalars().first()
+            if run is None:
+                return
+            annotations = dict(run.annotations or {})
+            embed = dict(annotations.get("embed") or {})
+            if embed.get("avis") == {"en_cours": True}:
+                embed.pop("avis")
+                run.annotations = {**annotations, "embed": embed}
+                await session.commit()
 
     # ------------------------------------------------------------------ événements anonymes (lot S3)
     async def compter_evenement(self, embed_token_id: int, jour, evenement: str, plafond_du_jour: int) -> bool:

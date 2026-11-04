@@ -39,3 +39,19 @@ async def autoriser_rappel(embed_token_id: int, adresse: str | None, par_heure: 
         scope_key=f"public_embed:rappel:{embed_token_id}:{_empreinte(embed_token_id, adresse)}",
         window_seconds=FENETRE_S,
     )
+
+
+EVENEMENTS_PAR_MINUTE_ET_IP = 60
+FENETRE_EVENEMENTS_S = 60.0
+
+
+async def autoriser_evenement(
+    embed_token_id: int, adresse: str | None, par_minute: int = EVENEMENTS_PAR_MINUTE_ET_IP
+) -> bool:
+    """Revue serveur M7 : au plus ``par_minute`` évènements anonymes par jeton et par adresse (seau à part, fenêtre d'une minute)."""
+    return await rate_limiter.acquire_token(
+        embed_token_id,
+        par_minute,
+        scope_key=f"public_embed:evenement:{embed_token_id}:{_empreinte(embed_token_id, adresse)}",
+        window_seconds=FENETRE_EVENEMENTS_S,
+    )
