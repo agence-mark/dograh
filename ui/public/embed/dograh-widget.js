@@ -323,6 +323,7 @@
   var BASE_CSS = [
     ':host{all:initial}',
     '*,*::before,*::after{box-sizing:border-box}',
+    'p{margin:0}',
     '.mk{font-size:15px;line-height:1.35;-webkit-font-smoothing:antialiased}',
     'button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;padding:0}',
     'button:disabled{cursor:not-allowed;opacity:.4}',
@@ -360,7 +361,7 @@
     '.mk-puce{height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(0,0,0,.15);font-size:14px}',
     '.mk-case{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}',
     '.mk-case input{margin-top:3px}',
-    '.mk-petit{font-size:13px;opacity:.75}',
+    '.mk-petit{font-size:14px;opacity:.75}',
     '.mk-etat{font-size:14px;opacity:.75;min-height:20px}',
     '.mk-mention{text-align:center;font-size:11px;opacity:.5;padding:0 0 12px}',
     '.mk-erreur{font-size:13px;border-radius:12px;padding:8px 12px;background:rgba(0,0,0,.05)}',
@@ -539,7 +540,7 @@
       var fenetre = el('div', {
         class: 'mk-fenetre' + (plein ? ' mk-plein' : ''), role: 'dialog', 'aria-modal': centree || plein ? 'true' : 'false',
         'aria-label': textes.titre || FIXE.assistant, 'data-zone': 'fenetre', tabindex: '-1',
-        style: 'background:' + k.fenetre + ';color:' + ap.texte_fenetre + ';' + pos + (apercu ? ';position:absolute' : ''),
+        style: 'background:' + k.fenetre + ';color:' + ap.texte_fenetre + ';' + pos + (apercu ? ';position:absolute;max-height:calc(100% - 32px)' : ''),
         onkeydown: function (ev) {
           if (ev.key === 'Escape' && etat !== 'conversation') { ev.stopPropagation(); fermer(); }
         },
@@ -566,7 +567,7 @@
       var c = el('div', { class: 'mk-centre' });
       c.appendChild(nouvelleOrbe(130, { etat: 'repos' }).element);
       corps.appendChild(c);
-      corps.appendChild(el('p', { 'data-zone': 'information', class: 'mk-petit', style: 'display:flex;gap:8px;align-items:flex-start' }, [
+      corps.appendChild(el('p', { 'data-zone': 'information', class: 'mk-petit', style: 'display:flex;gap:8px;align-items:flex-start;opacity:.8' }, [
         el('span', { style: 'color:' + k.icones + ';flex:none;margin-top:1px' }, [icone('bouclier')]),
         el('span', { texte: textes.annonce_ia }),
       ]));

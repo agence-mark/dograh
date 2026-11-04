@@ -65,6 +65,7 @@ import {
     auBleuMark,
     avecCouleur,
     avecTexte,
+    BLEU_MARK,
     type CleCouleur,
     type CleTexte,
     couleursResolues,
@@ -930,8 +931,8 @@ function Schema({ rond, fenetre, accroche = false }: { rond: "gauche" | "droite"
             <span className="absolute left-2 top-5 h-1.5 w-20 rounded bg-foreground/10" />
             {fenetre === "centree" && <span className="absolute left-1/2 top-1/2 h-12 w-14 -translate-x-1/2 -translate-y-1/2 rounded-md border bg-background shadow-sm" />}
             {fenetre === "ancree" && <span className="absolute bottom-6 h-11 w-12 rounded-md border bg-background shadow-sm" style={cote} />}
-            {accroche && !fenetre && <span className="absolute bottom-1.5 h-3 w-14 rounded-full bg-primary/70" style={rond === "droite" ? { right: 22 } : { left: 22 }} />}
-            <span className="absolute bottom-1.5 size-3.5 rounded-full bg-primary" style={cote} />
+            {accroche && !fenetre && <span className="absolute bottom-1.5 h-3 w-14 rounded-full" style={{ background: `${BLEU_MARK}b3`, ...(rond === "droite" ? { right: 22 } : { left: 22 }) }} />}
+            <span className="absolute bottom-1.5 size-3.5 rounded-full" style={{ background: BLEU_MARK, ...cote }} />
         </span>
     );
 }

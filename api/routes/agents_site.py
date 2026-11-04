@@ -363,7 +363,8 @@ async def _reglages_lus(jeton) -> ReglagesMarkLus:
     usage = await db_client.lire_usage_mensuel(jeton.id, mois_de())
     return ReglagesMarkLus(
         **reglages.en_json(),
-        allowed_domains=list(jeton.allowed_domains or []),
+        # Les domaines du jeton, sinon ceux de son site : ce que le script du site vérifie vraiment (V5).
+        allowed_domains=[str(d) for d in await config_site.domaines_du_jeton(db_client, jeton)],
         conversations_ce_mois=usage.conversations if usage else 0,
         minutes_ce_mois=(usage.secondes // 60) if usage else 0,
         jeton_expire_le=jeton.expires_at.date().isoformat() if jeton.expires_at else None,

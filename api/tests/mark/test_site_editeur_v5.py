@@ -126,6 +126,18 @@ async def test_l_emplacement_dit_le_nom_de_l_agent(db_session, async_session):
     assert emplacement["agent_nom"] == agent.name and emplacement["widget_actif"] is True
 
 
+async def test_les_domaines_lus_sont_ceux_du_site_quand_le_jeton_n_en_a_pas(db_session, async_session):
+    config_site.vider_le_cache()
+    org = await creer_organisation(db_session, "v5-domaines")
+    h = entetes(await _acces(db_session, "v5dom", [org]), org)
+    async with client_http() as c:
+        _, agent, _ = await _agent_de_site(c, h, db_session, async_session, org, domaines=("client.fr", "www.client.fr"))
+        base = f"{API}/organizations/agents-site/{agent.id}/reglages"
+        assert (await c.get(base, headers=h)).json()["allowed_domains"] == ["client.fr", "www.client.fr"]
+        propres = await c.put(base, headers=h, json={"allowed_domains": ["autre.fr"]})
+    assert propres.json()["allowed_domains"] == ["autre.fr"]
+
+
 async def test_les_modes_s_enregistrent_et_le_widget_les_lit(db_session, async_session):
     config_site.vider_le_cache()
     org = await creer_organisation(db_session, "v5-modes")
