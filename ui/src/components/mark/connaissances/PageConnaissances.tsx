@@ -306,10 +306,14 @@ function FenetreDepot({ fermer, apres }: { fermer: () => void; apres: () => void
         <FenetreLibre
             ouverte
             fermer={fermer}
-            titre={t({ en: "Drop a document", fr: "Déposer un document" })}
+            titre={
+                <span className="flex items-center gap-2">
+                    {t({ en: "Drop a document", fr: "Déposer un document" })}
+                    <ExternalProcessingNotice enInfo />
+                </span>
+            }
             corps={
                 <div className="space-y-6 py-5" data-testid="fenetre-depot">
-                    <ExternalProcessingNotice />
                     <div className="space-y-1.5">
                         <p className="text-sm">{t({ en: "File (PDF, Word, Markdown, text)", fr: "Fichier (PDF, Word, Markdown, texte)" })}</p>
                         <input ref={entree} type="file" accept=".pdf,.docx,.doc,.txt,.json,.md" className="hidden" data-depot-fichier onChange={(e) => choisir(e.target.files?.[0])} />
