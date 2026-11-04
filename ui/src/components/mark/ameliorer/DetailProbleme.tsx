@@ -20,6 +20,7 @@ import {
     rejouerLaSuiteDeLAgentApiV1AmeliorationsAmeliorationIdRejouerPost,
 } from "@/client";
 import type { VueDetaillee } from "@/client/types.gen";
+import { FenetrePlafondDuMois, STATUT_PLAFOND, STATUT_REFUSE, statutDe, TEXTES_PLAFOND } from "@/components/builder/chat/plafond-du-mois";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
@@ -141,11 +142,28 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
         apres();
     };
 
+    // SE-16 : plafond du mois atteint (402). La fenêtre propose « Continuer quand même » pour CETTE demande seulement.
+    const [plafond, setPlafond] = useState<{ message: string; enCours: boolean } | null>(null);
+    const ouvrirLeFil = (message: string, workflowId: number | null, depasser: boolean) =>
+        ouvrirUnFilApiV1BuilderFilsPost({ body: { message, workflow_id: workflowId, demarrage: null, ...(depasser ? { depasser_le_plafond: true } : {}) } });
     const discuter = async () => {
         if (!vue || vue === "erreur") return;
-        const r = await ouvrirUnFilApiV1BuilderFilsPost({
-            body: { message: demandeAuBuilder({ ...vue, id }), workflow_id: vue.workflow_id, demarrage: null },
-        });
+        const message = demandeAuBuilder({ ...vue, id });
+        const r = await ouvrirLeFil(message, vue.workflow_id, false);
+        if (r.error && statutDe(r) === STATUT_PLAFOND) {
+            notifier.avertissement(TEXTES_PLAFOND.notification, { groupe: "plafond-du-mois" });
+            setPlafond({ message, enCours: false });
+            return;
+        }
+        if (r.error || !r.data) return void notifier.echec(MESSAGES.builderEchec, { erreur: r.error });
+        router.push(`/labo/builder/${r.data.id}`);
+    };
+    const continuerQuandMeme = async () => {
+        if (!plafond || plafond.enCours || !vue || vue === "erreur") return;
+        setPlafond({ ...plafond, enCours: true });
+        const r = await ouvrirLeFil(plafond.message, vue.workflow_id, true);
+        setPlafond(null);
+        if (r.error && statutDe(r) === STATUT_REFUSE) return void notifier.echec(TEXTES_PLAFOND.reserve);
         if (r.error || !r.data) return void notifier.echec(MESSAGES.builderEchec, { erreur: r.error });
         router.push(`/labo/builder/${r.data.id}`);
     };
@@ -169,6 +187,8 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
     const premierCasAvecAppel = cas.find((c) => c.run_id);
 
     return (
+        <>
+        <FenetrePlafondDuMois ouverte={plafond !== null} enCours={plafond?.enCours ?? false} continuer={() => void continuerQuandMeme()} annuler={() => setPlafond(null)} />
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
             <DialogContent className="sm:max-w-3xl" onOpenAutoFocus={(e) => e.preventDefault()}>
                 {vue === null || vue === "erreur" ? (
@@ -350,5 +370,6 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                 )}
             </DialogContent>
         </Dialog>
+        </>
     );
 }

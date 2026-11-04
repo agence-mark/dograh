@@ -51,7 +51,7 @@ const serveur = (uuid: string, nom: string, essai?: { joignable: boolean; le: st
     },
 });
 
-const m = vi.hoisted(() => ({ tester: vi.fn(), liste: vi.fn(async () => ({ data: [] as unknown[] })) }));
+const m = vi.hoisted(() => ({ tester: vi.fn(), liste: vi.fn(async (..._a: unknown[]) => ({ data: [] as unknown[] })) }));
 vi.mock("./logos", () => ({ logoDe: (i: string) => (i === "agenda-essai" ? "/logos/agenda.svg" : null) }));
 vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
