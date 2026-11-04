@@ -41,7 +41,13 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/telephony-configurations", destination: "/labo/telephonie" },
     { source: "/telephony-configurations/:configId", destination: "/labo/telephonie/:configId" },
     { source: "/tools", destination: "/labo/outils" },
-    { source: "/tools/:toolUuid", destination: "/labo/outils/:toolUuid" },
+    { source: "/tools/:toolUuid", destination: "/labo/outils?outil=:toolUuid" },
+    // V2b : l'ancienne page d'un outil (écran de l'amont) est la fenêtre d'un outil de la page Outils.
+    { source: "/labo/outils/:toolUuid", destination: "/labo/outils?outil=:toolUuid" },
+    { source: "/clients/:org/outils/:toolUuid", destination: "/clients/:org/outils?outil=:toolUuid" },
+    // « Connecteurs » est devenu « Intégrations » (E73) : l'ancienne adresse y mène, fil d'Ariane et menu compris.
+    { source: "/labo/connecteurs", destination: "/labo/integrations" },
+    { source: "/clients/:org/connecteurs", destination: "/clients/:org/integrations" },
     { source: "/files", destination: "/labo/connaissances" },
     // Les enregistrements et le cache de la voix sont dans Entreprise › Écoute et sons (E56).
     { source: "/recordings", destination: "/labo/entreprise?onglet=ecoute" },

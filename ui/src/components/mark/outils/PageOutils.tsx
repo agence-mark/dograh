@@ -8,7 +8,7 @@
  * (calculés sur les appels) ; un outil sans appel affiche « – ». Aucun bouton « demander un logiciel ».
  */
 import { Plus, Search, Wrench } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ToolResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/dateTime";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { Initiales } from "../integrations/OngletLogiciels";
 import { useLangue } from "../langue/langue";
+import { notifier } from "../notifications";
 import { EtatVide } from "../studio/etat-vide";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
@@ -85,6 +86,28 @@ export function PageOutils() {
         if (ecrit === null) return "–";
         return ecrit ? t({ en: "Writes", fr: "Écrit" }) : t({ en: "Reads", fr: "Lit" });
     };
+
+    // [.mark] V2b : l'ancienne adresse d'un outil (`/labo/outils/<uuid>`) mène ici avec `?outil=<uuid>` : la fenêtre de
+    // l'outil s'ouvre, sur le bon onglet d'état ; un outil qui n'existe plus le dit au lieu d'ouvrir une page vide.
+    const adresseLue = useRef(false);
+    useEffect(() => {
+        if (outils === null || adresseLue.current) return;
+        adresseLue.current = true;
+        let demande: string | null = null;
+        try {
+            demande = new URLSearchParams(window.location.search).get("outil");
+        } catch {
+            return;
+        }
+        if (!demande) return;
+        const outil = outils.find((o) => o.tool_uuid === demande);
+        if (!outil) {
+            notifier.avertissement({ fr: "Cet outil n'existe plus.", en: "This tool no longer exists." });
+            return;
+        }
+        if (outil.status === "draft" || outil.status === "archived") setStatut(outil.status);
+        setOuvert(outil.tool_uuid);
+    }, [outils]);
 
     const ouvertOutil = ouvert ? tous.find((o) => o.tool_uuid === ouvert) : undefined;
 

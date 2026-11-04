@@ -2,7 +2,7 @@
 
 /**
  * [.mark] U3 sexies point 1 (E73) : « Connecteurs » devient « Intégrations », trois onglets : Logiciels, Serveurs MCP,
- * Identifiants. L'adresse `/labo/connecteurs` reste valable. Une intégration est le branchement d'un logiciel une fois
+ * Identifiants. L'ancienne adresse `/labo/connecteurs` est redirigée ici. Une intégration est le branchement d'un logiciel une fois
  * pour l'organisation ; elle met des actions à disposition, que les Outils utilisent. K5 : cadre de page (`PageStudio`).
  */
 import { useState } from "react";

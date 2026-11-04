@@ -245,3 +245,32 @@ describe("[.mark] l'essai", () => {
         expect(m.essai.mock.calls[0][0].body.mode).toBe("direct");
     });
 });
+
+describe("[.mark] V2b : l'ancienne adresse d'un outil ouvre sa fenêtre (`?outil=<uuid>`)", () => {
+    const adresse = (recherche: string) => window.history.replaceState({}, "", `/labo/outils${recherche}`);
+    afterEach(() => adresse(""));
+
+    it("ouvre la fenêtre de l'outil demandé", async () => {
+        adresse("?outil=u-http");
+        m.liste.mockResolvedValue({ data: [HTTP, LECTURE, BROUILLON] });
+        monter();
+        const fenetre = await screen.findByRole("dialog");
+        expect(within(fenetre).getByText("Reserver")).toBeTruthy();
+    });
+
+    it("passe sur l'onglet d'état d'un brouillon avant d'ouvrir sa fenêtre", async () => {
+        adresse("?outil=u-draft");
+        m.liste.mockResolvedValue({ data: [HTTP, LECTURE, BROUILLON] });
+        monter();
+        const fenetre = await screen.findByRole("dialog");
+        expect(within(fenetre).getByText("Brouillon")).toBeTruthy();
+    });
+
+    it("un outil qui n'existe plus ouvre rien (la liste reste)", async () => {
+        adresse("?outil=u-inconnu");
+        m.liste.mockResolvedValue({ data: [HTTP] });
+        monter();
+        await screen.findByText("Reserver");
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+});
