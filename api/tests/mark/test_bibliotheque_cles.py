@@ -529,6 +529,30 @@ def test_les_usages_comptent_models_et_les_reglages_de_modele_des_agents(ecran, 
     ]
 
 
+def test_les_usages_de_toutes_les_cles_se_lisent_en_une_fois(ecran, base):
+    """V2b : le tableau des clés demande tout d'un coup ; une clé inconnue de la bibliothèque n'y est jamais."""
+    base.modeles.return_value = SimpleNamespace(
+        model_dump_json=lambda: '{"llm": {"api_key": "mark-cle:cle-mistral"}}'
+    )
+    base.db.get_all_workflows.return_value = [
+        SimpleNamespace(
+            name="essai_ndf",
+            current_definition=SimpleNamespace(
+                workflow_json={},
+                workflow_configurations={
+                    "model_overrides": {"tts": {"api_key": "mark-cle:cle-eleven"}}
+                },
+            ),
+            workflow_configurations=None,
+        )
+    ]
+    tous = ecran.get("/cles/usages").json()
+    assert tous["cle-mistral"] == [{"ou": "modeles_organisation", "nom": None}]
+    assert tous["cle-eleven"] == [{"ou": "modeles_agent", "nom": "essai_ndf"}]
+    # Une seule lecture de l'organisation, quel que soit le nombre de clés.
+    assert base.db.get_all_workflows.call_count == 1
+
+
 def test_une_cle_d_un_autre_fournisseur_ne_part_jamais(base):
     # Revue du lot 0 bis : la clé Mistral posée sur la voix ElevenLabs.
     configuration = _configuration("cle-tapee", "mark-cle:cle-mistral")
