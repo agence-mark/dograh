@@ -414,28 +414,75 @@ def apply_managed_embeddings_base_url(
 
 
 def _merge_byok_secret_fields(incoming_byok: dict | None, existing_byok: dict | None):
+    """[.mark] Partie 3, lot 13 (SE-24, M-2) : l'organisation garde DEUX configurations, la chaîne (``pipeline``) et le temps réel
+    (``realtime``) ; ``mode`` dit laquelle est active. Pour chacune : si l'enregistrement la porte et qu'elle existe déjà, ses clés
+    masquées retrouvent les vraies ; si l'enregistrement ne la porte pas, l'ancienne est GARDÉE telle quelle (basculer ou régler
+    l'une ne fait jamais perdre la voix ni la transcription de l'autre)."""
     if not isinstance(incoming_byok, dict) or not isinstance(existing_byok, dict):
         return
-    incoming_mode = incoming_byok.get("mode")
-    existing_mode = existing_byok.get("mode")
-    if incoming_mode != existing_mode:
-        return
-    section_names = (
-        ("llm", "tts", "stt", "embeddings")
-        if incoming_mode == "pipeline"
-        else ("realtime", "llm", "embeddings")
-    )
-    incoming_container = incoming_byok.get(incoming_mode)
-    existing_container = existing_byok.get(existing_mode)
-    if not isinstance(incoming_container, dict) or not isinstance(
-        existing_container, dict
-    ):
-        return
-    for section_name in section_names:
-        incoming_section = incoming_container.get(section_name)
-        existing_section = existing_container.get(section_name)
-        if isinstance(incoming_section, dict) and isinstance(existing_section, dict):
-            _merge_service_secret_fields(incoming_section, existing_section)
+    for bloc, section_names in BLOCS_BYOK.items():
+        existant = existing_byok.get(bloc)
+        if not isinstance(existant, dict):
+            continue
+        entrant = incoming_byok.get(bloc)
+        if entrant is None:
+            incoming_byok[bloc] = copy.deepcopy(existant)
+            continue
+        if not isinstance(entrant, dict):
+            continue
+        for section_name in section_names:
+            incoming_section = entrant.get(section_name)
+            existing_section = existant.get(section_name)
+            if isinstance(incoming_section, dict) and isinstance(existing_section, dict):
+                _merge_service_secret_fields(incoming_section, existing_section)
+
+
+# Les deux configurations que garde l'organisation, et leurs briques.
+BLOCS_BYOK: dict[str, tuple[str, ...]] = {
+    "pipeline": ("llm", "tts", "stt", "embeddings"),
+    "realtime": ("realtime", "llm", "embeddings"),
+}
+
+
+def configurations_inactives_modifiees(
+    nouvelle: OrganizationAIModelConfigurationV2,
+    ancienne: OrganizationAIModelConfigurationV2 | None,
+) -> list[EffectiveAIModelConfiguration]:
+    """La configuration NON active que cet enregistrement a changé (ou posé), compilée pour être testée chez le fournisseur : on ne
+    teste que ce qui change, jamais une configuration au repos à chaque enregistrement."""
+    if nouvelle.mode != "byok" or nouvelle.byok is None:
+        return []
+    sortie = []
+    for bloc in BLOCS_BYOK:
+        if bloc == nouvelle.byok.mode:
+            continue
+        contenu = getattr(nouvelle.byok, bloc)
+        if contenu is None:
+            continue
+        avant = getattr(ancienne.byok, bloc) if ancienne is not None and ancienne.byok is not None else None
+        if avant is not None and avant.model_dump(mode="json") == contenu.model_dump(mode="json"):
+            continue
+        sortie.append(
+            compile_ai_model_configuration_v2(
+                OrganizationAIModelConfigurationV2(
+                    mode="byok", byok=BYOKAIModelConfiguration(mode=bloc, **{bloc: contenu})
+                )
+            )
+        )
+    return sortie
+
+
+def basculer_le_mode(
+    configuration: OrganizationAIModelConfigurationV2, mode: Literal["pipeline", "realtime"]
+) -> OrganizationAIModelConfigurationV2:
+    """Rend ``mode`` actif SANS toucher à aucune des deux configurations. ``ValueError`` quand la configuration visée n'est pas réglée."""
+    if configuration.mode != "byok" or configuration.byok is None:
+        raise ValueError("Only an organization on its own keys keeps two configurations.")
+    if getattr(configuration.byok, mode) is None:
+        raise ValueError(f"The {'realtime' if mode == 'realtime' else 'chain'} configuration is not set yet.")
+    donnees = configuration.model_dump(mode="json", exclude_none=True)
+    donnees["byok"]["mode"] = mode
+    return OrganizationAIModelConfigurationV2.model_validate(donnees)
 
 
 def _merge_service_secret_fields(incoming: dict, existing: dict):

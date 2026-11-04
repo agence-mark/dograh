@@ -26,6 +26,7 @@ from loguru import logger
 from api.services.builder import brouillon
 from api.services.builder.cerveau import independance as independance_mod
 from api.services.builder.cerveau.appel import Cerveau
+from api.services.builder.cerveau.budget_roles import BudgetDuRole
 from api.services.builder.tests_agent import diagnostic, jeu, juge, stockage, verdict
 from api.services.builder.tests_agent.jeu import AppelantParCerveau, Moteur
 from api.services.tests_rejouables.modele import (
@@ -161,16 +162,20 @@ class CerveauCompte:
     async def tour(self, *, systeme: str, messages: list[dict[str, Any]], outils: list[dict[str, Any]]):
         if (quoi := self.atteint()) is not None:
             raise PlafondDuRejeu(quoi)
-        async for evenement in self._cerveau.tour(systeme=systeme, messages=messages, outils=outils):
-            if evenement.get("type") == "usage" and self._reglages is not None:
-                entree, sortie = int(evenement.get("entree", 0) or 0), int(evenement.get("sortie", 0) or 0)
-                self.depense["jetons"] += entree + sortie
-                self.depense["cout"] = round(
-                    self.depense["cout"]
-                    + (entree * self._reglages.prix_entree_par_million + sortie * self._reglages.prix_sortie_par_million) / 1_000_000,
-                    6,
-                )
-            yield evenement
+        try:
+            async for evenement in self._cerveau.tour(systeme=systeme, messages=messages, outils=outils):
+                if evenement.get("type") == "usage" and self._reglages is not None:
+                    entree, sortie = int(evenement.get("entree", 0) or 0), int(evenement.get("sortie", 0) or 0)
+                    self.depense["jetons"] += entree + sortie
+                    self.depense["cout"] = round(
+                        self.depense["cout"]
+                        + (entree * self._reglages.prix_entree_par_million + sortie * self._reglages.prix_sortie_par_million) / 1_000_000,
+                        6,
+                    )
+                yield evenement
+        except BudgetDuRole as budget:
+            # SE-23 : le budget du mois du rôle est atteint, l'appel n'est jamais parti : la suite s'arrête comme à un plafond de rejeu.
+            raise PlafondDuRejeu(f"budget_{budget.role}") from None
 
 
 # --- un test ----------------------------------------------------------------------------------------------------------------
@@ -212,7 +217,7 @@ async def _essais_d_une_conversation(
         raison = (
             "The simulated caller is set on Claude Code: it plays through a Claude Code session, not here."
             if source == "claude_code"
-            else "No brain set for the simulated caller (Labo settings > Simulated caller)."
+            else "No brain set, or switched off, for the simulated caller (Labo settings > Simulated caller)."
         )
         return [{"numero": i + 1, "erreur": raison, "criteres": [], "reussi": False, "lignes": []} for i in range(n)]
     scenario = test.get("scenario") or {}

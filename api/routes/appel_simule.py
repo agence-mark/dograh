@@ -27,7 +27,7 @@ from starlette.websockets import WebSocketDisconnect
 from api.db import db_client
 from api.db.models import UserModel
 from api.enums import WorkflowRunMode, WorkflowRunState
-from api.schemas.appel_simule import ReglagesAppelantSimule, ScenarioSimule
+from api.schemas.appel_simule import DepenseDesRoles, DepenseDuRole, ReglagesAppelantSimule, ScenarioSimule
 from api.services.appel_simule import reglages as stockage
 from api.services.appel_simule.direct import lire_le_direct
 from api.services.appel_simule.entree import (
@@ -243,6 +243,34 @@ async def save_reglages_appelant_simule(
 
     await sources_cerveaux.ecrire_depuis_les_roles(org, request)
     return await stockage.enregistrer_reglages(org, request)
+
+
+@router.get("/depense", response_model=DepenseDesRoles)
+async def get_depense_des_roles(user: UserModel = Depends(get_user_with_selected_organization)):
+    """Partie 3, lot 12 (SE-23) : la dépense du mois de l'appelant simulé et du juge de CETTE organisation, face à leur budget."""
+    from api.services.builder.cerveau import budget_roles
+
+    org = user.selected_organization_id
+    try:
+        reglages = await stockage.lire_reglages(org)
+    except Exception as erreur:  # noqa: BLE001
+        raise _illisible("simulated caller settings", erreur) from None
+    depense = await budget_roles.depense_du_mois(org)
+
+    def vue(nom: str, role) -> DepenseDuRole:
+        d = depense[nom]
+        return DepenseDuRole(
+            appels=d["appels"],
+            jetons=d["jetons"],
+            cout=round(d["cout"], 6),
+            budget_mois=role.budget_mois,
+            actif=role.actif,
+            atteint=role.budget_mois > 0 and d["cout"] >= role.budget_mois,
+        )
+
+    return DepenseDesRoles(
+        mois=budget_roles.mois_courant().isoformat(), appelant=vue("appelant", reglages.appelant), juge=vue("juge", reglages.juge)
+    )
 
 
 @router.get("/agents/{workflow_id}/scenarios", response_model=list[ScenarioSimule])

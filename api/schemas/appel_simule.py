@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 # The models the simulated caller and the judge can use (L18: a drop-down list). Mistral only for
 # now (Q1); the « mistral/ » prefix is the one LangWatch Scenario (litellm) expects.
@@ -77,6 +77,18 @@ class RoleSimule(BaseModel):
     )
     consigne: str = Field(min_length=1, max_length=6000, description="Prompt.")
     temperature: float = Field(default=0.3, ge=0, le=1)
+    # Partie 3, lot 12 (SE-23, M-5, M-6) : chaque rôle a son interrupteur (ÉTEINT par défaut : un réglage qui dépense) et son budget
+    # du mois (0 = aucun plafond, comme le plafond du mois du builder).
+    actif: bool = Field(default=False, description="Switch: a switched-off role makes no call to its model.")
+    budget_mois: float = Field(
+        default=0.0, ge=0, le=100_000, description="Monthly budget of this role (price table currency); 0 = no cap."
+    )
+    # Le nom du rôle (« appelant » ou « juge »), posé par ``ReglagesAppelantSimule`` ; jamais écrit ni lu en JSON.
+    _nom: str | None = PrivateAttr(default=None)
+
+    @property
+    def nom(self) -> str | None:
+        return self._nom
 
 
 class VoixSimulee(BaseModel):
@@ -115,6 +127,12 @@ class ReglagesAppelantSimule(BaseModel):
         le=200,
         description="Spending cap of one series (Q3), in the price table's currency (USD by default).",
     )
+
+    @model_validator(mode="after")
+    def _nommer_les_roles(self) -> ReglagesAppelantSimule:
+        self.appelant._nom = "appelant"
+        self.juge._nom = "juge"
+        return self
 
 
 class Comportements(BaseModel):
@@ -194,3 +212,20 @@ class BibliothequeScenarios(BaseModel):
         if len(noms) != len(set(noms)):
             raise ValueError("Two scenarios of the same agent share the same name.")
         return self
+
+
+class DepenseDuRole(BaseModel):
+    """Partie 3, lot 12 (SE-23) : ce qu'un rôle a dépensé ce mois-ci, face à son budget."""
+
+    appels: int = 0
+    jetons: int = 0
+    cout: float = 0.0
+    budget_mois: float = 0.0
+    actif: bool = False
+    atteint: bool = False
+
+
+class DepenseDesRoles(BaseModel):
+    mois: str = Field(description="First day of the month (UTC), ISO date.")
+    appelant: DepenseDuRole
+    juge: DepenseDuRole

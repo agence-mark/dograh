@@ -12,10 +12,11 @@
 import { useEffect, useState } from "react";
 
 import {
+    getDepenseDesRolesApiV1AppelSimuleDepenseGet,
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet,
     saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut,
 } from "@/client";
-import type { ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
+import type { DepenseDesRoles, DepenseDuRole, ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
+import { montant } from "./montant";
 
 // Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
 export const MODELES_SIMULATEUR: string[] = [
@@ -46,10 +49,11 @@ const BORNES = {
     taille_max_serie: { min: 1, max: 50 },
     plafond: { min: 0.01, max: 200 },
 };
+const BUDGET_MAX = 100000;
 
 /** The settings as read, with every part present (the server fills the defaults; the generated
  * type leaves them optional). */
-type Role = Required<Pick<RoleSimule, "modele" | "consigne" | "temperature" | "source">> & { identifiant: string | null };
+type Role = Required<Pick<RoleSimule, "modele" | "consigne" | "temperature" | "source" | "actif" | "budget_mois">> & { identifiant: string | null };
 export type ReglagesComplets = Omit<ReglagesAppelantSimule, "appelant" | "juge" | "voix"> & {
     appelant: Role;
     juge: Role;
@@ -62,6 +66,9 @@ const role = (r: RoleSimule | undefined): Role => ({
     consigne: r?.consigne ?? "",
     temperature: r?.temperature ?? 0,
     identifiant: r?.identifiant ?? null,
+    // Partie 3, lot 12 (SE-23) : chaque rôle a son interrupteur (éteint par défaut) et son budget du mois (0 = aucun plafond).
+    actif: r?.actif ?? false,
+    budget_mois: r?.budget_mois ?? 0,
 });
 
 export const completer = (lu: ReglagesAppelantSimule): ReglagesComplets => ({
@@ -75,13 +82,12 @@ export const fautesDesReglages = (r: ReglagesComplets, t: (texte: Texte) => stri
     const fautes: string[] = [];
     if (!r.appelant.consigne.trim()) fautes.push(t({ en: "Caller prompt missing", fr: "Consigne de l'appelant manquante" }));
     if (!r.juge.consigne.trim()) fautes.push(t({ en: "Judge prompt missing", fr: "Consigne du juge manquante" }));
-    if (r.appelant.identifiant !== r.juge.identifiant)
-        fautes.push(
-            t({
-                en: "The caller and the judge use the same model key",
-                fr: "L'appelant et le juge utilisent la même clé de modèle",
-            }),
-        );
+    for (const [nom, rl] of [
+        [t({ en: "Caller", fr: "Appelant" }), r.appelant],
+        [t({ en: "Judge", fr: "Juge" }), r.juge],
+    ] as const)
+        if (typeof rl.budget_mois !== "number" || Number.isNaN(rl.budget_mois) || rl.budget_mois < 0 || rl.budget_mois > BUDGET_MAX)
+            fautes.push(t({ en: `${nom} budget: between 0 and ${BUDGET_MAX}`, fr: `Budget ${nom.toLowerCase()} : entre 0 et ${BUDGET_MAX}` }));
     for (const [champ, { min, max }] of Object.entries(BORNES) as [keyof typeof BORNES, { min: number; max: number }][]) {
         const valeur = r[champ];
         if (typeof valeur !== "number" || Number.isNaN(valeur) || valeur < min || valeur > max)
@@ -94,17 +100,35 @@ function Role({
     titre,
     role,
     juge = false,
+    depense,
     onChange,
 }: {
     titre: Texte;
     role: Role;
     juge?: boolean;
+    depense: DepenseDuRole | null;
     onChange: (morceau: Partial<Role>) => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     return (
-        <fieldset className="space-y-2 rounded border border-border p-3">
+        <fieldset className="space-y-2 rounded border border-border p-3" data-role={juge ? "juge" : "appelant"}>
             <legend className="px-1 text-sm font-medium">{t(titre)}</legend>
+            <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-1.5">
+                    {t({ en: "Switched on", fr: "Activé" })}
+                    <Info>
+                        {t({
+                            en: "Off by default: a switched-off role makes no call to its model and spends nothing.",
+                            fr: "Éteint par défaut : un rôle éteint ne fait aucun appel à son modèle et ne dépense rien.",
+                        })}
+                    </Info>
+                </span>
+                <Switch
+                    aria-label={`${t(titre)} · ${t({ en: "Switched on", fr: "Activé" })}`}
+                    checked={role.actif}
+                    onCheckedChange={(v) => onChange({ actif: v })}
+                />
+            </div>
             <label className="block space-y-1 text-xs text-muted-foreground">
                 <span>
                     {t({ en: "Source", fr: "Source" })}{" "}
@@ -132,6 +156,17 @@ function Role({
                     <option value="claude_code">{t({ en: "Claude Code (subscription)", fr: "Claude Code (abonnement)" })}</option>
                 </ListeDeroulante>
             </label>
+            {role.source === "cle_api" && (
+                <SelecteurCle
+                    fournisseur="mistral"
+                    valeur={role.identifiant}
+                    libelle={{
+                        en: `${t(titre)} · model key`,
+                        fr: `${t(titre)} · clé du modèle`,
+                    }}
+                    onChange={(uuid) => onChange({ identifiant: uuid })}
+                />
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Model", fr: "Modèle" })}</span>
@@ -161,6 +196,33 @@ function Role({
                     />
                 </label>
             </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+                <label className="space-y-1 text-xs text-muted-foreground">
+                    <span>{t({ en: "Monthly budget (0 = no cap)", fr: "Budget du mois (0 = aucun plafond)" })}</span>
+                    <Input
+                        type="number"
+                        min={0}
+                        max={BUDGET_MAX}
+                        step="0.5"
+                        value={role.budget_mois}
+                        onChange={(e) => onChange({ budget_mois: Number(e.target.value) })}
+                        aria-label={`${t(titre)} · ${t({ en: "Monthly budget", fr: "Budget du mois" })}`}
+                    />
+                </label>
+                <p className="self-end text-xs text-muted-foreground" data-depense-du-role>
+                    {depense === null
+                        ? "…"
+                        : depense.atteint
+                          ? t({
+                                en: `Budget reached: ${montant(depense.cout, langue)} spent this month`,
+                                fr: `Budget atteint : ${montant(depense.cout, langue)} dépensés ce mois-ci`,
+                            })
+                          : t({
+                                en: `${montant(depense.cout, langue)} spent this month (${depense.appels ?? 0} calls)`,
+                                fr: `${montant(depense.cout, langue)} dépensés ce mois-ci (${depense.appels ?? 0} appels)`,
+                            })}
+                </p>
+            </div>
             <label className="block space-y-1 text-xs text-muted-foreground">
                 <span>{t({ en: "Prompt", fr: "Consigne" })}</span>
                 <Textarea
@@ -177,6 +239,7 @@ function Role({
 export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: boolean; onFermer: () => void }) {
     const { t } = useLangue();
     const [brouillon, setBrouillon] = useState<ReglagesComplets | null>(null);
+    const [depense, setDepense] = useState<DepenseDesRoles | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
 
@@ -185,9 +248,15 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
         let annule = false;
         setErreur(null);
         setBrouillon(null);
+        setDepense(null);
         (async () => {
-            const reglages = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
+            // Les deux lectures partent ensemble ; la dépense n'est qu'une indication (une panne ne bloque rien).
+            const [reglages, suivi] = await Promise.all([
+                getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet(),
+                getDepenseDesRolesApiV1AppelSimuleDepenseGet(),
+            ]);
             if (annule) return;
+            if (!suivi.error && suivi.data) setDepense(suivi.data);
             if (reglages.error) {
                 setErreur(echecAffiche(reglages.error));
                 return;
@@ -224,8 +293,8 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                     <DialogTitle>{t({ en: "Simulated caller settings", fr: "Réglages de l'appelant simulé" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "For the whole organization. The simulated caller and the judge use a Mistral key of an organization other than the agent's, so they never eat its quota. Keys are added, picked and deleted with « Keys… ».",
-                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent une clé Mistral d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Les clés s'ajoutent, se choisissent et se suppriment avec « Clés… ».",
+                            en: "For the whole organization. The simulated caller and the judge use a Mistral key of an organization other than the agent's, so they never eat its quota. Each has its own model, key, switch and monthly budget. Keys are added, picked and deleted with « Keys… ».",
+                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent une clé Mistral d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Chacun a son modèle, sa clé, son interrupteur et son budget du mois. Les clés s'ajoutent, se choisissent et se suppriment avec « Clés… ».",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -238,26 +307,17 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                     <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
                 ) : brouillon ? (
                     <div className="space-y-3">
-                        <SelecteurCle
-                            fournisseur="mistral"
-                            valeur={brouillon.appelant.identifiant}
-                            libelle={{ en: "Mistral key (caller and judge)", fr: "Clé Mistral (appelant et juge)" }}
-                            onChange={(uuid) =>
-                                changer({
-                                    appelant: { ...brouillon.appelant, identifiant: uuid },
-                                    juge: { ...brouillon.juge, identifiant: uuid },
-                                })
-                            }
-                        />
                         <Role
                             titre={{ en: "Simulated caller", fr: "Appelant simulé" }}
                             role={brouillon.appelant}
+                            depense={depense?.appelant ?? null}
                             onChange={(m) => changer({ appelant: { ...brouillon.appelant, ...m } })}
                         />
                         <Role
                             titre={{ en: "Judge", fr: "Juge" }}
                             juge
                             role={brouillon.juge}
+                            depense={depense?.juge ?? null}
                             onChange={(m) => changer({ juge: { ...brouillon.juge, ...m } })}
                         />
                         <fieldset className="grid gap-2 rounded border border-border p-3 sm:grid-cols-2">

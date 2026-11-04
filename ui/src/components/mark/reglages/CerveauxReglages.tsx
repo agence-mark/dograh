@@ -14,6 +14,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
+    getDepenseDesRolesApiV1AppelSimuleDepenseGet,
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet,
     lireLeCerveauApiV1BuilderCerveauGet,
     lireLesOptionsApiV1BuilderOptionsGet,
@@ -24,8 +25,9 @@ import {
     reglerLesOptionsApiV1BuilderOptionsPut,
     reglerLesSousAgentsApiV1BuilderSousAgentsReglagesPut,
 } from "@/client";
-import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
+import type { DepenseDesRoles, ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
 import { ModaleReglagesAppelantSimule } from "@/components/mark/appelant-simule/ModaleReglagesAppelantSimule";
+import { montant } from "@/components/mark/appelant-simule/montant";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useSources } from "@/components/mark/sources/useSources";
@@ -115,6 +117,21 @@ const T = {
     regler: { en: "Settings...", fr: "Régler..." },
     modeleActuel: { en: "Model", fr: "Modèle" },
     sourceDeLaBrique: { en: "Source", fr: "Source" },
+    roleActif: { en: "Switched on", fr: "Activé" },
+    roleActifInfo: {
+        en: "Off by default: a switched-off role makes no call to its model and spends nothing.",
+        fr: "Éteint par défaut : un rôle éteint ne fait aucun appel à son modèle et ne dépense rien.",
+    },
+    oui: { en: "Yes", fr: "Oui" },
+    non: { en: "No", fr: "Non" },
+    budgetDuMois: { en: "Monthly budget", fr: "Budget du mois" },
+    budgetDuMoisInfo: {
+        en: "Once reached, the role's next call is refused before it reaches the provider. 0 = no cap.",
+        fr: "Une fois atteint, le prochain appel du rôle est refusé avant d'atteindre le fournisseur. 0 = aucun plafond.",
+    },
+    aucunPlafond: { en: "No cap", fr: "Aucun plafond" },
+    roleDepense: { en: "Spent this month", fr: "Dépensé ce mois-ci" },
+    budgetAtteint: { en: "Budget reached", fr: "Budget atteint" },
     serie: { en: "Series", fr: "Séries" },
     simultanes: { en: "Calls at once", fr: "Appels simultanés" },
     tailleSerie: { en: "Calls per series at most", fr: "Appels par série au plus" },
@@ -638,17 +655,20 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
 
 /** L'appelant simulé et le juge : leurs réglages existants, lus ici et réglés dans la fenêtre qu'ils avaient déjà. */
 export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge"; aller: () => void }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { user, loading } = useAuth();
     const [reglages, setReglages] = useState<ReglagesAppelantSimule | null>(null);
+    const [depense, setDepense] = useState<DepenseDesRoles | null>(null);
     const [erreur, setErreur] = useState(false);
     const [fenetre, setFenetre] = useState(false);
     const { valeur: vue } = cerveauxPartages.useLecture(!loading && Boolean(user));
     const lire = useCallback(async () => {
-        const r = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
+        // Les deux lectures partent ensemble ; la dépense n'est qu'une indication.
+        const [r, d] = await Promise.all([getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet(), getDepenseDesRolesApiV1AppelSimuleDepenseGet()]);
         if (r.error || !r.data) return setErreur(true);
         setErreur(false);
         setReglages(r.data);
+        setDepense(!d.error && d.data ? d.data : null);
     }, []);
     useEffect(() => {
         if (!loading && user) void lire();
@@ -676,6 +696,19 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                         </Ligne>
                         <Ligne libelle={t(T.sourceDeLaBrique)}>
                             <span className="text-sm">{lu?.source === "claude_code" ? t(T.claudeCode) : t(T.cleApi)}</span>
+                        </Ligne>
+                        <Ligne libelle={t(T.roleActif)} info={t(T.roleActifInfo)}>
+                            <span className="text-sm" data-interrupteur-du-role>{lu?.actif ? t(T.oui) : t(T.non)}</span>
+                        </Ligne>
+                        <Ligne libelle={t(T.budgetDuMois)} info={t(T.budgetDuMoisInfo)}>
+                            <span className="text-sm" data-budget-du-role>{lu?.budget_mois ? lu.budget_mois : t(T.aucunPlafond)}</span>
+                        </Ligne>
+                        <Ligne libelle={t(T.roleDepense)}>
+                            <span className="text-sm" data-depense-du-role>
+                                {depense === null
+                                    ? "…"
+                                    : `${montant(depense[role].cout, langue)}${depense[role].atteint ? ` · ${t(T.budgetAtteint)}` : ""}`}
+                            </span>
                         </Ligne>
                         <Button variant="outline" size="sm" onClick={() => setFenetre(true)}>
                             {t(T.regler)}

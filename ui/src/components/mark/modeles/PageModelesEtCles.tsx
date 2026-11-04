@@ -18,6 +18,7 @@ import {
     getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet,
     getModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGet,
     saveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Put,
+    switchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePut,
 } from "@/client/sdk.gen";
 import type { OrganizationAiModelConfigurationResponse } from "@/client/types.gen";
 import type { ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
@@ -26,6 +27,7 @@ import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import type { ServiceSegment } from "@/components/ServiceConfigurationForm";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useAuth } from "@/lib/auth";
@@ -34,12 +36,14 @@ import { nomDu,useCles } from "../cles/FenetreCles";
 import { TableauCles } from "../cles/TableauCles";
 import { type Texte, useLangue } from "../langue/langue";
 import {
+    blocEnregistre,
     BRIQUES_DU_MODE,
     byokDefaults,
     ConfigurationIncomplete,
     construireCorps,
     existantDuMode,
     messageBriqueManquante,
+    modeActifEnregistre,
     modeEnregistre,
     type ModeModeles,
     segmentsDeLaFenetre,
@@ -76,6 +80,17 @@ const T = {
         en: "A single model listens, thinks and speaks. Transcription and voice are no longer used; the modules that read the transcript have no effect. The brain still extracts the variables and rates the call.",
         fr: "Un seul modèle écoute, réfléchit et parle. La transcription et la voix ne servent plus ; les modules qui lisent la transcription sont sans effet. Le cerveau extrait encore les variables et note l'appel.",
     },
+    // Partie 3, lot 13 (SE-24, M-2) : les deux configurations sont gardées ; une seule est active.
+    active: { en: "Active", fr: "Active" },
+    utiliserChaine: { en: "Use the chain", fr: "Utiliser la chaîne" },
+    utiliserTempsReel: { en: "Use realtime", fr: "Utiliser le temps réel" },
+    infoDeuxConfigs: {
+        en: "Both configurations are kept: switching never loses the voice or the transcription of the chain, nor the realtime model. Only the active one is used by calls.",
+        fr: "Les deux configurations sont gardées : basculer ne fait jamais perdre la voix ni la transcription de la chaîne, ni le modèle temps réel. Seule l'active sert aux appels.",
+    },
+    pasEncoreRegle: { en: "Set it first: it has not been configured yet.", fr: "Réglez-la d'abord : elle n'a pas encore été configurée." },
+    bascule: { en: "Configuration switched.", fr: "Configuration changée." },
+    basculeEchec: { en: "Could not switch. Try again.", fr: "Le changement n'a pas eu lieu. Réessayez." },
     nonRegle: { en: "Not set", fr: "Non réglé" },
     cleSaisie: { en: "Typed key", fr: "Clé saisie" },
     aucuneCle: { en: "No key", fr: "Aucune clé" },
@@ -167,7 +182,7 @@ export function PageModelesEtCles() {
         if (!mode || !existant || !defautsDuServeur) return;
         let corps;
         try {
-            corps = construireCorps(mode, existant, sortie, segments, defautsDuServeur);
+            corps = construireCorps(mode, existant, sortie, segments, defautsDuServeur, reponse?.configuration ?? null);
         } catch (e) {
             if (e instanceof ConfigurationIncomplete) throw new Error(t(messageBriqueManquante(e.service)));
             throw e;
@@ -184,6 +199,21 @@ export function PageModelesEtCles() {
         await refreshConfig();
         notifier.succes(T.saved);
         setOuverte(null);
+    };
+
+    // Le mode actif enregistré (celui que lisent les appels) et le geste de l'activer : seulement avec des clés propres.
+    const actif = reponse ? modeActifEnregistre(reponse.configuration) : null;
+    const basculer = async (cible: ModeModeles) => {
+        const r = await switchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePut({
+            body: { mode: cible === "temps-reel" ? "realtime" : "pipeline" },
+        });
+        if (r.error || !r.data) {
+            notifier.echec(r.response?.status === 403 ? T.droit : T.basculeEchec, { erreur: r.error });
+            return;
+        }
+        setReponse(r.data);
+        await refreshConfig();
+        notifier.succes(T.bascule);
     };
 
     return (
@@ -219,6 +249,26 @@ export function PageModelesEtCles() {
                             ))}
                         </span>
                         <Info>{t(mode === "chaine" ? T.infoChaine : T.infoTempsReel)}</Info>
+                        {actif !== null &&
+                            (actif === mode ? (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium" data-mode-actif={mode}>
+                                    {t(T.active)}
+                                </span>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="cursor-pointer"
+                                    data-activer-mode={mode}
+                                    disabled={blocEnregistre(reponse.configuration, mode) === null}
+                                    title={blocEnregistre(reponse.configuration, mode) === null ? t(T.pasEncoreRegle) : undefined}
+                                    onClick={() => void basculer(mode)}
+                                >
+                                    {t(mode === "chaine" ? T.utiliserChaine : T.utiliserTempsReel)}
+                                </Button>
+                            ))}
+                        <Info>{t(T.infoDeuxConfigs)}</Info>
                     </div>
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="briques">
                         {BRIQUES_DU_MODE[mode].map((service) => {

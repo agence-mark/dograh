@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
     enregistrer: vi.fn(),
+    basculer: vi.fn(),
+    lue: null as unknown,
     lireUsages: vi.fn(),
     fenetre: vi.fn(),
     echec: vi.fn(),
@@ -64,12 +66,13 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
         getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: async () => ({ data: DEFAUTS }),
         getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: async () => ({
-            data: { configuration: CONFIGURATION, effective_configuration: {}, source: "organization" },
+            data: { configuration: m.lue ?? CONFIGURATION, effective_configuration: {}, source: "organization" },
         }),
         getModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGet: async () => ({
             data: { llm: 0, tts: 1, stt: 0, realtime: 0 },
         }),
         saveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Put: m.enregistrer,
+        switchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePut: m.basculer,
     }),
 );
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
@@ -97,6 +100,8 @@ import { PageModelesEtCles } from "./PageModelesEtCles";
 
 beforeEach(() => {
     m.enregistrer.mockReset();
+    m.basculer.mockReset();
+    m.lue = null;
     m.fenetre.mockReset();
     m.echec.mockReset();
     m.succes.mockReset();
@@ -212,5 +217,81 @@ describe("le tableau des clés", () => {
         await screen.findByTestId("page-cles");
         // Le premier rendu n'a pas de clés : aucune lecture des usages n'est partie à ce moment-là.
         expect(m.lireUsages.mock.calls.length).toBeLessThanOrEqual(1);
+    });
+});
+
+describe("deux configurations gardées (lot 13, SE-24)", () => {
+    const TEMPS_REEL = {
+        realtime: { provider: "openai_realtime", api_key: "mark-cle:c-mistral", model: "gpt-realtime" },
+        llm: { provider: "mistral", api_key: "mark-cle:c-mistral", model: "mistral-small-2603" },
+    };
+    const LES_DEUX = (actif: "pipeline" | "realtime") => ({
+        ...CONFIGURATION,
+        byok: { ...CONFIGURATION.byok, mode: actif, realtime: TEMPS_REEL },
+    });
+
+    it("dit laquelle est active, montre la configuration de l'autre et propose de l'activer", async () => {
+        m.lue = LES_DEUX("pipeline");
+        render(<PageModelesEtCles />);
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        expect(document.querySelector("[data-mode-actif=chaine]")).not.toBeNull();
+        expect(document.querySelector("[data-activer-mode]")).toBeNull();
+        fireEvent.click(screen.getByRole("tab", { name: "Realtime" }));
+        // le temps réel est gardé même s'il n'est pas actif : la carte le montre, un bouton l'active
+        await waitFor(() => expect(carte("realtime").textContent).toContain("gpt-realtime"));
+        expect(document.querySelector("[data-mode-actif]")).toBeNull();
+        expect((document.querySelector("[data-activer-mode=temps-reel]") as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("basculer écrit le mode, dit le résultat, et la page montre la nouvelle active", async () => {
+        m.lue = LES_DEUX("pipeline");
+        m.basculer.mockResolvedValue({ data: { configuration: LES_DEUX("realtime"), effective_configuration: {}, source: "organization" } });
+        render(<PageModelesEtCles />);
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        fireEvent.click(screen.getByRole("tab", { name: "Realtime" }));
+        fireEvent.click(await waitFor(() => document.querySelector("[data-activer-mode=temps-reel]") as HTMLElement));
+        await waitFor(() => expect(m.basculer).toHaveBeenCalledWith({ body: { mode: "realtime" } }));
+        await waitFor(() => expect(m.succes).toHaveBeenCalled());
+        await waitFor(() => expect(document.querySelector("[data-mode-actif=temps-reel]")).not.toBeNull());
+        // la chaîne reste lisible, voix et transcription comprises
+        fireEvent.click(screen.getByRole("tab", { name: "STT / LLM / TTS" }));
+        expect(carte("tts").textContent).toContain("sonic-3.6");
+        expect(carte("stt").textContent).toContain("Typed key");
+    });
+
+    it("un mode jamais réglé ne peut pas être activé, et un échec dit une phrase", async () => {
+        render(<PageModelesEtCles />); // la configuration de base n'a que la chaîne
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        fireEvent.click(screen.getByRole("tab", { name: "Realtime" }));
+        const bouton = document.querySelector("[data-activer-mode=temps-reel]") as HTMLButtonElement;
+        expect(bouton.disabled).toBe(true);
+        expect(m.basculer).not.toHaveBeenCalled();
+        // un échec du serveur
+        m.lue = LES_DEUX("pipeline");
+        cleanup();
+        m.basculer.mockResolvedValue({ error: { detail: "boom interne" }, response: { status: 500 } });
+        render(<PageModelesEtCles />);
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        fireEvent.click(screen.getByRole("tab", { name: "Realtime" }));
+        fireEvent.click(await waitFor(() => document.querySelector("[data-activer-mode=temps-reel]") as HTMLElement));
+        await waitFor(() => expect(m.echec).toHaveBeenCalled());
+        expect(JSON.stringify(m.echec.mock.calls[0][0])).not.toContain("boom interne");
+        expect(m.succes).not.toHaveBeenCalled();
+    });
+
+    it("enregistrer une brique du temps réel renvoie la chaîne et garde l'active", async () => {
+        m.lue = LES_DEUX("pipeline");
+        m.enregistrer.mockResolvedValue({ data: { configuration: m.lue, effective_configuration: {}, source: "organization" } });
+        render(<PageModelesEtCles />);
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        fireEvent.click(screen.getByRole("tab", { name: "Realtime" }));
+        fireEvent.click(carte("llm"));
+        fireEvent.click(within(screen.getByRole("dialog")).getByText("enregistrer"));
+        await waitFor(() => expect(m.enregistrer).toHaveBeenCalled());
+        const byok = m.enregistrer.mock.calls[0][0].body.byok;
+        expect(byok.mode).toBe("pipeline"); // l'onglet affiché n'active rien
+        expect(byok.pipeline.tts.provider).toBe("cartesia");
+        expect(byok.pipeline.stt.api_key).toBe("****1234");
+        expect(byok.realtime.llm.model).toBe("mistral-medium-2508");
     });
 });

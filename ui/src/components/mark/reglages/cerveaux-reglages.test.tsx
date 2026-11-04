@@ -6,6 +6,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { montant } from "@/components/mark/appelant-simule/montant";
 import { OngletAppelantOuJuge, OngletBuilderIA } from "./CerveauxReglages";
 
 const m = vi.hoisted(() => ({
@@ -48,7 +49,20 @@ vi.mock("@/client", () => ({
     lireLesCerveauxApiV1BuilderCerveauxGet: async () => ({ data: vueCerveaux }),
     lireLesOptionsApiV1BuilderOptionsGet: async () => ({ data: { ...m.options } }),
     reglerLesOptionsApiV1BuilderOptionsPut: (o: { body: typeof m.options }) => (m.optionsPut(o), (m.options = o.body), Promise.resolve({ data: o.body })),
-    getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet: async () => ({ data: { appelant: { modele: "mistral/a", source: "cle_api" }, juge: { modele: "mistral/j", source: "cle_api" }, simultanes: 2 } }),
+    getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet: async () => ({
+        data: {
+            appelant: { modele: "mistral/a", source: "cle_api", actif: true, budget_mois: 0 },
+            juge: { modele: "mistral/j", source: "cle_api", actif: false, budget_mois: 7 },
+            simultanes: 2,
+        },
+    }),
+    getDepenseDesRolesApiV1AppelSimuleDepenseGet: async () => ({
+        data: {
+            mois: "2026-11-01",
+            appelant: { appels: 2, jetons: 300, cout: 0.5, budget_mois: 0, actif: true, atteint: false },
+            juge: { appels: 5, jetons: 900, cout: 3.25, budget_mois: 7, actif: false, atteint: true },
+        },
+    }),
 }));
 
 beforeEach(() => {
@@ -176,5 +190,27 @@ describe("Réglages du Labo, onglet Appelant simulé", () => {
         expect(screen.getByText("2")).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: /Régler|Settings/ }));
         expect(screen.getByText("fenetre-reglages")).toBeTruthy();
+    });
+});
+
+describe("Réglages du Labo, appelant simulé et juge séparés (lot 12)", () => {
+    it("un montant s'écrit à la façon de la langue", () => {
+        expect(montant(1.37, "fr").replace(/\s/g, "")).toBe("1,37");
+        expect(montant(1.37, "en")).toBe("1.37");
+        expect(montant(undefined, "en")).toBe("0.00");
+    });
+
+    it("chaque rôle montre son interrupteur, son budget du mois et ce qu'il a dépensé", async () => {
+        const { unmount } = render(<OngletAppelantOuJuge role="appelant" aller={vi.fn()} />);
+        await screen.findByText("mistral/a");
+        expect(document.querySelector("[data-interrupteur-du-role]")?.textContent).toMatch(/Yes|Oui/);
+        expect(document.querySelector("[data-budget-du-role]")?.textContent).toMatch(/No cap|Aucun plafond/);
+        await vi.waitFor(() => expect(document.querySelector("[data-depense-du-role]")?.textContent).toBe("0.50"));
+        unmount();
+        render(<OngletAppelantOuJuge role="juge" aller={vi.fn()} />);
+        await screen.findByText("mistral/j");
+        expect(document.querySelector("[data-interrupteur-du-role]")?.textContent).toMatch(/No|Non/);
+        expect(document.querySelector("[data-budget-du-role]")?.textContent).toBe("7");
+        await vi.waitFor(() => expect(document.querySelector("[data-depense-du-role]")?.textContent).toMatch(/^3\.25 · (Budget reached|Budget atteint)$/));
     });
 });

@@ -19,7 +19,7 @@ from loguru import logger
 
 from api.db import db_client
 from api.services.builder import consignes
-from api.services.builder.cerveau import independance, simules
+from api.services.builder.cerveau import budget_roles, independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
 from api.services.juge import file, note, passes
@@ -96,10 +96,21 @@ async def apres_appel(run: Any, organisation: int) -> None:
             await file.ajouter(organisation, {"id": f"appel-{run.id}", "type": "appel", "workflow_id": run.workflow_id, "run_id": run.id})
             await ecrire_dans_le_run(run.id, {"etat": "a_juger", "source": "claude_code", **mention})
             return
+        if not juge.actif:
+            await ecrire_dans_le_run(run.id, {"etat": "non_regle", "raison": "The judge is switched off (Labo settings > Simulated caller)."})
+            return
         cerveau = await simules.cerveau_du_role(organisation, juge, base)
         if cerveau is None:
             await ecrire_dans_le_run(run.id, {"etat": "non_regle", "raison": "No key set for the judge (Labo settings)."})
             return
+        if juge.budget_mois > 0:
+            try:  # SE-23 : budget du mois atteint = l'appel du juge est refusé avant tout appel au fournisseur, et le run le dit
+                await budget_roles.verifier(
+                    organisation, "juge", juge.budget_mois, prix_connus=any(await simules.prix_du_role(organisation, juge, base))
+                )
+            except budget_roles.BudgetDuRole as budget:
+                await ecrire_dans_le_run(run.id, {"etat": "budget_atteint", "raison": budget.message})
+                return
         dossier = dossier_d_un_run(run)
         if not dossier["lignes"]:
             await ecrire_dans_le_run(run.id, {"etat": "sans_transcription"})
