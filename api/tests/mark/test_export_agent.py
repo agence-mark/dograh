@@ -203,7 +203,9 @@ async def test_rejouee_la_copie_n_est_pas_refaite(db_session):
     assert compte_avant == (len(await db_session.get_all_workflows(organization_id=client)), len(await db_session.get_tools_for_organization(client)))
     ligne = next(x for x in cibles["cibles"] if x["id"] == client)
     assert ligne["deja_copie"]["agent_id"] == premiere["agent_id"]
-    assert [x["id"] for x in cibles["cibles"]] == [client]  # le Labo n'est pas une cible de l'export
+    ids = [x["id"] for x in cibles["cibles"]]
+    # Le Labo n'est pas une cible de l'export ; la base de test partagée peut porter d'autres clients ouverts à l'Administrateur.
+    assert client in ids and labo not in ids
     # Une copie archivée n'est plus « déjà copiée » : on peut la refaire.
     for a in premiere["agents"]:
         await db_session.update_workflow_status(workflow_id=a["id"], status="archived", organization_id=client)
