@@ -53,22 +53,39 @@ def adresses_des_administrateurs(brut: str | None) -> list[str]:
     return sorted({a.strip().lower() for a in (brut or "").split(",") if a.strip()})
 
 
-def comptes_a_promouvoir(connexion, brut: str | None) -> list[int]:
-    """Les comptes nommés par la variable ; à défaut, le plus ancien compte seul ; aucun si la base n'a aucun compte."""
+def promotion(connexion, brut: str | None) -> tuple[list[int], list[str], str]:
+    """(comptes à promouvoir, adresses nommées mais introuvables, raison) : les comptes nommés par la variable ; à défaut, le
+    plus ancien compte seul ; aucun si la base n'a aucun compte. Revue de contrôle, point 7 : l'adresse mal tapée se voit."""
     adresses = adresses_des_administrateurs(brut)
+    introuvables: list[str] = list(adresses)
     if adresses:
-        nommes = connexion.execute(
-            sa.text("SELECT id FROM users WHERE lower(email) IN :adresses ORDER BY id").bindparams(
+        trouves = connexion.execute(
+            sa.text("SELECT id, lower(email) FROM users WHERE lower(email) IN :adresses ORDER BY id").bindparams(
                 sa.bindparam("adresses", expanding=True)
             ),
             {"adresses": adresses},
-        ).scalars().all()
-        if nommes:
-            return list(nommes)
+        ).all()
+        introuvables = [a for a in adresses if a not in {mail for _, mail in trouves}]
+        if trouves:
+            return [i for i, _ in trouves], introuvables, "nommés"
     premier = connexion.execute(
         sa.text("SELECT id FROM users ORDER BY created_at ASC NULLS LAST, id ASC LIMIT 1")
     ).scalar()
-    return [premier] if premier is not None else []
+    raison = "aucun compte nommé trouvé : repli sur le plus ancien compte" if adresses else "variable absente : plus ancien compte"
+    return ([premier] if premier is not None else []), introuvables, raison
+
+
+def comptes_a_promouvoir(connexion, brut: str | None) -> list[int]:
+    return promotion(connexion, brut)[0]
+
+
+def rapport_de_promotion(promus: list[int], introuvables: list[str], raison: str) -> list[str]:
+    """Les lignes écrites dans la sortie de la migration : les identifiants promus et les adresses nommées introuvables.
+    Jamais l'adresse d'un autre compte (seules celles de la variable, qu'on vient de taper, reviennent)."""
+    lignes = [f"[.mark] {VARIABLE_ADMINISTRATEURS} ({raison}) : comptes promus Administrateurs (id) : {', '.join(map(str, promus)) or 'aucun'}"]
+    if introuvables:
+        lignes.append(f"[.mark] {VARIABLE_ADMINISTRATEURS} : adresses introuvables, ignorées : {', '.join(introuvables)}")
+    return lignes
 
 
 def upgrade():
@@ -151,7 +168,10 @@ def upgrade():
             sa.text("INSERT INTO mark_role_permissions (role_id, permission) VALUES (:r, :p)"),
             {"r": membre_id, "p": permission},
         )
-    for user_id in comptes_a_promouvoir(connexion, os.environ.get(VARIABLE_ADMINISTRATEURS)):
+    promus, introuvables, raison = promotion(connexion, os.environ.get(VARIABLE_ADMINISTRATEURS))
+    for ligne in rapport_de_promotion(promus, introuvables, raison):
+        print(ligne)
+    for user_id in promus:
         connexion.execute(
             sa.text("INSERT INTO mark_membres (user_id, role_id) VALUES (:u, :r)"),
             {"u": user_id, "r": admin_id},
