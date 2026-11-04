@@ -16,7 +16,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -1433,6 +1433,20 @@ describe("[.mark] the agent page: cards, windows and search", () => {
         expect(fenetre.querySelector('[data-reglage="max_call_duration"]')).not.toBeNull();
         fireEvent.keyDown(document, { key: "Escape" });
         await waitFor(() => expect(document.querySelector("[data-fenetre-theme]")).toBeNull());
+    });
+
+    it("RA-B R5: the max call duration is bounded on screen by the server's ceiling (1200 s)", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("rythme");
+        const champ = document.getElementById("max_call_duration") as HTMLInputElement;
+        expect(champ.getAttribute("max")).toBe("1200");
+        fireEvent.change(champ, { target: { value: "5000" } });
+        const fenetre = document.querySelector('[data-fenetre-theme="rythme"]') as HTMLElement;
+        expect(fenetre.querySelector('[data-erreur="max_call_duration"]')).not.toBeNull();
+        expect(within(fenetre.querySelector('[data-reglage="max_call_duration"]') as HTMLElement).getByText(/Must be at most 1200/)).toBeTruthy();
+        expect((screen.getByRole("button", { name: /^Save Call pacing/ }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.change(champ, { target: { value: "1200" } });
+        expect(fenetre.querySelector('[data-erreur="max_call_duration"]')).toBeNull();
     });
 
     it("« Cancel » forgets the draft of the theme and closes its window", async () => {

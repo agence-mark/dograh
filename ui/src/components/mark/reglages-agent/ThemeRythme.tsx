@@ -10,7 +10,8 @@ import { Timer } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
-import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
+import { attributsDeBorne, texteHorsBornes } from "../bornes-reglages";
+import { bornesDe, ChampReglage, texteBornes } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { useLangue } from "../langue/langue";
@@ -43,7 +44,14 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
     const maj = (cle: keyof typeof brouillon) => (valeur: unknown) => setBrouillon((avant) => ({ ...avant, [cle]: valeur }));
 
     const modifie = differe(brouillon, enregistre);
-    const erreurs = erreursDuCatalogue(CLES_RYTHME_MARK, brouillon);
+    // [.mark] RA-B R5 : la durée maximale est contrôlée avec la borne du serveur (jamais d'enregistrement refusé en 422).
+    const erreurDuree = texteHorsBornes("max_call_duration", brouillon.max_call_duration);
+    const erreurs = [
+        ...erreursDuCatalogue(CLES_RYTHME_MARK, brouillon),
+        ...(erreurDuree
+            ? [{ cle: "max_call_duration", libelle: { en: "Max Call Duration (seconds)", fr: "Durée maximale de l'appel (secondes)" }, message: erreurDuree }]
+            : []),
+    ];
     useEtatTheme(ID_THEME_RYTHME, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -139,11 +147,13 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                     idControle="max_call_duration"
                     libelle={{ en: "Max Call Duration (seconds)", fr: "Durée maximale de l'appel (secondes)" }}
                     aides={[{ en: "Default: 600 (10 minutes)", fr: "Défaut : 600 (10 minutes)." }]}
-                    bornes={bornesDe(1)}
+                    bornes={texteBornes("max_call_duration")}
+                    erreur={erreurDuree}
                 >
                     <Input
                         id="max_call_duration"
                         type="number"
+                        {...attributsDeBorne("max_call_duration")}
                         min="1"
                         value={brouillon.max_call_duration}
                         onChange={entierPositif("max_call_duration")}
