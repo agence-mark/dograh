@@ -11,6 +11,38 @@ from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunMod
 
 
 class WorkflowClient(BaseDBClient):
+    async def compter_remplacements_de_modeles(
+        self, organization_id: int
+    ) -> dict[str, int]:
+        """[.mark] V2b (E51) : combien d'agents actifs de l'organisation remplacent chaque brique de modèle
+        (``model_overrides`` de la version publiée). UNE requête, filtrée par l'organisation dans la requête."""
+        async with self.async_session() as session:
+            lignes = await session.execute(
+                select(
+                    WorkflowDefinitionModel.workflow_configurations,
+                    WorkflowModel.workflow_configurations,
+                )
+                .select_from(WorkflowModel)
+                .outerjoin(
+                    WorkflowDefinitionModel,
+                    WorkflowDefinitionModel.id == WorkflowModel.released_definition_id,
+                )
+                .where(
+                    WorkflowModel.organization_id == organization_id,
+                    WorkflowModel.status == "active",
+                )
+            )
+            comptes = {"llm": 0, "tts": 0, "stt": 0, "realtime": 0}
+            for publiee, courante in lignes.all():
+                configuration = publiee if publiee is not None else courante
+                surcharges = (configuration or {}).get("model_overrides")
+                if not isinstance(surcharges, dict):
+                    continue
+                for service in comptes:
+                    if isinstance(surcharges.get(service), dict) and surcharges[service]:
+                        comptes[service] += 1
+            return comptes
+
     async def get_workflow_definition(
         self, workflow_id: int, definition_id: int, organization_id: int
     ) -> WorkflowDefinitionModel | None:
