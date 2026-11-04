@@ -3194,6 +3194,10 @@ export type ConnecteurVue = {
      * Editeur
      */
     editeur?: string | null;
+    /**
+     * Categorie
+     */
+    categorie?: string | null;
 };
 
 /**
@@ -6162,6 +6166,24 @@ export type EntreeOut = {
      * Utilise Le
      */
     utilise_le: string | null;
+    /**
+     * Fin Le
+     */
+    fin_le?: string | null;
+    /**
+     * Duree Secondes
+     */
+    duree_secondes?: number | null;
+};
+
+/**
+ * EntreeTerminee
+ */
+export type EntreeTerminee = {
+    /**
+     * Duree Secondes
+     */
+    duree_secondes: number;
 };
 
 /**
@@ -6893,6 +6915,10 @@ export type FilPatch = {
      * Suivi
      */
     suivi?: 'moi' | 'personne' | null;
+    /**
+     * Suivi Par
+     */
+    suivi_par?: number | null;
     /**
      * Lu
      */
@@ -9370,6 +9396,20 @@ export type McpToolDefinition = {
 };
 
 /**
+ * MembreASuivre
+ */
+export type MembreASuivre = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * MembreDuGroupe
  */
 export type MembreDuGroupe = {
@@ -9423,6 +9463,10 @@ export type MembreResponse = {
      * Role Nom
      */
     role_nom: string;
+    /**
+     * Depuis
+     */
+    depuis?: string | null;
 };
 
 /**
@@ -16146,6 +16190,12 @@ export type TermeLexique = {
      * nom: recognised and corrected before the model reads it. mot: a common word of the trade, only listened for by the transcription.
      */
     type?: 'nom' | 'mot';
+    /**
+     * Nature
+     *
+     * marque or nom_propre: a name (recognised and corrected). mot_du_metier: a common word of the trade. Unset on a term saved before this field: the type says whether it is a name or a word.
+     */
+    nature?: 'marque' | 'nom_propre' | 'mot_du_metier' | null;
     /**
      * Categorie
      */
@@ -35216,6 +35266,51 @@ export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostRespo
 
 export type RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponse = RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponses[keyof RepondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPostResponses];
 
+export type MembresAQuiConfierUnFilApiV1RelationMembresGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/relation/membres';
+};
+
+export type MembresAQuiConfierUnFilApiV1RelationMembresGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MembresAQuiConfierUnFilApiV1RelationMembresGetError = MembresAQuiConfierUnFilApiV1RelationMembresGetErrors[keyof MembresAQuiConfierUnFilApiV1RelationMembresGetErrors];
+
+export type MembresAQuiConfierUnFilApiV1RelationMembresGetResponses = {
+    /**
+     * Response Membres A Qui Confier Un Fil Api V1 Relation Membres Get
+     *
+     * Successful Response
+     */
+    200: Array<MembreASuivre>;
+};
+
+export type MembresAQuiConfierUnFilApiV1RelationMembresGetResponse = MembresAQuiConfierUnFilApiV1RelationMembresGetResponses[keyof MembresAQuiConfierUnFilApiV1RelationMembresGetResponses];
+
 export type ListerNotesApiV1RelationClientsOrganizationIdNotesGetData = {
     body?: never;
     headers?: {
@@ -35882,6 +35977,54 @@ export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses 
 };
 
 export type VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponse = VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses[keyof VerifierEntreeApiV1OrganizationsRelationEntreeVerifierPostResponses];
+
+export type TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Entree Id
+         */
+        entree_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/relation/entree/{entree_id}/fin';
+};
+
+export type TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostError = TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostErrors[keyof TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostErrors];
+
+export type TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EntreeTerminee;
+};
+
+export type TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostResponse = TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostResponses[keyof TerminerEntreeApiV1OrganizationsRelationEntreeEntreeIdFinPostResponses];
 
 export type CiblesApiV1ExportAgentWorkflowIdCiblesGetData = {
     body?: never;
