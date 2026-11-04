@@ -214,14 +214,15 @@ async def test_le_dernier_chargement_est_ecrit_au_plus_une_fois_par_minute(db_se
 
 
 # ----------------------------------------------------------------------------- apparence
-def test_apparence_par_defaut_bleu_mark_francais_dix_huit_textes():
+def test_apparence_par_defaut_bleu_mark_francais_vingt_quatre_textes():
     a = ApparenceWidget()
     assert a.couleur_base == COULEUR_MARK == "#1b5fb0"
     assert a.orbe_animee is True and a.embleme == "orbe" and a.avis is True
-    assert len(TEXTES_DEFAUT) == 18
+    assert len(TEXTES_DEFAUT) == 24  # 18 d'origine + 6 de V5 (titre, avis, deux cases, passer, écrire)
     assert a.textes.model_dump() == TEXTES_DEFAUT
     assert a.textes.accroche == "Une question ?\nParlez-moi."  # les retours à la ligne sont gardés
-    assert set(a.couleurs_resolues().values()) <= {"#1b5fb0", "#ffffff"}  # tout est tiré de la base et du fond
+    # Tout est tiré de la base et du fond, sauf le rouge de « raccrocher », le gris de la bulle de l'assistant et les textes.
+    assert set(a.couleurs_resolues().values()) <= {"#1b5fb0", "#ffffff", "#0f1c2e", "#dc2626", "#f1f1f1"}
 
 
 def test_retoucher_un_element_ne_touche_aucun_autre():
@@ -390,6 +391,8 @@ async def test_le_canal_puis_l_emplacement_puis_la_configuration_de_bout_en_bout
         avant = (await c.get(f"{API}/organizations/agents-servis", headers=h)).json()
         assert next(a for a in avant["agents"] if a["id"] == agent.id)["canal"] == "telephone"
         await db_session.publish_workflow_draft(agent.id)
+        # La session des tests est partagée : ses lignes déjà lues (versions chargées avant la publication) sont relues.
+        async_session.expire_all()
         servis = (await c.get(f"{API}/organizations/agents-servis", headers=h)).json()
     ligne = next(a for a in servis["agents"] if a["id"] == agent.id)
     assert ligne["canal"] == "site"

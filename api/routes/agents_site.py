@@ -15,6 +15,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from loguru import logger
+
 from api.constants import BACKEND_API_ENDPOINT, ENVIRONMENT, UI_APP_URL
 from api.db import db_client
 from api.db.models import UserModel
@@ -24,6 +26,7 @@ from api.schemas.site_conversations import EvenementJour
 from api.schemas.site_widget import (
     ApparenceLue,
     CouleurDuSite,
+    DemandeAffichage,
     DemandeCanal,
     DemandeEmplacement,
     DemandeLireSite,
@@ -166,11 +169,33 @@ async def regler_un_site(
     return _site_lu(site)
 
 
+@router.post("/sites/{site_id}/regenerer-cle", response_model=SiteLu)
+async def regenerer_la_cle_du_site(site_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Nouvelle clé pour le site (V5, « Régénérer le jeton ») : l'ancien script est refusé, le nouveau est rendu."""
+    ancien = await db_client.lire_site(site_id, user.selected_organization_id)
+    if ancien is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    ancienne_cle = ancien.cle
+    site = await db_client.regenerer_cle_du_site(site_id, user.selected_organization_id)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    config_site.vider_le_cache(ancienne_cle)
+    config_site.vider_le_cache(site.cle)
+    logger.info(f"site {site_id} (organisation {user.selected_organization_id}) : clé régénérée")
+    return _site_lu(site)
+
+
 # ---------------------------------------------------------------------- canal et emplacement
 async def _emplacement_lu(workflow, organization_id: int) -> EmplacementLu:
     jeton = await _jeton(workflow.id, organization_id)
     canal = await _canal_de_lagent(workflow, organization_id, brouillon=True)
-    lu = EmplacementLu(workflow_id=workflow.id, canal=canal)
+    definition = published_definition(workflow)
+    lu = EmplacementLu(
+        workflow_id=workflow.id,
+        canal=canal,
+        agent_nom=workflow.name or "",
+        version_publiee=getattr(definition, "version_number", None),
+    )
     if jeton is None:
         return lu
     lu.embed_token_id = jeton.id
@@ -291,6 +316,24 @@ async def poser_l_emplacement(
     return await _emplacement_lu(workflow, organisation)
 
 
+@router.put("/agents-site/{workflow_id}/affichage", response_model=EmplacementLu)
+async def regler_l_affichage(
+    workflow_id: int, demande: DemandeAffichage, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Affiché ou coupé sur le site (V5) : coupé, le widget disparaît au prochain chargement de page, le script reste."""
+    workflow = await _agent(workflow_id, user)
+    organisation = user.selected_organization_id
+    jeton = await _jeton_ou_404(workflow_id, user)
+    maj = await db_client.regler_jeton_mark(jeton.id, organisation, is_active=demande.actif)
+    if maj is None:
+        raise HTTPException(status_code=404, detail="This agent has no widget yet")
+    if jeton.site_id:
+        site = await db_client.lire_site(jeton.site_id, organisation)
+        if site is not None:
+            config_site.vider_le_cache(site.cle)
+    return await _emplacement_lu(workflow, organisation)
+
+
 # ---------------------------------------------------------------------- apparence
 @router.get("/agents-site/{workflow_id}/apparence", response_model=ApparenceLue)
 async def lire_l_apparence(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
@@ -323,6 +366,7 @@ async def _reglages_lus(jeton) -> ReglagesMarkLus:
         allowed_domains=list(jeton.allowed_domains or []),
         conversations_ce_mois=usage.conversations if usage else 0,
         minutes_ce_mois=(usage.secondes // 60) if usage else 0,
+        jeton_expire_le=jeton.expires_at.date().isoformat() if jeton.expires_at else None,
     )
 
 
@@ -338,10 +382,22 @@ async def regler_les_reglages(
     jeton = await _jeton_ou_404(workflow_id, user)
     champs = demande.model_dump(exclude_none=True)
     domaines = champs.pop("allowed_domains", None)
+    expire = champs.pop("jeton_expire_le", None)
     valeurs = {**ReglagesMark.depuis(jeton.reglages_mark).en_json(), **champs}
     modifs: dict = {"reglages_mark": ReglagesMark.depuis(valeurs).en_json()}
     if domaines is not None:
         modifs["allowed_domains"] = _domaines_propres(domaines)
+    if expire is not None:
+        if expire.strip() == "":
+            modifs["sans_expiration"] = True
+        else:
+            try:
+                fin = date.fromisoformat(expire.strip())
+            except ValueError:
+                raise HTTPException(status_code=422, detail="The end date is written YYYY-MM-DD") from None
+            if fin < datetime.now(UTC).date():
+                raise HTTPException(status_code=422, detail="The end date cannot be in the past")
+            modifs["expires_at"] = datetime(fin.year, fin.month, fin.day, 23, 59, 59, tzinfo=UTC)
     maj = await db_client.regler_jeton_mark(jeton.id, user.selected_organization_id, **modifs)
     if maj is None:
         raise HTTPException(status_code=404, detail="This agent has no widget yet")

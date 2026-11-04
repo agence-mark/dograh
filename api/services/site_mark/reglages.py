@@ -20,6 +20,9 @@ DUREE_MAX_MAX_S = 3600
 SESSIONS_PAR_HEURE_ET_IP_DEFAUT = 10  # plan v4 : 10 par défaut
 SESSIONS_PAR_HEURE_ET_IP_MAX = 1000
 PLAFOND_MAX = 1_000_000
+# V5 (maquette « Réglages .mark ») : voix seule = pas de champ de saisie pendant la conversation.
+MODES = ("voix_et_ecrit", "voix")
+MODES_DEFAUT = "voix_et_ecrit"  # le comportement d'avant V5 : le champ est là
 
 
 def _entier(valeur: Any, defaut: int, mini: int, maxi: int) -> int:
@@ -35,6 +38,7 @@ class ReglagesMark:
     plafond_minutes_mois: int = PLAFOND_MINUTES_MOIS_DEFAUT
     duree_max_s: int = DUREE_MAX_DEFAUT_S
     sessions_par_heure_et_ip: int = SESSIONS_PAR_HEURE_ET_IP_DEFAUT
+    modes: str = MODES_DEFAUT
 
     @classmethod
     def depuis(cls, brut: Mapping | None) -> "ReglagesMark":
@@ -53,6 +57,7 @@ class ReglagesMark:
                 1,
                 SESSIONS_PAR_HEURE_ET_IP_MAX,
             ),
+            modes=brut.get("modes") if brut.get("modes") in MODES else MODES_DEFAUT,
         )
 
     def en_json(self) -> dict:
@@ -61,4 +66,5 @@ class ReglagesMark:
             "plafond_minutes_mois": self.plafond_minutes_mois,
             "duree_max_s": self.duree_max_s,
             "sessions_par_heure_et_ip": self.sessions_par_heure_et_ip,
+            "modes": self.modes,
         }

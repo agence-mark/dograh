@@ -112,6 +112,23 @@ class SiteClient(BaseDBClient):
             await session.refresh(site)
             return site
 
+    async def regenerer_cle_du_site(self, site_id: int, organization_id: int) -> MarkEmbedSiteModel | None:
+        """Pose une nouvelle clé au site : l'ancien script cesse de marcher, la page doit recevoir le nouveau."""
+        async with self.async_session() as session:
+            site = (
+                await session.execute(
+                    select(MarkEmbedSiteModel).where(
+                        MarkEmbedSiteModel.id == site_id, MarkEmbedSiteModel.organization_id == organization_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if site is None:
+                return None
+            site.cle = f"site_{secrets.token_urlsafe(24)}"
+            await session.commit()
+            await session.refresh(site)
+            return site
+
     async def noter_chargement(self, site_id: int) -> None:
         async with self.async_session() as session:
             await session.execute(
@@ -300,8 +317,11 @@ class SiteClient(BaseDBClient):
     async def regler_jeton_mark(
         self, embed_token_id: int, organization_id: int, *, reglages_mark: dict | None = None,
         allowed_domains: list[str] | None = None,
+        expires_at: datetime | None = None,
+        sans_expiration: bool = False,
+        is_active: bool | None = None,
     ) -> EmbedTokenModel | None:
-        """Écrit les réglages posés par .mark d'un jeton (et ses domaines), sous l'organisation."""
+        """Écrit les réglages posés par .mark d'un jeton (domaines, fin de validité, affichage), sous l'organisation."""
         async with self.async_session() as session:
             jeton = (
                 await session.execute(
@@ -317,6 +337,12 @@ class SiteClient(BaseDBClient):
                 jeton.reglages_mark = reglages_mark
             if allowed_domains is not None:
                 jeton.allowed_domains = allowed_domains
+            if sans_expiration:
+                jeton.expires_at = None
+            elif expires_at is not None:
+                jeton.expires_at = expires_at
+            if is_active is not None:
+                jeton.is_active = is_active
             jeton.updated_at = datetime.now(UTC)
             await session.commit()
             await session.refresh(jeton)

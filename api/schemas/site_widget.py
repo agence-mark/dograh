@@ -51,6 +51,8 @@ class EmplacementLu(BaseModel):
     site_cle: str | None = None
     chemins: list[str] = Field(default_factory=list)
     dernier_chargement: str | None = None
+    agent_nom: str = ""
+    version_publiee: int | None = None
 
 
 class ApparenceLue(BaseModel):
@@ -66,6 +68,16 @@ class DemandeReglagesMark(BaseModel):
     duree_max_s: int | None = Field(default=None, ge=60, le=3600)
     sessions_par_heure_et_ip: int | None = Field(default=None, ge=1, le=1000)
     allowed_domains: list[str] | None = Field(default=None, max_length=50)
+    modes: Literal["voix_et_ecrit", "voix"] | None = None
+    jeton_expire_le: str | None = Field(
+        default=None,
+        max_length=10,
+        description="Date AAAA-MM-JJ de fin du jeton ; chaîne vide : n'expire jamais ; absent : inchangé.",
+    )
+
+
+class DemandeAffichage(BaseModel):
+    actif: bool
 
 
 class ReglagesMarkLus(BaseModel):
@@ -76,6 +88,8 @@ class ReglagesMarkLus(BaseModel):
     allowed_domains: list[str]
     conversations_ce_mois: int = 0
     minutes_ce_mois: int = 0
+    modes: Literal["voix_et_ecrit", "voix"] = "voix_et_ecrit"
+    jeton_expire_le: str | None = None
 
 
 class DemandeLireSite(BaseModel):

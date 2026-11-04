@@ -16,6 +16,7 @@ from typing import Any
 
 from api.schemas.apparence_widget import ApparenceWidget, TEXTES_DEFAUT
 from api.services.site_mark import chemins as lib_chemins
+from api.services.site_mark.reglages import ReglagesMark
 
 DUREE_CACHE_S = 300.0
 CHARGEMENT_TOUS_LES_S = 60.0
@@ -46,6 +47,7 @@ def charge_utile(jeton, *, tour_active: bool, relais_force: bool) -> dict[str, A
         "widget_type": "chat" if ((jeton.settings or {}).get("widgetType") == "chat") else "voice",
         "apparence": apparence.model_dump(mode="json"),
         "couleurs": apparence.couleurs_resolues(),
+        "modes": ReglagesMark.depuis(getattr(jeton, "reglages_mark", None)).modes,
         "turn_enabled": tour_active,
         "force_turn_relay": relais_force,
     }

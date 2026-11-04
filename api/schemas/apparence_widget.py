@@ -20,6 +20,29 @@ FOND_DEFAUT = "#ffffff"
 TEXTE_DEFAUT = "#0f1c2e"
 _HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
+ROUGE_RACCROCHER = "#dc2626"
+GRIS_BULLE = "#f1f1f1"
+
+
+def _luminance(couleur: str) -> float:
+    n = couleur.lstrip("#")
+    if len(n) == 3:
+        n = "".join(c * 2 for c in n)
+    r, g, b = (int(n[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def _contraste(a: str, b: str) -> float:
+    haut, bas = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (haut + 0.05) / (bas + 0.05)
+
+
+def sur_couleur(fond: str) -> str:
+    """Texte blanc ou presque noir, le plus lisible sur ``fond`` : sert seulement de valeur par défaut."""
+    return "#ffffff" if _contraste(fond, "#ffffff") >= _contraste(fond, "#111111") else "#111111"
+
+
 ELEMENTS_COULEUR = (
     "rond_accroche",
     "fenetre",
@@ -31,6 +54,15 @@ ELEMENTS_COULEUR = (
     "etoiles",
     "reponses_choisies",
     "icones",
+    # V5 : la moitié « texte » de chaque couleur de la maquette, et les bulles de l'assistant.
+    "rond_accroche_texte",
+    "boutons_texte",
+    "raccrocher_texte",
+    "champ_saisie_texte",
+    "bulle_agent",
+    "bulle_agent_texte",
+    "bulles_ecrit_texte",
+    "reponses_choisies_texte",
 )
 
 # Les 18 textes lus par le visiteur (D199). Aucun texte fixe dans le widget : ce sont les valeurs par défaut.
@@ -53,6 +85,13 @@ TEXTES_DEFAUT: dict[str, str] = {
     "merci": "Merci, à bientôt.",
     "plafond_message": "Je ne suis pas disponible pour le moment. Laissez vos coordonnées, vous serez rappelé.",
     "plafond_bouton": "Être rappelé",
+    # V5 (maquette `editeur-widget`) : le titre de la fenêtre, l'avis en entier, les deux cases, l'écrit.
+    "titre": "Assistant",
+    "avis_titre": "Donnez votre avis",
+    "avis_passer": "Passer",
+    "case_rappel": "Je souhaite qu'un conseiller me rappelle",
+    "case_publication": "J'accepte que mon avis soit affiché",
+    "ecrire": "Écrire un message",
 }
 ACCROCHE_LIGNES_MAX = 3
 ACCROCHE_LONGUEUR_MAX = 120
@@ -84,6 +123,14 @@ class CouleursParElement(BaseModel):
     etoiles: str | None = None
     reponses_choisies: str | None = None
     icones: str | None = None
+    rond_accroche_texte: str | None = None
+    boutons_texte: str | None = None
+    raccrocher_texte: str | None = None
+    champ_saisie_texte: str | None = None
+    bulle_agent: str | None = None
+    bulle_agent_texte: str | None = None
+    bulles_ecrit_texte: str | None = None
+    reponses_choisies_texte: str | None = None
 
     @field_validator(*ELEMENTS_COULEUR, mode="before")
     @classmethod
@@ -92,7 +139,7 @@ class CouleursParElement(BaseModel):
 
 
 class TextesWidget(BaseModel):
-    """Les 18 textes ; un texte absent prend son défaut français, un texte vide est refusé."""
+    """Les 24 textes ; un texte absent prend son défaut français, un texte vide est refusé."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -114,6 +161,12 @@ class TextesWidget(BaseModel):
     merci: str = TEXTES_DEFAUT["merci"]
     plafond_message: str = TEXTES_DEFAUT["plafond_message"]
     plafond_bouton: str = TEXTES_DEFAUT["plafond_bouton"]
+    titre: str = TEXTES_DEFAUT["titre"]
+    avis_titre: str = TEXTES_DEFAUT["avis_titre"]
+    avis_passer: str = TEXTES_DEFAUT["avis_passer"]
+    case_rappel: str = TEXTES_DEFAUT["case_rappel"]
+    case_publication: str = TEXTES_DEFAUT["case_publication"]
+    ecrire: str = TEXTES_DEFAUT["ecrire"]
 
     @field_validator("*", mode="before")
     @classmethod
@@ -145,7 +198,9 @@ class ApparenceWidget(BaseModel):
     orbe_animee: bool = True
     position: Literal["bas-droite", "bas-gauche"] = "bas-droite"
     fenetre: Literal["centree", "ancree"] = "ancree"
-    declenchement: Literal["clic", "delai"] = "clic"
+    # « clic » (le défaut d'avant) et « survol » : l'accroche s'affiche au survol du rond ; « delai » : après ``delai_s`` ;
+    # « toujours » : tout de suite ; « jamais » : le rond seul.
+    declenchement: Literal["clic", "survol", "delai", "toujours", "jamais"] = "clic"
     delai_s: int = Field(default=0, ge=0, le=120)
     textes: TextesWidget = Field(default_factory=TextesWidget)
     lien_confidentialite: str | None = None
@@ -166,19 +221,32 @@ class ApparenceWidget(BaseModel):
         return valeur.strip()
 
     def couleurs_resolues(self) -> dict[str, str]:
-        """La couleur de chaque élément : la retouche, sinon la valeur tirée de la base."""
+        """La couleur de chaque élément : la retouche, sinon la valeur tirée de la base (texte noir ou blanc, le plus lisible)."""
         base = self.couleur_base
         tirees = {
             "rond_accroche": base,
             "fenetre": self.fond_fenetre,
             "orbe": base,
             "boutons": base,
-            "raccrocher": base,
+            "raccrocher": ROUGE_RACCROCHER,
             "champ_saisie": self.fond_fenetre,
             "bulles_ecrit": base,
             "etoiles": base,
             "reponses_choisies": base,
             "icones": base,
+            "bulle_agent": GRIS_BULLE,
+            "bulle_agent_texte": self.texte_fenetre,
+            "champ_saisie_texte": self.texte_fenetre,
         }
         retouches = self.couleurs.model_dump(exclude_none=True)
-        return {nom: retouches.get(nom, tirees[nom]) for nom in ELEMENTS_COULEUR}
+        resolues = {nom: retouches.get(nom, tirees[nom]) for nom in tirees}
+        # Un texte qui n'a pas sa propre couleur prend le plus lisible sur son fond (valeur par défaut seulement).
+        for texte, fond in (
+            ("rond_accroche_texte", "rond_accroche"),
+            ("boutons_texte", "boutons"),
+            ("bulles_ecrit_texte", "bulles_ecrit"),
+            ("reponses_choisies_texte", "reponses_choisies"),
+        ):
+            resolues[texte] = retouches.get(texte, sur_couleur(resolues[fond]))
+        resolues["raccrocher_texte"] = retouches.get("raccrocher_texte", "#ffffff")
+        return {nom: resolues[nom] for nom in ELEMENTS_COULEUR}
