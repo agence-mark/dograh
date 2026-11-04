@@ -413,26 +413,41 @@ function NotesClient({ organisation }: { organisation: number }) {
 function ListeEntrees({ client }: { client?: string }) {
     const { t } = useLangue();
     const { donnees, etat, recharger } = useCharge(() => listerEntreesApiV1RelationEntreesGet());
+    const [qui, setQui] = useState("");
     const lignes = (donnees ?? []).filter((e) => !client || e.client === client);
+    const auteurs = [...new Set(lignes.map((e) => e.auteur))];
+    const libelle = (a: string) => `${a || t({ en: "All", fr: "Tous" })} ${lignes.filter((e) => !a || e.auteur === a).length}`;
+    const visibles = lignes.filter((e) => !qui || e.auteur === qui);
     if (etat === "chargement") return <EtatVide cas="chargement" />;
     if (etat === "erreur") return <EtatVide cas="erreur" reessayer={recharger} />;
     if (lignes.length === 0) return <EtatVide cas="premier" icone={DoorOpen} titre={t({ en: "No entry yet", fr: "Aucune entrée pour l'instant" })} />;
     return (
-        <Paginee liste={lignes}>
-            {(page) => (
-                <Tableau colonnes={[{ titre: t({ en: "When", fr: "Quand" }) }, { titre: t({ en: "Who", fr: "Qui" }) }, ...(client ? [] : [{ titre: "Client" }]), { titre: t({ en: "Reason", fr: "Motif" }) }, { titre: t({ en: "Used", fr: "Utilisé" }) }]}>
-                    {page.map((e) => (
-                        <Ligne key={e.id}>
-                            <Cellule principale>{quand(e.cree_le)}</Cellule>
-                            <Cellule>{e.auteur}</Cellule>
-                            {!client && <Cellule>{e.client}</Cellule>}
-                            <Cellule>{e.motif ?? ""}</Cellule>
-                            <Cellule>{e.utilise_le ? quand(e.utilise_le) : t({ en: "Not used", fr: "Non utilisé" })}</Cellule>
-                        </Ligne>
-                    ))}
-                </Tableau>
+        <div className="space-y-4">
+            {auteurs.length > 1 && (
+                <Segmente valeur={libelle(qui)} options={["", ...auteurs].map(libelle)} changer={(v) => setQui(["", ...auteurs].find((a) => libelle(a) === v) ?? "")} />
             )}
-        </Paginee>
+            <Paginee liste={visibles}>
+                {(page) => (
+                    <div className="divide-y border-y">
+                        {page.map((e) => (
+                            <div key={e.id} className="flex items-center gap-4 py-3.5">
+                                <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-background">{e.auteur.slice(0, 1).toUpperCase()}</span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <DoorOpen className="size-3.5" />
+                                        {e.utilise_le ? t({ en: `${e.auteur} entered`, fr: `${e.auteur} est entré chez` }) : t({ en: `${e.auteur} asked for a link to`, fr: `${e.auteur} a demandé un lien pour` })}
+                                        {!client && <span className="font-medium text-foreground">{e.client}</span>}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-sm font-medium">{e.motif ?? ""}</p>
+                                </div>
+                                <span className="shrink-0 text-xs text-muted-foreground">{e.utilise_le ? `${t({ en: "Used", fr: "Utilisé" })} ${quand(e.utilise_le)}` : t({ en: "Not used", fr: "Non utilisé" })}</span>
+                                <span className="w-28 shrink-0 text-right text-xs text-muted-foreground">{quand(e.cree_le)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Paginee>
+        </div>
     );
 }
 
