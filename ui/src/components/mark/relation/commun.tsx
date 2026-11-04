@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
-import { Marque, type TonMarque } from "@/components/mark/studio/marques";
+import { Marque, PointEtat, type TonMarque } from "@/components/mark/studio/marques";
 import { useAuth } from "@/lib/auth";
 
 /**
@@ -72,4 +72,37 @@ export function Pret({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     if (loading || !user) return <EtatVide cas="chargement" />;
     return <>{children}</>;
+}
+
+/** Une couleur pleine par client (jetons du thème), pour son avatar : initiales en blanc, jamais de fond pastel (E92). */
+const COULEURS_CLIENT = ["var(--acc)", "var(--violet-relation)", "var(--etat-fait)", "var(--marque-relation)"];
+const initiales = (nom: string) =>
+    nom
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((m) => m[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+
+export function AvatarClient({ id, nom, taille = 36 }: { id: number; nom: string; taille?: number }) {
+    return (
+        <span
+            aria-hidden
+            className="flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
+            style={{ width: taille, height: taille, backgroundColor: COULEURS_CLIENT[id % COULEURS_CLIENT.length], fontSize: taille * 0.36 }}
+        >
+            {initiales(nom)}
+        </span>
+    );
+}
+
+/** « En service » (un agent publié) ou « En installation » : lu du serveur, jamais deviné. */
+export function EtatClient({ etat }: { etat: string }) {
+    const { t } = useLangue();
+    return (
+        <PointEtat etat={etat === "actif" ? "publie" : "brouillon"}>
+            {etat === "actif" ? t({ en: "In service", fr: "En service" }) : t({ en: "Being set up", fr: "En installation" })}
+        </PointEtat>
+    );
 }

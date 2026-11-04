@@ -1,6 +1,6 @@
 "use client";
 
-import { DoorOpen, MessageSquare, Star, Users } from "lucide-react";
+import { AlertTriangle, Bot, DoorOpen, Flag, Inbox, Mail, MessageSquare, PhoneCall, Plus, Search, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -17,7 +17,10 @@ import {
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete,
     supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete,
 } from "@/client/sdk.gen";
+import type { ClientOut, FilOut } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { useMoi } from "@/components/mark/studio/moi";
+import { NouveauClient } from "@/components/mark/studio/selecteur-espace";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Info, Marque } from "@/components/mark/studio/marques";
@@ -30,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { BoiteMessages } from "./BoiteMessages";
 import { lireClientsRelation } from "./lecture-clients";
-import { ADRESSE_PORTAIL, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
+import { ADRESSE_PORTAIL, AvatarClient, EtatClient, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
 
 const CONTENEUR = "mx-auto w-full max-w-6xl space-y-6 p-6";
 
@@ -44,52 +47,152 @@ export function AccueilRelation() {
     );
 }
 
-function AccueilInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
+type Dire = (x: { en: string; fr: string }) => string;
+type Tache = { id: string; type: "message" | "demande" | "signalement" | "panne"; titre: string; client: ClientOut; qui: string; quand: string; href: string };
+const TYPES_TACHE = {
+    message: { icone: Mail, couleur: "var(--acc)", texte: { en: "Message", fr: "Message" }, geste: { en: "Reply", fr: "Répondre" } },
+    demande: { icone: Inbox, couleur: "var(--violet-relation)", texte: { en: "Request", fr: "Demande" }, geste: { en: "Handle", fr: "Traiter" } },
+    signalement: { icone: Flag, couleur: "var(--pastille-urgente)", texte: { en: "Report", fr: "Signalement" }, geste: { en: "Open", fr: "Ouvrir" } },
+    panne: { icone: AlertTriangle, couleur: "var(--pastille-urgente)", texte: { en: "Outage", fr: "Panne" }, geste: { en: "Open", fr: "Ouvrir" } },
+} as const;
+
+/** Tout ce qui attend .mark, en une liste : fils à traiter et demandes (la file), signalements et pannes (par client). */
+export function tachesDeLaFile(file: FilOut[], clients: ClientOut[], t: Dire): Tache[] {
+    const parId = new Map(clients.map((c) => [c.id, c]));
+    const taches: Tache[] = [];
+    for (const f of file) {
+        const client = parId.get(f.organization_id);
+        if (!client) continue;
+        const demande = f.sorte === "demande_logiciel";
+        taches.push({
+            id: `f${f.id}`,
+            type: demande ? "demande" : "message",
+            titre: demande && f.logiciel ? `${f.logiciel} : ${f.sujet}` : f.sujet,
+            client,
+            qui: f.dernier?.cote === "client" ? f.dernier.auteur : "",
+            quand: quand(f.modifie_le),
+            href: `/relation/messages?fil=${f.id}`,
+        });
+    }
+    for (const c of clients) {
+        const s = c.signalements ?? 0;
+        const p = c.pannes ?? 0;
+        if (s > 0) {
+            taches.push({ id: `s${c.id}`, type: "signalement", titre: t({ en: `${s} report${s > 1 ? "s" : ""} on a call`, fr: `${s} signalement${s > 1 ? "s" : ""} sur un appel` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
+        }
+        if (p > 0) {
+            taches.push({ id: `p${c.id}`, type: "panne", titre: t({ en: `${p} outage${p > 1 ? "s" : ""} or alert${p > 1 ? "s" : ""}`, fr: `${p} panne${p > 1 ? "s" : ""} ou alerte${p > 1 ? "s" : ""}` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
+        }
+    }
+    return taches;
+}
+
+function LigneTache({ tache, t }: { tache: Tache; t: Dire }) {
+    const { icone: Icone, couleur, texte, geste } = TYPES_TACHE[tache.type];
+    return (
+        <div className="flex items-center gap-4 py-3.5">
+            <AvatarClient id={tache.client.id} nom={tache.client.nom} />
+            <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Icone className="size-3.5" style={{ color: couleur }} />
+                    <span className="font-medium" style={{ color: couleur }}>{t(texte)}</span>
+                    <span>· {tache.client.nom}{tache.qui ? ` · ${tache.qui}` : ""}</span>
+                </p>
+                <p className="mt-0.5 truncate text-sm font-medium">{tache.titre}</p>
+            </div>
+            {tache.quand && <span className="shrink-0 text-xs text-muted-foreground">{tache.quand}</span>}
+            <Button variant="outline" size="sm" className="w-24 shrink-0 cursor-pointer" asChild>
+                <Link href={tache.href}>{t(geste)}</Link>
+            </Button>
+        </div>
+    );
+}
+
+type FiltreAccueil = "tout" | "messages" | "demandes" | "technique";
+const FILTRES_ACCUEIL: [FiltreAccueil, { en: string; fr: string }, (x: Tache) => boolean][] = [
+    ["tout", { en: "All", fr: "Tout" }, () => true],
+    ["messages", { en: "Messages", fr: "Messages" }, (x) => x.type === "message"],
+    ["demandes", { en: "Requests", fr: "Demandes" }, (x) => x.type === "demande"],
+    ["technique", { en: "Technical", fr: "Technique" }, (x) => x.type === "signalement" || x.type === "panne"],
+];
+
+function AccueilInterne({ t }: { t: Dire }) {
     const file = useCharge(() => maFileApiV1RelationFileGet());
     const clients = useCharge(() => lireClientsRelation());
+    const moi = useMoi();
+    const [nouveau, setNouveau] = useState(false);
+    const [filtre, setFiltre] = useState<FiltreAccueil>("tout");
+    const pret = file.donnees && clients.donnees;
+    const taches = pret ? tachesDeLaFile(file.donnees!, clients.donnees!, t) : [];
+    const actif = FILTRES_ACCUEIL.find(([n]) => n === filtre)!;
+    const liste = taches.filter(actif[2]);
+    const nbClients = new Set(taches.map((x) => x.client.id)).size;
+    const erreur = file.etat === "erreur" || clients.etat === "erreur";
+    const libelle = ([, nom, f]: (typeof FILTRES_ACCUEIL)[number]) => `${t(nom)} ${taches.filter(f).length}`;
+    const bonjour = t({ en: "Hello", fr: "Bonjour" });
     return (
         <div className={CONTENEUR}>
-            <TitrePage
-                titre={t({ en: "Customer relations", fr: "Relation clients" })}
-                info={t({
-                    en: "Everything that waits for you, in one list. Call reports and outages live in To improve, per client.",
-                    fr: "Tout ce qui attend, dans une seule liste. Les signalements sur un appel et les pannes vivent dans À améliorer, client par client.",
-                })}
-            />
-            <div className="grid gap-8 lg:grid-cols-[1fr_18rem]">
-                <div>
-                    <TitreTableau titre={t({ en: "My queue", fr: "Ma file" })} />
-                    {file.etat === "chargement" && <EtatVide cas="chargement" />}
-                    {file.etat === "erreur" && <EtatVide cas="erreur" reessayer={file.recharger} />}
-                    {file.donnees && file.donnees.length === 0 && (
-                        <EtatVide cas="fait" titre={t({ en: "Nothing is waiting for the team", fr: "Rien n'attend l'équipe" })} donnee={clients.donnees ? `${clients.donnees.length} client${clients.donnees.length > 1 ? "s" : ""}` : undefined} />
+            <div>
+                <h2 className="text-2xl font-semibold tracking-tight">{moi?.prenom ? `${bonjour} ${moi.prenom}` : bonjour}</h2>
+                {taches.length > 0 && (
+                    <p className="mt-1 text-muted-foreground">
+                        {t({
+                            en: `${taches.length} thing${taches.length > 1 ? "s are" : " is"} waiting for the team across ${nbClients} client${nbClients > 1 ? "s" : ""}.`,
+                            fr: `${taches.length} chose${taches.length > 1 ? "s attendent" : " attend"} l'équipe chez ${nbClients} client${nbClients > 1 ? "s" : ""}.`,
+                        })}
+                    </p>
+                )}
+            </div>
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="space-y-3">
+                    <span className="flex h-9 items-center">
+                        <Segmente
+                            valeur={libelle(actif)}
+                            options={FILTRES_ACCUEIL.map(libelle)}
+                            changer={(v) => setFiltre(FILTRES_ACCUEIL.find((f) => libelle(f) === v)?.[0] ?? "tout")}
+                        />
+                    </span>
+                    {!pret && !erreur && <EtatVide cas="chargement" />}
+                    {erreur && <EtatVide cas="erreur" reessayer={() => { file.recharger(); clients.recharger(); }} />}
+                    {pret && liste.length === 0 && (
+                        <EtatVide cas="fait" titre={t({ en: "Nothing is waiting for the team", fr: "Rien n'attend l'équipe" })} donnee={`${clients.donnees!.length} client${clients.donnees!.length > 1 ? "s" : ""}`} />
                     )}
-                    {file.donnees && file.donnees.length > 0 && (
-                        <Tableau colonnes={[{ titre: t({ en: "Subject", fr: "Sujet" }) }, { titre: "Client" }, { titre: t({ en: "State", fr: "État" }) }, { titre: t({ en: "Updated", fr: "Mis à jour" }), droite: true }]}>
-                            {file.donnees.map((f) => (
-                                <Ligne key={f.id} href={`/relation/messages?fil=${f.id}`}>
-                                    <Cellule principale sous={f.sorte === "demande_logiciel" ? f.logiciel : undefined}>{f.sujet}</Cellule>
-                                    <Cellule>{f.client}</Cellule>
-                                    <Cellule><MarqueEtat etat={f.etat} /></Cellule>
-                                    <Cellule droite>{quand(f.modifie_le)}</Cellule>
-                                </Ligne>
-                            ))}
-                        </Tableau>
+                    {pret && liste.length > 0 && (
+                        <div className="divide-y border-y">
+                            {liste.map((x) => <LigneTache key={x.id} tache={x} t={t} />)}
+                        </div>
                     )}
                 </div>
-                <div>
-                    <TitreTableau titre="Clients" />
+                <div className="space-y-3">
+                    <p className="flex h-9 items-center text-xs font-medium tracking-wider text-muted-foreground uppercase">Clients</p>
                     {clients.donnees?.length === 0 && (
                         <EtatVide cas="premier" compact icone={Users} titre={t({ en: "No client yet", fr: "Aucun client pour l'instant" })} />
                     )}
-                    {clients.donnees?.map((c) => (
-                        <Link key={c.id} href={`/relation/clients/${c.id}`} className="flex cursor-pointer items-center justify-between border-b py-2 text-sm hover:font-medium">
-                            <span className="truncate">{c.nom}</span>
-                            {c.non_lus > 0 && <Marque ton="plein">{c.non_lus}</Marque>}
-                        </Link>
-                    ))}
+                    {clients.donnees && clients.donnees.length > 0 && (
+                        <div className="divide-y border-y">
+                            {clients.donnees.map((c) => {
+                                const attente = taches.filter((x) => x.client.id === c.id).length;
+                                return (
+                                    <Link key={c.id} href={`/relation/clients/${c.id}`} className="flex cursor-pointer items-center gap-3 py-3 hover:font-semibold">
+                                        <AvatarClient id={c.id} nom={c.nom} taille={32} />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm">{c.nom}</span>
+                                            <span className="block text-xs font-normal"><EtatClient etat={c.etat ?? "installation"} /></span>
+                                        </span>
+                                        {attente > 0 && <span className="text-xs font-normal text-muted-foreground tabular-nums">{t({ en: `${attente} waiting`, fr: `${attente} en attente` })}</span>}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {clients.donnees && clients.donnees.length > 0 && (
+                        <Button variant="outline" size="sm" className="w-full cursor-pointer" onClick={() => setNouveau(true)}>
+                            {t({ en: "New client", fr: "Nouveau client" })}
+                        </Button>
+                    )}
                 </div>
             </div>
+            <NouveauClient ouvert={nouveau} onOuvert={setNouveau} />
         </div>
     );
 }
@@ -117,26 +220,77 @@ export function EcranClients() {
     );
 }
 
-function ClientsInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
+type FiltreClients = "tous" | "actif" | "installation";
+const FILTRES_CLIENTS: FiltreClients[] = ["tous", "actif", "installation"];
+
+function ClientsInterne({ t }: { t: Dire }) {
     const { donnees, etat, recharger } = useCharge(() => lireClientsRelation());
+    const [nouveau, setNouveau] = useState(false);
+    const [filtre, setFiltre] = useState<FiltreClients>("tous");
+    const [q, setQ] = useState("");
+    const tous = donnees ?? [];
+    const noms = { tous: t({ en: "All", fr: "Tous" }), actif: t({ en: "In service", fr: "En service" }), installation: t({ en: "Being set up", fr: "En installation" }) };
+    const libelle = (f: FiltreClients) => `${noms[f]} ${tous.filter((c) => f === "tous" || c.etat === f).length}`;
+    const visibles = tous.filter((c) => (filtre === "tous" || c.etat === filtre) && c.nom.toLowerCase().includes(q.trim().toLowerCase()));
+    const recherche = t({ en: "Search a client", fr: "Rechercher un client" });
     return (
         <div className={CONTENEUR}>
-            <TitrePage titre="Clients" />
+            <TitrePage
+                titre="Clients"
+                action={
+                    <Button className="cursor-pointer" onClick={() => setNouveau(true)}>
+                        <Plus className="size-4" /> {t({ en: "New client", fr: "Nouveau client" })}
+                    </Button>
+                }
+            />
             {etat === "chargement" && <EtatVide cas="chargement" />}
             {etat === "erreur" && <EtatVide cas="erreur" reessayer={recharger} />}
             {donnees && donnees.length === 0 && <EtatVide cas="premier" icone={Users} titre={t({ en: "No client yet", fr: "Aucun client pour l'instant" })} />}
             {donnees && donnees.length > 0 && (
-                <Tableau colonnes={[{ titre: "Client" }, { titre: t({ en: "Open threads", fr: "Fils ouverts" }), droite: true }, { titre: t({ en: "Unread", fr: "Non lus" }), droite: true }, { titre: t({ en: "New requests", fr: "Demandes nouvelles" }), droite: true }]}>
-                    {donnees.map((c) => (
-                        <Ligne key={c.id} href={`/relation/clients/${c.id}`}>
-                            <Cellule principale>{c.nom}</Cellule>
-                            <Cellule droite>{c.ouverts}</Cellule>
-                            <Cellule droite>{c.non_lus}</Cellule>
-                            <Cellule droite>{c.demandes_nouvelles}</Cellule>
-                        </Ligne>
-                    ))}
-                </Tableau>
+                <>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Segmente valeur={libelle(filtre)} options={FILTRES_CLIENTS.map(libelle)} changer={(v) => setFiltre(FILTRES_CLIENTS.find((f) => libelle(f) === v) ?? "tous")} />
+                        <div className="relative w-full max-w-72">
+                            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <Input value={q} onChange={(e) => setQ(e.target.value)} aria-label={recherche} placeholder={recherche} className="h-8 border-transparent bg-muted/50 pl-8 text-sm shadow-none" />
+                        </div>
+                    </div>
+                    {visibles.length === 0 ? (
+                        <EtatVide cas="filtre" recherche={q} effacer={() => { setQ(""); setFiltre("tous"); }} />
+                    ) : (
+                        <div className="divide-y border-y">
+                            {visibles.map((c) => {
+                                const agents = c.agents ?? 0;
+                                const appels = c.appels_7j ?? 0;
+                                return (
+                                    <div key={c.id} className="flex items-center gap-4 py-3.5">
+                                        <AvatarClient id={c.id} nom={c.nom} taille={40} />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium">{c.nom}</p>
+                                            <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                                <EtatClient etat={c.etat ?? "installation"} />
+                                                <span className="inline-flex items-center gap-1"><Bot className="size-3.5" />{t({ en: `${agents} agent${agents > 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
+                                                <span className="inline-flex items-center gap-1"><PhoneCall className="size-3.5" />{t({ en: `${appels} call${appels > 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
+                                                {c.note != null && <span className="inline-flex items-center gap-1"><Star className="size-3.5" />{t({ en: String(c.note), fr: String(c.note).replace(".", ",") })}</span>}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-xs tabular-nums">
+                                            {c.ouverts > 0 && <span title={t({ en: "Open threads", fr: "Fils ouverts" })} className="inline-flex items-center gap-1" style={{ color: "var(--acc)" }}><Mail className="size-3.5" />{c.ouverts}</span>}
+                                            {c.demandes_nouvelles > 0 && <span title={t({ en: "New requests", fr: "Demandes nouvelles" })} className="inline-flex items-center gap-1" style={{ color: "var(--violet-relation)" }}><Inbox className="size-3.5" />{c.demandes_nouvelles}</span>}
+                                            {(c.signalements ?? 0) > 0 && <span title={t({ en: "Reports", fr: "Signalements" })} className="inline-flex items-center gap-1" style={{ color: "var(--pastille-urgente)" }}><Flag className="size-3.5" />{c.signalements}</span>}
+                                            {(c.pannes ?? 0) > 0 && <span title={t({ en: "Outages", fr: "Pannes" })} className="inline-flex items-center gap-1" style={{ color: "var(--pastille-urgente)" }}><AlertTriangle className="size-3.5" />{c.pannes}</span>}
+                                        </div>
+                                        <Button variant="outline" size="sm" className="cursor-pointer" asChild>
+                                            <Link href={`/relation/clients/${c.id}`}>{t({ en: "Open the file", fr: "Ouvrir la fiche" })}</Link>
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </>
             )}
+            <NouveauClient ouvert={nouveau} onOuvert={setNouveau} />
         </div>
     );
 }

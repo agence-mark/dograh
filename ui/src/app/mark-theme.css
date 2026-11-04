@@ -101,6 +101,7 @@
   --marque-plein-texte: #ffffff;
   --pastille-urgente: #dd4949;
   --marque-relation: #e5486b;
+  --violet-relation: #7c5cdb;
   --point-publie: #1a7f3c;
   --point-fini: #8a97a6;
   --gravite-grave: #c2362f;
@@ -201,6 +202,7 @@
   --marque-plein-texte: oklch(0.205 0 0);
   --pastille-urgente: #dd4949;
   --marque-relation: #e5486b;
+  --violet-relation: #9d85ec;
   --point-publie: #3ecf7a;
   --point-fini: #7a8796;
   --gravite-grave: #c4383d;

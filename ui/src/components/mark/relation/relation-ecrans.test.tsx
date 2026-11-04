@@ -33,6 +33,7 @@ vi.mock("@/client/sdk.gen", () => ({
     repondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPost: sdk.repondre,
     avisEtTemoignagesApiV1RelationAvisGet: sdk.avis,
     ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: sdk.entree,
+    monProfilApiV1EquipeMarkMoiGet: () => Promise.resolve({ data: { prenom: "Evan" }, error: undefined }),
     listerEntreesApiV1RelationEntreesGet: vi.fn(),
     listerNotesApiV1RelationClientsOrganizationIdNotesGet: vi.fn(),
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost: vi.fn(),
@@ -76,7 +77,30 @@ describe("Ma file", () => {
         avec(<AccueilRelation />);
         expect(await screen.findByText("Rien n'attend l'équipe")).toBeTruthy();
         expect(await screen.findByText("1 client")).toBeTruthy();
-        expect(screen.queryByRole("button", { name: /Réessayer|Effacer|Créer|Ajouter|Nouveau/ })).toBeNull(); // aucun bouton d'action
+        expect(screen.queryByRole("button", { name: /Réessayer|Effacer|Créer|Ajouter/ })).toBeNull(); // aucun bouton d'action
+    });
+});
+
+describe("Accueil : tout ce qui attend, avec ses chiffres (V3, E94)", () => {
+    it("salue par le prénom, compte les choses et range signalements et pannes sous Technique", async () => {
+        sdk.clients.mockImplementation(() =>
+            ok([{ id: 7, nom: "Nuances de Feu", ouverts: 1, non_lus: 1, demandes_nouvelles: 0, etat: "actif", agents: 1, appels_7j: 4, note: 4.5, signalements: 1, pannes: 2 }]),
+        );
+        sdk.file.mockImplementation(() => ok([fil()]));
+        avec(<AccueilRelation />);
+        expect(await screen.findByText("Bonjour Evan")).toBeTruthy();
+        expect(await screen.findByText("3 choses attendent l'équipe chez 1 client.")).toBeTruthy();
+        expect(screen.getByText("1 signalement sur un appel")).toBeTruthy();
+        expect(screen.getByText("2 pannes ou alertes")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Technique 2" }));
+        expect(screen.queryByText("Couper les SMS le dimanche")).toBeNull();
+        expect(screen.getByText("2 pannes ou alertes")).toBeTruthy();
+    });
+    it("un client sans activité n'ajoute aucune ligne technique", async () => {
+        sdk.file.mockImplementation(() => ok([fil()]));
+        avec(<AccueilRelation />);
+        expect(await screen.findByText("1 chose attend l'équipe chez 1 client.")).toBeTruthy();
+        expect(screen.queryByText(/signalement/)).toBeNull();
     });
 });
 
