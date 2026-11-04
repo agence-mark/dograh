@@ -28,11 +28,26 @@ import { BlocEntetes } from "../outils/OngletsHttp";
 import { EtatVide } from "../studio/etat-vide";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp, Segmente } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
+import { DateRelative } from "../studio/date-relative";
+import { PointEtat } from "../studio/marques";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import { ActionDePage } from "./action-de-page";
 
 type Reglage = "autorise" | "confirmer" | "desactive";
 type Decouvert = { name: string; description?: string };
+
+/** Lot 14 (J-3) : le dernier « Tester la connexion » d'un serveur enregistré (écrit par le serveur dans sa configuration). */
+type Essai = { joignable: boolean; le: string };
+const essaiDe = (c: Config): Essai | null => {
+    const e = c.dernier_test_connexion as Partial<Essai> | undefined;
+    return e && typeof e.joignable === "boolean" && typeof e.le === "string" ? { joignable: e.joignable, le: e.le } : null;
+};
+
+function EtatDuServeur({ essai }: { essai: Essai | null }) {
+    const { t } = useLangue();
+    if (!essai) return <span className="text-muted-foreground">{t({ en: "Never tried", fr: "Jamais essayé" })}</span>;
+    return essai.joignable ? <PointEtat etat="publie">{t({ en: "Reachable", fr: "Joignable" })}</PointEtat> : <PointEtat etat="panne">{t({ en: "Unreachable", fr: "Injoignable" })}</PointEtat>;
+}
 
 export function OngletServeursMcp() {
     const { t } = useLangue();
@@ -71,6 +86,8 @@ export function OngletServeursMcp() {
                         { titre: t({ en: "Server", fr: "Serveur" }) },
                         { titre: t({ en: "Connection", fr: "Connexion" }) },
                         { titre: t({ en: "Tools", fr: "Outils" }), droite: true },
+                        { titre: t({ en: "State", fr: "État" }) },
+                        { titre: t({ en: "Refreshed", fr: "Rafraîchi" }), droite: true },
                     ]}
                 >
                     {serveurs.map((s) => {
@@ -82,6 +99,12 @@ export function OngletServeursMcp() {
                                 </Cellule>
                                 <Cellule>{texte(c, "transport") === "sse" ? t({ en: "SSE", fr: "SSE" }) : t({ en: "Streamable HTTP", fr: "Streamable HTTP" })}</Cellule>
                                 <Cellule droite>{liste<Decouvert>(c, "discovered_tools").length}</Cellule>
+                                <Cellule>
+                                    <EtatDuServeur essai={essaiDe(c)} />
+                                </Cellule>
+                                <Cellule droite>
+                                    <DateRelative valeur={essaiDe(c)?.le} vide="–" />
+                                </Cellule>
                             </Ligne>
                         );
                     })}
@@ -117,9 +140,11 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
                 timeout_secs: nombre(config, "timeout_secs", 30),
                 sse_read_timeout_secs: nombre(config, "sse_read_timeout_secs", 300),
                 credential_uuid: texte(config, "credential_uuid") || null,
+                outil_uuid: serveur?.tool_uuid ?? null,
                 en_tetes_ext: liste<NonNullable<Parameters<typeof testerLaConnexionMcpApiV1ToolsMcpTesterPost>[0]["body"]["en_tetes_ext"]>[number]>(config, "en_tetes_ext"),
             },
         });
+        if (serveur && !r.error) apres(); // l'état et la date de l'essai sont gardés par le serveur : la liste les relit
         if (r.error || !r.data) return setErreur(echecAffiche(r.error));
         if (!r.data.ok) return setErreur(r.data.erreur ?? t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
         const trouves = r.data.outils ?? [];

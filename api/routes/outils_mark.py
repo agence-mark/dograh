@@ -176,6 +176,8 @@ class DemandeTestMcp(BaseModel):
     sse_read_timeout_secs: int = Field(default=300, ge=1, le=900)
     credential_uuid: str | None = None
     en_tetes_ext: list[EnteteDeRequete] = Field(default_factory=list, max_length=30)
+    # Lot 14 (J-3) : le serveur déjà enregistré qu'on teste ; son état et la date de l'essai sont alors gardés.
+    outil_uuid: str | None = Field(default=None, max_length=64)
 
 
 class OutilDecouvert(BaseModel):
@@ -191,8 +193,14 @@ class ResultatTestMcp(BaseModel):
 
 @router.post("/tools/mcp/tester")
 async def tester_la_connexion_mcp(demande: DemandeTestMcp, user: UserModel = Depends(get_user)) -> ResultatTestMcp:
-    """« Tester la connexion » : découvre les outils du serveur avant de l'enregistrer. Rien n'est écrit."""
+    """« Tester la connexion » : découvre les outils du serveur avant de l'enregistrer. Rien n'est écrit, sauf, pour un
+    serveur déjà enregistré (``outil_uuid``), l'état et la date de cet essai (colonnes « État » et « Rafraîchi »)."""
     organisation = _organisation(user)
+    serveur = None
+    if demande.outil_uuid:
+        serveur = await _outil(demande.outil_uuid, organisation)
+        if essai_mark.categorie_de(serveur) != ToolCategory.MCP.value:
+            raise HTTPException(status_code=422, detail="This tool is not an MCP server")
     if not demande.url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="The address must start with http:// or https://")
     # Revue serveur, mineur 1 : le test fait sortir le serveur vers l'adresse donnée ; mêmes garde-fous que les autres adresses de
@@ -222,6 +230,12 @@ async def tester_la_connexion_mcp(demande: DemandeTestMcp, user: UserModel = Dep
         entrees_en_tetes=[e.model_dump() for e in demande.en_tetes_ext],
         organization_id=organisation,
     )
+    if serveur is not None:
+        await db_client.update_tool(
+            tool_uuid=serveur.tool_uuid,
+            organization_id=organisation,
+            definition=essai_mark.noter_le_test_de_connexion(serveur.definition, bool(resultat.get("ok"))),
+        )
     return ResultatTestMcp(**resultat)
 
 

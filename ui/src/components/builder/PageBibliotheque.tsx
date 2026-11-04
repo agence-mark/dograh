@@ -63,7 +63,8 @@ export function PageBibliotheque() {
     const [famille, setFamille] = useState("");
     const [dossier, setDossier] = useState<string | null>(null);
     const [dossiers, setDossiers] = useState<string[]>([]);
-    const [statut, setStatut] = useState<StatutDeLaBibliotheque | "">("");
+    // Lot 14 (I-1) : les pastilles de statut se cumulent (un élément est gardé s'il a l'un des statuts choisis).
+    const [statuts, setStatuts] = useState<StatutDeLaBibliotheque[]>([]);
     const [saisie, setSaisie] = useState("");
     const [recherche, setRecherche] = useState("");
     const [etiquettes, setEtiquettes] = useState<VueEtiquette[]>([]);
@@ -137,7 +138,7 @@ export function PageBibliotheque() {
         const reponse = await parcourirApiV1BuilderBibliothequeParcourirGet({
             query: {
                 famille: recherche ? undefined : famille || undefined,
-                statut: statut || undefined,
+                statut: statuts.length ? statuts : undefined,
                 dossier: recherche ? undefined : dossier || undefined,
                 etiquette: filtre.length ? filtre : undefined,
                 q: recherche || undefined,
@@ -152,7 +153,7 @@ export function PageBibliotheque() {
         setErreur(null);
         setElements(reponse.data.elements);
         setTotal(reponse.data.total);
-    }, [famille, statut, dossier, filtre, recherche, page]);
+    }, [famille, statuts, dossier, filtre, recherche, page]);
 
     useEffect(() => {
         void chargerLaListe();
@@ -191,7 +192,7 @@ export function PageBibliotheque() {
         void chargerLesDossiers(famille);
     };
 
-    const aFiltrer = Boolean(recherche || statut || dossier || filtre.length);
+    const aFiltrer = Boolean(recherche || statuts.length || dossier || filtre.length);
     const familleCourante = familles.find((f) => f.slug === famille);
 
     return (
@@ -298,12 +299,12 @@ export function PageBibliotheque() {
                                 key={s}
                                 variant="outline"
                                 size="sm"
-                                aria-pressed={statut === s}
+                                aria-pressed={statuts.includes(s)}
                                 onClick={() => {
-                                    setStatut(statut === s ? "" : s);
+                                    setStatuts(statuts.includes(s) ? statuts.filter((x) => x !== s) : [...statuts, s]);
                                     setPage(0);
                                 }}
-                                className={`rounded-full ${statut === s ? "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background" : ""}`}
+                                className={`rounded-full ${statuts.includes(s) ? "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background" : ""}`}
                             >
                                 {t(STATUTS[s].texte)}
                             </Button>
@@ -358,12 +359,12 @@ export function PageBibliotheque() {
                             {aFiltrer ? (
                                 <EtatVide
                                     cas="filtre"
-                                    recherche={recherche || [dossier, statut && t(STATUTS[statut].texte), ...filtre].filter(Boolean).join(", ")}
+                                    recherche={recherche || [dossier, ...statuts.map((x) => t(STATUTS[x].texte)), ...filtre].filter(Boolean).join(", ")}
                                     effacer={() => {
                                         setSaisie("");
                                         setRecherche("");
                                         setDossier(null);
-                                        setStatut("");
+                                        setStatuts([]);
                                         setFiltre([]);
                                         setPage(0);
                                     }}
@@ -443,11 +444,13 @@ export function PageBibliotheque() {
                     fermer={() => setNouvelElement(false)}
                     onRelire={() => {
                         void chargerLaListe();
+                        void chargerLesFamilles();
                         void chargerLesEtiquettes();
                     }}
                     onCree={(f, slug) => {
                         setNouvelElement(false);
                         void chargerLaListe();
+                        void chargerLesFamilles();
                         void chargerLesEtiquettes();
                         void chargerLesDossiers(famille);
                         void ouvrir(f, slug);

@@ -18,6 +18,7 @@ from api.schemas.traducteurs import ChoixTraducteurs, TraducteurVue
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.integrations.connectors import nango, propositions
 from api.services.integrations.connectors.catalogue import categorie_de, connecteur, connecteurs
+from api.services.integrations.connectors.descriptions import description_de
 
 router = APIRouter(prefix="/connecteurs", tags=["connecteurs"])
 
@@ -56,6 +57,9 @@ class ConnecteurVue(BaseModel):
     editeur: str | None = None
     # V4 : la catégorie du catalogue (CRM, Agenda…), celle de la colonne de la fenêtre « Catalogue ». ``None`` : à ranger.
     categorie: str | None = None
+    # Lot 14 (J-1) : une phrase sur le logiciel, en français et en anglais.
+    description: str | None = None
+    description_en: str | None = None
 
 
 class OutilVu(BaseModel):
@@ -82,6 +86,9 @@ class ConnexionVue(BaseModel):
     # par » at the lab), carried by the connection's tags. Empty before the tags existed.
     compte: str | None = None
     autorise_par: str | None = None
+    # Lot 14 (J-2) : « Dernier usage » = la dernière fois que Nango a servi les identifiants à un appel
+    # (``last_fetched_at``) ; « Vérifié » = ``mis_a_jour_le``. Vides quand Nango ne les donne pas.
+    dernier_usage_le: str | None = None
 
 
 class EtatConnexions(BaseModel):
@@ -124,6 +131,8 @@ async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organiz
             etat="interne" if c.interne else c.etat,
             editeur=c.editeur,
             categorie=categorie_de(c),
+            description=description_de(c.nom)[0],
+            description_en=description_de(c.nom)[1],
             actions=[
                 ActionVue(
                     nom=a.nom,
@@ -174,6 +183,7 @@ async def get_connexions(
                 utilise_par=[OutilVu(**o) for o in outils.get(c.integration, [])],
                 compte=c.compte,
                 autorise_par=c.autorise_par,
+                dernier_usage_le=d.dernier_usage_le,
             )
             for c, d in zip(liste, details)
         ],

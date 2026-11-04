@@ -64,7 +64,11 @@ export function ColonneDesFamilles(p: Props) {
                                     onClick={() => p.onFamille(f.slug)}
                                 >
                                     <BookOpen className="size-3.5 shrink-0" />
-                                    <span className="truncate">{f.libelle}</span>
+                                    <span className="min-w-0 flex-1 truncate">{f.libelle}</span>
+                                    {/* Lot 14 (I-5) : le nombre d'éléments de la famille, comme la maquette. */}
+                                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums" data-testid={`nombre-${f.slug}`}>
+                                        {f.nombre ?? 0}
+                                    </span>
                                 </button>
                                 {p.famille === f.slug && (
                                     <div className="space-y-0.5" data-testid="sous-dossiers">

@@ -13,8 +13,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import DocumentEditor, { isEditableDocument } from "@/app/files/DocumentEditor";
 import ExternalProcessingNotice from "@/app/files/ExternalProcessingNotice";
-import { deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete, listDocumentsApiV1KnowledgeBaseDocumentsGet } from "@/client/sdk.gen";
-import type { DocumentResponseSchema } from "@/client/types.gen";
+import {
+    deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete,
+    getDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGet,
+    listDocumentsApiV1KnowledgeBaseDocumentsGet,
+    utilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGet,
+} from "@/client/sdk.gen";
+import type { DocumentResponseSchema, UtilisationDocument } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,6 +218,25 @@ function FenetreDocument({
     supprimer: () => void;
 }) {
     const { t, langue } = useLangue();
+    // Lot 14 (K-2) : les agents qui lisent le document (compté sur les agents de l'organisation) et le début de son texte.
+    // Deux lectures en parallèle, jamais un chiffre inventé : en échec, la ligne le dit.
+    const [usage, setUsage] = useState<UtilisationDocument | "erreur" | null>(null);
+    const [texte, setTexte] = useState<string | "erreur" | null>(null);
+    const lisible = isEditableDocument(d.filename);
+    useEffect(() => {
+        let vivant = true;
+        void Promise.all([
+            utilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGet({ path: { document_uuid: d.document_uuid } }),
+            lisible ? getDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGet({ path: { document_uuid: d.document_uuid } }) : Promise.resolve(null),
+        ]).then(([u, c]) => {
+            if (!vivant) return;
+            setUsage(u.error || !u.data ? "erreur" : u.data);
+            setTexte(c === null ? null : c.error || !c.data ? "erreur" : c.data.content);
+        });
+        return () => {
+            vivant = false;
+        };
+    }, [d.document_uuid, lisible]);
     const ligne = (libelle: string, valeur: React.ReactNode) => (
         <div className="flex items-center gap-4 py-3 text-sm">
             <p className="flex-1 font-medium">{libelle}</p>
@@ -231,6 +255,32 @@ function FenetreDocument({
                     {ligne(t({ en: "Size", fr: "Taille" }), taille(d.file_size_bytes))}
                     {d.retrieval_mode !== "full_document" && d.processing_status === "completed" && ligne(t({ en: "Excerpts", fr: "Extraits" }), d.total_chunks)}
                     {ligne(t({ en: "Added", fr: "Ajouté" }), formatDate(d.created_at, null, langue))}
+                    {ligne(
+                        t({ en: "Read by", fr: "Lu par" }),
+                        usage === null ? (
+                            "…"
+                        ) : usage === "erreur" ? (
+                            t({ en: "unavailable", fr: "indisponible" })
+                        ) : usage.nombre === 0 ? (
+                            t({ en: "no agent", fr: "aucun agent" })
+                        ) : (
+                            <span title={(usage.agents ?? []).map((a) => a.nom).join(", ")} data-testid="agents-du-document">
+                                {usage.nombre} {usage.nombre > 1 ? t({ en: "agents", fr: "agents" }) : t({ en: "agent", fr: "agent" })}
+                            </span>
+                        ),
+                    )}
+                    {texte !== null && (
+                        <div className="py-3 text-sm">
+                            <p className="mb-1.5 font-medium">{t({ en: "Text", fr: "Texte" })}</p>
+                            {texte === "erreur" ? (
+                                <p className="text-muted-foreground">{t({ en: "The text could not be read.", fr: "Le texte n'a pas pu être lu." })}</p>
+                            ) : (
+                                <pre data-testid="texte-du-document" className="max-h-48 overflow-auto rounded-md bg-muted/50 p-3 font-mono text-xs break-words whitespace-pre-wrap">
+                                    {texte.length > 2000 ? `${texte.slice(0, 2000)}…` : texte || t({ en: "Empty.", fr: "Vide." })}
+                                </pre>
+                            )}
+                        </div>
+                    )}
                     {d.has_live_content && occupe(d) && (
                         <p className="py-3 text-sm text-muted-foreground">
                             {t({ en: "Agents keep using the previous version until the update finishes.", fr: "Les agents gardent la version précédente jusqu'à la fin de la mise à jour." })}

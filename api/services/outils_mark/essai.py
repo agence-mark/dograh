@@ -25,7 +25,7 @@ from api.enums import ToolCategory
 
 MODES = ("direct", "simule", "compte_de_test")
 APERCU_MAX = 2000
-CHAMPS_DU_SERVEUR = ("premier_essai", "dernier_essai")
+CHAMPS_DU_SERVEUR = ("premier_essai", "dernier_essai", "dernier_test_connexion")
 
 
 class ErreurEssai(Exception):
@@ -236,6 +236,17 @@ def noter_le_dernier_essai(definition: dict[str, Any], verdict: dict[str, Any]) 
         "mode": verdict.get("mode"),
         "le": datetime.now(UTC).isoformat(),
     }
+    return neuve
+
+
+def noter_le_test_de_connexion(definition: dict[str, Any], joignable: bool) -> dict[str, Any]:
+    """[.mark] Partie 3, lot 14 (J-3) : un serveur MCP garde l'état et la date de son dernier « Tester la connexion ».
+    Clé à part de ``dernier_essai`` (l'essai d'un OUTIL, qui conditionne le premier essai validé) : tester une connexion
+    ne valide jamais un outil. Écrit dans la configuration de l'outil, donc sans migration."""
+    neuve = deepcopy(definition or {})
+    config = neuve.setdefault("config", {})
+    if isinstance(config, dict):
+        config["dernier_test_connexion"] = {"joignable": bool(joignable), "le": datetime.now(UTC).isoformat()}
     return neuve
 
 
