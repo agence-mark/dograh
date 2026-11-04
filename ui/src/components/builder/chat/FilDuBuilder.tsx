@@ -74,6 +74,19 @@ export function FilDuBuilder({
     const [enBas, setEnBas] = useState(true);
     const zone = useRef<HTMLDivElement>(null);
     const fond = useRef<HTMLDivElement>(null);
+    // La saisie flotte sur le bas du fil : sa hauteur réelle (avertissement, barre des changements, saisie à plusieurs lignes)
+    // devient la marge du bas du fil, sinon la dernière carte reste cachée derrière elle.
+    const saisieFlottante = useRef<HTMLDivElement>(null);
+    const [hautSaisie, setHautSaisie] = useState(160);
+    useEffect(() => {
+        const bloc = saisieFlottante.current;
+        if (!bloc || typeof ResizeObserver === "undefined") return;
+        const mesurer = () => setHautSaisie(Math.max(160, Math.ceil(bloc.getBoundingClientRect().height) + 16));
+        mesurer();
+        const observateur = new ResizeObserver(mesurer);
+        observateur.observe(bloc);
+        return () => observateur.disconnect();
+    }, []);
 
     useEffect(() => {
         if (enBas) fond.current?.scrollIntoView?.({ block: "end" });
@@ -123,7 +136,7 @@ export function FilDuBuilder({
                 </p>
             </div>
             )}
-            <div ref={zone} onScroll={surDefilement} className="flex-1 space-y-3 overflow-y-auto pb-40">
+            <div ref={zone} onScroll={surDefilement} className="flex-1 space-y-3 overflow-y-auto" style={{ paddingBottom: hautSaisie }}>
                 {lignes.map((l, i) => (
                     <Ligne
                         key={i}
@@ -172,7 +185,7 @@ export function FilDuBuilder({
                 </Button>
             )}
             {/* Saisie flottante : aucun trait entre le fil et la saisie, un fondu en bas du fil. */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pt-10">
+            <div ref={saisieFlottante} className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pt-10">
                 {claudeCode ? (
                     <div className="pointer-events-auto mx-auto max-w-3xl rounded-xl bg-card p-3 shadow-lg">
                         <LigneLecture />
