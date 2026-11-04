@@ -331,6 +331,7 @@ class OrganizationUsageClient(BaseDBClient):
                     "client": _nom_du_client(run.gathered_context),
                     "motif": _motif_de_la_fiche(run.gathered_context),
                     "note_juge": run.note_juge,
+                    "juge_par": appels_liste.juge_par(run.annotations),
                     "version": run.definition.version_number if run.definition else None,
                     "canal": _canal_du_run(run.mode, run.annotations),
                 }

@@ -172,6 +172,7 @@ class WorkflowRunUsageResponse(BaseModel):
     client: Optional[str] = Field(default=None, description="Who called: first and last name from the call's record.")
     motif: Optional[str] = Field(default=None, description="The call reason from the record.")
     note_juge: Optional[float] = Field(default=None, description="The judge's grade out of 5; null until the call is judged.")
+    juge_par: Optional[str] = Field(default=None, description="Who judged the call: the judge's model, or Claude Code; null until it is judged.")
     version: Optional[int] = Field(default=None, description="The agent version that handled the call.")
     canal: Optional[str] = Field(default=None, description="telephony, web, chat, simulated or site.")
 
