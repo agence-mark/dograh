@@ -41,6 +41,23 @@ export const BRIQUES_DU_MODE: Record<ModeModeles, ServiceSegment[]> = {
 
 export type Existant = Record<string, unknown>;
 
+// Partie 3, lot 13 (SE-24, M-2) : le serveur garde DEUX configurations, `byok.pipeline` (la chaîne) et `byok.realtime` (le temps
+// réel) ; `byok.mode` dit laquelle est active. Régler l'une ne fait jamais perdre l'autre.
+const CLE_BLOC: Record<ModeModeles, "pipeline" | "realtime"> = { chaine: "pipeline", "temps-reel": "realtime" };
+
+/** La configuration enregistrée d'un mode (clés masquées), qu'il soit actif ou non ; `null` quand il n'a jamais été réglé. */
+export function blocEnregistre(configuration: Record<string, unknown> | null, mode: ModeModeles): Record<string, unknown> | null {
+    if (configuration?.mode !== "byok") return null;
+    return asRecord(asRecord(configuration.byok)?.[CLE_BLOC[mode]]);
+}
+
+/** Le mode ACTIF de la configuration enregistrée (celui que lisent les appels) ; `null` hors clés propres. */
+export function modeActifEnregistre(configuration: Record<string, unknown> | null): ModeModeles | null {
+    if (configuration?.mode !== "byok") return null;
+    const mode = asRecord(configuration.byok)?.mode;
+    return mode === "realtime" ? "temps-reel" : mode === "pipeline" ? "chaine" : null;
+}
+
 /** Le mode enregistré (ou, à défaut, celui de la configuration effective). */
 export function modeEnregistre(
     configuration: Record<string, unknown> | null,
@@ -58,8 +75,10 @@ export function existantDuMode(
     effective: Record<string, unknown> | null,
     mode: ModeModeles,
 ): Existant {
-    const propre = getByokInitialConfig(configuration, effective, mode === "temps-reel");
-    const autre = getByokInitialConfig(configuration, effective, mode !== "temps-reel");
+    const autreMode: ModeModeles = mode === "temps-reel" ? "chaine" : "temps-reel";
+    // Chaque mode se lit dans SA configuration enregistrée, active ou non (avant : seule l'active se lisait).
+    const propre = blocEnregistre(configuration, mode) ?? getByokInitialConfig(configuration, effective, mode === "temps-reel");
+    const autre = blocEnregistre(configuration, autreMode) ?? getByokInitialConfig(configuration, effective, mode !== "temps-reel");
     return {
         ...propre,
         llm: propre.llm ?? autre.llm,
@@ -111,6 +130,8 @@ export function construireCorps(
     sortie: Record<string, unknown>,
     segments: ServiceSegment[],
     defauts: ServiceConfigurationDefaults,
+    /** La configuration enregistrée : l'autre mode y est repris tel quel, et le mode actif y est gardé (changer d'onglet n'active rien). */
+    enregistree: Record<string, unknown> | null = null,
 ): OrganizationAiModelConfigurationV2 {
     const source = (service: ServiceSegment): Record<string, unknown> => {
         const brute = segments.includes(service) ? sortie : existant;
@@ -128,31 +149,35 @@ export function construireCorps(
         return configuration.provider && configuration.provider !== "dograh" ? configuration : undefined;
     };
     const plongement = facultative("embeddings");
-    if (mode === "temps-reel") {
-        return {
-            version: 2,
-            mode: "byok",
-            byok: {
-                mode: "realtime",
-                realtime: {
-                    realtime: exigee("realtime") as never,
-                    llm: exigee("llm") as never,
-                    ...(plongement ? { embeddings: plongement as never } : {}),
-                },
-            },
-        };
-    }
+    const autreMode: ModeModeles = mode === "temps-reel" ? "chaine" : "temps-reel";
+    const autreBloc = blocEnregistre(enregistree, autreMode);
+    // Le mode actif enregistré reste actif tant que son bloc existe ; première configuration : celle qu'on vient de régler.
+    const actif = modeActifEnregistre(enregistree);
+    const modeActif: ModeModeles = actif && (actif === mode || autreBloc) ? actif : mode;
+    const edite =
+        mode === "temps-reel"
+            ? {
+                  realtime: {
+                      realtime: exigee("realtime") as never,
+                      llm: exigee("llm") as never,
+                      ...(plongement ? { embeddings: plongement as never } : {}),
+                  },
+              }
+            : {
+                  pipeline: {
+                      llm: exigee("llm") as never,
+                      tts: exigee("tts") as never,
+                      stt: exigee("stt") as never,
+                      ...(plongement ? { embeddings: plongement as never } : {}),
+                  },
+              };
     return {
         version: 2,
         mode: "byok",
         byok: {
-            mode: "pipeline",
-            pipeline: {
-                llm: exigee("llm") as never,
-                tts: exigee("tts") as never,
-                stt: exigee("stt") as never,
-                ...(plongement ? { embeddings: plongement as never } : {}),
-            },
+            mode: CLE_BLOC[modeActif],
+            ...edite,
+            ...(autreBloc ? { [CLE_BLOC[autreMode]]: autreBloc as never } : {}),
         },
     };
 }

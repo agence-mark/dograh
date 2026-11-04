@@ -13,10 +13,12 @@ import { describe, expect, it } from "vitest";
 import type { ServiceConfigurationDefaults } from "@/components/ServiceConfigurationForm";
 
 import {
+    blocEnregistre,
     briquesManquantes,
     ConfigurationIncomplete,
     construireCorps,
     existantDuMode,
+    modeActifEnregistre,
     modeEnregistre,
     segmentsDeLaFenetre,
     vueDeLaBrique,
@@ -182,5 +184,48 @@ describe("enregistrer une brique", () => {
         expect(() =>
             construireCorps("chaine", existant, { llm: { provider: "dograh", api_key: "x" } }, ["llm"], DEFAUTS),
         ).toThrow(ConfigurationIncomplete);
+    });
+});
+
+describe("deux configurations gardées (lot 13, SE-24)", () => {
+    const LES_DEUX = {
+        version: 2,
+        mode: "byok",
+        byok: { mode: "realtime", pipeline: CHAINE.byok.pipeline, realtime: TEMPS_REEL.byok.realtime },
+    };
+    const SORTIE_REALTIME = { realtime: { provider: "openai_realtime", api_key: "mark-cle:cle-o", model: "gpt-realtime-2" } };
+
+    it("lit chaque mode dans sa propre configuration, active ou non", () => {
+        const chaine = existantDuMode(LES_DEUX, null, "chaine");
+        expect(vueDeLaBrique(chaine, "tts")).toMatchObject({ fournisseur: "cartesia", modele: "sonic-3.6" });
+        expect(vueDeLaBrique(chaine, "stt")).toMatchObject({ fournisseur: "soniox" });
+        const reel = existantDuMode(LES_DEUX, null, "temps-reel");
+        expect(vueDeLaBrique(reel, "realtime")).toMatchObject({ modele: "gpt-realtime" });
+        expect(modeEnregistre(LES_DEUX, null)).toBe("temps-reel");
+    });
+
+    it("régler le temps réel reprend la chaîne telle quelle et garde le mode actif", () => {
+        const enregistree = { ...LES_DEUX, byok: { ...LES_DEUX.byok, mode: "pipeline" } }; // la chaîne est active
+        const corps = construireCorps("temps-reel", existantDuMode(enregistree, null, "temps-reel"), SORTIE_REALTIME, ["realtime"], DEFAUTS, enregistree);
+        expect(corps.byok?.mode).toBe("pipeline"); // changer d'onglet n'active rien
+        expect(corps.byok?.realtime?.realtime.model).toBe("gpt-realtime-2");
+        expect(corps.byok?.pipeline?.tts.provider).toBe("cartesia"); // voix et transcription de la chaîne : toujours là
+        expect(corps.byok?.pipeline?.stt.api_key).toBe("****1234");
+    });
+
+    it("première configuration : celle qu'on règle devient active ; sans autre mode, rien d'autre n'est envoyé", () => {
+        const corps = construireCorps("temps-reel", existantDuMode(TEMPS_REEL, null, "temps-reel"), SORTIE_REALTIME, ["realtime"], DEFAUTS, null);
+        expect(corps.byok?.mode).toBe("realtime");
+        expect(corps.byok?.pipeline).toBeUndefined();
+        const seule = construireCorps("temps-reel", existantDuMode(TEMPS_REEL, null, "temps-reel"), SORTIE_REALTIME, ["realtime"], DEFAUTS, TEMPS_REEL);
+        expect(seule.byok?.mode).toBe("realtime");
+        expect(seule.byok?.pipeline).toBeUndefined();
+    });
+
+    it("dit si un mode a déjà été réglé, et lequel est actif", () => {
+        expect(blocEnregistre(CHAINE, "temps-reel")).toBeNull();
+        expect(blocEnregistre(LES_DEUX, "temps-reel")).not.toBeNull();
+        expect(modeActifEnregistre(LES_DEUX)).toBe("temps-reel");
+        expect(modeActifEnregistre({ mode: "dograh" })).toBeNull();
     });
 });

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -66,7 +66,9 @@ from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisi
 from api.services.communes.base import obtenir_base
 from api.services.configuration.ai_model_configuration import (
     check_for_masked_keys_in_ai_model_configuration_v2,
+    basculer_le_mode,
     compile_ai_model_configuration_v2,
+    configurations_inactives_modifiees,
     convert_legacy_ai_model_configuration_to_v2,
     get_organization_ai_model_configuration_v2,
     get_resolved_ai_model_configuration,
@@ -572,6 +574,14 @@ async def save_model_configuration_v2(
             organization_id=organization_id,
             created_by=user.provider_id,
         )
+        # [.mark] Partie 3, lot 13 (SE-24) : l'autre configuration (chaîne ou temps réel), si cet enregistrement l'a changée,
+        # est testée elle aussi : une clé refusée ne se découvre pas au jour de la bascule.
+        for autre in configurations_inactives_modifiees(configuration, existing):
+            await UserConfigurationValidator().validate(
+                autre,
+                organization_id=organization_id,
+                created_by=user.provider_id,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=exc.args[0])
 
@@ -583,6 +593,36 @@ async def save_model_configuration_v2(
         user=user,
         configuration=configuration,
     )
+
+
+class ModeDesModeles(BaseModel):
+    mode: Literal["pipeline", "realtime"]
+
+
+@router.put(
+    "/model-configurations/v2/mode",
+    response_model=OrganizationAIModelConfigurationResponse,
+)
+async def switch_model_configuration_v2_mode(
+    request: ModeDesModeles,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Partie 3, lot 13 (SE-24, M-2) : rend active la chaîne ou le temps réel SANS rien perdre de l'autre. Le moteur d'appel lit
+    la configuration active (``compile_ai_model_configuration_v2``) ; rien d'autre ne bouge. 422 quand l'autre n'est pas encore réglée."""
+    organization_id = user.selected_organization_id
+    existing = await get_organization_ai_model_configuration_v2(organization_id)
+    if existing is None:
+        raise HTTPException(status_code=422, detail="No model configuration is set yet.")
+    try:
+        configuration = basculer_le_mode(existing, request.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=exc.args[0])
+    await upsert_organization_ai_model_configuration_v2(organization_id, configuration)
+    from api.services.equipe_mark.acces import journaliser
+
+    # Un geste qui change ce avec quoi les appels tournent : qui, quoi, quand, où (jamais une clé).
+    await journaliser(user, "modeles.bascule", organization_id, {"mode": request.mode})
+    return await _model_configuration_v2_response(user=user, configuration=configuration)
 
 
 @router.get("/model-configurations/v2/migration-preview")
