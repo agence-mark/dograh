@@ -52,7 +52,7 @@ beforeEach(() => {
     sdk.membres.mockImplementation(() =>
         ok({
             membres: [
-                { user_id: 1, email: "evan@exemple.fr", prenom: "Evan", nom: "L", role_id: 1, role_nom: "Administrateur" },
+                { user_id: 1, email: "evan@exemple.fr", prenom: "Evan", nom: "L", role_id: 1, role_nom: "Administrateur", depuis: "2026-03-12T09:00:00Z" },
                 { user_id: 2, email: "pierre@exemple.fr", prenom: null, nom: null, role_id: 2, role_nom: "Membre" },
             ],
             total: 2,
@@ -107,6 +107,16 @@ describe("Équipe et rôles", () => {
         expect(screen.getAllByText("pierre@exemple.fr").length).toBeGreaterThan(0); // sans nom : l'adresse
         expect(screen.getByText("lea@exemple.fr")).toBeTruthy();
         expect(sdk.membres).toHaveBeenCalledWith({ query: { limit: 25, offset: 0 } });
+    });
+
+    it("V4 : la colonne « Depuis » dit la date d'entrée lue du serveur, et un tiret quand elle manque", async () => {
+        sdk.monProfil.mockImplementation(() => ok({ permissions: ["equipe.gerer", "roles.gerer"] }));
+        monter();
+        const evan = (await screen.findByText("Evan L")).closest("tr")!;
+        expect(screen.getByText("Depuis")).toBeTruthy();
+        expect(evan.textContent).toMatch(/12 mars 2026/);
+        const pierre = screen.getAllByText("pierre@exemple.fr")[0].closest("tr")!;
+        expect(pierre.textContent).toContain("—");
     });
 
     it("les rôles : espaces ouverts et permissions réelles ; le journal : qui, quoi, quel espace", async () => {
