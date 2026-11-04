@@ -4,6 +4,7 @@ import { client } from "@/client/client.gen";
 import { getTurnCredentialsApiV1TurnCredentialsGet, validateUserConfigurationsApiV1UserConfigurationsUserValidateGet, validateWorkflowApiV1WorkflowWorkflowIdValidatePost } from "@/client/sdk.gen";
 import { TurnCredentialsResponse } from "@/client/types.gen";
 import { WorkflowValidationError } from "@/components/flow/types";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import type { ConversationNodeTransitionItem, RealtimeFeedbackMessage as FeedbackMessage } from "@/components/workflow/conversation";
 import { isLlmTtfb } from "@/components/workflow/conversation/adapters/fromRealtimeFeedback";
 import { useAppConfig } from "@/context/AppConfigContext";
@@ -12,7 +13,6 @@ import logger from '@/lib/logger';
 
 import { sdpFilterCodec } from "../utils";
 import { useDeviceInputs } from "./useDeviceInputs";
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 interface UseWebSocketRTCProps {
     workflowId: number;

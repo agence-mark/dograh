@@ -20,6 +20,7 @@ import type {
     PhoneNumberResponse,
     TelephonyConfigurationListItem,
 } from '@/client/types.gen';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -41,7 +42,6 @@ import {
 } from "@/components/ui/select";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { detailFromError } from "@/lib/apiError";
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 interface PhoneCallDialogProps {
     open: boolean;

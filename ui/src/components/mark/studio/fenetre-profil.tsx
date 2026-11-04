@@ -5,11 +5,10 @@
  * latérale. Identité, mot de passe, préférences ; tout vient de `/equipe-mark/moi` et rien n'est affiché qui n'existe pas
  * côté serveur (l'adresse e-mail et le rôle se lisent seulement).
  */
-import { notifier } from "@/components/mark/notifications";
-
 import { changerMonMotDePasseApiV1EquipeMarkMoiMotDePassePost, modifierMonProfilApiV1EquipeMarkMoiPatch } from "@/client/sdk.gen";
 import type { ProfilResponse } from "@/client/types.gen";
 import { type Langue, useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 
 import { FenetreChamps, type Valeurs } from "./fenetre-champs";
 

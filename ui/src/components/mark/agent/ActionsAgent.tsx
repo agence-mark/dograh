@@ -8,7 +8,7 @@
  * `?builder=1`), sans rien dupliquer.
  */
 import type { ReactFlowInstance } from "@xyflow/react";
-import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Phone, Pencil, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
+import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Pencil, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -37,12 +37,11 @@ import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
-import { definitionSansSecrets } from "./definition-sans-secrets";
-
 import { FenetreCopieAgent } from "./copie/FenetreCopieAgent";
+import { definitionSansSecrets } from "./definition-sans-secrets";
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
-import { FenetreDePublication } from "./publication/FenetreDePublication";
 import { adresseOnglet } from "./onglets-agent";
+import { FenetreDePublication } from "./publication/FenetreDePublication";
 
 export type ModeEssai = "audio" | "text" | "simulated";
 

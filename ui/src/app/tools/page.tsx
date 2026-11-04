@@ -15,6 +15,7 @@ import type { CreateToolRequest, ToolResponse } from "@/client/types.gen";
 import { CredentialSelector } from "@/components/http";
 import { ChampsCreationIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import type { ConfigIntegration } from "@/components/mark/connecteurs/useConnecteurs";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,7 +58,6 @@ import {
     type ToolCategory,
     type ToolDefinition,
 } from "./config";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export default function ToolsPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();

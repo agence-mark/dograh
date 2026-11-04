@@ -2,7 +2,6 @@
 
 import { AudioLines, Check, Pause, Pencil, Play, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete,
@@ -12,6 +11,8 @@ import {
 import type { RecordingResponseSchema } from "@/client/types.gen";
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Paginee } from "@/components/mark/studio/pagination";
@@ -24,7 +25,6 @@ import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
 import logger from "@/lib/logger";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export default function RecordingsList({ refreshKey }: { refreshKey?: number }) {
     const organizationTimezone = useOrganizationTimezone();

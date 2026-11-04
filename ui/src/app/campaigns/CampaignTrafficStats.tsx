@@ -7,13 +7,13 @@ import { useEffect, useState } from 'react';
 import { getCampaignTrafficStatsApiV1CampaignCampaignIdTrafficStatsGet } from '@/client/sdk.gen';
 import type { CampaignResponse, CampaignTrafficStatsResponse } from '@/client/types.gen';
 import { useLangue } from '@/components/mark/langue/langue';
+import { phraseEchec } from '@/components/mark/notifications/echec-affiche';
 import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { Info } from '@/components/mark/studio/marques';
 import { Cellule, Ligne, Tableau, TitreTableau } from '@/components/mark/studio/tableau';
 import { Button } from '@/components/ui/button';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
-import { phraseEchec } from '@/components/mark/notifications/echec-affiche';
 
 /**
  * [.mark] K8 : la répartition du trafic d'une campagne, en tableau nu (jamais dans un cadre). Mêmes routes, mêmes

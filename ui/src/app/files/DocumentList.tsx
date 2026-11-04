@@ -2,13 +2,14 @@
 
 import { FileText, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { notifier } from "@/components/mark/notifications";
 
 import {
   deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete,
   listDocumentsApiV1KnowledgeBaseDocumentsGet,
 } from '@/client/sdk.gen';
 import type { DocumentResponseSchema } from '@/client/types.gen';
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,6 @@ import { formatDateTime } from '@/lib/dateTime';
 import logger from '@/lib/logger';
 
 import DocumentEditor, { isEditableDocument } from './DocumentEditor';
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 interface DocumentListProps {
   refreshTrigger: number;

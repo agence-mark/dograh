@@ -1,8 +1,8 @@
-import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OrganizationPreferencesResponse } from "@/client/types.gen";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 import { CallEventsSection } from "./CallEventsSection";
 

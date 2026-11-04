@@ -21,12 +21,12 @@ import {
 } from "@/client/sdk.gen";
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { PREFIXE_REFERENCE } from "../cles/ChampCleModele";

@@ -3,7 +3,6 @@
 import { Save, SlidersHorizontal } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
-import { notifier } from "@/components/mark/notifications";
 
 import {
   getPreferencesApiV1OrganizationsPreferencesGet,
@@ -12,6 +11,7 @@ import {
 import type { OrganizationPreferences } from "@/client/types.gen";
 import { DispositionMappingDialog } from "@/components/DispositionMappingDialog";
 import { ChampAdresseEtablissement } from "@/components/mark/ChampAdresseEtablissement";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

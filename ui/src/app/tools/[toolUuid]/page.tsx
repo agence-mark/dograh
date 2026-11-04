@@ -30,6 +30,7 @@ import {
 } from "@/components/http";
 import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { chargeEssais, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "@/components/mark/outils/essais-outil";
 import { EssaisOutilHttp } from "@/components/mark/outils/EssaisOutilHttp";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,6 @@ import {
     type TransferAgentWorkflowOption,
     TransferCallToolConfig,
 } from "./components";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 function normalizeParameterType(value: string | null | undefined): ParameterType {
     switch (value) {

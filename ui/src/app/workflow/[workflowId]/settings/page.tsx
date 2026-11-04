@@ -5,7 +5,6 @@ import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, ClipboardList, Clock,
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import {
     downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet,
@@ -26,6 +25,8 @@ import {
 } from "@/components/AIModelConfigurationV2Editor";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import { PageReglagesAgent } from "@/components/mark/reglages-agent/PageReglagesAgent";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
@@ -75,7 +76,6 @@ import {
     normalizeCallDispositions,
     validateCallDispositionRows,
 } from "./components/CallDispositionEditor";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 // ---------------------------------------------------------------------------
 // Constants

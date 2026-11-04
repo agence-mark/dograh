@@ -6,10 +6,11 @@
  * Dograh's « General » (option B of D6), the ambient noise -- its audio file
  * included -- and the speech cache.
  */
-import { Loader2, Pause, Play, Upload, AudioLines, X } from "lucide-react";
+import { AudioLines, Loader2, Pause, Play, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "@/client/sdk.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -35,7 +36,6 @@ import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./cata
 import { useEnregistrementTheme } from "./enregistrement";
 import { modeRetenu } from "./mode-envoi-du-texte";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export const ID_THEME_VOIX = "voix";
 export const TITRE_VOIX = { en: "Voice", fr: "Voix" };

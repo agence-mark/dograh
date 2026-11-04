@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { testToolApiV1ToolsToolUuidTestPost } from "@/client/sdk.gen";
 import type { ToolTestResponse } from "@/client/types.gen";
 import type { HttpMethod, PresetToolParameter, ToolParameter } from "@/components/http";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,6 @@ import {
     isUnsafeHttpMethod,
     parseTestParameterValues,
 } from "./helpers";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 type HttpToolTestDialogProps = {
     open: boolean;

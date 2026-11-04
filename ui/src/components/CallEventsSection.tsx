@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
   savePreferencesApiV1OrganizationsPreferencesPut,
   testCallEventsConnectionApiV1OrganizationsCallEventsTestPost,
 } from "@/client/sdk.gen";
 import type { CallEventsSettings } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -9,6 +9,7 @@ import {
     transcribeAudioApiV1WorkflowRecordingsTranscribePost,
 } from "@/client";
 import type { RecordingUploadResponseSchema } from "@/client/types.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -28,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { LANGUAGE_DISPLAY_NAMES } from "@/constants/languages";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 interface RecordingsUploadDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;

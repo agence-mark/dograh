@@ -14,7 +14,6 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { FenetreChamps, type RetourValidation } from "@/components/mark/studio/fenetre-champs";
 import { Info } from "@/components/mark/studio/marques";
 import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confirmee";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 

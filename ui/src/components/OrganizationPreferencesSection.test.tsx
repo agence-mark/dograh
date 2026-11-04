@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 import type { OrganizationPreferences } from "@/client/types.gen";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 import { OrganizationPreferencesSection } from "./OrganizationPreferencesSection";
 

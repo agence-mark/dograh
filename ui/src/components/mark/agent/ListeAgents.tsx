@@ -23,17 +23,16 @@ import {
 import type { FolderResponse, LienDeGroupe, WorkflowListResponse } from "@/client/types.gen";
 import { etiquettesDuFiltre, filtrerLesAgents } from "@/components/mark/agent/etiquettes/logique";
 import { useEtiquettes } from "@/components/mark/agent/etiquettes/useEtiquettes";
+import { ModaleNouvelAgent } from "@/components/mark/agent/ModaleNouvelAgent";
 import { BadgeGroupe } from "@/components/mark/groupe/BadgeGroupe";
 import { ChoixSpecialisesArchivage } from "@/components/mark/groupe/ChoixSpecialisesArchivage";
 import { arbreDesDossiers, descendants, type NoeudDeDossier, rolesDesAgents } from "@/components/mark/groupe/liens-groupes";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { PointEtat } from "@/components/mark/studio/marques";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
-import { ModaleNouvelAgent } from "@/components/mark/agent/ModaleNouvelAgent";
-import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
-import { UploadWorkflowButton } from "@/components/workflow/UploadWorkflowButton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +48,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { UploadWorkflowButton } from "@/components/workflow/UploadWorkflowButton";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
 
 import { adresseOnglet } from "./onglets-agent";

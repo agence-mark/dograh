@@ -2,13 +2,14 @@
 
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { notifier } from "@/components/mark/notifications";
 
 import {
   getDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGet,
   saveDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentPut,
 } from '@/client/sdk.gen';
 import type { DocumentResponseSchema } from '@/client/types.gen';
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,7 +23,6 @@ import { Textarea } from '@/components/ui/textarea';
 import logger from '@/lib/logger';
 
 import ExternalProcessingNotice from './ExternalProcessingNotice';
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 const EDITABLE_EXTENSIONS = ['.txt', '.md'];
 

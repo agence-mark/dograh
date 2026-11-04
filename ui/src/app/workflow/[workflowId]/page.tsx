@@ -7,14 +7,13 @@ import RenderWorkflow from '@/app/workflow/[workflowId]/RenderWorkflow';
 import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from '@/client/sdk.gen';
 import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
-import { EtatVide } from '@/components/mark/studio/etat-vide';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import SpinLoader from '@/components/SpinLoader';
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import WorkflowLayout from '../WorkflowLayout';
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 export default function WorkflowDetailPage() {
     const params = useParams();

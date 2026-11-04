@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { getWorkflowsSummaryApiV1WorkflowSummaryGet, getWorkflowVersionSummariesApiV1WorkflowWorkflowIdVersionSummariesGet } from '@/client/sdk.gen';
 import type { TrafficVariantRequest, WorkflowSummaryResponse, WorkflowVersionSummaryResponse } from '@/client/types.gen';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 export function trafficSplitError(variants: TrafficVariantRequest[]): string | null {
     if (!variants.length || variants.length > 5) return 'Choose between one and five variants.';

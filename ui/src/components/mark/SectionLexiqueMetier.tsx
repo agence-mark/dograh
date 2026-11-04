@@ -13,6 +13,7 @@ import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
@@ -31,7 +32,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 /**

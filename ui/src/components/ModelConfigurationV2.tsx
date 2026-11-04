@@ -14,12 +14,12 @@ import type {
     OrganizationAiModelConfigurationV2,
 } from "@/client/types.gen";
 import { AIModelConfigurationV2Editor, type ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export default function ModelConfigurationV2({ docsUrl }: { docsUrl?: string }) {
     const auth = useAuth();

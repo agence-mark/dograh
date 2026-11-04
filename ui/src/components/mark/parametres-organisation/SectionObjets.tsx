@@ -15,8 +15,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1OrganizationsObjetsReglagesPut } from "@/client/sdk.gen";
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
-import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 

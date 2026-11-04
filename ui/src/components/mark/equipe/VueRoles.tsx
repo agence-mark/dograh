@@ -2,7 +2,6 @@
 
 import { Plus, Shield } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     catalogueApiV1EquipeMarkPermissionsGet,
@@ -13,6 +12,7 @@ import {
 } from "@/client/sdk.gen";
 import type { PermissionResponse, RoleResponse } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
