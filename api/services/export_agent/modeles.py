@@ -41,6 +41,11 @@ class DejaCopie(BaseModel):
     nom: str
 
 
+class DossierPropose(BaseModel):
+    id: int
+    nom: str
+
+
 class Releve(BaseModel):
     sens: Sens
     source_organization_id: int
@@ -50,6 +55,8 @@ class Releve(BaseModel):
     elements: list[ElementReleve]
     nb_tests: int
     deja_copie: DejaCopie | None = None
+    # SE-9 (A-7) : pour « ramener », les dossiers du Labo où poser la copie (vide : « Copies de clients », créé au besoin).
+    dossiers: list[DossierPropose] = Field(default_factory=list)
 
 
 class ChoixElement(BaseModel):
@@ -64,6 +71,9 @@ class DemandeCopie(BaseModel):
     cible_organization_id: int
     choix: list[ChoixElement] = Field(default_factory=list, max_length=500)
     avec_tests: bool = True
+    # SE-9 (A-7) : pour « ramener », le nom de la copie (vide : « nom (client) ») et le dossier du Labo (vide : « Copies de clients »).
+    nom: str | None = Field(default=None, max_length=200)
+    dossier_id: int | None = None
 
 
 class LigneCompte(BaseModel):

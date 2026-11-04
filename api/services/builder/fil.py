@@ -152,16 +152,23 @@ async def creer(user, workflow_id: int | None, titre: str, demarrage: str | None
     return await db_client.creer_fil(user.selected_organization_id, user.id, workflow_id, titre[:TITRE_MAX] or "Nouvelle conversation", demarrage)
 
 
-async def _verifier_le_plafond_du_mois(reglages: ReglagesCerveau, user) -> None:
-    """K7 : le plafond de dépense du Labo sur le mois civil. 0 = aucun. Refuse de DÉMARRER un travail une fois atteint ; une
-    conversation déjà lancée reste bornée par son propre plafond. La dépense compte les conversations de premier niveau (celle d'un
-    sous-agent est déjà ajoutée à son parent)."""
+async def _verifier_le_plafond_du_mois(reglages: ReglagesCerveau, user, depassement: bool = False) -> float | None:
+    """K7 : le plafond de dépense du Labo sur le mois civil. 0 = aucun. Refuse de DÉMARRER un travail une fois atteint (402) ; une
+    conversation déjà lancée finit (SE-16) : elle reste bornée par son propre plafond. La dépense compte les conversations de premier
+    niveau (celle d'un sous-agent est déjà ajoutée à son parent).
+
+    SE-16 (E-5) : ``depassement`` = la personne a dit « continuer quand même » pour CE travail seulement (jamais mémorisé). Rend alors
+    la dépense du mois au moment du dépassement (l'appelant la journalise) ; ``None`` quand le plafond n'est pas atteint."""
     if reglages.plafond_mois <= 0:
-        return
+        return None
     from api.services.builder import depense
 
-    if await depense.du_mois(user.selected_organization_id) >= reglages.plafond_mois:
-        raise ErreurFil("The monthly ceiling of the Lab is reached: raise it in the builder settings.", "plafond_mois")
+    du_mois = await depense.du_mois(user.selected_organization_id)
+    if du_mois < reglages.plafond_mois:
+        return None
+    if not depassement:
+        raise ErreurFil("The monthly ceiling of the Lab is reached: raise it in the builder settings.", "plafond_mois", 402)
+    return du_mois
 
 
 async def lancer(
@@ -174,13 +181,20 @@ async def lancer(
     evenement_de_message: dict[str, Any] | None = None,
     actions_permises: frozenset[str] | None = None,
     extras: dict[str, Any] | None = None,
+    depasser_le_plafond: bool = False,
 ) -> None:
     """Pose le message de la personne et démarre la tâche. Rend la main tout de suite."""
     if en_cours(fil.id):
         raise ErreurFil("The builder is already working on this conversation.", "en_cours")
-    if actions_permises is None:  # un sous-agent appartient à une conversation déjà lancée : le plafond du mois ne le coupe pas en route
-        await _verifier_le_plafond_du_mois(reglages, user)
     org = user.selected_organization_id
+    if actions_permises is None:  # un sous-agent appartient à une conversation déjà lancée : le plafond du mois ne le coupe pas en route
+        depasse = await _verifier_le_plafond_du_mois(reglages, user, depasser_le_plafond)
+        if depasse is not None:
+            # SE-16 : un dépassement explicite et ponctuel est journalisé (qui, quoi, quand, où), sans secret ni message.
+            logger.warning(f"[builder] plafond du mois dépassé à la demande de la personne : organisation {org}, conversation {fil.id}, dépense du mois {depasse}")
+            from api.services.equipe_mark.acces import journaliser
+
+            await journaliser(user, "builder.plafond_mois_depasse", org, {"fil": fil.id, "depense_du_mois": depasse, "plafond_mois": reglages.plafond_mois})
     conv = _conversation_de(fil)
     conv["dernier_message"] = await noter(fil.id, evenement_de_message or {"type": "message", "role": "user", "texte": message})
     await db_client.modifier_fil(org, fil.id, etat="en_cours")
@@ -262,7 +276,7 @@ async def supprimer(org: int, fil_id: int) -> bool:
     return await db_client.supprimer_fil(org, fil_id)
 
 
-async def reprendre(user, fil, cerveau: Cerveau, reglages: ReglagesCerveau) -> None:
+async def reprendre(user, fil, cerveau: Cerveau, reglages: ReglagesCerveau, *, depasser_le_plafond: bool = False) -> None:
     if fil.etat not in ("arretee", "erreur") or en_cours(fil.id):
         raise ErreurFil("Only a stopped conversation can be resumed.", "pas_arretee")
     conv = _conversation_de(fil)
@@ -271,10 +285,12 @@ async def reprendre(user, fil, cerveau: Cerveau, reglages: ReglagesCerveau) -> N
         user.selected_organization_id, fil.id, historique={**(fil.historique or {}), "messages": conv["messages"]}
     )
     fil.historique = {**(fil.historique or {}), "messages": conv["messages"]}
-    await lancer(user, fil, MESSAGE_DE_REPRISE, cerveau, reglages, evenement_de_message={"type": "reprise"})
+    await lancer(user, fil, MESSAGE_DE_REPRISE, cerveau, reglages, evenement_de_message={"type": "reprise"}, depasser_le_plafond=depasser_le_plafond)
 
 
-async def modifier_le_dernier_message(user, fil, message: str, cerveau: Cerveau, reglages: ReglagesCerveau) -> None:
+async def modifier_le_dernier_message(
+    user, fil, message: str, cerveau: Cerveau, reglages: ReglagesCerveau, *, depasser_le_plafond: bool = False
+) -> None:
     """Modifier et relancer : le dernier message de la personne et tout ce qui a suivi sont retirés de l'historique du cerveau
     (l'écran les masque grâce à l'événement « retrait ») ; le travail déjà écrit dans l'agent, lui, reste (il est sur le disque)."""
     if en_cours(fil.id):
@@ -289,7 +305,7 @@ async def modifier_le_dernier_message(user, fil, message: str, cerveau: Cerveau,
     await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
     fil.historique = historique
     await noter(fil.id, {"type": "retrait", "depuis": depuis})
-    await lancer(user, fil, message, cerveau, reglages)
+    await lancer(user, fil, message, cerveau, reglages, depasser_le_plafond=depasser_le_plafond)
 
 
 async def attendre(fil_id: int) -> None:

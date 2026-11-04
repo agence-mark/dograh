@@ -26,6 +26,7 @@ import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Gravite, Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
+import { DateRelative } from "@/components/mark/studio/date-relative";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { AUTEUR, CAUSES, demandeAuBuilder, ORIGINES, TEMPS_DE_L_AVANCEMENT, texteDeFrequence, titreLisible } from "./libelles";
@@ -143,7 +144,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
     const discuter = async () => {
         if (!vue || vue === "erreur") return;
         const r = await ouvrirUnFilApiV1BuilderFilsPost({
-            body: { message: demandeAuBuilder(vue), workflow_id: vue.workflow_id, demarrage: null },
+            body: { message: demandeAuBuilder({ ...vue, id }), workflow_id: vue.workflow_id, demarrage: null },
         });
         if (r.error || !r.data) return void notifier.echec(MESSAGES.builderEchec, { erreur: r.error });
         router.push(`/labo/builder/${r.data.id}`);
@@ -166,7 +167,6 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
     const cas = (vue && vue !== "erreur" ? vue.cas : []) as Cas[];
     const correction = (vue && vue !== "erreur" ? vue.correction : null) as { avant?: string; apres?: string; etape?: string; cible?: string } | null;
     const premierCasAvecAppel = cas.find((c) => c.run_id);
-    const date = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(langue === "fr" ? "fr-FR" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 
     return (
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
@@ -212,7 +212,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                                 <span className="flex-1">
                                                     {c.run_id ? `n° ${c.run_id}` : `${t(T.test)} ${c.test ?? ""}${c.reussis != null && c.total ? ` · ${c.a_revoir ? t(T.revoir) : `${c.reussis}/${c.total}`}` : ""}`}
                                                     {" · "}
-                                                    {date(c.le)}
+                                                    <DateRelative valeur={c.le} />
                                                 </span>
                                                 {c.run_id && (
                                                     <Link href={`/workflow/${vue.workflow_id}/run/${c.run_id}`} className="cursor-pointer text-xs text-(--acc-text) hover:font-medium">

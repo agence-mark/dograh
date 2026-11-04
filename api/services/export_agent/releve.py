@@ -15,7 +15,7 @@ from api.db import db_client
 from api.services.builder.constantes import organisation_bibliotheque
 from api.services.builder.tests_agent import stockage as stockage_tests
 from api.services.export_agent import registre
-from api.services.export_agent.modeles import Cible, DejaCopie, ElementReleve, ErreurCopie, Releve
+from api.services.export_agent.modeles import Cible, DejaCopie, DossierPropose, ElementReleve, ErreurCopie, Releve
 from api.services.export_agent.purge import reperer_les_cles
 from api.services.groupe.groupe import AgentDeTravail, _entier, lire_agent, specialises_de
 from api.services.groupe.passations import CLE_AGENT_PRINCIPAL, est_un_outil_de_passation
@@ -45,6 +45,8 @@ class Plan:
     cles_cible: dict[str, Any] = field(default_factory=dict)
     enregistrements_cible: dict[str, Any] = field(default_factory=dict)
     etablissements_cible: set[str] = field(default_factory=set)
+    # SE-7 (A-8) : les fiches que la copie peut écrire chez la cible (cible sans base client, identifiant libre, fiche lisible à la source).
+    etablissements_copiables: set[str] = field(default_factory=set)
 
 
 def verifier_le_sens(sens: str, source: int, cible: int) -> int:
@@ -136,9 +138,26 @@ async def charger_le_plan(sens: str, workflow_id: int, source: int, cible: int) 
     from api.services.etablissements.stockage import lire_etablissements
 
     plan.etablissements_cible = {e.id for e in (await lire_etablissements(cible)).etablissements}
+    plan.etablissements_copiables = await _fiches_copiables(plan, source, cible)
 
     plan.elements = _elements(plan)
     return plan
+
+
+async def _fiches_copiables(plan: Plan, source: int, cible: int) -> set[str]:
+    """SE-7 (A-8) : sans base client chez la cible, la fiche d'établissement suit (sans les numéros). Avec une base, ou si le
+    rattachement est illisible, elle ne suit pas : le cas reste « relier » ou « vide »."""
+    if not plan.etablissements:
+        return set()
+    from api.services.etablissements.stockage import lire_etablissements, nom_de_la_base_strict
+
+    try:
+        if await nom_de_la_base_strict(cible):
+            return set()
+    except Exception:  # noqa: BLE001 -- rattachement illisible : rien n'est écrit chez la cible
+        return set()
+    chez_la_source = {e.id for e in (await lire_etablissements(source)).etablissements}
+    return {eid for eid in plan.etablissements if eid in chez_la_source and eid not in plan.etablissements_cible}
 
 
 def _elements(plan: Plan) -> list[ElementReleve]:
@@ -209,11 +228,12 @@ def _elements(plan: Plan) -> list[ElementReleve]:
 
     for eid in plan.etablissements:
         existe = eid in plan.etablissements_cible
+        copiable = eid in plan.etablissements_copiables
         sortie.append(
             ElementReleve(
-                type="etablissement", ref=eid, nom=eid, choix=(["relier"] if existe else []) + ["vide"],
-                defaut="relier" if existe else "vide", cibles=[Cible(ref=eid, nom=eid)] if existe else [],
-                cible_par_defaut=eid if existe else None,
+                type="etablissement", ref=eid, nom=eid, choix=(["relier"] if existe else []) + (["copier"] if copiable else []) + ["vide"],
+                defaut="relier" if existe else ("copier" if copiable else "vide"), cibles=[Cible(ref=eid, nom=eid)] if existe else [],
+                cible_par_defaut=eid if existe else None, code="sans_numeros" if copiable else None,
             )
         )
     return sortie
@@ -240,7 +260,11 @@ async def construire_le_releve(sens: str, workflow_id: int, source: int, cible: 
     nb_tests = 0
     for agent in plan.agents:
         nb_tests += len(await stockage_tests.lister(source, agent.id))
+    dossiers = []
+    if sens == RAMENER:
+        dossiers = [DossierPropose(id=d.id, nom=d.name) for d in await db_client.list_folders(cible)]
     return Releve(
         sens=sens, source_organization_id=source, cible_organization_id=cible, agent_id=plan.racine.id,
         agent_nom=plan.racine.nom, elements=plan.elements, nb_tests=nb_tests, deja_copie=await copie_existante(plan),
+        dossiers=dossiers,
     )

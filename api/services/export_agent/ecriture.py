@@ -7,6 +7,7 @@ Ce que la copie garantit :
 * aucune clé n'est copiée : « relier » désigne une clé de la cible, sinon le champ est vidé ; les valeurs sous un nom de secret sont retirées ;
 * aucun identifiant de la source ne reste dans la copie (outils, documents, clés, déclencheurs, agents du groupe, organisation) ;
 * rejouée, la copie n'est pas refaite : le journal du Labo (``registre``) rend la copie déjà faite ;
+* la fiche d'établissement suit (sans les numéros) vers un client SANS base client ; avec une base, elle ne voyage pas ;
 * une copie qui échoue défait ce qu'elle a créé (agents et outils archivés, documents retirés), puis le dit.
 """
 
@@ -62,6 +63,7 @@ class _Journal:
     documents: list[str] = field(default_factory=list)
     enregistrements: list[str] = field(default_factory=list)
     tests: list[tuple[int, str]] = field(default_factory=list)
+    etablissements: list[str] = field(default_factory=list)
 
 
 def _choisir(plan: Plan, demandes: list[ChoixElement]) -> dict[tuple[str, str], tuple[str, str | None]]:
@@ -101,6 +103,15 @@ async def _dossier_des_copies(cible: int) -> int:
             if dossier.name == DOSSIER_DES_COPIES and dossier.parent_id is None:
                 return dossier.id
         raise
+
+
+async def _dossier_au_choix(plan: Plan, dossier_id: int | None) -> int | None:
+    """SE-9 (A-7) : le dossier choisi pour une copie ramenée au Labo doit être un vrai dossier de la cible (422 sinon). Ignoré à l'export."""
+    if dossier_id is None or plan.sens != RAMENER:
+        return None
+    if dossier_id not in {d.id for d in await db_client.list_folders(plan.cible)}:
+        raise ErreurCopie("The chosen folder does not exist in the target.", 422)
+    return dossier_id
 
 
 async def _dossier_du_groupe(nom: str, cible: int, parent: int | None) -> int:
@@ -153,6 +164,46 @@ async def _copier_les_tests(source: int, cible: int, ancien: int, nouveau: int, 
     return nombre
 
 
+async def _copier_la_fiche(plan: Plan, eid: str, journal: _Journal) -> None:
+    """SE-7 (A-8) : écrit chez la cible la fiche d'établissement de la source, sans les numéros (comme ``etablissements/duplication``).
+    Les autres fiches de la cible sont gardées ; un identifiant déjà pris chez elle n'est jamais écrasé."""
+    from api.schemas.etablissements import CatalogueEtablissements
+    from api.services.etablissements.duplication import sans_les_numeros
+    from api.services.etablissements.stockage import (
+        enregistrer_etablissements,
+        lire_etablissements,
+        lire_etablissements_strict,
+        verrou_des_fiches,
+    )
+
+    if eid not in plan.etablissements_copiables:
+        raise ErreurCopie(f"“{eid}”: this establishment cannot be copied to the target.", 422)
+    origine = next((e for e in (await lire_etablissements(plan.source)).etablissements if e.id == eid), None)
+    if origine is None:
+        raise ErreurCopie(f"“{eid}”: this establishment cannot be read in the source.", 422)
+    async with verrou_des_fiches(plan.cible):
+        chez_la_cible = await lire_etablissements_strict(plan.cible)
+        if any(e.id == eid for e in chez_la_cible.etablissements):
+            raise ErreurCopie(f"“{eid}”: this establishment already exists in the target.", 409)
+        neuf = CatalogueEtablissements(etablissements=[*chez_la_cible.etablissements, sans_les_numeros(origine)])
+        await enregistrer_etablissements(plan.cible, neuf, "copie", preremplir=False)
+    journal.etablissements.append(eid)
+
+
+async def _retirer_les_fiches_copiees(journal: _Journal, cible: int) -> None:
+    from api.schemas.etablissements import CatalogueEtablissements
+    from api.services.etablissements.stockage import (
+        enregistrer_etablissements,
+        lire_etablissements_strict,
+        verrou_des_fiches,
+    )
+
+    async with verrou_des_fiches(cible):
+        reste = await lire_etablissements_strict(cible)
+        gardees = [e for e in reste.etablissements if e.id not in journal.etablissements]
+        await enregistrer_etablissements(cible, CatalogueEtablissements(etablissements=gardees), "copie", preremplir=False)
+
+
 async def _defaire(journal: _Journal, cible: int) -> None:
     """Défait au mieux ce que la copie a créé. Ne lève jamais : l'erreur d'origine est celle qu'on rend."""
     for workflow_id, slug in journal.tests:
@@ -182,6 +233,11 @@ async def _defaire(journal: _Journal, cible: int) -> None:
             await db_client.delete_recording(rid, cible)
         except Exception:  # noqa: BLE001
             logger.exception("export_agent: rollback of a recording failed")
+    if journal.etablissements:
+        try:
+            await _retirer_les_fiches_copiees(journal, cible)
+        except Exception:  # noqa: BLE001
+            logger.exception("export_agent: rollback of an establishment failed")
 
 
 async def copier(
@@ -194,8 +250,12 @@ async def copier(
     nom_de_la_source: str,
     demandes: list[ChoixElement],
     avec_tests: bool,
+    nom: str | None = None,
+    dossier_id: int | None = None,
 ) -> CompteRendu:
     plan = await charger_le_plan(sens, workflow_id, source, cible)
+    dossier_id = await _dossier_au_choix(plan, dossier_id)
+    nom = (nom or "").strip() or None
     async with registre.verrou(sens, source, plan.racine.id, cible):
         deja = await copie_existante(plan)
         if deja is not None:
@@ -206,7 +266,7 @@ async def copier(
         choix = _choisir(plan, demandes)
         journal = _Journal()
         try:
-            return await _ecrire(plan, choix, user, nom_de_la_source, avec_tests, journal)
+            return await _ecrire(plan, choix, user, nom_de_la_source, avec_tests, journal, nom, dossier_id)
         except ErreurCopie:
             await _defaire(journal, cible)
             raise
@@ -223,6 +283,8 @@ async def _ecrire(
     nom_de_la_source: str,
     avec_tests: bool,
     journal: _Journal,
+    nom: str | None = None,
+    dossier_choisi: int | None = None,
 ) -> CompteRendu:
     cible, source = plan.cible, plan.source
     lignes: list[LigneCompte] = []
@@ -230,11 +292,13 @@ async def _ecrire(
     ramener = plan.sens == RAMENER
     groupe = len(plan.agents) > 1
 
-    def nom_de_la_copie(nom: str) -> str:
-        return f"{nom} ({nom_de_la_source})" if ramener and nom_de_la_source else nom
+    def nom_de_la_copie(nom_d_origine: str) -> str:
+        if ramener and nom and nom_d_origine == plan.racine.nom:
+            return nom  # SE-9 (A-7) : le nom choisi pour l'agent ramené (ses spécialisés gardent le nom d'usage)
+        return f"{nom_d_origine} ({nom_de_la_source})" if ramener and nom_de_la_source else nom_d_origine
 
     # 1. Les dossiers.
-    parent = await _dossier_des_copies(cible) if ramener else None
+    parent = (dossier_choisi or await _dossier_des_copies(cible)) if ramener else None
     dossier_id = parent
     if groupe:
         dossier_id = await _dossier_du_groupe(nom_de_la_copie(plan.racine.nom), cible, parent)
@@ -333,11 +397,16 @@ async def _ecrire(
         outils[u] = neuf.tool_uuid
         lignes.append(LigneCompte(type="outil", nom=outil.name, action="copier"))
 
-    # 7. Les établissements : on garde l'identifiant seulement s'il existe chez la cible (la fiche elle-même ne voyage pas).
+    # 7. Les établissements : on garde l'identifiant s'il existe chez la cible (« relier ») ; sans base client chez la cible, la fiche
+    # suit (« copier », SE-7) sans les numéros ; sinon l'identifiant est retiré.
     etablissements: dict[str, str | None] = {}
     for eid in plan.etablissements:
         action, vers = choix[("etablissement", eid)]
-        etablissements[eid] = vers if action == "relier" else None
+        if action == "copier":
+            await _copier_la_fiche(plan, eid, journal)
+            etablissements[eid] = eid
+        else:
+            etablissements[eid] = vers if action == "relier" else None
         lignes.append(LigneCompte(type="etablissement", nom=eid, action=action))
 
     # 8. La définition et les réglages de chaque agent, écrits en brouillon.

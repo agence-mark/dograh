@@ -25,7 +25,8 @@ import { useUserConfig } from '@/context/UserConfigContext';
 import { useDispositionCodes } from '@/hooks/useDispositionCodes';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime, getLocalTimezone } from '@/lib/dateTime';
+import { getLocalTimezone } from '@/lib/dateTime';
+import { DateRelative } from '@/components/mark/studio/date-relative';
 import { usageFilterAttributes, withDispositionCodeOptions } from '@/lib/filterAttributes';
 import { decodeFiltersFromURL, encodeFiltersToURL } from '@/lib/filters';
 import type { ActiveFilter, DateRangeValue, FilterAttribute, NumberFilterOption } from '@/types/filters';
@@ -626,7 +627,7 @@ export default function UsagePage() {
                         {lignes.map((run) => (
                             <Ligne key={run.id} href={`/workflow/${run.workflow_id}/run/${run.id}`}>
                                 <Cellule principale sous={`#${run.id}`}>
-                                    {formatDateTime(run.created_at, effectiveTimezone, langue)}
+                                    <DateRelative valeur={run.created_at} fuseau={effectiveTimezone} />
                                 </Cellule>
                                 <Cellule>{run.workflow_name || t({ en: 'Unknown', fr: 'Inconnu' })}</Cellule>
                                 <Cellule>{run.version != null ? `v${run.version}` : '-'}</Cellule>

@@ -7,6 +7,8 @@
  * attendent). Tableau nu : Gravité · Problème · Fréquence · Relevé par · Cause probable. Un clic ouvre le détail.
  * Tout vient des routes `/ameliorations`, `/alertes` : aucune donnée écrite ici. Les requêtes d'une page partent en parallèle.
  */
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -20,11 +22,12 @@ import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Gravite, Info } from "@/components/mark/studio/marques";
 import { useOngletDeLAdresse } from "@/components/mark/studio/onglets-page";
+import { espaceDe } from "@/components/mark/studio/navigation-studio";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { TYPES_D_ALERTE } from "@/components/mark/tri/libelles";
 import { useAuth } from "@/lib/auth";
-import { formatDateRelative } from "@/lib/dateTime";
+import { DateRelative } from "@/components/mark/studio/date-relative";
 
 import { DetailProbleme } from "./DetailProbleme";
 import { AUTEUR, CAUSES, ETATS, type EtatDeLEcran, RELEVE_PAR, texteDeFrequence, titreLisible } from "./libelles";
@@ -62,6 +65,7 @@ const T = {
     test: { en: "Test", fr: "Test" },
     mailEnvoye: { en: "mail sent", fr: "mail envoyé" },
     mailNon: { en: "mail not sent", fr: "mail non envoyé" },
+    toutesLesAlertes: { en: "See all the alerts in Quality", fr: "Voir toutes les alertes dans Qualité" },
     infoAJuger: {
         en: "Real calls kept waiting: they are judged with /juger in Claude Code.",
         fr: "Les vrais appels rangés en attente : on les traite avec /juger dans Claude Code.",
@@ -69,13 +73,14 @@ const T = {
 };
 
 // V4 : « aujourd'hui 11:03 », « hier 17:22 », sinon jour et mois (comme la maquette).
-const dateCourte = (iso: string | null | undefined, langue: string) => (iso ? formatDateRelative(iso, langue === "fr" ? "fr" : "en") : "");
 
 const secondes = (s: number | null | undefined) => (s == null ? "" : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s`);
 
 export function PageAAmeliorer() {
     const { t, langue } = useLangue();
     const { user, loading } = useAuth();
+    // F-2 (SE-17) : les alertes restent aussi un onglet de Qualité (aucune fonction en moins) ; un lien y mène, dans le même espace.
+    const lienAlertes = `${espaceDe(usePathname() ?? "/labo").base}/qualite?onglet=alertes`;
     const ids = [...ETATS.map((e) => e.id), "pannes", "a_juger"];
     const { actif, choisir } = useOngletDeLAdresse(ids, "a_trier");
     const [liste, setListe] = useState<Charge<PageDAmeliorations>>({ etat: "chargement" });
@@ -151,7 +156,12 @@ export function PageAAmeliorer() {
             {courant === "a_juger" ? (
                 <TableDesAppelsAJuger charge={aJuger} t={t} langue={langue} reessayer={() => void chargerLaFile()} />
             ) : courant === "pannes" ? (
-                <TableDesPannes charge={pannes} t={t} langue={langue} reessayer={() => void chargerLesPannes()} />
+                <>
+                    <Link href={lienAlertes} className="inline-block cursor-pointer text-sm text-muted-foreground hover:font-semibold hover:text-foreground" data-lien-alertes>
+                        {t(T.toutesLesAlertes)}
+                    </Link>
+                    <TableDesPannes charge={pannes} t={t} langue={langue} reessayer={() => void chargerLesPannes()} />
+                </>
             ) : (
                 <TableDesProblemes charge={liste} t={t} ouvrir={setOuvert} reessayer={() => etatCourant && void chargerLaListe(etatCourant)} />
             )}
@@ -206,7 +216,7 @@ function TableDesPannes({ charge, t, langue, reessayer }: { charge: Charge<Ligne
         <Tableau colonnes={[{ titre: t(T.quand) }, { titre: t(T.panne) }, { titre: t(T.agent) }, { titre: t(T.prevenu) }]}>
             {charge.donnees.map((a) => (
                 <Ligne key={`${a.run_id}-${a.id}`} href={`/workflow/${a.workflow_id}/run/${a.run_id}`}>
-                    <Cellule principale>{dateCourte(a.heure ?? a.cree_le, langue)}</Cellule>
+                    <Cellule principale><DateRelative valeur={a.heure ?? a.cree_le} /></Cellule>
                     <Cellule>
                         {TYPES_D_ALERTE[a.type] ? t(TYPES_D_ALERTE[a.type]) : a.type}
                         {a.detail ? ` : ${a.detail}` : ""}
@@ -236,7 +246,7 @@ function TableDesAppelsAJuger({ charge, t, langue, reessayer }: { charge: Charge
                         <Cellule principale sous={a.type === "test" ? `${t(T.test)} ${a.test ?? ""}` : undefined}>
                             {a.workflow_nom}
                         </Cellule>
-                        <Cellule>{dateCourte(a.le, langue)}</Cellule>
+                        <Cellule><DateRelative valeur={a.le} /></Cellule>
                         <Cellule droite>{secondes(a.duree)}</Cellule>
                         <Cellule>{a.motif ?? ""}</Cellule>
                     </Ligne>

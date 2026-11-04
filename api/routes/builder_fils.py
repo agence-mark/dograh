@@ -151,10 +151,29 @@ async def compter_les_fils(user: UserModel = Depends(get_user_with_selected_orga
     return CompteurDesFils(en_attente=await db_client.compter_les_fils_en_attente(user.selected_organization_id))
 
 
+# SE-16 (E-5) : « continuer quand même » une fois le plafond du mois atteint. Ponctuel (par demande, jamais mémorisé), réservé à
+# l'équipe .mark (la dépense est celle de .mark), journalisé par ``fil.lancer``.
+DEPASSER_LE_PLAFOND = Field(default=False, description="Continue although the monthly ceiling is reached, for this request only (.mark team).")
+
+
+async def _depassement_permis(user: UserModel, voulu: bool) -> bool:
+    if not voulu:
+        return False
+    from api.services.builder.bibliotheque import droits
+    from api.services.builder.bibliotheque.service import ErreurBibliotheque
+
+    try:
+        await droits.exiger_l_equipe(user)
+    except ErreurBibliotheque:
+        raise HTTPException(status_code=403, detail="Only the .mark team can go past the monthly ceiling.") from None
+    return True
+
+
 class NouveauFil(BaseModel):
     message: str = Field(min_length=1, max_length=20000)
     workflow_id: int | None = None
     demarrage: str | None = Field(default=None, max_length=120)
+    depasser_le_plafond: bool = DEPASSER_LE_PLAFOND
 
 
 @router.post("/fils", response_model=VueFil)
@@ -168,13 +187,14 @@ async def ouvrir_un_fil(demande: NouveauFil, user: UserModel = Depends(get_user_
         if (manque := demarrages.manque(carte, demande.workflow_id)) is not None:
             raise HTTPException(status_code=422, detail=manque)
     cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
     message = demarrages.remplir(demande.message, getattr(workflow, "name", None))
     titre = carte["titre"] if carte else message.strip().splitlines()[0]
     fil = await service_fil.creer(user, demande.workflow_id, titre, demande.demarrage)
     if demande.demarrage:
         await demarrages.noter_l_utilisation(demande.demarrage, user.selected_organization_id, fil.id)
     try:
-        await service_fil.lancer(user, fil, message, cerveau, reglages)
+        await service_fil.lancer(user, fil, message, cerveau, reglages, depasser_le_plafond=depasser)
     except service_fil.ErreurFil as erreur:
         raise _refus(erreur) from None
     return _vue(await _fil_ou_404(user, fil.id))
@@ -215,6 +235,7 @@ async def suivre_un_fil(
 
 class MessageDuFil(BaseModel):
     message: str = Field(min_length=1, max_length=20000)
+    depasser_le_plafond: bool = DEPASSER_LE_PLAFOND
 
 
 @router.post("/fils/{fil_id}/messages", response_model=VueFil)
@@ -222,8 +243,9 @@ async def envoyer_un_message(fil_id: int, demande: MessageDuFil, user: UserModel
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
     try:
-        await service_fil.lancer(user, fil, demande.message, cerveau, reglages)
+        await service_fil.lancer(user, fil, demande.message, cerveau, reglages, depasser_le_plafond=depasser)
     except service_fil.ErreurFil as erreur:
         raise _refus(erreur) from None
     return _vue(await _fil_ou_404(user, fil_id))
@@ -239,12 +261,17 @@ async def arreter_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_se
 
 
 @router.post("/fils/{fil_id}/reprendre", response_model=VueFil)
-async def reprendre_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+async def reprendre_un_fil(
+    fil_id: int,
+    depasser_le_plafond: bool = Query(default=False, description="Continue although the monthly ceiling is reached, for this request only (.mark team)."),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, depasser_le_plafond)
     try:
-        await service_fil.reprendre(user, fil, cerveau, reglages)
+        await service_fil.reprendre(user, fil, cerveau, reglages, depasser_le_plafond=depasser)
     except service_fil.ErreurFil as erreur:
         raise _refus(erreur) from None
     return _vue(await _fil_ou_404(user, fil_id))
@@ -257,8 +284,9 @@ async def modifier_le_dernier_message(
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
     cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
     try:
-        await service_fil.modifier_le_dernier_message(user, fil, demande.message, cerveau, reglages)
+        await service_fil.modifier_le_dernier_message(user, fil, demande.message, cerveau, reglages, depasser_le_plafond=depasser)
     except service_fil.ErreurFil as erreur:
         raise _refus(erreur) from None
     return _vue(await _fil_ou_404(user, fil_id))

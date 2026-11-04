@@ -5,6 +5,7 @@ et la correction depuis un appel en cinq temps.
 * ``depense_annoncer``    : le builder annonce ce que va coûter une étape et ATTEND l'accord de la personne (carte, puis réponse) ;
 * ``tests_lister`` / ``tests_lire`` : il voit la suite et les 3 dernières exécutions avant d'en écrire ;
 * ``tests_supprimer``     : il PROPOSE (carte), une personne supprime ; rien n'est effacé par le builder ;
+* ``agent_proposer_archivage`` : il PROPOSE d'archiver un agent (carte avec un bouton), une personne clique (SE-14, E-1) ; rien n'est archivé par le builder ;
 * ``correction_proposer`` : temps 2 de la correction (plan avant / après, objet touché), jamais appliqué par cette action ;
 * ``correction_bilan``    : temps 5 (ce que le changement a cassé, comparé à l'exécution précédente) ;
 * ``modifications_lister``: toutes les modifications de la conversation, avant et après, depuis les instantanés.
@@ -142,6 +143,25 @@ async def _tests_supprimer(contexte: Contexte, parametres: _UnTest) -> dict[str,
     }
 
 
+class _Archivage(_Agent):
+    raison: str = Field(min_length=1, max_length=400, description="Why this agent should be archived, in one or two sentences.")
+
+
+async def _agent_proposer_archivage(contexte: Contexte, parametres: _Archivage) -> dict[str, Any]:
+    """Archiver est un clic humain : le builder le propose sur une carte, rien n'est archivé ici (SE-14, E-1)."""
+    from api.services.builder.actions._commun import agent_de_l_organisation
+
+    agent = await agent_de_l_organisation(contexte, parametres.workflow_id)
+    if getattr(agent, "status", "active") != "active":
+        raise ErreurAction("This agent is already archived.", "deja_archive")
+    return {
+        "ok": True,
+        "propose": True,
+        "message": "Proposed, not archived: a person archives the agent with the button on the card. Say so, and wait.",
+        "carte": {"type": "proposition_archivage", "workflow_id": agent.id, "nom": agent.name, "raison": parametres.raison},
+    }
+
+
 # --- corriger depuis un appel -----------------------------------------------------------------------------------------------
 
 
@@ -153,6 +173,10 @@ class _Correction(_Agent):
     avant: str = Field(max_length=6000, description="The exact text or code today.")
     apres: str = Field(max_length=6000, description="The exact text or code after the change.")
     recette: str = Field(default="", max_length=60, description="Deprecated: the recipe is read from the agent. Only used when the agent has none set.")
+    amelioration_id: int | None = Field(
+        default=None,
+        description="The number of the problem this conversation was opened from (given in the first message): the proposed fix is then written in that problem.",
+    )
 
 
 async def _correction_proposer(contexte: Contexte, parametres: _Correction) -> dict[str, Any]:
@@ -167,12 +191,26 @@ async def _correction_proposer(contexte: Contexte, parametres: _Correction) -> d
         capacites = await recettes.capacites_de_l_agent(contexte.organisation_id, identifiant, parametres.recette)
         if recettes.CAPACITE_REGLE_DE_DESCENTE not in capacites:
             raise ErreurAction("Moving a rule into a tool's return only applies to a recipe that has the descent rule: not on this agent.", "recette")
-    carte = {"type": "correction", "workflow_id": identifiant, **parametres.model_dump(exclude={"workflow_id"}), "statut": "a_approuver"}
+    if parametres.amelioration_id is not None:
+        await _ecrire_dans_le_probleme(contexte, identifiant, parametres)
+    carte = {"type": "correction", "workflow_id": identifiant, **parametres.model_dump(exclude={"workflow_id", "amelioration_id"}), "statut": "a_approuver"}
     return {
         "ok": True,
         "attente": "Stop here: the person approves or sends it back with a note. Apply nothing before the approval.",
         "carte": carte,
     }
+
+
+async def _ecrire_dans_le_probleme(contexte: Contexte, workflow_id: int, parametres: _Correction) -> None:
+    """SE-17 (F-1) : la correction proposée sur la carte est aussi écrite dans la fiche du problème d'où vient la conversation. Le problème
+    est relu avec l'organisation de l'appelant et doit porter sur CET agent (introuvable sinon). Rien n'est appliqué à l'agent."""
+    from api.db import db_client
+
+    probleme = await db_client.lire_une_amelioration(contexte.organisation_id, parametres.amelioration_id)
+    if probleme is None or probleme.get("workflow_id") != workflow_id:
+        raise ErreurAction(f"Problem {parametres.amelioration_id} not found on this agent.", "introuvable")
+    correction = {"etape": probleme.get("etape"), "cible": parametres.cible, "avant": parametres.avant, "apres": parametres.apres}
+    await db_client.modifier_une_amelioration(contexte.organisation_id, parametres.amelioration_id, correction=correction)
 
 
 async def _correction_bilan(contexte: Contexte, parametres: _Agent) -> dict[str, Any]:
@@ -295,4 +333,13 @@ _inscrire(
     ecriture=False,
     mcp=True,
     groupe="construction",
+)
+_inscrire(
+    "agent_proposer_archivage",
+    "Propose archiving an agent that is no longer useful, on a card with an Archive button. Nothing is archived by you: only the person's click does it, and it can be undone. Give the reason in one or two sentences.",
+    _Archivage,
+    _agent_proposer_archivage,
+    ecriture=False,
+    mcp=False,
+    groupe="dialogue",
 )

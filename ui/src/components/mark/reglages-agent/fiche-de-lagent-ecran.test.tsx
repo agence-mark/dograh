@@ -98,7 +98,7 @@ const ouvrir = async (config: Record<string, unknown>, servi: Record<string, unk
     m.servis.mockResolvedValue(vueServie({ numeros_de_lagent: ["+33344000001", "+33344000009"], ...servi }));
     m.config = resolveWorkflowConfigurations({ ...CONFIG_DE_REFERENCE, ...config } as never);
     render(<WorkflowSettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(12));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(13));
     const entete = document.querySelector('[data-theme="etablissement"] > button[aria-expanded]') as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     return document.getElementById("etablissement") as HTMLElement;

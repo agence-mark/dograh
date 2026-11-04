@@ -43,6 +43,7 @@ async def duplicate_workflow(
     workflow_id: int,
     organization_id: int,
     user_id: int,
+    nom: str | None = None,
 ):
     """Duplicate a workflow including its definition, config, and triggers.
 
@@ -52,6 +53,7 @@ async def duplicate_workflow(
         workflow_id: The source workflow ID to duplicate
         organization_id: The organization ID
         user_id: The user performing the duplication
+        nom: [.mark] the name of the copy, as typed (SE-9, A-5); empty or absent: « <name> - Duplicate »
 
     Returns:
         The newly created workflow DB object
@@ -75,7 +77,7 @@ async def duplicate_workflow(
         workflow_definition = _regenerate_trigger_uuids(workflow_definition)
 
     # 4. Create the new workflow
-    new_name = f"{source.name} - Duplicate"
+    new_name = (nom or "").strip()[:200] or f"{source.name} - Duplicate"
     new_workflow = await db_client.create_workflow(
         name=new_name,
         workflow_definition=workflow_definition,

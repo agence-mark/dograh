@@ -72,13 +72,15 @@ export function titreLisible(p: { releve_par: string; critere?: string | null; t
 }
 
 /** Le message du builder qui ouvre une conversation depuis un problème (rien d'inventé : les données du problème seulement). */
-export function demandeAuBuilder(p: { titre: string; workflow_nom: string; etape?: string | null; replique?: string | null; frequence: unknown }): string {
+export function demandeAuBuilder(p: { id?: number; titre: string; workflow_nom: string; etape?: string | null; replique?: string | null; frequence: unknown }): string {
     const { n, sur } = p.frequence as { n: number; sur: number };
     const lignes = [
         `Problème relevé sur l'agent « ${p.workflow_nom} » : ${p.titre}.`,
         p.etape ? `Étape : ${p.etape}.` : "",
         p.replique ? `Réplique fautive : « ${p.replique} »` : "",
         `Fréquence : ${n} sur ${sur}.`,
+        // SE-17 (F-1) : le numéro du problème permet au builder d'écrire la correction proposée dans sa fiche.
+        p.id !== undefined ? `Problème n° ${p.id} : donne ce numéro en amelioration_id quand tu proposes la correction, elle sera écrite dans la fiche du problème.` : "",
         "Analyse la cause, propose la correction en avant / après, puis rejoue la suite de tests.",
     ];
     return lignes.filter(Boolean).join("\n");

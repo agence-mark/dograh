@@ -4,7 +4,8 @@ Une recette = une fiche de la famille « Recettes d'agent » (``recettes-agent``
 construction, ses scénarios de test et ses capacités. **Aucun nom de recette dans ce code** : la fenêtre de création lit la liste ici,
 l'étape « construction » de la méthode lit la recette de l'agent, et les gardes lisent une CAPACITÉ (``regle_de_descente``), pas un nom.
 
-* la recette d'un agent est une ligne ``MARK_BUILDER:<agent>:recette`` ; elle ne change plus une fois une version publiée ;
+* la recette d'un agent est une ligne ``MARK_BUILDER:<agent>:recette`` ; une fois une version publiée, elle ne change qu'avec une
+  confirmation explicite (SE-6) : la ligne porte alors ``tests_a_rejouer_depuis`` et la garde de publication exige les tests rejoués ;
 * défaut : l'option ``recette_par_defaut`` (Réglages du builder) ; sinon la fiche qui se déclare « défaut de départ » ; sinon la
   première de la liste ; un agent sans recette indiquée reçoit ce défaut, et le builder le dit ;
 * une recette Rejetée disparaît de la liste de création mais reste lisible : les agents qui l'utilisent ne changent pas.
@@ -148,15 +149,35 @@ async def poser_a_la_creation(organisation: int, workflow_id: int, recette: Rece
         await stock.ecrire(organisation, _cle(workflow_id), {"slug": recette.slug, "date": datetime.now(UTC).isoformat(), "par": par[:120]})
 
 
-async def definir(organisation: int, workflow_id: int, slug: str, *, deja_publie: bool = False, par: str = "") -> Recette:
-    """Pose la recette d'un agent. Refus : recette inconnue ou rejetée, agent déjà publié."""
-    if deja_publie:
-        raise ErreurRecette("This agent already has a published version: its recipe can no longer change.", 409)
+async def definir(
+    organisation: int, workflow_id: int, slug: str, *, deja_publie: bool = False, confirmer: bool = False, par: str = ""
+) -> Recette:
+    """Pose la recette d'un agent. Refus : recette inconnue ou rejetée ; agent déjà publié sans confirmation (409).
+
+    SE-6 : après une publication, le changement est permis avec ``confirmer`` ; il note la date (``tests_a_rejouer_depuis``) :
+    les tests de l'agent doivent être rejoués depuis cette date avant de republier (``tests_agent/publication``)."""
     recette = await lire(slug)
     if recette is None or recette.statut == Statut.REJETE.value:
         raise ErreurRecette("Unknown recipe.", 422)
-    await stock.ecrire(organisation, _cle(workflow_id), {"slug": slug, "date": datetime.now(UTC).isoformat(), "par": par[:120]})
+    if deja_publie:
+        if await choisie_de_l_agent(organisation, workflow_id) == slug:
+            return recette  # rien ne change : aucun test à rejouer
+        if not confirmer:
+            raise ErreurRecette("This agent already has a published version: confirm to change its recipe (its tests must then be replayed before publishing again).", 409)
+    maintenant = datetime.now(UTC).isoformat()
+    ligne: dict[str, Any] = {"slug": slug, "date": maintenant, "par": par[:120]}
+    if deja_publie:
+        ligne["tests_a_rejouer_depuis"] = maintenant
+        logger.info(f"[recettes] recette changée après publication : organisation {organisation}, agent {workflow_id}, recette {slug}, par {par[:120] or '?'}")
+    await stock.ecrire(organisation, _cle(workflow_id), ligne)
     return recette
+
+
+async def tests_a_rejouer_depuis(organisation: int, workflow_id: int) -> str | None:
+    """La date du changement de recette après publication, ``None`` si aucun test n'est à rejouer à ce titre."""
+    ligne = await stock.lire(organisation, _cle(workflow_id))
+    depuis = (ligne or {}).get("tests_a_rejouer_depuis")
+    return depuis if isinstance(depuis, str) and depuis else None
 
 
 def _ligne_piece(piece: Any) -> str:

@@ -139,7 +139,7 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(12));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(13));
 };
 
 const ouvrirLeTheme = (id: string) => {
@@ -1400,18 +1400,27 @@ describe("[.mark] the agent's improvement boxes (passages-fiables, lots F and G)
 describe("[.mark] the agent page: cards, windows and search", () => {
     const cartes = () => [...document.querySelectorAll("[data-theme][data-carte]")].map((e) => e.getAttribute("data-theme"));
 
-    it("draws the 12 themes as cards in three levels, in the order of the plan", async () => {
+    it("draws the 13 themes as cards in three levels, in the order of the plan", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         const niveaux = [...document.querySelectorAll("[data-niveau]")].map((n) => [
             n.getAttribute("data-niveau"),
             [...n.querySelectorAll("[data-theme][data-carte]")].map((c) => c.getAttribute("data-theme")),
         ]);
         expect(niveaux).toEqual([
-            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees", "securite"]],
+            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees", "securite", "qualite"]],
             ["avance", ["briques", "ecoute", "modules", "tour", "rythme"]],
             ["moteur", ["interventions"]],
         ]);
-        expect(cartes()).toHaveLength(12);
+        expect(cartes()).toHaveLength(13);
+    });
+
+    it("A-4: the real-call judge lives in the « Quality » theme, no longer under the grid", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        expect(document.querySelector('[data-testid="juge-vrais-appels"]')).toBeNull();
+        ouvrirLeTheme("qualite");
+        const fenetre = document.querySelector('[data-fenetre-theme="qualite"]') as HTMLElement;
+        expect(fenetre.querySelector('[data-testid="juge-vrais-appels"]')).not.toBeNull();
+        expect(fenetre.querySelector('input[type="checkbox"]')).not.toBeNull();
     });
 
     it("opens a theme in a centred window with a fixed header and footer, and closes it with Escape", async () => {

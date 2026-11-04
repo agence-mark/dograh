@@ -174,7 +174,8 @@ export function ActionsAgent({
         setDuplication(true);
         const promesse = duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost({
             path: { workflow_id: agentId },
-            query: { avec_tests: avecTests },
+            // `nom` (SE-9, A-5) : le nom tapé dans la fenêtre ; le client généré le reçoit au prochain passage du générateur.
+            query: { avec_tests: avecTests, nom: nomDeLaCopie.trim() } as { avec_tests: boolean },
         });
         notifier.suivre(promesse, {
             encours: { fr: "Duplication en cours…", en: "Duplicating…" },
@@ -185,7 +186,6 @@ export function ActionsAgent({
         });
         try {
             const { data } = await promesse;
-            void nomDeLaCopie;
             if (!data?.id) return false;
             router.push(adresseOnglet(data.id, "parcours"));
             return true;

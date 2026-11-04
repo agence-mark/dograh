@@ -15,7 +15,7 @@
  * The themes, in the order of a call: Agent, Services, Listening, Modules,
  * Turn taking, Voice, Call pacing, Phrases, Call data, Business.
  */
-import { Bot, MapPin, NotebookPen, Timer, Cog, Blocks, Ear, MessageSquareQuote, Puzzle, ArrowLeftRight, Search, ShieldCheck, AudioLines } from "lucide-react";
+import { Bot, MapPin, NotebookPen, Timer, Cog, Blocks, Ear, MessageSquareQuote, Puzzle, ArrowLeftRight, Search, ShieldCheck, AudioLines, ClipboardCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
@@ -57,7 +57,6 @@ import {
     propresParTheme,
 } from "./niveaux-et-recherche";
 import { INVENTAIRE_AGENT } from "./inventaire-agent";
-import { JugeDesVraisAppels } from "./JugeDesVraisAppels";
 import { PreparationAgent } from "./PreparationAgent";
 import { RecetteDeLAgent } from "./RecetteDeLAgent";
 import { ContexteErreursThemes } from "./theme-commun";
@@ -69,6 +68,7 @@ import { ID_THEME_ETABLISSEMENT, ThemeEtablissement, TITRE_ETABLISSEMENT } from 
 import { ID_THEME_INTERVENTIONS, ThemeInterventions, TITRE_INTERVENTIONS } from "./ThemeInterventions";
 import { ID_THEME_MODULES, ThemeModules, TITRE_MODULES } from "./ThemeModules";
 import { ID_THEME_PHRASES, ThemePhrases, TITRE_PHRASES } from "./ThemePhrases";
+import { ID_THEME_QUALITE, ThemeQualite, TITRE_QUALITE } from "./ThemeQualite";
 import { ID_THEME_SECURITE, ThemeSecurite, TITRE_SECURITE } from "./ThemeSecurite";
 import { ID_THEME_RYTHME, ThemeRythme, TITRE_RYTHME } from "./ThemeRythme";
 import { ID_THEME_TOUR, ThemeTourDeParole, TITRE_TOUR } from "./ThemeTourDeParole";
@@ -88,6 +88,7 @@ export const THEMES_AGENT = [
     { id: ID_THEME_DONNEES, titre: TITRE_DONNEES, icone: NotebookPen },
     // builder-agent-vocal, lot 8: what our code does in the conversation, switch by switch.
     { id: ID_THEME_SECURITE, titre: TITRE_SECURITE, icone: ShieldCheck },
+    { id: ID_THEME_QUALITE, titre: TITRE_QUALITE, icone: ClipboardCheck },
     { id: ID_THEME_INTERVENTIONS, titre: TITRE_INTERVENTIONS, icone: Cog },
     { id: ID_THEME_ETABLISSEMENT, titre: TITRE_ETABLISSEMENT, icone: MapPin },
 ] as const;
@@ -395,6 +396,8 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 );
             case ID_THEME_SECURITE:
                 return <ThemeSecurite key={cle} {...propres} />;
+            case ID_THEME_QUALITE:
+                return <ThemeQualite key={cle} ouvert={propres.ouvert} onBasculer={propres.onBasculer} workflowId={workflowId} />;
             case ID_THEME_INTERVENTIONS:
                 return <ThemeInterventions key={cle} {...propres} />;
             case ID_THEME_ETABLISSEMENT:
@@ -476,7 +479,6 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                         </div>
                     )}
 
-                    <JugeDesVraisAppels workflowId={workflowId} />
                 </div>
             </ContexteCartes.Provider>
             </ContexteErreursThemes.Provider>

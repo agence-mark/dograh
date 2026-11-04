@@ -27,11 +27,13 @@ import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications/notifier";
 import { useAuth } from "@/lib/auth";
 
 import { FenetreFichier } from "../fichier/FenetreFichier";
 import { useAdressesDuBuilder } from "./adresses";
 import { ListeDesFils } from "./ListeDesFils";
+import { FenetrePlafondDuMois, STATUT_PLAFOND, STATUT_REFUSE, statutDe, TEXTES_PLAFOND } from "./plafond-du-mois";
 
 const T = {
     titreClient: { en: "What do we build for", fr: "Que construit-on pour" },
@@ -132,10 +134,34 @@ export function AccueilDuBuilder() {
         const lus = await Promise.all(Array.from(liste).map(async (f) => ({ nom: f.name, texte: (await f.text()).slice(0, TAILLE_FICHIERS_MAX), fichier: f })));
         setFichiers((avant) => [...avant, ...lus]);
     };
+    // SE-16 : plafond du mois atteint. Le message reste à l'écran ; « Continuer quand même » le renvoie, pour cette demande seulement.
+    const [plafond, setPlafond] = useState<{ message: string; enCours: boolean } | null>(null);
+    const ouvrir = (message: string, depasser: boolean) =>
+        // `depasser_le_plafond` : accepté par la route ; le client généré le reçoit au prochain passage du générateur.
+        ouvrirUnFilApiV1BuilderFilsPost({
+            body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null, ...(depasser ? { depasser_le_plafond: true } : {}) } as { message: string },
+        });
     const envoyer = async () => {
         if (manque || ferme) return;
         const message = [saisie.trim(), ...fichiers.map((f) => `\n[Fichier : ${f.nom}]\n${f.texte}`)].join("\n");
-        const r = await ouvrirUnFilApiV1BuilderFilsPost({ body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null } });
+        const r = await ouvrir(message, false);
+        if (r.error && statutDe(r) === STATUT_PLAFOND) {
+            notifier.avertissement(TEXTES_PLAFOND.notification, { groupe: "plafond-du-mois" });
+            setPlafond({ message, enCours: false });
+            return;
+        }
+        if (r.error || !r.data) {
+            setErreur(echecAffiche(r.error));
+            return;
+        }
+        router.push(adresses.fil(r.data.id));
+    };
+    const continuerQuandMeme = async () => {
+        if (!plafond || plafond.enCours) return;
+        setPlafond({ ...plafond, enCours: true });
+        const r = await ouvrir(plafond.message, true);
+        setPlafond(null);
+        if (r.error && statutDe(r) === STATUT_REFUSE) return notifier.echec(TEXTES_PLAFOND.reserve);
         if (r.error || !r.data) {
             setErreur(echecAffiche(r.error));
             return;
@@ -147,6 +173,7 @@ export function AccueilDuBuilder() {
     const raisonEnvoi = ferme ? t(T.fermeInfo) : manque ?? t(T.envoyerRaccourci);
     return (
         <PageStudio>
+            <FenetrePlafondDuMois ouverte={plafond !== null} enCours={plafond?.enCours ?? false} continuer={() => void continuerQuandMeme()} annuler={() => setPlafond(null)} />
             <section className="space-y-6 pt-2">
                 <div className="space-y-2 text-center">
                     <Sparkles className="mx-auto size-7 text-(--acc)" aria-hidden />

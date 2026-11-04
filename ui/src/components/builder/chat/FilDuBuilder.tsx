@@ -19,15 +19,19 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { BandeauDuFil } from "./BandeauDuFil";
 import { CarteDuPlan, CarteQuestion, LigneAction } from "./cartes";
-import { CarteCorrection, CarteDepense, CartePropositionTest, CarteRapport } from "./cartes-c2";
+import { CarteCorrection, CarteDepense, CartePropositionTest, CarteProposeArchivage, CarteRapport } from "./cartes-c2";
 import type { EtapeDuPlan, LigneDuFil } from "./evenements";
 import { Markdown } from "./Markdown";
 import { RevueChampParChamp } from "./RevueChampParChamp";
 import { CarteSousAgents, libelleEtat, ListeDesSousAgents, type SousAgent, useSousAgents } from "./SousAgents";
 import { useFil } from "./useFil";
+import { CopierLaReponse } from "./copier-la-reponse";
+import { useEntreesDeSaisie, useMenuSaisie } from "./menu-saisie";
+import { FenetrePlafondDuMois } from "./plafond-du-mois";
 
 const T = {
-    ecrire: { en: "Write to the builder...", fr: "Écrire au builder..." },
+    ecrire: { en: "Write; @ to cite, / for a request. Enter sends, Shift + Enter adds a line.", fr: "Écris ; @ pour citer, / pour une demande. Entrée envoie, Maj + Entrée va à la ligne." },
+    ecrireLibelle: { en: "Write to the builder", fr: "Écrire au builder" },
     envoyer: { en: "Send", fr: "Envoyer" },
     arreter: { en: "Stop", fr: "Arrêter" },
     reprendre: { en: "Resume", fr: "Reprendre" },
@@ -59,7 +63,7 @@ export function FilDuBuilder({
     entete?: boolean;
 }) {
     const { t, langue } = useLangue();
-    const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense } = useFil(filId);
+    const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense, plafond, continuerQuandMeme, annulerLePlafond } = useFil(filId);
     const { sources } = useSources();
     // U12 : une conversation menee dans Claude Code se lit seulement ; sur Claude Code, la saisie du chat de l'ecran est fermee.
     const claudeCode = fil?.genre === "claude_code";
@@ -71,6 +75,9 @@ export function FilDuBuilder({
     const [revue, setRevue] = useState(false);
     const sous = useSousAgents(filId, enCours && !lectureSeule);
     const [saisie, setSaisie] = useState("");
+    // E-7 : les menus « @ » (citer un agent, une recette) et « / » (une demande type), comme la maquette.
+    const entreesDeSaisie = useEntreesDeSaisie();
+    const { menu: menuDeSaisie, clavier: clavierDeSaisie } = useMenuSaisie(saisie, setSaisie, entreesDeSaisie);
     const [edition, setEdition] = useState<string | null>(null);
     const [enBas, setEnBas] = useState(true);
     const zone = useRef<HTMLDivElement>(null);
@@ -201,7 +208,9 @@ export function FilDuBuilder({
                         )}
                     </div>
                 ) : (
-                <div className="pointer-events-auto mx-auto max-w-3xl overflow-hidden rounded-2xl border bg-card shadow-lg">
+                <div className="pointer-events-auto relative mx-auto max-w-3xl">
+                {menuDeSaisie}
+                <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
                     {fil && fil.changements > 0 && (
                         <div className="border-b">
                             <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
@@ -232,10 +241,16 @@ export function FilDuBuilder({
                         className="resize-none rounded-none border-0 px-4 shadow-none focus-visible:ring-0"
                         value={saisie}
                         placeholder={t(T.ecrire)}
+                        aria-label={t(T.ecrireLibelle)}
                         disabled={enCours || ferme}
                         onChange={(e) => setSaisie(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void envoi();
+                            if (clavierDeSaisie(e)) return;
+                            // Entrée envoie, Maj + Entrée va à la ligne (comme la maquette) ; Ctrl + Entrée envoie aussi, comme avant.
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                void envoi();
+                            }
                         }}
                     />
                     <div className="flex items-center justify-end gap-2 px-3 pb-3">
@@ -258,6 +273,7 @@ export function FilDuBuilder({
                         )}
                     </div>
                 </div>
+                </div>
                 )}
                 {!claudeCode && !lectureSeule && ferme && <AvertissementClaudeCode className="pointer-events-auto mx-auto mt-2 max-w-3xl" />}
             </div>
@@ -266,6 +282,7 @@ export function FilDuBuilder({
     return (
         <>
             {principal}
+            <FenetrePlafondDuMois ouverte={plafond !== null} enCours={plafond?.enCours ?? false} continuer={() => void continuerQuandMeme()} annuler={annulerLePlafond} />
             {vu !== null && <FilDuBuilder filId={vu} lectureSeule retour={() => setVu(null)} />}
         </>
     );
@@ -312,7 +329,12 @@ function Ligne({
                 </div>
             );
         case "texte":
-            return <Markdown texte={ligne.texte} />;
+            return (
+                <div className="group/reponse">
+                    <Markdown texte={ligne.texte} />
+                    <CopierLaReponse texte={ligne.texte} />
+                </div>
+            );
         case "action":
             return <LigneAction ligne={ligne} />;
         case "carte": {
@@ -334,6 +356,7 @@ function Ligne({
             }
             if (ligne.carte.type === "correction") return <CarteCorrection carte={ligne.carte} active={actif} repondre={repondre} />;
             if (ligne.carte.type === "proposition_test") return <CartePropositionTest carte={ligne.carte} />;
+            if (ligne.carte.type === "proposition_archivage") return <CarteProposeArchivage carte={ligne.carte} />;
             if (ligne.carte.type === "delegation") {
                 return <CarteSousAgents carte={ligne.carte} sousAgents={sousAgents} voir={voir} recharger={recharger} filId={filId} />;
             }

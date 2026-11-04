@@ -23,6 +23,7 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { appliquer, dernierMessage, type LigneDuFil, lireLesBlocs } from "./evenements";
+import { STATUT_PLAFOND, STATUT_REFUSE, statutDe, TEXTES_PLAFOND } from "./plafond-du-mois";
 
 const REPRISE_MS = 1000;
 
@@ -33,6 +34,8 @@ export function useFil(filId: number) {
     const [erreur, setErreur] = useState<string | null>(null);
     const [relance, setRelance] = useState(0);
     const dernierId = useRef(0);
+    // SE-16 : le geste refusé par le plafond du mois, à rejouer avec « continuer quand même » (jamais mémorisé au-delà de ce geste).
+    const [plafond, setPlafond] = useState<null | { rejouer: () => Promise<{ error?: unknown; data?: VueFil; response?: { status?: number } }>; enCours: boolean }>(null);
 
     const rafraichir = useCallback(async () => {
         const r = await lireUnFilApiV1BuilderFilsFilIdGet({ path: { fil_id: filId } });
@@ -91,7 +94,12 @@ export function useFil(filId: number) {
     }, [authLoading, user, filId, relance, rafraichir]);
 
     const apres = useCallback(
-        async (r: { error?: unknown; data?: VueFil }) => {
+        async (r: { error?: unknown; data?: VueFil; response?: { status?: number } }, rejouer?: () => Promise<{ error?: unknown; data?: VueFil; response?: { status?: number } }>) => {
+            if (r.error && rejouer && statutDe(r) === STATUT_PLAFOND) {
+                notifier.avertissement(TEXTES_PLAFOND.notification, { groupe: "plafond-du-mois" });
+                setPlafond({ rejouer, enCours: false });
+                return;
+            }
             if (r.error) {
                 // Jamais le texte brut du serveur à l'écran : une notification dit ce qui s'est passé (le détail va à l'équipe seule).
                 notifier.echec(
@@ -107,20 +115,52 @@ export function useFil(filId: number) {
         [],
     );
 
+    const continuerQuandMeme = async () => {
+        if (!plafond || plafond.enCours) return;
+        setPlafond({ ...plafond, enCours: true });
+        const r = await plafond.rejouer();
+        setPlafond(null);
+        if (r.error && statutDe(r) === STATUT_REFUSE) return notifier.echec(TEXTES_PLAFOND.reserve);
+        await apres(r);
+    };
+
     return {
+        plafond: plafond ? { enCours: plafond.enCours } : null,
+        continuerQuandMeme,
+        annulerLePlafond: () => setPlafond(null),
         fil,
         lignes,
         erreur,
         enCours: fil?.etat === "en_cours",
         dernier: dernierMessage(lignes),
-        envoyer: async (message: string) =>
-            apres(await envoyerUnMessageApiV1BuilderFilsFilIdMessagesPost({ path: { fil_id: filId }, body: { message } })),
+        envoyer: async (message: string) => {
+            // `depasser_le_plafond` (SE-16) : accepté par la route ; le client généré le reçoit au prochain passage du générateur.
+            const envoi = (depasser: boolean) =>
+                envoyerUnMessageApiV1BuilderFilsFilIdMessagesPost({
+                    path: { fil_id: filId },
+                    body: (depasser ? { message, depasser_le_plafond: true } : { message }) as { message: string },
+                });
+            await apres(await envoi(false), () => envoi(true));
+        },
         arreter: async () => apres(await arreterUnFilApiV1BuilderFilsFilIdArreterPost({ path: { fil_id: filId } })),
         rafraichir,
         repondreDepense: async (depenseId: string, accord: boolean) =>
             apres({ error: (await repondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPost({ path: { fil_id: filId, depense_id: depenseId }, body: { accord } })).error }),
-        reprendre: async () => apres(await reprendreUnFilApiV1BuilderFilsFilIdReprendrePost({ path: { fil_id: filId } })),
-        modifierDernier: async (message: string) =>
-            apres(await modifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPost({ path: { fil_id: filId }, body: { message } })),
+        reprendre: async () => {
+            const envoi = (depasser: boolean) =>
+                reprendreUnFilApiV1BuilderFilsFilIdReprendrePost({
+                    path: { fil_id: filId },
+                    ...(depasser ? { query: { depasser_le_plafond: true } } : {}),
+                } as { path: { fil_id: number } });
+            await apres(await envoi(false), () => envoi(true));
+        },
+        modifierDernier: async (message: string) => {
+            const envoi = (depasser: boolean) =>
+                modifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPost({
+                    path: { fil_id: filId },
+                    body: (depasser ? { message, depasser_le_plafond: true } : { message }) as { message: string },
+                });
+            await apres(await envoi(false), () => envoi(true));
+        },
     };
 }

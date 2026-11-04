@@ -16,7 +16,7 @@ import { TitrePage } from '@/components/mark/studio/titre-page';
 import { Button } from '@/components/ui/button';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
-import { formatDate } from '@/lib/dateTime';
+import { DateRelative } from '@/components/mark/studio/date-relative';
 
 import { etatCampagne } from './etat-campagne';
 
@@ -101,7 +101,7 @@ export default function CampaignsPage() {
                                         <Cellule droite>
                                             {campaign.executed_count} / {campaign.total_queued_count}
                                         </Cellule>
-                                        <Cellule droite>{formatDate(campaign.created_at, organizationTimezone, langue)}</Cellule>
+                                        <Cellule droite><DateRelative valeur={campaign.created_at} fuseau={organizationTimezone} /></Cellule>
                                     </Ligne>
                                 );
                             })}

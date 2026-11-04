@@ -28,6 +28,8 @@ from api.services.builder import apercu, methode, options, recettes, rendu_graph
 from api.services.builder.actions.registre import Contexte, executer
 from api.services.builder.bibliotheque import service
 from api.services.builder.bibliotheque.modele import Statut
+from api.services.builder.tests_agent import publication as garde_publication
+from api.services.builder.tests_agent import stockage as stockage_tests
 from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, ORG_MARK, graphe_depart, utilisateur
 
 EQUIPE = utilisateur(1, ORG_CLIENT)
@@ -376,3 +378,47 @@ def test_aucun_nom_de_recette_dans_le_code_des_gardes_et_de_la_methode():
         contenu = (racine / fichier).read_text(encoding="utf-8")
         assert "facon-" not in contenu and "façon Tala" not in contenu and "façon PolyAI" not in contenu, fichier
     assert "façon Tala" not in methode.texte_de_secours()
+
+
+async def _un_test_joue(slug: str, quand: str, *, obligatoire: bool = False):
+    await stockage_tests.ecrire(
+        ORG_CLIENT, AGENT, {"slug": slug, "nom": slug, "origine": "manuel", "obligatoire": obligatoire}
+    )
+    await stockage_tests.ajouter_un_resultat(
+        ORG_CLIENT, AGENT, slug, {"le": quand, "version": 3, "empreinte": "e", "statut": "ok", "reussis": 1, "total": 1}
+    )
+
+
+async def test_se6_la_recette_change_apres_publication_avec_confirmation_et_les_tests_sont_a_rejouer(monde):
+    """SE-6 (A-1) : sans confirmation, 409 ; avec, la recette change et la date est notée ; changer vers la même recette ne note rien."""
+    await avec_les_deux_premieres(monde)
+    c = client_pour(EQUIPE)
+    assert c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-polyai"}).status_code == 200
+    monde.publies = {AGENT}
+    assert c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-polyai", "confirmer": True}).json()["tests_a_rejouer_depuis"] is None
+    assert c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-tala"}).status_code == 409
+    assert (await recettes.choisie_de_l_agent(ORG_CLIENT, AGENT)) == "facon-polyai"
+    rendu = c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-tala", "confirmer": True})
+    assert rendu.status_code == 200 and rendu.json()["recette"]["slug"] == "facon-tala" and rendu.json()["tests_a_rejouer_depuis"]
+    assert c.put(f"/builder/agents/{AGENT}/recette", json={"recette": "inconnue", "confirmer": True}).status_code == 422
+    assert client_pour(AUTRE).put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-tala", "confirmer": True}).status_code == 404
+
+
+async def test_se6_la_garde_de_publication_exige_les_tests_rejoues_depuis_le_changement_de_recette(monde):
+    await avec_les_deux_premieres(monde)
+    await _un_test_joue("facultatif", "2020-01-01T00:00:00+00:00")
+    await _un_test_joue("obligatoire", "2020-01-01T00:00:00+00:00", obligatoire=True)
+    # Avant tout changement de recette : un test facultatif ancien ne bloque pas (comportement d'avant).
+    avant = await garde_publication.problemes_des_tests_obligatoires(ORG_CLIENT, AGENT, 3, "e")
+    assert [p["slug"] for p in avant] == []
+    monde.publies = {AGENT}
+    assert client_pour(EQUIPE).put(f"/builder/agents/{AGENT}/recette", json={"recette": "facon-polyai", "confirmer": True}).status_code == 200
+    apres = await garde_publication.problemes_des_tests_obligatoires(ORG_CLIENT, AGENT, 3, "e")
+    assert sorted(p["slug"] for p in apres) == ["facultatif", "obligatoire"]
+    assert all("recipe changed" in p["raison"] for p in apres)
+    # Rejoués après le changement : la garde laisse passer.
+    from api.services.builder.tests_agent import stockage
+
+    for slug in ("facultatif", "obligatoire"):
+        await stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": stockage.maintenant(), "version": 3, "empreinte": "e", "statut": "ok", "reussis": 1, "total": 1})
+    assert await garde_publication.problemes_des_tests_obligatoires(ORG_CLIENT, AGENT, 3, "e") == []

@@ -9,7 +9,9 @@ import { Check, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut } from "@/client";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -42,6 +44,14 @@ const T = {
     suppression: { en: "Delete this test (from the Tests tab)", fr: "Supprimer ce test (depuis l'onglet Tests)" },
     criteres: { en: "New criteria (to apply from the Tests tab)", fr: "Nouveaux critères (à appliquer depuis l'onglet Tests)" },
     ouvrir: { en: "Open the Tests tab", fr: "Ouvrir l'onglet Tests" },
+    archivage: { en: "Archiving proposed", fr: "Archivage proposé" },
+    archiver: { en: "Archive this agent", fr: "Archiver cet agent" },
+    archivageInfo: { en: "Only your click archives it. You can undo it right after, or restore it from the Archived list.", fr: "Seul votre clic l'archive. Vous pouvez annuler juste après, ou le restaurer depuis la liste des archivés." },
+    archive: { en: "Agent archived.", fr: "Agent archivé." },
+    archiveFait: { en: "Archived", fr: "Archivé" },
+    archiveEchec: { en: "Could not archive the agent. Try again.", fr: "L'agent n'a pas pu être archivé. Réessayez." },
+    restaure: { en: "Agent restored.", fr: "Agent restauré." },
+    voirAgent: { en: "Open the agent", fr: "Ouvrir l'agent" },
 } satisfies Record<string, Texte>;
 
 type Rapport = {
@@ -194,6 +204,44 @@ export function CartePropositionTest({ carte }: { carte: CarteDuFil }) {
             <Link className="mt-1 inline-block cursor-pointer text-sm hover:font-semibold" href={`/agents/${String(carte.workflow_id)}/tests`}>
                 {t(T.ouvrir)}
             </Link>
+        </section>
+    );
+}
+
+/** Le builder propose d'archiver un agent (SE-14, E-1) : rien n'est archivé avant le clic, et l'archivage s'annule tout de suite. */
+export function CarteProposeArchivage({ carte }: { carte: CarteDuFil }) {
+    const { t } = useLangue();
+    const [etat, setEtat] = useState<"attente" | "encours" | "fait">("attente");
+    const id = Number(carte.workflow_id);
+    const archiver = async () => {
+        setEtat("encours");
+        const r = await updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut({ path: { workflow_id: id }, body: { status: "archived" } });
+        if (r.error) {
+            setEtat("attente");
+            return notifier.echec(T.archiveEchec, { erreur: r.error });
+        }
+        setEtat("fait");
+        notifier.reversible(T.archive, async () => {
+            await updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut({ path: { workflow_id: id }, body: { status: "active" } });
+            setEtat("attente");
+            notifier.succes(T.restaure);
+        });
+    };
+    return (
+        <section className="my-2 space-y-1.5 py-1" data-carte="proposition-archivage" data-etat={etat}>
+            <h4 className="text-sm font-semibold">{t(T.archivage)}</h4>
+            <p className="text-sm">
+                <span className="font-semibold">{String(carte.nom)}</span>
+                {carte.raison ? <span> : {String(carte.raison)}</span> : null}
+            </p>
+            <p className="text-xs text-muted-foreground">{t(T.archivageInfo)}</p>
+            {etat === "fait" ? (
+                <p className="text-sm font-semibold">{t(T.archiveFait)}</p>
+            ) : (
+                <Button size="sm" variant="outline" className="cursor-pointer" disabled={etat === "encours"} onClick={() => void archiver()}>
+                    {t(T.archiver)}
+                </Button>
+            )}
         </section>
     );
 }

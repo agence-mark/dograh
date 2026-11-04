@@ -2,7 +2,7 @@
  * [.mark] U4 (E38) : les 11 thèmes de l'agent en trois niveaux, la recherche dans tous les réglages, le décompte des
  * réglages propres à l'agent.
  *
- * - Essentiel : Agent, Établissement, Voix, Phrases, Données de l'appel ;
+ * - Essentiel : Agent, Établissement, Voix, Phrases, Données de l'appel, Sécurité, Qualité (SE-9, A-4) ;
  * - Avancé : Briques, Écoute, Modules, Tour de parole, Rythme de l'appel ;
  * - Moteur : Interventions du moteur, visible au Labo seulement (un client ne règle pas notre code).
  *
@@ -18,7 +18,7 @@ import { INVENTAIRE_AGENT } from "./inventaire-agent";
 export type NiveauReglages = "essentiel" | "avance" | "moteur";
 
 export const NIVEAUX_REGLAGES: Array<{ id: NiveauReglages; titre: Texte; themes: string[]; laboSeulement?: boolean }> = [
-    { id: "essentiel", titre: { en: "Essential", fr: "Essentiel" }, themes: ["agent", "etablissement", "voix", "phrases", "donnees", "securite"] },
+    { id: "essentiel", titre: { en: "Essential", fr: "Essentiel" }, themes: ["agent", "etablissement", "voix", "phrases", "donnees", "securite", "qualite"] },
     { id: "avance", titre: { en: "Advanced", fr: "Avancé" }, themes: ["briques", "ecoute", "modules", "tour", "rythme"] },
     { id: "moteur", titre: { en: "Engine", fr: "Moteur" }, themes: ["interventions"], laboSeulement: true },
 ];
