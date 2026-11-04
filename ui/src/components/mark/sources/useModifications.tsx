@@ -44,6 +44,8 @@ export function useModifications(objet: string | null, quand: (m: Modification) 
                         parseAs: "stream",
                         signal: arret.signal,
                     });
+                    // R3 : une réponse « non connecté », « interdit » ou « introuvable » ne s'arrange pas en réessayant : on s'arrête.
+                    if (r.error && [401, 403, 404].includes(r.response?.status ?? 0)) return;
                     if (!r.error && r.data) {
                         for await (const { id, evenement } of lireLesBlocs(r.data as ReadableStream<Uint8Array>)) {
                             dernier = id;
