@@ -70,6 +70,22 @@ describe("l'écran dans l'espace d'un client", () => {
         const cout = await screen.findByText(/un-modele/);
         expect(cout.closest("a")).toBeNull();
     });
+    it("V2b : sans modèle réglé, l'accueil n'affiche aucune ligne de coût (jamais « - · $… par chat »)", async () => {
+        m.chemin = "/clients/7/builder";
+        const client = await import("@/client");
+        vi.mocked(client.lireLeCerveauApiV1BuilderCerveauGet).mockResolvedValueOnce({ data: { modele: "", plafond_depense: 2 } } as never);
+        const { default: PageAccueil } = await import("./PageAccueil");
+        render(<PageAccueil />);
+        await screen.findByText(/Que construit-on pour Nuances de Feu \?|What do we build for Nuances de Feu \?/);
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByText(/par chat|per chat/)).toBeNull();
+    });
+    it("V2b : avec un modèle réglé, le plafond est écrit dans la langue de l'écran", async () => {
+        m.chemin = "/clients/7/builder";
+        const { default: PageAccueil } = await import("./PageAccueil");
+        render(<PageAccueil />);
+        expect((await screen.findByText(/un-modele/)).textContent).toMatch(/un-modele · \$3\.00 per chat/);
+    });
     it("l'accueil d'un client a sa section « À améliorer » (état « fait » quand rien n'attend) avec le lien de son espace", async () => {
         m.chemin = "/clients/7/builder";
         const { default: PageAccueil } = await import("./PageAccueil");

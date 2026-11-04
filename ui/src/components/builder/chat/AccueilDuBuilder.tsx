@@ -70,7 +70,7 @@ const TAILLE_FICHIERS_MAX = 100_000;
 type Agent = { id: number; name: string };
 
 export function AccueilDuBuilder() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const router = useRouter();
     const adresses = useAdressesDuBuilder();
     const { user, loading: authLoading } = useAuth();
@@ -102,6 +102,10 @@ export function AccueilDuBuilder() {
             if (c.data) setModele({ modele: c.data.modele ?? "", plafond: c.data.plafond_depense ?? 0 });
         })();
     }, [authLoading, user]);
+
+    const ligneDuModele = modele
+        ? `${modele.modele} · ${new Intl.NumberFormat(langue, { style: "currency", currency: "USD" }).format(modele.plafond)} ${t(T.parChat)}`
+        : "";
 
     const besoinAgent = choisi ? choisi.besoin === "agent" || choisi.besoin === "agent et fichiers" : false;
     const besoinFichiers = choisi ? choisi.besoin === "fichiers" || choisi.besoin === "agent et fichiers" : false;
@@ -209,15 +213,14 @@ export function AccueilDuBuilder() {
                         <Button size="sm" variant="ghost" className="cursor-pointer gap-1.5" onClick={() => entree.current?.click()}>
                             <Paperclip className="size-4" /> {t(T.joindreCourt)}
                         </Button>
-                        {modele &&
+                        {/* V2b : la ligne du modèle n'existe que si un modèle est réglé (jamais « - » ni un plafond sans modèle). */}
+                        {modele?.modele &&
                             (adresses.reglages ? (
                                 <Link href={adresses.reglages} className="text-xs text-muted-foreground hover:font-semibold">
-                                    {modele.modele || "-"} · ${modele.plafond.toFixed(2)} {t(T.parChat)}
+                                    {ligneDuModele}
                                 </Link>
                             ) : (
-                                <span className="text-xs text-muted-foreground">
-                                    {modele.modele || "-"} · ${modele.plafond.toFixed(2)} {t(T.parChat)}
-                                </span>
+                                <span className="text-xs text-muted-foreground">{ligneDuModele}</span>
                             ))}
                         <Tooltip>
                             <TooltipTrigger asChild>
