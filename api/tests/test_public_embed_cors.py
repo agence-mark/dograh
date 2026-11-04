@@ -123,6 +123,15 @@ def _patch_db(monkeypatch):
         "api.routes.public_embed.db_client.get_workflow",
         _get_workflow,
     )
+    # [.mark] S1 / D179 : la route annote le run (durée maximale de la conversation vocale), puis passe la limite
+    # par adresse et le plafond du mois du site : leurs propres tests les jouent, ici ils laissent passer.
+    monkeypatch.setattr(
+        "api.routes.public_embed.db_client.update_workflow_run",
+        lambda *_a, **_k: _create_workflow_run(),
+    )
+    monkeypatch.setattr("api.routes.public_embed.autoriser_session", _allow)
+    monkeypatch.setattr("api.routes.public_embed.plafond.reserver", _allow)
+    monkeypatch.setattr("api.routes.public_embed.plafond.rendre", _noop)
     monkeypatch.setattr(
         "api.routes.public_embed.db_client.create_embed_session",
         _noop,

@@ -388,7 +388,7 @@ async def initialize_embed_session(
 
     # [.mark] S1 : limite par adresse (par heure) puis plafond du mois (conversations et minutes, une requête
     # atomique). Refus propres : le widget les traduit en « laissez vos coordonnées ».
-    reglages_mark = ReglagesMark.depuis(embed_token.reglages_mark)
+    reglages_mark = ReglagesMark.depuis(getattr(embed_token, "reglages_mark", None))
     if not await autoriser_session(
         embed_token.id,
         adresse_du_visiteur(request),
