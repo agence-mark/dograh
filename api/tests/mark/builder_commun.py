@@ -83,6 +83,15 @@ class FauxDb:
             key=lambda ligne: ligne.key,
         )
 
+    async def get_configuration_keys_by_prefix(self, organization_id, prefix):
+        return sorted(k for (o, k) in self.configs if o == organization_id and k.startswith(prefix))
+
+    async def get_configurations_by_prefix_without(self, organization_id, prefix, fields):
+        return sorted(
+            ((k, {c: x for c, x in v.items() if c not in fields} if isinstance(v, dict) else v) for (o, k), v in self.configs.items() if o == organization_id and k.startswith(prefix)),
+            key=lambda paire: paire[0],
+        )
+
     # -- membres --
     async def is_user_member_of_organization(self, user_id, organization_id):
         return (user_id, organization_id) in self.membres

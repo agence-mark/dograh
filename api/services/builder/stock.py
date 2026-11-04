@@ -63,3 +63,17 @@ async def lister(organization_id: int, prefixe: str) -> list[tuple[str, dict[str
         if isinstance(ligne.key, str) and ligne.key.startswith(prefixe) and isinstance(ligne.value, dict)
     ]
     return sorted(trouvees, key=lambda paire: paire[0])
+
+
+async def cles(organization_id: int, prefixe: str) -> list[str]:
+    """V4 : seulement les CLÉS qui commencent par ``prefixe`` (triées), sans lire une seule valeur."""
+    return [c for c in await db_client.get_configuration_keys_by_prefix(organization_id, prefixe) if isinstance(c, str) and c.startswith(prefixe)]
+
+
+async def lister_sans(organization_id: int, prefixe: str, champs: list[str]) -> list[tuple[str, dict[str, Any]]]:
+    """V4 : comme ``lister``, mais la base retire les ``champs`` lourds de chaque valeur (un graphe, un instantané) avant de répondre."""
+    lignes = await db_client.get_configurations_by_prefix_without(organization_id, prefixe, champs)
+    return sorted(
+        ((cle, valeur) for cle, valeur in lignes if isinstance(cle, str) and cle.startswith(prefixe) and isinstance(valeur, dict)),
+        key=lambda paire: paire[0],
+    )
