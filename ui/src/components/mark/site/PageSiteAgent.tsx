@@ -10,14 +10,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import { lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet, listerLesSitesApiV1OrganizationsSitesGet } from "@/client/sdk.gen";
 import type { EmplacementLu } from "@/client/types.gen";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
-import { PanneauSite } from "./PanneauSite";
+import { EditeurWidget } from "./EditeurWidget";
 
 export function PageSiteAgent({ agentId }: { agentId: number }) {
     const { t } = useLangue();
@@ -106,35 +105,13 @@ export function PageSiteAgent({ agentId }: { agentId: number }) {
                 </div>
             </div>
             {ouvert && (
-                <Dialog
-                    open
-                    onOpenChange={(o) => {
-                        if (!o) {
-                            setOuvert(false);
-                            void lire();
-                        }
+                <EditeurWidget
+                    workflowId={agentId}
+                    onFermer={() => {
+                        setOuvert(false);
+                        void lire();
                     }}
-                >
-                    <DialogContent className="flex h-[92vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
-                        <DialogHeader className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
-                            <DialogTitle className="flex items-center gap-2">
-                                {t({ en: "Site module", fr: "Module du site" })}
-                                <Info>
-                                    {t({
-                                        en: "The same editor as the client portal: one source, the client and .mark set the same module.",
-                                        fr: "Le même éditeur que le portail : une seule source, le client et .mark règlent le même module.",
-                                    })}
-                                </Info>
-                            </DialogTitle>
-                            <DialogDescription className="sr-only">
-                                {t({ en: "The same editor as the client portal.", fr: "Le même éditeur que le portail." })}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                            <PanneauSite workflowId={agentId} />
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                />
             )}
         </div>
     );

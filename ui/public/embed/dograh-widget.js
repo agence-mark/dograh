@@ -81,6 +81,9 @@
     indisponible: 'Le service est momentanément indisponible. Réessayez dans un instant.',
     confidentialite: 'Confidentialité',
     envoye: 'Envoyé.',
+    rappel_merci: 'Un conseiller vous rappelle au plus vite.',
+    exemple_agent: ['Bonjour, comment puis-je vous aider ?', 'Avec plaisir. Quel jour vous arrange ?'],
+    exemple_visiteur: 'Bonjour, je voudrais un renseignement.',
   };
 
   var COULEUR_MARK = '#1b5fb0';
@@ -102,9 +105,13 @@
     });
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
-  /** Texte noir ou blanc, le plus lisible sur ce fond (contraste). */
-  function surFond(hex) {
-    return luminance(hex) > 0.4 ? '#0f1c2e' : '#ffffff';
+  function contraste(a, b) {
+    var x = luminance(a), y = luminance(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+  /** Valeur par défaut d'un texte : blanc ou presque noir, le plus lisible sur le fond (comme le serveur). */
+  function texteSur(hex) {
+    return contraste(hex, '#ffffff') >= contraste(hex, '#111111') ? '#ffffff' : '#111111';
   }
   function eclaircir(hex, part) {
     var c = rvb(hex).map(function (v) { return Math.round(v + (255 - v) * part); });
@@ -300,6 +307,7 @@
     raccrocher: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15.5c5-4.7 13-4.7 18 0l-2.4 2.4a1 1 0 0 1-1.2.2l-2.3-1.2a1 1 0 0 1-.5-1.1l.2-1a12 12 0 0 0-5.6 0l.2 1a1 1 0 0 1-.5 1.1l-2.3 1.2a1 1 0 0 1-1.2-.2z"/></svg>',
     envoi: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 20.85 12.92a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>',
     etoile: '<svg viewBox="0 0 24 24" width="32" height="32" fill="CURRENT_FILL" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',
+    bouclier: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
     valide: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   };
   function icone(nom, remplissage) {
@@ -315,6 +323,7 @@
   var BASE_CSS = [
     ':host{all:initial}',
     '*,*::before,*::after{box-sizing:border-box}',
+    'p{margin:0}',
     '.mk{font-size:15px;line-height:1.35;-webkit-font-smoothing:antialiased}',
     'button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;padding:0}',
     'button:disabled{cursor:not-allowed;opacity:.4}',
@@ -328,7 +337,9 @@
     '.mk-voile{position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.35)}',
     '.mk-fenetre{position:fixed;z-index:2147483002;border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.06);overflow:hidden;animation:mk-entre .3s ease both;display:flex;flex-direction:column;max-height:calc(100vh - 32px)}',
     '.mk-fenetre.mk-plein{inset:0!important;border-radius:0;max-height:none;width:auto!important;transform:none!important}',
-    '.mk-entete{display:flex;align-items:center;justify-content:flex-end;padding:12px 16px 4px}',
+    '.mk-entete{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 16px 8px 20px}',
+    '.mk-titre{display:flex;align-items:center;gap:10px;min-width:0;font-weight:600}',
+    '.mk-titre p{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     '.mk-fermer{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:.7}',
     '.mk-fermer:hover{background:rgba(0,0,0,.06);opacity:1}',
     '.mk-corps{padding:4px 20px 16px;overflow:auto;display:flex;flex-direction:column;gap:16px}',
@@ -350,7 +361,7 @@
     '.mk-puce{height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(0,0,0,.15);font-size:14px}',
     '.mk-case{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}',
     '.mk-case input{margin-top:3px}',
-    '.mk-petit{font-size:13px;opacity:.75}',
+    '.mk-petit{font-size:14px;opacity:.75}',
     '.mk-etat{font-size:14px;opacity:.75;min-height:20px}',
     '.mk-mention{text-align:center;font-size:11px;opacity:.5;padding:0 0 12px}',
     '.mk-erreur{font-size:13px;border-radius:12px;padding:8px 12px;background:rgba(0,0,0,.05)}',
@@ -374,6 +385,7 @@
     var apercu = !!options.conteneur;
     var api = options.api || {};
     var largeurCadre = options.largeurCadre;
+    var modes = options.modes === 'voix' ? 'voix' : 'voix_et_ecrit';
 
     var etat = options.etat || 'repos';
     var accrocheFermee = false;
@@ -453,7 +465,7 @@
     function bouton(texte, zone, onclick, extra) {
       return el('button', Object.assign({
         type: 'button', 'data-zone': zone, class: 'mk-btn', texte: texte, onclick: onclick,
-        style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+        style: 'background:' + k.boutons + ';color:' + k.boutons_texte,
       }, extra || {}));
     }
     function cote() { return ap.position === 'bas-gauche' ? 'left:20px' : 'right:20px'; }
@@ -490,7 +502,7 @@
       if (etat === 'accroche') {
         ancre.appendChild(el('button', {
           type: 'button', class: 'mk-accroche', 'data-zone': 'accroche', texte: textes.accroche,
-          style: 'white-space:pre-wrap;width:max-content;background:' + k.rond_accroche + ';color:' + surFond(k.rond_accroche) + (largeurCadre ? ';max-width:' + (largeurCadre - 72) + 'px' : ''),
+          style: 'white-space:pre-wrap;width:max-content;background:' + k.rond_accroche + ';color:' + k.rond_accroche_texte + (largeurCadre ? ';max-width:' + (largeurCadre - 72) + 'px' : ''),
           onclick: ouvrir,
         }));
         if (!apercu) {
@@ -506,7 +518,7 @@
           'aria-haspopup': 'dialog',
           onclick: ouvrir,
           onmouseenter: function () {
-            if (!apercu && ap.declenchement === 'clic' && !accrocheFermee && etat === 'repos') { etat = 'accroche'; dessiner(); }
+            if (!apercu && (ap.declenchement === 'clic' || ap.declenchement === 'survol') && !accrocheFermee && etat === 'repos') { etat = 'accroche'; dessiner(); }
           },
         }, [emblemeRond(56, ap.orbe_animee !== false)]);
         ancre.appendChild(rond);
@@ -523,17 +535,18 @@
         scene.appendChild(voile);
       }
       var pos = plein ? '' : centree
-        ? 'top:50%;left:50%;transform:translate(-50%,-50%);width:min(400px,calc(100vw - 32px))'
-        : 'bottom:20px;' + cote() + ';width:min(380px,calc(100vw - 32px))';
+        ? 'top:50%;left:50%;transform:translate(-50%,-50%);width:' + (apercu ? '340px' : 'min(400px,calc(100vw - 32px))')
+        : 'bottom:20px;' + cote() + ';width:' + (apercu ? '340px' : 'min(380px,calc(100vw - 32px))');
       var fenetre = el('div', {
         class: 'mk-fenetre' + (plein ? ' mk-plein' : ''), role: 'dialog', 'aria-modal': centree || plein ? 'true' : 'false',
-        'aria-label': FIXE.assistant, 'data-zone': 'fenetre', tabindex: '-1',
-        style: 'background:' + k.fenetre + ';color:' + ap.texte_fenetre + ';' + pos + (apercu ? ';position:absolute' : ''),
+        'aria-label': textes.titre || FIXE.assistant, 'data-zone': 'fenetre', tabindex: '-1',
+        style: 'background:' + k.fenetre + ';color:' + ap.texte_fenetre + ';' + pos + (apercu ? ';position:absolute;max-height:calc(100% - 32px)' : ''),
         onkeydown: function (ev) {
           if (ev.key === 'Escape' && etat !== 'conversation') { ev.stopPropagation(); fermer(); }
         },
       });
       var entete = el('div', { class: 'mk-entete' }, [
+        el('div', { class: 'mk-titre' }, [emblemeRond(28, false), el('p', { 'data-zone': 'titre', texte: textes.titre })]),
         el('button', { type: 'button', class: 'mk-fermer', 'aria-label': textes.fermer, onclick: fermer }, [icone('ferme')]),
       ]);
       fenetre.appendChild(entete);
@@ -554,7 +567,10 @@
       var c = el('div', { class: 'mk-centre' });
       c.appendChild(nouvelleOrbe(130, { etat: 'repos' }).element);
       corps.appendChild(c);
-      corps.appendChild(el('p', { 'data-zone': 'information', class: 'mk-petit', texte: textes.annonce_ia }));
+      corps.appendChild(el('p', { 'data-zone': 'information', class: 'mk-petit', style: 'display:flex;gap:8px;align-items:flex-start;opacity:.8' }, [
+        el('span', { style: 'color:' + k.icones + ';flex:none;margin-top:1px' }, [icone('bouclier')]),
+        el('span', { texte: textes.annonce_ia }),
+      ]));
       var caseConf = el('input', { type: 'checkbox', id: 'mk-c1' });
       var caseMicro = el('input', { type: 'checkbox', id: 'mk-c2' });
       var libConf = el('span', null, [textes.case_confidentialite + ' ']);
@@ -603,7 +619,7 @@
 
     function vueConversation(corps) {
       if (conv.mode === 'ecrit') {
-        corps.appendChild(el('p', { 'data-zone': 'microRefuse', class: 'mk-erreur', texte: textes.erreur_micro }));
+        corps.appendChild(el('p', { 'data-zone': 'microRefuse', class: 'mk-erreur', style: 'background:' + k.icones + '14', texte: textes.erreur_micro }));
         var fil = el('div', { class: 'mk-fil', role: 'log', 'aria-live': 'polite', 'data-fil': '1' });
         corps.appendChild(fil);
         conv.tours.forEach(function (t) { ajouterBulles(fil, t); });
@@ -614,7 +630,7 @@
         var o = nouvelleOrbe(170, { etat: apercu ? 'ecoute' : 'ecoute' });
         conv.orbe = o;
         c.appendChild(o.element);
-        c.appendChild(el('p', { class: 'mk-etat', 'data-etat': '1', texte: libelleEtat() }));
+        c.appendChild(el('p', { class: 'mk-etat', 'data-etat': '1', 'data-zone': 'etatOrbe', texte: libelleEtat() }));
         corps.appendChild(c);
         if (conv.erreur) corps.appendChild(el('p', { class: 'mk-erreur', role: 'alert', texte: conv.erreur }));
       }
@@ -628,16 +644,16 @@
       }
       ligne.appendChild(el('button', {
         type: 'button', class: 'mk-rond-btn', 'data-zone': 'raccrocher', 'aria-label': textes.raccrocher, title: textes.raccrocher,
-        style: 'background:' + k.raccrocher + ';color:' + surFond(k.raccrocher), onclick: function () { raccrocher(); },
+        style: 'background:' + k.raccrocher + ';color:' + k.raccrocher_texte, onclick: function () { raccrocher(); },
       }, [icone('raccrocher')]));
       corps.appendChild(ligne);
-      if (conv.mode !== 'ecrit' && !apercu) {
+      if (conv.mode !== 'ecrit' && modes !== 'voix') {
         // [.mark] S5 : en voix, le visiteur peut aussi écrire (un nom, un numéro). Le texte part sur la signalisation
         // de la session ; refusé (trop vite, appel fini), il revient dans le champ.
         var champVoix = el('input', { placeholder: textes.champ_saisie, 'aria-label': textes.champ_saisie, maxlength: '500', autocomplete: 'off' });
         var envoyerVoix = el('button', {
           type: 'button', 'data-zone': 'envoyerVoix', 'aria-label': textes.envoyer, title: textes.envoyer,
-          style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+          style: 'background:' + k.boutons + ';color:' + k.boutons_texte,
         }, [icone('envoi')]);
         var soumettreVoix = function () {
           var t = champVoix.value.trim();
@@ -648,13 +664,13 @@
         };
         envoyerVoix.addEventListener('click', soumettreVoix);
         champVoix.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); soumettreVoix(); } });
-        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieVoix', style: 'background:' + k.champ_saisie + ';color:' + surFond(k.champ_saisie) }, [champVoix, envoyerVoix]));
+        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieVoix', style: 'background:' + k.champ_saisie + ';color:' + k.champ_saisie_texte }, [champVoix, envoyerVoix]));
       }
       if (conv.mode === 'ecrit') {
-        var champ = el('input', { placeholder: textes.champ_saisie, 'aria-label': textes.champ_saisie, maxlength: '4000', autocomplete: 'off' });
+        var champ = el('input', { placeholder: textes.ecrire, 'aria-label': textes.ecrire, maxlength: '4000', autocomplete: 'off' });
         var envoyer = el('button', {
           type: 'button', 'data-zone': 'envoyer', 'aria-label': textes.envoyer, title: textes.envoyer,
-          style: 'background:' + k.boutons + ';color:' + surFond(k.boutons),
+          style: 'background:' + k.boutons + ';color:' + k.boutons_texte,
         }, [icone('envoi')]);
         var soumettre = function () {
           var t = champ.value.trim();
@@ -664,7 +680,7 @@
         };
         envoyer.addEventListener('click', soumettre);
         champ.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); soumettre(); } });
-        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieEcrite', style: 'background:' + k.champ_saisie + ';color:' + surFond(k.champ_saisie) }, [champ, envoyer]));
+        corps.appendChild(el('div', { class: 'mk-champ', 'data-zone': 'saisieEcrite', style: 'background:' + k.champ_saisie + ';color:' + k.champ_saisie_texte }, [champ, envoyer]));
       }
     }
 
@@ -677,7 +693,7 @@
       var b = el('div', { style: 'display:flex;justify-content:' + (agent ? 'flex-start' : 'flex-end') }, [
         el('p', {
           class: 'mk-bulle', 'data-zone': agent ? 'bulleAgent' : 'bulleVisiteur', texte: texte,
-          style: agent ? 'background:rgba(0,0,0,.06);color:' + ap.texte_fenetre : 'background:' + k.bulles_ecrit + ';color:' + surFond(k.bulles_ecrit),
+          style: agent ? 'background:' + k.bulle_agent + ';color:' + k.bulle_agent_texte : 'background:' + k.bulles_ecrit + ';color:' + k.bulles_ecrit_texte,
         }),
       ]);
       return b;
@@ -689,7 +705,8 @@
 
     function vueAvis(corps) {
       var tete = el('div', { class: 'mk-centre', style: 'gap:8px' });
-      tete.appendChild(el('p', { 'data-zone': 'avisQuestion', style: 'font-weight:600', texte: textes.avis_question }));
+      tete.appendChild(el('p', { 'data-zone': 'avisTitre', style: 'font-weight:600', texte: textes.avis_titre }));
+      tete.appendChild(el('p', { 'data-zone': 'avisQuestion', class: 'mk-petit', style: 'opacity:.75', texte: textes.avis_question }));
       var etoiles = el('div', { class: 'mk-etoiles', role: 'group', 'aria-label': textes.avis_question, 'data-zone': 'etoiles' });
       for (var n = 1; n <= 5; n += 1) {
         (function (n2) {
@@ -729,7 +746,7 @@
           dessiner();
         });
         corps.appendChild(el('label', { class: 'mk-case', 'data-zone': decu ? 'caseRappel' : 'casePublication' }, [
-          caseAvis, el('span', { texte: decu ? FIXE.case_rappel : FIXE.case_publication }),
+          caseAvis, el('span', { texte: decu ? textes.case_rappel : textes.case_publication }),
         ]));
         if (decu && avis.rappel) {
           var nom = el('input', { class: 'mk-saisie', placeholder: FIXE.nom, 'aria-label': FIXE.nom, value: avis.nom, autocomplete: 'name', maxlength: '200' });
@@ -751,7 +768,7 @@
       corps.appendChild(erreur);
       var ligne = el('div', { class: 'mk-ligne' });
       ligne.appendChild(el('button', {
-        type: 'button', 'data-zone': 'avisPasser', texte: textes.fermer, style: 'height:44px;padding:0 16px;opacity:.7',
+        type: 'button', 'data-zone': 'avisPasser', texte: textes.avis_passer, style: 'height:44px;padding:0 16px;opacity:.7',
         onclick: function () { etat = 'merci'; dessiner(); },
       }));
       var envoyer = bouton(textes.avis_envoyer, 'avisEnvoyer', function () {
@@ -770,17 +787,18 @@
     function puce(texte, actif, onclick) {
       return el('button', {
         type: 'button', class: 'mk-puce', 'data-zone': 'choix', texte: texte, 'aria-pressed': actif ? 'true' : 'false', onclick: onclick,
-        style: actif ? 'background:' + k.reponses_choisies + ';color:' + surFond(k.reponses_choisies) + ';border-color:' + k.reponses_choisies : '',
+        style: actif ? 'background:' + k.reponses_choisies + ';color:' + k.reponses_choisies_texte + ';border-color:' + k.reponses_choisies : '',
       });
     }
 
     function vueMerci(corps) {
       corps.appendChild(el('div', { class: 'mk-centre', style: 'padding:8px 0' }, [
         el('span', {
-          'data-zone': 'merciIcone', style: 'width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + k.boutons + ';color:' + surFond(k.boutons),
+          'data-zone': 'merciIcone', style: 'width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + k.boutons + ';color:' + k.boutons_texte,
         }, [icone('valide')]),
         el('p', { 'data-zone': 'merci', style: 'font-weight:600;font-size:18px', texte: textes.merci }),
       ]));
+      if (avis.rappel) corps.appendChild(el('p', { class: 'mk-petit', style: 'text-align:center', texte: FIXE.rappel_merci }));
       corps.appendChild(el('button', {
         type: 'button', 'data-zone': 'fermer', class: 'mk-btn', texte: textes.fermer, onclick: fermer,
         style: 'border:1px solid rgba(0,0,0,.12)',
@@ -1121,11 +1139,21 @@
       if (hote.parentNode) hote.parentNode.removeChild(hote);
     }
 
+    /** Aperçu seulement : de quoi cliquer sur les deux bulles, jamais un échange réel. */
+    function exempleDeFil() {
+      conv.tours = [
+        { assistant_message: { text: FIXE.exemple_agent[0] } },
+        { user_message: { text: FIXE.exemple_visiteur }, assistant_message: { text: FIXE.exemple_agent[1] } },
+      ];
+    }
     function afficher() {
       // Le déclenchement de l'accroche, réglé par le client : tout de suite (délai 0), après un délai, ou au survol.
       dessiner();
       if (apercu) return;
       evenement('affiche');
+      if (ap.declenchement === 'toujours') {
+        if (!accrocheFermee && etat === 'repos' && !ouvert) { etat = 'accroche'; dessiner(); }
+      }
       if (ap.declenchement === 'delai') {
         temporiser(function () {
           if (!accrocheFermee && etat === 'repos' && !ouvert) { etat = 'accroche'; dessiner(); }
@@ -1136,6 +1164,7 @@
       if (options.etat === 'plafond' || options.plafondAtteint) etat = 'plafond';
       if (etat !== 'repos' && etat !== 'accroche') ouvert = true;
       if (etat === 'conversation') conv.mode = options.microRefuse ? 'ecrit' : 'voix';
+      exempleDeFil();
     }
     afficher();
 
@@ -1150,6 +1179,7 @@
         if (!apercu) return;
         if (opts.apparence) { ap = opts.apparence; textes = ap.textes; }
         if (opts.couleurs) k = opts.couleurs;
+        if (opts.modes) modes = opts.modes === 'voix' ? 'voix' : 'voix_et_ecrit';
         if (opts.etat) { etat = opts.etat; ouvert = ['repos', 'accroche'].indexOf(etat) === -1; }
         if (typeof opts.etoiles === 'number') avis.etoiles = opts.etoiles;
         if (opts.microRefuse !== undefined) conv.mode = opts.microRefuse ? 'ecrit' : 'voix';
@@ -1174,6 +1204,9 @@
     avis_question: 'Cette conversation vous a-t-elle aidé ?', avis_envoyer: 'Envoyer mon avis', merci: 'Merci, à bientôt.',
     plafond_message: 'Je ne suis pas disponible pour le moment. Laissez vos coordonnées, vous serez rappelé.',
     plafond_bouton: 'Être rappelé',
+    titre: 'Assistant', avis_titre: 'Donnez votre avis', avis_passer: 'Passer',
+    case_rappel: 'Je souhaite qu’un conseiller me rappelle', case_publication: 'J’accepte que mon avis soit affiché',
+    ecrire: 'Écrire un message',
   };
   function apparenceComplete(brute) {
     var a = brute || {};
@@ -1186,10 +1219,17 @@
   }
   function couleursCompletes(ap, brutes) {
     var base = ap.couleur_base;
-    return Object.assign({
-      rond_accroche: base, fenetre: ap.fond_fenetre, orbe: base, boutons: base, raccrocher: base, champ_saisie: ap.fond_fenetre,
+    var b = brutes || {};
+    var c = Object.assign({
+      rond_accroche: base, fenetre: ap.fond_fenetre, orbe: base, boutons: base, raccrocher: '#dc2626', champ_saisie: ap.fond_fenetre,
       bulles_ecrit: base, etoiles: base, reponses_choisies: base, icones: base,
-    }, brutes || {});
+      bulle_agent: '#f1f1f1', bulle_agent_texte: ap.texte_fenetre, champ_saisie_texte: ap.texte_fenetre,
+    }, b);
+    // Un texte sans couleur propre prend le plus lisible sur son fond (même règle que le serveur).
+    [['rond_accroche_texte', 'rond_accroche'], ['boutons_texte', 'boutons'], ['bulles_ecrit_texte', 'bulles_ecrit'], ['reponses_choisies_texte', 'reponses_choisies']]
+      .forEach(function (p2) { if (!b[p2[0]]) c[p2[0]] = texteSur(c[p2[1]]); });
+    if (!b.raccrocher_texte) c.raccrocher_texte = '#ffffff';
+    return c;
   }
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -1241,6 +1281,7 @@
         base: base, site: p.site, token: config.token, chemin: chemin,
         turnActif: config.turn_enabled, relaisForce: !!config.force_turn_relay, contexte: contexteDeLaPage(el2),
       },
+      modes: config.modes,
     });
   }
 
@@ -1252,7 +1293,7 @@
       var couleurs = couleursCompletes(ap, options.couleurs);
       chargerLesPolices(options.origineStatique || (P && P.url.origin) || location.origin);
       return creerWidget({
-        hote: conteneur, conteneur: true, apparence: ap, couleurs: couleurs, etat: options.etat || 'accroche',
+        hote: conteneur, conteneur: true, apparence: ap, couleurs: couleurs, etat: options.etat || 'accroche', modes: options.modes,
         etoiles: options.etoiles, microRefuse: !!options.microRefuse, plafondAtteint: !!options.plafondAtteint, largeurCadre: options.largeurCadre,
       });
     },

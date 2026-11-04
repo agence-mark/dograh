@@ -6,7 +6,7 @@
  * | visibilité | l'onglet n'existe que pour un agent dont le canal est le site |
  * | adresse | `/agents/<id>/site` est l'onglet Site |
  * | résumé | le site, ses pages, le script détecté et l'état viennent du serveur |
- * | même éditeur | « Configurer le module » monte `PanneauSite`, celui de l'écran « Intégrer » |
+ * | même éditeur | « Configurer le module » monte `EditeurWidget`, l'éditeur de la maquette, le même que celui de l'écran « Intégrer » |
  * | téléphone | un agent téléphonique ne montre rien à configurer |
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -22,14 +22,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: "a@b.c" } }) }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("../agent/MenuMembre", () => ({ MenuMembre: () => null }));
-vi.mock("./PanneauSite", () => ({ PanneauSite: ({ workflowId }: { workflowId: number }) => <div data-testid="panneau-site">{workflowId}</div> }));
-vi.mock("@/components/ui/dialog", () => ({
-    Dialog: ({ open, children }: { open: boolean; children: ReactNode }) => (open ? <div>{children}</div> : null),
-    DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    DialogDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
-    DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-}));
+vi.mock("./EditeurWidget", () => ({ EditeurWidget: ({ workflowId }: { workflowId: number }) => <div data-testid="editeur-widget">{workflowId}</div> }));
 
 import { adresseOnglet, ongletDeAdresse } from "../agent/onglets-agent";
 import { OngletsAgent } from "../agent/OngletsAgent";
@@ -67,9 +60,9 @@ describe("l'onglet Site", () => {
         expect((await screen.findByText("site_abc")).textContent).toBe("site_abc");
         expect(document.querySelector("[data-chemins]")?.textContent).toBe("/, /contact");
         expect(document.querySelector("[data-etat]")?.textContent).toMatch(/Actif|Active/);
-        expect(screen.queryByTestId("panneau-site")).toBeNull();
+        expect(screen.queryByTestId("editeur-widget")).toBeNull();
         fireEvent.click(screen.getByTestId("configurer-module"));
-        expect(screen.getByTestId("panneau-site").textContent).toBe("7");
+        expect(screen.getByTestId("editeur-widget").textContent).toBe("7");
     });
 
     it("ne propose rien à configurer pour un agent téléphonique", async () => {
