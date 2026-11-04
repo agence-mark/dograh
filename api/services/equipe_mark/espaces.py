@@ -16,7 +16,11 @@ from loguru import logger
 
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
-from api.services.equipe_mark.acces import organisation_est_ouverte
+from api.services.equipe_mark.acces import (
+    acces_de,
+    est_par_cle_api,
+    organisation_est_ouverte,
+)
 
 DUREE_CACHE_S = 30.0
 NOM_MAX = 120
@@ -80,13 +84,16 @@ async def synchroniser_appartenances(user) -> set[int]:
     """Aligne les appartenances d'un compte de l'équipe sur ce que son rôle ouvre ; rend les organisations visibles.
 
     Il rejoint celles que le rôle ouvre (une organisation créée après lui comprise) et quitte celles qu'il n'ouvre
-    plus. Un compte sans rôle d'équipe garde ses appartenances telles quelles.
+    plus. Un compte sans rôle d'équipe garde ses appartenances telles quelles. Une clé d'API ne voit que SON organisation
+    et ne touche à aucune appartenance de son créateur (B1).
     """
+    if est_par_cle_api(user):
+        return {user.selected_organization_id} if user.selected_organization_id is not None else set()
     await rafraichir_labo()
     from api.services.builder.constantes import organisation_bibliotheque
 
     labo_id = organisation_bibliotheque()
-    acces = await db_client.acces_du_compte(user.id)
+    acces = await acces_de(user)
     deja = set(await db_client.organisations_du_compte(user.id))
     if acces is None:
         return deja

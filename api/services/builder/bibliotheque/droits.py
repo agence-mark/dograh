@@ -12,6 +12,11 @@ from api.services.builder.constantes import organisation_bibliotheque
 
 
 async def est_membre_de_l_equipe(user) -> bool:
+    """Une clé d'API n'est jamais l'équipe, même créée par un membre (revue serveur B1)."""
+    from api.services.equipe_mark.acces import est_par_cle_api
+
+    if est_par_cle_api(user):
+        return False
     org = organisation_bibliotheque()
     if org is None or getattr(user, "id", None) is None:
         return False

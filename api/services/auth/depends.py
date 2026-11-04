@@ -54,6 +54,9 @@ async def get_user(
     elle ne rend que le compte, comme en amont.
     """
     user = await _get_user_brut(authorization, x_api_key, x_mark_auteur)
+    # Revue serveur B1 : une requête par clé n'a jamais le rôle d'équipe du créateur (``equipe_mark/acces``). Posé à
+    # chaque requête, dans les deux sens : un même objet de compte peut servir deux requêtes.
+    user.par_cle_api = bool(x_api_key)
     if connexion is not None:
         from api.services.equipe_mark.acces import appliquer_acces
 

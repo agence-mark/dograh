@@ -11,6 +11,10 @@ Appelé par ``get_user`` à CHAQUE requête authentifiée (``services/auth/depen
 4. le geste d'écriture qui exige une permission est écrit au journal (qui, quoi, quel espace, quand).
 
 Un compte sans rôle d'équipe n'a que les routes ``MEMBRE`` de ses propres organisations.
+
+Une requête par clé d'API est marquée ``user.par_cle_api`` : elle n'a JAMAIS le rôle d'équipe de la personne qui a créé
+la clé (revue serveur B1). ``acces_de``, ``synchroniser_appartenances``, ``lister_espaces``, la liste des organisations
+et ``est_membre_de_l_equipe`` le respectent ; les routes ``/espaces`` lui sont fermées.
 """
 
 from __future__ import annotations
@@ -33,6 +37,19 @@ ENTETE_ORGANISATION = "X-Mark-Organisation"
 PREFIXE_API = "/api/v1"
 PERMISSIONS_JAMAIS_PAR_CLE = frozenset({"equipe.gerer", "roles.gerer", "clients.creer", "atelier.regler"})
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/")
+# Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
+ROUTES_FERMEES_AUX_CLES = ("/espaces",)
+
+
+def est_par_cle_api(user) -> bool:
+    return bool(getattr(user, "par_cle_api", False))
+
+
+async def acces_de(user) -> AccesCompte | None:
+    """Le rôle d'équipe du compte de la requête ; ``None`` pour une clé d'API, quel que soit le rôle de son créateur."""
+    if est_par_cle_api(user):
+        return None
+    return await db_client.acces_du_compte(user.id)
 
 
 def organisation_est_ouverte(acces: AccesCompte, organization_id: int, labo_id: int | None) -> bool:
@@ -87,7 +104,11 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
 
     await rafraichir_labo()  # le Labo marqué en base (cache court) ; le repli par variable ne sert que sans marquage
     labo_id = organisation_bibliotheque()
-    acces = await db_client.acces_du_compte(user.id)
+    # Une clé d'API est un accès de machine à UNE organisation, sans rôle d'équipe (B1) : marqué avant toute lecture
+    # (attribut en mémoire, hors des colonnes : jamais écrit en base), posé à CHAQUE requête dans les deux sens, car un
+    # même objet de compte peut servir deux requêtes (carte d'identité d'une session partagée).
+    user.par_cle_api = bool(par_cle_api)
+    acces = await acces_de(user)
     brut = (connexion.headers.get(ENTETE_ORGANISATION) or "").strip()
 
     if par_cle_api:
@@ -111,6 +132,8 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     if position is None:
         return
     methode, chemin = position
+    if par_cle_api and any(chemin == r or chemin.startswith(r + "/") for r in ROUTES_FERMEES_AUX_CLES):
+        raise HTTPException(status_code=403, detail="Not available to an API key")
     trouvee = decision_de(methode, chemin)
     if trouvee is None:
         logger.error(f"Route without permission decision: {methode} {chemin}")
