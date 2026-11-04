@@ -5175,6 +5175,52 @@ export type DemandeTestMcp = {
 };
 
 /**
+ * DepenseDesRoles
+ */
+export type DepenseDesRoles = {
+    /**
+     * Mois
+     *
+     * First day of the month (UTC), ISO date.
+     */
+    mois: string;
+    appelant: DepenseDuRole;
+    juge: DepenseDuRole;
+};
+
+/**
+ * DepenseDuRole
+ *
+ * Partie 3, lot 12 (SE-23) : ce qu'un rôle a dépensé ce mois-ci, face à son budget.
+ */
+export type DepenseDuRole = {
+    /**
+     * Appels
+     */
+    appels?: number;
+    /**
+     * Jetons
+     */
+    jetons?: number;
+    /**
+     * Cout
+     */
+    cout?: number;
+    /**
+     * Budget Mois
+     */
+    budget_mois?: number;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+    /**
+     * Atteint
+     */
+    atteint?: boolean;
+};
+
+/**
  * DeploiementProgressif
  */
 export type DeploiementProgressif = {
@@ -10021,6 +10067,16 @@ export type MistralTtsConfiguration = {
 };
 
 /**
+ * ModeDesModeles
+ */
+export type ModeDesModeles = {
+    /**
+     * Mode
+     */
+    mode: 'pipeline' | 'realtime';
+};
+
+/**
  * ModelConfigurationMetricPrice
  */
 export type ModelConfigurationMetricPrice = {
@@ -14698,6 +14754,18 @@ export type RoleSimule = {
      * Temperature
      */
     temperature?: number;
+    /**
+     * Actif
+     *
+     * Switch: a switched-off role makes no call to its model.
+     */
+    actif?: boolean;
+    /**
+     * Budget Mois
+     *
+     * Monthly budget of this role (price table currency); 0 = no cap.
+     */
+    budget_mois?: number;
 };
 
 /**
@@ -29337,6 +29405,49 @@ export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses = {
 
 export type SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponse = SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses[keyof SaveReglagesAppelantSimuleApiV1AppelSimuleReglagesPutResponses];
 
+export type GetDepenseDesRolesApiV1AppelSimuleDepenseGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/appel-simule/depense';
+};
+
+export type GetDepenseDesRolesApiV1AppelSimuleDepenseGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDepenseDesRolesApiV1AppelSimuleDepenseGetError = GetDepenseDesRolesApiV1AppelSimuleDepenseGetErrors[keyof GetDepenseDesRolesApiV1AppelSimuleDepenseGetErrors];
+
+export type GetDepenseDesRolesApiV1AppelSimuleDepenseGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DepenseDesRoles;
+};
+
+export type GetDepenseDesRolesApiV1AppelSimuleDepenseGetResponse = GetDepenseDesRolesApiV1AppelSimuleDepenseGetResponses[keyof GetDepenseDesRolesApiV1AppelSimuleDepenseGetResponses];
+
 export type GetScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGetData = {
     body?: never;
     headers?: {
@@ -39560,6 +39671,49 @@ export type GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2P
 };
 
 export type GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponse = GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses[keyof GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetResponses];
+
+export type SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutData = {
+    body: ModeDesModeles;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/model-configurations/v2/mode';
+};
+
+export type SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutError = SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutErrors[keyof SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutErrors];
+
+export type SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrganizationAiModelConfigurationResponse;
+};
+
+export type SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutResponse = SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutResponses[keyof SwitchModelConfigurationV2ModeApiV1OrganizationsModelConfigurationsV2ModePutResponses];
 
 export type PreviewModelConfigurationV2MigrationApiV1OrganizationsModelConfigurationsV2MigrationPreviewGetData = {
     body?: never;
