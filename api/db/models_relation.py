@@ -127,5 +127,7 @@ class MarkRelationEntreeModel(Base):
     cree_le = Column(DateTime(timezone=True), nullable=False, default=_maintenant)
     expire_le = Column(DateTime(timezone=True), nullable=False)
     utilise_le = Column(DateTime(timezone=True), nullable=True)
+    # V4 : la sortie, dite par le portail du client ; la durée de la visite est ``fin_le - utilise_le``.
+    fin_le = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_mark_relation_entrees_org", "organization_id", "id"),)

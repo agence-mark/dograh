@@ -25,6 +25,7 @@ const sdk = vi.hoisted(() => ({
     entree: vi.fn(),
     supprimer: vi.fn(),
     equipe: vi.fn(),
+    entrees: vi.fn(),
 }));
 const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 vi.mock("@/client/sdk.gen", () => ({
@@ -38,7 +39,7 @@ vi.mock("@/client/sdk.gen", () => ({
     avisEtTemoignagesApiV1RelationAvisGet: sdk.avis,
     ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: sdk.entree,
     monProfilApiV1EquipeMarkMoiGet: () => Promise.resolve({ data: { prenom: "Evan" }, error: undefined }),
-    listerEntreesApiV1RelationEntreesGet: () => ok([]),
+    listerEntreesApiV1RelationEntreesGet: () => sdk.entrees(),
     listerNotesApiV1RelationClientsOrganizationIdNotesGet: () => ok([]),
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost: vi.fn(),
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete: vi.fn(),
@@ -59,7 +60,7 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { AccueilRelation, EcranAvis, EcranMessages, FicheClient } from "./EcransRelation";
+import { AccueilRelation, EcranAvis, EcranEntrees, EcranMessages, FicheClient } from "./EcransRelation";
 import { oublierLectureClients } from "./lecture-clients";
 
 const maintenant = new Date().toISOString();
@@ -194,6 +195,26 @@ describe("Messages", () => {
         fireEvent.click(screen.getByRole("button", { name: "Clore" }));
         await waitFor(() => expect(sdk.modifier).toHaveBeenCalled());
         expect(sdk.modifier.mock.calls[0][0]).toMatchObject({ path: { organization_id: 7, fil_id: 1 }, body: { etat: "clos" } });
+    });
+});
+
+beforeEach(() => {
+    sdk.entrees.mockImplementation(() => ok([]));
+});
+
+describe("Entrées dans les portails (V4)", () => {
+    it("dit la durée de la visite quand le portail a dit la sortie, rien d'inventé quand il ne l'a pas dite", async () => {
+        const il_y_a = (min: number) => new Date(Date.now() - min * 60000).toISOString();
+        sdk.entrees.mockImplementation(() =>
+            ok([
+                { id: 1, organization_id: 7, client: "Nuances de Feu", auteur: "Evan", motif: "Vérifier l'alerte", cree_le: il_y_a(30), utilise_le: il_y_a(29), fin_le: il_y_a(25), duree_secondes: 252 },
+                { id: 2, organization_id: 7, client: "Nuances de Feu", auteur: "Pierre", motif: "Réglage", cree_le: il_y_a(20), utilise_le: il_y_a(19), fin_le: null, duree_secondes: null },
+            ]),
+        );
+        avec(<EcranEntrees />);
+        const duree = await screen.findByText(/4 min 12 s/);
+        expect(duree.getAttribute("data-duree-visite")).toBe("252");
+        expect(document.querySelectorAll("[data-duree-visite]")).toHaveLength(1);
     });
 });
 

@@ -427,6 +427,13 @@ function NotesClient({ organisation }: { organisation: number }) {
 }
 
 // ---------------------------------------------------------------------- Entrées dans les portails
+/** V4 : la durée d'une visite, mesurée à la sortie dite par le portail : « 45 s », « 4 min 12 s », « 1 h 05 ». */
+export function dureeDeVisite(secondes: number): string {
+    if (secondes < 60) return `${secondes} s`;
+    if (secondes < 3600) return `${Math.floor(secondes / 60)} min ${String(secondes % 60).padStart(2, "0")} s`;
+    return `${Math.floor(secondes / 3600)} h ${String(Math.floor((secondes % 3600) / 60)).padStart(2, "0")}`;
+}
+
 function ListeEntrees({ client }: { client?: string }) {
     const { t } = useLangue();
     const { donnees, etat, recharger } = useCharge(() => listerEntreesApiV1RelationEntreesGet());
@@ -457,7 +464,10 @@ function ListeEntrees({ client }: { client?: string }) {
                                     </p>
                                     <p className="mt-0.5 truncate text-sm font-medium">{e.motif ?? ""}</p>
                                 </div>
-                                <span className="shrink-0 text-xs text-muted-foreground">{e.utilise_le ? `${t({ en: "Used", fr: "Utilisé" })} ${quand(e.utilise_le)}` : t({ en: "Not used", fr: "Non utilisé" })}</span>
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                    {e.utilise_le ? `${t({ en: "Used", fr: "Utilisé" })} ${quand(e.utilise_le)}` : t({ en: "Not used", fr: "Non utilisé" })}
+                                    {e.duree_secondes != null && <span data-duree-visite={e.duree_secondes}> · {dureeDeVisite(e.duree_secondes)}</span>}
+                                </span>
                                 <span className="w-28 shrink-0 text-right text-xs text-muted-foreground">{quand(e.cree_le)}</span>
                             </div>
                         ))}

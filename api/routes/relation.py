@@ -133,6 +133,9 @@ class EntreeOut(BaseModel):
     motif: str | None
     cree_le: datetime
     utilise_le: datetime | None
+    # V4 : la sortie dite par le portail, et la durée de la visite (``None`` tant que le portail ne l'a pas dite).
+    fin_le: datetime | None = None
+    duree_secondes: int | None = None
 
 
 class ClientOut(BaseModel):

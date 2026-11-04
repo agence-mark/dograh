@@ -444,6 +444,29 @@ class RelationClient(BaseDBClient):
             await session.commit()
             return {"id": ligne[0], "auteur": ligne[1], "motif": ligne[2]} if ligne else None
 
+    async def terminer_entree_relation(
+        self, organization_id: int, entree_id: int, maintenant: datetime
+    ) -> dict[str, Any] | None:
+        """V4 : la sortie d'une entrée d'UNE organisation, déjà utilisée et pas encore terminée (la première sortie dite compte,
+        une seconde ne change rien). ``None`` : inconnue, d'un autre client, jamais utilisée, ou déjà terminée."""
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                update(MarkRelationEntreeModel)
+                .where(
+                    MarkRelationEntreeModel.id == entree_id,
+                    MarkRelationEntreeModel.organization_id == organization_id,
+                    MarkRelationEntreeModel.utilise_le.is_not(None),
+                    MarkRelationEntreeModel.fin_le.is_(None),
+                )
+                .values(fin_le=maintenant)
+                .returning(MarkRelationEntreeModel.utilise_le, MarkRelationEntreeModel.fin_le)
+            )
+            ligne = resultat.first()
+            await session.commit()
+            if not ligne:
+                return None
+            return {"utilise_le": ligne[0], "fin_le": ligne[1], "duree_secondes": max(0, int((ligne[1] - ligne[0]).total_seconds()))}
+
     async def lister_entrees_relation(
         self, organisations: Iterable[int], limite: int = 200
     ) -> list[dict[str, Any]]:
@@ -467,6 +490,8 @@ class RelationClient(BaseDBClient):
                     "motif": e.motif,
                     "cree_le": e.cree_le,
                     "utilise_le": e.utilise_le,
+                    "fin_le": e.fin_le,
+                    "duree_secondes": max(0, int((e.fin_le - e.utilise_le).total_seconds())) if e.fin_le and e.utilise_le else None,
                 }
                 for e in lignes
             ]

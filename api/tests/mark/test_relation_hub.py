@@ -274,3 +274,35 @@ async def test_un_fil_se_confie_a_un_membre_de_l_equipe_et_pas_a_n_importe_qui(d
         assert (await c.get(f"{R}/clients/{a}/fils/{fil['id']}", headers=h)).json()["suivi_par"] == collegue.id
         # Un client que le compte n'ouvre pas : 404, même avec un membre valide.
         assert (await c.patch(f"{R}/clients/999999/fils/{fil['id']}", json={"suivi_par": collegue.id}, headers=h)).status_code == 404
+
+
+async def test_la_duree_d_une_visite_se_mesure_a_la_sortie_dite_par_le_portail(db_session):
+    # V4 : « durée de la visite » = sortie (dite par le portail) moins entrée ; une seule fois, pour CE client seulement.
+    a, b, admin, jeton = await _monde(db_session, "duree")
+    cle_a = await _cle(db_session, a, admin.id)
+    cle_b = await _cle(db_session, b, admin.id)
+    async with client_http() as c:
+        h = entetes(jeton)
+        lien = (await c.post(f"{R}/clients/{a}/entree", json={"motif": "Vérifier"}, headers=h)).json()
+        fin = f"{P}/entree/{lien['entree_id']}/fin"
+        # Jamais entrée : pas de sortie à dire.
+        assert (await c.post(fin, headers=cle_a)).status_code == 404
+        assert (await c.post(f"{P}/entree/verifier", json={"jeton": lien["jeton"]}, headers=cle_a)).status_code == 200
+        # La visite a commencé il y a 4 minutes (on recule l'entrée en base : la mesure se lit sur des instants réels).
+        async with db_client.async_session() as session:
+            await session.execute(
+                text("UPDATE mark_relation_entrees SET utilise_le = now() - interval '4 minutes' WHERE id = :i"), {"i": lien["entree_id"]}
+            )
+            await session.commit()
+        sans_duree = next(e for e in (await c.get(f"{R}/entrees", headers=h)).json() if e["id"] == lien["entree_id"])
+        assert sans_duree["fin_le"] is None and sans_duree["duree_secondes"] is None
+        # Le portail d'un AUTRE client ne peut pas terminer cette visite, ni une session.
+        assert (await c.post(fin, headers=cle_b)).status_code == 404
+        assert (await c.post(fin, headers=h)).status_code == 403
+        ok = await c.post(fin, headers=cle_a)
+        assert ok.status_code == 200, ok.text
+        assert 235 <= ok.json()["duree_secondes"] <= 260
+        # Dite une seconde fois : refusée, la durée ne bouge pas.
+        assert (await c.post(fin, headers=cle_a)).status_code == 404
+        mesuree = next(e for e in (await c.get(f"{R}/entrees", headers=h)).json() if e["id"] == lien["entree_id"])
+        assert mesuree["duree_secondes"] == ok.json()["duree_secondes"] and mesuree["fin_le"] is not None

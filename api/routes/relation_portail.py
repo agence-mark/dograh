@@ -11,7 +11,7 @@ sur un client et les témoignages n'ont pas de route ici.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -149,3 +149,17 @@ async def verifier_entree(corps: VerifierIn, user: UserModel = Depends(portail))
     if entree is None:
         raise HTTPException(status_code=403, detail="Invalid or expired entry link")
     return EntreeVerifiee(entree_id=entree["id"], auteur=entree["auteur"], motif=entree["motif"])
+
+
+class EntreeTerminee(BaseModel):
+    duree_secondes: int
+
+
+@router.post("/entree/{entree_id}/fin", response_model=EntreeTerminee)
+async def terminer_entree(entree_id: int, user: UserModel = Depends(portail)) -> EntreeTerminee:
+    """V4 : le portail dit que la personne de .mark est sortie. Une seule fois, pour CE client seulement : la durée de la visite
+    (``fin - entrée``) se lit ensuite dans le Hub. Inconnue, d'un autre client, jamais entrée ou déjà terminée : 404, sans dire laquelle."""
+    fin = await db_client.terminer_entree_relation(user.selected_organization_id, entree_id, datetime.now(UTC))
+    if fin is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return EntreeTerminee(duree_secondes=fin["duree_secondes"])
