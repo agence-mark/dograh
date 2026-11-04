@@ -70,6 +70,8 @@ def _site_lu(site) -> SiteLu:
 
 
 def _domaines_propres(domaines: list[str]) -> list[str]:
+    """Les domaines nettoyés. Revue serveur, mineur 4 : au moins un domaine, jamais une liste vide (un site sans domaine
+    s'ouvrirait à toute origine)."""
     propres = []
     for d in domaines:
         d = str(d).strip().lower()
@@ -77,6 +79,8 @@ def _domaines_propres(domaines: list[str]) -> list[str]:
             raise HTTPException(status_code=422, detail=f"Invalid domain: {d[:60]!r}")
         if d not in propres:
             propres.append(d)
+    if not propres:
+        raise HTTPException(status_code=422, detail="At least one domain is needed")
     return propres
 
 

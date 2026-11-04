@@ -182,7 +182,9 @@ async def creer_depuis_un_run(
 ) -> TestRejouable:
     """Lit le run (organisation vérifiée) et rend le test. Ne modifie rien en base."""
     valider_critere(critere)
-    run, organisation_du_run = await db_client.get_workflow_run_with_context(run_id)
+    run, organisation_du_run = await db_client.get_workflow_run_with_context(
+        run_id, organization_id=organisation_id
+    )
     # Un run d'une autre organisation est traité comme introuvable (pas de fuite d'existence).
     if run is None or organisation_du_run != organisation_id:
         raise ErreurTestRejouable(

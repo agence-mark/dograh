@@ -57,6 +57,7 @@ from api.services.site_mark.contexte_public import (
     filtrer_contexte_public,
 )
 from api.services.site_mark.demarrage import annotation_du_widget
+from api.services.site_mark.adresse import adresse_du_visiteur
 from api.services.site_mark.limite_ip import autoriser_session
 from api.services.site_mark.reglages import ReglagesMark
 from api.services.workflow.text_chat_session_service import (
@@ -390,7 +391,7 @@ async def initialize_embed_session(
     reglages_mark = ReglagesMark.depuis(embed_token.reglages_mark)
     if not await autoriser_session(
         embed_token.id,
-        request.client.host if request.client else None,
+        adresse_du_visiteur(request),
         reglages_mark.sessions_par_heure_et_ip,
     ):
         raise HTTPException(
@@ -474,6 +475,8 @@ async def initialize_embed_session(
             )
     except Exception as e:
         logger.error(f"Failed to create workflow run: {e}")
+        # [.mark] Revue serveur, mineur 2 : la place réservée sur le plafond du mois est rendue (aucune conversation n'a eu lieu).
+        await plafond.rendre(embed_token.id)
         raise HTTPException(status_code=500, detail="Failed to create workflow run")
 
     # Generate session token
@@ -485,13 +488,14 @@ async def initialize_embed_session(
             session_token=session_token,
             embed_token_id=embed_token.id,
             workflow_run_id=workflow_run.id,
-            client_ip=request.client.host if request.client else None,
+            client_ip=adresse_du_visiteur(request),
             user_agent=request.headers.get("user-agent", "")[:500],
             origin=origin[:255],
             expires_at=datetime.now(UTC) + timedelta(hours=1),  # 1 hour expiry
         )
     except Exception as e:
         logger.error(f"Failed to create embed session: {e}")
+        await plafond.rendre(embed_token.id)
         raise HTTPException(status_code=500, detail="Failed to create session")
 
     # For chat widgets, seed the text session and run the greeting turn
@@ -507,6 +511,7 @@ async def initialize_embed_session(
             workflow_run_id=workflow_run.id,
         )
         if not quota_result.has_quota:
+            await plafond.rendre(embed_token.id)
             raise HTTPException(
                 status_code=402, detail="The agent is unavailable right now"
             )

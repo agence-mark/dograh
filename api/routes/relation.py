@@ -21,9 +21,14 @@ from pydantic import BaseModel, Field
 from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user
+from api.services.equipe_mark.acces import journaliser
 from api.services.relation import hub
 
 router = APIRouter(prefix="/relation", tags=["relation"])
+
+# Revue serveur M9 : les bases des clients se lisent cinq à la fois, chacune avec son délai (une base lente ne bloque pas la page).
+LECTURES_EN_PARALLELE = 5
+DELAI_LECTURE_BASE_S = 5.0
 
 Etat = Literal["nouveau", "en_cours", "repondu", "clos"]
 EtatDemande = Literal["nouvelle", "proposee", "a_coder", "refusee"]
@@ -250,6 +255,8 @@ async def repondre(
     )
     if message is None:
         raise HTTPException(status_code=404, detail="Thread not found")
+    # Revue serveur, mineur 8 : un geste d'écriture du Hub est écrit au journal (qui, quoi, quel client) ; jamais le texte.
+    await journaliser(user, "relation.message", organization_id, {"fil_id": fil_id, "cote": corps.cote})
     return MessageOut(**message)
 
 
@@ -286,6 +293,7 @@ async def modifier_fil(
         raise HTTPException(status_code=422, detail="Nothing to change")
     if not await db_client.modifier_fil_relation(organization_id, fil_id, champs):
         raise HTTPException(status_code=404, detail="Thread not found")
+    await journaliser(user, "relation.fil_modifie", organization_id, {"fil_id": fil_id, "champs": sorted(champs)})
 
 
 # ---------------------------------------------------------------------- notes sur un client
@@ -299,6 +307,7 @@ async def lister_notes(organization_id: int, user: UserModel = Depends(membre)) 
 async def ajouter_note(organization_id: int, corps: NoteIn, user: UserModel = Depends(membre)) -> NoteOut:
     await hub.client_ouvert(user, organization_id)
     note = await db_client.ajouter_note_relation(organization_id, await hub.nom_du_membre(user), corps.texte.strip())
+    await journaliser(user, "relation.note_ajoutee", organization_id)
     return NoteOut(**note)
 
 
@@ -307,6 +316,7 @@ async def supprimer_note(organization_id: int, note_id: int, user: UserModel = D
     await hub.client_ouvert(user, organization_id)
     if not await db_client.supprimer_note_relation(organization_id, note_id):
         raise HTTPException(status_code=404, detail="Note not found")
+    await journaliser(user, "relation.note_supprimee", organization_id, {"note_id": note_id})
 
 
 # ---------------------------------------------------------------------- avis et témoignages
@@ -314,9 +324,19 @@ async def supprimer_note(organization_id: int, note_id: int, user: UserModel = D
 async def avis_et_temoignages(user: UserModel = Depends(membre)) -> list[AvisClient]:
     noms = await hub.clients_ouverts(user)
     temoignages = await db_client.lister_temoignages_relation(noms)
+    trie = sorted(noms.items(), key=lambda p: p[1].lower())
+    porte = asyncio.Semaphore(LECTURES_EN_PARALLELE)
+
+    async def lire(organisation: int) -> dict:
+        async with porte:
+            try:
+                return await asyncio.wait_for(hub.stats_avis(organisation), timeout=DELAI_LECTURE_BASE_S)
+            except Exception:  # noqa: BLE001 : une base lente ou en panne n'a pas d'avis à afficher, la page s'ouvre quand même
+                return {"note": None, "avis": 0}
+
+    lues = await asyncio.gather(*(lire(i) for i, _ in trie))
     sortie = []
-    for i, nom in sorted(noms.items(), key=lambda p: p[1].lower()):
-        stats = await hub.stats_avis(i)
+    for (i, nom), stats in zip(trie, lues, strict=True):
         sortie.append(
             AvisClient(
                 organization_id=i,
@@ -334,11 +354,11 @@ async def ajouter_temoignage(
     organization_id: int, corps: TemoignageIn, user: UserModel = Depends(membre)
 ) -> TemoignageOut:
     await hub.client_ouvert(user, organization_id)
-    return TemoignageOut(
-        **await db_client.ajouter_temoignage_relation(
-            organization_id, corps.texte.strip(), corps.auteur.strip(), corps.accord
-        )
+    temoignage = await db_client.ajouter_temoignage_relation(
+        organization_id, corps.texte.strip(), corps.auteur.strip(), corps.accord
     )
+    await journaliser(user, "relation.temoignage_ajoute", organization_id, {"accord": corps.accord})
+    return TemoignageOut(**temoignage)
 
 
 @router.patch("/clients/{organization_id}/temoignages/{temoignage_id}", status_code=204)
@@ -348,6 +368,9 @@ async def regler_accord(
     await hub.client_ouvert(user, organization_id)
     if not await db_client.regler_accord_temoignage_relation(organization_id, temoignage_id, corps.accord):
         raise HTTPException(status_code=404, detail="Testimonial not found")
+    await journaliser(
+        user, "relation.temoignage_accord", organization_id, {"temoignage_id": temoignage_id, "accord": corps.accord}
+    )
 
 
 @router.delete("/clients/{organization_id}/temoignages/{temoignage_id}", status_code=204)
@@ -355,6 +378,7 @@ async def supprimer_temoignage(organization_id: int, temoignage_id: int, user: U
     await hub.client_ouvert(user, organization_id)
     if not await db_client.supprimer_temoignage_relation(organization_id, temoignage_id):
         raise HTTPException(status_code=404, detail="Testimonial not found")
+    await journaliser(user, "relation.temoignage_supprime", organization_id, {"temoignage_id": temoignage_id})
 
 
 # ---------------------------------------------------------------------- entrées dans les portails

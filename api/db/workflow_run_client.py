@@ -442,16 +442,19 @@ class WorkflowRunClient(BaseDBClient):
         return run
 
     async def get_workflow_run_with_context(
-        self, workflow_run_id: int
+        self, workflow_run_id: int, organization_id: int | None = None
     ) -> Tuple[Optional[WorkflowRunModel], Optional[int]]:
         """
         Get workflow run with all related data and return organization_id.
+
+        [.mark] Revue serveur, mineur 6 : avec ``organization_id``, le filtre est DANS la requête (un run d'une autre organisation
+        n'est jamais lu, ni comparé après coup) ; sans lui, c'est la lecture système sans portée (tâches de fond).
 
         Returns:
             Tuple of (workflow_run, organization_id) or (None, None) if not found
         """
         async with self.async_session() as session:
-            result = await session.execute(
+            requete = (
                 select(WorkflowRunModel)
                 .options(
                     selectinload(WorkflowRunModel.definition),
@@ -462,6 +465,11 @@ class WorkflowRunClient(BaseDBClient):
                 )
                 .where(WorkflowRunModel.id == workflow_run_id)
             )
+            if organization_id is not None:
+                requete = requete.join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id).where(
+                    WorkflowModel.organization_id == organization_id
+                )
+            result = await session.execute(requete)
             workflow_run = result.scalars().first()
 
             if not workflow_run:

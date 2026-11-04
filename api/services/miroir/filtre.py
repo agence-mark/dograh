@@ -5,7 +5,7 @@ hook modifié, une clé mal posée, une autre source). Les deux filtres suivent 
 (``scripts/claude-code/tests/vecteurs-filtre.json``) les contrôlent côté Node et côté Python.
 
 Ce qui est retiré, sans jamais l'afficher ni le journaliser :
-* les clés et jetons des fournisseurs (``sk-ant-``, ``sk-``, ``AKIA``, ``ghp_``, ``github_pat_``, ``AIza``, ``xox*-``, ``dgr_``), les JWT, les
+* les clés et jetons des fournisseurs (``sk-ant-``, ``sk-``, ``sk_``/``rk_``/``pk_``, ``AKIA``, ``ghp_``, ``github_pat_``, ``AIza``, ``xox*-``, ``dgr_``), les JWT, les
   ``Bearer``, les blocs de clé privée, les mots de passe dans une adresse ;
 * toute valeur affectée à un nom qui dit un secret (``api_key``, ``token``, ``password``, ``secret``...) et toute ligne ``NOM=valeur``
   d'un fichier d'environnement (``.env``) : la valeur est retirée, un bloc de trois lignes ou plus l'est en entier ;
@@ -24,6 +24,11 @@ _SECRETS = (
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)",
     r"sk-ant-[A-Za-z0-9_\-]{8,}",
     r"sk-[A-Za-z0-9_\-]{16,}",
+    # Revue serveur M3 : les clés « préfixe_… » (Stripe sk_live_/rk_live_/pk_live_/sk_org_, Cartesia, ElevenLabs...).
+    r"(?<![A-Za-z0-9])(?:sk|rk|pk)_[A-Za-z0-9_]{16,}",
+    # Règle d'entropie : une suite de 32 caractères alphanumériques ou plus, avec au moins un chiffre ET une lettre, est une clé
+    # (fournisseurs sans préfixe : Deepgram, Mistral, Soniox...). Au prix de retirer aussi quelques empreintes (sha, uuid sans tirets).
+    r"(?<![A-Za-z0-9_\-])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}(?![A-Za-z0-9_\-])",
     r"AKIA[0-9A-Z]{12,}",
     r"gh[pousr]_[A-Za-z0-9]{16,}",
     r"github_pat_[A-Za-z0-9_]{20,}",

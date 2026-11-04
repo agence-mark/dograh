@@ -5,8 +5,8 @@ Revises: b7d3e5a9c102
 
 Chantier builder partie 2, lot C4. ``workflow_runs.note_juge`` : note sur 5 du juge (part des critères réussis parmi ceux qu'il a pu
 vérifier), écrite par l'après-appel et par ``juge_ecrire`` (même fonction, rejuger remplace). Nulle tant que l'appel n'est pas jugé.
-Trois index additifs pour les filtres et tris de la liste des appels : version jouée (``definition_id``), liste d'un agent par date,
-note (partiel : seules les lignes jugées). Réversible.
+Les index des filtres et tris de la liste des appels (version jouée, liste d'un agent par date, note) ne sont plus créés ici : revue
+serveur, mineur 9, ils sont créés sans verrou par ``e6c9a2d4b815`` (``CREATE INDEX CONCURRENTLY``). Réversible.
 """
 
 import sqlalchemy as sa
@@ -22,13 +22,10 @@ TABLE = "workflow_runs"
 
 def upgrade():
     op.add_column(TABLE, sa.Column("note_juge", sa.Float(), nullable=True))
-    op.create_index("idx_workflow_runs_definition_id", TABLE, ["definition_id"])
-    op.create_index("idx_workflow_runs_workflow_created", TABLE, ["workflow_id", "created_at"])
-    op.create_index("idx_workflow_runs_note_juge", TABLE, ["workflow_id", "note_juge"], postgresql_where=sa.text("note_juge IS NOT NULL"))
 
 
 def downgrade():
-    op.drop_index("idx_workflow_runs_note_juge", table_name=TABLE)
-    op.drop_index("idx_workflow_runs_workflow_created", table_name=TABLE)
-    op.drop_index("idx_workflow_runs_definition_id", table_name=TABLE)
+    # Les index ont pu être créés par l'ancienne version de cette migration (bases déjà migrées) : retirés s'ils sont là.
+    for nom in ("idx_workflow_runs_note_juge", "idx_workflow_runs_workflow_created", "idx_workflow_runs_definition_id"):
+        op.execute(f"DROP INDEX IF EXISTS {nom}")
     op.drop_column(TABLE, "note_juge")

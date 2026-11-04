@@ -6,6 +6,8 @@
 //                                                                  (ex. ~/.claude/settings.json), sans toucher à ses autres hooks
 //   node scripts/claude-code/installer.mjs --retirer <fichier>     retire nos hooks de ce fichier
 //
+// Il faut aussi MARK_MIROIR_DOSSIERS (revue M4) : la liste des dossiers dont les sessions sont miroitées, séparés par « ; » sous Windows
+// ou « : » ailleurs. Vide : RIEN ne part (les hooks ne partent jamais pour une session Claude Code hors de ces dossiers).
 // Il faut ensuite deux variables d'environnement (jamais dans le fichier de réglages) : MARK_FORK_URL (ex. https://.../api/v1) et
 // MARK_MCP_KEY (la clé MCP de la personne). Puis allumer « Miroir de mes conversations Claude Code » dans Réglages › Sources.
 // Idempotent : relancé, il ne double rien (nos entrées se reconnaissent à leur marque `mark-fork-miroir`).
@@ -19,6 +21,11 @@ const ICI = dirname(fileURLToPath(import.meta.url));
 function commande(script) {
     // `# marque` : un commentaire de shell qui reconnaît nos entrées sans rien changer à la commande.
     return `node "${join(ICI, script).replaceAll("\\", "/")}" # ${MARQUE}`;
+}
+
+/** Les réglages affichés : les hooks, et la liste des dossiers autorisés à remplir (revue M4, vide = rien ne part). */
+export function blocAffiche() {
+    return { hooks: blocDesHooks(), env: { MARK_MIROIR_DOSSIERS: "" } };
 }
 
 /** Le bloc `hooks` à poser. */
@@ -67,12 +74,12 @@ function principal(argv) {
     const [option, fichier] = argv;
     if (option === "--ecrire" && fichier) {
         ecrire(fichier, fusionner(lire(fichier)));
-        console.log(`Hooks posés dans ${fichier} (copie : ${fichier}.avant-mark). Pensez à MARK_FORK_URL et MARK_MCP_KEY.`);
+        console.log(`Hooks posés dans ${fichier} (copie : ${fichier}.avant-mark). Pensez à MARK_FORK_URL, MARK_MCP_KEY et MARK_MIROIR_DOSSIERS (les dossiers miroités ; vide = rien ne part).`);
     } else if (option === "--retirer" && fichier) {
         ecrire(fichier, retirer(lire(fichier)));
         console.log(`Hooks .mark retirés de ${fichier} (copie : ${fichier}.avant-mark).`);
     } else {
-        console.log(JSON.stringify({ hooks: blocDesHooks() }, null, 2));
+        console.log(JSON.stringify(blocAffiche(), null, 2));
     }
 }
 

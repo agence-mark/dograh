@@ -188,19 +188,27 @@ class RelationClient(BaseDBClient):
                     )
                 )
             ).scalars().all()
-            sortie = []
-            for f in fils:
-                demande = select(MarkRelationMessageModel).where(
-                    MarkRelationMessageModel.fil_id == f.id,
-                    MarkRelationMessageModel.organization_id == f.organization_id,
+            if not fils:
+                return []
+            # Revue serveur M9 : UNE requête pour le dernier message de tous les fils (DISTINCT ON), jamais une par fil.
+            demande = select(MarkRelationMessageModel).where(
+                MarkRelationMessageModel.fil_id.in_([f.id for f in fils]),
+                MarkRelationMessageModel.organization_id.in_(ids),
+            )
+            if not avec_internes:
+                demande = demande.where(MarkRelationMessageModel.cote != "interne")
+            derniers = (
+                await session.execute(
+                    demande.distinct(MarkRelationMessageModel.fil_id).order_by(
+                        MarkRelationMessageModel.fil_id, MarkRelationMessageModel.id.desc()
+                    )
                 )
-                if not avec_internes:
-                    demande = demande.where(MarkRelationMessageModel.cote != "interne")
-                dernier = (
-                    await session.execute(demande.order_by(MarkRelationMessageModel.id.desc()).limit(1))
-                ).scalar_one_or_none()
-                sortie.append({**_fil(f), "dernier": _message(dernier) if dernier else None})
-            return sortie
+            ).scalars().all()
+            par_fil = {(m.fil_id, m.organization_id): m for m in derniers}
+            return [
+                {**_fil(f), "dernier": _message(par_fil[(f.id, f.organization_id)]) if (f.id, f.organization_id) in par_fil else None}
+                for f in fils
+            ]
 
     async def modifier_fil_relation(
         self, organization_id: int, fil_id: int, champs: dict[str, Any]

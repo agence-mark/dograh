@@ -38,7 +38,8 @@ from api.tests.mark.equipe_commun import (  # noqa: F401
 )
 
 B = "/api/v1/builder"
-VECTEURS = json.loads((Path(__file__).parents[3] / "scripts" / "claude-code" / "tests" / "vecteurs-filtre.json").read_text(encoding="utf-8"))
+# Les préfixes de clé y sont coupés par « {{J}} » (retiré ici) : aucun motif de clé en clair dans le dépôt (protection des pushs).
+VECTEURS = json.loads((Path(__file__).parents[3] / "scripts" / "claude-code" / "tests" / "vecteurs-filtre.json").read_text(encoding="utf-8").replace("{{J}}", ""))
 SECRET = "sk-ant-api03-ZZZZZZZZZZZZZZZZ"
 
 

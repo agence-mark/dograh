@@ -13,6 +13,10 @@ const SECRETS = new RegExp(
         "-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)",
         "sk-ant-[A-Za-z0-9_\\-]{8,}",
         "sk-[A-Za-z0-9_\\-]{16,}",
+        // Revue serveur M3 : clés « préfixe_… » (Stripe, Cartesia, ElevenLabs...), puis règle d'entropie (32 caractères alphanumériques
+        // ou plus avec au moins un chiffre ET une lettre : fournisseurs sans préfixe).
+        "(?<![A-Za-z0-9])(?:sk|rk|pk)_[A-Za-z0-9_]{16,}",
+        "(?<![A-Za-z0-9_\\-])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}(?![A-Za-z0-9_\\-])",
         "AKIA[0-9A-Z]{12,}",
         "gh[pousr]_[A-Za-z0-9]{16,}",
         "github_pat_[A-Za-z0-9_]{20,}",

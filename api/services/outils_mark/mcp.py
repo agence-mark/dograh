@@ -60,7 +60,8 @@ async def tester_la_connexion(
         )
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[outils] test de connexion MCP en échec : {type(erreur).__name__}")
-        return {"ok": False, "outils": [], "erreur": f"Connection failed ({type(erreur).__name__})."}
+        # Message générique : le nom de la classe d'erreur dit trop de la machine et du réseau (revue serveur, mineur 1).
+        return {"ok": False, "outils": [], "erreur": "Connection failed."}
     if not outils:
         return {"ok": False, "outils": [], "erreur": "The server did not answer, or exposes no tool."}
     return {"ok": True, "outils": outils, "erreur": None}
