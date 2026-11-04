@@ -97,6 +97,13 @@ describe("le formulaire dans la fenêtre d'un service", () => {
         expect(noms.join(" ")).not.toMatch(/\bspeed\b|\bmodel\b/i);
     });
 
+    it("une organisation vide voit les services à régler en onglets, écrits dans la langue de l'écran", async () => {
+        const { container } = monter({ segments: ["tts", "llm"], initialConfig: {} });
+        await screen.findAllByRole("listbox");
+        const onglets = Array.from(container.querySelectorAll("[role=tab]")).map((o) => o.textContent);
+        expect(onglets).toEqual(["Cerveau", "Voix"]);
+    });
+
     it("sans fenêtre (sans `idFormulaire`), l'ancien formulaire reste : carte, menu déroulant, bouton d'enregistrement", async () => {
         const { container } = monter({ idFormulaire: undefined, sansBoutonEnregistrer: false, segments: undefined });
         await screen.findByText(/^(Provider|Fournisseur)$/);

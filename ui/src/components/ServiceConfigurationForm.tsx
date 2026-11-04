@@ -150,6 +150,15 @@ const VOICE_DISPLAY_NAMES: Record<string, string> = {
     "hitesh": "Hitesh (Male)",
 };
 
+// The tabs of a window that shows several services at once (an organization that has set none yet).
+const ONGLETS_DE_LA_FENETRE: Record<ServiceSegment, { en: string; fr: string }> = {
+    llm: { en: "Brain", fr: "Cerveau" },
+    tts: { en: "Voice", fr: "Voix" },
+    stt: { en: "Transcription", fr: "Transcription" },
+    embeddings: { en: "Embedding", fr: "Plongement" },
+    realtime: { en: "Realtime model", fr: "Modèle temps réel" },
+};
+
 const LIBELLES_COMMUNS: Record<string, { en: string; fr: string }> = {
     model: { en: "Model", fr: "Modèle" },
     voice: { en: "Voice", fr: "Voix" },
@@ -1538,7 +1547,7 @@ export function ServiceConfigurationForm({
                         <TabsList className={segments && visibleTabs.length === 1 ? "hidden" : "grid w-full mb-6"} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
                             {visibleTabs.map(({ key, label }) => (
                                 <TabsTrigger key={key} value={key}>
-                                    {label}
+                                    {idFormulaire ? t(ONGLETS_DE_LA_FENETRE[key]) : label}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
