@@ -39,6 +39,16 @@ describe("sélecteur d'espace", () => {
         expect(document.querySelector("[data-espace='labo']")).not.toBeNull();
     });
 
+    it("SE-1 : aucun libellé « Espace » au-dessus du nom ; « Client » reste pour un client", async () => {
+        monter("labo", null);
+        await waitFor(() => expect(screen.getByText("Atelier .mark")).toBeTruthy());
+        expect(screen.queryByText("Espace")).toBeNull();
+        cleanup();
+        monter("client", "7");
+        await waitFor(() => expect(screen.getByText("Nuances de Feu")).toBeTruthy());
+        expect(screen.getByText("Client")).toBeTruthy();
+    });
+
     it("avant la réponse du serveur : un libellé sans fausse valeur", () => {
         monter("labo", null);
         expect(screen.getByText("Labo")).toBeTruthy();

@@ -109,9 +109,12 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                     >
                         <PuceEspace espace={espace} />
                         <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                            <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
-                                {espace === "client" ? t({ en: "Client", fr: "Client" }) : t({ en: "Space", fr: "Espace" })}
-                            </span>
+                            {/* SE-1 (04/11) : plus de libellé « Espace » au-dessus du nom ; « Client » reste pour un client. */}
+                            {espace === "client" && (
+                                <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
+                                    {t({ en: "Client", fr: "Client" })}
+                                </span>
+                            )}
                             <span className="block truncate text-sm font-medium">{libelle}</span>
                         </span>
                         <ChevronsUpDown className="size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
