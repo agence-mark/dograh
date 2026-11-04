@@ -199,11 +199,10 @@ function AccueilInterne({ t }: { t: Dire }) {
 
 // ---------------------------------------------------------------------- Messages (E92, E93)
 export function EcranMessages({ fil }: { fil?: number | null }) {
-    const { t } = useLangue();
     return (
         <Pret>
-            <div className={CONTENEUR}>
-                <TitrePage titre="Messages" info={t({ en: "Messages and software requests from your clients, one thread each.", fr: "Les messages et les demandes de logiciel de vos clients, un fil chacun." })} />
+            {/* Pleine zone : la boîte porte son propre titre dans la colonne des fils (E92). */}
+            <div className="h-[calc(100vh-4.5rem)] min-h-[480px]">
                 <BoiteMessages filInitial={fil} />
             </div>
         </Pret>
