@@ -37,6 +37,8 @@ import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
+import { definitionSansSecrets } from "./definition-sans-secrets";
+
 import { FenetreCopieAgent } from "./copie/FenetreCopieAgent";
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
 import { FenetreDePublication } from "./publication/FenetreDePublication";
@@ -210,7 +212,7 @@ export function ActionsAgent({
             router.push(surLeParcours(""));
             return;
         }
-        const blob = new Blob([JSON.stringify({ name: nom, workflow_definition: instance.toObject() }, null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ name: nom, workflow_definition: definitionSansSecrets(instance.toObject()) }, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const lien = document.createElement("a");
         lien.href = url;
