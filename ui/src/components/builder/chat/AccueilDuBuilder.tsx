@@ -249,7 +249,11 @@ export function AccueilDuBuilder() {
                                     onClick={() => choisirLaCarte(c)}
                                     className={`cursor-pointer rounded-xl border bg-card p-4 text-left transition-[scale,box-shadow] duration-200 ease-out hover:shadow-md motion-safe:hover:scale-[1.02] ${choisi?.slug === c.slug ? "border-foreground" : ""}`}
                                 >
-                                    <Icone className="mb-3 size-5 text-(--acc)" />
+                                    <Icone
+                                        className="mb-3 size-5"
+                                        data-icone={c.icone}
+                                        style={{ color: `var(--demarrage-${c.icone in ICONES ? c.icone : "agent"})` }}
+                                    />
                                     <span className="block text-sm font-medium">{c.titre}</span>
                                     <span className="block text-xs text-muted-foreground">{c.phrase}</span>
                                 </button>

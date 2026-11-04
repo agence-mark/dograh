@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { adressesDe } from "./adresses";
@@ -85,6 +85,23 @@ describe("l'écran dans l'espace d'un client", () => {
         const { default: PageAccueil } = await import("./PageAccueil");
         render(<PageAccueil />);
         expect((await screen.findByText(/un-modele/)).textContent).toMatch(/un-modele · \$3\.00 per chat/);
+    });
+    it("V4 : chaque sorte de carte de démarrage a sa couleur (un jeton), jamais la même pour toutes", async () => {
+        m.chemin = "/labo/builder";
+        const client = await import("@/client");
+        const carte = (slug: string, icone: string) => ({ slug, titre: slug, phrase: "p", demande: "d", besoin: "rien", icone, proposee_dans: "labo_et_clients" });
+        vi.mocked(client.lireLesDemarragesApiV1BuilderDemarragesGet).mockResolvedValueOnce({
+            data: [carte("a", "agent"), carte("b", "amelioration"), carte("c", "test"), carte("d", "fichier"), carte("e", "etincelle")],
+        } as never);
+        const { default: PageAccueil } = await import("./PageAccueil");
+        render(<PageAccueil />);
+        const couleurs = await waitFor(() => {
+            const icones = [...document.querySelectorAll<HTMLElement>("[data-demarrage] [data-icone]")];
+            expect(icones).toHaveLength(5);
+            return icones.map((i) => i.style.color);
+        });
+        expect(couleurs).toEqual(["agent", "amelioration", "test", "fichier", "etincelle"].map((n) => `var(--demarrage-${n})`));
+        expect(new Set(couleurs).size).toBe(5);
     });
     it("l'accueil d'un client a sa section « À améliorer » (état « fait » quand rien n'attend) avec le lien de son espace", async () => {
         m.chemin = "/clients/7/builder";
