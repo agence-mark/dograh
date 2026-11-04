@@ -14,18 +14,19 @@ import type { LigneDAlerte } from "@/client/types.gen";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
+import { formatDateRelative } from "@/lib/dateTime";
 
 import { useLangue } from "../langue/langue";
 import { ETATS_DU_MAIL, SANS_MAIL, TYPES_D_ALERTE } from "./libelles";
 
-const dateCourte = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");
+const dateCourte = (iso: string | null | undefined, langue: "fr" | "en") => (iso ? formatDateRelative(iso, langue) : "");
 
 /**
  * V2 : un tableau nu (jamais de cadre autour d'une liste), un état vide et un état d'erreur de l'écran (jamais le texte
  * du serveur), le lien de l'appel sans soulignement. La fenêtre (30 jours, 50 par page) est dite dans le « ! » du titre.
  */
 export function PageAlertes() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [lignes, setLignes] = useState<LigneDAlerte[] | null>(null);
     const [page, setPage] = useState(0);
     const [aUneSuite, setAUneSuite] = useState(false);
@@ -89,7 +90,7 @@ export function PageAlertes() {
                         </Cellule>
                         <Cellule sous={l.etape ? `${t({ en: "Step", fr: "Étape" })} : ${l.etape}` : undefined}>{l.workflow_nom}</Cellule>
                         <Cellule>{l.mail && ETATS_DU_MAIL[l.mail] ? t(ETATS_DU_MAIL[l.mail]) : t(SANS_MAIL)}</Cellule>
-                        <Cellule>{dateCourte(l.heure ?? l.cree_le)}</Cellule>
+                        <Cellule>{dateCourte(l.heure ?? l.cree_le, langue)}</Cellule>
                         <Cellule droite>
                             <Link className="cursor-pointer hover:font-medium" href={`/workflow/${l.workflow_id}/run/${l.run_id}`}>
                                 {t({ en: "Open the call", fr: "Ouvrir l'appel" })} n° {l.run_id}

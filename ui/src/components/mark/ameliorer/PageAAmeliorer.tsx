@@ -24,6 +24,7 @@ import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { TYPES_D_ALERTE } from "@/components/mark/tri/libelles";
 import { useAuth } from "@/lib/auth";
+import { formatDateRelative } from "@/lib/dateTime";
 
 import { DetailProbleme } from "./DetailProbleme";
 import { AUTEUR, CAUSES, ETATS, type EtatDeLEcran, RELEVE_PAR, texteDeFrequence, titreLisible } from "./libelles";
@@ -67,8 +68,8 @@ const T = {
     },
 };
 
-const dateCourte = (iso: string | null | undefined, langue: string) =>
-    iso ? new Date(iso).toLocaleString(langue === "fr" ? "fr-FR" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+// V4 : « aujourd'hui 11:03 », « hier 17:22 », sinon jour et mois (comme la maquette).
+const dateCourte = (iso: string | null | undefined, langue: string) => (iso ? formatDateRelative(iso, langue === "fr" ? "fr" : "en") : "");
 
 const secondes = (s: number | null | undefined) => (s == null ? "" : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s`);
 

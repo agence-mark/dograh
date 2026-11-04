@@ -138,6 +138,27 @@ describe("La liste de « À améliorer »", () => {
         expect(screen.getByText("1 min 15 s")).toBeTruthy();
     });
 
+    it("V4 : les dates de « À juger » se disent « aujourd'hui 11:03 » et « hier 17:22 », comme la maquette", async () => {
+        const il_y_a = (jours: number) => {
+            const d = new Date();
+            d.setDate(d.getDate() - jours);
+            d.setHours(11, 3, 0, 0);
+            return d.toISOString();
+        };
+        m.aJuger.mockResolvedValue({
+            data: [
+                { id: "appel-8", type: "appel", workflow_id: 3, workflow_nom: "Accueil", run_id: 8, le: il_y_a(0), duree: 40, motif: "Aujourd'hui-ci" },
+                { id: "appel-9", type: "appel", workflow_id: 3, workflow_nom: "Accueil", run_id: 9, le: il_y_a(1), duree: 40, motif: "Hier-la" },
+            ],
+        });
+        monter(<PageAAmeliorer />);
+        fireEvent.click(await screen.findByRole("tab", { name: /À juger/ }));
+        const aujourdhui = (await screen.findByText("Aujourd'hui-ci")).closest("tr")!;
+        const hier = screen.getByText("Hier-la").closest("tr")!;
+        expect(aujourdhui.textContent).toMatch(/aujourd'hui 11:03/);
+        expect(hier.textContent).toMatch(/hier 11:03/);
+    });
+
     it("juge des vrais appels sur Claude Code : l'onglet « À juger » existe même vide et dit « Rien à juger »", async () => {
         m.sources.mockResolvedValue({ data: { sources: { juge_appels: "claude_code" } } });
         monter(<PageAAmeliorer />);
