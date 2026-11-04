@@ -87,6 +87,16 @@ class TermeLexique(BaseModel):
             "mot: a common word of the trade, only listened for by the transcription."
         ),
     )
+    # V4 : la nature que montre la maquette (Marque / Nom propre / Mot du métier). ``type`` reste ce que le code lit (nom : reconnu
+    # et corrigé avant le modèle ; mot : seulement écouté) ; ``nature`` précise un nom et, quand elle est posée, fixe le ``type``.
+    nature: Literal["marque", "nom_propre", "mot_du_metier"] | None = Field(
+        default=None,
+        exclude_if=lambda valeur: valeur is None,  # un terme d'avant ce champ s'exporte et se range octet pour octet comme avant
+        description=(
+            "marque or nom_propre: a name (recognised and corrected). mot_du_metier: a common word of the trade. "
+            "Unset on a term saved before this field: the type says whether it is a name or a word."
+        ),
+    )
     categorie: str | None = Field(default=None, max_length=MAX_LONGUEUR_CATEGORIE)
     a_ecouter: bool = Field(
         default=False,
@@ -103,6 +113,13 @@ class TermeLexique(BaseModel):
             "the list it answers « do you offer X? » from."
         ),
     )
+
+    @model_validator(mode="after")
+    def _la_nature_fixe_le_type(self):
+        """V4 : une nature posée et le type disent la même chose (jamais « marque » avec un type « mot »)."""
+        if self.nature is not None:
+            self.type = "mot" if self.nature == "mot_du_metier" else "nom"
+        return self
 
     @model_validator(mode="before")
     @classmethod

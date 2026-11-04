@@ -306,6 +306,22 @@ describe("[.mark] K4b : le lexique métier", () => {
         expect(termes[1]).toMatchObject({ terme: "poêle", categorie: "Appareil", type: "mot", propose: true });
     });
 
+    it("V4 : la nature d'un terme a les trois valeurs de la maquette et fixe le type que le serveur lit", async () => {
+        rendre(<SectionLexiqueMetier />);
+        // Un terme d'avant le champ : « poêle » (mot) se lit « Mot du métier », « Jøtul » (nom) se lit « Marque ».
+        const tableau = (await screen.findByText("Jøtul")).closest("table")!;
+        expect(tableau.textContent).toContain("Marque");
+        expect(tableau.textContent).toContain("Mot du métier");
+        fireEvent.click(screen.getByText("poêle"));
+        const fenetre = (await screen.findAllByLabelText("Catégorie")).pop()!.closest("[role=dialog]") as HTMLElement;
+        for (const nature of ["Marque", "Nom propre", "Mot du métier"]) expect(within(fenetre).getByRole("button", { name: nature })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: "Mot du métier" }).getAttribute("aria-pressed")).toBe("true");
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Nom propre" }));
+        fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+        await waitFor(() => expect(m.ecrireLexique).toHaveBeenCalled());
+        expect(m.ecrireLexique.mock.calls[0][0].body.termes[1]).toMatchObject({ terme: "poêle", nature: "nom_propre", type: "nom" });
+    });
+
     it("« + Terme » ouvre une fenêtre neuve : sans nom, rien ne part", async () => {
         rendre(<SectionLexiqueMetier />);
         await screen.findByText("Jøtul");
