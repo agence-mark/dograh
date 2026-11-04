@@ -2,7 +2,6 @@
 
 import { BookOpen, Check, Download, Plus, Search, Square, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
   budgetLexiqueApiV1OrganizationsLexiqueBudgetPost,
@@ -13,8 +12,10 @@ import {
 import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.gen";
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
@@ -713,7 +714,7 @@ export function SectionLexiqueMetier() {
                       value={terme.prononciation ?? ""}
                       onChange={(e) => modifier(rang, { prononciation: e.target.value || null })}
                     />
-                    <select
+                    <ListeDeroulante
                       aria-label={`Kind ${rang + 1}`}
                       className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                       value={terme.type ?? "nom"}
@@ -723,7 +724,7 @@ export function SectionLexiqueMetier() {
                     >
                       <option value="nom">Name</option>
                       <option value="mot">Word</option>
-                    </select>
+                    </ListeDeroulante>
                     <Input
                       aria-label={`Category ${rang + 1}`}
                       value={terme.categorie ?? ""}

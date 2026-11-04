@@ -13,7 +13,6 @@
  */
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGet,
@@ -21,6 +20,10 @@ import {
     putVerificationAppelantApiV1OrganizationsVerificationAppelantPut,
 } from "@/client/sdk.gen";
 import type { LogicielDossier, ReglagesVerification } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -29,8 +32,6 @@ import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
 import { Puces } from "../studio/puces";
@@ -241,7 +242,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                         </label>
                                     ))}
                                 </div>
-                            
+
                                 )
 ) : (
                                 <span className="text-xs text-muted-foreground">{t({ en: "Control question off.", fr: "Question de contrôle éteinte." })}</span>
@@ -294,7 +295,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                         </div>
                                     ) : (
                                     <div className="space-y-1">
-                                        <select
+                                        <ListeDeroulante
                                             id={`verif-niveau-${type.cle}`}
                                             aria-label={t({ en: "Factors required", fr: "Facteurs exigés" })}
                                             className="rounded border border-border bg-background px-2 py-1 text-sm"
@@ -306,7 +307,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                                     {t({ en: `${n} factor(s)`, fr: `${n} facteur(s)` })}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </ListeDeroulante>
                                         {(niveau.facteurs_requis ?? 2) > actifs && (
                                             <p className="text-xs text-destructive" data-testid={`verif-inaccessible-${type.cle}`}>
                                                 {t({ en: "More factors required than switched on: never read.", fr: "Plus de facteurs exigés qu'allumés : jamais lu." })}
@@ -353,7 +354,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                     className="w-56"
                                 />
                             ) : (
-                            <select
+                            <ListeDeroulante
                                 id="verif-logiciel"
                                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                                 value={brouillon.logiciel ?? ""}
@@ -365,7 +366,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                                         {l.libelle}
                                     </option>
                                 ))}
-                            </select>
+                            </ListeDeroulante>
                             )}
                         </ChampReglage>
                     </Intertitre>

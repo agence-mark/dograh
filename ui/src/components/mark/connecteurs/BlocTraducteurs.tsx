@@ -12,7 +12,6 @@
  */
 import { Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
@@ -20,6 +19,8 @@ import {
     putChoixTraducteursApiV1ConnecteursTraducteursChoixPut,
 } from "@/client/sdk.gen";
 import type { TraducteurVue } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -103,7 +104,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                     },
                 ]}
             >
-                <select
+                <ListeDeroulante
                     id="traducteur-agenda"
                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                     value={choix}
@@ -118,7 +119,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                             {x.libelle}
                         </option>
                     ))}
-                </select>
+                </ListeDeroulante>
             </ChampReglage>
             {choisi && connecteurs.etat?.nango_configure && (
                 <div className="flex flex-wrap items-center gap-3 rounded-md border bg-(--surface) p-3 text-sm" data-testid="etat-traducteur">

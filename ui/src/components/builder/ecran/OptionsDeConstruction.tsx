@@ -13,6 +13,7 @@ import { lireLesOptionsApiV1BuilderOptionsGet, listerLesRecettesApiV1BuilderRece
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { optionsPartagees } from "@/components/mark/reglages/lectures-partagees";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -82,7 +83,7 @@ export function OptionsDeConstruction() {
                         {t(T.recette)}
                         <Info>{t(T.recetteInfo)}</Info>
                     </Label>
-                    <select
+                    <ListeDeroulante
                         id="option-recette"
                         className="h-9 cursor-pointer rounded-md border bg-background px-2 text-sm"
                         value={options.recette_par_defaut}
@@ -94,7 +95,7 @@ export function OptionsDeConstruction() {
                                 {r.nom}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </div>
             )}
         </div>

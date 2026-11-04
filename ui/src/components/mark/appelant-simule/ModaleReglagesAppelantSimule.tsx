@@ -16,6 +16,8 @@ import {
     saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut,
 } from "@/client";
 import type { ReglagesAppelantSimule, RoleSimule, VoixSimulee } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -32,7 +34,6 @@ import { detailFromError } from "@/lib/apiError";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
-import { notifier } from "@/components/mark/notifications";
 
 // Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
 export const MODELES_SIMULATEUR: string[] = [
@@ -122,7 +123,7 @@ function Role({
                         </Info>
                     )}
                 </span>
-                <select
+                <ListeDeroulante
                     className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                     value={role.source}
                     onChange={(e) => onChange({ source: e.target.value as Role["source"] })}
@@ -130,12 +131,12 @@ function Role({
                 >
                     <option value="cle_api">{t({ en: "API key", fr: "Clé d'API" })}</option>
                     <option value="claude_code">{t({ en: "Claude Code (subscription)", fr: "Claude Code (abonnement)" })}</option>
-                </select>
+                </ListeDeroulante>
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Model", fr: "Modèle" })}</span>
-                    <select
+                    <ListeDeroulante
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={role.modele}
                         onChange={(e) => onChange({ modele: e.target.value })}
@@ -146,7 +147,7 @@ function Role({
                                 {m}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Temperature (0 to 1)", fr: "Température (0 à 1)" })}</span>

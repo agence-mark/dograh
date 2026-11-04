@@ -21,6 +21,7 @@ import { SectionAAmeliorer } from "@/components/mark/ameliorer/SectionAAmeliorer
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { AvertissementClaudeCode } from "@/components/mark/sources/marques";
 import { useSources } from "@/components/mark/sources/useSources";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { useMoi } from "@/components/mark/studio/moi";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
@@ -176,7 +177,7 @@ export function AccueilDuBuilder() {
                             {besoinAgent && (
                                 <span className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">{t(T.agent)}</span>
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t(T.agent)}
                                         className="min-w-64 cursor-pointer rounded-md border bg-background px-2 py-1 text-sm"
                                         value={agentId ?? ""}
@@ -188,7 +189,7 @@ export function AccueilDuBuilder() {
                                                 {a.name}
                                             </option>
                                         ))}
-                                    </select>
+                                    </ListeDeroulante>
                                 </span>
                             )}
                             {fichiers.map((f) => (

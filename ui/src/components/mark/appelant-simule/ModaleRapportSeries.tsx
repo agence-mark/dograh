@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 import { getRapportSerieApiV1AppelSimuleSeriesSerieIdGet, getSeriesSimuleesApiV1AppelSimuleSeriesGet } from "@/client";
 import type { RapportSerie, SerieSimulee } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { detailFromError } from "@/lib/apiError";
@@ -278,7 +279,7 @@ export function ModaleRapportSeries({
                     <div className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-2">
                             {([0, 1] as const).map((k) => (
-                                <select
+                                <ListeDeroulante
                                     key={k}
                                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                                     value={choix[k]}
@@ -301,7 +302,7 @@ export function ModaleRapportSeries({
                                             {libelle(s)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                             ))}
                         </div>
                         <div className="grid gap-6 sm:grid-cols-2">

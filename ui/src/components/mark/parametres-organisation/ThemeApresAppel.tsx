@@ -11,7 +11,6 @@
  */
 import { Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     getApresAppelApiV1OrganizationsApresAppelGet,
@@ -21,6 +20,8 @@ import {
     putApresAppelApiV1OrganizationsApresAppelPut,
 } from "@/client/sdk.gen";
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -258,7 +259,7 @@ export const ThemeApresAppel = ({
                             ))}
                         </span>
                     ) : (
-                    <select
+                    <ListeDeroulante
                         id="smtp-securite"
                         className="rounded border border-border bg-background px-2 py-1 text-sm"
                         value={smtp.securite ?? "starttls"}
@@ -267,7 +268,7 @@ export const ThemeApresAppel = ({
                         <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
                         <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
                         <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
-                    </select>
+                    </ListeDeroulante>
                     )}
                 </ChampReglage>
                 <ChampReglage cle="smtp_utilisateur" idControle="smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>

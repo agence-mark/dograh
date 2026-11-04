@@ -1838,6 +1838,9 @@ async def get_workflow_run(
         "call_type": run.call_type,
         "logs": run.logs,
         "annotations": run.annotations,
+        # [.mark] V1b : la version jouée et la note du juge, pour le titre de la page d'une conversation.
+        "version_number": run.definition.version_number if run.definition else None,
+        "note_juge": run.note_juge,
     }
 
 

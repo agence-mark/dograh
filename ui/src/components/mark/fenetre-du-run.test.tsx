@@ -337,13 +337,13 @@ describe("Fenêtre du run : coût estimé", () => {
         const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
         expect(texte(screen.getByTestId("fenetre-cout"))).toContain(
-            "Coût estimé : 0.1234 USD au tarif du 01/10 · partiel : pas de prix pour eleven_flash_v2_5",
+            "Coût estimé0.1234 USD au tarif du 01/10 · partiel : pas de prix pour eleven_flash_v2_5",
         );
         unmount();
         lireAnalyse.mockResolvedValue({ data: ANALYSE });
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
-        expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estimé : non capté");
+        expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estiménon capté");
     });
 });
 

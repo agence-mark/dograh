@@ -16,6 +16,7 @@ import {
 } from "@/client";
 import type { LigneDeTri } from "@/client/types.gen";
 import { ORIGINES_DE_TRI } from "@/components/builder/tests/libelles";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
@@ -117,7 +118,7 @@ export function PageATrier() {
             <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm">
                     <span>{t({ en: "Agent", fr: "Agent" })}</span>
-                    <select
+                    <ListeDeroulante
                         aria-label={t({ en: "Filter by agent", fr: "Filtrer par agent" })}
                         className="h-9 rounded-md border bg-background px-2 text-sm"
                         value={agent}
@@ -132,11 +133,11 @@ export function PageATrier() {
                                 {nom}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                     <span>{t({ en: "Origin", fr: "Origine" })}</span>
-                    <select
+                    <ListeDeroulante
                         aria-label={t({ en: "Filter by origin", fr: "Filtrer par origine" })}
                         className="h-9 rounded-md border bg-background px-2 text-sm"
                         value={origine}
@@ -151,7 +152,7 @@ export function PageATrier() {
                                 {t(ORIGINES_DE_TRI[o].libelle)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
                 <p className="text-xs text-muted-foreground">
                     {t({
@@ -190,7 +191,7 @@ export function PageATrier() {
                                 {l.categorie && CATEGORIES[l.categorie] && (
                                     <span className="text-xs text-muted-foreground">· {t(CATEGORIES[l.categorie])}</span>
                                 )}
-                                <select
+                                <ListeDeroulante
                                     aria-label={t({ en: "Status", fr: "Statut" })}
                                     className="ml-auto h-8 rounded-md border bg-background px-2 text-xs"
                                     value={l.statut}
@@ -201,13 +202,13 @@ export function PageATrier() {
                                             {t(s.libelle)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                             </div>
                             {l.motif && <MotifDeLaLigne ligne={l} />}
                             <div className="flex flex-wrap items-center gap-3 text-xs">
                                 <label className="flex items-center gap-1">
                                     <span>{t({ en: "Assigned to", fr: "Assigné à" })}</span>
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t({ en: "Assigned to", fr: "Assigné à" })}
                                         className="h-8 rounded-md border bg-background px-2"
                                         value={l.assigne ?? ""}
@@ -219,11 +220,11 @@ export function PageATrier() {
                                                 {p.nom}
                                             </option>
                                         ))}
-                                    </select>
+                                    </ListeDeroulante>
                                 </label>
                                 <label className="flex items-center gap-1">
                                     <span>{t({ en: "Origin", fr: "Origine" })}</span>
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t({ en: "Origin of the flag", fr: "Origine du signalement" })}
                                         className="h-8 rounded-md border bg-background px-2"
                                         value={l.origine ?? ""}
@@ -238,7 +239,7 @@ export function PageATrier() {
                                                 {t(ORIGINES_DE_TRI[o].libelle)}
                                             </option>
                                         ))}
-                                    </select>
+                                    </ListeDeroulante>
                                 </label>
                                 {(l.origine ?? l.origine_suggeree) && (
                                     <span className="text-muted-foreground" data-testid="suite-de-l-origine">

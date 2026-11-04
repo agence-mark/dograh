@@ -23,6 +23,7 @@ import type { VueDetaillee } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Gravite, Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -246,7 +247,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                         <Info>{t(T.origineInfo)}</Info>
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <select
+                                        <ListeDeroulante
                                             aria-label={t(T.origine)}
                                             className="h-8 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                             value={vue.origine ?? ""}
@@ -260,8 +261,8 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                                     {t(libelle)}
                                                 </option>
                                             ))}
-                                        </select>
-                                        <select
+                                        </ListeDeroulante>
+                                        <ListeDeroulante
                                             aria-label={t(T.chargeDe)}
                                             className="h-8 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                             value={vue.assigne ?? ""}
@@ -273,7 +274,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                                     {p.nom}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </ListeDeroulante>
                                     </div>
                                 </div>
                                 {(vue.origine ?? vue.origine_suggeree) === "recette" && vue.recettes.length > 0 && (

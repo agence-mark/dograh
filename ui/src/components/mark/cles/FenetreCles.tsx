@@ -24,6 +24,8 @@ import {
     usagesDUneCleApiV1ClesUuidUsagesGet,
 } from "@/client";
 import type { Cle, Designation, Usage } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -39,7 +41,6 @@ import { detailFromError } from "@/lib/apiError";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
-import { notifier } from "@/components/mark/notifications";
 
 export type Fournisseur = Cle["fournisseur"];
 
@@ -299,7 +300,7 @@ export function BibliothequeCles({
                 <legend className="px-1 text-sm font-medium">{t({ en: "Add a key", fr: "Ajouter une clé" })}</legend>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Protocol", fr: "Protocole" })}</span>
-                    <select
+                    <ListeDeroulante
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={choisi ?? ""}
                         disabled={Boolean(fournisseur)}
@@ -311,7 +312,7 @@ export function BibliothequeCles({
                                 {nomDu(f)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "Name (e.g. Mistral · lab organization)", fr: "Nom (ex. Mistral · organisation du labo)" })}</span>
@@ -492,7 +493,7 @@ export function SelecteurCle({
                         className="min-w-0 flex-1"
                     />
                 ) : (
-                <select
+                <ListeDeroulante
                     className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                     value={perdue || (horsListe && !ancienne) ? "" : (valeur ?? "")}
                     onChange={(e) => onChange(e.target.value || null)}
@@ -513,7 +514,7 @@ export function SelecteurCle({
                             {`${ancienne.nom ?? ""} ${t({ en: "(outside the library)", fr: "(hors bibliothèque)" })}`}
                         </option>
                     )}
-                </select>
+                </ListeDeroulante>
                 )}
                 <Button type="button" size={maquette ? "default" : "sm"} variant="outline" onClick={() => setBibliotheque(true)}>
                     {maquette ? `+ ${t({ en: "Key", fr: "Clé" })}` : t({ en: "Keys…", fr: "Clés…" })}

@@ -144,9 +144,9 @@ export function WorkflowRunsTable({
                             colonnes={[
                                 { titre: t({ en: "When", fr: "Quand" }) },
                                 ...(showAgentVersion ? [{ titre: "Version" }] : []),
-                                { titre: "Type d'appel" },
-                                { titre: "Issue" },
-                                { titre: "Durée", droite: true },
+                                { titre: t({ en: "Call type", fr: "Type d'appel" }) },
+                                { titre: t({ en: "Outcome", fr: "Issue" }) },
+                                { titre: t({ en: "Duration", fr: "Durée" }), droite: true },
                             ]}
                         >
                             {runs.map((run) => (

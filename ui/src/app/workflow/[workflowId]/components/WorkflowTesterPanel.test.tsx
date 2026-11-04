@@ -114,3 +114,28 @@ describe("WorkflowTesterPanel voice run lifecycle", () => {
         expect(createRunMock).toHaveBeenCalledTimes(2);
     });
 });
+
+describe("WorkflowTesterPanel keyboard (V1b)", () => {
+    it("closes on Escape when it has a close handler", () => {
+        const onClose = vi.fn();
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={onClose} />);
+        fireEvent.keyDown(screen.getByRole("tab", { name: /browser|navigateur/i }), { key: "Escape" });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves Escape alone when something inside already used it (an open list)", () => {
+        const onClose = vi.fn();
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={onClose} />);
+        const onglet = screen.getByRole("tab", { name: /browser|navigateur/i });
+        const evenement = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        evenement.preventDefault();
+        onglet.dispatchEvent(evenement);
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("moves the focus onto the tab of the mode asked for when it opens from the keyboard", async () => {
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={vi.fn()} modeDemande={{ mode: "text", cle: 1 }} />);
+        await waitFor(() => expect(document.activeElement?.getAttribute("role")).toBe("tab"));
+        expect(document.activeElement?.getAttribute("data-state")).toBe("active");
+    });
+});

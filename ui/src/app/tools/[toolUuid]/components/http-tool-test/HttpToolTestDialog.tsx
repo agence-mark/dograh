@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { testToolApiV1ToolsToolUuidTestPost } from "@/client/sdk.gen";
 import type { ToolTestResponse } from "@/client/types.gen";
 import type { HttpMethod, PresetToolParameter, ToolParameter } from "@/components/http";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -125,7 +126,7 @@ function ParameterFields({
                             </p>
                         )}
                         {parameter.type === "boolean" ? (
-                            <select
+                            <ListeDeroulante
                                 id={inputId}
                                 value={value}
                                 onChange={(event) => onValueChange(parameter.name, event.target.value)}
@@ -133,7 +134,7 @@ function ParameterFields({
                             >
                                 <option value="true">true</option>
                                 <option value="false">false</option>
-                            </select>
+                            </ListeDeroulante>
                         ) : parameter.type === "number" ? (
                             <Input
                                 id={inputId}

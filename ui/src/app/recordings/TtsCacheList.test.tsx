@@ -1,14 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import TtsCacheList from "./TtsCacheList";
 import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
+
+import TtsCacheList from "./TtsCacheList";
 
 const mocks = vi.hoisted(() => ({
     auth: { user: { id: "user" } as { id: string } | null, loading: false },
     list: vi.fn(), preview: vi.fn(), invalidate: vi.fn(), clear: vi.fn(),
     toastError: vi.fn(),
 }));
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/lib/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "UTC" }));
 vi.mock("@/client/sdk.gen", () => ({

@@ -3,6 +3,7 @@ import { useEffect, useId, useState } from "react";
 import { listRecordingsApiV1WorkflowRecordingsGet } from "@/client/sdk.gen";
 import type { RecordingResponseSchema } from "@/client/types.gen";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -40,7 +41,7 @@ function MessageField({ label, value = {}, onChange, recordings }: {
     return <fieldset className="space-y-2 rounded-md border p-3">
         <legend className="px-1 text-sm font-medium">{label}</legend>
         <Label htmlFor={`${id}-format`}>Message format</Label>
-        <select id={`${id}-format`} className={selectClass} value={audio ? "audio" : "text"}
+        <ListeDeroulante id={`${id}-format`} className={selectClass} value={audio ? "audio" : "text"}
             onChange={e => {
                 setAudio(e.target.value === "audio");
                 if (e.target.value === "text") onChange({ text: value.text || "" });
@@ -48,7 +49,7 @@ function MessageField({ label, value = {}, onChange, recordings }: {
             }}>
             <option value="text">Text</option>
             <option value="audio">Recording</option>
-        </select>
+        </ListeDeroulante>
         {audio ? <RecordingSelect value={selected ? String(selected) : ""} recordings={recordings}
             onChange={pk => onChange({ recording_pk: pk ? Number(pk) : undefined })} />
             : <>

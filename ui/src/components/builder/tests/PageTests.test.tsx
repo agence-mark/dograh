@@ -14,9 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentsDeLaRecette } from "./AgentsDeLaRecette";
 import { BoutonCreerUnTest, repliquesDeLaPersonne } from "./BoutonCreerUnTest";
-import { fautesDeLaReplique } from "./DetailDunTest";
 import { critereDeLaLigne, NouveauTest } from "./NouveauTest";
-import { PageTests, parDossier } from "./PageTests";
 import type { ResumeDeTest } from "./types";
 
 const m = vi.hoisted(() => ({
@@ -35,6 +33,7 @@ const m = vi.hoisted(() => ({
     preparer: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     lireLesTestsApiV1BuilderTestsWorkflowIdGet: (o: unknown) => m.liste(o),
     etatDeLaPublicationApiV1BuilderTestsWorkflowIdPublicationGet: (o: unknown) => m.publication(o),

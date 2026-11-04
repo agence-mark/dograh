@@ -17,6 +17,8 @@ import {
     saveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPut,
 } from "@/client";
 import type { Comportements, ScenarioSimule } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -31,7 +33,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
-import { notifier } from "@/components/mark/notifications";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
     { champ: "presse", libelle: { en: "In a hurry", fr: "Pressé" } },
@@ -249,7 +250,7 @@ function EditeurScenario({
                 </label>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "If the agent transfers the call", fr: "Si l'agent renvoie l'appel" })}</span>
-                    <select
+                    <ListeDeroulante
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={scenario.renvoi ?? "refuse"}
                         onChange={(e) => onChange({ renvoi: e.target.value as ScenarioSimule["renvoi"] })}
@@ -260,7 +261,7 @@ function EditeurScenario({
                                 {t(r.libelle)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
             </div>
         </div>

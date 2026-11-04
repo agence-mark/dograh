@@ -31,6 +31,7 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -397,7 +398,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         </p>
                         <div className="space-y-2">
                             <Ligne libelle={t(T.format)}>
-                                <select
+                                <ListeDeroulante
                                     aria-label={t(T.format)}
                                     className="h-8 w-56 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                     value={cerveau.format ?? "anthropic"}
@@ -405,7 +406,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                                 >
                                     <option value="anthropic">{t(T.anthropic)}</option>
                                     <option value="openai">{t(T.openai)}</option>
-                                </select>
+                                </ListeDeroulante>
                             </Ligne>
                             <Ligne libelle={t(T.modele)}>
                                 <ChampSimple id="cerveau-modele" libelle={t(T.modele)} valeur={cerveau.modele ?? ""} className="h-8 w-56" onEnregistrer={(v) => v.trim() && enregistrerCerveau({ modele: v.trim() })} />

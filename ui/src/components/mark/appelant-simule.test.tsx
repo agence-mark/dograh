@@ -44,6 +44,7 @@ const m = vi.hoisted(() => ({
     analyse: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     getScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGet: (...a: unknown[]) => m.getScenarios(...a),
     saveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPut: (...a: unknown[]) => m.saveScenarios(...a),

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useLangue } from "@/components/mark/langue/langue";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 
 import { NouveauTest } from "./NouveauTest";
@@ -42,7 +43,7 @@ export function BoutonCreerUnTest({ workflowId, runId, evenements, rangInitial }
 
     if (repliques.length === 0) return null;
     return (
-        <div className="space-y-2 rounded border p-3 text-sm" data-testid="creer-un-test-depuis-l-appel">
+        <div className="space-y-2 text-sm" data-testid="creer-un-test-depuis-l-appel">
             {!ouvert && (
                 <Button variant="outline" size="sm" onClick={() => setOuvert(true)}>
                     {t({ en: "Create a test from a reply", fr: "Créer un test depuis une réplique" })}
@@ -52,7 +53,7 @@ export function BoutonCreerUnTest({ workflowId, runId, evenements, rangInitial }
                 <>
                     <label className="block space-y-1">
                         <span>{t({ en: "The reply at fault", fr: "La réplique fautive" })}</span>
-                        <select
+                        <ListeDeroulante
                             aria-label={t({ en: "Reply", fr: "Réplique" })}
                             className="w-full rounded-md border bg-background px-2 py-1.5"
                             value={rang}
@@ -63,7 +64,7 @@ export function BoutonCreerUnTest({ workflowId, runId, evenements, rangInitial }
                                     {i + 1}. {r.slice(0, 80)}
                                 </option>
                             ))}
-                        </select>
+                        </ListeDeroulante>
                     </label>
                     <NouveauTest workflowId={workflowId} source={{ runId, rang, extrait: repliques[rang - 1]?.slice(0, 80) }} onCree={(slug) => setCree(slug || "ok")} onFermer={() => setOuvert(false)} />
                 </>

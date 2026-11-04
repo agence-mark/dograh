@@ -24,8 +24,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdresseEtablissement, OrganizationPreferences } from "@/client/types.gen";
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { lireNotifications } from "./notifications/magasin";
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
+import { lireNotifications } from "./notifications/magasin";
 import { SectionAdresseEtablissement } from "./SectionAdresseEtablissement";
 
 const mocks = vi.hoisted(() => ({
@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => ({
     codesSysteme: ["do_not_call"],
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),

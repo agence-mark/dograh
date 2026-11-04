@@ -9,11 +9,12 @@
  * place) nor the immediate closing. The copy is written at once, by the server, with the same controls
  * as a save: this window hands back what the server made so the list can be read again.
  */
-import { notifier } from "@/components/mark/notifications";
 import { useEffect, useState } from "react";
 
 import { copierEtablissementApiV1OrganizationsEtablissementsCopierPost } from "@/client/sdk.gen";
 import type { Etablissement, ResultatCopieEtablissement } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,7 @@ export function ModaleCopieFiche({
                         <label htmlFor="copie-source" className="text-sm font-medium">
                             {t({ en: "Fiche to copy", fr: "Fiche à copier" })}
                         </label>
-                        <select
+                        <ListeDeroulante
                             id="copie-source"
                             className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
                             value={source}
@@ -93,7 +94,7 @@ export function ModaleCopieFiche({
                                     {f.nom}
                                 </option>
                             ))}
-                        </select>
+                        </ListeDeroulante>
                     </div>
                     <div className="space-y-1">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">

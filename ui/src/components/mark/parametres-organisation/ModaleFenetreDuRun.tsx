@@ -9,7 +9,6 @@
  * file. A list to edit, so a modal (E4) working on a copy: « Cancel » / « Save ». No price is
  * offered by default: an empty table means « cost not captured », never a guessed cost.
  */
-import { notifier } from "@/components/mark/notifications";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -18,6 +17,8 @@ import {
     saveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPut,
 } from "@/client";
 import type { LignePrix, ReglagesFenetreDuRun, Seuils } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -207,7 +208,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                     <div className="space-y-3">
                         <label className="flex items-center gap-2 text-sm">
                             {t({ en: "Currency", fr: "Devise" })}
-                            <select
+                            <ListeDeroulante
                                 className="rounded border border-border bg-background px-2 py-1"
                                 value={devise}
                                 onChange={(e) => setDevise(e.target.value as "USD" | "EUR")}
@@ -215,7 +216,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                             >
                                 <option value="USD">{t({ en: "USD", fr: "USD" })}</option>
                                 <option value="EUR">{t({ en: "EUR", fr: "EUR" })}</option>
-                            </select>
+                            </ListeDeroulante>
                         </label>
                         {brouillon.map((ligne, i) => (
                             <div
@@ -223,7 +224,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                                 data-testid="ligne-de-prix"
                                 className="grid gap-2 rounded border border-border p-3 sm:grid-cols-[8rem_1fr_9rem_auto]"
                             >
-                                <select
+                                <ListeDeroulante
                                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                                     value={ligne.brique}
                                     onChange={(e) => changer(i, { brique: e.target.value as Brique })}
@@ -234,7 +235,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                                             {t(b.libelle)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                                 <Input
                                     value={ligne.modele}
                                     onChange={(e) => changer(i, { modele: e.target.value })}

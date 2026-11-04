@@ -13,6 +13,7 @@ import {
     listerLesRecettesApiV1BuilderRecettesGet,
 } from "@/client/sdk.gen";
 import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -67,7 +68,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
                 <Info>{t(T.info)}</Info>
             </span>
             {vue.modifiable ? (
-                <select
+                <ListeDeroulante
                     aria-label={t(T.titre)}
                     className="cursor-pointer rounded-md border bg-background px-2 py-1"
                     value={vue.indiquee ? (courante?.slug ?? "") : ""}
@@ -80,7 +81,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
                             {r.prouvee ? "" : ` (${t(T.nonProuvee)})`}
                         </option>
                     ))}
-                </select>
+                </ListeDeroulante>
             ) : (
                 <span data-recette-figee>
                     {courante?.nom ?? ""} <span className="text-xs text-muted-foreground">{t(T.figee)}</span>

@@ -30,10 +30,21 @@ const T = {
     champs: { en: "field(s)", fr: "champ(s)" },
 } satisfies Record<string, Texte>;
 
+// Le serveur envoie le genre de chaque ligne en français (clé stable) ; l'écran le dit dans la langue choisie.
+const GENRES: Record<string, Texte> = {
+    "noeud ajouté": { en: "node added", fr: "noeud ajouté" },
+    "noeud modifié": { en: "node changed", fr: "noeud modifié" },
+    "noeud retiré": { en: "node removed", fr: "noeud retiré" },
+    "liaison ajoutée": { en: "link added", fr: "liaison ajoutée" },
+    "liaison modifiée": { en: "link changed", fr: "liaison modifiée" },
+    "liaison retirée": { en: "link removed", fr: "liaison retirée" },
+};
+
 type Ligne = { genre: string; cible: string; nom: string; champs?: string[] };
 type Apercu = { numero: number; cause: string | null; sera_perdu: Ligne[]; sera_retrouve: Ligne[]; total_perdu: number; total_retrouve: number; inchanges: number };
 
 function Liste({ titre, lignes, total, plus, champs }: { titre: string; lignes: Ligne[]; total: number; plus: string; champs: string }) {
+    const { t } = useLangue();
     if (lignes.length === 0) return null;
     return (
         <section className="space-y-1" data-liste={titre}>
@@ -43,7 +54,7 @@ function Liste({ titre, lignes, total, plus, champs }: { titre: string; lignes: 
             <ul className="space-y-1 text-sm">
                 {lignes.map((l) => (
                     <li key={`${l.genre}-${l.cible}`} className="flex flex-wrap gap-x-2">
-                        <span className="text-muted-foreground">{l.genre}</span>
+                        <span className="text-muted-foreground">{GENRES[l.genre] ? t(GENRES[l.genre]) : l.genre}</span>
                         <span>{l.nom}</span>
                         {l.champs && l.champs.length > 0 && (
                             <span className="text-xs text-muted-foreground">

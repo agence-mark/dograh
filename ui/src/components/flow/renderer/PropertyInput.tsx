@@ -12,11 +12,12 @@ import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
 import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Info } from "@/components/mark/studio/marques";
 import { ChampVariables } from "@/components/mark/variables/ChampVariables";
 import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Info } from "@/components/mark/studio/marques";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -277,7 +278,7 @@ function OptionsWidget({ spec, value, onChange }: WidgetProps) {
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />
-            <select
+            <ListeDeroulante
                 className="border rounded-md p-2 text-sm bg-background"
                 value={(value as string | number | undefined) ?? ""}
                 onChange={(e) => {
@@ -291,7 +292,7 @@ function OptionsWidget({ spec, value, onChange }: WidgetProps) {
                         {o.label}
                     </option>
                 ))}
-            </select>
+            </ListeDeroulante>
         </div>
     );
 }

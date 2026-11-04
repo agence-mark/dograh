@@ -15,6 +15,7 @@
 import { ArrowLeft, ArrowRight, Lock, Plus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -287,11 +288,11 @@ const CaseDuTableau = ({
 }) => {
     if (type === "oui_non") {
         return (
-            <select data-case={`${ligne}-${colonne}`} aria-label={libelle} value={valeur} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} className="h-8 w-full rounded-md border bg-background px-2 text-sm">
+            <ListeDeroulante data-case={`${ligne}-${colonne}`} aria-label={libelle} value={valeur} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} className="h-8 w-full rounded-md border bg-background px-2 text-sm">
                 <option value="" />
                 <option value="oui">oui</option>
                 <option value="non">non</option>
-            </select>
+            </ListeDeroulante>
         );
     }
     return (

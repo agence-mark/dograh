@@ -32,3 +32,5 @@ class WorkflowRunResponseSchema(BaseModel):
     call_type: CallType
     logs: Dict[str, Any] | None = None
     annotations: Dict[str, Any] | None = None
+    # [.mark] V1b : la note du juge (colonne `note_juge`), lue par la page d'une conversation.
+    note_juge: float | None = None

@@ -27,6 +27,7 @@ const m = vi.hoisted(() => ({
     personnes: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     lireLaFileDeTriApiV1TriGet: (options: unknown) => m.tri(options),
     changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),

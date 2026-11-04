@@ -2,7 +2,6 @@
 
 import { AudioLines, Loader2, Play, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     clearTtsCacheApiV1TtsCacheDelete,
@@ -13,8 +12,10 @@ import {
 import type { ListTtsCacheApiV1TtsCacheGetData, TtsCacheEntry } from "@/client/types.gen";
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Liste } from "@/components/mark/studio/liste";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { BarrePagination } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
@@ -287,10 +288,10 @@ export default function TtsCacheList() {
                 </div>
                 <div>
                     <label htmlFor="tts-cache-sort" className="mb-1 block text-xs text-muted-foreground">Sort by</label>
-                    <select id="tts-cache-sort" value={sortValue} onChange={(e) => { setSortValue(e.target.value); setOffset(0); }}
+                    <ListeDeroulante id="tts-cache-sort" value={sortValue} onChange={(e) => { setSortValue(e.target.value); setOffset(0); }}
                         className="h-9 rounded-md border bg-background px-3 text-sm">
                         {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
+                    </ListeDeroulante>
                 </div>
                 <div className="w-28">
                     <label htmlFor="tts-min-duration" className="mb-1 block text-xs text-muted-foreground">Min seconds</label>

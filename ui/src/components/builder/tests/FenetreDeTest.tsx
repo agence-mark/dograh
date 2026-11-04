@@ -39,7 +39,7 @@ const SORTES: Array<{ id: SorteDeTest; fr: string; en: string; info: { fr: strin
     {
         id: "conversation",
         fr: "Conversation simulée",
-        en: "Simulated conversation",
+        en: "Simulated call",
         info: { fr: "Un appelant simulé joue le scénario avec l'agent, puis le code juge les critères.", en: "A simulated caller plays the scenario with the agent, then the code judges the criteria." },
     },
     {

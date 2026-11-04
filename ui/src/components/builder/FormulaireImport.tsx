@@ -9,6 +9,7 @@ import { useState } from "react";
 import { creerUnElementApiV1BuilderBibliothequeFamillePost, importerApiV1BuilderBibliothequeImportPost } from "@/client";
 import type { VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
@@ -78,13 +79,13 @@ export function FormulaireImport({ familles, familleChoisie, onCree }: Props) {
             <div className="grid gap-3 md:grid-cols-3">
                 <label className="block space-y-1 text-sm">
                     <span>{t({ en: "Family", fr: "Famille" })}</span>
-                    <select className={CHAMP} value={famille} onChange={(e) => setFamille(e.target.value)}>
+                    <ListeDeroulante className={CHAMP} value={famille} onChange={(e) => setFamille(e.target.value)}>
                         {familles.map((f) => (
                             <option key={f.slug} value={f.slug}>
                                 {f.libelle}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
                 <label className="block space-y-1 text-sm">
                     <span>{t({ en: "Identifier (a-z, 0-9, -)", fr: "Identifiant (a-z, 0-9, -)" })}</span>

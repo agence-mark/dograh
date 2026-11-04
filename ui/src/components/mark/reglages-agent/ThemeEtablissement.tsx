@@ -22,7 +22,6 @@
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     AnswerSupervisorFields,
@@ -32,6 +31,8 @@ import {
 import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
 import type { AdresseEtablissement, Etablissement } from "@/client/types.gen";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -332,7 +333,7 @@ export const ThemeEtablissement = ({
                         {fiches === null ? (
                             <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
                         ) : (
-                            <select
+                            <ListeDeroulante
                                 id="etablissement_id"
                                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                                 value={fiche}
@@ -347,7 +348,7 @@ export const ThemeEtablissement = ({
                                         {e.nom}
                                     </option>
                                 ))}
-                            </select>
+                            </ListeDeroulante>
                         )}
                         {fichesIllisibles && (
                             <p className="text-xs text-destructive">

@@ -8,7 +8,6 @@
  * empty field leaves the saved key alone. Only members of the .mark team may change the brain (the server decides).
  */
 import { useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     ecrireLesPreferencesApiV1BuilderPreferencesPut,
@@ -18,6 +17,8 @@ import {
 } from "@/client";
 import type { VueReglagesCerveau } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -117,7 +118,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
                 <div className="space-y-3">
                     <div className="space-y-1">
                         <Label htmlFor="builder-format">{t(T.fournisseur)}</Label>
-                        <select
+                        <ListeDeroulante
                             id="builder-format"
                             className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                             value={format}
@@ -125,7 +126,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
                         >
                             <option value="anthropic">{t(T.anthropic)}</option>
                             <option value="openai">{t(T.openai)}</option>
-                        </select>
+                        </ListeDeroulante>
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor="builder-modele">{t(T.modele)}</Label>

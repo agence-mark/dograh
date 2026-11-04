@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Mic, Phone, RefreshCw, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
@@ -162,8 +162,40 @@ export function WorkflowTesterPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeDemande?.cle]);
 
+    // [.mark] V1b : le panneau s'ouvre au clavier comme à la souris. Le focus entre dans le panneau (sur l'onglet du mode
+    // choisi) et Échap le ferme, sauf quand une liste ouverte (qui prend l'Échap pour elle) l'a déjà utilisé.
+    const racine = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!modeDemande || !isVisible) return;
+        const minuterie = window.setTimeout(() => racine.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus(), 300);
+        return () => window.clearTimeout(minuterie);
+    }, [modeDemande?.cle, isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Le focus peut être rendu au bouton « Essayer » par le menu qui se referme : Échap est donc écouté sur le document
+    // tant que le panneau est visible (une liste ou un menu ouvert garde son Échap).
+    useEffect(() => {
+        if (!isVisible || !onClose) return;
+        const surEchap = (e: KeyboardEvent) => {
+            if (e.key !== "Escape" || e.defaultPrevented) return;
+            if (racine.current?.contains(document.activeElement)) return; // déjà géré par le panneau
+            if (document.querySelector('[role="listbox"],[role="menu"],[role="dialog"]')) return;
+            onClose();
+        };
+        document.addEventListener("keydown", surEchap);
+        return () => document.removeEventListener("keydown", surEchap);
+    }, [isVisible, onClose]);
+
     return (
-        <div className={cn("flex h-full min-h-0 flex-col bg-background", className)}>
+        <div
+            ref={racine}
+            className={cn("flex h-full min-h-0 flex-col bg-background", className)}
+            onKeyDown={(e) => {
+                if (e.key === "Escape" && onClose && !e.defaultPrevented) {
+                    e.stopPropagation();
+                    onClose();
+                }
+            }}
+        >
             <Tabs
                 value={activeMode}
                 onValueChange={handleModeChange}
