@@ -3,6 +3,7 @@
   "contenu": {
     "nom": "Façon PolyAI",
     "quand": "Un agent à prompt général court, tâches en objectifs et outils qui portent la consigne dans leur retour.",
+    "quand_en": "A short general prompt, tasks written as objectives, and tools that carry the instruction in what they return.",
     "defaut_de_depart": false,
     "methode_de_construction": "Tu construis avec les pièces de cette recette : prompt général court, tâche en objectifs, outil de départ par tâche, porte d'écriture en deux appels, retours d'outil verdict puis consigne. Les dix principes de la recette passent avant. Une consigne d'étape qui échoue à son test descend dans le retour de l'outil (règle de descente).",
     "pieces": [

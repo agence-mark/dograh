@@ -3,6 +3,7 @@
   "contenu": {
     "nom": "Façon Tala",
     "quand": "Un groupe avec un accueil et un spécialiste par motif d'appel, prompts au moule d'étape (« fait accompli, au lieu de »). Recette de départ.",
+    "quand_en": "A group with a greeter and one specialist per call reason, prompts written to the step template (\"done fact, instead of\"). Starting recipe.",
     "defaut_de_depart": true,
     "methode_de_construction": "Tu construis uniquement avec les pièces de cette recette (prompt général, étapes au moule, conditions de passage), jamais avec celles d'une autre recette. Les moules se remplissent, ils ne se réécrivent pas.",
     "pieces": [

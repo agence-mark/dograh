@@ -18,7 +18,7 @@ const LISTE = {
     defaut: "a",
     recettes: [
         { slug: "a", nom: "Recette A", quand: "Quand A.", prouvee: false, statut: "candidat", capacites: [] },
-        { slug: "b", nom: "Recette B", quand: "Quand B.", prouvee: true, statut: "recette", capacites: [] },
+        { slug: "b", nom: "Recette B", quand: "Quand B.", quand_en: "When B.", prouvee: true, statut: "recette", capacites: [] },
     ],
 };
 
@@ -62,6 +62,15 @@ describe("fenêtre de création : choix de la recette", () => {
         fireEvent.click(screen.getByText("Start the builder"));
         await waitFor(() => expect(creerAgent).toHaveBeenCalled());
         expect((creerAgent.mock.calls[0][0] as { body: { recette: string } }).body.recette).toBe("b");
+    });
+
+    it("décrit chaque recette dans la langue de l'écran, et garde le français quand l'anglais manque", async () => {
+        render(<ModaleNouvelAgent ouvert fermer={vi.fn()} />);
+        await screen.findByText("Recette A");
+        // L'écran de test est en anglais : B a sa phrase anglaise, A (sans) garde la sienne.
+        expect(screen.getByText("When B.")).toBeTruthy();
+        expect(screen.queryByText("Quand B.")).toBeNull();
+        expect(screen.getByText("Quand A.")).toBeTruthy();
     });
 
     it("par défaut, le choix est le défaut lu ; le groupe l'envoie aussi", async () => {

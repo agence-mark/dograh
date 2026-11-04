@@ -246,6 +246,17 @@ async def test_les_deux_premieres_fiches_reprennent_les_deux_recettes_actuelles(
     assert not [p for p in rendu["pieces"] if p.get("manque")]
 
 
+async def test_les_deux_recettes_versees_se_decrivent_dans_les_deux_langues(monde):
+    # V4 : la description d'une recette est une donnée versée, en français ET en anglais (jamais le français seul à l'écran).
+    await avec_les_deux_premieres(monde)
+    c = client_pour(EQUIPE)
+    vues = {r["slug"]: r for r in c.get("/builder/recettes").json()["recettes"]}
+    assert sorted(vues) == ["facon-polyai", "facon-tala"]
+    for vue in vues.values():
+        assert vue["quand"] and vue["quand_en"] and vue["quand_en"] != vue["quand"]
+        assert "é" not in vue["quand_en"]  # une phrase anglaise, pas le français recopié
+
+
 async def test_une_recette_ajoutee_en_bibliotheque_seule_apparait_et_sert_a_construire(monde):
     await service.creer("moules-etape", "perso-accueil", "Accueil perso", {"texte": "Moule perso."}, "t")
     await service.creer(

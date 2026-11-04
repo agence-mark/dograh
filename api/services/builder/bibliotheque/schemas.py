@@ -86,6 +86,8 @@ class RecetteAgent(_Forme):
 
     nom: str = Field(min_length=1, max_length=80)
     quand: str = Field(default="", max_length=600)
+    # V4 : la même phrase en anglais (le français reste la référence) ; vide = l'écran garde le français.
+    quand_en: str = Field(default="", max_length=600)
     defaut_de_depart: bool = False
     methode_de_construction: str = Field(min_length=1, max_length=4000)
     pieces: list[PieceDeRecette] = Field(default_factory=list, max_length=80)

@@ -58,7 +58,7 @@ const T = {
     echec: { en: "Agent not created. Try again.", fr: "Agent non créé. Réessayez." },
 } satisfies Record<string, Texte>;
 
-type RecetteProposee = { slug: string; nom: string; quand: string; prouvee: boolean };
+type RecetteProposee = { slug: string; nom: string; quand: string; quand_en?: string; prouvee: boolean };
 
 const carte = (actif: boolean) => `rounded-xl border text-left ${actif ? "border-(--acc) ring-1 ring-(--acc)" : "hover:bg-muted/50"}`;
 
@@ -165,7 +165,7 @@ export function ModaleNouvelAgent({ ouvert, fermer, dossierId = null }: { ouvert
                                             {r.slug === defautRecette && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.parDefaut)}</span>}
                                             {!r.prouvee && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.nonProuvee)}</span>}
                                         </p>
-                                        {r.quand && <p className="text-[11px] leading-snug text-muted-foreground">{r.quand}</p>}
+                                        {r.quand && <p className="text-[11px] leading-snug text-muted-foreground">{t({ en: r.quand_en || r.quand, fr: r.quand })}</p>}
                                     </button>
                                 ))}
                             </div>
