@@ -14,7 +14,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -78,8 +78,8 @@ export function CarteConception({ workflowId }: { workflowId: number }) {
             body: { approuve, note: approuve ? null : note.trim() || null },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
-            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." });
+            setErreur(phraseEchec(reponse.error));
+            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." }, { erreur: reponse.error });
             return;
         }
         notifier.succes(approuve ? { en: "Design approved.", fr: "Conception approuvée." } : { en: "Design sent back.", fr: "Conception renvoyée." });

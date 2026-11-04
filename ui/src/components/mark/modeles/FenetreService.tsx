@@ -23,6 +23,7 @@ import { validateUserConfigurationsApiV1UserConfigurationsUserValidateGet } from
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm, type ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications/notifier";
 import type { ModelOverrides } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -49,6 +50,7 @@ const T = {
     essai: { en: "Testing...", fr: "Vérification..." },
     valide: { en: "The connection works.", fr: "La connexion fonctionne." },
     echec: { en: "The connection could not be checked", fr: "La connexion n'a pas pu être vérifiée" },
+    refus: { en: "The provider refuses this key or model. Check them.", fr: "Le fournisseur refuse cette clé ou ce modèle. Vérifiez-les." },
 } satisfies Record<string, Texte>;
 
 export type FenetreServiceProps = {
@@ -87,7 +89,11 @@ export function FenetreService(props: FenetreServiceProps) {
             }
             // Le fork rend une ligne par service dont la clé ou le modèle est refusé ; une liste vide = tout est bon.
             const refuse = (reponse.data?.status ?? []).find((s) => s.model === service);
-            setEssai(refuse ? { etat: "echec", message: refuse.message } : { etat: "ok" });
+            if (refuse) {
+                // Revue de contrôle, point 6 : `refuse.message` est le texte du fournisseur (`str(e)`) ; il part dans « Détails ».
+                notifier.echec(T.refus, { erreur: refuse.message, groupe: "echec-ecran" });
+                setEssai({ etat: "echec", message: t(T.refus) });
+            } else setEssai({ etat: "ok" });
         } catch (e) {
             setEssai({ etat: "echec", message: echecAffiche(e) });
         }

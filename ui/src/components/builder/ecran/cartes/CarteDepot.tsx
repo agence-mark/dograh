@@ -18,7 +18,7 @@ import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confi
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -58,8 +58,8 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { fichier },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
-            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+            setErreur(phraseEchec(reponse.error));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
         } else notifier.succes({ en: "File added.", fr: "Fichier ajouté." });
         await rafraichir(workflowId);
         setOccupe(false);
@@ -74,8 +74,8 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { adresse: adresse.trim() },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
-            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
+            setErreur(phraseEchec(reponse.error));
+            notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
         } else {
             setAdresse("");
             notifier.succes({ en: "Site added.", fr: "Site ajouté." });

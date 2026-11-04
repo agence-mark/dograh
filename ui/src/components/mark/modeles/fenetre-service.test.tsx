@@ -79,7 +79,8 @@ describe("« Tester la connexion »", () => {
         cleanup();
         monter({ service: "tts" });
         fireEvent.click(screen.getByRole("button", { name: "Test the connection" }));
-        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toBe("Clé refusée"));
+        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toMatch(/The provider refuses this key or model|Le fournisseur refuse cette clé/));
+        expect(document.querySelector('[data-essai="echec"]')?.textContent).not.toContain("Clé refusée"); // le texte du fournisseur n'est jamais à l'écran
     });
 
     it("rapporte une erreur du serveur au lieu d'afficher une réussite", async () => {
