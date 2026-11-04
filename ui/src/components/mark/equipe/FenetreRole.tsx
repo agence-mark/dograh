@@ -84,6 +84,7 @@ export function FenetreRole({
                       })
             }
             sections={[]}
+            lecture={lecture || fixe}
             valider={lecture || fixe ? t({ en: "Close", fr: "Fermer" }) : t({ en: "Save", fr: "Enregistrer" })}
             onValider={
                 fige

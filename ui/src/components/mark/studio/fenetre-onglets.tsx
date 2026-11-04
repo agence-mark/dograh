@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +30,7 @@ export function FenetreOnglets({
     onValider,
     desactiver,
     etroite,
+    modifie = false,
 }: {
     fermer: () => void;
     titre: React.ReactNode;
@@ -45,11 +48,18 @@ export function FenetreOnglets({
     desactiver?: boolean;
     /** V2b : la largeur d'une fenêtre de service (maquette : 672 px) au lieu de la grande fenêtre. */
     etroite?: boolean;
+    /** R3 M4 : la fenêtre porte une saisie non enregistrée ; Échap, clic dehors et « Annuler » demandent avant de la jeter. */
+    modifie?: boolean;
 }) {
     const { t } = useLangue();
     const libelle = valider === undefined ? t({ en: "Save", fr: "Enregistrer" }) : valider;
+    const [abandon, setAbandon] = useState(false);
+    const demanderFermeture = () => {
+        if (modifie && libelle !== null) setAbandon(true);
+        else fermer();
+    };
     return (
-        <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
+        <Dialog open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
             <DialogContent
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 className={`${etroite ? "sm:max-w-2xl h-[78vh]" : TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}
@@ -89,9 +99,21 @@ export function FenetreOnglets({
                     {pied && <div className="mr-auto flex items-center gap-2">{pied}</div>}
                     {libelle === null ? (
                         <Button onClick={fermer}>{t({ en: "Close", fr: "Fermer" })}</Button>
+                    ) : abandon ? (
+                        <>
+                            <span className="text-sm" role="alert">
+                                {t({ en: "Discard your changes?", fr: "Abandonner vos modifications ?" })}
+                            </span>
+                            <Button variant="outline" className="cursor-pointer" autoFocus onClick={() => setAbandon(false)}>
+                                {t({ en: "Keep editing", fr: "Continuer la saisie" })}
+                            </Button>
+                            <Button variant="destructive" className="cursor-pointer" data-abandonner onClick={fermer}>
+                                {t({ en: "Discard", fr: "Abandonner" })}
+                            </Button>
+                        </>
                     ) : (
                         <>
-                            <Button variant="outline" onClick={fermer}>
+                            <Button variant="outline" onClick={demanderFermeture}>
                                 {t({ en: "Cancel", fr: "Annuler" })}
                             </Button>
                             <Button disabled={desactiver} onClick={() => onValider?.()}>

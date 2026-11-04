@@ -147,6 +147,7 @@ export function FenetreOutil({
             changerOnglet={(l) => setOnglet(ids.find((i) => libelles[i] === l) ?? "general")}
             valider={t({ en: "Save", fr: "Enregistrer" })}
             desactiver={!modifie || enCours}
+            modifie={modifie}
             onValider={() => void enregistrer()}
             pied={erreur ? <span className="text-sm text-destructive">{erreur}</span> : undefined}
         >

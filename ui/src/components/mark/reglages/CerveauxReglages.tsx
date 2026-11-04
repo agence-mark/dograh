@@ -391,21 +391,23 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
     if (!cerveau || !sous) return <EtatVide cas="chargement" lignes={5} />;
 
     // Le client d'API ne lève pas sur une erreur HTTP : `echecSi` la traite comme un échec ; jamais le texte brut du serveur à l'écran.
-    const suivre = (appel: Promise<Reponse>, quandBon?: () => void) =>
-        notifier.suivre(
-            appel.then((r) => {
-                if (!r.error) quandBon?.();
-                else setErreurChamp(detailFromError(r.error, t(T.echec)));
-                return r;
-            }),
-            { encours: T.encours, succes: T.ok, echec: T.echec, echecSi: (r) => r.error },
-        );
-    const enregistrerCerveau = (morceau: Record<string, unknown>) => {
+    const suivre = (appel: Promise<Reponse>, quandBon?: () => void): Promise<Reponse> => {
+        const suivi = appel.then((r) => {
+            if (!r.error) quandBon?.();
+            else setErreurChamp(detailFromError(r.error, t(T.echec)));
+            return r;
+        });
+        notifier.suivre(suivi, { encours: T.encours, succes: T.ok, echec: T.echec, echecSi: (r) => r.error });
+        return suivi;
+    };
+    /** Rend `true` si le serveur a gardé le réglage : la fenêtre « Modèle et clé » ne se ferme qu'à ce prix (R3 M4). */
+    const enregistrerCerveau = async (morceau: Record<string, unknown>): Promise<boolean> => {
         setErreurChamp(null);
-        suivre(reglerLeCerveauApiV1BuilderCerveauPut({ body: { ...cerveau, ...morceau } as never }), undefined);
+        const reponse = await suivre(reglerLeCerveauApiV1BuilderCerveauPut({ body: { ...cerveau, ...morceau } as never }), undefined).catch(() => ({ error: true }) as Reponse);
         // la vue relit ce que le serveur a gardé (la clé n'est jamais relue)
         void lireLeCerveauApiV1BuilderCerveauGet().then((r) => r.data && setCerveau(r.data));
         void cerveauxPartages.relire();
+        return !reponse.error;
     };
     // L'interrupteur du builder et ses deux portes : une option à la fois, avec sa notification.
     const regler = (morceau: Partial<VueOptions>) =>
@@ -504,13 +506,13 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                             verifier={(v) => (String(v.modele ?? "").trim() ? null : { modele: t({ en: "A model cannot be empty.", fr: "Un modèle ne peut pas être vide." }) })}
                             onValider={(v) => {
                                 const cle = String(v.cle ?? "").trim();
-                                enregistrerCerveau({
+                                // La promesse garde la fenêtre (et la clé tapée) ouverte tant que le serveur n'a pas dit oui.
+                                return enregistrerCerveau({
                                     format: v.format === t(FORMATS.openai) ? "openai" : "anthropic",
                                     modele: String(v.modele).trim(),
                                     adresse: String(v.adresse ?? "").trim(),
                                     ...(cle ? { cle } : {}),
                                 });
-                                setFenetreCerveau(false);
                             }}
                         />
                     )}

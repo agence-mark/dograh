@@ -140,6 +140,7 @@ export function VueMembres() {
                         en: "The link has not been used yet. Revoking it closes it right away.",
                         fr: "Le lien n'a pas encore servi. Le révoquer le ferme tout de suite.",
                     })}
+                    lecture
                     valider={t({ en: "Close", fr: "Fermer" })}
                     sections={[
                         {
@@ -193,7 +194,7 @@ export function VueMembres() {
                     if (!role) return;
                     const res = await inviterApiV1EquipeMarkInvitationsPost({ body: { email: String(v.email), role_id: role.id } });
                     const cree = lireOuSignaler(res, { fr: "Invitation non créée. Réessayez.", en: "Invitation not created. Try again." });
-                    if (!cree) return;
+                    if (!cree) return false; // la fenêtre garde l'adresse tapée
                     setLien({ lien: cree.lien, envoye: cree.envoye, email: cree.email });
                     if (cree.envoye) notifier.succes({ fr: "Invitation envoyée.", en: "Invitation sent." });
                     void charger();
@@ -204,6 +205,7 @@ export function VueMembres() {
                 ouverte={lien !== null}
                 fermer={() => setLien(null)}
                 titre={t({ en: "Invitation link", fr: "Lien d'invitation" })}
+                lecture
                 valider={t({ en: "Close", fr: "Fermer" })}
                 sections={[
                     {
@@ -279,8 +281,11 @@ export function VueMembres() {
                             path: { user_id: ouvert.user_id },
                             body: { role_id: role.id },
                         });
-                        if (res.error) notifier.echec({ fr: "Rôle inchangé. Réessayez.", en: "Role unchanged. Try again." }, { erreur: res.error });
-                        else notifier.succes({ fr: "Rôle changé.", en: "Role changed." });
+                        if (res.error) {
+                            notifier.echec({ fr: "Rôle inchangé. Réessayez.", en: "Role unchanged. Try again." }, { erreur: res.error });
+                            return false;
+                        }
+                        notifier.succes({ fr: "Rôle changé.", en: "Role changed." });
                         void charger();
                     }}
                 />

@@ -46,6 +46,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
             fermer={() => onOpenChange(false)}
             titre={t({ en: "Transition condition", fr: "Condition de passage" })}
             info={t({ en: "What decides the move from one step to the next: the label, the condition the model reads, the condition on the record and the sentence said during the transition.", fr: "Ce qui décide du passage d'une étape à l'autre : le libellé, la condition que lit le modèle, la condition sur la fiche et la phrase dite pendant la transition." })}
+            lecture={readOnly}
             valider={readOnly ? t({ en: 'Close', fr: 'Fermer' }) : t({ en: 'Save', fr: 'Enregistrer' })}
             pied={
                 readOnly ? undefined : (
