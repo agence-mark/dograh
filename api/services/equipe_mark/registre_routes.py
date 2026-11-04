@@ -173,6 +173,7 @@ REGLES: tuple[Regle, ...] = (
     # Le portail ouvre sa connexion à la base du client avec la clé d'API de l'organisation (lot F6) :
     # une permission qu'une clé peut porter, celle des accès techniques, jamais ``atelier.regler``.
     _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("cles.gerer")),
+    _r(ECRITURE, r"^/organizations/modeles-de-reglages(/.*)?$", P("atelier.regler")),  # RA-A (R2) : outil de l'équipe, au Labo
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),
     # Revue serveur M1 : les réglages .mark d'un agent de site (plafonds de coût, durée, sessions par adresse, domaines,
