@@ -192,6 +192,8 @@ describe("enregistrer", () => {
         m.enregistrer.mockResolvedValue({ error: { detail: "Forbidden" }, response: { status: 403 } });
         await enregistrerDepuisLaFenetre();
         await waitFor(() => expect(document.body.getAttribute("data-erreur")).toContain("not allowed"));
+        // La notification dit le refus de droits, elle ne propose pas de « réessayer ».
+        expect(m.echec.mock.calls[0][0].fr).not.toMatch(/Réessayez/);
     });
 });
 

@@ -175,7 +175,8 @@ export function PageModelesEtCles() {
         const r = await saveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Put({ body: corps });
         if (r.error || !r.data) {
             const statut = r.response?.status;
-            notifier.echec(T.lectureEchec, { erreur: r.error });
+            // Un refus de droits ne se « réessaie » pas : la notification le dit, au lieu de proposer de recommencer.
+            notifier.echec(statut === 403 ? T.droit : T.lectureEchec, { erreur: r.error });
             throw new Error(t(statut === 403 ? T.droit : statut === 422 ? T.refuse : T.echec));
         }
         setReponse(r.data);
