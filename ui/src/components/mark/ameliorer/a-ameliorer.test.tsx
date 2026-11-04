@@ -239,6 +239,8 @@ describe("Les mots de l'écran", () => {
     it("dit « N appels sur M » et, pour un test, les essais ratés ou « réussi, à revoir »", () => {
         expect(texteDeFrequence({ frequence: { n: 4, sur: 112, genre: "appels" } }, t)).toBe("4 appels sur 112");
         expect(texteDeFrequence({ frequence: { n: 1, sur: 3, genre: "essais" } }, t)).toBe("2 essais sur 3");
+        expect(texteDeFrequence({ frequence: { n: 1, sur: 2, genre: "appels" } }, t)).toBe("1 appel sur 2");
+        expect(texteDeFrequence({ frequence: { n: 2, sur: 3, genre: "essais" } }, t)).toBe("1 essai sur 3");
         expect(texteDeFrequence({ frequence: { n: 3, sur: 3, genre: "essais" } }, t)).toBe("réussi, à revoir");
     });
 

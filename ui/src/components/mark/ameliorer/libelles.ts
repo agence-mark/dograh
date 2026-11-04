@@ -87,13 +87,16 @@ export function demandeAuBuilder(p: { titre: string; workflow_nom: string; etape
 const FREQUENCE = {
     sur: { en: "of", fr: "sur" },
     appels: { en: "calls", fr: "appels" },
+    appel: { en: "call", fr: "appel" },
     essais: { en: "attempts", fr: "essais" },
+    essai: { en: "attempt", fr: "essai" },
     aRevoir: { en: "passed, to review", fr: "réussi, à revoir" },
 };
 
 /** « N appels sur M » pour un appel ; « k essais sur n » (les essais ratés) pour un test, « réussi, à revoir » s'ils ont tous réussi. */
 export function texteDeFrequence(p: { frequence: unknown }, t: (x: Texte) => string): string {
     const { n, sur, genre } = p.frequence as { n: number; sur: number; genre: string };
-    if (genre === "essais") return n === sur ? t(FREQUENCE.aRevoir) : `${sur - n} ${t(FREQUENCE.essais)} ${t(FREQUENCE.sur)} ${sur}`;
-    return `${n} ${t(FREQUENCE.appels)} ${t(FREQUENCE.sur)} ${sur}`;
+    // Un seul : le singulier (« 1 appel sur 2 »).
+    if (genre === "essais") return n === sur ? t(FREQUENCE.aRevoir) : `${sur - n} ${t(sur - n === 1 ? FREQUENCE.essai : FREQUENCE.essais)} ${t(FREQUENCE.sur)} ${sur}`;
+    return `${n} ${t(n === 1 ? FREQUENCE.appel : FREQUENCE.appels)} ${t(FREQUENCE.sur)} ${sur}`;
 }
