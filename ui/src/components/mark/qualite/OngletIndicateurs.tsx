@@ -203,7 +203,7 @@ export function OngletIndicateurs() {
                     colonnes={[
                         { titre: t(T.agent) },
                         { titre: t(T.version) },
-                        { titre: `${t(T.appelsCol)} ${jours} j`, droite: true },
+                        { titre: `${t(T.appelsCol)} ${jours} ${t({ en: "d", fr: "j" })}`, droite: true },
                         { titre: t(T.noteCol), droite: true },
                     ]}
                 >
