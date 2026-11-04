@@ -17,8 +17,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
     creerUnSiteApiV1OrganizationsSitesPost,
-    lireLApparenceApiV1OrganizationsAgentsSiteWorkflowIdApparenceGet,
     lireLaCouleurDuSiteApiV1OrganizationsAgentsSiteWorkflowIdLireSitePost,
+    lireLApparenceApiV1OrganizationsAgentsSiteWorkflowIdApparenceGet,
     lireLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdGet,
     lireLesReglagesApiV1OrganizationsAgentsSiteWorkflowIdReglagesGet,
     listerLesSitesApiV1OrganizationsSitesGet,
@@ -30,8 +30,8 @@ import {
 } from "@/client/sdk.gen";
 import type { EmplacementLu, ReglagesMarkLus, SiteLu } from "@/client/types.gen";
 import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
-import { useLangue } from "@/components/mark/langue/langue";
 import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
@@ -54,29 +54,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/lib/auth";
 import { detailFromError } from "@/lib/apiError";
+import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
-import { type Ecran, ApercuWidget } from "./ApercuWidget";
+import { ApercuWidget,type Ecran } from "./ApercuWidget";
 import {
-    type Apparence,
-    type CleCouleur,
-    type CleTexte,
-    type Declenchement,
-    type EtatWidget,
-    DECLENCHEMENTS,
-    ETAPES,
-    POLICES,
-    TEINTES,
-    ZONES,
     adresseValide,
+    type Apparence,
     auBleuMark,
     avecCouleur,
     avecTexte,
+    type CleCouleur,
+    type CleTexte,
     couleursResolues,
+    type Declenchement,
     declenchementDe,
+    DECLENCHEMENTS,
     erreurDeTexte,
+    ETAPES,
+    type EtatWidget,
+    POLICES,
+    TEINTES,
+    ZONES,
 } from "./editeur-donnees";
 
 type Lang = { fr: string; en: string };

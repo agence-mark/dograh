@@ -32,6 +32,7 @@ vi.mock("./EditeurWidget", () => ({
 }));
 
 import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
+
 import { PanneauSite } from "./PanneauSite";
 
 const rendre = () => render(<FournisseurLangue><PanneauSite workflowId={42} /></FournisseurLangue>);

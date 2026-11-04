@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { COULEURS, ZONES, adresseValide, auBleuMark, avecCouleur, avecTexte, couleursResolues, declenchementDe, erreurDeTexte, texteSur } from "./editeur-donnees";
+import { adresseValide, auBleuMark, avecCouleur, avecTexte, COULEURS, couleursResolues, declenchementDe, erreurDeTexte, texteSur,ZONES } from "./editeur-donnees";
 
 describe("la règle de couleur", () => {
     it("donne les mêmes défauts que le serveur", () => {

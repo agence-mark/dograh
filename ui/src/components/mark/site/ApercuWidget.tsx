@@ -11,10 +11,10 @@
 import { MousePointerClick } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { useLangue } from "@/components/mark/langue/langue";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
-import { type Apparence, COULEURS, type EtatWidget, couleursResolues } from "./editeur-donnees";
+import { type Apparence, COULEURS, couleursResolues,type EtatWidget } from "./editeur-donnees";
 
 const LARGEUR_TELEPHONE = 360;
 const HAUTEUR_TELEPHONE = 720;

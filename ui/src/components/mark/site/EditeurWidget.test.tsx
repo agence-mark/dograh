@@ -64,6 +64,7 @@ vi.mock("./ApercuWidget", () => ({
 }));
 
 import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
+
 import { EditeurWidget } from "./EditeurWidget";
 
 const EMPLACEMENT = { workflow_id: 42, canal: "site", embed_token_id: 9, widget_actif: true, site_id: 3, site_cle: "site_abc", chemins: ["/"], agent_nom: "Assistant du site", version_publiee: 2, dernier_chargement: null };
