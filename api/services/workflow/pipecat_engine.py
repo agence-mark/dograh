@@ -1704,6 +1704,15 @@ class PipecatEngine:
                     for key, value in extracted_data.items()
                     if key in requested_names
                 }
+                # [.mark] RA-B R4b (audit 02 B1) : pour un agent qui ne porte pas la fiche (spécialiste, agent
+                # reçu par transfert), l'extraction ne remplace jamais une valeur SÛRE d'un champ de la fiche.
+                protegees = self._valeurs_sures_de_la_fiche(extracted_data)
+                if protegees:
+                    logger.warning(
+                        f"Variable extraction for node {node.name}: valeur sûre de la fiche gardée pour "
+                        f"{sorted(protegees)}"
+                    )
+                    extracted_data = {k: v for k, v in extracted_data.items() if k not in protegees}
                 # Extraction variable names are author-supplied and nothing
                 # validates them against the keys the engine owns. Let one
                 # through and it would desynchronise the call's outcome:
@@ -1812,6 +1821,26 @@ class PipecatEngine:
             self.active_agent.current_node,
             run_in_background=False,
         )
+
+    def _valeurs_sures_de_la_fiche(self, noms) -> set[str]:
+        """[.mark] RA-B R4b : parmi ``noms``, les champs de la fiche qui ont déjà une valeur vérifiée (``sure``) et non
+        vide. ⛔ Ne lève jamais (dans le doute : aucun)."""
+        try:
+            if self._fiche is None:
+                return set()
+            champs = {c.nom for c in self._fiche.champs}
+            etat = self._gathered_context.get("fiche_etat") or {}
+            return {
+                n
+                for n in noms
+                if n in champs
+                and isinstance(etat.get(n), dict)
+                and etat[n].get("sure") is True
+                and self._gathered_context.get(n) not in (None, "", [], {})
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[extraction] valeurs sûres illisibles : {e!r}")
+            return set()
 
     def _fiche_sur_l_agent_actif(self) -> bool:
         """[.mark] La fiche vaut pour l'agent dont le modèle la porte.

@@ -294,3 +294,23 @@ def verifier_champs(champs: list[ChampFiche]) -> list[ChampFiche]:
             raise ValueError(f"fiche field name '{champ.nom}' is used twice")
         vus.add(champ.nom)
     return champs
+
+
+def verifier_extraction_contre_fiche(definition: dict | None, champs: list | None) -> None:
+    """[.mark] RA-B R4b (audit 02 B1) : une variable d'extraction (Dograh) ne porte pas le nom d'un champ de la fiche.
+    La fiche contrôle (citation, valeur sûre), l'extraction écrit sans contrôle : un même nom les ferait se marcher dessus.
+    Lève ``ValueError`` (422 à l'enregistrement). Rien à comparer d'un côté ou de l'autre : rien n'est refusé."""
+    if not definition or not champs:
+        return
+    noms = {getattr(c, "nom", None) or (c.get("nom") if isinstance(c, dict) else None) for c in champs}
+    for noeud in definition.get("nodes") or ():
+        donnees = (noeud or {}).get("data") or {}
+        if not donnees.get("extraction_enabled"):
+            continue
+        for variable in donnees.get("extraction_variables") or ():
+            nom = (variable or {}).get("name")
+            if nom and nom in noms:
+                raise ValueError(
+                    f"extraction variable '{nom}' has the name of a call record field: "
+                    "rename the variable or use the record field"
+                )
