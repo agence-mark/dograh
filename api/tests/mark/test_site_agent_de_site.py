@@ -337,7 +337,8 @@ async def _acces(db_session, nom, organisations, *, tous_les_clients=True):
         nom=f"Portail-{nom}",
         labo_ouvert=True,
         tous_les_clients=tous_les_clients,
-        permissions=["agents.modifier"],
+        # M1 : les réglages .mark d'un agent de site exigent aussi « Régler l'atelier ».
+        permissions=["agents.modifier", "atelier.regler"],
         organisations=[] if tous_les_clients else list(organisations),
     )
     user, jeton = await creer_compte(db_session, f"{nom}@example.com", organisations=organisations)
@@ -612,3 +613,21 @@ async def test_la_route_lire_site_limite_a_dix_par_heure_et_exige_un_domaine(db_
     assert sans_domaine.status_code == 422
     assert [r.status_code for r in lues] == [200] * 10 + [429]
     assert lues[0].json() == {"couleur": "#1f6f4a", "logo_url": "https://client.fr/img/logo.png", "sources": ["theme-color"]}
+
+
+async def test_une_cle_d_api_regle_l_apparence_mais_jamais_les_reglages_mark(db_session, async_session):
+    """Revue serveur M1 : la clé du portail règle l'apparence de l'agent de site, jamais ses plafonds de coût (403)."""
+    org, _, agent, _ = await creer_agent_avec_jeton(db_session, async_session)
+    createur, _ = await creer_compte(db_session, "m1-createur@example.com", role="Administrateur", organisations=[org])
+    _, cle = await db_session.create_api_key(org, "portail", createur.id)
+    h = {"X-API-Key": cle}
+    base = f"{API}/organizations/agents-site/{agent.id}"
+    async with client_http() as c:
+        apparence = await c.put(f"{base}/apparence", headers=h, json={"couleur_base": "#112233"})
+        lus = await c.get(f"{base}/reglages", headers=h)
+        refuse = await c.put(f"{base}/reglages", headers=h, json={"plafond_conversations_mois": 100000})
+        apres = await c.get(f"{base}/reglages", headers=h)
+    assert apparence.status_code == 200, apparence.text
+    assert lus.status_code == 200
+    assert refuse.status_code == 403
+    assert apres.json()["plafond_conversations_mois"] == lus.json()["plafond_conversations_mois"] != 100000

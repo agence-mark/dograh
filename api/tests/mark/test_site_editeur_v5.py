@@ -96,7 +96,9 @@ def test_les_modes_valent_voix_et_ecrit_par_defaut_et_une_valeur_inconnue_aussi(
 # ----------------------------------------------------------------------------- routes
 async def _acces(db_session, nom, organisations):
     role = await db_session.creer_role(
-        nom=f"Portail-{nom}", labo_ouvert=True, tous_les_clients=False, permissions=["agents.modifier"], organisations=list(organisations)
+        nom=f"Portail-{nom}", labo_ouvert=True, tous_les_clients=False,
+        # M1 : les réglages .mark d'un agent de site exigent aussi « Régler l'atelier ».
+        permissions=["agents.modifier", "atelier.regler"], organisations=list(organisations)
     )
     user, jeton = await creer_compte(db_session, f"{nom}@example.com", organisations=organisations)
     await db_session.poser_membre(user.id, role)
