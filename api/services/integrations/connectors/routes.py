@@ -17,7 +17,7 @@ from api.db.models import UserModel
 from api.schemas.traducteurs import ChoixTraducteurs, TraducteurVue
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.integrations.connectors import nango, propositions
-from api.services.integrations.connectors.catalogue import connecteur, connecteurs
+from api.services.integrations.connectors.catalogue import categorie_de, connecteur, connecteurs
 
 router = APIRouter(prefix="/connecteurs", tags=["connecteurs"])
 
@@ -54,6 +54,8 @@ class ConnecteurVue(BaseModel):
     # (tried), « a_activer » (card only, the vendor opens its API on contract), « interne » (ours).
     etat: str = "a_essayer"
     editeur: str | None = None
+    # V4 : la catégorie du catalogue (CRM, Agenda…), celle de la colonne de la fenêtre « Catalogue ». ``None`` : à ranger.
+    categorie: str | None = None
 
 
 class OutilVu(BaseModel):
@@ -121,6 +123,7 @@ async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organiz
             gestionnaire_propre=c.interne and c.gestionnaire_interne is not None,
             etat="interne" if c.interne else c.etat,
             editeur=c.editeur,
+            categorie=categorie_de(c),
             actions=[
                 ActionVue(
                     nom=a.nom,

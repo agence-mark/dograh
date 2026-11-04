@@ -100,6 +100,61 @@ class Connecteur:
 
 ETATS = ("a_essayer", "pret", "a_activer")
 
+# V4 : les catégories du catalogue (la colonne de la fenêtre « Catalogue »), dans l'ordre de la maquette. Une catégorie vide n'est pas
+# montrée par l'écran. Un connecteur déclaré sans catégorie ici fait échouer ``test_categories_du_catalogue`` : on la choisit en le codant.
+CATEGORIES = (
+    "CRM",
+    "Agenda",
+    "Messages",
+    "Données",
+    "Support",
+    "Interventions",
+    "Téléphonie",
+    "Compta",
+    "Immobilier",
+    "Santé",
+    "Vétérinaire",
+    "Nos connecteurs",
+)
+CATEGORIE_DU_CONNECTEUR: dict[str, str] = {
+    "hubspot": "CRM",
+    "pipedrive": "CRM",
+    "sellsy": "CRM",
+    "salesforce": "CRM",
+    "teamleader": "CRM",
+    "nocrm": "CRM",
+    "folk": "CRM",
+    "google_agenda": "Agenda",
+    "outlook_agenda": "Agenda",
+    "calendly": "Agenda",
+    "acuity": "Agenda",
+    "setmore": "Agenda",
+    "twilio_sms": "Messages",
+    "gmail": "Messages",
+    "slack": "Messages",
+    "whatsapp_business": "Messages",
+    "google_sheets": "Données",
+    "airtable": "Données",
+    "notion": "Données",
+    "zendesk": "Support",
+    "freshdesk": "Support",
+    "crisp": "Support",
+    "praxedo": "Interventions",
+    "pennylane": "Compta",
+    "hektor": "Immobilier",
+    "apimo": "Immobilier",
+    "cosium": "Santé",
+    "doctolib": "Santé",
+    "vetstoria": "Vétérinaire",
+    "planificateur": "Nos connecteurs",
+    "equipe": "Nos connecteurs",
+    "dossier": "Nos connecteurs",
+}
+
+
+def categorie_de(connecteur: "Connecteur") -> str | None:
+    return CATEGORIE_DU_CONNECTEUR.get(connecteur.nom)
+
 
 class CatalogueInvalide(ValueError):
     pass

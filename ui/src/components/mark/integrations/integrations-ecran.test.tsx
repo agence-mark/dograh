@@ -20,13 +20,14 @@ const CATALOGUE = [
         libelle: "Agenda d'essai",
         integration: "agenda-essai",
         etat: "a_essayer",
+        categorie: "Agenda",
         actions: [
             { nom: "trouver", description: "Find slots.", ecrit: false, anticipable_permis: true, parametres: [], reglages_par_defaut: { nombre: 3 } },
             { nom: "poser", description: "Book.", ecrit: true, anticipable_permis: false, parametres: [], reglages_par_defaut: {} },
         ],
     },
-    { nom: "crm_essai", libelle: "CRM d'essai", integration: "crm-essai", etat: "a_essayer", actions: [] },
-    { nom: "immo_essai", libelle: "Immo d'essai", integration: "immo-essai", etat: "a_activer", editeur: "Éditeur d'essai", actions: [] },
+    { nom: "crm_essai", libelle: "CRM d'essai", integration: "crm-essai", etat: "a_essayer", categorie: "CRM", actions: [] },
+    { nom: "immo_essai", libelle: "Immo d'essai", integration: "immo-essai", etat: "a_activer", editeur: "Éditeur d'essai", categorie: "Immobilier", actions: [] },
 ];
 const CONNEXIONS = {
     nango_configure: true,
@@ -178,6 +179,22 @@ describe("[.mark] Intégrations › Logiciels", () => {
         expect(screen.queryByText("Immo d'essai")).toBeNull();
         fireEvent.change(recherche, { target: { value: "zzz" } });
         expect(await screen.findByText(/aucun résultat/i)).toBeTruthy();
+    });
+
+    it("V4 : la colonne des catégories filtre les cartes, compte, dit la catégorie sur la carte et suit la recherche", async () => {
+        const recherche = await ouvrirLeCatalogue();
+        const colonne = await screen.findByTestId("categories-du-catalogue");
+        // Seules les catégories qui ont un logiciel, dans l'ordre du serveur, avec leur compte.
+        expect([...colonne.querySelectorAll("button")].map((b) => b.getAttribute("data-categorie"))).toEqual(["tous", "CRM", "Agenda", "Immobilier"]);
+        expect(within(colonne).getByRole("button", { name: /Immobilier/ }).textContent).toContain("1");
+        expect(screen.getByText("CRM d'essai").closest("button")!.textContent).toContain("CRM");
+        fireEvent.click(within(colonne).getByRole("button", { name: /Immobilier/ }));
+        expect(screen.queryByText("CRM d'essai")).toBeNull();
+        expect(screen.getByText("Immo d'essai")).toBeTruthy();
+        // Taper dans la recherche revient à « Tous » (comme la maquette).
+        fireEvent.change(recherche, { target: { value: "crm" } });
+        expect(within(colonne).getByRole("button", { name: /Tous|All/ }).getAttribute("aria-pressed")).toBe("true");
+        expect(screen.getByText("CRM d'essai")).toBeTruthy();
     });
 
     it("dit l'état du logiciel : À essayer avec son explication, À activer avec l'éditeur et sans lien de connexion", async () => {
