@@ -100,6 +100,8 @@ CONNECTEUR_ECHOUE = "connecteur_echoue"
 # sont des notices au modèle (jamais dites) ; le troisième dit la phrase de ce motif, puis change l'étape.
 IMPASSE = "impasse"
 IMPASSE_REPETEE = "impasse_repetee"
+# RA-B (R5) : la phrase de fin d'une conversation du widget à sa durée maximale (``site_mark/duree_max.py``).
+FIN_DE_DUREE_MAX = "fin_duree_max"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -439,6 +441,21 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=False,
             eteinte_fr="Le modèle annonce lui-même la mise en relation.",
             eteinte_en="The model announces the transfer itself.",
+            moment=MOMENT_ACTION,
+        ),
+        Motif(
+            id=FIN_DE_DUREE_MAX,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="La conversation du site atteint sa durée maximale",
+            libelle_en="The website conversation reaches its maximum duration",
+            quand_fr="Une conversation du widget du site arrive à sa durée maximale : le code dit cette phrase puis met fin à l'appel.",
+            quand_en="A website widget conversation reaches its maximum duration: the code says this sentence, then ends the call.",
+            a_un_delai=False,
+            variantes_defaut=("Je dois malheureusement conclure cette conversation. Merci de votre visite et à bientôt.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Le code dit quand même la phrase par défaut : une conversation ne se termine jamais en silence.",
+            eteinte_en="The code still says the default sentence: a conversation never ends in silence.",
             moment=MOMENT_ACTION,
         ),
     )

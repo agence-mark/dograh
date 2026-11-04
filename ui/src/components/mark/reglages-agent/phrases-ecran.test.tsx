@@ -226,6 +226,7 @@ describe("[.mark] theme Phrases : le modèle", () => {
             "impasse_repetee",
             "transfert_echoue",
             "mise_en_relation",
+            "fin_duree_max",
         ]);
     });
 });
@@ -234,12 +235,12 @@ describe("[.mark] theme Phrases : l'écran", () => {
     it("draws the notice, the filters with their counters, the pause and a card per cause", async () => {
         await monter();
         expect(document.querySelector("[data-notice-phrases]")).not.toBeNull();
-        expect(screen.getByRole("tab", { name: "All (13)" })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: "All (14)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Waits (6)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Problems (6)" })).toBeTruthy();
-        expect(screen.getByRole("tab", { name: "Actions (1)" })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: "Actions (2)" })).toBeTruthy();
         expect(document.getElementById("phrases_repos_s")).not.toBeNull();
-        expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(13);
+        expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(14);
         expect(carte("modele_tarde").getAttribute("data-origine")).toBe("defaut");
         // Une règle éteinte est grisée et dit ce qui se passe à la place.
         expect(carte("outil_tarde").getAttribute("data-active")).toBe("non");
@@ -347,7 +348,7 @@ describe("[.mark] theme Phrases : l'écran", () => {
         fireEvent.click(screen.getByRole("button", { name: "Add a sentence" }));
         const etape1 = await screen.findByRole("dialog");
         expect(within(etape1).getByText("Step 1 of 2", { selector: "span" })).toBeTruthy();
-        expect(within(etape1).getAllByRole("button").filter((b) => b.hasAttribute("data-motif-ajout"))).toHaveLength(13);
+        expect(within(etape1).getAllByRole("button").filter((b) => b.hasAttribute("data-motif-ajout"))).toHaveLength(14);
         fireEvent.click(within(etape1).getByRole("button", { name: "A tool fails" }));
         const etape2 = await screen.findByText(/Step 2 of 2/);
         expect(etape2).toBeTruthy();
@@ -452,7 +453,7 @@ describe("[.mark] theme Phrases : l'écran", () => {
             expect(v?.querySelector("table")).not.toBeNull();
             return v as HTMLElement;
         });
-        expect(vue.querySelectorAll("[data-ligne-groupe]")).toHaveLength(13);
+        expect(vue.querySelectorAll("[data-ligne-groupe]")).toHaveLength(14);
         expect(vue.querySelector('[data-case-groupe="appelant_se_tait-7"]')?.getAttribute("data-niveau")).toBe("agent");
         const cellule = vue.querySelector('[data-case-groupe="appelant_se_tait-8"]') as HTMLElement;
         expect(cellule.getAttribute("data-niveau")).toBe("groupe");
