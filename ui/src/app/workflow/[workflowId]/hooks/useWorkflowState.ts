@@ -602,7 +602,10 @@ export const useWorkflowState = ({
                         )
                         .join('\n');
                 }
-                throw new Error(msg);
+                // [.mark] Revue de contrôle, point 2 (M5) : la liste de fautes de champ (422) reste portée par l'erreur
+                // (`detail`), pour que l'écran sache la montrer sous son champ ; tout autre texte du serveur ne sert
+                // qu'au motif (« Détails » de la notification), jamais à l'écran.
+                throw Object.assign(new Error(msg), Array.isArray(detail) ? { detail } : {});
             }
 
             const savedConfigurations = resolveWorkflowConfigurations(

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { createCredentialApiV1CredentialsPost } from "@/client";
 import { CredentialResponse, WebhookCredentialType } from "@/client/types.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -109,9 +110,7 @@ export function CreateCredentialDialog({
             }
         } catch (err) {
             console.error("Failed to create credential:", err);
-            setError(
-                err instanceof Error ? err.message : "An unexpected error occurred"
-            );
+            setError(echecAffiche(err));
         } finally {
             setIsCreating(false);
         }

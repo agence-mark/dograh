@@ -1,4 +1,5 @@
 import { Loader2, Mic, Pause, Play, Square, Trash2Icon, Upload, X } from "lucide-react";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -331,9 +332,7 @@ export const RecordingsDialog = ({
             if (fileInputRef.current) fileInputRef.current.value = "";
             await fetchRecordings();
         } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Failed to upload recordings"
-            );
+            setError(echecAffiche(err));
         } finally {
             setUploading(false);
         }

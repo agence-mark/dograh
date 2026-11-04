@@ -437,7 +437,7 @@ describe("[.mark] business address for this agent", () => {
     });
 
     it("shows a refusal from the server under the fields", async () => {
-        const onSave = vi.fn().mockRejectedValue(new Error("Unknown commune (INSEE code 60999)."));
+        const onSave = vi.fn().mockRejectedValue(Object.assign(new Error("Unknown commune (INSEE code 60999)."), { detail: [{ msg: "Unknown commune (INSEE code 60999)." }] }));
         ouvrirAgent(null, onSave);
         taper("agent-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("agent-business-address").value).toBe("60589"));
