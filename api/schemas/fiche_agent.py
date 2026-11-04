@@ -268,86 +268,9 @@ def cle_dit(nom: str) -> str:
     return f"{nom}_dit"
 
 
-# Clés que le moteur et les modules écrivent eux-mêmes dans la fiche de l'appel.
-# Un champ de ce nom les écraserait : refusé à l'enregistrement. ⚠️ Tenue à jour
-# par un test qui la compare aux clés réelles du moteur et des modules.
-NOMS_RESERVES = frozenset(
-    {
-        # moteur (`_ENGINE_OWNED_CONTEXT_KEYS` et clés d'état)
-        "call_disposition",
-        "mapped_call_disposition",
-        "call_status",
-        "call_tags",
-        "answer_supervisor",
-        # [.mark] lot 3 de cloture-code (amont b10e829f) : les résultats des outils
-        "tool_results",
-        "extracted_variables",
-        "nodes_visited",
-        "agent_visits",
-        # [.mark] agents-specialises (lots 2, 5, 7) : les traces du groupe
-        "parcours",
-        "parcours_etapes",
-        "porte_reecrite",
-        "passations",
-        "transferts_humains",
-        # [.mark] agents-specialises (lot 17) : les demandes closes d'un appel à plusieurs demandes
-        "demandes",
-        "demande_au_retour",
-        # traces des modules
-        "communes_verifiees",
-        # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne
-        "communes_ecartees",
-        # plan mode-prise-de-notes : la trace de chaque post-scriptum et de chaque passe du greffier
-        "post_scriptums",
-        "greffier_passes",
-        # chantier greffier-conversation, lot A : les portes écrites dans la réponse (greffier)
-        "portes_lues",
-        # chantier greffier-conversation, lot E : le transfert lancé par le code
-        "transferts_garantis",
-        "voies_verifiees",
-        "epellations_lues",
-        "nombres_lus",
-        "lexique_reconnu",
-        "lexique_metier",
-        # la fiche elle-même
-        "fiche_etat",
-        "fiche_journal",
-        "tour_appelant",
-        # [.mark] l-agent-travaille, L5 : les traces des connecteurs
-        "connecteurs",
-        "connecteurs_differes",
-        # [.mark] l-agent-collegue : les traces de l'équipe, du hub, du planificateur et de la
-        # vérification de l'appelant (L2 à L6, R-3)
-        "equipe_gestes",
-        "equipe_assignation",
-        "hub_rendez_vous",
-        "planificateur",
-        "planificateur_rappel",
-        "verification_appelant",
-        "dossier_lu",
-        # [.mark] orchestrateur-trois-cerveaux, lot 4 : la trace du cerveau de fond (oubliée alors,
-        # ajoutée par fiabilite-orchestration) ; fiabilite-orchestration : les phrases du code.
-        "travaux",
-        "phrases_du_code",
-        # fiabilite-orchestration, lot 9 : connexions au modèle et liaison audio relevées par appel.
-        "mark_connexions_modele",
-        "mark_reseau",
-        # actions-sures-et-parite-clavier, lot F : le journal des actions de l'appel, gardé avec la fiche.
-        "mark_journal_des_actions",
-        # passages-fiables : les retenues de la vérité des actions (file de tri) ; le rejeu d'un test et ses outils simulés.
-        "retenues_verite",
-        "rejeu_sortants_simules",
-        "outils_simules",
-        # passages-fiables : les traces du décideur et de l'arbitre, l'attente accordée, les signalements et les alertes.
-        "passages_par_le_code",
-        "arbitre",
-        "desaccords_arbitre",
-        "attentes_accordees",
-        "signalements",
-        "alertes",
-        "alertes_mail",
-    }
-)
+# [.mark] RA-A (R3, audit du 04/11, 02 B6) : la liste des noms réservés est UNE, dans ``schemas/noms_reserves.py``
+# (fiche, phrases du catalogue, objets, catalogue des variables la lisent toutes). Gardé ici sous son ancien nom.
+from api.schemas.noms_reserves import NOMS_RESERVES  # noqa: E402
 
 
 def verifier_champs(champs: list[ChampFiche]) -> list[ChampFiche]:

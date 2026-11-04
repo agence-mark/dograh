@@ -168,7 +168,7 @@ async def catalogue_de(
     configurations: dict | None = None,
     valeurs_d_essai: dict | None = None,
 ) -> list[Variable]:
-    from api.schemas.fiche_agent import NOMS_RESERVES
+    from api.schemas.noms_reserves import NOMS_RESERVES
 
     configurations = configurations or {}
     champs = [c.get("nom") for c in configurations.get("fiche_champs") or [] if isinstance(c, dict) and c.get("nom")]

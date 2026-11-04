@@ -17,7 +17,7 @@ Pur : aucune base, rien de levé.
 
 from __future__ import annotations
 
-from api.schemas.fiche_agent import NOMS_RESERVES
+from api.schemas.noms_reserves import NOMS_RESERVES
 from api.services.communes.adresse import CLE_ADRESSE
 from api.services.equipe.appel import CLE_CLES, CLE_EQUIPE
 from api.services.etablissements.appel import (
