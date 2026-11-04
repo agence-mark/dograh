@@ -94,7 +94,7 @@ export function BoiteMessages({ client, filInitial }: { client?: number; filInit
                 <div className="shrink-0 space-y-2 p-3">
                     {!client && (
                         <h1 className="flex items-center gap-2 px-1 pt-1 pb-1 text-lg font-semibold">
-                            Messages
+                            {t({ en: "Messages", fr: "Messages" })}
                             <Info>{t({ en: "Messages and software requests your clients send from their portal, with our replies. Internal notes stay between us: the portal never receives them.", fr: "Ce que les clients écrivent depuis leur portail : leurs messages et leurs demandes de logiciel, avec nos réponses. Les notes internes restent entre nous : le portail ne les reçoit jamais." })}</Info>
                         </h1>
                     )}
@@ -180,7 +180,7 @@ function FicheMini({ fil, client, autres, ouvrir, t }: { fil: FilOut; client?: C
             </div>
             <div className="divide-y border-y">
                 <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "State", fr: "État" })}</span>{client ? <EtatClient etat={client.etat ?? "installation"} /> : null}</p>
-                <p className="flex justify-between py-2"><span className="text-muted-foreground">Agents</span><span>{client?.agents ?? 0}</span></p>
+                <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "Agents", fr: "Agents" })}</span><span>{client?.agents ?? 0}</span></p>
                 <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "Followed by", fr: "Suivi par" })}</span><span>{fil.suivi_nom ?? t({ en: "Nobody", fr: "Personne" })}</span></p>
             </div>
             <div className="space-y-1">

@@ -167,7 +167,7 @@ function AccueilInterne({ t }: { t: Dire }) {
                     )}
                 </div>
                 <div className="space-y-3">
-                    <p className="flex h-9 items-center text-xs font-medium tracking-wider text-muted-foreground uppercase">Clients</p>
+                    <p className="flex h-9 items-center text-xs font-medium tracking-wider text-muted-foreground uppercase">{t({ en: "Clients", fr: "Clients" })}</p>
                     {clients.donnees?.length === 0 && (
                         <EtatVide cas="premier" compact icone={Users} titre={t({ en: "No client yet", fr: "Aucun client pour l'instant" })} />
                     )}
