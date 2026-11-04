@@ -290,6 +290,29 @@ async def test_ramener_au_labo_en_brouillon_dans_le_dossier_des_copies(db_sessio
     assert (await groupe.lire_agent(principal, client)).definition == definition
 
 
+async def test_a7_ramener_au_labo_avec_le_nom_et_le_dossier_choisis(db_session):
+    labo, client, admin, jeton = await _monde(db_session, "ra7")
+    principal, _ = await groupe.creer_principal(nom="Standard", organization_id=client, user_id=admin.id, dossier_parent_id=None)
+    voulu = await db_session.create_folder(name="Variantes 2026", organization_id=labo, parent_id=None)
+    d_un_client = await db_session.create_folder(name="Dossier du client", organization_id=client, parent_id=None)
+    async with client_http() as c:
+        h = entetes(jeton, client)
+        releve = (await c.get(f"{E}/{principal}/releve", params={"sens": "ramener", "cible": labo}, headers=h)).json()
+        assert {"id": voulu.id, "nom": "Variantes 2026"} in releve["dossiers"]
+        assert d_un_client.id not in [d["id"] for d in releve["dossiers"]]  # seulement les dossiers de la cible
+        refus = await c.post(f"{E}/{principal}/copier", json={"sens": "ramener", "cible_organization_id": labo, "dossier_id": d_un_client.id}, headers=h)
+        assert refus.status_code == 422
+        reponse = await c.post(
+            f"{E}/{principal}/copier",
+            json={"sens": "ramener", "cible_organization_id": labo, "nom": "  Standard modèle  ", "dossier_id": voulu.id}, headers=h,
+        )
+    assert reponse.status_code == 200, reponse.text
+    compte = reponse.json()
+    assert compte["dossier_id"] == voulu.id
+    assert (await groupe.lire_agent(compte["agent_id"], labo)).nom == "Standard modèle"
+    assert not any(d.name == "Copies de clients" for d in await db_session.list_folders(labo))  # le dossier imposé n'est plus créé pour rien
+
+
 async def test_le_sens_est_controle_cote_serveur(db_session):
     labo, client, admin, jeton = await _monde(db_session, "se")
     src = await _groupe_du_labo(db_session, labo, admin)
@@ -491,6 +514,19 @@ async def test_dupliquer_sans_les_tests_ne_les_recopie_pas(db_session):
     assert len(await stockage_tests.lister(labo, seul)) == 1
 
 
+async def test_a5_la_copie_porte_le_nom_choisi_sinon_le_nom_d_avant(db_session):
+    labo, _client, admin, jeton = await _monde(db_session, "du3")
+    seul = (await db_session.create_workflow("Seul", groupe.graphe_minimal_du_specialise(), admin.id, labo)).id
+    async with client_http() as c:
+        choisi = await c.post(f"/api/v1/workflow/{seul}/duplicate", params={"nom": "  Ma variante B  "}, headers=entetes(jeton, labo))
+        vide = await c.post(f"/api/v1/workflow/{seul}/duplicate", params={"nom": "   "}, headers=entetes(jeton, labo))
+        sans = await c.post(f"/api/v1/workflow/{seul}/duplicate", headers=entetes(jeton, labo))
+        trop_long = await c.post(f"/api/v1/workflow/{seul}/duplicate", params={"nom": "x" * 201}, headers=entetes(jeton, labo))
+    assert choisi.json()["name"] == "Ma variante B"
+    assert vide.json()["name"] == "Seul - Duplicate" and sans.json()["name"] == "Seul - Duplicate"
+    assert trop_long.status_code == 422
+
+
 # ---------------------------------------------------------------------- revue serveur M5 : les en-têtes libres des outils MCP
 SECRET_EN_TETE = "SECRET-D-EN-TETE-5678"
 
@@ -557,3 +593,63 @@ async def test_la_cle_d_un_en_tete_secret_est_reliee_a_celle_du_client(db_sessio
     en_tetes = _en_tetes_copies(await db_session.get_tools_for_organization(client))
     assert en_tetes["X-Cle-Mcp"]["identifiant_uuid"] == cle_client.credential_uuid
     assert cle_mcp.credential_uuid not in json.dumps(en_tetes)
+
+
+async def _fiche_au_labo(db, labo, src):
+    """Une fiche d'établissement du Labo, avec ses numéros, posée sur le principal du groupe."""
+    from api.schemas.etablissements import CatalogueEtablissements, Etablissement
+    from api.services.etablissements.stockage import enregistrer_etablissements
+
+    fiche = Etablissement(
+        id="site-nord", nom="Site Nord", numeros=["+33123456789"], second_numero="+33123456780",
+        numero_transfert="+33123456781", horaires_ouverture="Lundi : 09:00-18:00", annonce_fermeture="Fermé ce soir.",
+    )
+    await enregistrer_etablissements(labo, CatalogueEtablissements(etablissements=[fiche]), "test")
+    agent = await groupe.lire_agent(src["principal"], labo)
+    reglages = {**agent.reglages, "etablissement_id": "site-nord"}
+    await db.update_workflow(
+        workflow_id=src["principal"], name=None, workflow_definition=agent.definition, template_context_variables=None,
+        workflow_configurations=reglages, organization_id=labo,
+    )
+
+
+async def test_se7_la_fiche_d_etablissement_suit_sans_les_numeros_vers_un_client_sans_base(db_session):
+    from api.services.etablissements.stockage import lire_etablissements
+
+    labo, client, admin, jeton = await _monde(db_session, "e7")
+    src = await _groupe_du_labo(db_session, labo, admin)
+    await _fiche_au_labo(db_session, labo, src)
+    async with client_http() as c:
+        releve = (await c.get(f"{E}/{src['principal']}/releve", params={"sens": "exporter", "cible": client}, headers=entetes(jeton, labo))).json()
+        ligne = next(e for e in releve["elements"] if e["type"] == "etablissement")
+        assert ligne["choix"] == ["copier", "vide"] and ligne["defaut"] == "copier" and ligne["code"] == "sans_numeros"
+        compte = (await c.post(f"{E}/{src['principal']}/copier", json=_corps(client), headers=entetes(jeton, labo))).json()
+    assert [l["action"] for l in compte["lignes"] if l["type"] == "etablissement"] == ["copier"]
+    chez_le_client = (await lire_etablissements(client)).etablissements
+    assert [e.id for e in chez_le_client] == ["site-nord"]
+    fiche = chez_le_client[0]
+    assert fiche.numeros == [] and fiche.second_numero is None and fiche.numero_transfert is None  # rien de la ligne
+    assert fiche.horaires_ouverture == "Lundi : 09:00-18:00" and fiche.annonce_fermeture == "Fermé ce soir."
+    assert (await groupe.lire_agent(compte["agent_id"], client)).reglages["etablissement_id"] == "site-nord"
+    assert [e.numeros for e in (await lire_etablissements(labo)).etablissements] == [["+33123456789"]]  # la source ne bouge pas
+
+
+async def test_se7_une_fiche_deja_chez_le_client_est_reliee_jamais_ecrasee(db_session):
+    from api.schemas.etablissements import CatalogueEtablissements, Etablissement
+    from api.services.etablissements.stockage import enregistrer_etablissements, lire_etablissements
+
+    labo, client, admin, jeton = await _monde(db_session, "e8")
+    src = await _groupe_du_labo(db_session, labo, admin)
+    await _fiche_au_labo(db_session, labo, src)
+    await enregistrer_etablissements(client, CatalogueEtablissements(etablissements=[Etablissement(id="site-nord", nom="Le leur")]), "test")
+    async with client_http() as c:
+        releve = (await c.get(f"{E}/{src['principal']}/releve", params={"sens": "exporter", "cible": client}, headers=entetes(jeton, labo))).json()
+        ligne = next(e for e in releve["elements"] if e["type"] == "etablissement")
+        assert ligne["choix"] == ["relier", "vide"] and ligne["defaut"] == "relier"
+        refus = await c.post(
+            f"{E}/{src['principal']}/copier",
+            json=_corps(client, choix=[{"type": "etablissement", "ref": "site-nord", "action": "copier"}]), headers=entetes(jeton, labo),
+        )
+        assert refus.status_code == 422
+        await c.post(f"{E}/{src['principal']}/copier", json=_corps(client), headers=entetes(jeton, labo))
+    assert [e.nom for e in (await lire_etablissements(client)).etablissements] == ["Le leur"]

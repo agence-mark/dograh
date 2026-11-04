@@ -47,6 +47,14 @@ def dupliquer(catalogue: CatalogueEtablissements, source: str, identifiant: str,
     return Etablissement.model_validate(valeurs)
 
 
+def sans_les_numeros(fiche: Etablissement) -> Etablissement:
+    """SE-7 (A-8): the same fiche, same identifier, for ANOTHER organization -- everything that describes the place, none of what
+    belongs to the line (``NON_COPIE``). Pure; validated like any fiche."""
+    valeurs = fiche.model_dump()
+    valeurs.update(numeros=[], second_numero=None, numero_transfert=None, etat_force=None, etat_force_jusqu_a=None)
+    return Etablissement.model_validate(valeurs)
+
+
 def reglages_dupliques(planificateur: Planificateur, source: str, nouvelle: str) -> tuple[Planificateur, int, bool]:
     """The planner's rules with the source's copied under the new fiche.
 

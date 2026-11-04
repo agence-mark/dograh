@@ -1630,6 +1630,7 @@ async def update_workflow(
 async def duplicate_workflow_endpoint(
     workflow_id: int,
     avec_tests: bool = Query(False, description="[.mark] Recopier aussi les tests de l'agent (jamais leurs résultats)"),
+    nom: str | None = Query(None, max_length=200, description="[.mark] Le nom de la copie ; vide : « nom - Duplicate »"),
     user: UserModel = Depends(get_user),
 ) -> WorkflowResponse:
     """Duplicate a workflow including its definition, configuration, recordings, and triggers."""
@@ -1638,6 +1639,7 @@ async def duplicate_workflow_endpoint(
             workflow_id=workflow_id,
             organization_id=user.selected_organization_id,
             user_id=user.id,
+            nom=nom,
         )
 
         # [.mark] Lot 10 : la duplication d'un principal duplique son groupe.

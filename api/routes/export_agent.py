@@ -94,6 +94,7 @@ async def copier(workflow_id: int, corps: DemandeCopie, user: UserModel = Depend
         compte = await ecriture.copier(
             user=user, sens=corps.sens, workflow_id=workflow_id, source=source, cible=corps.cible_organization_id,
             nom_de_la_source=noms.get(source, ""), demandes=corps.choix, avec_tests=corps.avec_tests,
+            nom=corps.nom, dossier_id=corps.dossier_id,
         )
     except ErreurCopie as erreur:
         raise _http(erreur)

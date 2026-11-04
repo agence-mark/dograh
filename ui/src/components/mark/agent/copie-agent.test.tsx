@@ -195,4 +195,36 @@ describe("Ramener au Labo", () => {
         expect(m.retenir).toHaveBeenCalledWith("/labo");
         expect(m.push).toHaveBeenCalledWith("/agents/60");
     });
+
+    it("A-7 : le nom de la copie et le dossier du Labo se choisissent, et le nom part avec la copie", async () => {
+        m.cibles.mockResolvedValue({ data: { sens: "ramener", cibles: [{ id: 1, nom: "Labo", deja_copie: null }] } });
+        m.releve.mockResolvedValue({ data: { ...RELEVE, sens: "ramener", cible_organization_id: 1, dossiers: [{ id: 3, nom: "Variantes 2026" }] } });
+        m.copier.mockResolvedValue({ data: { ...COMPTE, sens: "ramener", cible_organization_id: 1, agent_id: 60 } });
+        render(<FenetreCopieAgent agentId={5} nom="Accueil" sens="ramener" fermer={vi.fn()} />);
+        const nom = (await screen.findByLabelText("Name of the copy")) as HTMLInputElement;
+        expect(document.querySelector("[data-ramener-destination]")).not.toBeNull();
+        expect(screen.getByText("Copies de clients (default)")).toBeTruthy();
+        fireEvent.change(nom, { target: { value: "Accueil modèle" } });
+        fireEvent.click(screen.getByRole("button", { name: "Bring back as a draft" }));
+        await waitFor(() => expect(m.copier).toHaveBeenCalled());
+        expect(m.copier.mock.calls[0][0].body).toMatchObject({ sens: "ramener", nom: "Accueil modèle", dossier_id: null });
+    });
+
+    it("A-7 : l'export vers un client n'a ni nom ni dossier à choisir", async () => {
+        render(<FenetreCopieAgent agentId={5} nom="Accueil" sens="exporter" fermer={vi.fn()} />);
+        await choisirNuances();
+        await screen.findByText("tarifs.pdf");
+        expect(document.querySelector("[data-ramener-destination]")).toBeNull();
+        expect(m.copier).not.toHaveBeenCalled();
+    });
+
+    it("SE-7 : la fiche d'établissement qui peut suivre est proposée en copie, dite « sans ses numéros »", async () => {
+        m.releve.mockResolvedValue({
+            data: { ...RELEVE, elements: [...RELEVE.elements, { type: "etablissement", ref: "site-nord", nom: "site-nord", choix: ["copier", "vide"], defaut: "copier", cibles: [], code: "sans_numeros" }] },
+        });
+        render(<FenetreCopieAgent agentId={5} nom="Accueil" sens="exporter" fermer={vi.fn()} />);
+        await choisirNuances();
+        await screen.findByText("site-nord");
+        expect(screen.getByText("The fiche follows, without its phone numbers")).toBeTruthy();
+    });
 });

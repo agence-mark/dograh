@@ -8,7 +8,7 @@
  *     ouvre le bon onglet du panneau d'essai (ou le Parcours depuis un autre onglet) ? Le menu « ⋯ » garde appels, étiquettes,
  *     dupliquer, télécharger, identifiant, et « Exporter vers un client » y ouvre sa fenêtre (H2) ?
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ActionsAgent, type EditeurAgent } from "./ActionsAgent";
@@ -140,6 +140,22 @@ describe("les actions de la barre avec l'éditeur", () => {
         const fenetre = await screen.findByRole("dialog");
         expect(within(fenetre).getByText("Export to a client")).toBeTruthy();
         expect(await within(fenetre).findByText("Nuances de Feu")).toBeTruthy();
+    });
+
+    it("A-5 : Dupliquer propose « Avec ses tests » coché et envoie le nom tapé", async () => {
+        const sdk = await import("@/client/sdk.gen");
+        const dupliquer = sdk.duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost as unknown as ReturnType<typeof vi.fn>;
+        dupliquer.mockClear();
+        render(<ActionsAgent {...base} editeur={editeur()} />);
+        const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
+        fireEvent.click(within(menu).getByText("Duplicate"));
+        const fenetre = await screen.findByRole("dialog");
+        const interrupteur = within(fenetre).getByRole("switch", { name: "With its tests" });
+        expect(interrupteur.getAttribute("aria-checked")).toBe("true");
+        fireEvent.change(within(fenetre).getByLabelText("Name of the copy"), { target: { value: "Ma variante B" } });
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Duplicate" }));
+        await waitFor(() => expect(dupliquer).toHaveBeenCalled());
+        expect((dupliquer.mock.calls[0] as unknown as [{ query: unknown }])[0].query).toEqual({ avec_tests: true, nom: "Ma variante B" });
     });
 
     it("⋯ › Étiquettes ouvre la fenêtre des étiquettes de l'agent, avec celles qu'il porte déjà cochées", async () => {

@@ -42,12 +42,21 @@ async def problemes_des_tests_obligatoires(
 ) -> list[dict[str, Any]]:
     """``empreinte`` : celle du brouillon actuel (graphe + réglages). Revue R1 : une exécution rangée sans empreinte, ou avec une autre,
     n'a pas été rejouée sur CE brouillon, même si le numéro de version n'a pas bougé."""
+    from api.services.builder import recettes
+
+    # SE-6 : la recette a changé après une publication ; TOUS les tests déjà joués sont à rejouer depuis ce changement.
+    depuis = await recettes.tests_a_rejouer_depuis(organization_id, workflow_id)
     problemes = []
     for test in await stockage.lister(organization_id, workflow_id):
-        if not test.get("obligatoire"):
+        obligatoire = bool(test.get("obligatoire"))
+        if not obligatoire and not depuis:
             continue
         derniere = await stockage.derniere_execution(organization_id, workflow_id, test["slug"])
-        if derniere is None:
+        if not obligatoire and (derniere is None or str(derniere.get("le") or "") >= depuis):
+            continue  # hors recette changée : un test facultatif jamais joué n'est pas bloquant
+        if depuis and derniere is not None and str(derniere.get("le") or "") < depuis:
+            raison = "the recipe changed after the last publication: replay the suite"
+        elif derniere is None:
             raison = "never replayed"
         elif derniere.get("version") != version:
             raison = f"replayed on version {derniere.get('version')}, the draft is now version {version}: replay the suite"

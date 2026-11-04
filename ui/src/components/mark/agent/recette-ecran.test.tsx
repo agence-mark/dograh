@@ -98,11 +98,29 @@ describe("recette de l'agent", () => {
         await waitFor(() => expect(changer).toHaveBeenCalledWith({ path: { workflow_id: 5 }, body: { recette: "b" } }));
     });
 
-    it("est figée une fois une version publiée", async () => {
+    it("SE-6 : après une publication, le changement demande un avertissement, puis part avec la confirmation", async () => {
+        vueAgent = { ...vueAgent, modifiable: false };
+        changer.mockResolvedValueOnce({
+            data: { recette: { slug: "b", nom: "Recette B", prouvee: true }, indiquee: true, modifiable: false, tests_a_rejouer_depuis: "2026-11-04T10:00:00+00:00" },
+            error: undefined,
+        } as never);
+        render(<RecetteDeLAgent workflowId={5} />);
+        await screen.findByText("A version is published: changing it asks for a confirmation.");
+        fireEvent.change(screen.getByLabelText("Recipe"), { target: { value: "b" } });
+        expect(changer).not.toHaveBeenCalled(); // rien n'est envoyé avant la confirmation
+        expect(document.querySelector("[data-fenetre-recette-publiee]")).not.toBeNull();
+        fireEvent.click(document.querySelector("[data-confirmer-recette]") as HTMLElement);
+        await waitFor(() => expect(changer).toHaveBeenCalledWith({ path: { workflow_id: 5 }, body: { recette: "b", confirmer: true } }));
+        await screen.findByText("Tests to replay before publishing again.");
+    });
+
+    it("SE-6 : annuler l'avertissement ne change rien", async () => {
         vueAgent = { ...vueAgent, modifiable: false };
         render(<RecetteDeLAgent workflowId={5} />);
-        await screen.findByText("Locked: a version is published.");
-        expect(screen.queryByLabelText("Recipe")).toBeNull();
+        fireEvent.change(await screen.findByLabelText("Recipe"), { target: { value: "b" } });
+        fireEvent.click(await screen.findByText("Cancel"));
+        await waitFor(() => expect(document.querySelector("[data-fenetre-recette-publiee]")).toBeNull());
+        expect(changer).not.toHaveBeenCalled();
     });
 });
 

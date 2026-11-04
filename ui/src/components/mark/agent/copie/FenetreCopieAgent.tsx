@@ -87,6 +87,11 @@ const T = {
     pasPret: { en: "Not ready: cannot be copied", fr: "Pas prêt : ne peut pas être copié" },
     jamaisCopiee: { en: "A key is never copied", fr: "Une clé n'est jamais copiée" },
     avecCle: { en: "Carries a key: link it at the target", fr: "Porte une clé : à relier chez la cible" },
+    sansNumeros: { en: "The fiche follows, without its phone numbers", fr: "La fiche suit, sans ses numéros" },
+    nomCopie: { en: "Name of the copy", fr: "Nom de la copie" },
+    nomCopieAide: { en: "Empty: the agent's name followed by the client's.", fr: "Vide : le nom de l'agent suivi de celui du client." },
+    dossierCopie: { en: "Folder of the Labo", fr: "Dossier du Labo" },
+    dossierParDefaut: { en: "Copies de clients (default)", fr: "Copies de clients (par défaut)" },
     // Les sortes
     agent: { en: "Agent of the group", fr: "Agent du groupe" },
     outil: { en: "Tool", fr: "Outil" },
@@ -116,6 +121,7 @@ const NOTES: Record<string, Texte> = {
     pas_pret: T.pasPret,
     jamais_copiee: T.jamaisCopiee,
     avec_cle: T.avecCle,
+    sans_numeros: T.sansNumeros,
 };
 
 type Choix = Record<string, { action: Action; cible: string | null }>;
@@ -132,6 +138,8 @@ export function FenetreCopieAgent({ agentId, sens, fermer }: { agentId: number; 
     const [releve, setReleve] = useState<Releve | null>(null);
     const [choix, setChoix] = useState<Choix>({});
     const [avecTests, setAvecTests] = useState(true);
+    const [nomDeLaCopie, setNomDeLaCopie] = useState(""); // A-7 : « Ramener », nom au choix (vide : le nom d'usage)
+    const [dossierId, setDossierId] = useState(""); // A-7 : « Ramener », dossier du Labo (vide : « Copies de clients »)
     const [enCours, setEnCours] = useState(false);
     const [compte, setCompte] = useState<CompteRendu | null>(null);
 
@@ -192,10 +200,12 @@ export function FenetreCopieAgent({ agentId, sens, fermer }: { agentId: number; 
         try {
             const r = await copierApiV1ExportAgentWorkflowIdCopierPost({
                 path: { workflow_id: agentId },
+                // `nom` et `dossier_id` (SE-9, A-7) : acceptés par la route ; le client généré les reçoit au prochain passage du générateur.
                 body: {
                     sens,
                     cible_organization_id: cible.id,
                     avec_tests: avecTests,
+                    ...(sens === "ramener" ? { nom: nomDeLaCopie.trim() || null, dossier_id: dossierId ? Number(dossierId) : null } : {}),
                     choix: releve.elements.map((e) => {
                         const c = choix[cleDe(e)];
                         return { type: e.type, ref: e.ref, action: c.action, cible: c.action === "relier" ? c.cible : null };
@@ -291,6 +301,30 @@ export function FenetreCopieAgent({ agentId, sens, fermer }: { agentId: number; 
                             <EtatVide cas="chargement" lignes={4} />
                         ) : (
                             <div className="space-y-4">
+                                {sens === "ramener" && (
+                                    <div className="grid gap-3 border-b py-3.5 sm:grid-cols-2" data-ramener-destination>
+                                        <div className="space-y-1 text-sm">
+                                            <span className="block font-medium">{t(T.nomCopie)}</span>
+                                            <Input
+                                                aria-label={t(T.nomCopie)}
+                                                value={nomDeLaCopie}
+                                                maxLength={200}
+                                                placeholder={`${releve.agent_nom} (…)`}
+                                                onChange={(e) => setNomDeLaCopie(e.target.value)}
+                                            />
+                                            <span className="block text-xs text-muted-foreground">{t(T.nomCopieAide)}</span>
+                                        </div>
+                                        <div className="space-y-1 text-sm">
+                                            <span className="block font-medium">{t(T.dossierCopie)}</span>
+                                            <Liste
+                                                valeur={dossierId}
+                                                changer={setDossierId}
+                                                vide={t(T.dossierParDefaut)}
+                                                options={((releve as { dossiers?: { id: number; nom: string }[] }).dossiers ?? []).map((d) => ({ valeur: String(d.id), libelle: d.nom }))}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <table className="w-full text-sm">
                                     <thead className="border-b text-xs text-muted-foreground">
                                         <tr>

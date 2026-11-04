@@ -4,7 +4,7 @@ et des recettes d'agent.
 - ``GET /builder/agents/{id}/versions/{n}/apercu``  ce qui sera perdu et retrouvé en revenant à cette version (aucun effet) ;
 - ``GET|PUT /builder/options``                      la sauvegarde avant modification (éteinte) et la recette par défaut (équipe .mark) ;
 - ``GET /builder/recettes``                         les recettes proposées à la création (hors Rejeté, Recette d'abord) et le défaut ;
-- ``GET|PUT /builder/agents/{id}/recette``          la recette d'un agent ; elle ne change plus une fois une version publiée.
+- ``GET|PUT /builder/agents/{id}/recette``          la recette d'un agent ; après une publication, elle ne change qu'avec `confirmer` (les tests sont alors à rejouer).
 
 Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0).
 """
@@ -90,7 +90,8 @@ async def lister_les_recettes(user: UserModel = Depends(get_user_with_selected_o
 class VueRecetteDeLAgent(BaseModel):
     recette: dict[str, Any] | None
     indiquee: bool
-    modifiable: bool
+    modifiable: bool  # vrai : aucune version publiée, le changement ne demande aucune confirmation
+    tests_a_rejouer_depuis: str | None = None  # SE-6 : recette changée après publication, les tests sont à rejouer avant de republier
 
 
 async def _vue_de_l_agent(user: UserModel, workflow) -> VueRecetteDeLAgent:
@@ -99,6 +100,7 @@ async def _vue_de_l_agent(user: UserModel, workflow) -> VueRecetteDeLAgent:
         recette=recette.en_json() if recette else None,
         indiquee=indiquee,
         modifiable=not await db_client.workflow_a_ete_publie(workflow.id),
+        tests_a_rejouer_depuis=await recettes.tests_a_rejouer_depuis(user.selected_organization_id, workflow.id),
     )
 
 
@@ -109,6 +111,7 @@ async def lire_la_recette_de_l_agent(workflow_id: int, user: UserModel = Depends
 
 class ChoixDeRecette(BaseModel):
     recette: str = Field(min_length=1, max_length=64)
+    confirmer: bool = False  # SE-6 : après une publication, le changement n'a lieu qu'avec cette confirmation
 
 
 @router.put("/agents/{workflow_id}/recette", response_model=VueRecetteDeLAgent)
@@ -122,6 +125,7 @@ async def changer_la_recette_de_l_agent(
             workflow.id,
             demande.recette,
             deja_publie=await db_client.workflow_a_ete_publie(workflow.id),
+            confirmer=demande.confirmer,
             par=getattr(user, "email", "") or "",
         )
     except recettes.ErreurRecette as erreur:
