@@ -274,6 +274,26 @@ async def test_lister_lire_et_proposer_de_supprimer(db_session, sans_preparation
     assert (await executer("tests_lister", {}, ctx))["total"] == 1  # rien n'a été effacé
 
 
+async def test_se14_le_builder_propose_d_archiver_un_agent_sans_jamais_l_archiver(db_session, sans_preparation_des_organisations):
+    """SE-14 (E-1) : une carte avec le nom et la raison ; l'agent reste actif ; un agent d'une autre organisation est introuvable."""
+    org, user, jeton, agent = await decor(db_session, "arc1")
+    ctx = Contexte(user=user, workflow_id=agent.id, conversation={})
+    proposition = await executer("agent_proposer_archivage", {"raison": "Remplacé par la version 2."}, ctx)
+    assert proposition["ok"] and proposition["propose"] is True
+    assert proposition["carte"] == {"type": "proposition_archivage", "workflow_id": agent.id, "nom": agent.name, "raison": "Remplacé par la version 2."}
+    assert (await db_client.get_workflow(agent.id, organization_id=org)).status == "active"  # rien n'a été archivé
+    assert (await executer("agent_proposer_archivage", {"raison": ""}, ctx))["ok"] is False  # la raison est obligatoire
+    # Claude Code n'a pas cette carte (écran seulement) ; un agent d'une autre organisation n'est pas trouvé.
+    from api.services.builder.actions.registre import REGISTRE
+
+    assert REGISTRE["agent_proposer_archivage"].mcp is False and REGISTRE["agent_proposer_archivage"].ecriture is False
+    autre = await executer("agent_proposer_archivage", {"workflow_id": agent.id + 9999, "raison": "x"}, ctx)
+    assert autre["ok"] is False and autre["code"] == "introuvable"
+    await db_client.update_workflow_status(workflow_id=agent.id, status="archived", organization_id=org)
+    deja = await executer("agent_proposer_archivage", {"raison": "x"}, ctx)
+    assert deja["ok"] is False and deja["code"] == "deja_archive"
+
+
 async def test_le_builder_ne_change_pas_les_criteres_d_un_test(db_session, sans_preparation_des_organisations):
     org, user, jeton, agent = await decor(db_session, "t2")
     slug = await un_test(user, agent)
@@ -317,6 +337,29 @@ async def test_la_descente_dans_le_retour_d_outil_est_reservee_a_une_recette_qui
     bon = await executer("correction_proposer", plan, ctx)
     assert bon["ok"] and bon["carte"]["statut"] == "a_approuver"  # rien n'est écrit : la personne approuve d'abord
     assert (await executer("correction_proposer", {**plan, "objet": "etape", "apres": "a"}, ctx))["ok"] is False  # ne change rien
+
+
+async def test_se17_la_correction_proposee_est_ecrite_dans_le_probleme_d_ou_vient_la_conversation(db_session, sans_preparation_des_organisations, monkeypatch):
+    """F-1 : avec le numéro du problème, la correction de la carte se retrouve dans sa fiche ; un problème d'un autre agent ou
+    d'une autre organisation est introuvable ; sans numéro, rien n'est écrit."""
+    from datetime import UTC, datetime
+
+    org, user, jeton, agent = await decor(db_session, "f1")
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org))
+    ctx = Contexte(user=user, workflow_id=agent.id, conversation={})
+    await db_client.ajouter_un_cas_d_amelioration(org, agent.id, "k1", {"releve_par": "code", "titre": "Numéro mal relu", "etape": "Prise", "gravite": 2}, {"run_id": 1, "le": datetime.now(UTC).isoformat()})
+    probleme = await db_client.lire_une_amelioration_par_cle(org, agent.id, "k1")
+    plan = {"cause": "Oublie", "replique": "Bonjour.", "objet": "etape", "cible": "Prise", "avant": "a", "apres": "b"}
+    sans = await executer("correction_proposer", plan, ctx)
+    assert sans["ok"] and (await db_client.lire_une_amelioration(org, probleme["id"]))["correction"] is None
+    avec = await executer("correction_proposer", {**plan, "amelioration_id": probleme["id"]}, ctx)
+    assert avec["ok"] and "amelioration_id" not in avec["carte"]
+    assert (await db_client.lire_une_amelioration(org, probleme["id"]))["correction"] == {"etape": "Prise", "cible": "Prise", "avant": "a", "apres": "b"}
+    inconnu = await executer("correction_proposer", {**plan, "amelioration_id": probleme["id"] + 999}, ctx)
+    assert inconnu["ok"] is False and inconnu["code"] == "introuvable"
+    autre_org, autre_user, _j, autre_agent = await decor(db_session, "f1b")
+    autre = await executer("correction_proposer", {**plan, "amelioration_id": probleme["id"]}, Contexte(user=autre_user, workflow_id=autre_agent.id, conversation={}))
+    assert autre["ok"] is False and autre["code"] == "introuvable"  # le problème d'une autre organisation n'est pas lisible
 
 
 async def test_le_bilan_liste_ce_que_le_changement_a_casse(db_session, sans_preparation_des_organisations):

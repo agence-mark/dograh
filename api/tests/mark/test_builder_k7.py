@@ -180,7 +180,7 @@ async def test_le_plafond_du_mois_refuse_de_demarrer_une_fois_atteint(db_session
         # Plafond à 3 $ avec 3,5 $ déjà dépensés : refusé, en une phrase.
         donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("non"))), 3.0)
         r = await c.post(f"{B}/fils", json={"message": "deux", "workflow_id": agent.id}, headers=entetes(jeton, org))
-        assert r.status_code == 409 and "monthly ceiling" in r.json()["detail"]
+        assert r.status_code == 402 and "monthly ceiling" in r.json()["detail"]
         # Le plafond posé par la route du cerveau est lu par la vue.
         await stock.ecrire(org, "MARK_BUILDER_CERVEAU", ReglagesCerveau(modele="m", plafond_mois=3.0).model_dump(mode="json"))
         vue = (await c.get(f"{B}/cerveaux", headers=entetes(jeton, org))).json()
@@ -190,3 +190,43 @@ async def test_le_plafond_du_mois_refuse_de_demarrer_une_fois_atteint(db_session
         r = await c.post(f"{B}/fils", json={"message": "trois", "workflow_id": agent.id}, headers=entetes(jeton, org))
         assert r.status_code == 200
         await service_fil.attendre(r.json()["id"])
+
+
+async def test_se16_continuer_quand_meme_est_explicite_ponctuel_reserve_a_l_equipe_et_journalise(db_session, sans_preparation_des_organisations, monkeypatch):
+    """SE-16 (E-5) : plafond atteint = 402 ; avec « continuer quand même » le travail part, UNE fois, avec une ligne au journal ;
+    la fois suivante le plafond redemande ; une organisation qui n'est pas de l'équipe .mark est refusée (403)."""
+    org, user, jeton, agent = await le_labo(db_session, monkeypatch, "k7s16")
+    fil = await db_client.creer_fil(org, user.id, agent.id, "Ce mois-ci", None)
+    await db_client.modifier_fil(org, fil.id, cout=3.5)
+    async with client_http() as c:
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("non"))), 3.0)
+        refus = await c.post(f"{B}/fils", json={"message": "deux", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert refus.status_code == 402
+        lignes, _ = await db_client.lister_journal(limit=50, offset=0, organization_id=org)
+        assert not [l for l in lignes if l["action"] == "builder.plafond_mois_depasse"]  # un refus n'écrit rien
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("ok"))), 3.0)
+        accord = await c.post(f"{B}/fils", json={"message": "deux", "workflow_id": agent.id, "depasser_le_plafond": True}, headers=entetes(jeton, org))
+        assert accord.status_code == 200, accord.text
+        await service_fil.attendre(accord.json()["id"])
+        lignes, _ = await db_client.lister_journal(limit=50, offset=0, organization_id=org)
+        depassements = [l for l in lignes if l["action"] == "builder.plafond_mois_depasse"]
+        assert len(depassements) == 1 and depassements[0]["detail"]["fil"] == accord.json()["id"] and depassements[0]["detail"]["plafond_mois"] == 3.0
+        assert "deux" not in str(depassements[0])  # jamais le message de la personne
+        # Ponctuel : rien n'est retenu, la demande suivante sans le drapeau est de nouveau refusée.
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("non"))), 3.0)
+        encore = await c.post(f"{B}/fils", json={"message": "trois", "workflow_id": agent.id}, headers=entetes(jeton, org))
+        assert encore.status_code == 402
+        # Pas de plafond atteint : le drapeau ne journalise rien de plus.
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("ok"))), 100.0)
+        libre = await c.post(f"{B}/fils", json={"message": "quatre", "workflow_id": agent.id, "depasser_le_plafond": True}, headers=entetes(jeton, org))
+        assert libre.status_code == 200
+        await service_fil.attendre(libre.json()["id"])
+        lignes, _ = await db_client.lister_journal(limit=50, offset=0, organization_id=org)
+        assert len([l for l in lignes if l["action"] == "builder.plafond_mois_depasse"]) == 1
+        # Une organisation qui n'est pas de l'équipe ne dépasse pas le plafond de .mark.
+        autre_org, _u, autre_jeton, autre_agent = await decor(db_session, "k7s16b")
+        donner_avec_plafond(monkeypatch, CerveauFactice(tour(texte("non"))), 3.0)
+        interdit = await c.post(
+            f"{B}/fils", json={"message": "x", "workflow_id": autre_agent.id, "depasser_le_plafond": True}, headers=entetes(autre_jeton, autre_org)
+        )
+        assert interdit.status_code == 403

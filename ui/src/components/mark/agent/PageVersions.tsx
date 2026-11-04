@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth";
 
 import { EtatVide } from "../studio/etat-vide";
 import { type EtatPoint, PointEtat } from "../studio/marques";
+import { DateRelative } from "../studio/date-relative";
 import { BarrePagination, fenetrePage, PAR_PAGE } from "../studio/pagination";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import { adresseOnglet } from "./onglets-agent";
@@ -47,10 +48,6 @@ const T = {
         fr: "L'historique a changé. Recommencez la comparaison.",
     },
 } satisfies Record<string, Texte>;
-
-/** « 31/10 14:02 » : le jour, le mois et l'heure, dans le fuseau de l'organisation (la maquette). */
-const dateCourte = (valeur: string, fuseau?: string | null) =>
-    new Date(valeur).toLocaleString("fr-FR", { timeZone: fuseau || undefined, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
 
 const POINT: Record<string, EtatPoint> = { draft: "brouillon", published: "publie", archived: "fini" };
 
@@ -156,7 +153,7 @@ export function PageVersions({ agentId }: { agentId: number }) {
                                 </PointEtat>
                                 {courante && <span className="ml-2 text-xs text-muted-foreground">{t(T.enCours)}</span>}
                             </td>
-                            <Cellule droite>{dateCourte(v.published_at || v.created_at, fuseau)}</Cellule>
+                            <Cellule droite><DateRelative valeur={v.published_at || v.created_at} fuseau={fuseau} /></Cellule>
                             <td className="w-10 text-right" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>

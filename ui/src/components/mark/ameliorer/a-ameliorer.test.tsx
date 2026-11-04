@@ -185,6 +185,14 @@ describe("La liste de « À améliorer »", () => {
         expect(await screen.findByText(/numéro injoignable/)).toBeTruthy();
         expect(screen.getByText("mail envoyé")).toBeTruthy();
     });
+
+    it("F-2 : l'onglet Pannes et alertes mène aux alertes de Qualité, dans le même espace", async () => {
+        m.alertes.mockResolvedValue({ data: { lignes: [], page: 0, a_une_suite: false } });
+        window.history.replaceState(null, "", "/?onglet=pannes");
+        monter(<PageAAmeliorer />);
+        const lien = await screen.findByRole("link", { name: /Voir toutes les alertes/ });
+        expect(lien.getAttribute("href")).toBe("/labo/qualite?onglet=alertes");
+    });
 });
 
 describe("Le détail d'un problème", () => {
@@ -274,6 +282,13 @@ describe("Les mots de l'écran", () => {
         const demande = demandeAuBuilder({ titre: "Numéro mal relu", workflow_nom: "Accueil", etape: "Prise", replique: null, frequence: { n: 2, sur: 10 } });
         expect(demande).toContain("Étape : Prise.");
         expect(demande).not.toContain("Réplique fautive");
+    });
+
+    it("F-1 : la demande donne le numéro du problème, pour que la correction soit écrite dans sa fiche", () => {
+        const demande = demandeAuBuilder({ id: 12, titre: "Numéro mal relu", workflow_nom: "Accueil", frequence: { n: 2, sur: 10 } });
+        expect(demande).toContain("Problème n° 12");
+        expect(demande).toContain("amelioration_id");
+        expect(demandeAuBuilder({ titre: "x", workflow_nom: "A", frequence: { n: 1, sur: 1 } })).not.toContain("amelioration_id");
     });
 });
 

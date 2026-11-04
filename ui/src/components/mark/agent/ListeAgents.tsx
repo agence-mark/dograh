@@ -29,6 +29,7 @@ import { ChoixSpecialisesArchivage } from "@/components/mark/groupe/ChoixSpecial
 import { arbreDesDossiers, descendants, type NoeudDeDossier, rolesDesAgents } from "@/components/mark/groupe/liens-groupes";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { DateRelative } from "@/components/mark/studio/date-relative";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { PointEtat } from "@/components/mark/studio/marques";
@@ -97,14 +98,6 @@ const T = {
 
 type Dossier = number | "archives" | null;
 type EtatAgent = "publiee" | "brouillon" | "brouillon_modifie";
-
-const jour = (valeur: string | null | undefined, fuseau: string | null | undefined, aujourdhui: string) => {
-    if (!valeur) return "";
-    const d = new Date(valeur);
-    const cle = (x: Date) => x.toLocaleDateString("fr-FR", { timeZone: fuseau || undefined });
-    if (cle(d) === cle(new Date())) return aujourdhui;
-    return d.toLocaleDateString("fr-FR", { timeZone: fuseau || undefined, day: "2-digit", month: "2-digit" });
-};
 
 // Filtre en pastille : un menu à cocher ; la pastille dit combien de valeurs sont retenues (maquette).
 function Filtre({
@@ -451,7 +444,7 @@ export function ListeAgents({
                                                     </PointEtat>
                                                 </td>
                                                 <td className="text-right tabular-nums text-muted-foreground">{w.appels_7j ?? 0}</td>
-                                                <td className="text-right text-muted-foreground">{jour(w.modifie_le ?? w.created_at, fuseau, t(T.aujourdhui))}</td>
+                                                <td className="text-right text-muted-foreground"><DateRelative valeur={w.modifie_le ?? w.created_at} fuseau={fuseau} /></td>
                                                 <td className="text-right">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>

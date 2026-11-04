@@ -32,7 +32,7 @@ RESUME_MAX = 2000
 ACCORDS_PAR_SOUS_AGENT = 5
 # Ce que le sous-agent ne peut pas faire même en lecture : les cartes de dialogue avec la personne, la délégation elle-même.
 EXCLUES = frozenset(
-    {"plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer", "tests_supprimer", "deleguer"}
+    {"plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer", "tests_supprimer", "agent_proposer_archivage", "deleguer"}
 )
 
 
