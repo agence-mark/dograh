@@ -19,6 +19,37 @@ _NOM_SECRET = re.compile(
 )
 
 
+# Revue serveur M5 : un en-tête libre d'outil (``config.en_tetes_ext``) s'écrit ``{nom, sorte, valeur | identifiant_uuid}``.
+# Sa clé (sorte ``secret``) est un identifiant de clé comme ``…credential_uuid`` ; sa valeur en clair (sorte ``texte``) est un
+# secret quand le NOM de l'en-tête est un nom de secret (``Authorization: Bearer …``).
+_CLE_D_EN_TETE = "identifiant_uuid"
+
+
+def _est_un_en_tete(v: dict) -> bool:
+    return isinstance(v.get("nom"), str) and "sorte" in v
+
+
+def _valeur_d_en_tete_secrete(v: dict) -> bool:
+    """Un en-tête en clair (jamais une variable) dont le nom est un nom de secret, et qui porte une valeur."""
+    return (
+        _est_un_en_tete(v)
+        and v.get("sorte") in (None, "texte")
+        and bool(_NOM_SECRET.match(v["nom"]))
+        and v.get("valeur") not in (None, "")
+    )
+
+
+def _cle_d_en_tete(v: dict, cle: Any, contenu: Any) -> bool:
+    return cle == _CLE_D_EN_TETE and _est_un_en_tete(v) and v.get("sorte") == "secret" and isinstance(contenu, str) and bool(contenu)
+
+
+def _est_une_cle(v: dict, cle: Any, contenu: Any) -> bool:
+    """``…credential_uuid`` ou la clé d'un en-tête secret : relevée, reliée à la clé de la cible, ou retirée."""
+    if isinstance(cle, str) and cle.endswith("credential_uuid") and isinstance(contenu, str) and contenu:
+        return True
+    return _cle_d_en_tete(v, cle, contenu)
+
+
 def purger_les_secrets(valeur: Any) -> tuple[Any, int]:
     """Une copie sans aucune valeur sous un nom de secret, et combien en ont été retirées."""
     retires = 0
@@ -27,8 +58,12 @@ def purger_les_secrets(valeur: Any) -> tuple[Any, int]:
         nonlocal retires
         if isinstance(v, dict):
             propre = {}
+            en_tete_secret = _valeur_d_en_tete_secrete(v)
             for cle, contenu in v.items():
                 if isinstance(cle, str) and _NOM_SECRET.match(cle) and contenu not in (None, "", {}, []):
+                    retires += 1
+                    continue
+                if en_tete_secret and cle == "valeur":
                     retires += 1
                     continue
                 propre[cle] = marcher(contenu)
@@ -41,10 +76,10 @@ def purger_les_secrets(valeur: Any) -> tuple[Any, int]:
 
 
 def reperer_les_cles(valeur: Any) -> Iterator[str]:
-    """Les identifiants de clé (``…credential_uuid``) écrits dans une structure, à toute profondeur."""
+    """Les identifiants de clé (``…credential_uuid``, clé d'un en-tête secret) écrits dans une structure, à toute profondeur."""
     if isinstance(valeur, dict):
         for cle, contenu in valeur.items():
-            if isinstance(cle, str) and cle.endswith("credential_uuid") and isinstance(contenu, str) and contenu:
+            if _est_une_cle(valeur, cle, contenu):
                 yield contenu
             else:
                 yield from reperer_les_cles(contenu)
@@ -54,11 +89,11 @@ def reperer_les_cles(valeur: Any) -> Iterator[str]:
 
 
 def remplacer_les_cles(valeur: Any, correspondance: dict[str, str | None]) -> Any:
-    """Une copie où chaque ``…credential_uuid`` est remplacé par la clé de la cible, ou retiré (``None``) ; inconnue = retirée."""
+    """Une copie où chaque identifiant de clé est remplacé par la clé de la cible, ou retiré (``None``) ; inconnue = retirée."""
     if isinstance(valeur, dict):
         sortie = {}
         for cle, contenu in valeur.items():
-            if isinstance(cle, str) and cle.endswith("credential_uuid") and isinstance(contenu, str) and contenu:
+            if _est_une_cle(valeur, cle, contenu):
                 neuve = correspondance.get(contenu)
                 if neuve:
                     sortie[cle] = neuve

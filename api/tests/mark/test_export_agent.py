@@ -487,3 +487,71 @@ async def test_dupliquer_sans_les_tests_ne_les_recopie_pas(db_session):
     assert r.status_code == 200, r.text
     assert await stockage_tests.lister(labo, r.json()["id"]) == []
     assert len(await stockage_tests.lister(labo, seul)) == 1
+
+
+# ---------------------------------------------------------------------- revue serveur M5 : les en-têtes libres des outils MCP
+SECRET_EN_TETE = "SECRET-D-EN-TETE-5678"
+
+
+async def _outil_mcp_a_en_tetes(db, labo, admin, principal):
+    """Un outil MCP à trois en-têtes libres : un secret (clé du Labo), un ``Authorization`` en clair, une variable."""
+    cle = await db.create_credential(labo, admin.id, "Clé MCP", "api_key", {"api_key": SECRET_EN_TETE})
+    outil = await db.create_tool(
+        organization_id=labo, user_id=admin.id, name="Serveur MCP", category="mcp",
+        definition={
+            "schema_version": 1, "type": "mcp",
+            "config": {
+                "url": "https://example.org/mcp", "transport": "streamable_http",
+                "en_tetes_ext": [
+                    {"nom": "X-Cle-Mcp", "sorte": "secret", "valeur": None, "identifiant_uuid": cle.credential_uuid},
+                    {"nom": "Authorization", "sorte": "texte", "valeur": f"Bearer {SECRET_EN_TETE}", "identifiant_uuid": None},
+                    {"nom": "X-Client", "sorte": "variable", "valeur": "{{initial_context.client}}", "identifiant_uuid": None},
+                ],
+            },
+        },
+    )
+    agent = await groupe.lire_agent(principal, labo)
+    definition = agent.definition
+    premier = definition["nodes"][0]
+    premier.setdefault("data", {})["tool_uuids"] = [*(premier["data"].get("tool_uuids") or []), outil.tool_uuid]
+    await db.update_workflow(
+        workflow_id=principal, name=None, workflow_definition=definition, template_context_variables=None,
+        workflow_configurations=dict(agent.reglages), organization_id=labo,
+    )
+    return cle, outil
+
+
+def _en_tetes_copies(outils) -> dict:
+    mcp = next(o for o in outils if o.category == "mcp")
+    return {e["nom"]: e for e in mcp.definition["config"]["en_tetes_ext"]}
+
+
+async def test_les_en_tetes_d_un_outil_mcp_ne_portent_ni_la_cle_ni_le_secret_de_la_source(db_session):
+    labo, client, admin, jeton = await _monde(db_session, "m5a")
+    src = await _groupe_du_labo(db_session, labo, admin)
+    cle_mcp, _ = await _outil_mcp_a_en_tetes(db_session, labo, admin, src["principal"])
+    async with client_http() as c:
+        releve = (await c.get(f"{E}/{src['principal']}/releve", params={"sens": "exporter", "cible": client}, headers=entetes(jeton, labo))).json()
+        assert cle_mcp.credential_uuid in {e["ref"] for e in releve["elements"] if e["type"] == "cle"}  # relevée
+        r = await c.post(f"{E}/{src['principal']}/copier", json=_corps(client), headers=entetes(jeton, labo))
+    assert r.status_code == 200, r.text
+    outils = await db_session.get_tools_for_organization(client)
+    brut = json.dumps([o.definition for o in outils], default=str)
+    assert SECRET_EN_TETE not in brut and cle_mcp.credential_uuid not in brut
+    en_tetes = _en_tetes_copies(outils)
+    assert not en_tetes["X-Cle-Mcp"].get("identifiant_uuid")  # le client n'a pas de clé de ce nom : vidée
+    assert not en_tetes["Authorization"].get("valeur")  # nom de secret en clair : vidé
+    assert en_tetes["X-Client"]["valeur"] == "{{initial_context.client}}"  # une variable n'est pas un secret
+
+
+async def test_la_cle_d_un_en_tete_secret_est_reliee_a_celle_du_client(db_session):
+    labo, client, admin, jeton = await _monde(db_session, "m5b")
+    src = await _groupe_du_labo(db_session, labo, admin)
+    cle_mcp, _ = await _outil_mcp_a_en_tetes(db_session, labo, admin, src["principal"])
+    cle_client = await db_session.create_credential(client, admin.id, "Clé MCP", "api_key", {"api_key": "AUTRE-VALEUR"})
+    async with client_http() as c:
+        r = await c.post(f"{E}/{src['principal']}/copier", json=_corps(client), headers=entetes(jeton, labo))
+    assert r.status_code == 200, r.text
+    en_tetes = _en_tetes_copies(await db_session.get_tools_for_organization(client))
+    assert en_tetes["X-Cle-Mcp"]["identifiant_uuid"] == cle_client.credential_uuid
+    assert cle_mcp.credential_uuid not in json.dumps(en_tetes)
