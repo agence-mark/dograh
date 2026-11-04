@@ -267,18 +267,40 @@
     inter: "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif",
     systeme: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     site: 'inherit',
+    // S-1 : les polices du choix de l'éditeur. Leurs fichiers `<Nom>-400.woff2` et `<Nom>-600.woff2` sont déposés par .mark dans
+    // `/embed/fonts/` ; tant qu'un fichier manque, le chargement échoue en silence et le système prend le relais.
+    poppins: "'Mark Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    montserrat: "'Mark Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    lato: "'Mark Lato', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    nunito: "'Mark Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    'dm-sans': "'Mark DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    'playfair-display': "'Mark Playfair Display', Georgia, 'Times New Roman', serif",
   };
-  var policesChargees = false;
-  function chargerLesPolices(origine) {
-    if (policesChargees || typeof FontFace === 'undefined' || !document.fonts) return;
-    policesChargees = true;
-    [[400, 'Switzer-400'], [600, 'Switzer-600']].forEach(function (p) {
-      try {
-        var f = new FontFace('Mark Switzer', 'url(' + origine + '/embed/fonts/' + p[1] + '.woff2) format("woff2")', {
-          weight: String(p[0]), display: 'swap',
-        });
-        f.load().then(function (ok) { document.fonts.add(ok); }, function () {});
-      } catch (e) { /* la police du système prend le relais */ }
+  // Police du choix -> [nom de famille déclaré, préfixe des fichiers hébergés chez nous]. Switzer est toujours chargée.
+  var FICHIERS_DE_POLICE = {
+    switzer: ['Mark Switzer', 'Switzer'],
+    poppins: ['Mark Poppins', 'Poppins'],
+    montserrat: ['Mark Montserrat', 'Montserrat'],
+    lato: ['Mark Lato', 'Lato'],
+    nunito: ['Mark Nunito', 'Nunito'],
+    'dm-sans': ['Mark DM Sans', 'DMSans'],
+    'playfair-display': ['Mark Playfair Display', 'PlayfairDisplay'],
+  };
+  var policesChargees = {};
+  function chargerLesPolices(origine, police) {
+    if (typeof FontFace === 'undefined' || !document.fonts) return;
+    ['switzer', police].forEach(function (choix) {
+      var fichiers = FICHIERS_DE_POLICE[choix];
+      if (!fichiers || policesChargees[choix]) return;
+      policesChargees[choix] = true;
+      [400, 600].forEach(function (poids) {
+        try {
+          var f = new FontFace(fichiers[0], 'url(' + origine + '/embed/fonts/' + fichiers[1] + '-' + poids + '.woff2) format("woff2")', {
+            weight: String(poids), display: 'swap',
+          });
+          f.load().then(function (ok) { document.fonts.add(ok); }, function () {});
+        } catch (e) { /* la police du système prend le relais */ }
+      });
     });
   }
 
@@ -1274,7 +1296,7 @@
     if (!config || config.actif === false) return; // aucune agent pour cette page
     var ap = apparenceComplete(config.apparence);
     var couleurs = couleursCompletes(ap, config.couleurs);
-    chargerLesPolices(p.url.origin);
+    chargerLesPolices(p.url.origin, ap.police);
     instance = creerWidget({
       apparence: ap, couleurs: couleurs,
       api: {
@@ -1291,7 +1313,7 @@
       options = options || {};
       var ap = apparenceComplete(options.apparence);
       var couleurs = couleursCompletes(ap, options.couleurs);
-      chargerLesPolices(options.origineStatique || (P && P.url.origin) || location.origin);
+      chargerLesPolices(options.origineStatique || (P && P.url.origin) || location.origin, ap.police);
       return creerWidget({
         hote: conteneur, conteneur: true, apparence: ap, couleurs: couleurs, etat: options.etat || 'accroche', modes: options.modes,
         etoiles: options.etoiles, microRefuse: !!options.microRefuse, plafondAtteint: !!options.plafondAtteint, largeurCadre: options.largeurCadre,

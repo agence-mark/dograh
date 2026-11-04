@@ -301,7 +301,10 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
     const contenuZone =
         z && ap && k ? (
             <>
-                <p className="text-sm font-medium">{t(z.libelle)}</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                    {t(z.libelle)}
+                    {z.aide && <Info>{t(z.aide)}</Info>}
+                </p>
                 <div className="space-y-4">
                     {z.embleme && (
                         <div className="space-y-1.5">
@@ -345,7 +348,6 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                                     <Input id={id} value={valeur} aria-invalid={!!faute} onChange={(e) => setAp(avecTexte(ap, tx.cle, e.target.value))} />
                                 )}
                                 <ErreurChamp>{faute}</ErreurChamp>
-                                {z.aide && <p className="text-xs text-muted-foreground">{t(z.aide)}</p>}
                             </div>
                         );
                     })}
@@ -365,7 +367,6 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                         </div>
                     )}
                 </div>
-                {z.aide && !z.textes && <p className="text-xs text-muted-foreground">{t(z.aide)}</p>}
             </>
         ) : null;
 
@@ -565,12 +566,14 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                                         )}
                                         <div className="flex items-center justify-between rounded-lg border px-4 py-3">
                                             <div>
-                                                <p className="text-sm font-medium">{t({ fr: "Questionnaire d'avis en fin de conversation", en: "Review questionnaire at the end of the conversation" })}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {t({
-                                                        fr: "Une note en étoiles, puis deux questions facultatives. Les avis et témoignages arrivent sur votre accueil.",
-                                                        en: "A star rating, then two optional questions. Reviews and testimonials land on your home page.",
-                                                    })}
+                                                <p className="flex items-center gap-1.5 text-sm font-medium">
+                                                    {t({ fr: "Questionnaire d'avis en fin de conversation", en: "Review questionnaire at the end of the conversation" })}
+                                                    <Info>
+                                                        {t({
+                                                            fr: "Une note en étoiles, puis deux questions facultatives. Les avis et témoignages arrivent sur votre accueil.",
+                                                            en: "A star rating, then two optional questions. Reviews and testimonials land on your home page.",
+                                                        })}
+                                                    </Info>
                                                 </p>
                                             </div>
                                             <Switch checked={ap.avis !== false} onCheckedChange={(v) => setAp({ ...ap, avis: v })} aria-label={t({ fr: "Questionnaire d'avis", en: "Review questionnaire" })} />
@@ -682,20 +685,20 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                                             <Input id="agent-branche" readOnly value={`${emplacement?.agent_nom ?? ""}${emplacement?.version_publiee ? ` (v${emplacement.version_publiee})` : ""}`} />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label htmlFor="domaines-autorises">{t({ fr: "Domaines autorisés", en: "Allowed domains" })}</Label>
+                                            <div className="flex items-center gap-1.5">
+                                                <Label htmlFor="domaines-autorises">{t({ fr: "Domaines autorisés", en: "Allowed domains" })}</Label>
+                                                <Info>{t({ fr: "Sur tout autre site, le script refuse de s'ouvrir : la consommation est protégée.", en: "On any other site the script refuses to open: consumption is protected." })}</Info>
+                                            </div>
                                             <Input id="domaines-autorises" value={rm.domaines} onChange={(e) => setRm({ ...rm, domaines: e.target.value })} />
-                                            <p className="text-xs text-muted-foreground">{t({ fr: "Sur tout autre site, le script refuse de s'ouvrir : la consommation est protégée.", en: "On any other site the script refuses to open: consumption is protected." })}</p>
                                         </div>
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div className="space-y-1.5">
+                                                <div className="flex items-center gap-1.5">
                                                 <Label htmlFor="plafond-mois">{t({ fr: "Plafond du mois (conversations)", en: "Monthly limit (conversations)" })}</Label>
+                                                <Info>{t({ fr: "Le nombre maximal de conversations de cet agent par mois, fixé par .mark pour protéger votre consommation. Atteint, le widget propose au visiteur de laisser ses coordonnées.", en: "The maximum number of conversations of this agent per month, set by .mark to protect your consumption. Once reached, the widget asks the visitor to leave their details." })}</Info>
+                                            </div>
                                                 <ChampNombre id="plafond-mois" valeur={rm.plafond_conversations_mois} onChange={(n) => setRm({ ...rm, plafond_conversations_mois: n })} faute={fauteReglage("plafond_conversations_mois")} />
-                                                <p className="text-xs text-muted-foreground">
-                                                    {t({
-                                                        fr: `Le nombre maximal de conversations de cet agent par mois, fixé par .mark pour protéger votre consommation. Atteint, le widget propose au visiteur de laisser ses coordonnées. Ce mois-ci : ${charge.consomme.conversations_ce_mois ?? 0} (${Math.round(((charge.consomme.conversations_ce_mois ?? 0) / Math.max(rm.plafond_conversations_mois, 1)) * 100)} %).`,
-                                                        en: `The maximum number of conversations of this agent per month, set by .mark to protect your consumption. Once reached, the widget asks the visitor to leave their details. This month: ${charge.consomme.conversations_ce_mois ?? 0} (${Math.round(((charge.consomme.conversations_ce_mois ?? 0) / Math.max(rm.plafond_conversations_mois, 1)) * 100)} %).`,
-                                                    })}
-                                                </p>
+                                                <p className="text-xs text-muted-foreground">{t({ fr: `Ce mois-ci : ${charge.consomme.conversations_ce_mois ?? 0} (${Math.round(((charge.consomme.conversations_ce_mois ?? 0) / Math.max(rm.plafond_conversations_mois, 1)) * 100)} %).`, en: `This month: ${charge.consomme.conversations_ce_mois ?? 0} (${Math.round(((charge.consomme.conversations_ce_mois ?? 0) / Math.max(rm.plafond_conversations_mois, 1)) * 100)} %).` })}</p>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="modes-conversation">{t({ fr: "Modes de conversation", en: "Conversation modes" })}</Label>

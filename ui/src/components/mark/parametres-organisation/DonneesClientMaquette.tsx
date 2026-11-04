@@ -47,11 +47,14 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
     // V4 : le « Geste » de la maquette (Créer une base / Rattacher une base existante), un seul « Enregistrer ».
     const [geste, setGeste] = useState<"creer" | "rattacher">("creer");
     const rattachee = Boolean(etat.nom_base);
+    // L-4 : « Créer » une base quand une autre est rattachée détache l'ancienne (elle reste sur le serveur) : un second clic le confirme.
+    const [confirmeCreation, setConfirmeCreation] = useState(false);
     const refus = etat.refus ?? [];
     const fermer = () => {
         setFenetre(false);
         setNom("");
         setGeste("creer");
+        setConfirmeCreation(false);
     };
     const poser = async (action: Parameters<Agir>[0], succes: Texte) => {
         if (await agir(action, succes)) fermer();
@@ -180,7 +183,10 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                                     type="button"
                                     aria-pressed={geste === id}
                                     data-geste={id}
-                                    onClick={() => setGeste(id)}
+                                    onClick={() => {
+                                        setGeste(id);
+                                        setConfirmeCreation(false);
+                                    }}
                                     className={`cursor-pointer rounded-md px-3 py-1 ${geste === id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
                                 >
                                     {t(libelle)}
@@ -214,8 +220,19 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                             aria-label={t({ en: "Database name", fr: "Nom de la base" })}
                             value={nom}
                             placeholder="client_essai"
-                            onChange={(e) => setNom(e.target.value.trim())}
+                            onChange={(e) => {
+                                setNom(e.target.value.trim());
+                                setConfirmeCreation(false);
+                            }}
                         />
+                        {confirmeCreation && (
+                            <p className="text-sm" role="alert" data-testid="confirmer-changement-de-base">
+                                {t({
+                                    en: `The current database « ${etat.nom_base} » stays on the server: it is only detached from this client. Create « ${nom} » and attach it?`,
+                                    fr: `L'ancienne base « ${etat.nom_base} » reste sur le serveur : elle est seulement détachée de ce client. Créer « ${nom} » et la rattacher ?`,
+                                })}
+                            </p>
+                        )}
                     </div>
                 }
                 pied={
@@ -242,7 +259,8 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                         <Button
                             disabled={enCours || !nom || !etat.serveur_configure}
                             data-testid="enregistrer-base-client"
-                            onClick={() =>
+                            onClick={() => {
+                                if (geste === "creer" && rattachee && !confirmeCreation) return setConfirmeCreation(true);
                                 void (geste === "creer"
                                     ? poser(() => postCreerApiV1OrganizationsBaseClientCreerPost({ body: { nom_base: nom } }), {
                                           en: "Database created and attached.",
@@ -251,10 +269,10 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                                     : poser(() => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: nom } }), {
                                           en: "Database attached.",
                                           fr: "Base rattachée.",
-                                      }))
-                            }
+                                      }));
+                            }}
                         >
-                            {t({ en: "Save", fr: "Enregistrer" })}
+                            {confirmeCreation ? t({ en: "Yes, create and attach", fr: "Oui, créer et rattacher" }) : t({ en: "Save", fr: "Enregistrer" })}
                         </Button>
                     </>
                 }

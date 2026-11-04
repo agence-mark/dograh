@@ -798,7 +798,7 @@ function FenetreBrancher({
             fermer={fermer}
             visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
             titre={labo ? t({ en: `Connect ${connecteur.libelle}`, fr: `Brancher ${connecteur.libelle}` }) : t({ en: `Propose ${connecteur.libelle} to the client`, fr: `Proposer ${connecteur.libelle} au client` })}
-            sous={
+            info={
                 labo
                     ? t({ en: "A .mark test account, for trials and benches.", fr: "Un compte de test de .mark, pour les essais et les bancs." })
                     : t({ en: "The client authorizes it itself, from its portal.", fr: "Le client autorise lui-même, depuis son portail." })

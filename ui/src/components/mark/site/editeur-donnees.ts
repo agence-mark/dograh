@@ -224,6 +224,13 @@ export const POLICES: { id: NonNullable<Apparence["police"]>; fr: string; en: st
     { id: "switzer", fr: "Switzer (celle de .mark)", en: "Switzer (.mark's)", famille: "'Mark Switzer', system-ui, sans-serif" },
     { id: "inter", fr: "Inter", en: "Inter", famille: "Inter, system-ui, sans-serif" },
     { id: "systeme", fr: "Celle de l'appareil", en: "The device's", famille: "system-ui, sans-serif" },
+    // S-1 : les six polices de la maquette, hébergées chez nous (fichiers `.woff2` déposés dans `ui/public/embed/fonts/`).
+    { id: "poppins", fr: "Poppins", en: "Poppins", famille: "'Mark Poppins', system-ui, sans-serif" },
+    { id: "montserrat", fr: "Montserrat", en: "Montserrat", famille: "'Mark Montserrat', system-ui, sans-serif" },
+    { id: "lato", fr: "Lato", en: "Lato", famille: "'Mark Lato', system-ui, sans-serif" },
+    { id: "nunito", fr: "Nunito", en: "Nunito", famille: "'Mark Nunito', system-ui, sans-serif" },
+    { id: "dm-sans", fr: "DM Sans", en: "DM Sans", famille: "'Mark DM Sans', system-ui, sans-serif" },
+    { id: "playfair-display", fr: "Playfair Display", en: "Playfair Display", famille: "'Mark Playfair Display', Georgia, serif" },
 ];
 
 export type Declenchement = "survol" | "delai" | "toujours" | "jamais";

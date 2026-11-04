@@ -97,7 +97,11 @@ ACCROCHE_LIGNES_MAX = 3
 ACCROCHE_LONGUEUR_MAX = 120
 TEXTE_LONGUEUR_MAX = 200
 
-Police = Literal["switzer", "inter", "systeme", "site"]  # « site » : celle du site (hérite de la page)
+# « site » : celle du site (hérite de la page). Lot 15 (S-1) : six polices de plus, hébergées chez nous (`ui/public/embed/fonts/`),
+# jamais chez un tiers ; tant que leurs fichiers ne sont pas déposés, le visiteur voit la police du système.
+Police = Literal[
+    "switzer", "inter", "systeme", "site", "poppins", "montserrat", "lato", "nunito", "dm-sans", "playfair-display"
+]
 
 
 def _couleur(valeur: str | None) -> str | None:

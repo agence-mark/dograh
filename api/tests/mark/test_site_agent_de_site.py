@@ -262,6 +262,11 @@ def test_une_apparence_invalide_est_refusee(corps):
 
 def test_police_celle_du_site_et_liste_fermee():
     assert ApparenceWidget(police="site").police == "site"
+    # Lot 15 (S-1) : les six polices de la maquette sont de la liste fermée (hébergées chez nous).
+    for police in ("poppins", "montserrat", "lato", "nunito", "dm-sans", "playfair-display"):
+        assert ApparenceWidget(police=police).police == police
+    with pytest.raises(ValidationError):
+        ApparenceWidget(police="comic-sans")
     assert ApparenceWidget(embleme="logo", logo_url="https://client.fr/logo.png").logo_url == "https://client.fr/logo.png"
 
 

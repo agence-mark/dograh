@@ -35,7 +35,7 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false
 vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("@/components/mark/notifications/notifier", () => ({ notifier: m.notifier }));
 vi.mock("@/components/mark/sources/useSources", () => ({ useSources: () => ({ sources: { builder: "cle_api", appelant: "claude_code" } }) }));
-vi.mock("@/components/builder/ecran/OptionsDeConstruction", () => ({ OptionsDeConstruction: () => null }));
+vi.mock("@/components/builder/ecran/OptionsDeConstruction", () => ({ OptionsDeConstruction: () => <div data-testid="options-de-construction" /> }));
 vi.mock("@/components/mark/appelant-simule/ModaleReglagesAppelantSimule", () => ({ ModaleReglagesAppelantSimule: ({ ouverte }: { ouverte: boolean }) => (ouverte ? <div>fenetre-reglages</div> : null) }));
 vi.mock("@/client", () => ({
     lireLeCerveauApiV1BuilderCerveauGet: async () => ({ data: { format: "anthropic", modele: "claude-x", adresse: "", cle_posee: true, plafond_depense: 2, plafond_jetons: 1500000, plafond_mois: 60 } }),
@@ -58,6 +58,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Réglages du Labo, onglet Builder IA", () => {
+    it("M-4 : les options de la construction ne sont plus ici (elles vivent dans la fenêtre du panneau, avec les plafonds)", async () => {
+        render(<OngletBuilderIA aller={vi.fn()} />);
+        await screen.findByText(/Modèle et clé|Model and key/);
+        expect(screen.queryByTestId("options-de-construction")).toBeNull();
+    });
+
     it("V4 : la ligne « Modèle et clé » montre le modèle et ouvre la fenêtre ; Enregistrer écrit le modèle, rien si on ferme", async () => {
         render(<OngletBuilderIA aller={vi.fn()} />);
         const lu = (await screen.findByTestId("cerveau-modele-lu")) as HTMLInputElement;

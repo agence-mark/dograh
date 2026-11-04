@@ -25,7 +25,6 @@ import {
     reglerLesSousAgentsApiV1BuilderSousAgentsReglagesPut,
 } from "@/client";
 import type { ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
-import { OptionsDeConstruction } from "@/components/builder/ecran/OptionsDeConstruction";
 import { ModaleReglagesAppelantSimule } from "@/components/mark/appelant-simule/ModaleReglagesAppelantSimule";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
@@ -629,9 +628,8 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                             <Switch aria-label={t(T.porteClaudeCode)} checked={opts ? !opts.porte_claude_code_coupee : true} disabled={!opts} onCheckedChange={(v) => regler({ porte_claude_code_coupee: !v })} />
                         </div>
                     </Carte>
-                    <Carte>
-                        <OptionsDeConstruction />
-                    </Carte>
+                    {/* M-4 : les options de la construction (sauvegarde avant modification, recette par défaut) vivent dans la fenêtre
+                        « Réglages du builder » du panneau, avec les plafonds, pas ici. */}
                 </div>
             </div>
         </div>
