@@ -12898,6 +12898,26 @@ export type Publication = {
 };
 
 /**
+ * PublierGroupeRequest
+ *
+ * Corps FACULTATIF de ``groupe/publier`` (partie 3, SE-12) : sans corps, tout le groupe comme avant.
+ */
+export type PublierGroupeRequest = {
+    /**
+     * Specialises
+     *
+     * Only these specialised agents of the group (one choice per specialist). Omitted: all of them.
+     */
+    specialises?: Array<number> | null;
+    /**
+     * Avec Le Principal
+     *
+     * Publish the main agent too, last. False when the window has just published it with its own checks.
+     */
+    avec_le_principal?: boolean;
+};
+
+/**
  * PublierGroupeResponse
  */
 export type PublierGroupeResponse = {
@@ -23126,7 +23146,10 @@ export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses
 export type CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponse = CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses[keyof CompleterLeGroupeApiV1WorkflowWorkflowIdGroupeCompleterPostResponses];
 
 export type PublierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPostData = {
-    body?: never;
+    /**
+     * Demande
+     */
+    body?: PublierGroupeRequest | null;
     headers?: {
         /**
          * Authorization
@@ -27694,6 +27717,52 @@ export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetResponses 
     200: unknown;
 };
 
+export type ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/changements';
+};
+
+export type ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetError = ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetErrors[keyof ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetErrors];
+
+export type ChangementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ReglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPutData = {
     body: Publication;
     headers?: {
@@ -27923,6 +27992,92 @@ export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementReveni
      */
     200: unknown;
 };
+
+export type DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/publication-organisation';
+};
+
+export type DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetError = DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetErrors[keyof DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetErrors];
+
+export type DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Publication;
+};
+
+export type DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetResponse = DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetResponses[keyof DefautsDeLOrganisationApiV1BuilderPublicationOrganisationGetResponses];
+
+export type ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutData = {
+    body: Publication;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/publication-organisation';
+};
+
+export type ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutError = ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutErrors[keyof ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutErrors];
+
+export type ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Publication;
+};
+
+export type ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutResponse = ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutResponses[keyof ReglerLesDefautsDeLOrganisationApiV1BuilderPublicationOrganisationPutResponses];
 
 export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetData = {
     body?: never;
