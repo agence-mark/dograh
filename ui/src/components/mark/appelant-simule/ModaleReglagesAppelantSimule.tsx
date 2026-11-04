@@ -35,6 +35,7 @@ import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
+import { montant } from "./montant";
 
 // Suggestions only (`MODELES_SIMULATEUR`, api/schemas/appel_simule.py): the server accepts any « provider/model » (U6).
 export const MODELES_SIMULATEUR: string[] = [
@@ -108,7 +109,7 @@ function Role({
     depense: DepenseDuRole | null;
     onChange: (morceau: Partial<Role>) => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     return (
         <fieldset className="space-y-2 rounded border border-border p-3" data-role={juge ? "juge" : "appelant"}>
             <legend className="px-1 text-sm font-medium">{t(titre)}</legend>
@@ -213,12 +214,12 @@ function Role({
                         ? "…"
                         : depense.atteint
                           ? t({
-                                en: `Budget reached: ${(depense.cout ?? 0).toFixed(2)} spent this month`,
-                                fr: `Budget atteint : ${(depense.cout ?? 0).toFixed(2)} dépensés ce mois-ci`,
+                                en: `Budget reached: ${montant(depense.cout, langue)} spent this month`,
+                                fr: `Budget atteint : ${montant(depense.cout, langue)} dépensés ce mois-ci`,
                             })
                           : t({
-                                en: `${(depense.cout ?? 0).toFixed(2)} spent this month (${depense.appels ?? 0} calls)`,
-                                fr: `${(depense.cout ?? 0).toFixed(2)} dépensés ce mois-ci (${depense.appels ?? 0} appels)`,
+                                en: `${montant(depense.cout, langue)} spent this month (${depense.appels ?? 0} calls)`,
+                                fr: `${montant(depense.cout, langue)} dépensés ce mois-ci (${depense.appels ?? 0} appels)`,
                             })}
                 </p>
             </div>

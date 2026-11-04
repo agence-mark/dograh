@@ -6,6 +6,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { montant } from "@/components/mark/appelant-simule/montant";
 import { OngletAppelantOuJuge, OngletBuilderIA } from "./CerveauxReglages";
 
 const m = vi.hoisted(() => ({
@@ -193,6 +194,12 @@ describe("Réglages du Labo, onglet Appelant simulé", () => {
 });
 
 describe("Réglages du Labo, appelant simulé et juge séparés (lot 12)", () => {
+    it("un montant s'écrit à la façon de la langue", () => {
+        expect(montant(1.37, "fr").replace(/\s/g, "")).toBe("1,37");
+        expect(montant(1.37, "en")).toBe("1.37");
+        expect(montant(undefined, "en")).toBe("0.00");
+    });
+
     it("chaque rôle montre son interrupteur, son budget du mois et ce qu'il a dépensé", async () => {
         const { unmount } = render(<OngletAppelantOuJuge role="appelant" aller={vi.fn()} />);
         await screen.findByText("mistral/a");

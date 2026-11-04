@@ -27,6 +27,7 @@ import {
 } from "@/client";
 import type { DepenseDesRoles, ReglagesAppelantSimule, ReglagesSousAgents, VueAction, VueCerveauLu, VueOptions, VueReglagesCerveau } from "@/client/types.gen";
 import { ModaleReglagesAppelantSimule } from "@/components/mark/appelant-simule/ModaleReglagesAppelantSimule";
+import { montant } from "@/components/mark/appelant-simule/montant";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useSources } from "@/components/mark/sources/useSources";
@@ -654,7 +655,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
 
 /** L'appelant simulé et le juge : leurs réglages existants, lus ici et réglés dans la fenêtre qu'ils avaient déjà. */
 export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge"; aller: () => void }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const { user, loading } = useAuth();
     const [reglages, setReglages] = useState<ReglagesAppelantSimule | null>(null);
     const [depense, setDepense] = useState<DepenseDesRoles | null>(null);
@@ -706,7 +707,7 @@ export function OngletAppelantOuJuge({ role, aller }: { role: "appelant" | "juge
                             <span className="text-sm" data-depense-du-role>
                                 {depense === null
                                     ? "…"
-                                    : `${(depense[role].cout ?? 0).toFixed(2)}${depense[role].atteint ? ` · ${t(T.budgetAtteint)}` : ""}`}
+                                    : `${montant(depense[role].cout, langue)}${depense[role].atteint ? ` · ${t(T.budgetAtteint)}` : ""}`}
                             </span>
                         </Ligne>
                         <Button variant="outline" size="sm" onClick={() => setFenetre(true)}>
