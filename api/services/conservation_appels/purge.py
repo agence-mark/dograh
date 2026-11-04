@@ -223,8 +223,11 @@ async def conservation_de_nuit(_ctx=None) -> dict[int, dict]:
                 pass
     # [.mark] U10 / S3 : les sessions du widget public (adresse IP, navigateur) ont leur durée écrite.
     try:
-        from api.services.site_mark.conservation import purger_sessions
+        from api.services.site_mark.conservation import purger_sessions, reduire_avis_anciens
 
+        reduits = await reduire_avis_anciens()
+        if reduits:
+            logger.info(f"[.mark] Widget reviews kept in full past their retention: {reduits} reduced")
         effacees = await purger_sessions()
         if effacees:
             logger.info(f"[.mark] Widget sessions past their retention: {effacees} deleted")
