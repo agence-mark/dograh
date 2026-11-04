@@ -13,6 +13,7 @@ import {
 } from "@/client";
 import type { Proposition } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 
@@ -76,13 +77,13 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
                 </p>
             )}
             {liste !== null && liste.length === 0 && (
-                <p className="rounded border p-4 text-sm text-muted-foreground" data-testid="propositions-vide">
-                    {t({ en: "No proposal waiting.", fr: "Aucune proposition en attente." })}
-                </p>
+                <div data-testid="propositions-vide">
+                    <EtatVide cas="fait" compact titre={t({ en: "No proposal waiting", fr: "Aucune proposition en attente" })} />
+                </div>
             )}
-            <ul className="space-y-2">
+            <ul className="divide-y">
                 {(liste ?? []).map((p) => (
-                    <li key={p.id} className="space-y-2 rounded border p-3 text-sm" data-testid={`proposition-${p.id}`}>
+                    <li key={p.id} className="space-y-2 py-3 text-sm" data-testid={`proposition-${p.id}`}>
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded bg-muted px-2 py-0.5 text-xs">{t(TYPES_DE_PROPOSITION[p.type])}</span>
                             <span className="font-medium">

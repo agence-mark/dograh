@@ -380,7 +380,9 @@ describe("[.mark] the Library page: proposals and import", () => {
         await waitFor(() =>
             expect(m.accepter).toHaveBeenCalledWith({ path: { identifiant: "p1" }, body: { banc: { description: "3 x 3 green" } } }),
         );
-        expect(await screen.findByTestId("propositions-vide")).toBeTruthy();
+        const vide = await screen.findByTestId("propositions-vide");
+        // V2b : l'état vide est celui du design (coche, titre), jamais un paragraphe encadré dans la fenêtre.
+        expect(vide.querySelector("[class*=border]")).toBeNull();
     });
 
     it("refuses a proposal with its reason", async () => {
