@@ -28,8 +28,8 @@ type Onglet = "a_traiter" | "moi" | "tous";
 const ONGLETS: Onglet[] = ["a_traiter", "moi", "tous"];
 type Dire = (x: { en: string; fr: string }) => string;
 
-/** Le contact d'un fil : celui qui a écrit en dernier côté client, sinon le nom du client. */
-const contact = (f: FilOut) => (f.dernier?.cote === "client" ? f.dernier.auteur : f.client);
+/** Le contact d'un fil : celui qui a écrit en premier côté client (fil lu en entier), sinon le dernier message du client, sinon le client. */
+const contact = (f: FilOut) => f.messages?.find((m) => m.cote === "client")?.auteur ?? (f.dernier?.cote === "client" ? f.dernier.auteur : f.client);
 
 /**
  * [.mark] Messages (E92, E93) : la boîte à trois colonnes comme Intercom, Front ou Crisp. Les fils à gauche (À traiter, À moi,
