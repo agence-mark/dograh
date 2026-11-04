@@ -150,6 +150,16 @@ const VOICE_DISPLAY_NAMES: Record<string, string> = {
     "hitesh": "Hitesh (Male)",
 };
 
+const LIBELLES_COMMUNS: Record<string, { en: string; fr: string }> = {
+    model: { en: "Model", fr: "Modèle" },
+    voice: { en: "Voice", fr: "Voix" },
+    speed: { en: "Speed", fr: "Vitesse" },
+    volume: { en: "Volume", fr: "Volume" },
+    language: { en: "Language", fr: "Langue" },
+    temperature: { en: "Temperature", fr: "Température" },
+    base_url: { en: "API address", fr: "Adresse de l'API" },
+};
+
 /** [.mark] V2b: the card of the upstream form, or nothing in a window (body white, no card inside). */
 function Enveloppe({ sansCarte, children }: { sansCarte: boolean; children: ReactNode }) {
     if (sansCarte) return <div>{children}</div>;
@@ -343,6 +353,8 @@ export function ServiceConfigurationForm({
     sansBoutonEnregistrer,
 }: ServiceConfigurationFormProps) {
     const { t } = useLangue();
+    // [.mark] V2b: in the window of a service the usual field names are written in the screen's language.
+    const libelleDuChamp = (champ: string) => (idFormulaire && LIBELLES_COMMUNS[champ] ? t(LIBELLES_COMMUNS[champ]) : champ.replace(/_/g, ' '));
     const [apiError, setApiError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isRealtime, setIsRealtime] = useState(forceRealtime ?? false);
@@ -1068,7 +1080,7 @@ export function ServiceConfigurationForm({
 
                     {currentProvider && providerSchema && configFields[0] && (
                         <div className="space-y-2">
-                            <Label className="capitalize">{configFields[0].replace(/_/g, ' ')}</Label>
+                            <Label className="capitalize">{libelleDuChamp(configFields[0])}</Label>
                             {renderField(service, configFields[0], providerSchema)}
                         </div>
                     )}
@@ -1091,7 +1103,7 @@ export function ServiceConfigurationForm({
                             if (!estVisibleSelonLesAutresChamps(actualFieldSchema, lire)) return null;
                             return (
                                 <div key={field} data-champ={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
-                                    <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
+                                    <Label className="capitalize">{libelleDuChamp(field)}</Label>
                                     {renderField(service, field, providerSchema)}
                                 </div>
                             );
