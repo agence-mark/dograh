@@ -87,7 +87,8 @@ async def test_m9_les_avis_se_lisent_cinq_a_la_fois_avec_un_delai(db_session, mo
     par_client = {x["organization_id"]: x for x in r.json()}
     assert en_cours["max"] <= relation.LECTURES_EN_PARALLELE
     assert par_client[lente]["avis"] == 0 and par_client[lente]["note"] is None  # délai dépassé : aucun avis, la page s'ouvre
-    assert sum(1 for x in r.json() if x["avis"] == 3) == 8
+    # Un Administrateur voit tous les clients de la base de test partagée : on compte seulement les siens.
+    assert sum(1 for o in orgs[1:] if par_client[o]["avis"] == 3) == 8
 
 
 async def test_mineur_8_chaque_geste_d_ecriture_du_hub_est_au_journal(db_session):
