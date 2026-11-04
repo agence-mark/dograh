@@ -65,6 +65,22 @@ def validate_user_configured_service_url(
             )
 
 
+def refuser_adresse_de_metadonnees(url: str, *, field_name: str) -> None:
+    """[.mark] Revue serveur, mineur 1 : quel que soit le mode de déploiement (même ``oss``), jamais l'adresse de métadonnées du
+    nuage (169.254.169.254) ni une adresse de lien local, ni non spécifiée : c'est là que vivent les identifiants de la machine.
+    Un nom qui se résout vers l'une d'elles est refusé aussi."""
+    hote = hote_de_ladresse(url)
+    if not hote:
+        raise ValueError(f"{field_name} must have a host")
+    try:
+        adresses = _resolve_hostname_ips(hote, None)
+    except ValueError:
+        return  # un nom qui ne se résout pas ne peut pas viser une adresse interne ; la connexion échouera d'elle-même
+    for ip in adresses:
+        if ip.is_link_local or ip.is_unspecified:
+            raise ValueError(f"{field_name} must not point to a link-local address")
+
+
 def _resolve_hostname_ips(
     hostname: str, port: int | None
 ) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:

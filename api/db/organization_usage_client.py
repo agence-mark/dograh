@@ -248,6 +248,10 @@ class OrganizationUsageClient(BaseDBClient):
                     .order_by(WorkflowRunModel.created_at.desc())
                     .limit(appels_liste.RECHERCHE_APPELS_MAX)
                 )
+                if end_date:
+                    # Revue serveur, mineur 7 : la fin de période borne aussi les candidats (sinon les plus récents, hors période,
+                    # épuisent la limite et la recherche ne trouve plus rien dans la période demandée).
+                    candidats = candidats.where(WorkflowRunModel.created_at <= end_date)
                 query = query.where(
                     WorkflowRunModel.id.in_(candidats.scalar_subquery()),
                     appels_liste.contient_dans_la_transcription(terme),

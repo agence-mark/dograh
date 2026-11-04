@@ -26,6 +26,7 @@ from api.services.outils_mark import identifiants as identifiants_mark
 from api.services.outils_mark import mcp as mcp_mark
 from api.services.outils_mark import statistiques as statistiques_mark
 from api.services.workflow.tools.mcp_tool import namespace_function_name
+from api.utils.url_security import refuser_adresse_de_metadonnees, validate_user_configured_service_url
 
 router = APIRouter(tags=["outils-mark"])
 
@@ -194,6 +195,13 @@ async def tester_la_connexion_mcp(demande: DemandeTestMcp, user: UserModel = Dep
     organisation = _organisation(user)
     if not demande.url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="The address must start with http:// or https://")
+    # Revue serveur, mineur 1 : le test fait sortir le serveur vers l'adresse donnée ; mêmes garde-fous que les autres adresses de
+    # service (hôte interne refusé en hébergé) et, en tout mode, jamais l'adresse de métadonnées du nuage. Message générique.
+    try:
+        refuser_adresse_de_metadonnees(demande.url, field_name="url")
+        validate_user_configured_service_url(demande.url, field_name="url")
+    except ValueError:
+        raise HTTPException(status_code=422, detail="This address is not allowed") from None
     credential = None
     references = [demande.credential_uuid] if demande.credential_uuid else []
     references += [e.identifiant_uuid for e in demande.en_tetes_ext if e.sorte == "secret" and e.identifiant_uuid]
