@@ -280,7 +280,7 @@ describe('accessibilité', () => {
         await charger(fetchMock);
         zone('rond')!.click();
         await attendre();
-        expect((zone('demarrer') as HTMLElement).style.color).toBe('rgb(15, 28, 46)');
+        expect((zone('demarrer') as HTMLElement).style.color).toBe('rgb(17, 17, 17)'); // #111111, la règle du serveur
     });
 });
 
@@ -654,5 +654,102 @@ describe("l'aperçu du portail", () => {
         (window as W).MarkWidget.apercu(cadre, { etat: 'information', largeurCadre: 390 });
         const r = (cadre.querySelector('[data-mark-widget]') as HTMLElement).shadowRoot!;
         expect(r.querySelector('.mk-fenetre')?.classList.contains('mk-plein')).toBe(true);
+    });
+});
+
+describe('V5 : le widget suit la maquette', () => {
+    async function avecConfig(apparence: object, extra: object = {}, couleurs: object = {}) {
+        const { fetchMock } = serveur({
+            '/config': () => reponse({ ...CONFIG, apparence, couleurs, ...extra }),
+            '/evenement': () => reponse({ ok: true }),
+        });
+        await charger(fetchMock);
+    }
+    function apercuDans(options: object) {
+        const cadre = document.createElement('div');
+        document.body.appendChild(cadre);
+        delete (window as W).MarkWidget;
+        window.eval(source);
+        const ap = (window as W).MarkWidget.apercu(cadre, options);
+        const r = (cadre.querySelector('[data-mark-widget="apercu"]') as HTMLElement).shadowRoot!;
+        return { ap, r };
+    }
+
+    it('la fenêtre porte un titre réglable et l’emblème, comme la maquette', async () => {
+        await avecConfig({ textes: { titre: 'Showroom de Beauvais' } });
+        zone('rond')!.click();
+        await attendre();
+        expect(zone('titre')?.textContent).toBe('Showroom de Beauvais');
+        expect(zone('fenetre')?.getAttribute('aria-label')).toBe('Showroom de Beauvais');
+        expect(racine().querySelector('.mk-titre [data-zone="orbe"], .mk-titre img')).not.toBeNull();
+    });
+
+    it('« toujours » montre l’accroche tout de suite', async () => {
+        await avecConfig({ declenchement: 'toujours' });
+        expect(zone('accroche')).not.toBeNull();
+    });
+
+    it('« jamais » : le rond seul, le survol ne montre rien', async () => {
+        await avecConfig({ declenchement: 'jamais' });
+        expect(zone('accroche')).toBeNull();
+        zone('rond')!.dispatchEvent(new MouseEvent('mouseenter'));
+        await attendre();
+        expect(zone('accroche')).toBeNull();
+        expect(zone('rond')).not.toBeNull();
+    });
+
+    it('« survol » montre l’accroche au survol du rond', async () => {
+        await avecConfig({ declenchement: 'survol' });
+        expect(zone('accroche')).toBeNull();
+        zone('rond')!.dispatchEvent(new MouseEvent('mouseenter'));
+        await attendre();
+        expect(zone('accroche')).not.toBeNull();
+    });
+
+    it('« voix seule » : pas de champ de saisie pendant la conversation vocale', async () => {
+        const { ap, r } = apercuDans({ etat: 'conversation', modes: 'voix' });
+        expect(r.querySelector('[data-zone="saisieVoix"]')).toBeNull();
+        ap.majApercu({ modes: 'voix_et_ecrit', etat: 'conversation' });
+        expect(r.querySelector('[data-zone="saisieVoix"]')).not.toBeNull();
+        ap.detruire();
+    });
+
+    it('l’avis : titre, « passer » et les deux cases viennent des textes réglés', async () => {
+        const textes = { avis_titre: 'Votre avis compte', avis_passer: 'Plus tard', case_rappel: 'Rappelez-moi', case_publication: 'Affichez mon avis' };
+        const { ap, r } = apercuDans({ etat: 'avis', etoiles: 2, apparence: { textes } });
+        expect(r.querySelector('[data-zone="avisTitre"]')?.textContent).toBe('Votre avis compte');
+        expect(r.querySelector('[data-zone="avisPasser"]')?.textContent).toBe('Plus tard');
+        expect(r.querySelector('[data-zone="caseRappel"]')?.textContent).toBe('Rappelez-moi');
+        ap.majApercu({ etat: 'avis', etoiles: 5 });
+        expect(r.querySelector('[data-zone="casePublication"]')?.textContent).toBe('Affichez mon avis');
+        ap.detruire();
+    });
+
+    it('chaque couleur de la maquette s’applique à son élément', async () => {
+        const couleurs = {
+            raccrocher: '#112233', raccrocher_texte: '#445566', bulle_agent: '#aabbcc', bulle_agent_texte: '#010203',
+            bulles_ecrit: '#102030', bulles_ecrit_texte: '#fefefe', champ_saisie: '#eeeeee', champ_saisie_texte: '#333333',
+        };
+        const { ap, r } = apercuDans({ etat: 'conversation', microRefuse: true, couleurs });
+        const style = (nom: string) => (r.querySelector(`[data-zone="${nom}"]`) as HTMLElement).style;
+        expect(style('raccrocher').backgroundColor).toBe('rgb(17, 34, 51)');
+        expect(style('raccrocher').color).toBe('rgb(68, 85, 102)');
+        expect(style('bulleAgent').backgroundColor).toBe('rgb(170, 187, 204)');
+        expect(style('bulleAgent').color).toBe('rgb(1, 2, 3)');
+        expect(style('bulleVisiteur').backgroundColor).toBe('rgb(16, 32, 48)');
+        expect(style('bulleVisiteur').color).toBe('rgb(254, 254, 254)');
+        expect(style('saisieEcrite').color).toBe('rgb(51, 51, 51)');
+        ap.detruire();
+    });
+
+    it('l’aperçu écrit montre un exemple d’échange (de quoi cliquer les deux bulles), jamais envoyé', async () => {
+        const { fetchMock } = serveur({});
+        vi.stubGlobal('fetch', fetchMock);
+        const { ap, r } = apercuDans({ etat: 'conversation', microRefuse: true });
+        expect(r.querySelector('[data-zone="bulleAgent"]')).not.toBeNull();
+        expect(r.querySelector('[data-zone="bulleVisiteur"]')).not.toBeNull();
+        expect(r.querySelector('[data-zone="saisieEcrite"]')).not.toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+        ap.detruire();
     });
 });
