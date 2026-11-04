@@ -116,12 +116,29 @@ async def _etapes_a_jouer(
     if est_un_essai_exclu(run, agent):
         return []
     if agent.actif:
-        return etapes_de(agent)
-    if await _panne_a_ecrire(run, organization_id):
+        etapes = etapes_de(agent)
+    elif await _panne_a_ecrire(run, organization_id):
         # L7 (PN1): the outage fallback writes its request « to call back » even for an
         # agent whose after-call is off, as soon as a client database is attached.
-        return ["ecriture"]
-    return []
+        etapes = ["ecriture"]
+    else:
+        etapes = []
+    # [.mark] RA-A (R3, audit du 04/11, rouge n° 6): a write put aside during the call is ALWAYS done after it,
+    # whether the agent's after-call is on or off and the module ticked or not (an appointment the caller was told
+    # was booked is not a setting).
+    if _a_des_ecritures_mises_de_cote(run) and ETAPE_CONNECTEURS not in etapes:
+        etapes.append(ETAPE_CONNECTEURS)
+    return etapes
+
+
+ETAPE_CONNECTEURS = "module:connecteurs"
+
+
+def _a_des_ecritures_mises_de_cote(run) -> bool:
+    from api.services.integrations.connectors.execution import CLE_DIFFERES
+
+    mises = (getattr(run, "gathered_context", None) or {}).get(CLE_DIFFERES)
+    return isinstance(mises, list) and bool(mises)
 
 
 def est_un_essai_exclu(run, agent: ApresAppelAgent) -> bool:
@@ -748,6 +765,8 @@ async def executer(
                 },
             )
             if definitif:
+                if etape == ETAPE_CONNECTEURS:
+                    await _rappel_de_l_ecriture_perdue(contexte, run, bloc)
                 await _signaler(organization_id, run, etape, message, tentative)
             else:
                 await _reessayer(run_id, etape, tentative + 1, delai, enqueue)
@@ -766,6 +785,38 @@ async def executer(
             racine=fait.get("racine"),
         )
     return await db_client.lire_apres_appel(run_id)
+
+
+async def _rappel_de_l_ecriture_perdue(ctx: ContexteModule, run, bloc: dict) -> None:
+    """[.mark] RA-A (R3): a replay of the writes put aside failed for good: the request « to call back » is made in the client's
+    database, ONCE (the step remembers it), so that the team checks and redoes what the caller was told was done. Never
+    raises: the alert that follows is sent in any case."""
+    from api.services.apres_appel.rappels import resume_de_l_ecriture_perdue
+    from api.services.integrations.connectors.execution import CLE_DIFFERES
+
+    try:
+        bloc = await db_client.lire_apres_appel(run.id)  # the state now: the failure of this try is recorded
+        etape = (bloc.get("etapes") or {}).get(ETAPE_CONNECTEURS) or {}
+        appel_id = bloc.get("appel_id")
+        if etape.get("rappel_cree") or not appel_id:
+            return
+        faites = set(etape.get("faites") or [])
+        actions = [
+            f"{e.get('connecteur')}.{e.get('action')}"
+            for i, e in enumerate((run.gathered_context or {}).get(CLE_DIFFERES) or [])
+            if i not in faites and isinstance(e, dict)
+        ]
+        resume = resume_de_l_ecriture_perdue(actions, (ctx.envoi or {}).get("numero_appelant"))
+        connexion = await _base(ctx.organization_id)
+        try:
+            demande_id = await sql.demande_de_rappel_ecriture_perdue(connexion, appel_id, resume)
+        finally:
+            await connexion.close()
+        await db_client.fusionner_apres_appel(
+            run.id, etape=ETAPE_CONNECTEURS, valeur={"rappel_cree": True, "rappel_demande_id": demande_id}
+        )
+    except Exception as erreur:  # noqa: BLE001 -- the alert goes out anyway; the cause is logged
+        logger.error(f"[.mark] Call-back for the lost write of run {run.id} not made: {erreur!r}")
 
 
 async def _reessayer(
