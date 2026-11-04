@@ -53,8 +53,8 @@ def _scenario(i="s1", workflow_id=34, **champs):
 
 def _reglages(**champs):
     return ReglagesAppelantSimule(
-        appelant=RoleSimule(consigne="Consigne générale.", identifiant="cle-mistral"),
-        juge=RoleSimule(consigne="Juge.", identifiant="cle-mistral"),
+        appelant=RoleSimule(consigne="Consigne générale.", identifiant="cle-mistral", actif=True),
+        juge=RoleSimule(consigne="Juge.", identifiant="cle-mistral", actif=True),
         voix=VoixSimulee(voix="voix-fr", identifiant="cle-eleven"),
         **champs,
     )
@@ -449,10 +449,10 @@ async def test_une_seule_serie_a_la_fois(base):
         ),
         (
             _reglages().model_copy(
-                update={"appelant": RoleSimule(consigne="c", identifiant="autre")}
+                update={"appelant": RoleSimule(consigne="c", identifiant="autre", actif=True)}
             ),
             ["s1"],
-            "same model key",
+            "model key",  # lot 12 (M-5) : chaque rôle a sa clé, la clé introuvable de l'appelant se nomme
         ),
     ],
 )

@@ -157,6 +157,7 @@ def mondes(monde, monkeypatch):
 
 
 def _juge(monkeypatch, **champs):
+    champs.setdefault("actif", True)  # lot 12 (SE-23) : un rôle neuf est éteint
     roles = ReglagesAppelantSimule(appelant=RoleSimule(consigne="c"), juge=RoleSimule(consigne="j", **champs))
     from api.services.appel_simule import reglages as appel_simule
 

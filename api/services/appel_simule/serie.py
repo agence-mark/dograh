@@ -147,11 +147,13 @@ def entree_du_lanceur(
     }
 
 
-def environnement(cle_modele: str, cle_voix: str, dossier: str) -> dict[str, str]:
+def environnement(cle_modele: str, cle_voix: str, dossier: str, cle_juge: str | None = None) -> dict[str, str]:
     """L'environnement du sous-processus, construit de zéro : rien de l'API n'y passe (aucune clé
     d'un autre service, aucune variable ``LANGWATCH_*``), seulement les deux clés choisies à
-    l'écran et de quoi faire tourner Python. Scenario exige un répertoire personnel (son cache)."""
-    return {
+    l'écran et de quoi faire tourner Python. Scenario exige un répertoire personnel (son cache).
+
+    Partie 3, lot 12 (M-5) : le juge peut avoir SA clé (``cle_juge``) ; sans elle, il prend celle de l'appelant."""
+    env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": dossier,
         "SCENARIO_CACHE_DIR": dossier,
@@ -162,6 +164,9 @@ def environnement(cle_modele: str, cle_voix: str, dossier: str) -> dict[str, str
         "SIMULATEUR_CLE_MODELE": cle_modele,
         "ELEVENLABS_API_KEY": cle_voix,
     }
+    if cle_juge and cle_juge != cle_modele:
+        env["SIMULATEUR_CLE_JUGE"] = cle_juge
+    return env
 
 
 def lire_le_verdict(sortie: str) -> dict:
@@ -368,11 +373,8 @@ def _cle_supprimee(quoi: str) -> str:
 
 async def _cles(
     organization_id: int, reglages: ReglagesAppelantSimule
-) -> tuple[str, str]:
-    if reglages.appelant.identifiant != reglages.juge.identifiant:
-        raise SerieRefusee(
-            "The simulated caller and the judge must use the same model key."
-        )
+) -> tuple[str, str, str | None]:
+    """(clé de l'appelant, clé de la voix, clé du juge ou ``None`` quand c'est la même que l'appelant). M-5 : chaque rôle a sa clé."""
     cle_modele = await cle_d_identifiant(organization_id, reglages.appelant.identifiant)
     if not cle_modele:
         raise SerieRefusee(
@@ -389,7 +391,31 @@ async def _cles(
         )
     if not reglages.voix.voix.strip():
         raise SerieRefusee("Choose the simulated caller's voice.")
-    return cle_modele, cle_voix
+    cle_juge = None
+    if reglages.juge.identifiant != reglages.appelant.identifiant:
+        cle_juge = await cle_d_identifiant(organization_id, reglages.juge.identifiant)
+        if not cle_juge:
+            raise SerieRefusee(
+                _cle_supprimee("judge model key")
+                if reglages.juge.identifiant
+                else "Choose the model key of the judge in its settings."
+            )
+    return cle_modele, cle_voix, cle_juge
+
+
+async def _roles_permis(organization_id: int, reglages: ReglagesAppelantSimule) -> None:
+    """Partie 3, lot 12 (SE-23) : un rôle éteint, ou dont le budget du mois est atteint, ne joue pas de série (jamais d'appel au
+    fournisseur). La dépense comptée est celle de ses appels suivis (tests du builder, juge des vrais appels)."""
+    from api.services.builder.cerveau import budget_roles
+
+    depense = await budget_roles.depense_du_mois(organization_id)
+    for nom, role in (("appelant", reglages.appelant), ("juge", reglages.juge)):
+        if not role.actif:
+            raise SerieRefusee(
+                f"The {budget_roles.NOM_DU_ROLE[nom]} is switched off: switch it on in the simulated caller settings."
+            )
+        if role.budget_mois > 0 and depense[nom]["cout"] >= role.budget_mois:
+            raise SerieRefusee(budget_roles.phrase_budget_atteint(nom, depense[nom]["cout"], role.budget_mois))
 
 
 # --- Lancer une série ----------------------------------------------------------------------------
@@ -443,6 +469,7 @@ async def lancer_serie(
     inconnus = [i for i in scenario_ids if i not in disponibles]
     if inconnus:
         raise SerieRefusee("A scenario is not filed with this agent.")
+    await _roles_permis(organization_id, reglages)
     await _cles(organization_id, reglages)
     table = await lire_reglages_fenetre(organization_id)
     manquants = prix_manquants_du_simulateur(table)
@@ -527,9 +554,9 @@ async def _jouer_un_appel(
                 entree_du_lanceur(
                     adresse_ws(base_ws(), run.id, jeton), reglages, scenario
                 ),
-                environnement(*cles, dossier),
+                environnement(cles[0], cles[1], dossier, cle_juge=cles[2] if len(cles) > 2 else None),
                 delai_s=scenario.tours_max * DELAI_PAR_TOUR_S,
-                secrets=[*cles, jeton],
+                secrets=[*(c for c in cles if c), jeton],
             )
         finally:
             fin.set()

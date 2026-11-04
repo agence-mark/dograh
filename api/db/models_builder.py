@@ -14,12 +14,14 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
     String,
+    UniqueConstraint,
     Text,
     func,
 )
@@ -104,3 +106,20 @@ class MarkModificationModel(Base):
     cree_le = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC)
     )
+
+
+class MarkDepenseRoleModel(Base):
+    """Partie 3, lot 12 (SE-23) : la dépense du mois de l'appelant simulé ou du juge, par organisation (une ligne par rôle et par mois)."""
+
+    __tablename__ = "mark_depense_roles"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(20), nullable=False)
+    mois = Column(Date, nullable=False)
+    appels = Column(Integer, nullable=False, default=0, server_default="0")
+    jetons = Column(BigInteger, nullable=False, default=0, server_default="0")
+    cout = Column(Float, nullable=False, default=0.0, server_default="0")
+    modifie_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
+
+    __table_args__ = (UniqueConstraint("organization_id", "role", "mois", name="uq_mark_depense_roles_org_role_mois"),)

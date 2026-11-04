@@ -8,6 +8,7 @@ from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
 from api.db.boucle_client import BoucleClient
 from api.db.builder_fil_client import BuilderFilClient
+from api.db.depense_roles_client import DepenseRolesClient
 from api.db.copie_agent_client import CopieAgentClient
 from api.db.relation_client import RelationClient
 from api.db.apres_appel_client import ApresAppelClient
@@ -78,6 +79,8 @@ class DBClient(
     SiteClient,
     # [.mark] builder partie 2, U5: the builder conversations and events in tables.
     BuilderFilClient,
+    # [.mark] builder partie 3, lot 12: the monthly spend of the simulated caller and of the judge.
+    DepenseRolesClient,
     # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
     RelationClient,
     # [.mark] builder partie 2, U2 quinquies: copying a document or a recording from one organization to another.

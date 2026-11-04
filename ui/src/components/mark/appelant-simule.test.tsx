@@ -30,6 +30,7 @@ const m = vi.hoisted(() => ({
     getScenarios: vi.fn(),
     saveScenarios: vi.fn(),
     getReglages: vi.fn(),
+    getDepense: vi.fn(),
     saveReglages: vi.fn(),
     getSeries: vi.fn(),
     getRapport: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock("@/client", () => ({
     getScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosGet: (...a: unknown[]) => m.getScenarios(...a),
     saveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPut: (...a: unknown[]) => m.saveScenarios(...a),
     getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet: (...a: unknown[]) => m.getReglages(...a),
+    getDepenseDesRolesApiV1AppelSimuleDepenseGet: (...a: unknown[]) => m.getDepense(...a),
     saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut: (...a: unknown[]) => m.saveReglages(...a),
     getSeriesSimuleesApiV1AppelSimuleSeriesGet: (...a: unknown[]) => m.getSeries(...a),
     getRapportSerieApiV1AppelSimuleSeriesSerieIdGet: (...a: unknown[]) => m.getRapport(...a),
@@ -95,8 +97,8 @@ const SCENARIO = {
 const REGLAGES = {
     format: "appelant-simule-mark",
     version: 1,
-    appelant: { modele: "mistral/mistral-small-latest", identifiant: null, consigne: "Joue un appelant.", temperature: 0.5 },
-    juge: { modele: "mistral/mistral-small-latest", identifiant: null, consigne: "Juge l'appel.", temperature: 0 },
+    appelant: { modele: "mistral/mistral-small-latest", identifiant: null, consigne: "Joue un appelant.", temperature: 0.5, actif: true, budget_mois: 0 },
+    juge: { modele: "mistral/mistral-small-latest", identifiant: null, consigne: "Juge l'appel.", temperature: 0, actif: true, budget_mois: 0 },
     voix: { voix: "", identifiant: null },
     simultanes: 1,
     taille_max_serie: 2,
@@ -140,6 +142,13 @@ beforeEach(() => {
     vi.clearAllMocks();
     m.getScenarios.mockResolvedValue({ data: [SCENARIO, { ...SCENARIO, id: "s2", nom: "Devis" }, { ...SCENARIO, id: "s3", nom: "Horaires" }] });
     m.getReglages.mockResolvedValue({ data: REGLAGES });
+    m.getDepense.mockResolvedValue({
+        data: {
+            mois: "2026-11-01",
+            appelant: { appels: 2, jetons: 300, cout: 0.003, budget_mois: 0, actif: true, atteint: false },
+            juge: { appels: 0, jetons: 0, cout: 0, budget_mois: 0, actif: true, atteint: false },
+        },
+    });
     m.getSeries.mockResolvedValue({ data: [] });
     m.getRapport.mockResolvedValue({ data: RAPPORT });
     m.direct.mockResolvedValue({ data: { evenements: [], suivant: 0, fini: true } });
@@ -297,10 +306,11 @@ describe("[.mark] the scenario library (L10, L18)", () => {
 describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
     it("picks keys in the library, refuses a cap out of bounds, and sends what was set", async () => {
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
-        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
+        const modele = (await screen.findByLabelText("Simulated caller · model key")) as HTMLSelectElement;
         // Les clés arrivent après le premier rendu (constat C7 : lues trop tôt, le test échouait au hasard).
         await waitFor(() => expect([...modele.options].map((o) => o.textContent)).toContain("Mistral organisation 2"));
         fireEvent.change(modele, { target: { value: "c-mistral" } });
+        fireEvent.change(screen.getByLabelText("Judge · model key"), { target: { value: "c-mistral" } });
         fireEvent.change(screen.getByLabelText("ElevenLabs key (voice and transcription)"), {
             target: { value: "c-eleven" },
         });
@@ -320,10 +330,43 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
         expect(JSON.stringify(corps)).not.toMatch(/api_key|token/);
     });
 
+    it("gives the caller and the judge their own key, switch and monthly budget, and shows what each spent (lot 12)", async () => {
+        m.getDepense.mockResolvedValue({
+            data: {
+                mois: "2026-11-01",
+                appelant: { appels: 2, jetons: 300, cout: 0.003, budget_mois: 0, actif: true, atteint: false },
+                juge: { appels: 5, jetons: 900, cout: 2.5, budget_mois: 2, actif: true, atteint: true },
+            },
+        });
+        render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
+        const appelant = (await screen.findByLabelText("Simulated caller · model key")) as HTMLSelectElement;
+        await waitFor(() => expect([...appelant.options].map((o) => o.textContent)).toContain("Mistral organisation 2"));
+        // chacun sa clé : plus de contrainte « même clé »
+        fireEvent.change(appelant, { target: { value: "c-mistral" } });
+        expect(screen.queryByTestId("fautes-appelant-simule")).toBeNull();
+        const roleJuge = within(document.querySelector("[data-role=juge]") as HTMLElement);
+        const roleAppelant = within(document.querySelector("[data-role=appelant]") as HTMLElement);
+        // la dépense du mois de chaque rôle, et le budget atteint dit
+        expect(texte(document.querySelector("[data-role=appelant] [data-depense-du-role]") as HTMLElement)).toContain("0.00 spent this month (2 calls)");
+        expect(texte(document.querySelector("[data-role=juge] [data-depense-du-role]") as HTMLElement)).toContain("Budget reached: 2.50 spent this month");
+        // interrupteur et budget du juge, sans toucher à l'appelant
+        fireEvent.click(roleJuge.getByRole("switch", { name: "Judge · Switched on" }));
+        fireEvent.change(roleJuge.getByLabelText("Judge · Monthly budget"), { target: { value: "-1" } });
+        expect(texte(screen.getByTestId("fautes-appelant-simule"))).toContain("Judge budget: between 0 and 100000");
+        fireEvent.change(roleJuge.getByLabelText("Judge · Monthly budget"), { target: { value: "4" } });
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveReglages).toHaveBeenCalledTimes(1));
+        const corps = m.saveReglages.mock.calls[0][0].body;
+        expect(corps.juge).toMatchObject({ actif: false, budget_mois: 4 });
+        expect(corps.appelant).toMatchObject({ actif: true, budget_mois: 0, identifiant: "c-mistral" });
+        expect(corps.juge.identifiant).toBeNull();
+        expect(roleAppelant.getByRole("switch", { name: "Simulated caller · Switched on" })).toBeTruthy();
+    });
+
     it("adds a key from the settings, picks it at once, and never shows it again", async () => {
         BIBLIOTHEQUE.splice(0, BIBLIOTHEQUE.length);
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
-        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
+        const modele = (await screen.findByLabelText("Simulated caller · model key")) as HTMLSelectElement;
         await waitFor(() => expect(modele.options[0].textContent).toContain("no key yet"));
         fireEvent.click(within(modele.parentElement as HTMLElement).getByRole("button", { name: "Keys…" }));
         const fenetre = await screen.findByTestId("fenetre-cles");
@@ -373,7 +416,7 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
             },
         });
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
-        const modele = (await screen.findByLabelText("Mistral key (caller and judge)")) as HTMLSelectElement;
+        const modele = (await screen.findByLabelText("Simulated caller · model key")) as HTMLSelectElement;
         await waitFor(() => expect(modele.value).toBe("c-ancienne"));
         expect(modele.selectedOptions[0].textContent).toBe("Mistral d'avant (outside the library)");
         expect(screen.queryByText("Key deleted: pick another.")).toBeNull();
