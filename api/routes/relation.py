@@ -11,6 +11,7 @@ garde pas la copie.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -133,6 +134,13 @@ class ClientOut(BaseModel):
     ouverts: int
     non_lus: int
     demandes_nouvelles: int
+    # Ce que l'accueil et la liste des clients montrent (lus en groupe, jamais une requête par client).
+    etat: Literal["actif", "installation"] = "installation"
+    agents: int = 0
+    appels_7j: int = 0
+    note: float | None = None
+    signalements: int = 0
+    pannes: int = 0
 
 
 class AvisClient(BaseModel):
@@ -151,10 +159,22 @@ def _fil_sortie(f: dict, noms: dict[int, str]) -> FilOut:
 @router.get("/clients", response_model=list[ClientOut])
 async def lister_clients(user: UserModel = Depends(membre)) -> list[ClientOut]:
     noms = await hub.clients_ouverts(user)
-    comptes = await db_client.compter_fils_relation(noms)
+    comptes, stats = await asyncio.gather(
+        db_client.compter_fils_relation(noms), db_client.statistiques_des_clients_relation(noms)
+    )
     vide = {"ouverts": 0, "non_lus": 0, "demandes_nouvelles": 0}
     return [
-        ClientOut(id=i, nom=n, **comptes.get(i, vide))
+        ClientOut(
+            id=i,
+            nom=n,
+            **comptes.get(i, vide),
+            etat="actif" if stats[i]["agents_publies"] else "installation",
+            agents=stats[i]["agents"],
+            appels_7j=stats[i]["appels_7j"],
+            note=stats[i]["note"],
+            signalements=stats[i]["signalements"],
+            pannes=stats[i]["pannes"],
+        )
         for i, n in sorted(noms.items(), key=lambda p: p[1].lower())
     ]
 

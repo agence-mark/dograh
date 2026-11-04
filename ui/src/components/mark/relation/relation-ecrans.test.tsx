@@ -23,7 +23,9 @@ const sdk = vi.hoisted(() => ({
     repondre: vi.fn(),
     avis: vi.fn(),
     entree: vi.fn(),
+    supprimer: vi.fn(),
 }));
+const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 vi.mock("@/client/sdk.gen", () => ({
     maFileApiV1RelationFileGet: sdk.file,
     listerClientsApiV1RelationClientsGet: sdk.clients,
@@ -33,13 +35,14 @@ vi.mock("@/client/sdk.gen", () => ({
     repondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPost: sdk.repondre,
     avisEtTemoignagesApiV1RelationAvisGet: sdk.avis,
     ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: sdk.entree,
-    listerEntreesApiV1RelationEntreesGet: vi.fn(),
-    listerNotesApiV1RelationClientsOrganizationIdNotesGet: vi.fn(),
+    monProfilApiV1EquipeMarkMoiGet: () => Promise.resolve({ data: { prenom: "Evan" }, error: undefined }),
+    listerEntreesApiV1RelationEntreesGet: () => ok([]),
+    listerNotesApiV1RelationClientsOrganizationIdNotesGet: () => ok([]),
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost: vi.fn(),
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete: vi.fn(),
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost: vi.fn(),
     reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch: vi.fn(),
-    supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete: vi.fn(),
+    supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete: sdk.supprimer,
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: "a@b.c" } }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -48,7 +51,6 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { AccueilRelation, EcranAvis, EcranMessages, FicheClient } from "./EcransRelation";
 import { oublierLectureClients } from "./lecture-clients";
 
-const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 const maintenant = new Date().toISOString();
 const fil = (sur: object = {}) => ({
     id: 1, organization_id: 7, client: "Nuances de Feu", sorte: "message", sujet: "Couper les SMS le dimanche", etat: "nouveau",
@@ -76,7 +78,30 @@ describe("Ma file", () => {
         avec(<AccueilRelation />);
         expect(await screen.findByText("Rien n'attend l'équipe")).toBeTruthy();
         expect(await screen.findByText("1 client")).toBeTruthy();
-        expect(screen.queryByRole("button", { name: /Réessayer|Effacer|Créer|Ajouter|Nouveau/ })).toBeNull(); // aucun bouton d'action
+        expect(screen.queryByRole("button", { name: /Réessayer|Effacer|Créer|Ajouter/ })).toBeNull(); // aucun bouton d'action
+    });
+});
+
+describe("Accueil : tout ce qui attend, avec ses chiffres (V3, E94)", () => {
+    it("salue par le prénom, compte les choses et range signalements et pannes sous Technique", async () => {
+        sdk.clients.mockImplementation(() =>
+            ok([{ id: 7, nom: "Nuances de Feu", ouverts: 1, non_lus: 1, demandes_nouvelles: 0, etat: "actif", agents: 1, appels_7j: 4, note: 4.5, signalements: 1, pannes: 2 }]),
+        );
+        sdk.file.mockImplementation(() => ok([fil()]));
+        avec(<AccueilRelation />);
+        expect(await screen.findByText("Bonjour Evan")).toBeTruthy();
+        expect(await screen.findByText("3 choses attendent l'équipe chez 1 client.")).toBeTruthy();
+        expect(screen.getByText("1 signalement sur un appel")).toBeTruthy();
+        expect(screen.getByText("2 pannes ou alertes")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Technique 2" }));
+        expect(screen.queryByText("Couper les SMS le dimanche")).toBeNull();
+        expect(screen.getByText("2 pannes ou alertes")).toBeTruthy();
+    });
+    it("un client sans activité n'ajoute aucune ligne technique", async () => {
+        sdk.file.mockImplementation(() => ok([fil()]));
+        avec(<AccueilRelation />);
+        expect(await screen.findByText("1 chose attend l'équipe chez 1 client.")).toBeTruthy();
+        expect(screen.queryByText(/signalement/)).toBeNull();
     });
 });
 
@@ -157,8 +182,21 @@ describe("Avis et témoignages", () => {
             ok([{ organization_id: 7, client: "Nuances de Feu", note: 4.4, avis: 21, temoignages: [{ id: 1, organization_id: 7, texte: "Très bien", auteur: "Martine, dirigeante", accord: false }] }]),
         );
         avec(<EcranAvis />);
-        expect(await screen.findByText(/4.4 \/ 5 · 21 avis/)).toBeTruthy();
-        expect(screen.getByText("Très bien")).toBeTruthy();
-        expect(screen.getByText("Sans accord")).toBeTruthy();
+        expect(await screen.findByText("(21 avis)")).toBeTruthy();
+        expect(screen.getByText("4,4")).toBeTruthy();
+        expect(screen.getByText(/Très bien/)).toBeTruthy();
+        expect(screen.getAllByText("Accord à demander").length).toBeGreaterThan(0);
+    });
+    it("demande une confirmation avant de supprimer un témoignage", async () => {
+        sdk.avis.mockImplementation(() =>
+            ok([{ organization_id: 7, client: "Nuances de Feu", note: null, avis: 0, temoignages: [{ id: 1, organization_id: 7, texte: "Très bien", auteur: "Martine", accord: true }] }]),
+        );
+        sdk.supprimer.mockImplementation(() => Promise.resolve({ error: undefined }));
+        avec(<EcranAvis />);
+        fireEvent.click(await screen.findByRole("button", { name: "Supprimer" }));
+        expect(sdk.supprimer).not.toHaveBeenCalled();
+        expect(await screen.findByText("Supprimer ce témoignage ?")).toBeTruthy();
+        fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" }).at(-1) as HTMLElement);
+        await waitFor(() => expect(sdk.supprimer).toHaveBeenCalled());
     });
 });

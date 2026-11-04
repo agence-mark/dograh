@@ -148,7 +148,7 @@ export function SelecteurEspace({ espace, org, className }: Props) {
     );
 }
 
-function NouveauClient({ ouvert, onOuvert }: { ouvert: boolean; onOuvert: (o: boolean) => void }) {
+export function NouveauClient({ ouvert, onOuvert }: { ouvert: boolean; onOuvert: (o: boolean) => void }) {
     const { t } = useLangue();
     const router = useRouter();
     const [identifiant, setIdentifiant] = useState("");

@@ -6,7 +6,7 @@ sont rendues : l'API du client ne le met JAMAIS à vrai.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Iterable
 
 from sqlalchemy import func, or_, select, update
@@ -241,6 +241,59 @@ class RelationClient(BaseDBClient):
                 )
             ).all()
             return {o: {"ouverts": a, "non_lus": b, "demandes_nouvelles": c} for o, a, b, c in lignes}
+
+    async def statistiques_des_clients_relation(self, organisations: Iterable[int]) -> dict[int, dict[str, Any]]:
+        """Par organisation, en quatre lectures groupées (jamais une par client) : agents (dont publiés), appels des 7 derniers
+        jours, note moyenne du juge, problèmes à traiter (signalements du client, pannes de déploiement)."""
+        from api.db.models import WorkflowModel, WorkflowRunModel
+        from api.db.models_boucle import MarkAmeliorationModel
+
+        ids = sorted(set(organisations))
+        if not ids:
+            return {}
+        depuis = datetime.now(UTC) - timedelta(days=7)
+        sortie: dict[int, dict[str, Any]] = {
+            i: {"agents": 0, "agents_publies": 0, "appels_7j": 0, "note": None, "signalements": 0, "pannes": 0} for i in ids
+        }
+        async with self.async_session() as session:
+            for org, total, publies in (
+                await session.execute(
+                    select(
+                        WorkflowModel.organization_id,
+                        func.count(),
+                        func.count().filter(WorkflowModel.released_definition_id.is_not(None)),
+                    )
+                    .where(WorkflowModel.organization_id.in_(ids), WorkflowModel.status == "active")
+                    .group_by(WorkflowModel.organization_id)
+                )
+            ).all():
+                sortie[org]["agents"], sortie[org]["agents_publies"] = total, publies
+            for org, appels, note in (
+                await session.execute(
+                    select(WorkflowModel.organization_id, func.count(), func.avg(WorkflowRunModel.note_juge))
+                    .join(WorkflowRunModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                    .where(WorkflowModel.organization_id.in_(ids), WorkflowRunModel.created_at >= depuis)
+                    .group_by(WorkflowModel.organization_id)
+                )
+            ).all():
+                sortie[org]["appels_7j"] = appels
+                sortie[org]["note"] = round(float(note), 1) if note is not None else None
+            for org, signalements, pannes in (
+                await session.execute(
+                    select(
+                        MarkAmeliorationModel.organization_id,
+                        func.count().filter(MarkAmeliorationModel.releve_par == "client"),
+                        func.count().filter(MarkAmeliorationModel.releve_par == "deploiement"),
+                    )
+                    .where(
+                        MarkAmeliorationModel.organization_id.in_(ids),
+                        MarkAmeliorationModel.etat.in_(("a_trier", "en_cours")),
+                    )
+                    .group_by(MarkAmeliorationModel.organization_id)
+                )
+            ).all():
+                sortie[org]["signalements"], sortie[org]["pannes"] = signalements, pannes
+        return sortie
 
     # ------------------------------------------------------------------ notes sur un client
     async def lister_notes_relation(self, organization_id: int) -> list[dict[str, Any]]:

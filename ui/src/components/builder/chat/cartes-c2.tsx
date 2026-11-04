@@ -54,7 +54,9 @@ type Rapport = {
 
 export function CarteRapport({ carte }: { carte: CarteDuFil }) {
     const { t } = useLangue();
-    const r = carte as unknown as Rapport;
+    // Un événement ancien ou partiel ne doit jamais faire tomber la page : les listes manquantes sont vides.
+    const brut = carte as unknown as Partial<Rapport>;
+    const r: Rapport = { resume: brut.resume ?? "", tests: brut.tests ?? [], phrases_a_essayer: brut.phrases_a_essayer ?? [], points_ouverts: brut.points_ouverts ?? [], reussis: brut.reussis ?? 0 };
     return (
         <section className="my-2 space-y-2 py-1" data-carte="rapport">
             <h4 className="text-sm font-semibold">{t(T.rapport)}</h4>

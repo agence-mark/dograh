@@ -107,6 +107,11 @@ describe("cartes", () => {
         expect(screen.getByText("Numéro de transfert.")).toBeTruthy();
     });
 
+    it("un rapport partiel (listes absentes) s'affiche sans faire tomber la page", () => {
+        render(<CarteRapport carte={{ type: "rapport", resume: "Rapport court." }} />);
+        expect(screen.getByText("Rapport court.")).toBeTruthy();
+    });
+
     it("la dépense attend l'accord : Accorder répond vrai, Refuser répond faux, puis elle affiche la réponse", () => {
         const repondre = vi.fn();
         const carte = { type: "depense", id: "d1", motif: "Rejouer la suite", montant_estime: 0.4, statut: "attente" };
