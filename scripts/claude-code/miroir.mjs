@@ -7,8 +7,10 @@
 //
 // Règles : ne bloque JAMAIS Claude Code (délai de 3 s, toute erreur est avalée, code de sortie 0) ; n'affiche rien ; ne lit aucun .env ;
 // la clé ne vient que de l'environnement et n'est jamais écrite. Sans MARK_FORK_URL ou MARK_MCP_KEY : ne fait rien.
+// Revue serveur M4 : n'envoie QUE si le `cwd` de la session est dans un dossier de MARK_MIROIR_DOSSIERS (liste d'autorisés).
 // L'interrupteur de la personne (Profil / Sources) est côté serveur : éteint, le serveur ne range rien.
 import { readFileSync, statSync, openSync, readSync, closeSync } from "node:fs";
+import { delimiter, isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { borner, filtrer, resumeDesArguments } from "./filtre.mjs";
 
@@ -63,6 +65,24 @@ function entierOuNul(v) {
     return Number.isInteger(v) && v > 0 ? v : null;
 }
 
+/**
+ * Revue serveur M4 : la session est-elle dans un dossier autorisé ? `dossiers` = la liste de `MARK_MIROIR_DOSSIERS` (séparateur du système :
+ * `;` sous Windows, `:` ailleurs). Liste vide ou absente, ou `cwd` absent : NON (liste d'autorisés, jamais « tout sauf »). Un dossier
+ * autorisé couvre ses sous-dossiers ; `..` ne sort pas du dossier.
+ */
+export function dansLesDossiers(cwd, dossiers) {
+    if (!cwd || typeof cwd !== "string" || !dossiers) return false;
+    const session = resolve(cwd);
+    return String(dossiers)
+        .split(delimiter)
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .some((d) => {
+            const chemin = relative(resolve(d), session);
+            return chemin === "" || (!chemin.startsWith("..") && !isAbsolute(chemin));
+        });
+}
+
 /** Les évènements à envoyer pour un évènement de Claude Code (pur : testable sans réseau). */
 export function evenementsDe(entree, lire = lireLaFin) {
     const nom = entree.hook_event_name;
@@ -98,7 +118,8 @@ export function evenementsDe(entree, lire = lireLaFin) {
     return { evenements: [], workflow_id: null };
 }
 
-export async function envoyer(entree, { url, cle, fetchImpl = fetch, lire = lireLaFin }) {
+export async function envoyer(entree, { url, cle, dossiers = process.env.MARK_MIROIR_DOSSIERS, fetchImpl = fetch, lire = lireLaFin }) {
+    if (!dansLesDossiers(entree.cwd, dossiers)) return false; // M4 : hors des dossiers autorisés, rien ne part
     const { evenements, workflow_id } = evenementsDe(entree, lire);
     if (!evenements.length || !entree.session_id) return false;
     const corps = { session: String(entree.session_id).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80), evenements };
