@@ -57,6 +57,7 @@ const T = {
     appelantRole: { en: "Plays the customer in the tests and the series. Never sees the criteria.", fr: "Joue le client dans les tests et les séries. Ne voit jamais les critères." },
     jugeRole: { en: "Rates what the code cannot check. Never decides a failure alone.", fr: "Note ce que le code ne sait pas vérifier. Ne décide jamais seul d'un échec." },
     modeleEtCle: { en: "Model and key", fr: "Modèle et clé" },
+    nombreInvalide: { en: "Enter a number, for example 2.5. Nothing was saved.", fr: "Saisissez un nombre, par exemple 2,5. Rien n'a été enregistré." },
     modeleRegle: { en: "Rule: never the same model as the judge.", fr: "Règle : jamais le même modèle que le juge." },
     format: { en: "Provider format", fr: "Format du fournisseur" },
     formatInfo: {
@@ -218,35 +219,75 @@ export function SourceActuelle({ briques, aller }: { briques: ("builder" | "appe
     );
 }
 
-/** Un champ qui s'enregistre en le quittant, seulement s'il a changé. */
+/**
+ * R3 M2 : un nombre saisi à la française. La virgule se lit comme un point ; ce qui n'est pas un nombre positif ou nul rend
+ * `null` (refusé sous le champ, jamais lu comme 0, qui veut dire « aucun plafond » côté serveur).
+ */
+export function lireNombre(brut: string): number | null {
+    const texte = brut.trim().replace(",", ".");
+    if (!/^\d+(\.\d+)?$/.test(texte)) return null;
+    const n = Number(texte);
+    return Number.isFinite(n) ? n : null;
+}
+
+/** Un champ qui s'enregistre en le quittant, seulement s'il a changé. `nombre` : lu avec `lireNombre`, refusé sous le champ sinon. */
 function ChampSimple({
     id,
     libelle,
     valeur,
     onEnregistrer,
+    nombre,
     ...reste
 }: {
     id: string;
     libelle: string;
     valeur: string;
     onEnregistrer: (v: string) => void;
+    nombre?: boolean;
     type?: string;
     inputMode?: "decimal" | "numeric";
     className?: string;
     placeholder?: string;
 }) {
+    const { t } = useLangue();
     const [saisie, setSaisie] = useState(valeur);
-    useEffect(() => setSaisie(valeur), [valeur]);
+    const [invalide, setInvalide] = useState(false);
+    useEffect(() => {
+        setSaisie(valeur);
+        setInvalide(false);
+    }, [valeur]);
+    const quitter = () => {
+        if (saisie === valeur) return;
+        if (nombre) {
+            const n = lireNombre(saisie);
+            if (n === null) return setInvalide(true); // rien n'est enregistré
+            setInvalide(false);
+            return onEnregistrer(String(n));
+        }
+        onEnregistrer(saisie);
+    };
     return (
-        <Input
-            id={id}
-            aria-label={libelle}
-            value={saisie}
-            onChange={(e) => setSaisie(e.target.value)}
-            onBlur={() => saisie !== valeur && onEnregistrer(saisie)}
-            autoComplete="off"
-            {...reste}
-        />
+        <div className="flex flex-col gap-1">
+            <Input
+                id={id}
+                aria-label={libelle}
+                aria-invalid={invalide || undefined}
+                aria-describedby={invalide ? `${id}-erreur` : undefined}
+                value={saisie}
+                onChange={(e) => {
+                    setSaisie(e.target.value);
+                    setInvalide(false);
+                }}
+                onBlur={quitter}
+                autoComplete="off"
+                {...reste}
+            />
+            {invalide && (
+                <p id={`${id}-erreur`} role="alert" className="text-xs text-destructive">
+                    {t(T.nombreInvalide)}
+                </p>
+            )}
+        </div>
     );
 }
 
@@ -476,13 +517,13 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                     <Carte>
                         <p className="text-sm font-medium">{t(T.plafonds)}</p>
                         <Ligne libelle={t(T.plafondDepense)}>
-                            <ChampSimple id="cerveau-plafond-depense" libelle={t(T.plafondDepense)} inputMode="decimal" valeur={String(cerveau.plafond_depense ?? 2)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_depense: Number(v) || 0 })} />
+                            <ChampSimple id="cerveau-plafond-depense" nombre libelle={t(T.plafondDepense)} inputMode="decimal" valeur={String(cerveau.plafond_depense ?? 2)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_depense: Number(v) || 0 })} />
                         </Ligne>
                         <Ligne libelle={t(T.plafondJetons)}>
-                            <ChampSimple id="cerveau-plafond-jetons" libelle={t(T.plafondJetons)} inputMode="numeric" valeur={String(cerveau.plafond_jetons ?? 1_500_000)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_jetons: Number(v) || 1_500_000 })} />
+                            <ChampSimple id="cerveau-plafond-jetons" nombre libelle={t(T.plafondJetons)} inputMode="numeric" valeur={String(cerveau.plafond_jetons ?? 1_500_000)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_jetons: Number(v) || 1_500_000 })} />
                         </Ligne>
                         <Ligne libelle={t(T.parMois)} info={t(T.parMoisInfo)}>
-                            <ChampSimple id="cerveau-plafond-mois" libelle={t(T.parMois)} inputMode="decimal" valeur={String(cerveau.plafond_mois ?? 0)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_mois: Math.max(0, Number(v) || 0) })} />
+                            <ChampSimple id="cerveau-plafond-mois" nombre libelle={t(T.parMois)} inputMode="decimal" valeur={String(cerveau.plafond_mois ?? 0)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_mois: Math.max(0, Number(v) || 0) })} />
                         </Ligne>
                         {vue && (
                             <p className="text-right text-xs text-muted-foreground" data-depense-du-mois={vue.depense_du_mois}>
@@ -553,10 +594,10 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                                         <ChampSimple id="sous-modele" libelle={t(T.modeleSous)} valeur={sous.modele ?? ""} className="h-8 w-44" onEnregistrer={(v) => v.trim() && enregistrerSous({ modele: v.trim() })} />
                                     </Ligne>
                                     <Ligne libelle={t(T.enMemeTemps)} info={t(T.enMemeTempsInfo)}>
-                                        <ChampSimple id="sous-simultanes" libelle={t(T.enMemeTemps)} inputMode="numeric" valeur={String(sous.en_meme_temps ?? 3)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ en_meme_temps: Math.min(10, Math.max(1, Number(v) || 3)) })} />
+                                        <ChampSimple id="sous-simultanes" nombre libelle={t(T.enMemeTemps)} inputMode="numeric" valeur={String(sous.en_meme_temps ?? 3)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ en_meme_temps: Math.min(10, Math.max(1, Number(v) || 3)) })} />
                                     </Ligne>
                                     <Ligne libelle={t(T.parDelegation)} info={t(T.parDelegationInfo)}>
-                                        <ChampSimple id="sous-plafond" libelle={t(T.parDelegation)} inputMode="decimal" valeur={String(sous.plafond_delegation ?? 1)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ plafond_delegation: Math.max(0, Number(v) || 0) })} />
+                                        <ChampSimple id="sous-plafond" nombre libelle={t(T.parDelegation)} inputMode="decimal" valeur={String(sous.plafond_delegation ?? 1)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ plafond_delegation: Math.max(0, Number(v) || 0) })} />
                                     </Ligne>
                                 </div>
                             </>
