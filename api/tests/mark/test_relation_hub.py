@@ -243,3 +243,66 @@ async def test_ouvrir_un_portail_exige_la_permission(db_session):
         refuse = await c.post(f"{R}/clients/{a}/entree", json={}, headers=entetes(jeton_membre, a))
         assert refuse.status_code == 403
         assert "clients.ouvrir_portail" in refuse.text
+
+
+async def test_un_fil_se_confie_a_un_membre_de_l_equipe_et_pas_a_n_importe_qui(db_session):
+    # V4 : la liste « Suivi par » de la maquette. La liste est réservée à l'équipe, sans adresse ; le suivi ne va qu'à un membre connu.
+    a, _b, admin, jeton = await _monde(db_session, "suiv")
+    collegue, jeton_collegue = await creer_compte(db_session, "rel-collegue@example.com", role="Membre", organisations=[a])
+    _, jeton_simple = await creer_compte(db_session, "rel-sans-role@example.com", organisations=[a])
+    cle = await _cle(db_session, a, admin.id)
+    async with client_http() as c:
+        h = entetes(jeton)
+        fil = (await c.post(f"{P}/fils", json={"sujet": "SMS", "texte": "Un rappel ?"}, headers=cle)).json()
+        membres = await c.get(f"{R}/membres", headers=h)
+        assert membres.status_code == 200, membres.text
+        assert {"id": collegue.id, "nom": "rel-collegue"} in membres.json()
+        assert all(set(m) == {"id", "nom"} for m in membres.json())  # jamais une adresse
+        assert "@" not in membres.text
+        # Ni un compte sans rôle, ni le portail d'un client, ne lisent la liste.
+        assert (await c.get(f"{R}/membres", headers=entetes(jeton_simple, a))).status_code == 403
+        assert (await c.get(f"{R}/membres", headers=cle)).status_code == 403
+        # Confier le suivi à un collègue : le fil dit qui, la liste « mes fils » de ce collègue le contient.
+        ok = await c.patch(f"{R}/clients/{a}/fils/{fil['id']}", json={"suivi_par": collegue.id}, headers=h)
+        assert ok.status_code == 204, ok.text
+        vu = (await c.get(f"{R}/clients/{a}/fils/{fil['id']}", headers=h)).json()
+        assert (vu["suivi_par"], vu["suivi_nom"]) == (collegue.id, "rel-collegue")
+        assert [f["id"] for f in (await c.get(f"{R}/fils", params={"suivi": "moi"}, headers=entetes(jeton_collegue))).json()] == [fil["id"]]
+        # Un identifiant qui n'est pas un membre de l'équipe : refusé, rien n'a bougé.
+        inconnu = await c.patch(f"{R}/clients/{a}/fils/{fil['id']}", json={"suivi_par": 987654}, headers=h)
+        assert inconnu.status_code == 422
+        assert (await c.get(f"{R}/clients/{a}/fils/{fil['id']}", headers=h)).json()["suivi_par"] == collegue.id
+        # Un client que le compte n'ouvre pas : 404, même avec un membre valide.
+        assert (await c.patch(f"{R}/clients/999999/fils/{fil['id']}", json={"suivi_par": collegue.id}, headers=h)).status_code == 404
+
+
+async def test_la_duree_d_une_visite_se_mesure_a_la_sortie_dite_par_le_portail(db_session):
+    # V4 : « durée de la visite » = sortie (dite par le portail) moins entrée ; une seule fois, pour CE client seulement.
+    a, b, admin, jeton = await _monde(db_session, "duree")
+    cle_a = await _cle(db_session, a, admin.id)
+    cle_b = await _cle(db_session, b, admin.id)
+    async with client_http() as c:
+        h = entetes(jeton)
+        lien = (await c.post(f"{R}/clients/{a}/entree", json={"motif": "Vérifier"}, headers=h)).json()
+        fin = f"{P}/entree/{lien['entree_id']}/fin"
+        # Jamais entrée : pas de sortie à dire.
+        assert (await c.post(fin, headers=cle_a)).status_code == 404
+        assert (await c.post(f"{P}/entree/verifier", json={"jeton": lien["jeton"]}, headers=cle_a)).status_code == 200
+        # La visite a commencé il y a 4 minutes (on recule l'entrée en base : la mesure se lit sur des instants réels).
+        async with db_client.async_session() as session:
+            await session.execute(
+                text("UPDATE mark_relation_entrees SET utilise_le = now() - interval '4 minutes' WHERE id = :i"), {"i": lien["entree_id"]}
+            )
+            await session.commit()
+        sans_duree = next(e for e in (await c.get(f"{R}/entrees", headers=h)).json() if e["id"] == lien["entree_id"])
+        assert sans_duree["fin_le"] is None and sans_duree["duree_secondes"] is None
+        # Le portail d'un AUTRE client ne peut pas terminer cette visite, ni une session.
+        assert (await c.post(fin, headers=cle_b)).status_code == 404
+        assert (await c.post(fin, headers=h)).status_code == 403
+        ok = await c.post(fin, headers=cle_a)
+        assert ok.status_code == 200, ok.text
+        assert 235 <= ok.json()["duree_secondes"] <= 260
+        # Dite une seconde fois : refusée, la durée ne bouge pas.
+        assert (await c.post(fin, headers=cle_a)).status_code == 404
+        mesuree = next(e for e in (await c.get(f"{R}/entrees", headers=h)).json() if e["id"] == lien["entree_id"])
+        assert mesuree["duree_secondes"] == ok.json()["duree_secondes"] and mesuree["fin_le"] is not None

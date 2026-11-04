@@ -337,6 +337,7 @@ class EquipeClient(BaseDBClient):
                         "nom": m.nom,
                         "role_id": m.role_id,
                         "role_nom": role_nom,
+                        "depuis": m.cree_le,
                     }
                     for m, email, role_nom in lignes
                 ],

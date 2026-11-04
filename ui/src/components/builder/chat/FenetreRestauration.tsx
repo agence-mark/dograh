@@ -30,14 +30,14 @@ const T = {
     champs: { en: "field(s)", fr: "champ(s)" },
 } satisfies Record<string, Texte>;
 
-// Le serveur envoie le genre de chaque ligne en français (clé stable) ; l'écran le dit dans la langue choisie.
+// Le serveur envoie un identifiant neutre pour le genre de chaque ligne ; l'écran le dit dans la langue choisie.
 const GENRES: Record<string, Texte> = {
-    "noeud ajouté": { en: "node added", fr: "noeud ajouté" },
-    "noeud modifié": { en: "node changed", fr: "noeud modifié" },
-    "noeud retiré": { en: "node removed", fr: "noeud retiré" },
-    "liaison ajoutée": { en: "link added", fr: "liaison ajoutée" },
-    "liaison modifiée": { en: "link changed", fr: "liaison modifiée" },
-    "liaison retirée": { en: "link removed", fr: "liaison retirée" },
+    node_added: { en: "node added", fr: "noeud ajouté" },
+    node_changed: { en: "node changed", fr: "noeud modifié" },
+    node_removed: { en: "node removed", fr: "noeud retiré" },
+    link_added: { en: "link added", fr: "liaison ajoutée" },
+    link_changed: { en: "link changed", fr: "liaison modifiée" },
+    link_removed: { en: "link removed", fr: "liaison retirée" },
 };
 
 type Ligne = { genre: string; cible: string; nom: string; champs?: string[] };

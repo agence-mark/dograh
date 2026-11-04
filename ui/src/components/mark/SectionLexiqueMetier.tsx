@@ -11,7 +11,7 @@ import {
 } from "@/client/sdk.gen";
 import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.gen";
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
-import { useLangue } from "@/components/mark/langue/langue";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
@@ -68,6 +68,17 @@ const SEUIL_MOTS_COURANTS_MAX = 31_796;
 
 /** Wait this long after the last change of the draft before asking the budget again. */
 const ATTENTE_BUDGET_MS = 300;
+
+// V4 : la nature d'un terme, comme la maquette (Marque / Nom propre / Mot du métier). Un terme d'avant ce champ n'a que son type :
+// un nom se lit « Marque » (le lexique sert d'abord à reconnaître les marques), un mot « Mot du métier ».
+type Nature = NonNullable<TermeLexique["nature"]>;
+const NATURES: Array<{ id: Nature; nom: Texte }> = [
+  { id: "marque", nom: { en: "Brand", fr: "Marque" } },
+  { id: "nom_propre", nom: { en: "Proper name", fr: "Nom propre" } },
+  { id: "mot_du_metier", nom: { en: "Trade word", fr: "Mot du métier" } },
+];
+const natureDe = (terme: Pick<TermeLexique, "type" | "nature"> | undefined): Nature =>
+  terme?.nature ?? (terme?.type === "mot" ? "mot_du_metier" : "marque");
 
 const TERME_VIDE: TermeLexique = {
   terme: "",
@@ -340,7 +351,7 @@ export function SectionLexiqueMetier() {
     const cherche = sansAccent(recherche.trim());
     const vus = termesLus.map((terme, rang) => ({ terme, rang })).filter(({ terme }) => correspond(terme, cherche));
     const courant = typeof terme === "number" ? termesLus[terme] : undefined;
-    const nature = (type: TermeLexique["type"]) => (type === "mot" ? t({ en: "Word", fr: "Mot" }) : t({ en: "Name", fr: "Nom" }));
+    const nature = (terme: Pick<TermeLexique, "type" | "nature">) => t(NATURES.find((n) => n.id === natureDe(terme))!.nom);
     const oui = t({ en: "yes", fr: "oui" });
     const non = t({ en: "no", fr: "non" });
     const retirer = (rang: number) => {
@@ -428,7 +439,7 @@ export function SectionLexiqueMetier() {
               >
                 {page.map(({ terme: l, rang }) => (
                   <Ligne key={rang} onClick={() => setTerme(rang)}>
-                    <Cellule principale sous={nature(l.type)}>
+                    <Cellule principale sous={nature(l)}>
                       {l.terme}
                     </Cellule>
                     <Cellule>{versTexte(l.variantes) || "—"}</Cellule>
@@ -478,7 +489,7 @@ export function SectionLexiqueMetier() {
                     info: t({ en: "What the transcription sometimes hears instead, separated by commas: replaced by the term before the model reads it.", fr: "Ce que la transcription entend parfois à la place, séparé par des virgules : remplacé par le terme avant que le modèle ne lise." }),
                   },
                   { id: "prononciation", t: "texte", l: t({ en: "Said as", fr: "Se dit" }), v: courant?.prononciation ?? "", info: t({ en: "Empty: pronounced as written.", fr: "Vide : prononcé comme écrit." }) },
-                  { id: "type", t: "choix", l: t({ en: "Kind", fr: "Nature" }), o: [t({ en: "Name", fr: "Nom" }), t({ en: "Word", fr: "Mot" })], v: nature(courant?.type ?? TERME_VIDE.type) },
+                  { id: "type", t: "choix", l: t({ en: "Kind", fr: "Nature" }), o: NATURES.map((n) => t(n.nom)), v: nature(courant ?? TERME_VIDE) },
                   { id: "categorie", t: "texte", l: t({ en: "Category", fr: "Catégorie" }), v: courant?.categorie ?? "" },
                   { id: "a_ecouter", t: "inter", l: t({ en: "Listen for it", fr: "À écouter" }), v: courant?.a_ecouter ?? TERME_VIDE.a_ecouter, info: t({ en: "Sent to the transcription so that it hears it better.", fr: "Envoyé à la transcription pour qu'elle l'entende mieux." }) },
                   { id: "propose", t: "inter", l: t({ en: "The business offers it", fr: "L'entreprise le propose" }), v: courant?.propose ?? TERME_VIDE.propose, info: t({ en: "The agent may say that the business does or sells it.", fr: "L'agent peut dire que l'entreprise le fait ou le vend." }) },
@@ -487,11 +498,13 @@ export function SectionLexiqueMetier() {
             ]}
             verifier={(v) => (String(v.terme ?? "").trim() ? null : { terme: t({ en: "A term cannot be empty.", fr: "Un terme ne peut pas être vide." }) })}
             onValider={(v) => {
+              const choisie = NATURES.find((n) => t(n.nom) === v.type)?.id ?? natureDe(courant ?? TERME_VIDE);
               const fait: TermeLexique = {
                 terme: String(v.terme).trim(),
                 variantes: versVariantes(String(v.variantes ?? "")),
                 prononciation: String(v.prononciation ?? "").trim() || null,
-                type: v.type === t({ en: "Word", fr: "Mot" }) ? "mot" : "nom",
+                nature: choisie,
+                type: choisie === "mot_du_metier" ? "mot" : "nom",
                 categorie: String(v.categorie ?? "").trim() || null,
                 a_ecouter: v.a_ecouter === true,
                 propose: v.propose === true,

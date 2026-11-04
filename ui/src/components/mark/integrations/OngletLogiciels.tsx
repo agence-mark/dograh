@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { formatDate } from "@/lib/dateTime";
 
 import { configParDefaut, type Connecteurs } from "../connecteurs/useConnecteurs";
-import { useLangue } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
 import { EtatVide } from "../studio/etat-vide";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp, Section, TAILLE_FENETRE } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
@@ -208,6 +208,22 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
     );
 }
 
+/** V4 : les catégories du catalogue, dans l'ordre du serveur (``CATEGORIES``) ; le serveur envoie l'identifiant français. */
+const CATEGORIES_DU_CATALOGUE: Array<{ id: string; nom: Texte }> = [
+    { id: "CRM", nom: { en: "CRM", fr: "CRM" } },
+    { id: "Agenda", nom: { en: "Calendar", fr: "Agenda" } },
+    { id: "Messages", nom: { en: "Messages", fr: "Messages" } },
+    { id: "Données", nom: { en: "Data", fr: "Données" } },
+    { id: "Support", nom: { en: "Support", fr: "Support" } },
+    { id: "Interventions", nom: { en: "Field work", fr: "Interventions" } },
+    { id: "Téléphonie", nom: { en: "Telephony", fr: "Téléphonie" } },
+    { id: "Compta", nom: { en: "Accounting", fr: "Compta" } },
+    { id: "Immobilier", nom: { en: "Real estate", fr: "Immobilier" } },
+    { id: "Santé", nom: { en: "Health", fr: "Santé" } },
+    { id: "Vétérinaire", nom: { en: "Veterinary", fr: "Vétérinaire" } },
+    { id: "Nos connecteurs", nom: { en: "Our connectors", fr: "Nos connecteurs" } },
+];
+
 /** Le catalogue : une fenêtre de cartes, une recherche discrète dans l'en-tête ; une carte ouvre la fenêtre du logiciel par-dessus. */
 function FenetreCatalogue({
     connecteurs,
@@ -225,11 +241,18 @@ function FenetreCatalogue({
     const [q, setQ] = useState("");
     const [filtre, setFiltre] = useState("");
     const [ouvert, setOuvert] = useState<string | null>(null);
+    const [categorie, setCategorie] = useState("");
     const catalogue = connecteurs.catalogue ?? [];
     const branche = (c: ConnecteurVue) => (connecteurs.etat?.connexions ?? []).some((x) => x.integration === c.integration);
-    const liste = catalogue.filter(
-        (c) => c.libelle.toLowerCase().includes(q.toLowerCase()) && (filtre === "" || (filtre === "branches" ? branche(c) : !branche(c) && !c.interne)),
-    );
+    const nomDeCategorie = (id: string | null | undefined) => {
+        const connue = CATEGORIES_DU_CATALOGUE.find((x) => x.id === id);
+        return connue ? t(connue.nom) : (id ?? "");
+    };
+    // Les catégories qui ont au moins un logiciel, dans l'ordre du serveur ; le compte suit la recherche et le filtre.
+    const dansLeFiltre = (c: ConnecteurVue) =>
+        c.libelle.toLowerCase().includes(q.toLowerCase()) && (filtre === "" || (filtre === "branches" ? branche(c) : !branche(c) && !c.interne));
+    const categories = CATEGORIES_DU_CATALOGUE.filter((x) => catalogue.some((c) => c.categorie === x.id));
+    const liste = catalogue.filter((c) => dansLeFiltre(c) && (categorie === "" || c.categorie === categorie));
     const ouvertConnecteur = catalogue.find((c) => c.nom === ouvert);
     return (
         <Dialog open onOpenChange={(o) => !o && fermer()}>
@@ -253,7 +276,10 @@ function FenetreCatalogue({
                         <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={q}
-                            onChange={(e) => setQ(e.target.value)}
+                            onChange={(e) => {
+                                setQ(e.target.value);
+                                setCategorie("");
+                            }}
                             aria-label={t({ en: "Search a software", fr: "Rechercher un logiciel" })}
                             placeholder={t({ en: "Search", fr: "Rechercher" })}
                             className="h-8 border-transparent bg-muted/60 pl-8 text-sm shadow-none focus-visible:bg-background"
@@ -270,7 +296,25 @@ function FenetreCatalogue({
                         className="w-40"
                     />
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto p-5">
+                <div className="grid min-h-0 flex-1 grid-cols-[200px_1fr]">
+                    {categories.length > 0 && (
+                        <nav className="space-y-0.5 overflow-auto border-r p-2" aria-label={t({ en: "Categories", fr: "Catégories" })} data-testid="categories-du-catalogue">
+                            {[{ id: "", nom: { en: "All", fr: "Tous" } }, ...categories].map((x) => (
+                                <button
+                                    key={x.id}
+                                    type="button"
+                                    aria-pressed={categorie === x.id}
+                                    data-categorie={x.id || "tous"}
+                                    onClick={() => setCategorie(x.id)}
+                                    className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm ${categorie === x.id ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50 hover:font-medium hover:text-foreground"}`}
+                                >
+                                    <span className="flex-1">{t(x.nom)}</span>
+                                    <span className="text-xs text-muted-foreground tabular-nums">{catalogue.filter((c) => dansLeFiltre(c) && (x.id === "" || c.categorie === x.id)).length}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    )}
+                <div className="min-h-0 overflow-auto p-5">
                     {liste.length === 0 ? (
                         catalogue.length === 0 ? (
                             <EtatVide cas="premier" icone={Plug} titre={t({ en: "No software", fr: "Aucun logiciel" })} compact />
@@ -298,7 +342,7 @@ function FenetreCatalogue({
                                         <Initiales nom={c.libelle} />
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm leading-tight font-medium">{c.libelle}</span>
-                                            <span className="mt-0.5 block text-xs text-muted-foreground">{c.integration}</span>
+                                            <span className="mt-0.5 block text-xs text-muted-foreground">{nomDeCategorie(c.categorie) || c.integration}</span>
                                         </span>
                                     </span>
                                     <span className="mt-3 flex items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
@@ -311,6 +355,7 @@ function FenetreCatalogue({
                             ))}
                         </div>
                     )}
+                </div>
                 </div>
                 <div className="flex shrink-0 justify-end border-t px-6 py-3">
                     <Button onClick={fermer}>{t({ en: "Close", fr: "Fermer" })}</Button>

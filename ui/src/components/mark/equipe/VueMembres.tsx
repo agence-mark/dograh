@@ -22,6 +22,7 @@ import { Info, PointEtat } from "@/components/mark/studio/marques";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/dateTime";
 import { Input } from "@/components/ui/input";
 
 /** Rend les données d'une réponse, ou affiche l'erreur du serveur et rend `null`. */
@@ -37,7 +38,7 @@ const identite = (m: Pick<MembreResponse, "prenom" | "nom" | "email">) =>
     [m.prenom, m.nom].filter(Boolean).join(" ") || m.email || "";
 
 export function VueMembres() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [page, setPage] = useState(0);
     const [pageInv, setPageInv] = useState(0);
     const [membres, setMembres] = useState<{ lignes: MembreResponse[]; total: number } | null>(null);
@@ -98,6 +99,7 @@ export function VueMembres() {
                                 { titre: t({ en: "Person", fr: "Personne" }) },
                                 { titre: t({ en: "Role", fr: "Rôle" }) },
                                 { titre: t({ en: "State", fr: "État" }) },
+                                { titre: t({ en: "Since", fr: "Depuis" }), droite: true },
                             ]}
                         >
                             {membres.lignes.map((m) => (
@@ -109,6 +111,7 @@ export function VueMembres() {
                                     <Cellule>
                                         <PointEtat etat="publie">{t({ en: "Active", fr: "Actif" })}</PointEtat>
                                     </Cellule>
+                                    <Cellule droite>{m.depuis ? formatDate(m.depuis, null, langue) : "—"}</Cellule>
                                 </Ligne>
                             ))}
                             {page === 0 &&
@@ -119,6 +122,7 @@ export function VueMembres() {
                                         <Cellule>
                                             <PointEtat etat="attente">{t({ en: "Invitation sent", fr: "Invitation envoyée" })}</PointEtat>
                                         </Cellule>
+                                        <Cellule droite>—</Cellule>
                                     </Ligne>
                                 ))}
                         </Tableau>

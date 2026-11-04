@@ -126,8 +126,9 @@ async def _ranger(
     fil_id: int | None,
     operations: list[dict[str, Any]],
 ) -> int:
-    existants = await stock.lister(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
-    numero = int(existants[-1][1]["numero"]) + 1 if existants else 1
+    # V4 : seulement les clés (le numéro est le dernier morceau de la clé), jamais les graphes des instantanés déjà rangés.
+    existants = await stock.cles(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
+    numero = int(existants[-1].rsplit(":", 1)[1]) + 1 if existants else 1
     await stock.ecrire(
         organization_id,
         _cle(workflow_id, numero),
@@ -143,14 +144,16 @@ async def _ranger(
             "apres": apres,
         },
     )
-    for cle, _valeur in existants[: max(0, len(existants) + 1 - INSTANTANES_GARDES)]:
+    for cle in existants[: max(0, len(existants) + 1 - INSTANTANES_GARDES)]:
         await stock.supprimer(organization_id, cle)
     return numero
 
 
 async def instantanes(organization_id: int, workflow_id: int, fil_id: int | None = None, *, complets: bool = False) -> list[dict[str, Any]]:
     """Les versions restaurables, de la plus récente à la plus ancienne (sans les graphes, lourds, sauf ``complets``)."""
-    lignes = await stock.lister(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
+    # V4 : sans ``complets``, la base retire les deux graphes de chaque instantané (50 x 2 graphes lus pour rien avant).
+    prefixe = cle_builder(workflow_id, f"{PARTIE}:")
+    lignes = await stock.lister(organization_id, prefixe) if complets else await stock.lister_sans(organization_id, prefixe, ["avant", "apres"])
     sortie = []
     for _cle_ligne, v in reversed(lignes):
         if fil_id is not None and v.get("fil_id") != fil_id:

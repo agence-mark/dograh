@@ -58,26 +58,34 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Réglages du Labo, onglet Builder IA", () => {
-    it("enregistre le modèle en quittant le champ, avec sa notification, et n'écrit rien s'il n'a pas changé", async () => {
+    it("V4 : la ligne « Modèle et clé » montre le modèle et ouvre la fenêtre ; Enregistrer écrit le modèle, rien si on ferme", async () => {
         render(<OngletBuilderIA aller={vi.fn()} />);
-        const champ = (await screen.findByLabelText(/^(Modèle|Model)$/)) as HTMLInputElement;
-        fireEvent.blur(champ);
+        const lu = (await screen.findByTestId("cerveau-modele-lu")) as HTMLInputElement;
+        expect(lu.value).toBe("claude-x");
+        expect(lu.readOnly).toBe(true);
+        fireEvent.click(screen.getByTestId("ouvrir-modele-et-cle"));
+        const champ = (await screen.findByLabelText(/^(Modèle|Model)$/, { selector: "input:not([readonly])" })) as HTMLInputElement;
+        fireEvent.click(screen.getByRole("button", { name: /^(Annuler|Cancel)$/ }));
         expect(m.cerveauPut).not.toHaveBeenCalled();
-        fireEvent.change(champ, { target: { value: "claude-y" } });
-        fireEvent.blur(champ);
+        fireEvent.click(screen.getByTestId("ouvrir-modele-et-cle"));
+        const champ2 = (await screen.findByLabelText(/^(Modèle|Model)$/, { selector: "input:not([readonly])" })) as HTMLInputElement;
+        expect(champ.isConnected || champ2.isConnected).toBe(true);
+        fireEvent.change(champ2, { target: { value: "claude-y" } });
+        fireEvent.click(screen.getByRole("button", { name: /^(Enregistrer|Save)$/ }));
         await waitFor(() => expect(m.cerveauPut).toHaveBeenCalledTimes(1));
-        expect(m.cerveauPut.mock.calls[0][0].body.modele).toBe("claude-y");
+        expect(m.cerveauPut.mock.calls[0][0].body).toMatchObject({ modele: "claude-y", format: "anthropic" });
+        expect(m.cerveauPut.mock.calls[0][0].body.cle).toBeUndefined();
         expect(m.notifier.suivre).toHaveBeenCalled();
     });
 
     it("ne relit jamais la clé et l'envoie seulement quand elle est saisie", async () => {
         render(<OngletBuilderIA aller={vi.fn()} />);
+        fireEvent.click(await screen.findByTestId("ouvrir-modele-et-cle"));
         const cle = (await screen.findByLabelText(/^(Clé|Key)$/)) as HTMLInputElement;
         expect(cle.value).toBe("");
-        fireEvent.blur(cle);
-        expect(m.cerveauPut).not.toHaveBeenCalled();
+        expect(document.querySelector("[data-cle-posee]")?.getAttribute("data-cle-posee")).toBe("oui");
         fireEvent.change(cle, { target: { value: "secret-de-test" } });
-        fireEvent.blur(cle);
+        fireEvent.click(screen.getByRole("button", { name: /^(Enregistrer|Save)$/ }));
         await waitFor(() => expect(m.cerveauPut.mock.calls[0][0].body.cle).toBe("secret-de-test"));
     });
 

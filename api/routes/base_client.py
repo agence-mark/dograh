@@ -143,8 +143,8 @@ async def post_creer(
     organization_id = user.selected_organization_id
     if not request.nom_base:
         raise _refus("Give the database a name.")
-    if await rattachement.nom_de_la_base(organization_id):
-        raise _refus("A database is already attached: detach it first.")
+    # V4 : « Changer de base » (la maquette) peut CRÉER la nouvelle base alors qu'une autre est rattachée : l'ancienne est détachée,
+    # jamais supprimée (ses données restent sur le serveur) ; ce qui est réglé à l'écran est versé dans la nouvelle.
     try:
         await rattachement.verifier_libre(organization_id, request.nom_base)
         await creer_base(request.nom_base)

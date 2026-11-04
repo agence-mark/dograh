@@ -44,11 +44,14 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
     const { t } = useLangue();
     const [fenetre, setFenetre] = useState(false);
     const [nom, setNom] = useState("");
+    // V4 : le « Geste » de la maquette (Créer une base / Rattacher une base existante), un seul « Enregistrer ».
+    const [geste, setGeste] = useState<"creer" | "rattacher">("creer");
     const rattachee = Boolean(etat.nom_base);
     const refus = etat.refus ?? [];
     const fermer = () => {
         setFenetre(false);
         setNom("");
+        setGeste("creer");
     };
     const poser = async (action: Parameters<Agir>[0], succes: Texte) => {
         if (await agir(action, succes)) fermer();
@@ -164,6 +167,26 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                 titre={rattachee ? t({ en: "Change database", fr: "Changer de base" }) : t({ en: "Create or attach a database", fr: "Créer ou rattacher une base" })}
                 corps={
                     <div className="space-y-3 py-3.5">
+                        <p className="text-sm font-medium">{t({ en: "Action", fr: "Geste" })}</p>
+                        <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm" data-testid="geste-base-client">
+                            {(
+                                [
+                                    ["creer", { en: "Create a database", fr: "Créer une base" }],
+                                    ["rattacher", { en: "Attach an existing database", fr: "Rattacher une base existante" }],
+                                ] as const
+                            ).map(([id, libelle]) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    aria-pressed={geste === id}
+                                    data-geste={id}
+                                    onClick={() => setGeste(id)}
+                                    className={`cursor-pointer rounded-md px-3 py-1 ${geste === id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                >
+                                    {t(libelle)}
+                                </button>
+                            ))}
+                        </span>
                         {erreur && (
                             <p className="text-sm text-destructive" role="alert" data-testid="erreur-base-client-fenetre">
                                 {erreur}
@@ -216,29 +239,22 @@ export const BaseDuClient = ({ etat, enCours, agir, enRetard, erreur }: { etat: 
                         <Button variant="outline" onClick={fermer}>
                             {t({ en: "Cancel", fr: "Annuler" })}
                         </Button>
-                        {!rattachee && (
-                            <Button
-                                variant="outline"
-                                disabled={enCours || !nom || !etat.serveur_configure}
-                                data-testid="creer-base-client"
-                                onClick={() =>
-                                    void poser(() => postCreerApiV1OrganizationsBaseClientCreerPost({ body: { nom_base: nom } }), {
-                                        en: "Database created and attached.",
-                                        fr: "Base créée et rattachée.",
-                                    })
-                                }
-                            >
-                                {t({ en: "Create database", fr: "Créer la base" })}
-                            </Button>
-                        )}
                         <Button
                             disabled={enCours || !nom || !etat.serveur_configure}
-                            data-testid="rattacher-base-client"
+                            data-testid="enregistrer-base-client"
                             onClick={() =>
-                                void poser(() => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: nom } }), { en: "Database attached.", fr: "Base rattachée." })
+                                void (geste === "creer"
+                                    ? poser(() => postCreerApiV1OrganizationsBaseClientCreerPost({ body: { nom_base: nom } }), {
+                                          en: "Database created and attached.",
+                                          fr: "Base créée et rattachée.",
+                                      })
+                                    : poser(() => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: nom } }), {
+                                          en: "Database attached.",
+                                          fr: "Base rattachée.",
+                                      }))
                             }
                         >
-                            {rattachee ? t({ en: "Attach", fr: "Rattacher" }) : t({ en: "Attach an existing database", fr: "Rattacher une base existante" })}
+                            {t({ en: "Save", fr: "Enregistrer" })}
                         </Button>
                     </>
                 }

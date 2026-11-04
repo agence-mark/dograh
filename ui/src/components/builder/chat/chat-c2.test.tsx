@@ -15,7 +15,7 @@ const apercu = vi.fn(async (_o?: unknown) => ({
     data: {
         numero: 2,
         cause: "acceptation",
-        sera_perdu: [{ genre: "noeud modifié", cible: "1", nom: "Accueil", champs: ["prompt"] }],
+        sera_perdu: [{ genre: "node_changed", cible: "1", nom: "Accueil", champs: ["prompt"] }],
         sera_retrouve: [],
         total_perdu: 1,
         total_retrouve: 0,
@@ -163,6 +163,9 @@ describe("revue champ par champ", () => {
         fireEvent.click(await screen.findByText("Go back before this"));
         await screen.findByText("Will be lost (1)");
         expect(screen.getByText("Accueil")).toBeTruthy();
+        // V4 : le serveur envoie « node_changed » ; l'écran le dit dans la langue choisie, jamais l'identifiant.
+        expect(screen.getByText("node changed")).toBeTruthy();
+        expect(screen.queryByText("node_changed")).toBeNull();
         expect(apercu).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 } });
         expect(restaurer).not.toHaveBeenCalled();
         fireEvent.click(screen.getByText("Confirm and go back"));

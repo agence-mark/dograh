@@ -196,10 +196,13 @@ def test_comparer_dit_ce_qui_sera_perdu_et_ce_qui_sera_retrouve():
     del actuel["nodes"][1]
     comparaison = apercu.comparer(actuel, cible)
     perdus = {(p["genre"], p["cible"]) for p in comparaison["sera_perdu"]}
-    assert perdus == {("noeud modifié", "1"), ("noeud ajouté", "3"), ("liaison ajoutée", "1-3")}
-    assert [p["champs"] for p in comparaison["sera_perdu"] if p["genre"] == "noeud modifié"] == [["prompt"]]
-    assert {(r["genre"], r["cible"]) for r in comparaison["sera_retrouve"]} == {("noeud retiré", "2")}
+    assert perdus == {("node_changed", "1"), ("node_added", "3"), ("link_added", "1-3")}
+    assert [p["champs"] for p in comparaison["sera_perdu"] if p["genre"] == "node_changed"] == [["prompt"]]
+    assert {(r["genre"], r["cible"]) for r in comparaison["sera_retrouve"]} == {("node_removed", "2")}
     assert apercu.comparer(cible, cible)["total_perdu"] == 0
+    # V4 : le genre d'une ligne est un identifiant neutre, jamais une phrase française.
+    tous = {l["genre"] for l in comparaison["sera_perdu"] + comparaison["sera_retrouve"]}
+    assert tous <= set(apercu.GENRES) and all(" " not in g for g in tous)
 
 
 async def test_la_route_d_apercu_n_ecrit_rien_et_un_autre_client_a_un_404(monde):
@@ -241,6 +244,17 @@ async def test_les_deux_premieres_fiches_reprennent_les_deux_recettes_actuelles(
     # Chaque pièce citée existe vraiment dans la bibliothèque versée.
     rendu = await recettes.lire_avec_les_pieces("facon-tala")
     assert not [p for p in rendu["pieces"] if p.get("manque")]
+
+
+async def test_les_deux_recettes_versees_se_decrivent_dans_les_deux_langues(monde):
+    # V4 : la description d'une recette est une donnée versée, en français ET en anglais (jamais le français seul à l'écran).
+    await avec_les_deux_premieres(monde)
+    c = client_pour(EQUIPE)
+    vues = {r["slug"]: r for r in c.get("/builder/recettes").json()["recettes"]}
+    assert sorted(vues) == ["facon-polyai", "facon-tala"]
+    for vue in vues.values():
+        assert vue["quand"] and vue["quand_en"] and vue["quand_en"] != vue["quand"]
+        assert "é" not in vue["quand_en"]  # une phrase anglaise, pas le français recopié
 
 
 async def test_une_recette_ajoutee_en_bibliotheque_seule_apparait_et_sert_a_construire(monde):

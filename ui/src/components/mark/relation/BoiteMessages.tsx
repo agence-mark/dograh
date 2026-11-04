@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     lireFilApiV1RelationClientsOrganizationIdFilsFilIdGet,
     listerFilsApiV1RelationFilsGet,
+    membresAQuiConfierUnFilApiV1RelationMembresGet,
     modifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatch,
     repondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPost,
 } from "@/client/sdk.gen";
@@ -94,7 +95,7 @@ export function BoiteMessages({ client, filInitial }: { client?: number; filInit
                 <div className="shrink-0 space-y-2 p-3">
                     {!client && (
                         <h1 className="flex items-center gap-2 px-1 pt-1 pb-1 text-lg font-semibold">
-                            Messages
+                            {t({ en: "Messages", fr: "Messages" })}
                             <Info>{t({ en: "Messages and software requests your clients send from their portal, with our replies. Internal notes stay between us: the portal never receives them.", fr: "Ce que les clients écrivent depuis leur portail : leurs messages et leurs demandes de logiciel, avec nos réponses. Les notes internes restent entre nous : le portail ne les reçoit jamais." })}</Info>
                         </h1>
                     )}
@@ -180,7 +181,7 @@ function FicheMini({ fil, client, autres, ouvrir, t }: { fil: FilOut; client?: C
             </div>
             <div className="divide-y border-y">
                 <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "State", fr: "État" })}</span>{client ? <EtatClient etat={client.etat ?? "installation"} /> : null}</p>
-                <p className="flex justify-between py-2"><span className="text-muted-foreground">Agents</span><span>{client?.agents ?? 0}</span></p>
+                <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "Agents", fr: "Agents" })}</span><span>{client?.agents ?? 0}</span></p>
                 <p className="flex justify-between py-2"><span className="text-muted-foreground">{t({ en: "Followed by", fr: "Suivi par" })}</span><span>{fil.suivi_nom ?? t({ en: "Nobody", fr: "Personne" })}</span></p>
             </div>
             <div className="space-y-1">
@@ -211,6 +212,11 @@ function Conversation({ organisation, id, onChange, t }: { organisation: number;
     const [mode, setMode] = useState<"mark" | "interne">("mark");
     const [texte, setTexte] = useState("");
     const [envoi, setEnvoi] = useState(false);
+    // V4 : les membres de l'équipe à qui confier le suivi (la liste « Suivi par » de la maquette), lus une fois.
+    const [equipe, setEquipe] = useState<Array<{ id: number; nom: string }>>([]);
+    useEffect(() => {
+        void membresAQuiConfierUnFilApiV1RelationMembresGet().then((res) => setEquipe(res.data ?? []));
+    }, []);
     const interne = mode === "interne";
 
     const lire = useCallback(() => {
@@ -222,7 +228,7 @@ function Conversation({ organisation, id, onChange, t }: { organisation: number;
     }, [organisation, id]);
     useEffect(lire, [lire]);
 
-    const changer = async (corps: { etat?: "nouveau" | "en_cours" | "repondu" | "clos"; suivi?: "moi" | "personne"; etat_demande?: "nouvelle" | "proposee" | "a_coder" | "refusee" }) => {
+    const changer = async (corps: { etat?: "nouveau" | "en_cours" | "repondu" | "clos"; suivi?: "moi" | "personne"; suivi_par?: number; etat_demande?: "nouvelle" | "proposee" | "a_coder" | "refusee" }) => {
         const res = await modifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatch({ path: { organization_id: organisation, fil_id: id }, body: corps });
         if (res.error) return notifier.echec({ fr: "Modification impossible. Réessayez.", en: "Could not change. Try again." }, { erreur: res.error });
         lire();
@@ -249,9 +255,17 @@ function Conversation({ organisation, id, onChange, t }: { organisation: number;
                     <p className="truncate font-semibold">{fil.sujet}</p>
                     <p className="text-xs text-muted-foreground">{contact(fil)} · {fil.client}</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => changer({ suivi: fil.suivi_par ? "personne" : "moi" })}>
-                    {fil.suivi_par ? `${t({ en: "Followed by", fr: "Suivi par" })} ${fil.suivi_nom ?? ""} · ${t({ en: "Release", fr: "Lâcher" })}` : t({ en: "Take it", fr: "Je m'en occupe" })}
-                </Button>
+                <Liste
+                    valeur={fil.suivi_par ? String(fil.suivi_par) : ""}
+                    changer={(v) => changer(v ? { suivi_par: Number(v) } : { suivi: "personne" })}
+                    vide={t({ en: "Followed by nobody", fr: "Suivi par personne" })}
+                    options={[
+                        // Un suivi confié à quelqu'un qui n'est plus dans la liste reste affiché, jamais effacé en silence.
+                        ...(fil.suivi_par && !equipe.some((m) => m.id === fil.suivi_par) ? [{ id: fil.suivi_par, nom: fil.suivi_nom ?? "" }] : []),
+                        ...equipe,
+                    ].map((m) => ({ valeur: String(m.id), libelle: `${t({ en: "Followed by", fr: "Suivi par" })} ${m.nom}` }))}
+                    className="w-52"
+                />
                 <Liste valeur={fil.etat} changer={(v) => changer({ etat: v as "nouveau" })} options={Object.entries(ETATS_FIL).map(([valeur, e]) => ({ valeur, libelle: t(e.texte) }))} className="w-32" />
                 {fil.etat !== "clos" ? (
                     <Button size="sm" variant="outline" className="cursor-pointer" onClick={() => changer({ etat: "clos" })}><Check className="size-3.5" /> {t({ en: "Close", fr: "Clore" })}</Button>

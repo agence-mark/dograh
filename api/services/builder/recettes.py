@@ -56,6 +56,7 @@ class Recette:
             "slug": self.slug,
             "nom": self.fiche.nom,
             "quand": self.fiche.quand,
+            "quand_en": self.fiche.quand_en,
             "statut": self.statut,
             "prouvee": self.prouvee,
             "capacites": list(self.fiche.capacites),

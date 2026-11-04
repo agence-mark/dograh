@@ -314,7 +314,7 @@ async def lire_agents_lus(organization_id: int) -> tuple[list[AgentLu], list[str
         if agent is not None and actif and canonique:
             numeros.setdefault(agent, []).append(canonique)
     lus: list[AgentLu] = []
-    for workflow in await db_client.list_workflows_for_model_configuration_migration(
+    for workflow in await db_client.list_workflows_with_published_versions(
         organization_id
     ):
         if _statut(workflow.status) != "active":

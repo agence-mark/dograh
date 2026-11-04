@@ -141,12 +141,22 @@ vi.stubGlobal(
 const { default: WorkflowSettingsPage } = await import(
     "@/app/workflow/[workflowId]/settings/page"
 );
+const { THEMES_AGENT } = await import("@/components/mark/reglages-agent/PageReglagesAgent");
 
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     // The page shows a spinner until the workflow fetch resolves.
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(11), { timeout: 3000 });
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(THEMES_AGENT.length), { timeout: 3000 });
     return rendu;
+};
+
+/**
+ * [.mark] Since E-maquette the help of a setting lives in its « ! » (a tooltip opened on hover), and `ChampReglage` also
+ * writes it, whole, in `data-aide`: that is where a test reads it, with the rest of the line.
+ */
+const texteDuReglage = (cle: string) => {
+    const ligne = document.querySelector(`[data-reglage="${cle}"]`);
+    return `${ligne?.textContent ?? ""} ${ligne?.getAttribute("data-aide") ?? ""}`;
 };
 
 /**
@@ -228,8 +238,8 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(silence.value).toBe("35");
         // The bounds are shown (convention E5), and the word count is inert
         // while the greeting cannot be cut.
-        expect(document.querySelector('[data-reglage="accueil_mots_minimum"]')?.textContent).toContain("≥ 1 · ≤ 10");
-        expect(document.querySelector('[data-reglage="raccrochage_silence_agent_s"]')?.textContent).toContain("≥ 10 · ≤ 120");
+        expect(texteDuReglage("accueil_mots_minimum")).toContain("≥ 1 · ≤ 10");
+        expect(texteDuReglage("raccrochage_silence_agent_s")).toContain("≥ 10 · ≤ 120");
         expect(mots.disabled).toBe(true);
     });
 
@@ -351,13 +361,13 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         await rendreLaPage();
         const theme = ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
-        const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
+        const champ = screen.getByLabelText(/Variables that trigger the town check/) as HTMLInputElement;
         expect(champ.value).toBe("commune, commune_*, adresse*");
         // Under the switch, inside the same theme.
         expect(theme.contains(champ)).toBe(true);
         expect(interrupteur.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         // The notice: where the name is, commas, the final *, an example, empty = default.
-        const texte = theme.textContent ?? "";
+        const texte = texteDuReglage("variables_commune");
         expect(texte).toMatch(/Variables to Extract and its Variable Name/);
         expect(texte).toMatch(/separate them with commas/);
         expect(texte).toMatch(/A \* at the end means "every name that starts with"/);
@@ -378,8 +388,9 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /write dictated numbers as digits/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("false");
-        expect(screen.getByText(/reads postal codes said both ways/i)).toBeTruthy();
-        expect(screen.getByText(/the recorded transcript keeps the caller's words/i)).toBeTruthy();
+        const aide = texteDuReglage("conversion_nombres_transcription");
+        expect(aide).toMatch(/reads postal codes said both ways/i);
+        expect(aide).toMatch(/the recorded transcript keeps the caller's words/i);
         expect(screen.queryByText(/minimum words/i)).toBeNull();
     });
 

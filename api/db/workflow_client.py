@@ -503,6 +503,27 @@ class WorkflowClient(BaseDBClient):
             )
             return list(result.scalars().unique().all())
 
+    async def list_workflows_with_published_versions(
+        self, organization_id: int
+    ) -> list[WorkflowModel]:
+        """[.mark] V4 : an organization's workflows with ONLY their published version(s) in ``definitions``.
+
+        What the publication and the screens that read « what the calls read » need (``_version_publiee``): loading every
+        archived version of every agent (a graph each, tens of KB) made « Publish » grow with the history of the
+        organization. ``definitions`` holds the published rows only: never use this to look for a draft or an old version.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel)
+                .options(
+                    selectinload(
+                        WorkflowModel.definitions.and_(WorkflowDefinitionModel.status == "published")
+                    )
+                )
+                .where(WorkflowModel.organization_id == organization_id)
+            )
+            return list(result.scalars().unique().all())
+
     async def bulk_update_workflow_model_configurations(
         self,
         *,

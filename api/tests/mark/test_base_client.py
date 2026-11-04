@@ -992,12 +992,13 @@ def test_creer_a_lecran_verse_lexistant_puis_rattache(base_essai):
         )
         assert refus.status_code == 422
 
-        # A second create on an attached organization is refused; a bad name too.
+        # V4 : « create » no longer refuses an attached organization (« Change database » creates), but it still
+        # refuses a name the server already has (409, never a silent reuse); a bad name too.
         assert (
             client.post(
                 "/organizations/base-client/creer", json={"nom_base": base_essai}
             ).status_code
-            == 422
+            == 409
         )
         assert (
             client.put(
@@ -1090,6 +1091,34 @@ def test_une_base_dune_autre_organisation_ne_se_rattache_ni_ne_se_recree(base_es
             ).status_code
             == 200
         )
+
+
+def test_creer_une_base_quand_une_autre_est_rattachee_change_le_rattachement_sans_rien_supprimer(base_essai, monkeypatch):
+    """V4 : « Changer de base » peut créer. L'ancienne base est détachée, jamais supprimée ; la nouvelle porte l'organisation."""
+    from unittest.mock import AsyncMock
+
+    from api.routes import base_client as route_base_client
+
+    miroir, redis = _MiroirMulti(), _RedisFactice()
+    app = FastAPI()
+    app.include_router(route_base_client.router)
+    app.dependency_overrides[get_user_with_selected_organization] = lambda: (
+        SimpleNamespace(id=1, provider_id="p", selected_organization_id=ORGANISATION)
+    )
+    a, b, c = _rattachee(miroir, redis)
+    with a, b, c:
+        client = TestClient(app)
+        assert client.post("/organizations/base-client/creer", json={"nom_base": base_essai}).status_code == 200
+        creer = AsyncMock()
+        monkeypatch.setattr(route_base_client, "creer_base", creer)
+        monkeypatch.setattr(route_base_client, "_verser_dans_la_base", AsyncMock())
+        nouvelle = client.post("/organizations/base-client/creer", json={"nom_base": "base_de_remplacement"})
+        assert nouvelle.status_code == 200, nouvelle.text
+        creer.assert_awaited_once_with("base_de_remplacement")
+        assert nouvelle.json()["nom_base"] == "base_de_remplacement"
+        assert miroir.lignes[(ORGANISATION, "BASE_CLIENT")]["nom_base"] == "base_de_remplacement"
+        # L'ancienne base existe toujours sur le serveur : rien n'a été supprimé, elle est seulement libre.
+        assert client.put("/organizations/base-client", json={"nom_base": base_essai}).status_code == 200
 
 
 # --------------------------------------------------------------------------- #

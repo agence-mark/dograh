@@ -8,7 +8,7 @@
  * le juge lisent leurs réglages existants et ouvrent la fenêtre de réglage qu'ils avaient déjà.
  * Chaque champ s'enregistre en le quittant, avec sa notification : il n'y a jamais de saisie en attente à perdre.
  */
-import { BookOpen, Bot, DoorOpen, Gavel, Laptop, ListChecks, Monitor, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
+import { BookOpen, Bot, DoorOpen, Gavel, KeyRound, Laptop, ListChecks, Monitor, Network, PhoneCall, Terminal, Wrench } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
@@ -31,6 +31,7 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,11 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { cerveauxPartages, optionsPartagees } from "./lectures-partagees";
+
+const FORMATS: Record<"anthropic" | "openai", Texte> = {
+    anthropic: { en: "Anthropic (Claude)", fr: "Anthropic (Claude)" },
+    openai: { en: "OpenAI-compatible", fr: "Compatible OpenAI" },
+};
 
 const T = {
     source: { en: "Source:", fr: "Source :" },
@@ -53,6 +59,10 @@ const T = {
     modeleEtCle: { en: "Model and key", fr: "Modèle et clé" },
     modeleRegle: { en: "Rule: never the same model as the judge.", fr: "Règle : jamais le même modèle que le juge." },
     format: { en: "Provider format", fr: "Format du fournisseur" },
+    formatInfo: {
+        en: "Anthropic (Claude), or any OpenAI-compatible provider (OpenAI, Mistral, Gemini...).",
+        fr: "Anthropic (Claude), ou tout fournisseur compatible OpenAI (OpenAI, Mistral, Gemini...).",
+    },
     anthropic: { en: "Anthropic (Claude)", fr: "Anthropic (Claude)" },
     openai: { en: "OpenAI-compatible (OpenAI, Mistral, Gemini...)", fr: "Compatible OpenAI (OpenAI, Mistral, Gemini...)" },
     modele: { en: "Model", fr: "Modèle" },
@@ -61,6 +71,8 @@ const T = {
     cle: { en: "Key", fr: "Clé" },
     clePosee: { en: "A key is saved. Leave empty to keep it.", fr: "Une clé est enregistrée. Laissez vide pour la garder." },
     cleAbsente: { en: "No key saved yet.", fr: "Aucune clé enregistrée." },
+    cleEtatPosee: { en: "key saved", fr: "clé enregistrée" },
+    cleEtatAbsente: { en: "no key yet", fr: "aucune clé" },
     cleInfo: { en: "Written, never read back: the key is kept encrypted.", fr: "Écrite, jamais relue : la clé est gardée chiffrée." },
     prompt: { en: "System prompt", fr: "Prompt système" },
     promptInfo: {
@@ -314,6 +326,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
     const { valeur: opts, poser: poserOpts } = optionsPartagees.useLecture(prete);
     const [erreurLecture, setErreurLecture] = useState(false);
     const [erreurChamp, setErreurChamp] = useState<string | null>(null);
+    const [fenetreCerveau, setFenetreCerveau] = useState(false);
 
     const lire = useCallback(async () => {
         const [c, p, s, a] = await Promise.all([
@@ -397,36 +410,23 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                             <Info>{t(T.modeleRegle)}</Info>
                         </p>
                         <div className="space-y-2">
-                            <Ligne libelle={t(T.format)}>
-                                <ListeDeroulante
-                                    aria-label={t(T.format)}
-                                    className="h-8 w-56 cursor-pointer rounded-md border bg-background px-2 text-sm"
-                                    value={cerveau.format ?? "anthropic"}
-                                    onChange={(e) => enregistrerCerveau({ format: e.target.value })}
+                            {/* V4 : la ligne « Modèle et clé » de la maquette : le modèle en lecture, un bouton clé qui ouvre la fenêtre. */}
+                            <div className="flex gap-2">
+                                <Input readOnly aria-label={t(T.modele)} value={cerveau.modele ?? ""} className="h-9 flex-1" data-testid="cerveau-modele-lu" />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label={t(T.modeleEtCle)}
+                                    title={t(T.modeleEtCle)}
+                                    data-testid="ouvrir-modele-et-cle"
+                                    onClick={() => setFenetreCerveau(true)}
                                 >
-                                    <option value="anthropic">{t(T.anthropic)}</option>
-                                    <option value="openai">{t(T.openai)}</option>
-                                </ListeDeroulante>
-                            </Ligne>
-                            <Ligne libelle={t(T.modele)}>
-                                <ChampSimple id="cerveau-modele" libelle={t(T.modele)} valeur={cerveau.modele ?? ""} className="h-8 w-56" onEnregistrer={(v) => v.trim() && enregistrerCerveau({ modele: v.trim() })} />
-                            </Ligne>
-                            <Ligne libelle={t(T.adresse)} info={t(T.adresseInfo)}>
-                                <ChampSimple id="cerveau-adresse" libelle={t(T.adresse)} valeur={cerveau.adresse ?? ""} className="h-8 w-56" onEnregistrer={(v) => enregistrerCerveau({ adresse: v.trim() })} />
-                            </Ligne>
-                            <Ligne libelle={t(T.cle)} info={t(T.cleInfo)}>
-                                <ChampSimple
-                                    id="cerveau-cle"
-                                    libelle={t(T.cle)}
-                                    type="password"
-                                    valeur=""
-                                    placeholder={cerveau.cle_posee ? "••••••••" : ""}
-                                    className="h-8 w-56"
-                                    onEnregistrer={(v) => v.trim() && enregistrerCerveau({ cle: v.trim() })}
-                                />
-                            </Ligne>
-                            <p className="text-right text-xs text-muted-foreground" data-cle-posee={cerveau.cle_posee ? "oui" : "non"}>
-                                {cerveau.cle_posee ? t(T.clePosee) : t(T.cleAbsente)}
+                                    <KeyRound className="size-4" />
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground" data-cle-posee={cerveau.cle_posee ? "oui" : "non"}>
+                                {t(FORMATS[cerveau.format ?? "anthropic"])} · {cerveau.cle_posee ? t(T.cleEtatPosee) : t(T.cleEtatAbsente)}
                             </p>
                             {erreurChamp && (
                                 <p role="alert" className="text-sm text-destructive">
@@ -436,6 +436,43 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         </div>
                     </Carte>
                     <CartePrompt lu={vue?.builder ?? null} />
+                    {fenetreCerveau && (
+                        <FenetreChamps
+                            ouverte
+                            fermer={() => setFenetreCerveau(false)}
+                            titre={t(T.modeleEtCle)}
+                            info={t(T.modeleRegle)}
+                            valider={t({ en: "Save", fr: "Enregistrer" })}
+                            sections={[
+                                {
+                                    champs: [
+                                        {
+                                            id: "format",
+                                            t: "choix",
+                                            l: t(T.format),
+                                            info: t(T.formatInfo),
+                                            o: [t(FORMATS.anthropic), t(FORMATS.openai)],
+                                            v: t(FORMATS[cerveau.format ?? "anthropic"]),
+                                        },
+                                        { id: "modele", t: "texte", l: t(T.modele), v: cerveau.modele ?? "" },
+                                        { id: "adresse", t: "texte", l: t(T.adresse), info: t(T.adresseInfo), v: cerveau.adresse ?? "" },
+                                        { id: "cle", t: "secret", l: t(T.cle), info: `${t(T.cleInfo)} ${cerveau.cle_posee ? t(T.clePosee) : t(T.cleAbsente)}` },
+                                    ],
+                                },
+                            ]}
+                            verifier={(v) => (String(v.modele ?? "").trim() ? null : { modele: t({ en: "A model cannot be empty.", fr: "Un modèle ne peut pas être vide." }) })}
+                            onValider={(v) => {
+                                const cle = String(v.cle ?? "").trim();
+                                enregistrerCerveau({
+                                    format: v.format === t(FORMATS.openai) ? "openai" : "anthropic",
+                                    modele: String(v.modele).trim(),
+                                    adresse: String(v.adresse ?? "").trim(),
+                                    ...(cle ? { cle } : {}),
+                                });
+                                setFenetreCerveau(false);
+                            }}
+                        />
+                    )}
                     <Carte>
                         <p className="text-sm font-medium">{t(T.plafonds)}</p>
                         <Ligne libelle={t(T.plafondDepense)}>

@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from sqlalchemy import update
+from sqlalchemy import text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.future import select
 
@@ -61,6 +61,52 @@ class OrganizationConfigurationClient(BaseDBClient):
                 .order_by(OrganizationConfigurationModel.key)
             )
             return list(result.scalars().all())
+
+    @staticmethod
+    def _motif_de_prefixe(prefix: str) -> str:
+        return prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+    async def get_configuration_keys_by_prefix(
+        self, organization_id: int, prefix: str
+    ) -> list[str]:
+        """[.mark] V4: only the KEYS that start with ``prefix``, sorted (never the values: a snapshot of a graph is tens of KB)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel.key)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key.like(
+                        self._motif_de_prefixe(prefix), escape="\\"
+                    ),
+                )
+                .order_by(OrganizationConfigurationModel.key)
+            )
+            return list(result.scalars().all())
+
+    async def get_configurations_by_prefix_without(
+        self, organization_id: int, prefix: str, fields: list[str]
+    ) -> list[tuple[str, dict]]:
+        """[.mark] V4: (key, value) of the rows whose key starts with ``prefix``, WITHOUT the top-level ``fields`` of the value.
+
+        The database removes the heavy fields (``value::jsonb - fields``): they are never read, never sent, never parsed.
+        Always bounded by ``organization_id``; sorted by key. A value that is not an object comes back as it is.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                text(
+                    "SELECT key, CASE WHEN json_typeof(value) = 'object' "
+                    "THEN (value::jsonb - CAST(:retirer AS text[])) ELSE value::jsonb END AS value "
+                    "FROM organization_configurations "
+                    "WHERE organization_id = :organisation AND key LIKE :motif ESCAPE '\\' "
+                    "ORDER BY key"
+                ),
+                {
+                    "retirer": list(fields),
+                    "organisation": organization_id,
+                    "motif": self._motif_de_prefixe(prefix),
+                },
+            )
+            return [(ligne.key, ligne.value) for ligne in result.all()]
 
     async def compare_and_set_configuration(
         self, organization_id: int, key: str, expected: Any, value: Any

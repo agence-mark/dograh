@@ -17,6 +17,7 @@ import { FournisseurLangue } from "../langue/langue";
 const m = vi.hoisted(() => ({
     base: vi.fn(),
     rattacher: vi.fn(),
+    creer: vi.fn(),
     conservation: vi.fn(),
     appels: vi.fn(),
     ecrireAppels: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
         getBaseClientApiV1OrganizationsBaseClientGet: m.base,
         putBaseClientApiV1OrganizationsBaseClientPut: m.rattacher,
+        postCreerApiV1OrganizationsBaseClientCreerPost: m.creer,
         putConservationApiV1OrganizationsBaseClientConservationPut: m.conservation,
         getConservationDesAppelsApiV1OrganizationsConservationAppelsGet: m.appels,
         putConservationDesAppelsApiV1OrganizationsConservationAppelsPut: m.ecrireAppels,
@@ -104,6 +106,7 @@ const rendre = (noeud: React.ReactNode) => render(<FournisseurLangue><FormeMaque
 const reinitialiser = () => {
     m.base.mockReset().mockImplementation(() => Promise.resolve({ data: structuredClone(BASE) }));
     m.rattacher.mockReset().mockImplementation(({ body }: { body: { nom_base: string } }) => Promise.resolve({ data: { ...BASE, nom_base: body.nom_base } }));
+    m.creer.mockReset().mockImplementation(({ body }: { body: { nom_base: string } }) => Promise.resolve({ data: { ...BASE, nom_base: body.nom_base } }));
     m.conservation.mockReset().mockImplementation(({ body }: { body: unknown }) => Promise.resolve({ data: { ...BASE, conservation: body } }));
     m.appels.mockReset().mockImplementation(() => Promise.resolve({ data: { reglages: { ...DEFAUTS }, audio_autorise_par_l_installation: true, dernier_passage: null } }));
     m.ecrireAppels.mockReset().mockImplementation(({ body }: { body: unknown }) => Promise.resolve({ data: { reglages: body, audio_autorise_par_l_installation: true, dernier_passage: null } }));
@@ -192,11 +195,20 @@ describe("[.mark] K4b : Base et automatisations", () => {
         expect(m.ecrireListes.mock.calls[0][0].body.valeurs).toEqual([{ liste: "issue_appel", code: "autre", regle_seul: true }]);
     });
 
-    it("« Changer de base » ouvre la fenêtre : rattacher envoie le nom saisi, détacher envoie null", async () => {
+    it("« Changer de base » ouvre la fenêtre : un geste (créer ou rattacher), un seul « Enregistrer » ; détacher envoie null", async () => {
         rendre(<Donnees />);
         fireEvent.click(await screen.findByTestId("changer-de-base"));
+        const geste = await screen.findByTestId("geste-base-client");
+        // Comme la maquette : « Créer une base » d'abord, même quand une base est déjà rattachée.
+        expect(within(geste).getByRole("button", { name: "Créer une base" }).getAttribute("aria-pressed")).toBe("true");
+        fireEvent.change(await screen.findByLabelText("Nom de la base"), { target: { value: "client_neuf" } });
+        fireEvent.click(screen.getByTestId("enregistrer-base-client"));
+        await waitFor(() => expect(m.creer).toHaveBeenCalledWith({ body: { nom_base: "client_neuf" } }));
+        expect(m.rattacher).not.toHaveBeenCalled();
+        fireEvent.click(await screen.findByTestId("changer-de-base"));
+        fireEvent.click(within(await screen.findByTestId("geste-base-client")).getByRole("button", { name: "Rattacher une base existante" }));
         fireEvent.change(await screen.findByLabelText("Nom de la base"), { target: { value: "client_b" } });
-        fireEvent.click(screen.getByTestId("rattacher-base-client"));
+        fireEvent.click(screen.getByTestId("enregistrer-base-client"));
         await waitFor(() => expect(m.rattacher).toHaveBeenCalledWith({ body: { nom_base: "client_b" } }));
         fireEvent.click(await screen.findByTestId("changer-de-base"));
         fireEvent.click(await screen.findByTestId("detacher-base-client"));
@@ -304,6 +316,22 @@ describe("[.mark] K4b : le lexique métier", () => {
         expect(termes).toHaveLength(2);
         expect(termes[0].terme).toBe("Jøtul");
         expect(termes[1]).toMatchObject({ terme: "poêle", categorie: "Appareil", type: "mot", propose: true });
+    });
+
+    it("V4 : la nature d'un terme a les trois valeurs de la maquette et fixe le type que le serveur lit", async () => {
+        rendre(<SectionLexiqueMetier />);
+        // Un terme d'avant le champ : « poêle » (mot) se lit « Mot du métier », « Jøtul » (nom) se lit « Marque ».
+        const tableau = (await screen.findByText("Jøtul")).closest("table")!;
+        expect(tableau.textContent).toContain("Marque");
+        expect(tableau.textContent).toContain("Mot du métier");
+        fireEvent.click(screen.getByText("poêle"));
+        const fenetre = (await screen.findAllByLabelText("Catégorie")).pop()!.closest("[role=dialog]") as HTMLElement;
+        for (const nature of ["Marque", "Nom propre", "Mot du métier"]) expect(within(fenetre).getByRole("button", { name: nature })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: "Mot du métier" }).getAttribute("aria-pressed")).toBe("true");
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Nom propre" }));
+        fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+        await waitFor(() => expect(m.ecrireLexique).toHaveBeenCalled());
+        expect(m.ecrireLexique.mock.calls[0][0].body.termes[1]).toMatchObject({ terme: "poêle", nature: "nom_propre", type: "nom" });
     });
 
     it("« + Terme » ouvre une fenêtre neuve : sans nom, rien ne part", async () => {

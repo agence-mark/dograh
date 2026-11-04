@@ -102,6 +102,12 @@
   --pastille-urgente: #dd4949;
   --marque-relation: #e5486b;
   --violet-relation: #7c5cdb;
+  /* V4 : une couleur par sorte de carte de démarrage du Builder (palette des tuiles de la maquette, E80). */
+  --demarrage-agent: #3d8fe6;
+  --demarrage-amelioration: #7c5cdb;
+  --demarrage-test: #1a9e5c;
+  --demarrage-fichier: #d6457a;
+  --demarrage-etincelle: #dd4949;
   --point-publie: #1a7f3c;
   --point-fini: #8a97a6;
   --gravite-grave: #c2362f;
@@ -203,6 +209,11 @@
   --pastille-urgente: #dd4949;
   --marque-relation: #e5486b;
   --violet-relation: #9d85ec;
+  --demarrage-agent: #6aa9ee;
+  --demarrage-amelioration: #9d85ec;
+  --demarrage-test: #5fd08a;
+  --demarrage-fichier: #ec7fa6;
+  --demarrage-etincelle: #f19a9d;
   --point-publie: #3ecf7a;
   --point-fini: #7a8796;
   --gravite-grave: #c4383d;

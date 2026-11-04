@@ -160,6 +160,8 @@ class MembreResponse(BaseModel):
     nom: str | None
     role_id: int
     role_nom: str
+    # V4 : la date d'entrée dans l'équipe (``mark_membres.cree_le``), pour la colonne « Depuis ».
+    depuis: datetime | None = None
 
 
 class MembresResponse(BaseModel):

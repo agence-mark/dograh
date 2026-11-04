@@ -285,3 +285,16 @@ async def test_le_profil(db_session):
         assert (await c.post("/api/v1/auth/login", json={"email": "profil@example.com", "password": NOUVEAU_MDP})).status_code == 200
         assert (await c.post("/api/v1/auth/login", json={"email": "profil@example.com", "password": MOT_DE_PASSE})).status_code == 401
     assert user.id
+
+
+async def test_la_liste_des_membres_dit_depuis_quand_chacun_est_dans_l_equipe(db_session):
+    # V4 : la colonne « Depuis » de la page Équipe vient de ``mark_membres.cree_le`` (jamais d'une date inventée à l'écran).
+    _, jeton = await creer_compte(db_session, "ancien@example.com", role="Administrateur")
+    async with client_http() as c:
+        liste = await c.get("/api/v1/equipe-mark/membres", headers=entetes(jeton))
+    assert liste.status_code == 200, liste.text
+    [membre] = [m for m in liste.json()["membres"] if m["email"] == "ancien@example.com"]
+    from datetime import datetime, timedelta, timezone
+
+    entree = datetime.fromisoformat(membre["depuis"].replace("Z", "+00:00"))
+    assert entree.tzinfo is not None and abs(datetime.now(timezone.utc) - entree) < timedelta(minutes=5)
