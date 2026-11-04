@@ -768,7 +768,7 @@ export type ApparenceWidget = {
     /**
      * Declenchement
      */
-    declenchement?: 'clic' | 'delai';
+    declenchement?: 'clic' | 'survol' | 'delai' | 'toujours' | 'jamais';
     /**
      * Delai S
      */
@@ -3636,6 +3636,38 @@ export type CouleursParElement = {
      * Icones
      */
     icones?: string | null;
+    /**
+     * Rond Accroche Texte
+     */
+    rond_accroche_texte?: string | null;
+    /**
+     * Boutons Texte
+     */
+    boutons_texte?: string | null;
+    /**
+     * Raccrocher Texte
+     */
+    raccrocher_texte?: string | null;
+    /**
+     * Champ Saisie Texte
+     */
+    champ_saisie_texte?: string | null;
+    /**
+     * Bulle Agent
+     */
+    bulle_agent?: string | null;
+    /**
+     * Bulle Agent Texte
+     */
+    bulle_agent_texte?: string | null;
+    /**
+     * Bulles Ecrit Texte
+     */
+    bulles_ecrit_texte?: string | null;
+    /**
+     * Reponses Choisies Texte
+     */
+    reponses_choisies_texte?: string | null;
 };
 
 /**
@@ -4585,6 +4617,16 @@ export type DejaCopie = {
 };
 
 /**
+ * DemandeAffichage
+ */
+export type DemandeAffichage = {
+    /**
+     * Actif
+     */
+    actif: boolean;
+};
+
+/**
  * DemandeApercuSms
  */
 export type DemandeApercuSms = {
@@ -4950,6 +4992,16 @@ export type DemandeReglagesMark = {
      * Allowed Domains
      */
     allowed_domains?: Array<string> | null;
+    /**
+     * Modes
+     */
+    modes?: 'voix_et_ecrit' | 'voix' | null;
+    /**
+     * Jeton Expire Le
+     *
+     * Date AAAA-MM-JJ de fin du jeton ; chaîne vide : n'expire jamais ; absent : inchangé.
+     */
+    jeton_expire_le?: string | null;
 };
 
 /**
@@ -5958,6 +6010,14 @@ export type EmplacementLu = {
      * Dernier Chargement
      */
     dernier_chargement?: string | null;
+    /**
+     * Agent Nom
+     */
+    agent_nom?: string;
+    /**
+     * Version Publiee
+     */
+    version_publiee?: number | null;
 };
 
 /**
@@ -13344,6 +13404,14 @@ export type ReglagesMarkLus = {
      * Minutes Ce Mois
      */
     minutes_ce_mois?: number;
+    /**
+     * Modes
+     */
+    modes?: 'voix_et_ecrit' | 'voix';
+    /**
+     * Jeton Expire Le
+     */
+    jeton_expire_le?: string | null;
 };
 
 /**
@@ -16263,7 +16331,7 @@ export type TexteModule = {
 /**
  * TextesWidget
  *
- * Les 18 textes ; un texte absent prend son défaut français, un texte vide est refusé.
+ * Les 24 textes ; un texte absent prend son défaut français, un texte vide est refusé.
  */
 export type TextesWidget = {
     /**
@@ -16338,6 +16406,30 @@ export type TextesWidget = {
      * Plafond Bouton
      */
     plafond_bouton?: string;
+    /**
+     * Titre
+     */
+    titre?: string;
+    /**
+     * Avis Titre
+     */
+    avis_titre?: string;
+    /**
+     * Avis Passer
+     */
+    avis_passer?: string;
+    /**
+     * Case Rappel
+     */
+    case_rappel?: string;
+    /**
+     * Case Publication
+     */
+    case_publication?: string;
+    /**
+     * Ecrire
+     */
+    ecrire?: string;
 };
 
 /**
@@ -31658,6 +31750,54 @@ export type ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses = {
 
 export type ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponse = ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses[keyof ReglerUnSiteApiV1OrganizationsSitesSiteIdPutResponses];
 
+export type RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Site Id
+         */
+        site_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/sites/{site_id}/regenerer-cle';
+};
+
+export type RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostError = RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostErrors[keyof RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostErrors];
+
+export type RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SiteLu;
+};
+
+export type RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostResponse = RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostResponses[keyof RegenererLaCleDuSiteApiV1OrganizationsSitesSiteIdRegenererClePostResponses];
+
 export type GetEvenementsDesAgentsDeSiteApiV1OrganizationsAgentsSiteEvenementsGetData = {
     body?: never;
     headers?: {
@@ -31855,6 +31995,54 @@ export type PoserLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdEmplacementPu
 };
 
 export type PoserLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdEmplacementPutResponse = PoserLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdEmplacementPutResponses[keyof PoserLEmplacementApiV1OrganizationsAgentsSiteWorkflowIdEmplacementPutResponses];
+
+export type ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutData = {
+    body: DemandeAffichage;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/agents-site/{workflow_id}/affichage';
+};
+
+export type ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutError = ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutErrors[keyof ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutErrors];
+
+export type ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EmplacementLu;
+};
+
+export type ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutResponse = ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutResponses[keyof ReglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePutResponses];
 
 export type LireLApparenceApiV1OrganizationsAgentsSiteWorkflowIdApparenceGetData = {
     body?: never;
