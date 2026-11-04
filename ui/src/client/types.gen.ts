@@ -19906,6 +19906,10 @@ export type WorkflowRunResponseSchema = {
     annotations?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Note Juge
+     */
+    note_juge?: number | null;
 };
 
 /**
@@ -30243,7 +30247,7 @@ export type LireLaQualiteApiV1QualiteGetData = {
         /**
          * Jours
          */
-        jours?: 7 | 30;
+        jours?: number;
         /**
          * Workflow Id
          */
