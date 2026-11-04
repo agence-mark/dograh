@@ -196,10 +196,13 @@ def test_comparer_dit_ce_qui_sera_perdu_et_ce_qui_sera_retrouve():
     del actuel["nodes"][1]
     comparaison = apercu.comparer(actuel, cible)
     perdus = {(p["genre"], p["cible"]) for p in comparaison["sera_perdu"]}
-    assert perdus == {("noeud modifié", "1"), ("noeud ajouté", "3"), ("liaison ajoutée", "1-3")}
-    assert [p["champs"] for p in comparaison["sera_perdu"] if p["genre"] == "noeud modifié"] == [["prompt"]]
-    assert {(r["genre"], r["cible"]) for r in comparaison["sera_retrouve"]} == {("noeud retiré", "2")}
+    assert perdus == {("node_changed", "1"), ("node_added", "3"), ("link_added", "1-3")}
+    assert [p["champs"] for p in comparaison["sera_perdu"] if p["genre"] == "node_changed"] == [["prompt"]]
+    assert {(r["genre"], r["cible"]) for r in comparaison["sera_retrouve"]} == {("node_removed", "2")}
     assert apercu.comparer(cible, cible)["total_perdu"] == 0
+    # V4 : le genre d'une ligne est un identifiant neutre, jamais une phrase française.
+    tous = {l["genre"] for l in comparaison["sera_perdu"] + comparaison["sera_retrouve"]}
+    assert tous <= set(apercu.GENRES) and all(" " not in g for g in tous)
 
 
 async def test_la_route_d_apercu_n_ecrit_rien_et_un_autre_client_a_un_404(monde):

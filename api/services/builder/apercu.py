@@ -35,6 +35,10 @@ def _decrire_liaison(liaison: dict[str, Any]) -> str:
     return f"{liaison.get('source')} -> {liaison.get('target')}"
 
 
+# Identifiants neutres du ``genre`` d'une ligne : l'écran les traduit (jamais de texte français côté serveur).
+GENRES = ("node_added", "node_changed", "node_removed", "link_added", "link_changed", "link_removed")
+
+
 def comparer(actuel: dict[str, Any] | None, cible: dict[str, Any] | None) -> dict[str, Any]:
     """``sera_perdu`` : ce qui est dans l'actuel et pas (ou pas pareil) dans la cible ; ``sera_retrouve`` : l'inverse."""
     ici, la = _noeuds(actuel), _noeuds(cible)
@@ -43,25 +47,25 @@ def comparer(actuel: dict[str, Any] | None, cible: dict[str, Any] | None) -> dic
     inchanges = 0
     for identifiant, noeud in ici.items():
         if identifiant not in la:
-            perdu.append({"genre": "noeud ajouté", "cible": identifiant, "nom": _nom(noeud)})
+            perdu.append({"genre": "node_added", "cible": identifiant, "nom": _nom(noeud)})
             continue
         champs = _champs_differents(noeud, la[identifiant])
         if champs:
-            perdu.append({"genre": "noeud modifié", "cible": identifiant, "nom": _nom(noeud), "champs": champs})
+            perdu.append({"genre": "node_changed", "cible": identifiant, "nom": _nom(noeud), "champs": champs})
         else:
             inchanges += 1
     for identifiant, noeud in la.items():
         if identifiant not in ici:
-            retrouve.append({"genre": "noeud retiré", "cible": identifiant, "nom": _nom(noeud)})
+            retrouve.append({"genre": "node_removed", "cible": identifiant, "nom": _nom(noeud)})
     ici_l, la_l = _liaisons(actuel), _liaisons(cible)
     for identifiant, liaison in ici_l.items():
         if identifiant not in la_l:
-            perdu.append({"genre": "liaison ajoutée", "cible": identifiant, "nom": _decrire_liaison(liaison)})
+            perdu.append({"genre": "link_added", "cible": identifiant, "nom": _decrire_liaison(liaison)})
         elif (liaison.get("data") or {}) != (la_l[identifiant].get("data") or {}):
-            perdu.append({"genre": "liaison modifiée", "cible": identifiant, "nom": _decrire_liaison(liaison)})
+            perdu.append({"genre": "link_changed", "cible": identifiant, "nom": _decrire_liaison(liaison)})
     for identifiant, liaison in la_l.items():
         if identifiant not in ici_l:
-            retrouve.append({"genre": "liaison retirée", "cible": identifiant, "nom": _decrire_liaison(liaison)})
+            retrouve.append({"genre": "link_removed", "cible": identifiant, "nom": _decrire_liaison(liaison)})
     return {
         "sera_perdu": perdu[:LISTE_MAX],
         "sera_retrouve": retrouve[:LISTE_MAX],
