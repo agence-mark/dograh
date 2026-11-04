@@ -20,13 +20,16 @@ import { CheckCircle2, LoaderCircle, Plug } from "lucide-react";
 import { useState } from "react";
 
 import { validateUserConfigurationsApiV1UserConfigurationsUserValidateGet } from "@/client/sdk.gen";
-import { ServiceConfigurationForm,type ServiceSegment } from "@/components/ServiceConfigurationForm";
+import { type ServiceConfigurationDefaults, ServiceConfigurationForm, type ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import type { ModelOverrides } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "../langue/langue";
 import { FenetreOnglets } from "../studio/fenetre-onglets";
+import { Info } from "../studio/marques";
+
+const ID_FORMULAIRE = "formulaire-service";
 
 const TITRES: Record<ServiceSegment, Texte> = {
     llm: { en: "Brain", fr: "Cerveau" },
@@ -37,6 +40,11 @@ const TITRES: Record<ServiceSegment, Texte> = {
 };
 
 const T = {
+    enregistrer: { en: "Save", fr: "Enregistrer" },
+    info: {
+        en: "The fields come from the chosen provider: bounds, default values and the fields of each model.",
+        fr: "Les champs viennent du fournisseur choisi : bornes, valeurs par défaut et champs propres à chaque modèle.",
+    },
     tester: { en: "Test the connection", fr: "Tester la connexion" },
     essai: { en: "Testing...", fr: "Vérification..." },
     valide: { en: "The connection works.", fr: "La connexion fonctionne." },
@@ -48,13 +56,21 @@ export type FenetreServiceProps = {
     fermer: () => void;
     /** Reçoit la configuration du formulaire (la forme que `ServiceConfigurationForm` produit). */
     enregistrer: (configuration: Record<string, unknown>) => Promise<void>;
+    /**
+     * V2b (E51) : les briques que la fenêtre montre. Par défaut la seule brique ouverte ; la page y ajoute celles qui
+     * ne sont pas encore réglées, car le serveur n'enregistre qu'une configuration entière.
+     */
+    segments?: ServiceSegment[];
+    /** V2b : les fournisseurs déjà lus et ce que l'organisation a déjà réglé, pour ne pas les relire. */
+    configurationDefaults?: ServiceConfigurationDefaults | null;
+    initialConfig?: Record<string, unknown> | null;
 } & (
     | { portee: "organisation"; remplacementsAgent?: undefined }
     | { portee: "agent"; remplacementsAgent?: ModelOverrides }
 );
 
 export function FenetreService(props: FenetreServiceProps) {
-    const { service, fermer, enregistrer, portee } = props;
+    const { service, fermer, enregistrer, portee, segments, configurationDefaults, initialConfig } = props;
     const { t } = useLangue();
     const [essai, setEssai] = useState<{ etat: "attente" | "ok" | "echec"; message?: string } | null>(null);
 
@@ -79,8 +95,15 @@ export function FenetreService(props: FenetreServiceProps) {
     return (
         <FenetreOnglets
             fermer={fermer}
-            titre={t(TITRES[service])}
-            valider={null}
+            etroite
+            titre={
+                <>
+                    {t(TITRES[service])}
+                    <Info>{t(T.info)}</Info>
+                </>
+            }
+            valider={t(T.enregistrer)}
+            onValider={() => (document.getElementById(ID_FORMULAIRE) as HTMLFormElement | null)?.requestSubmit()}
             pied={
                 <div className="flex items-center gap-3">
                     <Button type="button" variant="outline" className="cursor-pointer gap-1.5" onClick={() => void tester()} disabled={essai?.etat === "attente"}>
@@ -103,7 +126,11 @@ export function FenetreService(props: FenetreServiceProps) {
         >
             <ServiceConfigurationForm
                 mode={portee === "agent" ? "override" : "global"}
-                segments={[service]}
+                segments={segments ?? [service]}
+                configurationDefaults={configurationDefaults}
+                initialConfig={initialConfig}
+                idFormulaire={ID_FORMULAIRE}
+                sansBoutonEnregistrer
                 forceRealtime={service === "realtime"}
                 currentOverrides={portee === "agent" ? props.remplacementsAgent : undefined}
                 onSave={enregistrer}

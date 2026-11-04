@@ -27,6 +27,7 @@ export function FenetreOnglets({
     valider,
     onValider,
     desactiver,
+    etroite,
 }: {
     fermer: () => void;
     titre: React.ReactNode;
@@ -42,6 +43,8 @@ export function FenetreOnglets({
     valider?: string | null;
     onValider?: () => void;
     desactiver?: boolean;
+    /** V2b : la largeur d'une fenêtre de service (maquette : 672 px) au lieu de la grande fenêtre. */
+    etroite?: boolean;
 }) {
     const { t } = useLangue();
     const libelle = valider === undefined ? t({ en: "Save", fr: "Enregistrer" }) : valider;
@@ -49,7 +52,7 @@ export function FenetreOnglets({
         <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
             <DialogContent
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                className={`${TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}
+                className={`${etroite ? "sm:max-w-2xl h-[78vh]" : TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}
             >
                 <div className="shrink-0 border-b px-6 pt-5 pr-12">
                     <div className="flex items-start gap-3 pb-4">

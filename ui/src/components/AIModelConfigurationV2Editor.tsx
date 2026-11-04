@@ -63,7 +63,7 @@ interface AIModelConfigurationV2EditorProps {
     voixVerrouillee?: ReactNode;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
     return value && typeof value === "object" && !Array.isArray(value)
         ? value as Record<string, unknown>
         : null;
@@ -77,7 +77,7 @@ function isDograhEffectiveConfig(config: Record<string, unknown> | null | undefi
     return llm?.provider === "dograh" && tts?.provider === "dograh" && stt?.provider === "dograh";
 }
 
-function byokDefaults(defaults: ModelConfigurationDefaultsV2): ServiceConfigurationDefaults {
+export function byokDefaults(defaults: ModelConfigurationDefaultsV2): ServiceConfigurationDefaults {
     return {
         llm: defaults.byok.pipeline.llm,
         tts: defaults.byok.pipeline.tts,
@@ -135,7 +135,7 @@ function emptyByokInitialConfig(isRealtime: boolean): Record<string, unknown> {
 // separate tabs, so each tab gets its own initial config. A tab is pre-filled
 // only when the saved (or effective) configuration matches that tab's mode;
 // otherwise it starts empty so the other tab's data does not leak across.
-function getByokInitialConfig(
+export function getByokInitialConfig(
     configuration: Record<string, unknown> | null,
     effectiveConfiguration: Record<string, unknown> | null,
     wantRealtime: boolean,
@@ -156,7 +156,7 @@ function getByokInitialConfig(
     return matchesTab(effective) ? (effective as Record<string, unknown>) : emptyByokInitialConfig(wantRealtime);
 }
 
-function preferredMode(
+export function preferredMode(
     configuration: Record<string, unknown> | null,
     effectiveConfiguration: Record<string, unknown> | null,
 ): ModelMode {
@@ -166,7 +166,7 @@ function preferredMode(
     return Boolean(effectiveConfiguration?.is_realtime) ? "realtime" : "byok";
 }
 
-function hasRequiredApiKey(
+export function hasRequiredApiKey(
     service: ServiceSegment,
     serviceConfiguration: Record<string, unknown>,
     defaults: ServiceConfigurationDefaults,
