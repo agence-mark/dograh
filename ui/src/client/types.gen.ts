@@ -29487,6 +29487,53 @@ export type RattacherAUneCleApiV1ClesUuidPatchResponses = {
 
 export type RattacherAUneCleApiV1ClesUuidPatchResponse = RattacherAUneCleApiV1ClesUuidPatchResponses[keyof RattacherAUneCleApiV1ClesUuidPatchResponses];
 
+export type UsagesDeToutesLesClesApiV1ClesUsagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cles/usages';
+};
+
+export type UsagesDeToutesLesClesApiV1ClesUsagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UsagesDeToutesLesClesApiV1ClesUsagesGetError = UsagesDeToutesLesClesApiV1ClesUsagesGetErrors[keyof UsagesDeToutesLesClesApiV1ClesUsagesGetErrors];
+
+export type UsagesDeToutesLesClesApiV1ClesUsagesGetResponses = {
+    /**
+     * Response Usages De Toutes Les Cles Api V1 Cles Usages Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: Array<Usage>;
+    };
+};
+
+export type UsagesDeToutesLesClesApiV1ClesUsagesGetResponse = UsagesDeToutesLesClesApiV1ClesUsagesGetResponses[keyof UsagesDeToutesLesClesApiV1ClesUsagesGetResponses];
+
 export type FournisseursDesClesApiV1ClesFournisseursGetData = {
     body?: never;
     headers?: {
@@ -38730,6 +38777,53 @@ export type SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutRe
 };
 
 export type SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponse = SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses[keyof SaveModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2PutResponses];
+
+export type GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/model-configurations/v2/remplacements';
+};
+
+export type GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetError = GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetErrors[keyof GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetErrors];
+
+export type GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetResponses = {
+    /**
+     * Response Get Model Configuration V2 Remplacements Api V1 Organizations Model Configurations V2 Remplacements Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: number;
+    };
+};
+
+export type GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetResponse = GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetResponses[keyof GetModelConfigurationV2RemplacementsApiV1OrganizationsModelConfigurationsV2RemplacementsGetResponses];
 
 export type GetModelConfigurationPricingApiV1OrganizationsModelConfigurationsV2PricingGetData = {
     body?: never;
