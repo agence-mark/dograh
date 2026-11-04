@@ -435,7 +435,16 @@ class BaseEnMemoire:
 @pytest.fixture
 def base():
     memoire = BaseEnMemoire()
-    with patch.object(propositions, "db_client", memoire):
+    # [.mark] « Utilisé par » des logiciels (lot F6) lit les outils dans la vraie base : depuis le TestClient (une autre boucle)
+    # il tombait sur les connexions d'un test antérieur (« attached to a different loop »), dans la suite entière seulement.
+    # Couvert par ``test_connexion_portail_et_logiciels.py`` ; ici, aucun outil.
+    from unittest.mock import AsyncMock
+
+    from api.services.integrations.connectors import utilisation
+
+    with patch.object(propositions, "db_client", memoire), patch.object(
+        utilisation, "outils_par_logiciel", AsyncMock(return_value={})
+    ):
         yield memoire
 
 
