@@ -229,16 +229,7 @@ async def save_reglages_appelant_simule(
     }:
         if uuid_ and await db_client.get_credential_by_uuid(uuid_, org) is None:
             raise HTTPException(status_code=404, detail="Credential not found")
-    # U6 (D9) : un juge sur clé d'API ne peut pas être du modèle du builder ; l'agent jugé se contrôle à chaque rejeu.
-    from api.services.builder.cerveau import independance
-
-    controle = independance.controler(
-        source_juge=request.juge.source,
-        modele_juge=request.juge.modele,
-        modele_builder=await independance.modele_du_builder(user),
-    )
-    if controle.refuse:
-        raise HTTPException(status_code=422, detail=controle.refus)
+    # RA-B R6 : aucune restriction d'indépendance (le juge peut être du modèle de l'agent ou du builder) ; la mention est portée par le verdict.
     from api.services import sources_cerveaux
 
     await sources_cerveaux.ecrire_depuis_les_roles(org, request)

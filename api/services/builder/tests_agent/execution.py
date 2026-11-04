@@ -119,7 +119,7 @@ async def cerveaux_des_tests(user: Any, workflow: Any) -> CerveauxDesTests:
         source_juge=roles.juge.source, modele_juge=roles.juge.modele, modele_builder=base.modele, modele_agent=modele_agent
     )
     appelant_brut = await simules.cerveau_du_role(organisation_id, roles.appelant, base)
-    juge_brut = None if controle.refuse else await simules.cerveau_du_role(organisation_id, roles.juge, base)
+    juge_brut = await simules.cerveau_du_role(organisation_id, roles.juge, base)
     return CerveauxDesTests(
         CerveauCompte(appelant_brut, simules.reglages_du_role(roles.appelant, base)) if appelant_brut is not None else None,
         CerveauCompte(juge_brut, simules.reglages_du_role(roles.juge, base)) if juge_brut is not None else None,
@@ -330,10 +330,8 @@ async def _ranger_a_juger(organisation_id: int, workflow_id: int, test: dict[str
 async def _avis_du_juge(
     cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]], organisation_id: int, workflow_id: int
 ) -> dict[str, Any] | None:
-    """L'avis du juge sur le premier essai, toujours à part (jamais dans le verdict). D9 : refusé s'il noterait son propre travail ;
+    """L'avis du juge sur le premier essai, toujours à part (jamais dans le verdict). RA-B R6 : jamais refusé, le verdict porte « Jugé par [modèle] » ;
     sur Claude Code il n'est pas rendu ici (le juge attend une session) et la mention d'exemption accompagne tout avis."""
-    if cerveaux.independance.refuse:
-        return {"bloquant": False, "avis": [], "erreur": cerveaux.independance.refus}
     mention = {"mention": cerveaux.independance.mention} if cerveaux.independance.mention else {}
     if cerveaux.source_juge == "claude_code":
         await _ranger_a_juger(organisation_id, workflow_id, test, essais[0]["lignes"])
@@ -349,10 +347,10 @@ async def _avis_du_juge(
 
 async def _relire_un_test_reussi(cerveaux: CerveauxDesTests, test: dict[str, Any], essais: list[dict[str, Any]], statut: str) -> dict[str, Any] | None:
     """U8 (F) : pour un test RÉUSSI, une question de plus au juge (le scénario a-t-il joué le cas visé ?). Rien si le test a échoué, s'il
-    n'a pas de scénario, si le juge est refusé (D9), sur Claude Code (il attend une session) ou sans cerveau : jamais un avis inventé."""
+    n'a pas de scénario, sur Claude Code (il attend une session) ou sans cerveau : jamais un avis inventé."""
     if statut != "ok" or not test.get("scenario") or not essais or not essais[0].get("lignes"):
         return None
-    if cerveaux.independance.refuse or cerveaux.source_juge == "claude_code" or cerveaux.juge is None:
+    if cerveaux.source_juge == "claude_code" or cerveaux.juge is None:
         return None
     try:
         return await juge.relire(cerveaux.juge, [(r, t) for r, t in essais[0]["lignes"]], test)

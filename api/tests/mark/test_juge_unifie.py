@@ -210,11 +210,15 @@ async def test_sur_claude_code_l_appel_reste_a_juger_sans_aucun_appel_de_fournis
     assert mondes.ecrits[0][1]["juge"]["etat"] == "a_juger" and mondes.ecrits[0][1]["juge"]["mention"] == independance.MENTION_CLAUDE_CODE
 
 
-async def test_un_juge_du_modele_de_l_agent_ne_juge_pas_et_le_dit(mondes, monkeypatch):
+async def test_un_juge_du_modele_de_l_agent_juge_quand_meme_et_dit_qui_a_juge(mondes, monkeypatch):
+    # RA-B R6 : plus de refus d'indépendance ; le résultat porte « Jugé par [modèle] ».
     await file.regler(ORG_CLIENT, AGENT, True)
     _juge(monkeypatch, modele="mistral/agent-m", identifiant="k")
+    grille = await appels.grille()
+    monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=CerveauFactice(*[tour(_json()) for _ in grille])))
     await appels.apres_appel(_run(), ORG_CLIENT)
-    assert mondes.ecrits[0][1]["juge"]["etat"] == "refuse"
+    resultat = mondes.ecrits[0][1]["juge"]
+    assert resultat["etat"] == "juge" and resultat["mention"] == "Jugé par mistral/agent-m"
 
 
 async def test_un_juge_en_panne_n_abime_pas_l_apres_appel(mondes, monkeypatch):

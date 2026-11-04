@@ -6,7 +6,7 @@ Quand l'agent a « juge des vrais appels » allumé (``file.regler``), l'après-
 * source **clé d'API** : l'appel est jugé tout de suite (``passes.juger``), le résultat est ÉCRIT FUSIONNÉ dans
   ``workflow_runs.annotations`` sous la clé ``juge`` (``update_workflow_run`` fusionne par clé : QA et « À trier » gardent la leur) ;
 * source **Claude Code** : l'appel est rangé dans « À juger » (``file``) et reste « à juger » tant qu'une session ne l'a pas jugé ;
-* indépendance (D9) : un juge sur clé du modèle de l'agent ou du builder est refusé, l'appel n'est pas jugé et la raison est écrite.
+* indépendance (RA-B R6) : le code ne restreint rien ; chaque résultat porte « Jugé par [modèle] » (``mention``).
 
 ⛔ Un juge en panne n'abîme ni l'appel ni l'après-appel : ``apres_appel`` ne lève jamais.
 """
@@ -89,9 +89,6 @@ async def apres_appel(run: Any, organisation: int) -> None:
             modele_agent=await _modele_de_l_agent(run, organisation),
         )
         mention = {"mention": controle.mention} if controle.mention else {}
-        if controle.refuse:
-            await ecrire_dans_le_run(run.id, {"etat": "refuse", "raison": controle.refus})
-            return
         if juge.source == "claude_code":
             await file.ajouter(organisation, {"id": f"appel-{run.id}", "type": "appel", "workflow_id": run.workflow_id, "run_id": run.id})
             await ecrire_dans_le_run(run.id, {"etat": "a_juger", "source": "claude_code", **mention})
