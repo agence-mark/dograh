@@ -629,7 +629,7 @@
         var o = nouvelleOrbe(170, { etat: apercu ? 'ecoute' : 'ecoute' });
         conv.orbe = o;
         c.appendChild(o.element);
-        c.appendChild(el('p', { class: 'mk-etat', 'data-etat': '1', texte: libelleEtat() }));
+        c.appendChild(el('p', { class: 'mk-etat', 'data-etat': '1', 'data-zone': 'etatOrbe', texte: libelleEtat() }));
         corps.appendChild(c);
         if (conv.erreur) corps.appendChild(el('p', { class: 'mk-erreur', role: 'alert', texte: conv.erreur }));
       }
