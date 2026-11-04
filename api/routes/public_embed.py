@@ -421,7 +421,12 @@ async def initialize_embed_session(
         )
         if not workflow:
             raise ValueError("Workflow not found")
-        run_inputs = await prepare_workflow_run_inputs(db_client, workflow)
+        # [.mark] SE-8 : widget du site, clé = le jeton du site et l'adresse du visiteur (déploiement progressif).
+        from api.services.publication.deploiement import cle_site
+
+        run_inputs = await prepare_workflow_run_inputs(
+            db_client, workflow, cle_de_repartition=cle_site(embed_token.id, adresse_du_visiteur(request))
+        )
         # Visitor context comes from the host page (script URL params or the
         # data-dograh-context attribute) and is addressable from prompts as
         # {{initial_context.<name>}}.

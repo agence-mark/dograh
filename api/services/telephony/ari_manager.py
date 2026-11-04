@@ -963,7 +963,10 @@ class ARIConnection:
 
             # 3. Create workflow run
             call_id = channel_id
-            run_inputs = await prepare_workflow_run_inputs(db_client, workflow)
+            # [.mark] SE-8 : ARI entrant, clé = le numéro de l'appelant ("" quand il est inconnu).
+            run_inputs = await prepare_workflow_run_inputs(
+                db_client, workflow, appelant="" if caller_number == "unknown" else caller_number
+            )
             # Capture the configured external PBX identity from SIP headers.
             # Lead fields come from the definition this run binds to, not from
             # the workflow's draft-synced legacy column.

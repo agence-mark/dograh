@@ -39,7 +39,49 @@ def part_de(workflow_id: int, appelant: str | None) -> int | None:
     return int(empreinte[:8], 16) % 100
 
 
-def version_attribuee(ligne: dict[str, Any] | None, workflow_id: int, appelant: str | None) -> int | None:
+# [.mark] Partie 3, sous-lot 2 (SE-8) : la clé de répartition de CHAQUE chemin de création d'un appel. Une clé est stable (le
+# même interlocuteur tombe toujours du même côté) et ne contient aucune donnée écrite en clair : seule son empreinte sert.
+#   entrant (téléphonie, ARI, flux d'agent) : le numéro de l'appelant (``appelant=``, chiffres seulement) ;
+#   sortant direct et déclenché par l'API    : le numéro appelé (même empreinte que s'il appelait : même côté dans les deux sens) ;
+#   campagne                                  : la campagne ET le contact (``cle_campagne``) ;
+#   widget du site                            : le jeton du site ET l'adresse du visiteur (``cle_site``) ;
+#   transfert vers un agent                   : l'appel qui transfère (``cle_appel``), pour que la destination soit la même
+#                                               à chaque lecture de cet appel.
+def cle_campagne(campagne_id: int, contact: str | None) -> str:
+    chiffres = "".join(c for c in (contact or "") if c.isdigit())
+    reste = chiffres[-9:] if chiffres else (contact or "").strip()
+    return f"campagne:{campagne_id}:{reste}" if reste else ""
+
+
+def cle_site(jeton_id: int, visiteur: str | None) -> str:
+    """``visiteur`` vide (adresse illisible) : clé vide, donc la version qui tenait avant, jamais un tirage."""
+    return f"site:{jeton_id}:{visiteur.strip()}" if visiteur and visiteur.strip() else ""
+
+
+def appelant_du_flux(params: dict[str, Any]) -> str:
+    """Le numéro de l'appelant d'un flux d'agent, d'après les paramètres que le fournisseur envoie. ``""`` : masqué ou absent."""
+    for nom in ("from", "From", "caller", "caller_number", "from_number", "ani"):
+        valeur = params.get(nom)
+        if isinstance(valeur, str) and valeur.strip():
+            return valeur
+    return ""
+
+
+def cle_appel(workflow_run_id: int) -> str:
+    return f"appel:{workflow_run_id}"
+
+
+def part_de_cle(workflow_id: int, cle_de_repartition: str) -> int | None:
+    """La place stable (0 à 99) d'une clé de répartition pour cet agent. ``None`` : clé vide (aucune place)."""
+    if not cle_de_repartition or not cle_de_repartition.strip().strip(":"):
+        return None
+    empreinte = hashlib.sha256(f"{workflow_id}:{cle_de_repartition.strip()}".encode()).hexdigest()
+    return int(empreinte[:8], 16) % 100
+
+
+def version_attribuee(
+    ligne: dict[str, Any] | None, workflow_id: int, appelant: str | None, cle_de_repartition: str | None = None
+) -> int | None:
     """Le ``definition_id`` à donner à cet appel, ou ``None`` (= la version publiée, comme sans déploiement)."""
     if not ligne:
         return None
@@ -47,7 +89,7 @@ def version_attribuee(ligne: dict[str, Any] | None, workflow_id: int, appelant: 
     if not isinstance(nouvelle, int) or not isinstance(precedente, int):
         return None
     pourcentage = int(ligne.get("pourcentage") or 0)
-    place = part_de(workflow_id, appelant)
+    place = part_de_cle(workflow_id, cle_de_repartition) if cle_de_repartition is not None else part_de(workflow_id, appelant)
     if place is None:  # appelant masqué : la version qui tenait avant, jamais un tirage
         return precedente
     return nouvelle if place < pourcentage else precedente
@@ -57,8 +99,10 @@ async def lire(organization_id: int, workflow_id: int) -> dict[str, Any] | None:
     return await stock.lire(organization_id, cle(workflow_id))
 
 
-async def definition_pour_l_appel(workflow: Any, appelant: str | None) -> int | None:
-    """Appelé à la création d'un appel entrant. Rien à lire quand le déploiement est éteint."""
+async def definition_pour_l_appel(
+    workflow: Any, appelant: str | None = None, cle_de_repartition: str | None = None
+) -> int | None:
+    """Appelé à la création de tout appel (entrant, sortant, campagne, site, flux d'agent, ARI). Rien à lire quand le déploiement est éteint."""
     from api.services.publication.reglages import deploiement_actif
 
     configurations = getattr(getattr(workflow, "released_definition", None), "workflow_configurations", None) or getattr(
@@ -71,7 +115,7 @@ async def definition_pour_l_appel(workflow: Any, appelant: str | None) -> int | 
     except Exception as erreur:  # noqa: BLE001 -- une panne de lecture : la version publiée, comme avant
         logger.warning(f"[publication] déploiement non lu ({type(erreur).__name__})")
         return None
-    return version_attribuee(ligne, workflow.id, appelant)
+    return version_attribuee(ligne, workflow.id, appelant, cle_de_repartition)
 
 
 async def demarrer(

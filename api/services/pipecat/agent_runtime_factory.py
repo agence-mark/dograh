@@ -199,8 +199,11 @@ class AgentRuntimeFactory:
 
         # Unscoped by itself, but the lookup above already established that
         # this workflow belongs to the call's organization.
+        # [.mark] SE-8 : le transfert suit le déploiement progressif, clé = l'appel qui transfère.
+        from api.services.publication.deploiement import cle_appel
+
         definition = await definition_to_run(
-            db_client, workflow, use_draft=self._use_draft
+            db_client, workflow, use_draft=self._use_draft, cle_de_repartition=cle_appel(self._workflow_run_id)
         )
         if definition is None or not definition.workflow_json:
             raise AgentBuildError(
