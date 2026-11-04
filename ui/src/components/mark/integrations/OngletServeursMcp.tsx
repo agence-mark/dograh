@@ -94,7 +94,7 @@ export function OngletServeursMcp() {
 
 function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | null; fermer: () => void; apres: () => void }) {
     const { t } = useLangue();
-    const libelles = { connexion: t({ en: "Connection", fr: "Connexion" }), outils: t({ en: "Tools", fr: "Outils" }), comportement: t({ en: "Behaviour", fr: "Comportement" }) };
+    const libelles = { connexion: t({ en: "Configure", fr: "Configurer" }), outils: t({ en: "Tools", fr: "Outils" }), comportement: t({ en: "Behaviour", fr: "Comportement" }) };
     const [onglet, setOnglet] = useState<keyof typeof libelles>("connexion");
     const [nom, setNom] = useState(serveur?.name ?? "");
     const [config, setConfig] = useState<Config>(
@@ -143,13 +143,20 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
     return (
         <FenetreOnglets
             fermer={fermer}
-            titre={serveur ? serveur.name : t({ en: "Connect an MCP server", fr: "Brancher un serveur MCP" })}
+            titre={serveur ? serveur.name : t({ en: "New MCP server", fr: "Nouveau serveur MCP" })}
             onglets={Object.values(libelles)}
             onglet={libelles[onglet]}
             changerOnglet={(l) => setOnglet((Object.keys(libelles) as (keyof typeof libelles)[]).find((k) => libelles[k] === l) ?? "connexion")}
-            valider={t({ en: "Save", fr: "Enregistrer" })}
+            valider={serveur ? t({ en: "Save", fr: "Enregistrer" }) : t({ en: "Add the server", fr: "Ajouter le serveur" })}
             onValider={() => void enregistrer()}
-            pied={erreur ? <span className="text-sm text-destructive">{erreur}</span> : message ? <span className="text-sm text-muted-foreground">{message}</span> : undefined}
+            pied={
+                <>
+                    <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => void tester()}>
+                        {t({ en: "Test the connection", fr: "Tester la connexion" })}
+                    </Button>
+                    {erreur ? <span className="text-sm text-destructive">{erreur}</span> : message ? <span className="text-sm text-muted-foreground">{message}</span> : null}
+                </>
+            }
         >
             {onglet === "connexion" && (
                 <Champs>
@@ -178,11 +185,6 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
                     <LigneChamp libelle={t({ en: "Read timeout (s)", fr: "Délai de lecture (s)" })}>
                         <Input className="h-8 w-24 text-right" value={String(nombre(config, "sse_read_timeout_secs", 300))} onChange={(e) => pose({ sse_read_timeout_secs: Math.min(900, Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1)) })} aria-label={t({ en: "Read timeout", fr: "Délai de lecture" })} />
                     </LigneChamp>
-                    <div className="py-3">
-                        <Button variant="outline" onClick={() => void tester()}>
-                            {t({ en: "Test the connection", fr: "Tester la connexion" })}
-                        </Button>
-                    </div>
                 </Champs>
             )}
             {onglet === "outils" &&

@@ -132,7 +132,17 @@ describe("[.mark] Intégrations : l'action de l'onglet actif est dans la rangée
     it("le bouton de la rangée du titre ouvre bien la fenêtre de son onglet", async () => {
         monter("mcp");
         fireEvent.click(await within(titre()).findByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ }));
-        expect(await screen.findByText(/Brancher un serveur MCP|Connect an MCP server/)).toBeTruthy();
+        expect(await screen.findByText(/Nouveau serveur MCP|New MCP server/)).toBeTruthy();
+    });
+
+    it("V2b : la fenêtre d'un nouveau serveur ajoute le serveur, teste dans son pied, sans note dans le corps", async () => {
+        monter("mcp");
+        fireEvent.click(await within(titre()).findByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ }));
+        const fenetre = await screen.findByRole("dialog");
+        expect(within(fenetre).getByRole("tab", { name: /Configurer|Configure/ })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: /Ajouter le serveur|Add the server/ })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: /Tester la connexion|Test the connection/ })).toBeTruthy();
+        expect(fenetre.textContent).not.toMatch(/No credentials found|Aucun identifiant\./);
     });
 });
 
