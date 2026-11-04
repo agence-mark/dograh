@@ -134,6 +134,8 @@ async def monde(db_session, async_session, monkeypatch):
     org_b, user_b = await _organisation("b")
     # D1 (E45): the templates live in the library, which belongs to the .mark organization (here: A).
     monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org_a.id))
+    # RA-A (R2): writing a template is a gesture of the .mark team, from the Labo: A is of the team, B is a client.
+    await db_session.add_user_to_organization(user_a.id, org_a.id)
     agent_a = await _agent(user_a, org_a, "Agent A", CONFIG_A)
     agent_b = await _agent(user_b, org_b, "Agent B", CONFIG_B)
     agent_b2 = await _agent(user_b, org_b, "Agent B2", {})
@@ -142,6 +144,17 @@ async def monde(db_session, async_session, monkeypatch):
         org_a=org_a, user_a=user_a, org_b=org_b, user_b=user_b,
         agent_a=agent_a, agent_a2=agent_a2, agent_b=agent_b, agent_b2=agent_b2,
     )
+
+
+@pytest.fixture(autouse=True)
+def _sans_le_droit_d_equipe(monkeypatch):
+    """RA-A (R2): the droit d'équipe of the five write routes is proved in ``test_ra_a_r2_modeles_droit_equipe.py``.
+    This file proves the isolation between organizations, with B acting from its own space: the guard is lifted here."""
+
+    async def _libre(user):
+        return None
+
+    monkeypatch.setattr("api.routes.modeles_reglages._exiger_l_equipe", _libre)
 
 
 async def _creer(client, nom, workflow_id):

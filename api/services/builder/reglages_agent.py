@@ -14,6 +14,8 @@ les MÊMES validateurs que l'enregistrement de l'écran (``UpdateWorkflowRequest
 
 from __future__ import annotations
 
+import copy
+from collections.abc import Mapping
 from typing import Any
 
 from pydantic import ValidationError
@@ -30,8 +32,54 @@ CHAMP_FICHE_LEXIQUE = "lexique"
 INTERDITS_DANS_UNE_CLE = ("api_key", "token", "secret", "password", "credential")
 
 
+# [.mark] RA-A (R2, audit du 04/11, rouge n° 5) : le builder ne lit JAMAIS une clé. À la place de sa valeur, cette référence.
+CLE_MASQUEE = "[key-hidden]"
+
+
 class ErreurReglage(Exception):
     pass
+
+
+def masquer_les_cles(valeur: Any) -> Any:
+    """Copie de ``valeur`` où toute valeur d'un champ secret (``api_key``, ``token``, ``client_secret``...), à tous les
+    niveaux et dans les listes, est remplacée par ``CLE_MASQUEE``. Même définition du « champ secret » que les modèles."""
+    from api.services.modeles_reglages.classement import est_un_champ_secret
+
+    if isinstance(valeur, Mapping):
+        return {
+            k: (CLE_MASQUEE if est_un_champ_secret(k) and v not in (None, "") else masquer_les_cles(v))
+            for k, v in valeur.items()
+        }
+    if isinstance(valeur, list):
+        return [masquer_les_cles(v) for v in valeur]
+    return copy.deepcopy(valeur)
+
+
+def _reporter_les_cles(entrant: Any, existant: Any) -> Any:
+    """Ce que le builder réécrit garde les clés de l'agent : une référence ``CLE_MASQUEE`` (ou un champ secret absent du bloc
+    réécrit) reprend la clé en place, tant que le fournisseur est le même. Une référence qui ne retrouve rien est retirée :
+    elle n'est jamais écrite comme valeur."""
+    from api.services.modeles_reglages.classement import est_un_champ_secret
+
+    if isinstance(entrant, list):
+        anciens = existant if isinstance(existant, list) else []
+        return [_reporter_les_cles(v, anciens[i] if i < len(anciens) else None) for i, v in enumerate(entrant)]
+    if not isinstance(entrant, Mapping):
+        return entrant
+    ancien = existant if isinstance(existant, Mapping) else {}
+    meme_fournisseur = entrant.get("provider") == ancien.get("provider")
+    sortie: dict[str, Any] = {}
+    for cle, v in entrant.items():
+        if est_un_champ_secret(cle) and v == CLE_MASQUEE:
+            if meme_fournisseur and ancien.get(cle) not in (None, ""):
+                sortie[cle] = copy.deepcopy(ancien[cle])
+            continue
+        sortie[cle] = _reporter_les_cles(v, ancien.get(cle))
+    if meme_fournisseur:
+        for cle, v in ancien.items():
+            if est_un_champ_secret(cle) and v not in (None, "") and cle not in entrant:
+                sortie[cle] = copy.deepcopy(v)
+    return sortie
 
 
 def catalogue_des_motifs() -> dict[str, Any]:
@@ -59,8 +107,8 @@ async def lire_reglages(organization_id: int, workflow_id: int, cles: list[str] 
         inconnues = [c for c in cles if c not in cles_reglables()]
         if inconnues:
             raise ErreurReglage(f"Unknown setting: {inconnues[0]}.")
-        return {c: configurations.get(c) for c in cles}
-    return {c: v for c, v in configurations.items() if c in cles_reglables()}
+        return {c: masquer_les_cles(configurations.get(c)) for c in cles}
+    return {c: masquer_les_cles(v) for c, v in configurations.items() if c in cles_reglables()}
 
 
 def _verifier(configurations: dict[str, Any]) -> None:
@@ -83,7 +131,8 @@ async def regler(organization_id: int, workflow_id: int, valeurs: dict[str, Any]
     for nom in valeurs:
         if nom not in autorisees:
             raise ErreurReglage(f"Unknown or forbidden setting: {nom}.")
-    nouveau = {**await _configurations(organization_id, workflow_id), **valeurs}
+    existant = await _configurations(organization_id, workflow_id)
+    nouveau = {**existant, **{nom: _reporter_les_cles(v, existant.get(nom)) for nom, v in valeurs.items()}}
     _verifier(nouveau)
     await db_client.update_workflow(
         workflow_id=workflow_id,

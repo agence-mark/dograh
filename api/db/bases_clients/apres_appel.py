@@ -24,6 +24,40 @@ async def recevoir_appel(connexion: asyncpg.Connection, envoi: dict) -> dict:
     return json.loads(brut) if isinstance(brut, str) else dict(brut)
 
 
+async def demande_de_rappel_ecriture_perdue(connexion: asyncpg.Connection, appel_id: int, resume: str) -> int | None:
+    """[.mark] RA-A (R3): the call-back to make when a write put aside during the call could not be done after it.
+
+    Idempotent: the text is added once to the request of the call (which becomes priority 1), or, when the call has
+    none, a request « rappel » is created and attached to it. Returns the request id, ``None`` for an unknown call."""
+    async with connexion.transaction():
+        appel = await connexion.fetchrow(
+            "SELECT demande_id, contact_id FROM mark.appel WHERE id = $1 FOR UPDATE", appel_id
+        )
+        if appel is None:
+            return None
+        if appel["demande_id"]:
+            await connexion.execute(
+                """
+                UPDATE mark.demande
+                SET priorite = 1, resume = left(coalesce(nullif(resume, '') || ' ', '') || $2, 2000)
+                WHERE id = $1 AND position($2 in coalesce(resume, '')) = 0
+                """,
+                appel["demande_id"],
+                resume,
+            )
+            return appel["demande_id"]
+        demande_id = await connexion.fetchval(
+            """
+            INSERT INTO mark.demande (contact_id, type, priorite, resume, creee_le)
+            VALUES ($1, 'rappel', 1, left($2, 2000), now()) RETURNING id
+            """,
+            appel["contact_id"],
+            resume,
+        )
+        await connexion.execute("UPDATE mark.appel SET demande_id = $2 WHERE id = $1", appel_id, demande_id)
+        return demande_id
+
+
 async def ecrire_synthese(
     connexion: asyncpg.Connection, appel_id: int, texte: str
 ) -> None:

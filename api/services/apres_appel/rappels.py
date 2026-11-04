@@ -29,6 +29,9 @@ ORIGINE_TRANSFERT = "transfert"
 # [.mark] agent-facon-tala, lot B1 : l'outil « demander un rappel » (``demande_de_rappel.py``) : l'agent a recueilli la
 # demande de la personne et l'a transmise lui-même, par un acte.
 ORIGINE_AGENT = "agent"
+# [.mark] RA-A (R3, audit du 04/11, rouge n° 6) : une écriture mise de côté pendant l'appel (agenda, CRM) n'a pas pu être rejouée
+# après l'appel : l'appelant croit son rendez-vous pris, l'équipe doit le vérifier et le rappeler.
+ORIGINE_ECRITURE_PERDUE = "ecriture_perdue"
 
 
 def origine(entree: dict) -> str:
@@ -39,6 +42,15 @@ def origine(entree: dict) -> str:
 def rappels_de(contexte: dict | None) -> list[dict]:
     brut = (contexte or {}).get(CLE_RAPPEL)
     return [r for r in brut if isinstance(r, dict)] if isinstance(brut, list) else []
+
+
+def resume_de_l_ecriture_perdue(actions: list[str], numero: str | None) -> str:
+    """RA-A (R3): what the team must do when the writes put aside during the call could not be done after it."""
+    morceaux = ["Rappel à faire : une écriture dans un outil de l'entreprise n'a pas abouti après l'appel"]
+    if actions:
+        morceaux.append("à vérifier et à refaire : " + ", ".join(actions))
+    morceaux.append(f"numéro de l'appelant : {numero}" if numero else "numéro de l'appelant inconnu")
+    return " ; ".join(morceaux) + "."
 
 
 def resume_du_rappel(entree: dict) -> str:
@@ -63,6 +75,8 @@ def resume_du_rappel(entree: dict) -> str:
         if souhait:
             morceaux.append(f"créneau souhaité : « {souhait} »")
         return " ; ".join(morceaux) + "."
+    if origine(entree) == ORIGINE_ECRITURE_PERDUE:
+        return resume_de_l_ecriture_perdue(entree.get("actions") or [], entree.get("numero"))
     if origine(entree) == ORIGINE_TRANSFERT:
         morceaux = ["Rappel à faire : la mise en relation avec l'établissement n'a pas abouti"]
         if entree.get("numero"):

@@ -22,45 +22,18 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from api.schemas.noms_reserves import NOMS_RESERVES
+
 MAX_PHRASES = 100
 MAX_LONGUEUR_CONTENU = 1000
 MAX_LONGUEUR_DESCRIPTION = 200
 
 _VARIABLE = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 
-# What Dograh or the fork already puts in the call context: a sentence named like one
-# of them would be silently overwritten, or would overwrite it.
-VARIABLES_RESERVEES = frozenset(
-    {
-        "annonce_fermeture",
-        "annonce_pause",
-        "annonce_ouverture",
-        "etat_ouverture",
-        "reouverture",
-        "horaires_ouverture",
-        "date_appel",
-        "heure_appel",
-        "adresse_etablissement",
-        "etablissement",
-        "etablissement_id",
-        "numero_transfert",
-        "lexique_propose",
-        "lexique_a_ecouter",
-        "caller_number",
-        "called_number",
-        "direction",
-        "provider",
-        "call_id",
-        "workflow_run_id",
-        "telephony_configuration_id",
-        "runtime_configuration",
-        "initial_context",
-        "gathered_context",
-        # l-agent-collegue (C4, C7): the team known to the agent and its closed list.
-        "equipe",
-        "equipe_cles",
-    }
-)
+# What Dograh or the fork already puts in the call context: a sentence named like one of them would be silently
+# overwritten, or would overwrite it. [.mark] RA-A (R3): one list for the fiche, the sentences, the objects and the
+# variables (``schemas/noms_reserves.py``).
+VARIABLES_RESERVEES = NOMS_RESERVES
 
 Niveau = Literal["organisation", "etablissement"]
 
