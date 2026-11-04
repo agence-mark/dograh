@@ -17,6 +17,8 @@ const SECRETS = new RegExp(
         // ou plus avec au moins un chiffre ET une lettre : fournisseurs sans préfixe).
         "(?<![A-Za-z0-9])(?:sk|rk|pk)_[A-Za-z0-9_]{16,}",
         "(?<![A-Za-z0-9_\\-])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}(?![A-Za-z0-9_\\-])",
+        // Revue de contrôle, point 9 : jeton base64url (`-`, `_`) de 32 caractères ou plus avec un chiffre, une minuscule ET une majuscule.
+        "(?<![A-Za-z0-9_\\-])(?=[A-Za-z0-9_\\-]*[0-9])(?=[A-Za-z0-9_\\-]*[a-z])(?=[A-Za-z0-9_\\-]*[A-Z])[A-Za-z0-9_\\-]{32,}(?![A-Za-z0-9_\\-])",
         "AKIA[0-9A-Z]{12,}",
         "gh[pousr]_[A-Za-z0-9]{16,}",
         "github_pat_[A-Za-z0-9_]{20,}",

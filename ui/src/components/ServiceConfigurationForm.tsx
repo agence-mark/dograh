@@ -211,6 +211,8 @@ export interface ServiceConfigurationFormProps {
      */
     idFormulaire?: string;
     sansBoutonEnregistrer?: boolean;
+    /** [.mark] Revue de contrôle, point 4 (M4) : dit à la fenêtre si le formulaire porte une saisie non enregistrée. */
+    surModification?: (modifie: boolean) => void;
 }
 
 function getProviderDisplayName(
@@ -360,6 +362,7 @@ export function ServiceConfigurationForm({
     segments,
     idFormulaire,
     sansBoutonEnregistrer,
+    surModification,
 }: ServiceConfigurationFormProps) {
     const { t } = useLangue();
     // [.mark] V2b: in the window of a service the usual field names are written in the screen's language.
@@ -389,6 +392,7 @@ export function ServiceConfigurationForm({
         embeddings: [""],
         realtime: [""],
     });
+    const [fournisseurChoisi, setFournisseurChoisi] = useState(false);
     const [isCustomInput, setIsCustomInput] = useState<Record<string, boolean>>({});
 
     // Override-specific state: which services have the override toggle enabled
@@ -402,12 +406,16 @@ export function ServiceConfigurationForm({
     const {
         register,
         handleSubmit,
-        formState: { },
+        formState: { isDirty },
         reset,
         getValues,
         setValue,
         watch
     } = useForm();
+
+    useEffect(() => {
+        surModification?.(isDirty || fournisseurChoisi);
+    }, [isDirty, fournisseurChoisi, surModification]);
 
     // Build effective config source: overlay overrides onto global config
     const configSource = useMemo(() => {
@@ -677,6 +685,7 @@ export function ServiceConfigurationForm({
 
         preservedValues[`${service}_provider`] = providerName;
         reset(preservedValues);
+        setFournisseurChoisi(true); // `reset` repart d'une base propre : le choix d'un fournisseur est quand même une saisie
         setServiceProviders(prev => ({ ...prev, [service]: providerName }));
         setApiKeys(prev => ({ ...prev, [service]: [""] }));
 

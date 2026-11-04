@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
@@ -85,11 +85,9 @@ export const SectionAdresseEtablissement = ({
             await onSave({ ...workflowConfigurations, adresse_etablissement: valeur }, workflowName);
             notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
-            const message = e instanceof Error && e.message
-                ? e.message
-                : echecAffiche(e);
+            const message = phraseEchec(e);
             setErreur(message);
-            notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` });
+            notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` }, { erreur: e });
         } finally {
             setIsSaving(false);
         }

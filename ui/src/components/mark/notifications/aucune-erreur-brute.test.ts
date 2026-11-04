@@ -56,17 +56,28 @@ export function lignesBrutes(source: string): number[] {
     return fautives;
 }
 
-/** Les lignes qui posent dans un état d'écran le `message` d'une erreur attrapée : le texte interne de l'erreur serait montré. */
+/**
+ * Les lignes qui montrent le `message` d'une erreur attrapée : le texte interne de l'erreur serait affiché.
+ * Deux formes, sur une ou plusieurs lignes : `set…(e instanceof Error ? e.message : …)` et la forme gardée
+ * `e instanceof Error && e.message ? e.message : …` (revue de contrôle, point 2 : celle-ci passait sous l'ancien motif).
+ */
 export function messagesAffiches(source: string): number[] {
     const lignes = source.split("\n");
-    const fautives: number[] = [];
-    lignes.forEach((ligne, i) => {
-        if (/^\s*(\/\/|\*)/.test(ligne)) return;
-        // Exemption écrite : la faute de lecture d'une saisie locale (JSON.parse), pas un texte du serveur.
-        if (/message-local/.test(ligne) || (i > 0 && /message-local/.test(lignes[i - 1]))) return;
-        if (/\bset[A-Z]\w*\([^)]*instanceof Error \? \w+\.message/.test(ligne)) fautives.push(i + 1);
-    });
-    return fautives;
+    const fautives = new Set<number>();
+    const motifs = [
+        /\bset[A-Z]\w*\([^)]*instanceof Error \? \w+\.message/g,
+        /instanceof Error\s*&&\s*(\w+)\.message\s*\?\s*\1\.message/g,
+    ];
+    for (const motif of motifs) {
+        for (const m of source.matchAll(motif)) {
+            const i = source.slice(0, m.index).split("\n").length - 1;
+            if (/^\s*(\/\/|\*)/.test(lignes[i])) continue;
+            // Exemption écrite : la faute de lecture d'une saisie locale (JSON.parse), pas un texte du serveur.
+            if (/message-local/.test(lignes[i]) || (i > 0 && /message-local/.test(lignes[i - 1]))) continue;
+            fautives.add(i + 1);
+        }
+    }
+    return [...fautives].sort((x, y) => x - y);
 }
 
 describe("aucun texte brut d'erreur serveur à l'écran", () => {
@@ -79,6 +90,10 @@ describe("aucun texte brut d'erreur serveur à l'écran", () => {
         expect(lignesBrutes('throw new Error(\n  detailFromError(r.error, "x"),\n);')).toEqual([]);
         expect(messagesAffiches("setError(e instanceof Error ? e.message : 'x');")).toEqual([1]);
         expect(messagesAffiches("setError(echecAffiche(e));")).toEqual([]);
+        // La forme gardée, sur une ou deux lignes (celle de l'enregistrement des réglages d'agent).
+        expect(messagesAffiches("const m = e instanceof Error && e.message ? e.message : echecAffiche(e);")).toEqual([1]);
+        expect(messagesAffiches("const m = e instanceof Error && e.message\n    ? e.message\n    : echecAffiche(e);")).toEqual([1]);
+        expect(messagesAffiches("const m = phraseEchec(e);")).toEqual([]);
     });
 
     const tous = () =>

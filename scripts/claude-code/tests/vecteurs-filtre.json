@@ -26,6 +26,8 @@
   {"nom": "deepgram sans prefixe (regle d'entropie)", "entree": "Token 0a1b2c3d4e{{J}}5f60718293{{J}}a4b5c6d7e8{{J}}f9a0b1c2d3 fin", "absents": ["0a1b2c3d4e{{J}}5f6071"], "presents": ["fin"]},
   {"nom": "mistral sans prefixe (regle d'entropie)", "entree": "mistral aB3dE6gH9j{{J}}K2mN5pQ8sT{{J}}1vW4yZ7bC0{{J}}eF fin", "absents": ["aB3dE6gH9j{{J}}K2mN5p"], "presents": ["mistral", "fin"]},
   {"nom": "soniox sans prefixe (regle d'entropie)", "entree": "soniox 9f8e7d6c5b{{J}}4a39281716{{J}}f5e4d3c2b1{{J}}a09f8e7d6c{{J}}5b4a3928 fin", "absents": ["9f8e7d6c5b{{J}}4a3928"], "presents": ["soniox", "fin"]},
+  {"nom": "jeton base64url avec tirets (regle d'entropie)", "entree": "jeton aB3dE-6gH9j{{J}}K2mN_5pQ8sT{{J}}1vW4-yZ7bC0{{J}}eF_xY9 fin", "absents": ["aB3dE-6gH9j{{J}}K2mN", "yZ7bC0{{J}}eF_xY9"], "presents": ["jeton", "fin"]},
+  {"nom": "nom de fichier en minuscules avec tirets intact", "entree": "voir 2026-11-04-revue-controle-correctifs-builder-partie-2 ok", "absents": [], "presents": ["2026-11-04-revue-controle-correctifs-builder-partie-2", "ok"]},
   {"nom": "mot long sans chiffre ni prefixe intact", "entree": "anticonsti{{J}}tutionnell{{J}}ementantic{{J}}onstitutio{{J}}nnellement et task_key_ordinaire_longue", "absents": [], "presents": ["anticonsti{{J}}tutionnell{{J}}ementantic{{J}}onstitutio{{J}}nnellement", "task_key_ordinaire_longue"]},
   {"nom": "texte ordinaire intact", "entree": "Utilise agent_lire avec workflow_id=42 puis rejoue les tests. Le token expire demain.", "absents": [], "presents": ["workflow_id=42", "rejoue les tests", "Le token expire demain."]}
 ]

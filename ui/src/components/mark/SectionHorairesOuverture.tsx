@@ -17,7 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 
@@ -63,9 +63,7 @@ interface SectionHorairesOuvertureProps {
 
 // FastAPI prefixes a validator's message; the line number is what matters.
 const messageLisible = (erreur: unknown): string => {
-    const brut = erreur instanceof Error && erreur.message
-        ? erreur.message
-        : echecAffiche(erreur);
+    const brut = phraseEchec(erreur);
     // Several refusals come joined by line breaks: strip the prefix on each.
     return brut.replace(/^Value error,\s*/gm, "");
 };
@@ -99,7 +97,7 @@ export const SectionHorairesOuverture = ({
         } catch (e) {
             const message = messageLisible(e);
             setErreur(message);
-            notifier.echec({ fr: `Horaires non enregistrés : ${message}.`, en: `Opening hours not saved: ${message}.` });
+            notifier.echec({ fr: `Horaires non enregistrés : ${message}.`, en: `Opening hours not saved: ${message}.` }, { erreur: e });
         } finally {
             setIsSaving(false);
         }

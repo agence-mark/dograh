@@ -29,6 +29,9 @@ _SECRETS = (
     # Règle d'entropie : une suite de 32 caractères alphanumériques ou plus, avec au moins un chiffre ET une lettre, est une clé
     # (fournisseurs sans préfixe : Deepgram, Mistral, Soniox...). Au prix de retirer aussi quelques empreintes (sha, uuid sans tirets).
     r"(?<![A-Za-z0-9_\-])(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}(?![A-Za-z0-9_\-])",
+    # Revue de contrôle, point 9 : un jeton base64url (``-`` et ``_``) de 32 caractères ou plus, avec un chiffre, une minuscule ET une
+    # majuscule. Le mélange de casse laisse passer les noms de fichier et les identifiants en minuscules (``2026-11-04-revue-...``).
+    r"(?<![A-Za-z0-9_\-])(?=[A-Za-z0-9_\-]*[0-9])(?=[A-Za-z0-9_\-]*[a-z])(?=[A-Za-z0-9_\-]*[A-Z])[A-Za-z0-9_\-]{32,}(?![A-Za-z0-9_\-])",
     r"AKIA[0-9A-Z]{12,}",
     r"gh[pousr]_[A-Za-z0-9]{16,}",
     r"github_pat_[A-Za-z0-9_]{20,}",

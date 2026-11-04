@@ -33,6 +33,7 @@ from api.services.site_mark import chemins as lib_chemins
 from api.services.site_mark import config_site, plafond
 from api.services.site_mark.conversations import (
     avis_deja_donne,
+    avis_garde_en_entier,
     avis_ecrit,
     avis_sans_donnees_personnelles,
 )
@@ -142,7 +143,9 @@ async def post_avis(session_token: str, corps: AvisPublic, request: Request, res
         if ecrit:
             embed["avis"] = avis_ecrit()
         elif await _base_rattachee(jeton.organization_id):
-            embed["avis"] = avis
+            # Gardé en entier, mais pas indéfiniment : si la base ne répond pas ou si la conversation est déjà versée, rien ne
+            # le réduira à l'entrée ; la date de garde laisse la purge de nuit le réduire à la durée de conservation.
+            embed["avis"] = avis_garde_en_entier(avis)
         else:
             embed["avis"] = avis_sans_donnees_personnelles(avis)
         await db_client.update_workflow_run(run.id, annotations={"embed": embed})

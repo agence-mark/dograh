@@ -100,6 +100,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
     const [config, setConfig] = useState<Config>(
         serveur ? configDe(serveur) : { transport: "streamable_http", url: "", timeout_secs: 30, sse_read_timeout_secs: 300, tools_filter: [], reglages_outils: {} },
     );
+    const depart = useRef({ nom: serveur?.name ?? "", config: JSON.stringify(config) });
     const [decouverts, setDecouverts] = useState<Decouvert[]>(liste<Decouvert>(config, "discovered_tools"));
     const [message, setMessage] = useState<string | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
@@ -149,6 +150,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
             changerOnglet={(l) => setOnglet((Object.keys(libelles) as (keyof typeof libelles)[]).find((k) => libelles[k] === l) ?? "connexion")}
             valider={serveur ? t({ en: "Save", fr: "Enregistrer" }) : t({ en: "Add the server", fr: "Ajouter le serveur" })}
             onValider={() => void enregistrer()}
+            modifie={nom !== depart.current.nom || JSON.stringify(config) !== depart.current.config}
             pied={
                 <>
                     <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => void tester()}>

@@ -1,13 +1,13 @@
-"""[.mark] Revue serveur M2 : l'adresse du visiteur, lue derrière un relais de confiance, en un seul endroit.
+"""[.mark] Revue serveur M2 : l'adresse du visiteur, lue derrière des relais de confiance, en un seul endroit.
 
 Derrière Railway (ou nginx), ``request.client.host`` est l'adresse du RELAIS : tous les visiteurs d'un site partageraient la
-même limite par adresse. L'adresse réelle est dans ``X-Forwarded-For``, mais cet en-tête s'écrit à la main : on ne le lit QUE
-si la connexion vient d'un relais déclaré. Réglage : la variable ``FORWARDED_ALLOW_IPS`` (la même que celle d'uvicorn),
-liste séparée par des virgules d'adresses, de réseaux (``10.0.0.0/8``) ou ``*``. Vide ou absente : aucune confiance, les
-en-têtes sont ignorés (un visiteur ne choisit jamais l'adresse qu'on lui compte).
+même limite par adresse. L'adresse réelle est dans ``X-Forwarded-For``, mais cet en-tête s'écrit à la main : on ne le lit
+que si on déclare combien de relais de confiance précèdent le serveur.
 
-On lit ``X-Forwarded-For`` de droite à gauche en sautant les relais de confiance : la première adresse qui n'en est pas un est
-celle du visiteur (ce que le visiteur a écrit à gauche de la chaîne ne compte jamais).
+Réglage : la variable ``MARK_RELAIS_DE_CONFIANCE`` (propre à .mark, distincte de ``FORWARDED_ALLOW_IPS`` d'uvicorn, qui peut
+valoir ``*`` pour d'autres usages), un entier ``n``. L'adresse lue est le maillon de rang ``n`` en partant de la DROITE de
+``X-Forwarded-For`` (chaque relais de confiance y ajoute l'adresse de celui qui s'y connecte ; ce que le visiteur écrit à
+gauche ne compte jamais). Absente, vide, illisible ou ``0`` : aucune confiance, l'adresse est celle de la connexion.
 """
 
 from __future__ import annotations
@@ -16,50 +16,30 @@ import ipaddress
 import os
 from typing import Any
 
-VARIABLE = "FORWARDED_ALLOW_IPS"
+VARIABLE = "MARK_RELAIS_DE_CONFIANCE"
 
 
-def _reseaux_de_confiance(valeur: str | None) -> tuple[bool, list[Any]]:
-    """(tous, réseaux) d'après la variable ; une entrée illisible est ignorée (jamais de confiance par erreur)."""
-    reseaux: list[Any] = []
-    for morceau in (valeur or "").split(","):
-        morceau = morceau.strip()
-        if not morceau:
-            continue
-        if morceau == "*":
-            return True, []
-        try:
-            reseaux.append(ipaddress.ip_network(morceau, strict=False))
-        except ValueError:
-            continue
-    return False, reseaux
-
-
-def _adresse(texte: str) -> Any | None:
+def _nombre_de_relais(valeur: str | int | None) -> int:
+    """Le nombre de relais d'après la variable ; tout ce qui n'est pas un entier positif vaut 0 (jamais de confiance par erreur)."""
     try:
-        return ipaddress.ip_address(texte.strip())
+        n = int(str(valeur).strip()) if valeur is not None else 0
     except ValueError:
-        return None
+        return 0
+    return n if n > 0 else 0
 
 
-def adresse_du_visiteur(request: Any, *, relais: str | None = None) -> str | None:
+def adresse_du_visiteur(request: Any, *, relais: str | int | None = None) -> str | None:
     """L'adresse du visiteur, ou ``None`` si la connexion n'en dit aucune. ``relais`` : le réglage (défaut : l'environnement)."""
     pair = request.client.host if getattr(request, "client", None) else None
     if not pair:
         return None
-    tous, reseaux = _reseaux_de_confiance(os.environ.get(VARIABLE) if relais is None else relais)
-    pair_ip = _adresse(pair)
-    de_confiance = (lambda ip: True) if tous else (lambda ip: ip is not None and any(ip in r for r in reseaux))
-    if not de_confiance(pair_ip):
+    n = _nombre_de_relais(os.environ.get(VARIABLE) if relais is None else relais)
+    if n == 0:
         return pair
-    chaine = request.headers.get("x-forwarded-for", "")
-    morceaux = [m for m in chaine.split(",") if m.strip()]
-    for morceau in reversed(morceaux):
-        ip = _adresse(morceau)
-        if ip is None:
-            return pair  # chaîne illisible : on garde l'adresse du relais plutôt qu'une valeur choisie par le visiteur
-        if not de_confiance(ip):
-            return str(ip)
-    # Toute la chaîne est faite de relais de confiance (réglage « * ») : la première adresse est celle du visiteur.
-    premiere = _adresse(morceaux[0]) if morceaux else None
-    return str(premiere) if premiere is not None else pair
+    morceaux = [m.strip() for m in request.headers.get("x-forwarded-for", "").split(",") if m.strip()]
+    if len(morceaux) < n:
+        return pair  # moins de maillons que de relais déclarés : la chaîne n'est pas celle qu'on attend
+    try:
+        return str(ipaddress.ip_address(morceaux[-n]))
+    except ValueError:
+        return pair  # maillon illisible : on garde l'adresse de la connexion plutôt qu'une valeur choisie par le visiteur

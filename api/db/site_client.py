@@ -10,7 +10,7 @@ from __future__ import annotations
 import secrets
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import Text, cast, delete, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from api.db.base_client import BaseDBClient
@@ -365,9 +365,12 @@ class SiteClient(BaseDBClient):
                 return False
             annotations = dict(run.annotations or {})
             embed = dict(annotations.get("embed") or {})
-            if isinstance(embed.get("avis"), dict):
+            from api.services.site_mark.conversations import reservation_expiree
+
+            existant = embed.get("avis")
+            if isinstance(existant, dict) and not reservation_expiree(existant):
                 return False
-            embed["avis"] = {"en_cours": True}
+            embed["avis"] = {"en_cours": True, "le": datetime.now(UTC).isoformat()}
             run.annotations = {**annotations, "embed": embed}
             await session.commit()
             return True
@@ -387,10 +390,35 @@ class SiteClient(BaseDBClient):
                 return
             annotations = dict(run.annotations or {})
             embed = dict(annotations.get("embed") or {})
-            if embed.get("avis") == {"en_cours": True}:
+            if isinstance(embed.get("avis"), dict) and embed["avis"].get("en_cours") is True:
                 embed.pop("avis")
                 run.annotations = {**annotations, "embed": embed}
                 await session.commit()
+
+    async def reduire_avis_gardes_en_entier(self, avant: datetime, limite: int = 500) -> int:
+        """Réduit à l'avis sans coordonnées ni texte libre tout avis gardé en entier sur un run depuis avant ``avant``
+        (revue de contrôle, point 8). Rend le nombre d'avis réduits ; la purge de nuit le rejoue jusqu'à zéro."""
+        from api.services.site_mark.conversations import avis_garde_trop_longtemps, avis_sans_donnees_personnelles
+
+        reduits = 0
+        async with self.async_session() as session:
+            runs = (
+                await session.execute(
+                    select(WorkflowRunModel)
+                    .where(cast(WorkflowRunModel.annotations, Text).like('%"garde_le"%'))
+                    .limit(limite)
+                    .with_for_update()
+                )
+            ).scalars().all()
+            for run in runs:
+                annotations = dict(run.annotations or {})
+                embed = dict(annotations.get("embed") or {})
+                if avis_garde_trop_longtemps(embed.get("avis"), avant):
+                    embed["avis"] = avis_sans_donnees_personnelles(embed["avis"])
+                    run.annotations = {**annotations, "embed": embed}
+                    reduits += 1
+            await session.commit()
+        return reduits
 
     # ------------------------------------------------------------------ événements anonymes (lot S3)
     async def compter_evenement(self, embed_token_id: int, jour, evenement: str, plafond_du_jour: int) -> bool:

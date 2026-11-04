@@ -84,7 +84,43 @@ def avis_ecrit() -> dict:
 
 
 def avis_sans_donnees_personnelles(avis: dict) -> dict:
-    return {k: v for k, v in avis.items() if k not in CHAMPS_PERSONNELS_DE_L_AVIS}
+    return {k: v for k, v in avis.items() if k not in CHAMPS_PERSONNELS_DE_L_AVIS and k != CLE_GARDE_LE}
+
+
+# Revue de contrôle, point 8 : un avis gardé EN ENTIER sur le run (base rattachée mais injoignable, ou conversation déjà versée)
+# porte la date où il a été gardé ; la purge de nuit le réduit au bout de la durée de conservation du widget.
+CLE_GARDE_LE = "garde_le"
+# Revue de contrôle, point 9 : la place prise par ``reserver_avis`` expire, pour qu'un processus tué entre la réservation et
+# l'écriture ne ferme pas l'avis au visiteur pour toujours.
+DELAI_RESERVATION_AVIS_SECONDES = 300
+
+
+def avis_garde_en_entier(avis: dict, maintenant: datetime | None = None) -> dict:
+    return {**avis, CLE_GARDE_LE: (maintenant or datetime.now(UTC)).isoformat()}
+
+
+def _date(texte: Any) -> datetime | None:
+    try:
+        d = datetime.fromisoformat(str(texte))
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=UTC)
+
+
+def reservation_expiree(avis: Any, maintenant: datetime | None = None) -> bool:
+    """Vrai pour une place d'avis ``{"en_cours": True, "le": …}`` plus vieille que le délai (ou sans date : posée avant ce délai)."""
+    if not isinstance(avis, dict) or avis.get("en_cours") is not True:
+        return False
+    depuis = _date(avis.get("le"))
+    return depuis is None or ((maintenant or datetime.now(UTC)) - depuis).total_seconds() > DELAI_RESERVATION_AVIS_SECONDES
+
+
+def avis_garde_trop_longtemps(avis: Any, avant: datetime) -> bool:
+    """Vrai pour un avis gardé en entier depuis avant ``avant`` : à réduire."""
+    if not isinstance(avis, dict) or CLE_GARDE_LE not in avis:
+        return False
+    garde = _date(avis[CLE_GARDE_LE])
+    return garde is None or garde < avant
 
 
 async def avis_entre_dans_la_base(run_id: int, organization_id: int) -> bool:
@@ -102,7 +138,8 @@ async def avis_entre_dans_la_base(run_id: int, organization_id: int) -> bool:
 
 def avis_deja_donne(run) -> bool:
     """Le visiteur a déjà laissé son avis sur cette conversation (en attente ou déjà dans la base du client)."""
-    return isinstance(_annotation(run).get("avis"), dict)
+    avis = _annotation(run).get("avis")
+    return isinstance(avis, dict) and not reservation_expiree(avis)
 
 
 def champs_du_site(run) -> dict[str, Any]:
@@ -115,5 +152,5 @@ def champs_du_site(run) -> dict[str, Any]:
         champs["page"] = page
     avis = avis_du_run(run)
     if avis:
-        champs["avis"] = avis
+        champs["avis"] = {k: v for k, v in avis.items() if k != CLE_GARDE_LE}  # la date de garde reste chez Dograh
     return champs

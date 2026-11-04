@@ -14,6 +14,12 @@ from api.db import db_client
 from api.services.site_mark.conversations import CONSERVATION_SESSIONS_JOURS
 
 
+async def reduire_avis_anciens(maintenant: datetime | None = None) -> int:
+    """Réduit les avis gardés en entier sur un run depuis plus de ``CONSERVATION_SESSIONS_JOURS`` jours (point 8 de la revue de contrôle)."""
+    avant = (maintenant or datetime.now(UTC)) - timedelta(days=CONSERVATION_SESSIONS_JOURS)
+    return await db_client.reduire_avis_gardes_en_entier(avant)
+
+
 async def purger_sessions(maintenant: datetime | None = None) -> int:
     """Efface les sessions de widget plus vieilles que la durée de conservation ; rend le nombre de lignes."""
     avant = (maintenant or datetime.now(UTC)) - timedelta(days=CONSERVATION_SESSIONS_JOURS)

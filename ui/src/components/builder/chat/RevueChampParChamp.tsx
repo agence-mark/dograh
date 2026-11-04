@@ -19,7 +19,7 @@ import {
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { echecAffiche, phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import { FenetreRestauration } from "./FenetreRestauration";
 
 const T = {
@@ -87,8 +87,8 @@ export function RevueChampParChamp({
             : refuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPost;
         const r = await appel({ path: { fil_id: filId }, body: { rangs } });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
-            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." });
+            setErreur(phraseEchec(r.error));
+            notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." }, { erreur: r.error });
             return;
         }
         setErreur(null);
@@ -102,8 +102,8 @@ export function RevueChampParChamp({
         setAApercevoir(null);
         const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero } });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
-            notifier.echec({ en: "The version could not be restored. Try again.", fr: "La version n'a pas pu être restaurée. Réessayez." });
+            setErreur(phraseEchec(r.error));
+            notifier.echec({ en: "The version could not be restored. Try again.", fr: "La version n'a pas pu être restaurée. Réessayez." }, { erreur: r.error });
             return;
         }
         setErreur(null);

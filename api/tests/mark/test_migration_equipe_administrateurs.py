@@ -172,3 +172,32 @@ async def test_la_descente_retire_les_tables_et_la_remontee_refait_la_graine(tes
 )
 def test_la_variable_se_lit_sans_casse_ni_doublon(brut, attendu):
     assert _migration().adresses_des_administrateurs(brut) == attendu
+
+
+async def test_la_sortie_dit_les_promus_et_les_adresses_introuvables_sans_les_autres_adresses(test_engine, monkeypatch, capsys):
+    """Revue de contrôle, point 7 : une adresse mal tapée ne passe plus sans bruit ; aucune adresse d'un autre compte n'est écrite."""
+    monkeypatch.setenv("MARK_ADMINISTRATEURS", "evan@example.com, pierr@example.com")
+
+    def cas(connexion):
+        ids = _decor(connexion, COMPTES)
+        _monter(connexion)
+        return ids
+
+    ids = await _jouer(test_engine, cas)
+    sortie = capsys.readouterr().out
+    assert f"(id) : {ids['evan@example.com']}" in sortie  # l'identifiant promu
+    assert "pierr@example.com" in sortie and "introuvables" in sortie  # la faute de frappe se voit
+    assert "stagiaire@example.com" not in sortie and "pierre@example.com" not in sortie  # jamais les autres comptes
+
+
+async def test_la_sortie_dit_le_repli_quand_aucune_adresse_n_est_trouvee(test_engine, monkeypatch, capsys):
+    monkeypatch.setenv("MARK_ADMINISTRATEURS", "personne@example.com")
+
+    def cas(connexion):
+        _decor(connexion, COMPTES)
+        _monter(connexion)
+
+    await _jouer(test_engine, cas)
+    sortie = capsys.readouterr().out
+    assert "repli sur le plus ancien compte" in sortie and "personne@example.com" in sortie
+    assert "evan@example.com" not in sortie
