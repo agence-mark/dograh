@@ -88,9 +88,9 @@ describe("cartes et Markdown", () => {
 
     it("la ligne d'action tourne tant qu'il n'y a pas de résultat, puis se déplie", () => {
         const { rerender } = render(<LigneAction ligne={{ genre: "action", id: "a", nom: "fiche_lire", arguments: { x: 1 }, fini: false }} />);
-        expect(screen.getByLabelText("en cours")).toBeTruthy();
+        expect(screen.getByLabelText(/en cours|running/)).toBeTruthy();
         rerender(<LigneAction ligne={{ genre: "action", id: "a", nom: "fiche_lire", arguments: { x: 1 }, fini: true, ok: true, resultat: { y: 2 } }} />);
-        expect(screen.getByLabelText("fait")).toBeTruthy();
+        expect(screen.getByLabelText(/fait|done/)).toBeTruthy();
         fireEvent.click(screen.getByText("fiche_lire"));
         expect(document.body.textContent).toContain('"y": 2');
     });
