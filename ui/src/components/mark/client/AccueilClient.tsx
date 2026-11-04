@@ -6,12 +6,13 @@
  * réelle de CE client (l'organisation est celle de l'adresse) ; une lecture qui échoue se dit « illisible », jamais un état inventé.
  * « Ouvrir son portail » reste affiché désactivé, avec sa raison, tant que le portail n'existe pas.
  */
-import { AudioLines, Check, Circle, Database, ExternalLink, Inbox, KeyRound, Phone, Plug, Workflow, type LucideIcon } from "lucide-react";
+import { AudioLines, Check, Circle, Database, ExternalLink, Inbox, KeyRound, Phone, PhoneIncoming, Plug, Star, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+    chiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGet,
     getApresAppelApiV1OrganizationsApresAppelGet,
     getBaseClientApiV1OrganizationsBaseClientGet,
     getConnexionsApiV1ConnecteursConnexionsGet,
@@ -21,6 +22,7 @@ import {
     lireLaFileDeTriApiV1TriGet,
 } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { BandeChiffres } from "@/components/mark/qualite/BandeChiffres";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { useNomEspace } from "@/components/mark/studio/nom-espace";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
@@ -58,6 +60,13 @@ const T = {
     cle: { en: "key(s)", fr: "clé(s)" },
     points: { en: "point(s) waiting", fr: "point(s) en attente" },
     chargement: { en: "Loading…", fr: "Lecture…" },
+    appels7j: { en: "Calls in 7 days", fr: "Appels sur 7 jours" },
+    tousAgents: { en: "all agents", fr: "tous agents" },
+    noteJuge: { en: "Judge score", fr: "Note du juge" },
+    surCinq: { en: "out of 5", fr: "sur 5" },
+    aucunAppelNote: { en: "no scored call yet", fr: "aucun appel noté" },
+    dontGraves: { en: "of which serious", fr: "dont graves" },
+    aucunPoint: { en: "none", fr: "aucun" },
 } satisfies Record<string, Texte>;
 
 type Etat = { fait: boolean; texte: string } | "illisible" | null;
@@ -78,13 +87,16 @@ export default function AccueilClient() {
     const [erreurAgents, setErreurAgents] = useState(false);
     const [lignes, setLignes] = useState<Ligne[]>([]);
     const [aAmeliorer, setAAmeliorer] = useState<number | "illisible" | null>(null);
+    // O-1 : les chiffres de CE client (appels des 7 jours, note du juge), lus sur le serveur ; jamais un chiffre inventé.
+    const [graves, setGraves] = useState(0);
+    const [chiffres, setChiffres] = useState<{ appels: number; note: number | null; publies: number } | "illisible" | null>(null);
 
     useEffect(() => {
         if (authLoading || !user) return;
         let vivant = true;
         // Une seule fois chaque lecture, toutes en parallèle (jamais en chaîne).
         void (async () => {
-            const [ag, base, apres, connexions, telephonie, cles, tri] = await Promise.all([
+            const [ag, base, apres, connexions, telephonie, cles, tri, chiffresLus] = await Promise.all([
                 getWorkflowsSummaryApiV1WorkflowSummaryGet(),
                 getBaseClientApiV1OrganizationsBaseClientGet(),
                 getApresAppelApiV1OrganizationsApresAppelGet(),
@@ -92,8 +104,11 @@ export default function AccueilClient() {
                 listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet(),
                 listerLesClesApiV1ClesGet(),
                 lireLaFileDeTriApiV1TriGet(),
+                chiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGet({ path: { organization_id: Number(org) } }),
             ]);
             if (!vivant) return;
+            setChiffres(chiffresLus.error || !chiffresLus.data ? "illisible" : { appels: chiffresLus.data.appels_7j, note: chiffresLus.data.note_juge ?? null, publies: chiffresLus.data.agents_publies });
+            setGraves(tri.data ? tri.data.lignes.filter((l) => (l as { gravite?: number }).gravite === 3).length : 0);
             if (ag.error || !Array.isArray(ag.data)) setErreurAgents(true);
             else setAgents(ag.data);
             setAAmeliorer(tri.error || !tri.data ? "illisible" : tri.data.lignes.length);
@@ -171,6 +186,35 @@ export default function AccueilClient() {
                         </Button>
                     }
                 />
+
+                {/* O-1 : la bande de chiffres de la maquette, pour un client en service (au moins un agent publié). */}
+                {chiffres !== null && (chiffres === "illisible" || chiffres.publies > 0) && (
+                    <div data-testid="bande-du-client">
+                        <BandeChiffres
+                            colonnes={3}
+                            chiffres={[
+                                {
+                                    icone: PhoneIncoming,
+                                    libelle: t(T.appels7j),
+                                    valeur: chiffres === "illisible" ? "–" : String(chiffres.appels),
+                                    phrase: chiffres === "illisible" ? t(T.illisible) : t(T.tousAgents),
+                                },
+                                {
+                                    icone: Star,
+                                    libelle: t(T.noteJuge),
+                                    valeur: chiffres === "illisible" || chiffres.note === null ? "–" : t({ en: String(chiffres.note), fr: String(chiffres.note).replace(".", ",") }),
+                                    phrase: chiffres === "illisible" ? t(T.illisible) : chiffres.note === null ? t(T.aucunAppelNote) : t(T.surCinq),
+                                },
+                                {
+                                    icone: Inbox,
+                                    libelle: t(T.aAmeliorer),
+                                    valeur: typeof aAmeliorer === "number" ? String(aAmeliorer) : "–",
+                                    phrase: typeof aAmeliorer !== "number" ? t(T.illisible) : aAmeliorer === 0 ? t(T.aucunPoint) : `${t(T.dontGraves)} : ${graves}`,
+                                },
+                            ]}
+                        />
+                    </div>
+                )}
 
                 <section>
                     <div className="flex items-center pb-3">

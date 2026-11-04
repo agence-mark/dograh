@@ -60,7 +60,7 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { AccueilRelation, EcranAvis, EcranEntrees, EcranMessages, FicheClient } from "./EcransRelation";
+import { AccueilRelation, EcranAvis, EcranClients, EcranEntrees, EcranMessages, FicheClient } from "./EcransRelation";
 import { oublierLectureClients } from "./lecture-clients";
 
 const maintenant = new Date().toISOString();
@@ -117,6 +117,19 @@ describe("Accueil : tout ce qui attend, avec ses chiffres (V3, E94)", () => {
     });
 });
 
+describe("Clients : la note affichée est la note du juge (N-2)", () => {
+    it("la note est nommée « Note du juge » (moyenne sur 7 jours), jamais une note d'avis", async () => {
+        sdk.clients.mockImplementation(() =>
+            ok([{ id: 7, nom: "Nuances de Feu", ouverts: 0, non_lus: 0, demandes_nouvelles: 0, etat: "actif", agents: 1, appels_7j: 4, note: 4.5, signalements: 0, pannes: 0 }]),
+        );
+        avec(<EcranClients />);
+        const note = await screen.findByTestId("note-du-juge");
+        expect(note.textContent).toContain("Note du juge");
+        expect(note.textContent).toContain("4,5");
+        expect(note.getAttribute("title")).toBe("Note moyenne du juge sur 7 jours");
+    });
+});
+
 describe("Messages : les trois états vides de la colonne des fils (J, E102)", () => {
     it("aucun fil nulle part : « Aucun fil », sans bouton", async () => {
         sdk.fils.mockImplementation(() => ok([]));
@@ -156,6 +169,8 @@ describe("Messages", () => {
         avec(<EcranMessages fil={1} />);
         const liste = (await screen.findByLabelText("Suivi par personne")) as HTMLSelectElement;
         await waitFor(() => expect([...liste.options].map((o) => o.textContent)).toEqual(["Suivi par personne", "Suivi par Pierre", "Suivi par Evan"]));
+        // N-1 : la liste est demandée POUR ce client (le serveur ne rend que les membres dont le rôle l'ouvre).
+        expect(sdk.equipe).toHaveBeenCalledWith({ query: { client: 7 } });
         fireEvent.change(liste, { target: { value: "4" } });
         await waitFor(() => expect(sdk.modifier).toHaveBeenCalled());
         expect(sdk.modifier.mock.calls[0][0]).toMatchObject({ path: { organization_id: 7, fil_id: 1 }, body: { suivi_par: 4 } });

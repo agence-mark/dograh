@@ -354,9 +354,22 @@ def _correspond(element: Element, requete: str) -> tuple[bool, str | None]:
     return extrait is not None, extrait
 
 
+async def nombres_par_famille() -> dict[str, int]:
+    """Lot 14 (I-5) : le nombre d'éléments de chaque famille, en UNE lecture (clé ``MARK_BIBLIO:<famille>:<slug>``)."""
+    org = organisation_bibliotheque()
+    if org is None:
+        return {}
+    nombres: dict[str, int] = {}
+    for cle, _brut in await stock.lister(org, PREFIXE_BIBLIO):
+        famille = cle[len(PREFIXE_BIBLIO) :].partition(":")[0]
+        if famille:
+            nombres[famille] = nombres.get(famille, 0) + 1
+    return nombres
+
+
 async def parcourir(
     famille: str | None = None,
-    statut: Statut | None = None,
+    statut: Statut | list[Statut] | None = None,
     *,
     dossier: str | None = None,
     etiquettes: list[str] | None = None,
@@ -374,13 +387,15 @@ async def parcourir(
     prefixe = f"{PREFIXE_BIBLIO}{famille}:" if famille else PREFIXE_BIBLIO
     requete = " ".join((recherche or "").split()).casefold()
     voulues = {e.casefold() for e in (etiquettes or [])}
+    # Lot 14 (I-1) : plusieurs statuts se cumulent (un élément est gardé s'il a l'un d'eux).
+    statuts = {statut} if isinstance(statut, Statut) else set(statut or [])
     trouves: list[tuple[Element, str | None]] = []
     for _cle, brut in await stock.lister(org, prefixe):
         try:
             element = Element.model_validate(brut)
         except ValidationError:
             continue
-        if statut is not None and element.statut is not statut:
+        if statuts and element.statut not in statuts:
             continue
         if dossier is not None and not (element.dossier == dossier or element.dossier.startswith(f"{dossier}/")):
             continue

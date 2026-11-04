@@ -184,7 +184,7 @@ describe("[.mark] la vue d'un groupe", () => {
     it("montre la carte du principal (nom, numéros, fiche) et ses spécialisés dessous avec leur badge", () => {
         const vue = ouvrirLeGroupe();
         expect(within(vue).getAllByText("Principal").length).toBeGreaterThan(0);
-        expect(vue.textContent).toContain("+33 3 44 00 00 00");
+        expect(vue.textContent).toContain("03 44 00 00 00"); // L-5 : affichage à la française, le stockage garde le « +33 »
         expect(vue.textContent).toContain("creil");
         const lignes = within(vue).getAllByRole("link", { name: /^Edit / });
         expect(lignes.map((l) => l.getAttribute("aria-label"))).toEqual(["Edit Principal", "Edit Spécialisé un", "Edit Spécialisé deux"]);

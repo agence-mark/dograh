@@ -207,7 +207,14 @@ async def lire_invitation(jeton: str) -> dict:
     ):
         raise ErreurEquipe(410, "This invitation is no longer valid")
     role = await db_client.obtenir_role(ligne["role_id"])
-    return {"email": ligne["email"], "role_nom": role["nom"] if role else ""}
+    invitant = await db_client.obtenir_membre(ligne["cree_par"]) if ligne.get("cree_par") else None
+    nom = " ".join(p for p in ((invitant or {}).get("prenom"), (invitant or {}).get("nom")) if p)
+    return {
+        "email": ligne["email"],
+        "role_nom": role["nom"] if role else "",
+        "invite_par": nom or None,
+        "expire_le": ligne["expire_le"],
+    }
 
 
 async def accepter_invitation(jeton: str, prenom: str, nom: str, mot_de_passe: str) -> tuple[object, str]:

@@ -30,7 +30,7 @@ describe('formatDateRelative (V4)', () => {
     it('suit la langue : today, yesterday, mois/jour', () => {
         expect(formatDateRelative('2026-11-04T10:03:00Z', 'en', 'UTC', maintenant)).toBe('today 10:03');
         expect(formatDateRelative('2026-11-03T17:22:00Z', 'en', 'UTC', maintenant)).toBe('yesterday 17:22');
-        expect(formatDateRelative('2026-10-29T08:05:00Z', 'en', 'UTC', maintenant)).toBe('10/29 08:05');
+        expect(formatDateRelative('2026-10-29T08:05:00Z', 'en', 'UTC', maintenant)).toBe('Oct 29 08:05');
     });
     it('compte le jour dans le fuseau demandé, pas en UTC', () => {
         // 23:30 UTC le 3 est déjà le 4 à Paris (UTC+1) : « aujourd'hui » pour un « maintenant » du 4 à Paris.

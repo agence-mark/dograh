@@ -8,6 +8,7 @@ import {
   saveDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentPut,
 } from '@/client/sdk.gen';
 import type { DocumentResponseSchema } from '@/client/types.gen';
+import { useLangue } from '@/components/mark/langue/langue';
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,8 @@ interface DocumentEditorProps {
 }
 
 export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditorProps) {
+  // [.mark] Lot 14 (K-1) : tous les textes de l'éditeur en français et en anglais.
+  const { t } = useLangue();
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
   const [fileHash, setFileHash] = useState('');
@@ -71,7 +74,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
       } catch (err) {
         if (cancelled) return;
         logger.error('Error loading document content:', err);
-        setLoadError('Failed to load document');
+        setLoadError(t({ en: 'Failed to load document', fr: "Le document n'a pas pu être chargé." }));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -92,7 +95,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
 
   const handleOpenChange = (open: boolean) => {
     if (open || isSaving) return;
-    if (isDirty && !confirm('Discard your unsaved changes?')) return;
+    if (isDirty && !confirm(t({ en: 'Discard your unsaved changes?', fr: 'Abandonner les modifications non enregistrées ?' }))) return;
     onClose();
   };
 
@@ -113,7 +116,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
       onSaved();
     } catch (err) {
       logger.error('Error saving document content:', err);
-      setSaveError('Failed to save document');
+      setSaveError(t({ en: 'Failed to save document', fr: "Le document n'a pas pu être enregistré." }));
     } finally {
       setIsSaving(false);
     }
@@ -126,8 +129,14 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
           <DialogTitle className="truncate pr-6">{doc?.filename}</DialogTitle>
           <DialogDescription>
             {isChunked
-              ? 'Saving re-splits and re-embeds this document. Agents keep using the current version until that finishes.'
-              : 'Agents keep using the current version until the saved text finishes processing, usually a few seconds.'}
+              ? t({
+                  en: 'Saving re-splits and re-embeds this document. Agents keep using the current version until that finishes.',
+                  fr: "L'enregistrement redécoupe et réindexe le document. Les agents gardent la version actuelle jusqu'à la fin.",
+                })
+              : t({
+                  en: 'Agents keep using the current version until the saved text finishes processing, usually a few seconds.',
+                  fr: "Les agents gardent la version actuelle jusqu'à la fin du traitement du texte enregistré, en général quelques secondes.",
+                })}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,7 +148,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
             className="flex h-[60vh] w-full flex-col items-center justify-center gap-2 rounded-md border border-input text-sm text-muted-foreground"
           >
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span>Loading document...</span>
+            <span>{t({ en: 'Loading document...', fr: 'Chargement du document…' })}</span>
           </div>
         ) : loadError ? (
           <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
@@ -147,6 +156,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
           </div>
         ) : (
           <Textarea
+            aria-label={t({ en: 'Document text', fr: 'Texte du document' })}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             disabled={isSaving}
@@ -159,10 +169,14 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
-            Cancel
+            {t({ en: 'Cancel', fr: 'Annuler' })}
           </Button>
           <Button onClick={handleSave} disabled={!canSave}>
-            {isSaving ? 'Saving...' : isChunked ? 'Save & re-index' : 'Save'}
+            {isSaving
+              ? t({ en: 'Saving...', fr: 'Enregistrement…' })
+              : isChunked
+                ? t({ en: 'Save & re-index', fr: 'Enregistrer et réindexer' })
+                : t({ en: 'Save', fr: 'Enregistrer' })}
           </Button>
         </DialogFooter>
       </DialogContent>

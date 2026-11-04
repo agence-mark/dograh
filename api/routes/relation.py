@@ -194,6 +194,22 @@ async def lister_clients(user: UserModel = Depends(membre)) -> list[ClientOut]:
     ]
 
 
+class ChiffresClient(BaseModel):
+    """Partie 3, lot 15 (O-1) : la bande de chiffres de l'accueil d'un client. ``None`` = aucun appel noté, jamais un zéro inventé."""
+
+    appels_7j: int
+    note_juge: float | None
+    agents_publies: int
+
+
+@router.get("/clients/{organization_id}/chiffres", response_model=ChiffresClient)
+async def chiffres_d_un_client(organization_id: int, user: UserModel = Depends(membre)) -> ChiffresClient:
+    """Appels des 7 derniers jours et note moyenne du juge de CE client (le client doit être ouvert à l'appelant, sinon 404)."""
+    nom = await hub.client_ouvert(user, organization_id)
+    ligne = (await db_client.statistiques_des_clients_relation({organization_id: nom}))[organization_id]
+    return ChiffresClient(appels_7j=ligne["appels_7j"], note_juge=ligne["note"], agents_publies=ligne["agents_publies"])
+
+
 @router.get("/file", response_model=list[FilOut])
 async def ma_file(user: UserModel = Depends(membre)) -> list[FilOut]:
     """« Ma file » : tout ce qui attend (fils nouveaux ou en cours, demandes comprises), le plus récent d'abord."""
@@ -261,9 +277,15 @@ async def repondre(
 
 
 @router.get("/membres", response_model=list[MembreASuivre])
-async def membres_a_qui_confier_un_fil(user: UserModel = Depends(membre)) -> list[MembreASuivre]:
-    """Les membres de l'équipe .mark (id et nom) : la liste « Suivi par » d'un fil. Réservée à l'équipe, jamais une adresse."""
-    return [MembreASuivre(**m) for m in await hub.membres_a_suivre()]
+async def membres_a_qui_confier_un_fil(
+    client: int | None = Query(None, description="The client of the thread: only the members whose role opens it."),
+    user: UserModel = Depends(membre),
+) -> list[MembreASuivre]:
+    """Les membres de l'équipe .mark (id et nom) : la liste « Suivi par » d'un fil. Réservée à l'équipe, jamais une adresse.
+    Avec ``client`` : seulement ceux dont le rôle ouvre ce client (le client doit être ouvert à l'appelant, sinon 404)."""
+    if client is not None:
+        await hub.client_ouvert(user, client)
+    return [MembreASuivre(**m) for m in await hub.membres_a_suivre(client)]
 
 
 @router.patch("/clients/{organization_id}/fils/{fil_id}", status_code=204)
@@ -277,7 +299,7 @@ async def modifier_fil(
     if corps.lu is not None:
         champs["lu_par_mark"] = corps.lu
     if corps.suivi_par is not None:
-        choisi = next((m for m in await hub.membres_a_suivre() if m["id"] == corps.suivi_par), None)
+        choisi = next((m for m in await hub.membres_a_suivre(organization_id) if m["id"] == corps.suivi_par), None)
         if choisi is None:
             raise HTTPException(status_code=422, detail="Unknown team member")
         champs.update(suivi_par=choisi["id"], suivi_nom=choisi["nom"])

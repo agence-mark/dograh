@@ -38,6 +38,7 @@ const m = vi.hoisted(() => ({
     creerEtiquette: vi.fn(),
     renommerEtiquette: vi.fn(),
     supprimerEtiquette: vi.fn(),
+    champs: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
@@ -54,6 +55,7 @@ vi.mock("@/client", () => ({
     creerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPost: (...a: unknown[]) => m.creerEtiquette(...a),
     renommerUneEtiquetteApiV1BuilderBibliothequeEtiquettesPut: (...a: unknown[]) => m.renommerEtiquette(...a),
     supprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDelete: (...a: unknown[]) => m.supprimerEtiquette(...a),
+    champsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGet: (...a: unknown[]) => m.champs(...a),
     lireUnElementApiV1BuilderBibliothequeFamilleSlugGet: (...a: unknown[]) => m.element(...a),
     lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet: (...a: unknown[]) => m.usage(...a),
     creerUnElementApiV1BuilderBibliothequeFamillePost: (...a: unknown[]) => m.creer(...a),
@@ -93,6 +95,7 @@ beforeEach(() => {
     m.element.mockResolvedValue({ data: ELEMENT });
     m.usage.mockResolvedValue({ data: { nombre: 2, agents: [] } });
     m.propositions.mockResolvedValue({ data: [] });
+    m.champs.mockResolvedValue({ data: [] });
 });
 afterEach(() => {
     cleanup();
@@ -486,3 +489,52 @@ describe("[.mark] K5: the « New element » window and the frame of the maquette
     });
 });
 
+describe("[.mark] lot 14 (SE-21): Library, I-1, I-3, I-5", () => {
+    it("I-5: each family shows its number of elements, read with the list of families", async () => {
+        m.familles.mockResolvedValue({ data: [{ ...FAMILLES[0], nombre: 3 }, { ...FAMILLES[1], nombre: 0 }] });
+        render(<PageBibliotheque />);
+        expect((await screen.findByTestId("nombre-moules-etape")).textContent).toBe("3");
+        expect(screen.getByTestId("nombre-lexiques").textContent).toBe("0");
+    });
+
+    it("I-1: the status pills add up and are sent to the server as a list; a second click on a pill takes it off", async () => {
+        render(<PageBibliotheque />);
+        await screen.findByTestId("element-lexiques-commun");
+        fireEvent.click(screen.getByRole("button", { name: "Candidate" }));
+        fireEvent.click(screen.getByRole("button", { name: "Rejected" }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ statut: ["candidat", "rejete"] }) }));
+        fireEvent.click(screen.getByRole("button", { name: "Candidate" }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ statut: ["rejete"] }) }));
+        fireEvent.click(screen.getByRole("button", { name: "Rejected" }));
+        await waitFor(() => expect(m.elements).toHaveBeenLastCalledWith({ query: expect.objectContaining({ statut: undefined }) }));
+    });
+
+    it("I-3: a family read by a mechanism shows a form of its fields (no JSON by hand) and sends the content built from them", async () => {
+        m.familles.mockResolvedValue({ data: [{ ...FAMILLES[0], slug: "scenarios-test", libelle: "Test scenarios" }] });
+        m.champs.mockResolvedValue({
+            data: [
+                { nom: "but", sorte: "long", obligatoire: true, choix: [] },
+                { nom: "tours_max", sorte: "nombre", obligatoire: false, choix: [] },
+                { nom: "questions_juge", sorte: "liste", obligatoire: false, choix: [] },
+                { nom: "criteres", sorte: "objet", obligatoire: false, choix: [] },
+            ],
+        });
+        m.creer.mockResolvedValue({ data: { famille: "scenarios-test", slug: "panne" } });
+        render(<PageBibliotheque />);
+        const form = await fenetreNouvelElement();
+        const champs = await within(form).findByTestId("champs-de-la-famille");
+        expect(within(form).queryByLabelText("Content (JSON)")).toBeNull();
+        fireEvent.change(within(form).getByLabelText("Title"), { target: { value: "Panne" } });
+        fireEvent.change(within(champs).getByLabelText("but"), { target: { value: "Booking" } });
+        fireEvent.change(within(champs).getByLabelText("tours max"), { target: { value: "8" } });
+        fireEvent.change(within(champs).getByLabelText("questions juge"), { target: { value: "Q1\n\nQ2" } });
+        fireEvent.change(within(champs).getByLabelText("criteres"), { target: { value: "[{" } });
+        fireEvent.click(within(form).getByRole("button", { name: "Create as a Candidate" }));
+        expect((await within(champs).findByRole("alert")).textContent).toContain("Not valid JSON");
+        expect(m.creer).not.toHaveBeenCalled();
+        fireEvent.change(within(champs).getByLabelText("criteres"), { target: { value: '[{"type":"x"}]' } });
+        fireEvent.click(within(form).getByRole("button", { name: "Create as a Candidate" }));
+        await waitFor(() => expect(m.creer).toHaveBeenCalled());
+        expect(m.creer.mock.calls[0][0].body.contenu).toEqual({ but: "Booking", tours_max: 8, questions_juge: ["Q1", "Q2"], criteres: [{ type: "x" }] });
+    });
+});

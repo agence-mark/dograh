@@ -58,6 +58,7 @@ import {
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
 import { BlocSecoursPanne } from "./BlocSecoursPanne";
+import { type Lu, useEtatsDesLignes } from "./etats-des-lignes";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
@@ -521,6 +522,15 @@ export const ThemeIntegrations = ({
     useSignaler("integrations", modifie, false, signaler);
 
     const nombreConnexions = connecteurs.etat?.connexions?.length ?? 0;
+    // L-1 : l'état de chaque ligne vient de sa vraie route (jamais « Dans la fenêtre »).
+    const etats = useEtatsDesLignes();
+    const dire = <T,>(lu: Lu<T>, texte: (v: T) => string) => (lu.etat === "lu" ? texte(lu.valeur) : lu.etat === "illisible" ? t({ en: "unreadable", fr: "illisible" }) : t(CHARGEMENT));
+    const agendas = (connecteurs.etat?.connexions ?? []).filter((x) => connecteurs.catalogue?.find((c) => c.integration === x.integration)?.categorie === "Agenda");
+    const valeurAgenda = !connecteurs.etat
+        ? t(CHARGEMENT)
+        : agendas.length === 0
+          ? t({ en: "No calendar connected", fr: "Aucun agenda branché" })
+          : [...new Set(agendas.map((x) => connecteurs.catalogue?.find((c) => c.integration === x.integration)?.libelle ?? x.integration))].join(", ");
     const correspondance = preferences.enregistrees.disposition_mapping ?? {};
     const nombre = Object.keys(correspondance).length;
     const texteNombre =
@@ -566,8 +576,8 @@ export const ThemeIntegrations = ({
                           })
                         : t(CHARGEMENT),
                 },
-                { libelle: { en: "Calendar software", fr: "Logiciel d'agenda" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
-                { libelle: { en: "Outage fallback", fr: "Repli en cas de panne" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+                { libelle: { en: "Calendar software", fr: "Logiciel d'agenda" }, valeur: valeurAgenda },
+                { libelle: { en: "Outage fallback", fr: "Repli en cas de panne" }, valeur: dire(etats.repli, (r) => (r ? t({ en: "Fallback address set", fr: "Adresse de secours réglée" }) : t({ en: "No fallback address", fr: "Aucune adresse de secours" }))) },
             ]}
             ouvert={ouvert}
             plat={plat}
@@ -708,6 +718,9 @@ export const ThemeDeveloppeurs = ({
     suite,
 }: ProprietesThemeOrganisation & { suite?: ReactNode }) => {
     const { t } = useLangue();
+    // L-1 : clés d'API, serveur MCP et traçage disent leur état, lu sur leur route.
+    const etats = useEtatsDesLignes();
+    const dire = <T,>(lu: Lu<T>, texte: (v: T) => string) => (lu.etat === "lu" ? texte(lu.valeur) : lu.etat === "illisible" ? t({ en: "unreadable", fr: "illisible" }) : t(CHARGEMENT));
     return (
         <Theme
             id="developpeurs"
@@ -716,9 +729,9 @@ export const ThemeDeveloppeurs = ({
             description={{ en: "MCP server and call tracing (Langfuse).", fr: "Serveur MCP et traçage des appels (Langfuse)." }}
             resume={[]}
             lignes={[
-                { libelle: { en: "Dograh API keys", fr: "Clés d'API de Dograh" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
-                { libelle: { en: "MCP server", fr: "Serveur MCP" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
-                { libelle: { en: "Call tracing (Langfuse)", fr: "Traçage des appels (Langfuse)" }, valeur: t({ en: "In the window", fr: "Dans la fenêtre" }) },
+                { libelle: { en: "Dograh API keys", fr: "Clés d'API de Dograh" }, valeur: dire(etats.cles, (n) => (n === 0 ? t({ en: "No key", fr: "Aucune clé" }) : t({ en: `${n} key${n > 1 ? "s" : ""}`, fr: `${n} clé${n > 1 ? "s" : ""}` }))) },
+                { libelle: { en: "MCP server", fr: "Serveur MCP" }, valeur: dire(etats.cles, (n) => (n === 0 ? t({ en: "No API key: it cannot be reached", fr: "Sans clé d'API : injoignable" }) : t({ en: "Ready (API key)", fr: "Prêt (clé d'API)" }))) },
+                { libelle: { en: "Call tracing (Langfuse)", fr: "Traçage des appels (Langfuse)" }, valeur: dire(etats.langfuse, (c) => (c ? t({ en: "Configured", fr: "Configuré" }) : t({ en: "Not configured", fr: "Non configuré" }))) },
             ]}
             ouvert={ouvert}
             plat={plat}

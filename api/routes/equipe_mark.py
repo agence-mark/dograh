@@ -269,9 +269,22 @@ class JournalLigne(BaseModel):
     auteur: str
     prenom: str | None
     nom: str | None
+    # Lot 15 (P-1) : le nom à montrer. Un compte sans nom n'a pas d'identifiant brut à l'écran : ``None`` et ``sans_nom`` vrai
+    # (l'écran dit « Compte sans nom »). Un geste sans compte (clé d'API du portail) garde son auteur.
+    qui: str | None = None
+    sans_nom: bool = False
     action: str
     organization_id: int | None
     detail: dict | None
+
+
+def _ligne_du_journal(ligne: dict) -> JournalLigne:
+    nom = " ".join(p for p in (ligne.get("prenom"), ligne.get("nom")) if p)
+    if nom:
+        return JournalLigne(**ligne, qui=nom)
+    if ligne.get("user_id") is not None:
+        return JournalLigne(**ligne, qui=None, sans_nom=True)
+    return JournalLigne(**ligne, qui=ligne.get("auteur"))
 
 
 class JournalResponse(BaseModel):
@@ -283,19 +296,25 @@ class JournalResponse(BaseModel):
 
 @router.get("/journal", response_model=JournalResponse)
 async def lire_le_journal(
-    organization_id: int | None = Query(None),
+    organization_id: int | None = Query(None, description="Only this space."),
+    membre: int | None = Query(None, description="Only this member (his user id)."),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user: UserModel = Depends(get_user),
 ) -> JournalResponse:
-    lignes, total = await db_client.lister_journal(limit=limit, offset=offset, organization_id=organization_id)
-    return JournalResponse(lignes=[JournalLigne(**ligne) for ligne in lignes], total=total, limit=limit, offset=offset)
+    lignes, total = await db_client.lister_journal(
+        limit=limit, offset=offset, organization_id=organization_id, user_id=membre
+    )
+    return JournalResponse(lignes=[_ligne_du_journal(ligne) for ligne in lignes], total=total, limit=limit, offset=offset)
 
 
 # ---------------------------------------------------------------------- page publique « Rejoindre l'équipe »
 class InvitationLueResponse(BaseModel):
     email: str
     role_nom: str
+    # Lot 15 (P-3) : qui invite (son nom, jamais son adresse ; ``None`` s'il n'a pas de nom) et jusqu'à quand le lien vaut.
+    invite_par: str | None = None
+    expire_le: datetime | None = None
 
 
 class AccepterRequest(BaseModel):

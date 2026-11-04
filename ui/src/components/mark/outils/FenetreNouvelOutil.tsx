@@ -105,7 +105,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
             <FenetreOnglets
                 fermer={fermer}
                 titre={t({ en: "New tool", fr: "Nouvel outil" })}
-                sous={t({ en: "Choose what the agent will be able to do.", fr: "Choisissez ce que l'agent pourra faire." })}
+                info={t({ en: "Choose what the agent will be able to do.", fr: "Choisissez ce que l'agent pourra faire." })}
                 valider={null}
             >
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -135,7 +135,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
         <FenetreOnglets
             fermer={() => setType(null)}
             titre={t(LIBELLES_TYPE[type])}
-            sous={t(DESCRIPTIONS[type])}
+            info={t(DESCRIPTIONS[type])}
             valider={enCours ? t({ en: "Creating…", fr: "Création…" }) : t({ en: "Create", fr: "Créer" })}
             desactiver={enCours}
             modifie={nom !== "" || description !== "" || integration !== null || agent !== ""}

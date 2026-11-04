@@ -12,13 +12,14 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { CadreAcces, ChampAcces, PiedAcces } from "@/components/mark/studio/cadre-acces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/dateTime";
 
 const MOT_DE_PASSE_MIN = 12;
 
 /** [.mark] « Rejoindre l'équipe .mark » (U2 ter) : prénom, nom, mot de passe de 12 caractères au moins. */
 export function PageInvitation({ jeton }: { jeton: string }) {
-    const { t } = useLangue();
-    const [invitation, setInvitation] = useState<{ email: string; role_nom: string } | null>(null);
+    const { t, langue } = useLangue();
+    const [invitation, setInvitation] = useState<{ email: string; role_nom: string; invite_par?: string | null; expire_le?: string | null } | null>(null);
     const [etat, setEtat] = useState<"lecture" | "ouverte" | "refusee">(jeton ? "lecture" : "refusee");
     const [prenom, setPrenom] = useState("");
     const [nom, setNom] = useState("");
@@ -90,8 +91,17 @@ export function PageInvitation({ jeton }: { jeton: string }) {
             sousTitre={
                 invitation && (
                     <>
-                        {t({ en: "You are invited as", fr: "Vous êtes invité comme" })}{" "}
+                        {/* P-3 : qui invite (son nom, jamais son adresse) et jusqu'à quand le lien vaut, comme la maquette. */}
+                        {invitation.invite_par
+                            ? t({ en: `${invitation.invite_par} invites you as`, fr: `${invitation.invite_par} vous invite comme` })
+                            : t({ en: "You are invited as", fr: "Vous êtes invité comme" })}{" "}
                         <span className="font-medium text-foreground">{invitation.role_nom}</span>.
+                        {invitation.expire_le && (
+                            <>
+                                {" "}
+                                {t({ en: "Link valid until", fr: "Lien valable jusqu'au" })} {formatDateTime(invitation.expire_le, null, langue)}.
+                            </>
+                        )}
                     </>
                 )
             }

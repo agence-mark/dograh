@@ -9,13 +9,14 @@
 import { useEffect, useState } from "react";
 
 import {
+    champsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGet,
     creerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersPost,
     creerUnElementApiV1BuilderBibliothequeFamillePost,
     importerApiV1BuilderBibliothequeImportPost,
     listerLesDossiersApiV1BuilderBibliothequeFamillesFamilleDossiersGet,
     rangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPost,
 } from "@/client";
-import type { VueEtiquette, VueFamille } from "@/client/types.gen";
+import type { ChampDeFamille, VueEtiquette, VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { Carte, ChampFenetre, FenetreLarge } from "@/components/mark/studio/fenetre-large";
@@ -28,6 +29,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ChoixEtiquettes } from "./ChoixEtiquettes";
 import { DepotDeDocument, STRUCTUREES } from "./DepotDeDocument";
+
+/**
+ * Lot 14 (I-3) : le contenu d'une famille à forme imposée, construit depuis ses champs (lus sur le serveur) au lieu d'un
+ * JSON écrit à la main. ``null`` + un message : un champ n'est pas lisible (liste d'objets mal formée).
+ */
+export function contenuDesChamps(champs: ChampDeFamille[], valeurs: Record<string, string>): { contenu: Record<string, unknown>; erreurs: Record<string, string> } {
+    const contenu: Record<string, unknown> = {};
+    const erreurs: Record<string, string> = {};
+    for (const c of champs) {
+        const brut = (valeurs[c.nom] ?? "").trim();
+        if (!brut) continue;
+        if (c.sorte === "nombre") {
+            const n = Number(brut);
+            if (Number.isFinite(n)) contenu[c.nom] = n;
+            else erreurs[c.nom] = "nombre";
+        } else if (c.sorte === "liste") contenu[c.nom] = brut.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        else if (c.sorte === "objet") {
+            try {
+                contenu[c.nom] = JSON.parse(brut);
+            } catch {
+                erreurs[c.nom] = "json";
+            }
+        } else contenu[c.nom] = brut;
+    }
+    return { contenu, erreurs };
+}
 
 /** Exemple de contenu JSON : un code, jamais traduit. */
 const EXEMPLE_JSON = '{\n  "texte": ""\n}';
@@ -75,6 +102,24 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
     const [enCours, setEnCours] = useState(false);
     const [comparatif, setComparatif] = useState<{ ajoutees: number; retirees: number; identique: boolean; diff: string } | null>(null);
     const structuree = STRUCTUREES.includes(slug);
+    // Lot 14 (I-3) : les champs de la famille, lus sur le serveur ; sans eux (route en échec, forme libre), le JSON d'avant.
+    const [champs, setChamps] = useState<ChampDeFamille[]>([]);
+    const [valeurs, setValeurs] = useState<Record<string, string>>({});
+    const [erreursChamps, setErreursChamps] = useState<Record<string, string>>({});
+    const formulaire = structuree && champs.length > 0;
+
+    useEffect(() => {
+        let vivant = true;
+        setChamps([]);
+        setValeurs({});
+        if (STRUCTUREES.includes(slug))
+            void champsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGet({ path: { famille: slug } }).then((r) => {
+                if (vivant) setChamps(!r.error && r.data ? r.data : []);
+            });
+        return () => {
+            vivant = false;
+        };
+    }, [slug]);
 
     useEffect(() => {
         let vivant = true;
@@ -91,7 +136,12 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
     const creer = async () => {
         if (!f) return;
         let contenu: Record<string, unknown>;
-        if (structuree) {
+        if (formulaire) {
+            const lu = contenuDesChamps(champs, valeurs);
+            setErreursChamps(lu.erreurs);
+            if (Object.keys(lu.erreurs).length) return;
+            contenu = lu.contenu;
+        } else if (structuree) {
             try {
                 const lu = JSON.parse(texte || "{}");
                 if (typeof lu !== "object" || lu === null || Array.isArray(lu)) throw new Error("not an object");
@@ -253,7 +303,56 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
                         changer={(v) => setFichier(v === t({ en: "Drop a file", fr: "Déposer un fichier" }))}
                     />
                 )}
-                {fichier && !structuree ? (
+                {formulaire ? (
+                    <div className="space-y-3" data-testid="champs-de-la-famille">
+                        {champs.map((c) => (
+                            <ChampFenetre
+                                key={c.nom}
+                                titre={`${c.nom.replace(/_/g, " ")}${c.obligatoire ? " *" : ""}`}
+                                info={
+                                    c.sorte === "liste"
+                                        ? t({ en: "One item per line.", fr: "Un élément par ligne." })
+                                        : c.sorte === "objet"
+                                          ? t({ en: "A list or an object, written as JSON.", fr: "Une liste ou un objet, écrit en JSON." })
+                                          : undefined
+                                }
+                            >
+                                {c.sorte === "choix" ? (
+                                    <Liste
+                                        valeur={valeurs[c.nom] ?? ""}
+                                        changer={(v) => setValeurs((x) => ({ ...x, [c.nom]: v }))}
+                                        vide={t({ en: "None", fr: "Aucun" })}
+                                        options={(c.choix ?? []).map((v) => ({ valeur: v, libelle: v }))}
+                                        taille="default"
+                                        className="w-full"
+                                    />
+                                ) : c.sorte === "texte" || c.sorte === "nombre" ? (
+                                    <Input
+                                        value={valeurs[c.nom] ?? ""}
+                                        inputMode={c.sorte === "nombre" ? "numeric" : undefined}
+                                        aria-label={c.nom.replace(/_/g, " ")}
+                                        onChange={(e) => setValeurs((x) => ({ ...x, [c.nom]: e.target.value }))}
+                                    />
+                                ) : (
+                                    <Textarea
+                                        rows={c.sorte === "objet" ? 5 : 4}
+                                        value={valeurs[c.nom] ?? ""}
+                                        className={c.sorte === "objet" ? "font-mono text-xs" : ""}
+                                        aria-label={c.nom.replace(/_/g, " ")}
+                                        onChange={(e) => setValeurs((x) => ({ ...x, [c.nom]: e.target.value }))}
+                                    />
+                                )}
+                                {erreursChamps[c.nom] && (
+                                    <p role="alert" className="mt-1 text-xs text-destructive">
+                                        {erreursChamps[c.nom] === "nombre"
+                                            ? t({ en: "A number, please.", fr: "Un nombre, s'il vous plaît." })
+                                            : t({ en: "Not valid JSON.", fr: "Ce n'est pas du JSON valide." })}
+                                    </p>
+                                )}
+                            </ChampFenetre>
+                        ))}
+                    </div>
+                ) : fichier && !structuree ? (
                     <DepotDeDocument
                         integre
                         familles={familles}

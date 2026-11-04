@@ -19,6 +19,7 @@ export function FenetreOnglets({
     fermer,
     titre,
     sous,
+    info,
     visuel,
     droite,
     onglets,
@@ -35,6 +36,8 @@ export function FenetreOnglets({
     fermer: () => void;
     titre: React.ReactNode;
     sous?: React.ReactNode;
+    /** L-2 : une phrase d'explication se dit dans un « ! » à côté du titre, jamais en ligne sous lui (`sous` reste pour une donnée : un état, un type). */
+    info?: React.ReactNode;
     visuel?: React.ReactNode;
     droite?: React.ReactNode;
     onglets?: string[];
@@ -68,7 +71,10 @@ export function FenetreOnglets({
                     <div className="flex items-start gap-3 pb-4">
                         {visuel}
                         <div className="min-w-0 flex-1">
-                            <DialogTitle className="flex items-center gap-2 text-lg">{titre}</DialogTitle>
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                {titre}
+                                {info && <Info>{info}</Info>}
+                            </DialogTitle>
                             {sous && <p className="mt-0.5 text-sm text-muted-foreground">{sous}</p>}
                         </div>
                         {droite}

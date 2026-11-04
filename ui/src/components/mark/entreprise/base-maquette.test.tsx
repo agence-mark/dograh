@@ -203,6 +203,10 @@ describe("[.mark] K4b : Base et automatisations", () => {
         expect(within(geste).getByRole("button", { name: "Créer une base" }).getAttribute("aria-pressed")).toBe("true");
         fireEvent.change(await screen.findByLabelText("Nom de la base"), { target: { value: "client_neuf" } });
         fireEvent.click(screen.getByTestId("enregistrer-base-client"));
+        // L-4 : une base est déjà rattachée, créer la détache : un second clic le confirme (l'ancienne reste sur le serveur).
+        expect((await screen.findByTestId("confirmer-changement-de-base")).textContent).toMatch(/reste sur le serveur/);
+        expect(m.creer).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByTestId("enregistrer-base-client"));
         await waitFor(() => expect(m.creer).toHaveBeenCalledWith({ body: { nom_base: "client_neuf" } }));
         expect(m.rattacher).not.toHaveBeenCalled();
         fireEvent.click(await screen.findByTestId("changer-de-base"));
@@ -213,6 +217,25 @@ describe("[.mark] K4b : Base et automatisations", () => {
         fireEvent.click(await screen.findByTestId("changer-de-base"));
         fireEvent.click(await screen.findByTestId("detacher-base-client"));
         await waitFor(() => expect(m.rattacher).toHaveBeenLastCalledWith({ body: { nom_base: null } }));
+    });
+
+    it("L-4 : changer le nom après la question la repose ; sans base rattachée, créer part tout de suite (rien à détacher)", async () => {
+        rendre(<Donnees />);
+        fireEvent.click(await screen.findByTestId("changer-de-base"));
+        fireEvent.change(await screen.findByLabelText("Nom de la base"), { target: { value: "client_neuf" } });
+        fireEvent.click(screen.getByTestId("enregistrer-base-client"));
+        await screen.findByTestId("confirmer-changement-de-base");
+        fireEvent.change(screen.getByLabelText("Nom de la base"), { target: { value: "client_autre" } });
+        expect(screen.queryByTestId("confirmer-changement-de-base")).toBeNull();
+        expect(m.creer).not.toHaveBeenCalled();
+        cleanup();
+        m.base.mockImplementation(() => Promise.resolve({ data: { ...BASE, nom_base: null, joignable: false, version: null, conservation: [] } }));
+        rendre(<Donnees />);
+        fireEvent.click(await screen.findByTestId("changer-de-base"));
+        fireEvent.change(await screen.findByLabelText("Nom de la base"), { target: { value: "client_premier" } });
+        fireEvent.click(screen.getByTestId("enregistrer-base-client"));
+        await waitFor(() => expect(m.creer).toHaveBeenCalledWith({ body: { nom_base: "client_premier" } }));
+        expect(screen.queryByTestId("confirmer-changement-de-base")).toBeNull();
     });
 
     it("sans base : l'état vide « Aucune base rattachée » et un seul geste", async () => {

@@ -39,6 +39,8 @@ import { Liste } from "../studio/liste";
 import { Info, Marque, PointEtat } from "../studio/marques";
 import { espaceDe } from "../studio/navigation-studio";
 import { Paginee } from "../studio/pagination";
+import { logoDe } from "./logos";
+import { DateRelative } from "../studio/date-relative";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 import { ActionDePage } from "./action-de-page";
 import { type Propositions } from "./usePropositions";
@@ -51,7 +53,14 @@ const initiales = (nom: string) =>
         .slice(0, 2)
         .toUpperCase();
 
-export function Initiales({ nom, taille = 40 }: { nom: string; taille?: number }) {
+export function Initiales({ nom, taille = 40, integration }: { nom: string; taille?: number; integration?: string | null }) {
+    const logo = logoDe(integration);
+    // Le logo officiel quand son fichier est versé (`logos.ts`), sinon les initiales.
+    if (logo)
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="" style={{ width: taille, height: taille }} className="inline-block shrink-0 rounded-lg border bg-background object-contain p-1" aria-hidden />
+        );
     return (
         <span
             style={{ width: taille, height: taille, fontSize: taille * 0.36 }}
@@ -87,6 +96,9 @@ type LigneCompte = {
     par: string;
     outils: number;
     le: string;
+    /** Lot 14 (J-2) : la dernière fois que Nango a servi les identifiants à un appel, et la dernière vérification (mise à jour). */
+    dernierUsage: string | null;
+    verifie: string | null;
 };
 
 const POINT = { connecte: "publie", a_verifier: "panne", a_autoriser: "attente" } as const;
@@ -106,6 +118,8 @@ function useLignes(connecteurs: Connecteurs, propositions: Propositions): LigneC
             par: x.autorise_par ?? "–",
             outils: (x.utilise_par ?? []).length,
             le: jour(x.creee_le, langue),
+            dernierUsage: x.dernier_usage_le ?? null,
+            verifie: x.mis_a_jour_le ?? null,
         });
     }
     for (const p of propositions.liste ?? []) {
@@ -120,6 +134,8 @@ function useLignes(connecteurs: Connecteurs, propositions: Propositions): LigneC
             par: p.propose_par ? t({ en: `proposed by ${p.propose_par}`, fr: `proposé par ${p.propose_par}` }) : t({ en: "proposed", fr: "proposé" }),
             outils: 0,
             le: jour(p.propose_le, langue),
+            dernierUsage: null,
+            verifie: null,
         });
     }
     return lignes;
@@ -172,14 +188,15 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
                                 { titre: t({ en: "State", fr: "État" }) },
                                 { titre: labo ? t({ en: "Connected by", fr: "Branché par" }) : t({ en: "Authorized by", fr: "Autorisé par" }) },
                                 { titre: t({ en: "Tools", fr: "Outils" }), droite: true },
-                                { titre: t({ en: "Since", fr: "Depuis" }), droite: true },
+                                { titre: t({ en: "Last use", fr: "Dernier usage" }), droite: true },
+                                { titre: t({ en: "Checked", fr: "Vérifié" }), droite: true },
                             ]}
                         >
                             {page.map((l) => (
                                 <Ligne key={l.cle} onClick={() => setOuvert(l.connecteur.nom)}>
                                     <td className="py-3">
                                         <span className="flex items-center gap-3">
-                                            <Initiales nom={l.connecteur.libelle} taille={32} />
+                                            <Initiales nom={l.connecteur.libelle} taille={32} integration={l.connecteur.integration} />
                                             <span>
                                                 <span className="block font-medium">{l.connecteur.libelle}</span>
                                                 <span className="block text-xs text-muted-foreground">{l.compte}</span>
@@ -189,9 +206,14 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
                                     <Cellule>
                                         <PointEtat etat={POINT[l.etat]}>{etatLibelle(l.etat)}</PointEtat>
                                     </Cellule>
-                                    <Cellule>{l.par}</Cellule>
+                                    <Cellule>{l.le === "–" ? l.par : `${l.par}, ${l.le}`}</Cellule>
                                     <Cellule droite>{l.outils}</Cellule>
-                                    <Cellule droite>{l.le}</Cellule>
+                                    <Cellule droite>
+                                        <DateRelative valeur={l.dernierUsage} vide="–" />
+                                    </Cellule>
+                                    <Cellule droite>
+                                        <DateRelative valeur={l.verifie} vide="–" />
+                                    </Cellule>
                                 </Ligne>
                             ))}
                         </Tableau>
@@ -236,7 +258,7 @@ function FenetreCatalogue({
     labo: boolean;
     fermer: () => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const etatDe = useEtatLogiciel();
     const [q, setQ] = useState("");
     const [filtre, setFiltre] = useState("");
@@ -339,12 +361,13 @@ function FenetreCatalogue({
                                     className="flex cursor-pointer flex-col rounded-xl border bg-background p-4 text-left transition-colors hover:border-foreground/40"
                                 >
                                     <span className="flex items-start gap-3">
-                                        <Initiales nom={c.libelle} />
+                                        <Initiales nom={c.libelle} integration={c.integration} />
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm leading-tight font-medium">{c.libelle}</span>
                                             <span className="mt-0.5 block text-xs text-muted-foreground">{nomDeCategorie(c.categorie) || c.integration}</span>
                                         </span>
                                     </span>
+                                    <span className="mt-3 line-clamp-2 min-h-10 text-sm">{langue === "fr" ? c.description : c.description_en}</span>
                                     <span className="mt-3 flex items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
                                         <span>
                                             {c.actions.length} {c.actions.length > 1 ? t({ en: "actions", fr: "actions" }) : t({ en: "action", fr: "action" })}
@@ -404,7 +427,7 @@ function FenetreLogiciel({
     labo: boolean;
     fermer: () => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const etatDe = useEtatLogiciel();
     const libelles = { configurer: t({ en: "Configure", fr: "Configurer" }), actions: t({ en: "Actions", fr: "Actions" }), apropos: t({ en: "About", fr: "À propos" }) };
     const [onglet, setOnglet] = useState<keyof typeof libelles>(connecteur.interne ? "actions" : "configurer");
@@ -485,7 +508,7 @@ function FenetreLogiciel({
             fermer={fermer}
             titre={connecteur.libelle}
             sous={`${connecteur.integration} · ${etatDe(connecteur)}`}
-            visuel={<Initiales nom={connecteur.libelle} />}
+            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
             onglets={Object.values(libelles)}
             onglet={libelles[onglet]}
             changerOnglet={(l) => setOnglet((Object.keys(libelles) as (keyof typeof libelles)[]).find((k) => libelles[k] === l) ?? "configurer")}
@@ -669,6 +692,13 @@ function FenetreLogiciel({
             )}
             {onglet === "apropos" && (
                 <Champs>
+                    {(langue === "fr" ? connecteur.description : connecteur.description_en) && (
+                        <BlocChamp libelle={t({ en: "Description", fr: "Description" })}>
+                            <p className="text-sm" data-testid="description-du-logiciel">
+                                {langue === "fr" ? connecteur.description : connecteur.description_en}
+                            </p>
+                        </BlocChamp>
+                    )}
                     <LigneChamp libelle={t({ en: "Software key", fr: "Clé du logiciel" })}>
                         <span className="font-mono text-sm">{connecteur.integration}</span>
                     </LigneChamp>
@@ -766,9 +796,9 @@ function FenetreBrancher({
     return (
         <FenetreOnglets
             fermer={fermer}
-            visuel={<Initiales nom={connecteur.libelle} />}
+            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
             titre={labo ? t({ en: `Connect ${connecteur.libelle}`, fr: `Brancher ${connecteur.libelle}` }) : t({ en: `Propose ${connecteur.libelle} to the client`, fr: `Proposer ${connecteur.libelle} au client` })}
-            sous={
+            info={
                 labo
                     ? t({ en: "A .mark test account, for trials and benches.", fr: "Un compte de test de .mark, pour les essais et les bancs." })
                     : t({ en: "The client authorizes it itself, from its portal.", fr: "Le client autorise lui-même, depuis son portail." })

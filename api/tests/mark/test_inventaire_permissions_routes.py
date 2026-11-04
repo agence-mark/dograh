@@ -3,7 +3,7 @@
 | Test | Ce qu'il prouve |
 |---|---|
 | chaque route a une décision | toute route de l'API a une permission, MEMBRE ou une exemption écrite ; une route nouvelle sans décision fait échouer |
-| les permissions sont réelles | toute permission citée au registre fait partie des 15 ; aucune des 15 n'est orpheline |
+| les permissions sont réelles | toute permission citée au registre fait partie des 16 ; aucune des 16 n'est orpheline |
 | une décision est appliquée | une route qui exige une permission ou MEMBRE passe bien par ``get_user`` (sinon la permission ne serait jamais vérifiée) |
 | une exemption n'est pas un trou | une route exemptée sans raison est impossible ; une route qui passe par ``get_user`` mais est exemptée est signalée |
 | une route inconnue est refusée | le contrôle d'accès ferme par défaut |
@@ -56,12 +56,12 @@ def test_chaque_route_a_une_decision():
     )
 
 
-def test_les_permissions_citees_existent_et_les_15_servent():
+def test_les_permissions_citees_existent_et_les_16_servent():
     citees = {
         r.decision.cle for r in registre.REGLES if isinstance(r.decision, registre.Permission)
     }
     assert citees <= set(PERMISSIONS), citees - set(PERMISSIONS)
-    assert len(PERMISSIONS) == 15
+    assert len(PERMISSIONS) == 16  # lot 15 (P-6) : « relation.ecrire » est la 16e
     # Aucune permission livrée ne reste sans route qui l'exige, hors celles des écrans à venir (portail, export, équipe).
     orphelines = set(PERMISSIONS) - citees
     attendues_plus_tard = {

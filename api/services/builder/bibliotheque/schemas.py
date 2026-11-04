@@ -112,6 +112,43 @@ SCHEMAS: dict[str, type[BaseModel]] = {
 }
 
 
+def champs_de(famille: str) -> list[dict[str, Any]]:
+    """Lot 14 (I-3) : les champs du contenu d'une famille, lus dans sa forme (jamais écrits à part : un champ de plus dans la
+    forme apparaît seul à l'écran). Une famille créée à l'écran n'a que ``texte`` ; une famille du code sans forme imposée : aucun champ."""
+    forme = SCHEMAS.get(famille)
+    if forme is None and famille not in FAMILLES:
+        forme = Texte
+    if forme is None:
+        return []
+    schema = forme.model_json_schema()
+    obligatoires = set(schema.get("required", []))
+    champs: list[dict[str, Any]] = []
+    for nom, p in (schema.get("properties") or {}).items():
+        # Un champ optionnel est un « anyOf » avec ``null`` : on lit la branche utile.
+        branches = [b for b in p.get("anyOf", [p]) if b.get("type") != "null"] or [p]
+        b = branches[0]
+        type_ = b.get("type")
+        sorte, choix = "objet", []
+        if "enum" in b:
+            sorte, choix = "choix", [str(v) for v in b["enum"]]
+        elif type_ == "string":
+            sorte = "long" if (b.get("maxLength") or 0) > 300 or nom == "texte" else "texte"
+        elif type_ == "integer":
+            sorte = "nombre"
+        elif type_ == "array" and (b.get("items") or {}).get("type") == "string":
+            sorte = "liste"
+        champs.append(
+            {
+                "nom": nom,
+                "sorte": sorte,
+                "obligatoire": nom in obligatoires,
+                "choix": choix,
+                "longueur_max": b.get("maxLength"),
+            }
+        )
+    return champs
+
+
 def verifier(famille: str, contenu: dict[str, Any]) -> dict[str, Any]:
     """Le contenu tel quel s'il respecte la forme de sa famille ; ``ValueError`` avec la raison sinon."""
     forme = SCHEMAS.get(famille)

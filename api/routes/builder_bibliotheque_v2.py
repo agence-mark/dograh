@@ -14,14 +14,14 @@ LECTURE : toute personne connectée. ÉCRITURE : l'équipe .mark seulement (``dr
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.builder.bibliotheque import depot, droits, familles_libres, fiches, rangement, service
+from api.services.builder.bibliotheque import depot, droits, familles_libres, fiches, rangement, schemas, service
 from api.services.builder.bibliotheque.modele import Element, Resume, Statut
 from api.services.builder.bibliotheque.service import ErreurBibliotheque
 
@@ -51,9 +51,10 @@ class VueFamille(BaseModel):
     mode: str
     du_code: bool = True  # une famille du code a son identité et sa forme verrouillées ; une famille créée à l'écran, non
     fiche: fiches.Fiche = Field(default_factory=fiches.Fiche)
+    nombre: int = 0  # lot 14 (I-5) : le nombre d'éléments de la famille, rendu avec la liste (une lecture)
 
 
-def _vue(famille, fiche: fiches.Fiche) -> VueFamille:
+def _vue(famille, fiche: fiches.Fiche, nombre: int = 0) -> VueFamille:
     return VueFamille(
         slug=famille.slug,
         libelle=famille.libelle,
@@ -62,6 +63,7 @@ def _vue(famille, fiche: fiches.Fiche) -> VueFamille:
         mode=famille.mode,
         du_code=familles_libres.est_du_code(famille.slug),
         fiche=fiche,
+        nombre=nombre,
     )
 
 
@@ -69,7 +71,26 @@ def _vue(famille, fiche: fiches.Fiche) -> VueFamille:
 async def lister_les_familles(user: UserModel = Depends(get_user_with_selected_organization)):
     """Les familles du code, puis celles créées à l'écran, chacune avec sa fiche (lue par le builder)."""
     toutes_les_fiches = await fiches.toutes()
-    return [_vue(f, toutes_les_fiches.get(f.slug, fiches.Fiche())) for f in (await familles_libres.toutes()).values()]
+    nombres = await service.nombres_par_famille()
+    return [_vue(f, toutes_les_fiches.get(f.slug, fiches.Fiche()), nombres.get(f.slug, 0)) for f in (await familles_libres.toutes()).values()]
+
+
+class ChampDeFamille(BaseModel):
+    nom: str
+    # texte (une ligne), long (plusieurs lignes), liste (un élément par ligne), nombre, choix (liste fermée), objet (JSON : la forme est trop riche pour un champ)
+    sorte: Literal["texte", "long", "liste", "nombre", "choix", "objet"]
+    obligatoire: bool = False
+    choix: list[str] = Field(default_factory=list)
+    longueur_max: int | None = None
+
+
+@router.get("/familles/{famille}/champs", response_model=list[ChampDeFamille])
+async def champs_d_une_famille(famille: str, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Lot 14 (I-3) : les champs du contenu d'une famille (lus dans la forme que le serveur impose), pour que l'écran
+    montre un formulaire à la place d'un JSON à écrire à la main. Une famille sans forme imposée rend une liste vide."""
+    if await familles_libres.trouver(famille) is None:
+        raise HTTPException(status_code=404, detail=f"Unknown family: {famille}.")
+    return [ChampDeFamille(**c) for c in schemas.champs_de(famille)]
 
 
 class NouvelleFamille(BaseModel):
@@ -232,7 +253,7 @@ class PageDElements(BaseModel):
 @router.get("/parcourir", response_model=PageDElements)
 async def parcourir(
     famille: str | None = None,
-    statut: Statut | None = None,
+    statut: list[Statut] | None = Query(default=None, description="Several statuses add up."),
     dossier: str | None = None,
     etiquette: list[str] | None = Query(default=None),
     q: str = Query(default="", max_length=200),

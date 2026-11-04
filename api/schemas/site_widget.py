@@ -53,6 +53,9 @@ class EmplacementLu(BaseModel):
     dernier_chargement: str | None = None
     agent_nom: str = ""
     version_publiee: int | None = None
+    # Lot 15 (S-2) : le nom de la fiche d'établissement de l'agent (publiée), pour l'en-tête de l'éditeur (« · sans lieu » sinon).
+    # ``None`` : l'agent n'a pas de fiche, ou la liste des établissements n'est pas lisible (jamais un nom inventé).
+    etablissement_nom: str | None = None
 
 
 class ApparenceLue(BaseModel):

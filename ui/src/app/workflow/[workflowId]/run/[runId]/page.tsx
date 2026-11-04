@@ -24,6 +24,7 @@ import { JournalDesEvenements } from '@/components/mark/conversation/JournalDesE
 import { LecteurConversation } from '@/components/mark/conversation/LecteurConversation';
 import { titreDeLaConversation } from '@/components/mark/conversation/titre';
 import { FenetreDuRun, LigneNue, useAnalyseDuRun, VueTranscription } from '@/components/mark/fenetre-du-run/FenetreDuRun';
+import { TableauDesCouts } from '@/components/mark/fenetre-du-run/TableauDesCouts';
 import { PhrasesDuCode } from '@/components/mark/groupe/PhrasesDuCode';
 import { TraceDesAgents } from '@/components/mark/groupe/TraceDesAgents';
 import { useLangue } from '@/components/mark/langue/langue';
@@ -509,6 +510,8 @@ export default function WorkflowRunPage() {
                                 titre: tp({ en: 'Costs', fr: 'Coûts' }),
                                 contenu: (
                                     <div className="space-y-6" data-onglet-conversation="couts">
+                                        {/* [.mark] Partie 3, lot 14 (SE-18, G-1) : le tableau de la maquette en tête, les cartes et identifiants dessous. */}
+                                        <TableauDesCouts analyse={analyse.analyse} />
                                         <RunMetricsSection
                                             costInfo={workflowRun?.cost_info ?? null}
                                             logs={workflowRun?.logs ?? null}

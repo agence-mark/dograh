@@ -106,6 +106,8 @@ class DetailConnexion:
 
     mode_acces: str | None = None
     mis_a_jour_le: str | None = None
+    # Lot 14 : ``last_fetched_at`` de Nango (la dernière fois que ses identifiants ont été servis à un appel).
+    dernier_usage_le: str | None = None
 
 
 def _organisation(organization_id: int) -> str:
@@ -153,8 +155,8 @@ async def connexions(organization_id: int) -> list[Connexion]:
 
 async def detail_de(connexion: Connexion) -> DetailConnexion:
     """[.mark] Lot F6 : le mode d'accès et la dernière mise à jour d'une connexion, lus chez Nango
-    (``GET /connection/{id}``). ⛔ La réponse porte les jetons : seuls ``credentials.type`` et
-    ``updated_at`` en sortent, rien d'autre n'est gardé ni journalisé. Nango injoignable ou
+    (``GET /connection/{id}``). ⛔ La réponse porte les jetons : seuls ``credentials.type``,
+    ``updated_at`` et ``last_fetched_at`` en sortent, rien d'autre n'est gardé ni journalisé. Nango injoignable ou
     réponse illisible : un détail vide, jamais une erreur (la liste reste lisible)."""
     try:
         reponse = await _requete(
@@ -168,9 +170,11 @@ async def detail_de(connexion: Connexion) -> DetailConnexion:
         credentials = corps.get("credentials")
         mode = credentials.get("type") if isinstance(credentials, dict) else None
         mis_a_jour = corps.get("updated_at")
+        dernier_usage = corps.get("last_fetched_at")
         return DetailConnexion(
             mode_acces=str(mode) if mode else None,
             mis_a_jour_le=str(mis_a_jour) if mis_a_jour else None,
+            dernier_usage_le=str(dernier_usage) if dernier_usage else None,
         )
     except (NangoIndisponible, ValueError, AttributeError):
         return DetailConnexion()

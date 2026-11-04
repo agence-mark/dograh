@@ -124,6 +124,30 @@ describe("EditeurWidget : chargement", () => {
         expect(enregistrer().disabled).toBe(true);
     });
 
+    it("S-2 : l'en-tête nomme la fiche d'établissement de l'agent, ou dit « sans lieu »", async () => {
+        widgetPose();
+        sdk.emplacement.mockResolvedValue({ data: { ...EMPLACEMENT, etablissement_nom: "Agence Nord" } });
+        rendre();
+        expect((await screen.findAllByText(/· Agence Nord/)).length).toBeGreaterThan(0);
+        cleanup();
+        sdk.emplacement.mockResolvedValue({ data: { ...EMPLACEMENT, etablissement_nom: null } });
+        rendre();
+        expect((await screen.findAllByText(/· sans lieu/)).length).toBeGreaterThan(0);
+    });
+
+    it("L-2 : les notes sous les champs des réglages .mark sont dans un « ! », plus en ligne ; ce que le serveur compte reste visible", async () => {
+        widgetPose();
+        rendre();
+        await screen.findByText("Assistant du site");
+        onglet(/Réglages \.mark/);
+        await screen.findByLabelText("Plafond du mois (conversations)");
+        expect(screen.queryByText(/Sur tout autre site, le script refuse de s'ouvrir/)).toBeNull();
+        expect(screen.queryByText(/Le nombre maximal de conversations de cet agent par mois/)).toBeNull();
+        expect(screen.getByText(/Ce mois-ci : \d+ \(\d+ %\)\./)).toBeTruthy();
+        const ligne = screen.getByText("Domaines autorisés").closest("div")!;
+        expect(ligne.querySelector('[data-slot="tooltip-trigger"]')).toBeTruthy();
+    });
+
     it("les réglages .mark viennent du serveur", async () => {
         widgetPose();
         rendre();

@@ -163,6 +163,30 @@ describe('confidentialité', () => {
         expect(source).not.toMatch(/fonts\.googleapis|fonts\.gstatic/);
     });
 
+    it("S-1 : une police du choix de l'éditeur se charge de chez nous (jamais d'un tiers), la seule choisie en plus de Switzer", async () => {
+        const polices: string[] = [];
+        class FauxFontFace {
+            constructor(nom: string, source: string) {
+                polices.push(`${nom} ${source}`);
+            }
+            load() {
+                return Promise.resolve(this);
+            }
+        }
+        vi.stubGlobal('FontFace', FauxFontFace);
+        Object.defineProperty(document, 'fonts', { value: { add: vi.fn() }, configurable: true });
+        const { fetchMock } = serveur({
+            '/config': () => reponse({ ...CONFIG, apparence: { police: 'dm-sans' } }),
+            '/evenement': () => reponse({ ok: true }),
+        });
+        await charger(fetchMock);
+        expect(polices.some((p) => p.startsWith('Mark DM Sans ') && p.includes('http://widget.test/embed/fonts/DMSans-400.woff2'))).toBe(true);
+        expect(polices.some((p) => p.includes('/embed/fonts/DMSans-600.woff2'))).toBe(true);
+        expect(polices.some((p) => p.includes('/embed/fonts/Switzer-400.woff2'))).toBe(true);
+        expect(polices.some((p) => /Poppins|Playfair|Lato/.test(p))).toBe(false);
+        for (const p of polices) expect(p).not.toMatch(/googleapis|gstatic|fonts\.google/);
+    });
+
     it("le contexte de la page ne porte que le chemin (jamais les paramètres ni l'ancre)", async () => {
         const { appels, fetchMock } = serveur({
             '/config': () => reponse(CONFIG),

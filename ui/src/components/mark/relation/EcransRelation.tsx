@@ -274,7 +274,7 @@ function ClientsInterne({ t }: { t: Dire }) {
                                                 <EtatClient etat={c.etat ?? "installation"} />
                                                 <span className="inline-flex items-center gap-1"><Bot className="size-3.5" />{t({ en: `${agents} agent${agents !== 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
                                                 <span className="inline-flex items-center gap-1"><PhoneCall className="size-3.5" />{t({ en: `${appels} call${appels !== 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
-                                                {c.note != null && <span className="inline-flex items-center gap-1"><Star className="size-3.5" />{t({ en: String(c.note), fr: String(c.note).replace(".", ",") })}</span>}
+                                                {c.note != null && <span className="inline-flex items-center gap-1" data-testid="note-du-juge" title={t({ en: "Judge's average score over 7 days", fr: "Note moyenne du juge sur 7 jours" })}><Star className="size-3.5" />{t({ en: "Judge score", fr: "Note du juge" })} {t({ en: String(c.note), fr: String(c.note).replace(".", ",") })}</span>}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3 text-xs tabular-nums">
@@ -326,7 +326,7 @@ function FicheInterne({ id }: { id: number }) {
                         <EtatClient etat={client.etat ?? "installation"} />
                         <span className="inline-flex items-center gap-1"><Bot className="size-4" />{t({ en: `${agents} agent${agents !== 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
                         <span className="inline-flex items-center gap-1"><PhoneCall className="size-4" />{t({ en: `${appels} call${appels !== 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
-                        {client.note != null && <span className="inline-flex items-center gap-1"><Star className="size-4" />{t({ en: String(client.note), fr: String(client.note).replace(".", ",") })}</span>}
+                        {client.note != null && <span className="inline-flex items-center gap-1" data-testid="note-du-juge" title={t({ en: "Judge's average score over 7 days", fr: "Note moyenne du juge sur 7 jours" })}><Star className="size-4" />{t({ en: "Judge score", fr: "Note du juge" })} {t({ en: String(client.note), fr: String(client.note).replace(".", ",") })}</span>}
                     </p>
                 </div>
                 <div className="flex gap-2">

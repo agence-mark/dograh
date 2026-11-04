@@ -9,7 +9,7 @@
  *     « Créer un test » et « Rejouer la suite » appellent les routes réelles ?
  *     Les indicateurs de Qualité viennent de la route ; sans appel, un état vide ?
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
@@ -243,6 +243,34 @@ describe("Le détail d'un problème", () => {
         expect(message).toContain("Accueil");
         expect(message).toContain("C'est noté pour jeudi");
         expect(message).toContain("4 sur 112");
+    });
+
+    it("SE-16 : plafond du mois atteint (402), la fenêtre propose « Continuer quand même », qui renvoie la demande avec le dépassement", async () => {
+        m.fil.mockResolvedValueOnce({ error: { detail: "x" }, response: { status: 402 } });
+        await ouvrir();
+        fireEvent.click(screen.getByRole("button", { name: "Discuter avec le builder" }));
+        const fenetre = await screen.findByRole("dialog", { name: "Budget du mois atteint" });
+        expect(m.push).not.toHaveBeenCalled();
+        expect(m.fil.mock.calls[0][0].body.depasser_le_plafond).toBeUndefined();
+        fireEvent.click(within(fenetre).getByRole("button", { name: "Continuer quand même" }));
+        await waitFor(() => expect(m.push).toHaveBeenCalledWith("/labo/builder/99"));
+        expect(m.fil.mock.calls[1][0].body).toEqual(expect.objectContaining({ depasser_le_plafond: true, workflow_id: 3 }));
+        expect(m.fil.mock.calls[1][0].body.message).toBe(m.fil.mock.calls[0][0].body.message);
+    });
+
+    it("SE-16 : « Annuler » dans la fenêtre du plafond n'envoie rien de plus, et une personne hors équipe (403) voit la phrase de réserve", async () => {
+        m.fil.mockResolvedValueOnce({ error: { detail: "x" }, response: { status: 402 } });
+        await ouvrir();
+        fireEvent.click(screen.getByRole("button", { name: "Discuter avec le builder" }));
+        fireEvent.click(within(await screen.findByRole("dialog", { name: "Budget du mois atteint" })).getByRole("button", { name: "Annuler" }));
+        await waitFor(() => expect(screen.queryByRole("dialog", { name: "Budget du mois atteint" })).toBeNull());
+        expect(m.fil).toHaveBeenCalledTimes(1);
+        m.fil.mockResolvedValueOnce({ error: { detail: "x" }, response: { status: 402 } });
+        m.fil.mockResolvedValueOnce({ error: { detail: "x" }, response: { status: 403 } });
+        fireEvent.click(screen.getByRole("button", { name: "Discuter avec le builder" }));
+        fireEvent.click(within(await screen.findByRole("dialog", { name: "Budget du mois atteint" })).getByRole("button", { name: "Continuer quand même" }));
+        await waitFor(() => expect(m.fil).toHaveBeenCalledTimes(3));
+        expect(m.push).not.toHaveBeenCalled();
     });
 
     it("n'ignore rien sans clic, puis ignore et ferme", async () => {

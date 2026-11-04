@@ -4,10 +4,11 @@ import { ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
-import { lireLeJournalApiV1EquipeMarkJournalGet } from "@/client/sdk.gen";
+import { lireLeJournalApiV1EquipeMarkJournalGet, listerLesMembresApiV1EquipeMarkMembresGet } from "@/client/sdk.gen";
 import type { JournalLigne } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Liste } from "@/components/mark/studio/liste";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { listerEspaces } from "@/lib/espaces";
@@ -35,9 +36,17 @@ const GESTES: Record<string, Texte> = {
     "cles.gerer": { en: "Changed keys", fr: "A modifié des clés" },
     "telephonie.gerer": { en: "Changed telephony", fr: "A modifié la téléphonie" },
     "atelier.regler": { en: "Changed the workshop settings", fr: "A réglé l'atelier" },
+    // P-6 : les écritures du Hub (permission « relation.ecrire »).
+    "relation.message": { en: "Replied to a client", fr: "A répondu à un client" },
+    "relation.fil_modifie": { en: "Changed the follow-up of a thread", fr: "A changé le suivi d'un échange" },
+    "relation.note_ajoutee": { en: "Added a note on a client", fr: "A ajouté une note sur un client" },
+    "relation.note_supprimee": { en: "Deleted a note on a client", fr: "A supprimé une note sur un client" },
+    "relation.temoignage_ajoute": { en: "Added a testimonial", fr: "A ajouté un témoignage" },
+    "relation.temoignage_supprime": { en: "Deleted a testimonial", fr: "A supprimé un témoignage" },
 };
 
-const qui = (l: JournalLigne) => [l.prenom, l.nom].filter(Boolean).join(" ") || l.auteur;
+/** P-1 : le nom du membre ; un compte sans nom se dit « Compte sans nom » (jamais son identifiant brut ni une adresse). */
+const quiEst = (l: JournalLigne, sansNom: string) => [l.prenom, l.nom].filter(Boolean).join(" ") || (l.sans_nom ? sansNom : (l.qui ?? l.auteur));
 
 /** [.mark] Le journal (U2 ter) : qui, quoi, quel espace, quand. Paginé côté serveur, 25 par page. */
 export function VueJournal() {
@@ -45,6 +54,10 @@ export function VueJournal() {
     const [page, setPage] = useState(0);
     const [donnees, setDonnees] = useState<{ lignes: JournalLigne[]; total: number } | null>(null);
     const [espaces, setEspaces] = useState<Record<number, string>>({});
+    // P-2 : les filtres « Qui » et « Espace », posés côté serveur (le total et les pages suivent le filtre).
+    const [membreChoisi, setMembreChoisi] = useState("");
+    const [espaceChoisi, setEspaceChoisi] = useState("");
+    const [membres, setMembres] = useState<{ id: number; nom: string }[]>([]);
 
     useEffect(() => {
         listerEspaces()
@@ -53,21 +66,66 @@ export function VueJournal() {
     }, []);
 
     useEffect(() => {
-        lireLeJournalApiV1EquipeMarkJournalGet({ query: fenetrePage(page) }).then((res) => {
+        listerLesMembresApiV1EquipeMarkMembresGet({ query: { limit: 100, offset: 0 } }).then((res) => {
+            const lignes = res.data?.membres ?? [];
+            setMembres(lignes.map((m) => ({ id: m.user_id, nom: [m.prenom, m.nom].filter(Boolean).join(" ") || t({ en: "Account without a name", fr: "Compte sans nom" }) })));
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        lireLeJournalApiV1EquipeMarkJournalGet({
+            query: { ...fenetrePage(page), ...(membreChoisi ? { membre: Number(membreChoisi) } : {}), ...(espaceChoisi ? { organization_id: Number(espaceChoisi) } : {}) },
+        }).then((res) => {
             if (res.error || !res.data) {
                 notifier.echec({ fr: "Journal illisible. Rechargez la page.", en: "Could not load the journal. Reload the page." }, { erreur: res.error });
                 return;
             }
             setDonnees({ lignes: res.data.lignes, total: res.data.total });
         });
-    }, [page, t]);
+    }, [page, t, membreChoisi, espaceChoisi]);
 
     if (!donnees) return <EtatVide cas="chargement" />;
 
+    const filtre = membreChoisi !== "" || espaceChoisi !== "";
     return (
         <div>
+            <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="filtres-du-journal">
+                <Liste
+                    valeur={membreChoisi}
+                    changer={(v) => {
+                        setMembreChoisi(v);
+                        setPage(0);
+                    }}
+                    vide={t({ en: "Everyone", fr: "Tout le monde" })}
+                    options={membres.map((m) => ({ valeur: String(m.id), libelle: m.nom }))}
+                    className="w-52"
+                />
+                <Liste
+                    valeur={espaceChoisi}
+                    changer={(v) => {
+                        setEspaceChoisi(v);
+                        setPage(0);
+                    }}
+                    vide={t({ en: "All spaces", fr: "Tous les espaces" })}
+                    options={Object.entries(espaces).map(([id, nom]) => ({ valeur: id, libelle: nom }))}
+                    className="w-52"
+                />
+            </div>
             {donnees.total === 0 ? (
-                <EtatVide cas="premier" icone={ScrollText} titre={t({ en: "Nothing written yet", fr: "Rien d'écrit pour l'instant" })} />
+                filtre ? (
+                    <EtatVide
+                        cas="filtre"
+                        recherche={[membres.find((m) => String(m.id) === membreChoisi)?.nom, espaces[Number(espaceChoisi)]].filter(Boolean).join(", ")}
+                        effacer={() => {
+                            setMembreChoisi("");
+                            setEspaceChoisi("");
+                            setPage(0);
+                        }}
+                    />
+                ) : (
+                    <EtatVide cas="premier" icone={ScrollText} titre={t({ en: "Nothing written yet", fr: "Rien d'écrit pour l'instant" })} />
+                )
             ) : (
                 <Paginee total={donnees.total} page={page} changerPage={setPage}>
                     <Tableau
@@ -81,7 +139,7 @@ export function VueJournal() {
                         {donnees.lignes.map((l) => (
                             <Ligne key={l.id}>
                                 <Cellule principale>{new Date(l.quand).toLocaleString()}</Cellule>
-                                <Cellule>{qui(l)}</Cellule>
+                                <Cellule>{quiEst(l, t({ en: "Account without a name", fr: "Compte sans nom" }))}</Cellule>
                                 <Cellule>{GESTES[l.action] ? t(GESTES[l.action]) : l.action}</Cellule>
                                 <Cellule droite>{l.organization_id != null ? (espaces[l.organization_id] ?? `#${l.organization_id}`) : "—"}</Cellule>
                             </Ligne>
