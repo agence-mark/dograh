@@ -25,6 +25,7 @@ const sdk = vi.hoisted(() => ({
     entree: vi.fn(),
     supprimer: vi.fn(),
 }));
+const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 vi.mock("@/client/sdk.gen", () => ({
     maFileApiV1RelationFileGet: sdk.file,
     listerClientsApiV1RelationClientsGet: sdk.clients,
@@ -35,8 +36,8 @@ vi.mock("@/client/sdk.gen", () => ({
     avisEtTemoignagesApiV1RelationAvisGet: sdk.avis,
     ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: sdk.entree,
     monProfilApiV1EquipeMarkMoiGet: () => Promise.resolve({ data: { prenom: "Evan" }, error: undefined }),
-    listerEntreesApiV1RelationEntreesGet: vi.fn(),
-    listerNotesApiV1RelationClientsOrganizationIdNotesGet: vi.fn(),
+    listerEntreesApiV1RelationEntreesGet: () => ok([]),
+    listerNotesApiV1RelationClientsOrganizationIdNotesGet: () => ok([]),
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost: vi.fn(),
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete: vi.fn(),
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost: vi.fn(),
@@ -50,7 +51,6 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { AccueilRelation, EcranAvis, EcranMessages, FicheClient } from "./EcransRelation";
 import { oublierLectureClients } from "./lecture-clients";
 
-const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 const maintenant = new Date().toISOString();
 const fil = (sur: object = {}) => ({
     id: 1, organization_id: 7, client: "Nuances de Feu", sorte: "message", sujet: "Couper les SMS le dimanche", etat: "nouveau",

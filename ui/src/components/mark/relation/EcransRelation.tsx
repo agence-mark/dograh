@@ -25,6 +25,7 @@ import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Liste } from "@/components/mark/studio/liste";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Info, Marque, PointEtat } from "@/components/mark/studio/marques";
+import { OngletsPage } from "@/components/mark/studio/onglets-page";
 import { Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { TitrePage } from "@/components/mark/studio/titre-page";
@@ -296,8 +297,6 @@ function ClientsInterne({ t }: { t: Dire }) {
     );
 }
 
-type Onglet = "messages" | "notes" | "technique" | "entrees";
-
 export function FicheClient({ id }: { id: number }) {
     return (
         <Pret>
@@ -308,42 +307,60 @@ export function FicheClient({ id }: { id: number }) {
 
 function FicheInterne({ id }: { id: number }) {
     const { t } = useLangue();
-    const [onglet, setOnglet] = useState<Onglet>("messages");
     const clients = useCharge(() => lireClientsRelation());
     const client = clients.donnees?.find((c) => c.id === id);
-    const noms: Record<Onglet, string> = {
-        messages: t({ en: "Messages and requests", fr: "Messages et demandes" }),
-        notes: t({ en: "Internal notes", fr: "Notes internes" }),
-        technique: t({ en: "Technical", fr: "Technique" }),
-        entrees: t({ en: "Portal entries", fr: "Entrées au portail" }),
-    };
     if (clients.etat === "chargement") return <div className={CONTENEUR}><EtatVide cas="chargement" /></div>;
     if (!client) return <div className={CONTENEUR}><EtatVide cas="erreur" reessayer={clients.recharger} /></div>;
+    const agents = client.agents ?? 0;
+    const appels = client.appels_7j ?? 0;
+    const signalements = client.signalements ?? 0;
+    const pannes = client.pannes ?? 0;
     return (
         <div className={CONTENEUR}>
-            <TitrePage
-                titre={client.nom}
-                action={
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href={`/clients/${id}`}>{t({ en: "Open its space", fr: "Ouvrir son espace" })}</Link>
-                        </Button>
-                        <BoutonPortail organisation={id} />
-                    </div>
-                }
-            />
-            <Segmente valeur={noms[onglet]} options={Object.values(noms)} changer={(v) => setOnglet((Object.keys(noms) as Onglet[]).find((k) => noms[k] === v) ?? "messages")} />
-            {onglet === "messages" && <BoiteMessages client={id} />}
-            {onglet === "notes" && <NotesClient organisation={id} />}
-            {onglet === "technique" && (
-                <div className="space-y-2 text-sm">
-                    <p>{t({ en: "Call reports and outages are kept in one place only.", fr: "Les signalements sur un appel et les pannes sont rangés à un seul endroit." })}</p>
-                    <Button variant="outline" size="sm" asChild>
-                        <Link href={`/clients/${id}/a-ameliorer`}>{t({ en: "Open To improve", fr: "Ouvrir À améliorer" })}</Link>
-                    </Button>
+            <div className="flex flex-wrap items-center gap-4">
+                <AvatarClient id={client.id} nom={client.nom} taille={56} />
+                <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-2xl font-semibold tracking-tight">{client.nom}</h2>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                        <EtatClient etat={client.etat ?? "installation"} />
+                        <span className="inline-flex items-center gap-1"><Bot className="size-4" />{t({ en: `${agents} agent${agents > 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
+                        <span className="inline-flex items-center gap-1"><PhoneCall className="size-4" />{t({ en: `${appels} call${appels > 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
+                        {client.note != null && <span className="inline-flex items-center gap-1"><Star className="size-4" />{t({ en: String(client.note), fr: String(client.note).replace(".", ",") })}</span>}
+                    </p>
                 </div>
-            )}
-            {onglet === "entrees" && <ListeEntrees client={client.nom} />}
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="cursor-pointer" asChild>
+                        <Link href={`/clients/${id}`}>{t({ en: "Open its space", fr: "Ouvrir son espace" })}</Link>
+                    </Button>
+                    <BoutonPortail organisation={id} />
+                </div>
+            </div>
+            <OngletsPage
+                onglets={[
+                    { id: "messages", titre: t({ en: "Messages", fr: "Messages" }), contenu: <BoiteMessages client={id} /> },
+                    { id: "notes", titre: t({ en: "Notes", fr: "Notes" }), contenu: <NotesClient organisation={id} /> },
+                    {
+                        id: "technique",
+                        titre: t({ en: "Technical", fr: "Technique" }),
+                        contenu: (
+                            <div className="space-y-3 text-sm">
+                                {signalements + pannes === 0 ? (
+                                    <EtatVide cas="fait" compact titre={t({ en: "Nothing technical is waiting", fr: "Rien de technique n'attend" })} />
+                                ) : (
+                                    <div className="divide-y border-y">
+                                        {signalements > 0 && <p className="flex items-center gap-2 py-3"><Flag className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${signalements} report${signalements > 1 ? "s" : ""} on a call`, fr: `${signalements} signalement${signalements > 1 ? "s" : ""} sur un appel` })}</p>}
+                                        {pannes > 0 && <p className="flex items-center gap-2 py-3"><AlertTriangle className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${pannes} outage${pannes > 1 ? "s" : ""} or alert${pannes > 1 ? "s" : ""}`, fr: `${pannes} panne${pannes > 1 ? "s" : ""} ou alerte${pannes > 1 ? "s" : ""}` })}</p>}
+                                    </div>
+                                )}
+                                <Button variant="outline" size="sm" className="cursor-pointer" asChild>
+                                    <Link href={`/clients/${id}/a-ameliorer`}>{t({ en: "Open To improve", fr: "Ouvrir À améliorer" })}</Link>
+                                </Button>
+                            </div>
+                        ),
+                    },
+                    { id: "entrees", titre: t({ en: "Portal entries", fr: "Entrées au portail" }), contenu: <ListeEntrees client={client.nom} /> },
+                ]}
+            />
         </div>
     );
 }
@@ -361,7 +378,7 @@ function BoutonPortail({ organisation }: { organisation: number }) {
     };
     return (
         <span className="inline-flex items-center gap-1">
-            <Button size="sm" disabled={!ADRESSE_PORTAIL || envoi} onClick={ouvrir}>
+            <Button size="sm" className="cursor-pointer" disabled={!ADRESSE_PORTAIL || envoi} onClick={ouvrir}>
                 <DoorOpen className="size-4" /> {t({ en: "Open its portal", fr: "Ouvrir son portail" })}
             </Button>
             {!ADRESSE_PORTAIL && <Info>{t({ en: "The portal address is not set (NEXT_PUBLIC_PORTAIL_URL).", fr: "L'adresse du portail n'est pas réglée (NEXT_PUBLIC_PORTAIL_URL)." })}</Info>}
