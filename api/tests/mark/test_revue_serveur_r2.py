@@ -5,7 +5,7 @@
 | M2 : relais de confiance | derrière un relais déclaré, l'adresse est celle du visiteur (``X-Forwarded-For``) |
 | M2 : relais inconnu | un en-tête forgé par une connexion qui n'est pas un relais est ignoré |
 | M2 : chaîne forgée | ce que le visiteur écrit à gauche de la chaîne ne compte jamais (on lit de droite à gauche) |
-| M2 : sans réglage | aucune confiance par défaut ; réglage lu dans ``FORWARDED_ALLOW_IPS`` |
+| M2 : sans réglage | aucune confiance par défaut ; réglage lu dans ``MARK_RELAIS_DE_CONFIANCE`` (jamais ``FORWARDED_ALLOW_IPS``) |
 | M2 : branché sur la route | deux visiteurs derrière un relais déclaré n'ont pas la même limite ; sans relais déclaré, ils la partagent |
 | M7 : évènement limité | au-delà de 60 par minute, jeton et adresse : refus silencieux, le compteur ne bouge plus |
 | mineur 2 : plafond rendu | l'échec de la création du run rend la place réservée sur le plafond du mois |
@@ -32,46 +32,48 @@ def _requete(pair, xff=None):
 
 
 # ----------------------------------------------------------------------------- M2
-def test_m2_relais_de_confiance_donne_l_adresse_du_visiteur():
-    r = _requete("10.0.0.5", "203.0.113.9")
-    assert adresse_du_visiteur(r, relais="10.0.0.0/8") == "203.0.113.9"
-    assert adresse_du_visiteur(_requete("10.0.0.5", "203.0.113.9, 10.0.0.4"), relais="10.0.0.0/8") == "203.0.113.9"
-    assert adresse_du_visiteur(_requete("10.0.0.5", "2001:db8::7"), relais="*") == "2001:db8::7"
+def test_m2_un_relais_de_confiance_donne_l_adresse_du_visiteur():
+    assert adresse_du_visiteur(_requete("10.0.0.5", "203.0.113.9"), relais=1) == "203.0.113.9"
+    assert adresse_du_visiteur(_requete("10.0.0.5", "2001:db8::7"), relais="1") == "2001:db8::7"
+    # Deux relais de confiance : le maillon de rang 2 en partant de la droite.
+    assert adresse_du_visiteur(_requete("10.0.0.5", "203.0.113.9, 10.0.0.4"), relais=2) == "203.0.113.9"
 
 
-def test_m2_relais_inconnu_l_entete_forge_est_ignore():
+def test_m2_sans_relais_declare_l_entete_forge_est_ignore():
     r = _requete("198.51.100.1", "203.0.113.200")
-    assert adresse_du_visiteur(r, relais="10.0.0.0/8") == "198.51.100.1"
+    assert adresse_du_visiteur(r, relais=0) == "198.51.100.1"
     assert adresse_du_visiteur(r, relais="") == "198.51.100.1"
+    assert adresse_du_visiteur(r, relais="*") == "198.51.100.1"  # « * » n'est pas un nombre : aucune confiance
 
 
 def test_m2_chaine_forgee_seule_la_droite_compte():
-    # Le visiteur a écrit « 1.2.3.4 » ; le relais a ajouté la vraie adresse à droite.
-    r = _requete("10.0.0.5", "1.2.3.4, 203.0.113.9")
-    assert adresse_du_visiteur(r, relais="10.0.0.0/8") == "203.0.113.9"
-    assert adresse_du_visiteur(_requete("10.0.0.5", "pas une adresse"), relais="10.0.0.0/8") == "10.0.0.5"
-    assert adresse_du_visiteur(_requete("10.0.0.5"), relais="10.0.0.0/8") == "10.0.0.5"
-    assert adresse_du_visiteur(_requete(None), relais="*") is None
+    # Le visiteur a écrit « 1.2.3.4 » ; le relais a ajouté la vraie adresse à droite : « forgé, réel » donne « réel ».
+    assert adresse_du_visiteur(_requete("10.0.0.5", "1.2.3.4, 203.0.113.9"), relais=1) == "203.0.113.9"
+    assert adresse_du_visiteur(_requete("10.0.0.5", "pas une adresse"), relais=1) == "10.0.0.5"
+    assert adresse_du_visiteur(_requete("10.0.0.5"), relais=1) == "10.0.0.5"
+    assert adresse_du_visiteur(_requete("10.0.0.5", "203.0.113.9"), relais=2) == "10.0.0.5"  # moins de maillons que de relais
+    assert adresse_du_visiteur(_requete(None), relais=1) is None
 
 
 def test_m2_sans_reglage_aucune_confiance_et_le_reglage_vient_de_l_environnement(monkeypatch):
-    monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
-    r = _requete("10.0.0.5", "203.0.113.9")
+    monkeypatch.delenv("MARK_RELAIS_DE_CONFIANCE", raising=False)
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")  # la variable d'uvicorn ne donne aucune confiance ici
+    r = _requete("10.0.0.5", "1.2.3.4, 203.0.113.9")
     assert adresse_du_visiteur(r) == "10.0.0.5"
-    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "10.0.0.5, pas-un-reseau")
+    monkeypatch.setenv("MARK_RELAIS_DE_CONFIANCE", "1")
     assert adresse_du_visiteur(r) == "203.0.113.9"
-    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "pas-un-reseau")
-    assert adresse_du_visiteur(r) == "10.0.0.5"  # une entrée illisible ne donne jamais confiance
+    monkeypatch.setenv("MARK_RELAIS_DE_CONFIANCE", "n'importe quoi")
+    assert adresse_du_visiteur(r) == "10.0.0.5"  # une valeur illisible ne donne jamais confiance
 
 
-async def _deux_visiteurs(db_session, async_session):
+async def _deux_visiteurs(db_session, async_session, entetes=("203.0.113.1", "203.0.113.2")):
     _, _, _, jeton = await creer_agent_avec_jeton(
         db_session, async_session, allowed_domains=["client.fr"], reglages_mark={"sessions_par_heure_et_ip": 1}
     )
     codes = []
     with limiteur_en_memoire():
         async with client_http() as c:
-            for visiteur in ("203.0.113.1", "203.0.113.2"):
+            for visiteur in entetes:
                 r = await c.post(INIT, json={"token": jeton.token}, headers={**CLIENT, "X-Forwarded-For": visiteur})
                 codes.append(r.status_code)
     return codes
@@ -79,9 +81,15 @@ async def _deux_visiteurs(db_session, async_session):
 
 async def test_m2_branche_sur_la_route_init(db_session, async_session, monkeypatch):
     monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")
+    monkeypatch.setenv("MARK_RELAIS_DE_CONFIANCE", "1")
     assert await _deux_visiteurs(db_session, async_session) == [200, 200]
-    monkeypatch.delenv("FORWARDED_ALLOW_IPS")
-    assert await _deux_visiteurs(db_session, async_session) == [200, 429]  # même relais, même limite : l'en-tête forgé ne sert à rien
+    monkeypatch.delenv("MARK_RELAIS_DE_CONFIANCE")
+    # Même avec FORWARDED_ALLOW_IPS="*", sans relais déclaré : même limite, l'en-tête forgé ne sert à rien.
+    assert await _deux_visiteurs(db_session, async_session) == [200, 429]
+    # « forgé, réel » avec 1 relais : le même visiteur réel ne contourne pas la limite en changeant le maillon forgé.
+    monkeypatch.setenv("MARK_RELAIS_DE_CONFIANCE", "1")
+    forges = ("9.9.9.1, 203.0.113.50", "9.9.9.2, 203.0.113.50")
+    assert await _deux_visiteurs(db_session, async_session, forges) == [200, 429]
 
 
 # ----------------------------------------------------------------------------- M7
