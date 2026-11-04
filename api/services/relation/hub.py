@@ -37,10 +37,22 @@ async def exiger_equipe(user, x_api_key: str | None) -> None:
         raise HTTPException(status_code=403, detail="Reserved to the .mark team")
 
 
+def nom_affiche(membre: dict, repli_id: int | None = None) -> str:
+    """Le nom d'un membre de l'équipe : prénom et nom, sinon la partie locale de son adresse, jamais l'adresse entière."""
+    nom = " ".join(p for p in (membre.get("prenom"), membre.get("nom")) if p)
+    return nom or (membre.get("email") or f"membre {membre.get('user_id', repli_id)}").split("@")[0]
+
+
 async def nom_du_membre(user) -> str:
     membre = await db_client.obtenir_membre(user.id) or {}
     nom = " ".join(p for p in (membre.get("prenom"), membre.get("nom")) if p)
     return nom or (user.email or f"membre {user.id}").split("@")[0]
+
+
+async def membres_a_suivre() -> list[dict]:
+    """V4 : les membres de l'équipe .mark à qui on peut confier le suivi d'un fil (id et nom seulement, jamais une adresse)."""
+    lignes, _total = await db_client.lister_membres(limit=100, offset=0)
+    return [{"id": m["user_id"], "nom": nom_affiche(m)} for m in lignes]
 
 
 async def clients_ouverts(user) -> dict[int, str]:

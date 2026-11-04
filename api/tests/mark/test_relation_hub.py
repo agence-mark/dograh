@@ -243,3 +243,34 @@ async def test_ouvrir_un_portail_exige_la_permission(db_session):
         refuse = await c.post(f"{R}/clients/{a}/entree", json={}, headers=entetes(jeton_membre, a))
         assert refuse.status_code == 403
         assert "clients.ouvrir_portail" in refuse.text
+
+
+async def test_un_fil_se_confie_a_un_membre_de_l_equipe_et_pas_a_n_importe_qui(db_session):
+    # V4 : la liste « Suivi par » de la maquette. La liste est réservée à l'équipe, sans adresse ; le suivi ne va qu'à un membre connu.
+    a, _b, admin, jeton = await _monde(db_session, "suiv")
+    collegue, jeton_collegue = await creer_compte(db_session, "rel-collegue@example.com", role="Membre", organisations=[a])
+    _, jeton_simple = await creer_compte(db_session, "rel-sans-role@example.com", organisations=[a])
+    cle = await _cle(db_session, a, admin.id)
+    async with client_http() as c:
+        h = entetes(jeton)
+        fil = (await c.post(f"{P}/fils", json={"sujet": "SMS", "texte": "Un rappel ?"}, headers=cle)).json()
+        membres = await c.get(f"{R}/membres", headers=h)
+        assert membres.status_code == 200, membres.text
+        assert {"id": collegue.id, "nom": "rel-collegue"} in membres.json()
+        assert all(set(m) == {"id", "nom"} for m in membres.json())  # jamais une adresse
+        assert "@" not in membres.text
+        # Ni un compte sans rôle, ni le portail d'un client, ne lisent la liste.
+        assert (await c.get(f"{R}/membres", headers=entetes(jeton_simple, a))).status_code == 403
+        assert (await c.get(f"{R}/membres", headers=cle)).status_code == 403
+        # Confier le suivi à un collègue : le fil dit qui, la liste « mes fils » de ce collègue le contient.
+        ok = await c.patch(f"{R}/clients/{a}/fils/{fil['id']}", json={"suivi_par": collegue.id}, headers=h)
+        assert ok.status_code == 204, ok.text
+        vu = (await c.get(f"{R}/clients/{a}/fils/{fil['id']}", headers=h)).json()
+        assert (vu["suivi_par"], vu["suivi_nom"]) == (collegue.id, "rel-collegue")
+        assert [f["id"] for f in (await c.get(f"{R}/fils", params={"suivi": "moi"}, headers=entetes(jeton_collegue))).json()] == [fil["id"]]
+        # Un identifiant qui n'est pas un membre de l'équipe : refusé, rien n'a bougé.
+        inconnu = await c.patch(f"{R}/clients/{a}/fils/{fil['id']}", json={"suivi_par": 987654}, headers=h)
+        assert inconnu.status_code == 422
+        assert (await c.get(f"{R}/clients/{a}/fils/{fil['id']}", headers=h)).json()["suivi_par"] == collegue.id
+        # Un client que le compte n'ouvre pas : 404, même avec un membre valide.
+        assert (await c.patch(f"{R}/clients/999999/fils/{fil['id']}", json={"suivi_par": collegue.id}, headers=h)).status_code == 404

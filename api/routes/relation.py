@@ -70,9 +70,16 @@ class MessageIn(BaseModel):
     texte: str = Field(min_length=1, max_length=8000)
 
 
+class MembreASuivre(BaseModel):
+    id: int
+    nom: str
+
+
 class FilPatch(BaseModel):
     etat: Etat | None = None
     suivi: Literal["moi", "personne"] | None = None
+    # V4 : confier le suivi à un membre de l'équipe (comme la liste « Suivi par » de la maquette). Un identifiant inconnu est refusé.
+    suivi_par: int | None = Field(default=None, ge=1)
     lu: bool | None = None
     etat_demande: EtatDemande | None = None
     catalogue: str | None = Field(default=None, max_length=120)
@@ -243,6 +250,12 @@ async def repondre(
     return MessageOut(**message)
 
 
+@router.get("/membres", response_model=list[MembreASuivre])
+async def membres_a_qui_confier_un_fil(user: UserModel = Depends(membre)) -> list[MembreASuivre]:
+    """Les membres de l'équipe .mark (id et nom) : la liste « Suivi par » d'un fil. Réservée à l'équipe, jamais une adresse."""
+    return [MembreASuivre(**m) for m in await hub.membres_a_suivre()]
+
+
 @router.patch("/clients/{organization_id}/fils/{fil_id}", status_code=204)
 async def modifier_fil(
     organization_id: int, fil_id: int, corps: FilPatch, user: UserModel = Depends(membre)
@@ -253,7 +266,12 @@ async def modifier_fil(
         champs["etat"] = corps.etat
     if corps.lu is not None:
         champs["lu_par_mark"] = corps.lu
-    if corps.suivi == "moi":
+    if corps.suivi_par is not None:
+        choisi = next((m for m in await hub.membres_a_suivre() if m["id"] == corps.suivi_par), None)
+        if choisi is None:
+            raise HTTPException(status_code=422, detail="Unknown team member")
+        champs.update(suivi_par=choisi["id"], suivi_nom=choisi["nom"])
+    elif corps.suivi == "moi":
         champs.update(suivi_par=user.id, suivi_nom=await hub.nom_du_membre(user))
     elif corps.suivi == "personne":
         champs.update(suivi_par=None, suivi_nom=None)

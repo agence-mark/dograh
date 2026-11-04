@@ -24,6 +24,7 @@ const sdk = vi.hoisted(() => ({
     avis: vi.fn(),
     entree: vi.fn(),
     supprimer: vi.fn(),
+    equipe: vi.fn(),
 }));
 const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 vi.mock("@/client/sdk.gen", () => ({
@@ -32,6 +33,7 @@ vi.mock("@/client/sdk.gen", () => ({
     listerFilsApiV1RelationFilsGet: sdk.fils,
     lireFilApiV1RelationClientsOrganizationIdFilsFilIdGet: sdk.lireFil,
     modifierFilApiV1RelationClientsOrganizationIdFilsFilIdPatch: sdk.modifier,
+    membresAQuiConfierUnFilApiV1RelationMembresGet: sdk.equipe,
     repondreApiV1RelationClientsOrganizationIdFilsFilIdMessagesPost: sdk.repondre,
     avisEtTemoignagesApiV1RelationAvisGet: sdk.avis,
     ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: sdk.entree,
@@ -43,6 +45,15 @@ vi.mock("@/client/sdk.gen", () => ({
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost: vi.fn(),
     reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch: vi.fn(),
     supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete: sdk.supprimer,
+}));
+// Radix ne s'ouvre pas sous JSDOM : la liste du studio est jouée par un `<select>` natif (étiquette = son libellé « vide »).
+vi.mock("@/components/mark/studio/liste", () => ({
+    Liste: ({ valeur, changer, options, vide }: { valeur?: string; changer?: (v: string) => void; options: Array<string | { valeur: string; libelle: string }>; vide?: string }) => (
+        <select aria-label={vide ?? "liste"} value={valeur ?? ""} onChange={(e) => changer?.(e.target.value)}>
+            {vide !== undefined && <option value="">{vide}</option>}
+            {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.valeur} value={o.valeur}>{o.libelle}</option>))}
+        </select>
+    ),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: "a@b.c" } }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -137,6 +148,26 @@ describe("Messages", () => {
         sdk.lireFil.mockImplementation(() => ok(complet()));
         sdk.repondre.mockImplementation(() => ok({ id: 3 }));
         sdk.modifier.mockImplementation(() => Promise.resolve({ error: undefined }));
+        sdk.equipe.mockImplementation(() => ok([{ id: 4, nom: "Pierre" }, { id: 9, nom: "Evan" }]));
+    });
+
+    it("V4 : « Suivi par » est la liste de l'équipe lue du serveur ; choisir un membre l'envoie, « personne » lâche le fil", async () => {
+        avec(<EcranMessages fil={1} />);
+        const liste = (await screen.findByLabelText("Suivi par personne")) as HTMLSelectElement;
+        await waitFor(() => expect([...liste.options].map((o) => o.textContent)).toEqual(["Suivi par personne", "Suivi par Pierre", "Suivi par Evan"]));
+        fireEvent.change(liste, { target: { value: "4" } });
+        await waitFor(() => expect(sdk.modifier).toHaveBeenCalled());
+        expect(sdk.modifier.mock.calls[0][0]).toMatchObject({ path: { organization_id: 7, fil_id: 1 }, body: { suivi_par: 4 } });
+    });
+
+    it("V4 : un fil suivi par quelqu'un se lit « Suivi par … » et se lâche avec « personne »", async () => {
+        sdk.lireFil.mockImplementation(() => ok(complet({ suivi_par: 9, suivi_nom: "Evan" })));
+        avec(<EcranMessages fil={1} />);
+        const liste = (await screen.findByLabelText("Suivi par personne")) as HTMLSelectElement;
+        await waitFor(() => expect(liste.value).toBe("9"));
+        fireEvent.change(liste, { target: { value: "" } });
+        await waitFor(() => expect(sdk.modifier).toHaveBeenCalled());
+        expect(sdk.modifier.mock.calls[0][0].body).toEqual({ suivi: "personne" });
     });
 
     it("montre les trois côtés et envoie la réponse ou la note interne du bon côté", async () => {
