@@ -155,6 +155,8 @@ REGLES: tuple[Regle, ...] = (
     # ------------------------------------------------------------------ Hub « Relation clients » (U3 septies, E78)
     # Le Hub exige une SESSION d'équipe (la route refuse une clé d'API) ; le lien d'entrée dans un portail exige en plus la permission.
     _r({"POST"}, r"^/relation/clients/\{organization_id\}/entree$", P("clients.ouvrir_portail")),
+    # Partie 3, lot 15 (P-6) : répondre, suivre, noter, témoigner exigent la permission « relation.ecrire » (lire reste ouvert à l'équipe).
+    _r({"POST", "PATCH", "DELETE"}, r"^/relation/clients/\{organization_id\}/(fils|notes|temoignages)(/.*)?$", P("relation.ecrire")),
     _r(TOUTES, r"^/relation(/.*)?$", MEMBRE, par_defaut=True),
     # Côté portail : clé d'API du client seulement (la route refuse une session) ; une clé ne lit que son organisation.
     _r(TOUTES, r"^/organizations/relation(/.*)?$", MEMBRE, par_defaut=True),

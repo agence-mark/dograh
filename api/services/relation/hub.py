@@ -50,9 +50,20 @@ async def nom_du_membre(user) -> str:
     return nom or (user.email or f"membre {user.id}").split("@")[0]
 
 
-async def membres_a_suivre() -> list[dict]:
-    """V4 : les membres de l'équipe .mark à qui on peut confier le suivi d'un fil (id et nom seulement, jamais une adresse)."""
+async def membres_a_suivre(organization_id: int | None = None) -> list[dict]:
+    """V4 : les membres de l'équipe .mark à qui on peut confier le suivi d'un fil (id et nom seulement, jamais une adresse).
+
+    Partie 3, lot 15 (N-1) : avec ``organization_id`` (le client du fil), seulement les membres dont le rôle OUVRE ce client
+    (« tous les clients » ou ce client nommé) : on ne confie pas un fil à qui n'a pas le droit de l'ouvrir (cloisonnement)."""
     lignes, _total = await db_client.lister_membres(limit=100, offset=0)
+    if organization_id is not None:
+        roles = {r["id"]: r for r in await db_client.lister_roles()}
+
+        def ouvre(role_id: int) -> bool:
+            role = roles.get(role_id)
+            return bool(role) and (role["tous_les_clients"] or organization_id in role["organisations"])
+
+        lignes = [m for m in lignes if ouvre(m["role_id"])]
     return [{"id": m["user_id"], "nom": nom_affiche(m)} for m in lignes]
 
 

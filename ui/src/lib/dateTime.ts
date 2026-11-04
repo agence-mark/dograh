@@ -49,7 +49,7 @@ export function formatLocalDateTime(value: Date) {
 
 /**
  * [.mark] V4 : la date d'une ligne de tableau, comme la maquette : « aujourd'hui 11:03 », « hier 17:22 », sinon « 02/11 09:40 »
- * (jour/mois en français, mois/jour en anglais), à 24 heures. Le jour se compte dans le fuseau demandé (ou celui de la personne).
+ * (jour/mois en français, « Oct 29 » en anglais), à 24 heures. Le jour se compte dans le fuseau demandé (ou celui de la personne).
  */
 export function formatDateRelative(value: DateInput, langue: 'fr' | 'en' = 'en', timezone?: string | null, maintenant: Date = new Date()) {
     const zone = timezone || getLocalTimezone();
@@ -62,5 +62,7 @@ export function formatDateRelative(value: DateInput, langue: 'fr' | 'en' = 'en',
     if (celuiLa === aujourdhui) return `${langue === 'fr' ? "aujourd'hui" : 'today'} ${heure}`;
     if (celuiLa === hier) return `${langue === 'fr' ? 'hier' : 'yesterday'} ${heure}`;
     const [, mois, j] = celuiLa.split('-');
-    return `${langue === 'fr' ? `${j}/${mois}` : `${mois}/${j}`} ${heure}`;
+    // R-1 (partie 3) : en anglais « Oct 29 » (le mois en toutes lettres abrégées), jamais « 10/29 » ni « 29/10 ».
+    const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${langue === 'fr' ? `${j}/${mois}` : `${MOIS_EN[Number(mois) - 1]} ${Number(j)}`} ${heure}`;
 }

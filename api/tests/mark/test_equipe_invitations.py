@@ -72,7 +72,11 @@ async def test_invitation_de_bout_en_bout(db_session):
 
         lue = await c.get(f"/api/v1/auth/invitation/{jeton}")
         assert lue.status_code == 200
-        assert lue.json() == {"email": "pierre@example.com", "role_nom": "Membre"}
+        corps_lu = lue.json()
+        assert corps_lu["email"] == "pierre@example.com" and corps_lu["role_nom"] == "Membre"
+        # Lot 15 (P-3) : la page dit qui invite (un compte sans nom : rien, jamais son adresse) et jusqu'à quand le lien vaut.
+        assert corps_lu["invite_par"] is None and corps_lu["expire_le"]
+        assert "chef@example.com" not in lue.text
 
         accepte = await c.post(
             f"/api/v1/auth/invitation/{jeton}/accepter",

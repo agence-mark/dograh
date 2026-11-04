@@ -290,7 +290,9 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
         const cs = emplacement?.chemins ?? [];
         const domaine = siteLu?.allowed_domains?.[0] ?? siteLu?.nom ?? "";
         if (!emplacement?.site_id) return t({ fr: "Aucun site choisi", en: "No site chosen yet" });
-        return cs.includes("/") ? `${t({ fr: "Tout le site", en: "Whole site" })} (${domaine})` : `${domaine}${cs.join(", ")}`;
+        const lieu = cs.includes("/") ? `${t({ fr: "Tout le site", en: "Whole site" })} (${domaine})` : `${domaine}${cs.join(", ")}`;
+        // S-2 : le nom de la fiche d'établissement de l'agent, ou « sans lieu » (comme la maquette).
+        return `${lieu} · ${emplacement.etablissement_nom || t({ fr: "sans lieu", en: "no place" })}`;
     })();
 
     // ---- la bulle d'un élément choisi dans l'aperçu ----

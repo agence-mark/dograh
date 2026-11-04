@@ -215,8 +215,9 @@ function Conversation({ organisation, id, onChange, t }: { organisation: number;
     // V4 : les membres de l'équipe à qui confier le suivi (la liste « Suivi par » de la maquette), lus une fois.
     const [equipe, setEquipe] = useState<Array<{ id: number; nom: string }>>([]);
     useEffect(() => {
-        void membresAQuiConfierUnFilApiV1RelationMembresGet().then((res) => setEquipe(res.data ?? []));
-    }, []);
+        // N-1 : seulement les membres dont le rôle ouvre CE client (le cloisonnement se contrôle côté serveur).
+        void membresAQuiConfierUnFilApiV1RelationMembresGet({ query: { client: organisation } }).then((res) => setEquipe(res.data ?? []));
+    }, [organisation]);
     const interne = mode === "interne";
 
     const lire = useCallback(() => {

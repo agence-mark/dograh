@@ -190,6 +190,23 @@ async def regenerer_la_cle_du_site(site_id: int, user: UserModel = Depends(get_u
 
 
 # ---------------------------------------------------------------------- canal et emplacement
+async def _nom_de_l_etablissement(definition, organization_id: int) -> str | None:
+    """S-2 : le nom de la fiche d'établissement choisie par l'agent publié, ou ``None`` (sans fiche, ou fiches illisibles :
+    l'éditeur s'ouvre quand même)."""
+    reglages = getattr(definition, "workflow_configurations", None) or {}
+    fiche = reglages.get("etablissement_id") if isinstance(reglages, dict) else None
+    if not isinstance(fiche, str) or not fiche.strip():
+        return None
+    from api.services.etablissements.stockage import lire_etablissements_strict
+
+    try:
+        catalogue = await lire_etablissements_strict(organization_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Establishment name not read for the site editor: {type(erreur).__name__}")
+        return None
+    return next((e.nom for e in catalogue.etablissements if e.id == fiche.strip()), None)
+
+
 async def _emplacement_lu(workflow, organization_id: int) -> EmplacementLu:
     jeton = await _jeton(workflow.id, organization_id)
     canal = await _canal_de_lagent(workflow, organization_id, brouillon=True)
@@ -199,6 +216,7 @@ async def _emplacement_lu(workflow, organization_id: int) -> EmplacementLu:
         canal=canal,
         agent_nom=workflow.name or "",
         version_publiee=getattr(definition, "version_number", None),
+        etablissement_nom=await _nom_de_l_etablissement(definition, organization_id),
     )
     if jeton is None:
         return lu

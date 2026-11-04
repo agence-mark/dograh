@@ -40,6 +40,18 @@ describe("page Rejoindre l'équipe", () => {
         expect(screen.queryByLabelText("Mot de passe")).toBeNull();
     });
 
+    it("P-3 : la page nomme l'invitant et l'échéance du lien, sans adresse ; sans nom d'invitant, la phrase d'avant", async () => {
+        lire.mockResolvedValue({ data: { email: "pierre@exemple.fr", role_nom: "Administrateur", invite_par: "Evan", expire_le: "2026-11-05T10:02:00Z" }, error: undefined });
+        monter("bon");
+        await waitFor(() => expect(screen.getByText(/Evan vous invite comme/)).toBeTruthy());
+        expect(document.body.textContent).toMatch(/Lien valable jusqu'au .*2026/);
+        cleanup();
+        lire.mockResolvedValue({ data: { email: "pierre@exemple.fr", role_nom: "Administrateur", invite_par: null, expire_le: null }, error: undefined });
+        monter("bon");
+        await waitFor(() => expect(screen.getByText(/Vous êtes invité comme/)).toBeTruthy());
+        expect(document.body.textContent).not.toContain("Lien valable");
+    });
+
     it("sans jeton : même écran, aucun appel", () => {
         monter("");
         expect(screen.getByText("Invitation périmée")).toBeTruthy();

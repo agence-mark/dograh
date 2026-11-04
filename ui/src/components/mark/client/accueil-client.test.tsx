@@ -20,6 +20,7 @@ const m = vi.hoisted(() => ({
     telephonie: vi.fn(),
     cles: vi.fn(),
     tri: vi.fn(),
+    chiffres: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ org: "7" }), useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...r }: { children: React.ReactNode; href: string }) => <a href={href} {...r}>{children}</a> }));
@@ -33,6 +34,7 @@ vi.mock("@/client/sdk.gen", () => ({
     listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet: m.telephonie,
     listerLesClesApiV1ClesGet: m.cles,
     lireLaFileDeTriApiV1TriGet: m.tri,
+    chiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGet: m.chiffres,
 }));
 
 beforeEach(() => {
@@ -43,6 +45,7 @@ beforeEach(() => {
     m.telephonie.mockResolvedValue({ data: { configurations: [] } });
     m.cles.mockResolvedValue({ data: [{}, {}, {}, {}] });
     m.tri.mockResolvedValue({ data: { lignes: [{}, {}] } });
+    m.chiffres.mockResolvedValue({ data: { appels_7j: 12, note_juge: 4.3, agents_publies: 1 } });
 });
 afterEach(() => {
     cleanup();
@@ -93,5 +96,34 @@ describe("l'accueil d'un client", () => {
         expect(await screen.findByText("Nothing to improve")).toBeTruthy();
         await waitFor(() => expect(ligne("base")).toBeTruthy());
         expect(within(ligne("base")).getByText("not attached")).toBeTruthy();
+    });
+
+    it("O-1 : la bande de chiffres d'un client en service dit ses appels des 7 jours, sa note du juge et ce qui reste à améliorer", async () => {
+        m.tri.mockResolvedValue({ data: { lignes: [{ gravite: 3 }, { gravite: 1 }] } });
+        render(<AccueilClient />);
+        const bande = await screen.findByTestId("bande-du-client");
+        expect(m.chiffres).toHaveBeenCalledWith({ path: { organization_id: 7 } });
+        await waitFor(() => expect(bande.textContent).toContain("12"));
+        expect(bande.textContent).toContain("Calls in 7 days");
+        expect(bande.textContent).toContain("4.3");
+        expect(bande.textContent).toContain("Judge score");
+        expect(bande.textContent).toContain("of which serious : 1");
+    });
+
+    it("O-1 : sans appel noté, un tiret (jamais un chiffre inventé) ; un client sans agent publié n'a pas de bande ; une lecture en échec se dit illisible", async () => {
+        m.chiffres.mockResolvedValue({ data: { appels_7j: 0, note_juge: null, agents_publies: 1 } });
+        render(<AccueilClient />);
+        const bande = await screen.findByTestId("bande-du-client");
+        await waitFor(() => expect(bande.textContent).toContain("no scored call yet"));
+        expect(bande.textContent).toContain("–");
+        cleanup();
+        m.chiffres.mockResolvedValue({ data: { appels_7j: 0, note_juge: null, agents_publies: 0 } });
+        render(<AccueilClient />);
+        await screen.findByText("Accueil");
+        expect(screen.queryByTestId("bande-du-client")).toBeNull();
+        cleanup();
+        m.chiffres.mockResolvedValue({ error: { detail: "x" } });
+        render(<AccueilClient />);
+        expect((await screen.findByTestId("bande-du-client")).textContent).toContain("unreadable");
     });
 });

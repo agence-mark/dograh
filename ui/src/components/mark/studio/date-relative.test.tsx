@@ -19,12 +19,12 @@ describe("DateRelative", () => {
         expect(aujourdhui.getAttribute("title")).toMatch(/\d{4}/); // l'année, donc la date complète
         expect(aujourdhui.getAttribute("datetime")).toBe(midi.toISOString());
         rerender(<DateRelative valeur={hier.toISOString()} fuseau="UTC" />);
-        expect(container.querySelector("time")?.textContent).toMatch(/^(yesterday|\d{2}\/\d{2}) \d{2}:\d{2}$/);
+        expect(container.querySelector("time")?.textContent).toMatch(/^(yesterday|[A-Z][a-z]{2} \d{1,2}) \d{2}:\d{2}$/);
     });
 
-    it("une date d'un autre jour est dite jour/mois ; une date absente ou illisible ne dessine rien", () => {
+    it("une date d'un autre jour est dite jour/mois (anglais : « Mar 4 ») ; une date absente ou illisible ne dessine rien", () => {
         const { container, rerender } = render(<DateRelative valeur="2020-03-04T10:30:00Z" fuseau="UTC" />);
-        expect(container.querySelector("time")?.textContent).toBe("03/04 10:30"); // anglais : mois/jour
+        expect(container.querySelector("time")?.textContent).toBe("Mar 4 10:30"); // anglais : « Mar 4 » (R-1)
         rerender(<DateRelative valeur={null} />);
         expect(container.querySelector("time")).toBeNull();
         rerender(<DateRelative valeur="pas une date" vide="–" />);

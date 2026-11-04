@@ -25,6 +25,7 @@ import { EtatVide } from "../studio/etat-vide";
 import { Info, PointEtat } from "../studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 import { DerniereModificationFiche, useDernieresModifications } from "./derniere-modification";
+import { formaterNumero } from "@/lib/numero";
 
 type Props = Pick<ProprietesThemeOrganisation, "signaler"> & {
     preferences: EtatPreferences;
@@ -128,7 +129,7 @@ export function OngletEtablissements({ signaler, preferences, annonce }: Props) 
                                     </PointEtat>
                                     <DerniereModificationFiche modification={modifications.parFiche[e.id]} />
                                 </Cellule>
-                                <Cellule droite>{e.numero_transfert || "—"}</Cellule>
+                                <Cellule droite>{formaterNumero(e.numero_transfert) || "—"}</Cellule>
                             </Ligne>
                         );
                     })}

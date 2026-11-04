@@ -25,6 +25,7 @@ import { type Texte, useLangue } from "../langue/langue";
 import type { RoleAffiche } from "./BadgeGroupe";
 import { DialogueNom } from "./DialogueNom";
 import { BoutonPublierLeGroupe } from "./PublierLeGroupe";
+import { formaterNumero } from "@/lib/numero";
 
 const TEXTES = {
     groupe: { en: "Group", fr: "Groupe" },
@@ -101,7 +102,7 @@ export const VueGroupe = ({
                         </p>
                         <p className="text-xs text-muted-foreground">
                             {t(TEXTES.numeros)} :{" "}
-                            {info && info.numeros.length > 0 ? info.numeros.join(", ") : t(TEXTES.aucunNumero)}
+                            {info && info.numeros.length > 0 ? info.numeros.map(formaterNumero).join(", ") : t(TEXTES.aucunNumero)}
                             {" · "}
                             {t(TEXTES.fiche)} : {info?.etablissementId ?? t(TEXTES.aucuneFiche)}
                         </p>

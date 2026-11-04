@@ -106,13 +106,20 @@ class EquipeClient(BaseDBClient):
             await session.commit()
 
     async def lister_journal(
-        self, *, limit: int, offset: int, organization_id: int | None = None
+        self,
+        *,
+        limit: int,
+        offset: int,
+        organization_id: int | None = None,
+        user_id: int | None = None,
     ) -> tuple[list[dict], int]:
-        """Une page du journal, du plus récent au plus ancien, et le total."""
+        """Une page du journal, du plus récent au plus ancien, et le total. Filtres posés DANS la requête (espace, membre)."""
         async with self.async_session() as session:
             filtre = []
             if organization_id is not None:
                 filtre.append(MarkJournalModel.organization_id == organization_id)
+            if user_id is not None:
+                filtre.append(MarkJournalModel.user_id == user_id)
             total = (
                 await session.execute(
                     select(func.count()).select_from(MarkJournalModel).where(*filtre)
@@ -415,6 +422,7 @@ class EquipeClient(BaseDBClient):
                 "id": i.id,
                 "email": i.email,
                 "role_id": i.role_id,
+                "cree_par": i.cree_par,
                 "expire_le": i.expire_le,
                 "utilisee_le": i.utilisee_le,
             }
