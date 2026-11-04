@@ -106,7 +106,12 @@ async def test_mineur_8_chaque_geste_d_ecriture_du_hub_est_au_journal(db_session
         assert (await c.patch(f"{R}/clients/{org}/temoignages/{t['id']}", json={"accord": True}, headers=h)).status_code == 204
         assert (await c.delete(f"{R}/clients/{org}/temoignages/{t['id']}", headers=h)).status_code == 204
     lignes, _total = await db_client.lister_journal(limit=50, offset=0, organization_id=org)
-    actions = sorted(ligne["action"] for ligne in lignes if ligne["action"].startswith("relation."))
+    # Partie 3 (P-6) : la porte d'accès journalise aussi chaque geste sous le nom de sa permission (« relation.ecrire »,
+    # point 4 de ``services/equipe_mark/acces.py``) ; ce test vérifie la ligne PROPRE à chaque geste du hub.
+    actions = sorted(
+        ligne["action"] for ligne in lignes if ligne["action"].startswith("relation.") and ligne["action"] != "relation.ecrire"
+    )
+    assert sum(ligne["action"] == "relation.ecrire" for ligne in lignes) == 7  # un par geste, par la porte d'accès
     assert actions == sorted(
         [
             "relation.message",

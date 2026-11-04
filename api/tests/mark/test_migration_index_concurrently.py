@@ -36,7 +36,9 @@ def test_une_seule_tete_sur_la_precedente():
     config = Config()
     config.set_main_option("script_location", str(RACINE))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["e6c9a2d4b815"]
+    # Une seule tête ; les migrations d'après (partie 3 : f1a8c3d5e702…) se posent au-dessus de celle-ci, jamais à côté.
+    (tete,) = scripts.get_heads()
+    assert "e6c9a2d4b815" in {revision.revision for revision in scripts.walk_revisions("base", tete)}
     assert scripts.get_revision("e6c9a2d4b815").down_revision == "d5b8f1a3c704"
 
 

@@ -10,6 +10,9 @@ from api.services.boucle import ingestion
 from api.services.builder import stock
 from api.services.juge import a_ameliorer
 from api.tests.mark.test_boucle_u8 import LIGNES, decor, un_appel, verdict_juge
+from api.tests.mark.test_boucle_u8 import (  # noqa: F401 -- fixture automatique : le décor dans une transaction annulée
+    _decor_dans_une_transaction_annulee,
+)
 
 
 def un_item(run, agent):
