@@ -191,6 +191,7 @@ export function FenetreDePublication({
                 valider={bloque ? null : part !== null ? `${t({ en: "Publish on", fr: "Publier sur" })} ${part} %` : t({ en: "Publish", fr: "Publier" })}
                 onValider={() => void publier(false)}
                 desactiver={!vue || enCours}
+                modifie={part !== null}
                 pied={
                     <>
                         <Button variant="outline" onClick={() => void charger()}>
@@ -345,6 +346,7 @@ export function FenetreDePublication({
                     })}
                     valider={t({ en: "Publish anyway", fr: "Publier quand même" })}
                     desactiver={raison.trim().length < 5 || enCours}
+                    modifie={raison.trim() !== ""}
                     onValider={() => void publier(true)}
                 >
                     <Champs>

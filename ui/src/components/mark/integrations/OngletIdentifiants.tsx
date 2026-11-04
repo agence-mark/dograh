@@ -145,6 +145,7 @@ function FenetreIdentifiant({
             titre={identifiant.name}
             sous={libelleSorte[identifiant.credential_type] ?? identifiant.credential_type}
             valider={null}
+            modifie={valeur !== ""}
             pied={erreur ? <span className="text-sm text-destructive">{erreur}</span> : undefined}
         >
             <Champs>
@@ -220,6 +221,7 @@ function FenetreNouvelIdentifiant({ fermer, apres, libelleSorte }: { fermer: () 
             titre={t({ en: "New credential", fr: "Nouvel identifiant" })}
             valider={t({ en: "Create", fr: "Créer" })}
             onValider={() => void creer()}
+            modifie={nom !== "" || champ1 !== "" || secret !== ""}
             pied={erreur ? <span className="text-sm text-destructive">{erreur}</span> : undefined}
         >
             <Champs>

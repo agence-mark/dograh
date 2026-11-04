@@ -72,6 +72,7 @@ export type FenetreServiceProps = {
 export function FenetreService(props: FenetreServiceProps) {
     const { service, fermer, enregistrer, portee, segments, configurationDefaults, initialConfig } = props;
     const { t } = useLangue();
+    const [modifie, setModifie] = useState(false);
     const [essai, setEssai] = useState<{ etat: "attente" | "ok" | "echec"; message?: string } | null>(null);
 
     const tester = async () => {
@@ -96,6 +97,7 @@ export function FenetreService(props: FenetreServiceProps) {
         <FenetreOnglets
             fermer={fermer}
             etroite
+            modifie={modifie}
             titre={
                 <>
                     {t(TITRES[service])}
@@ -134,6 +136,7 @@ export function FenetreService(props: FenetreServiceProps) {
                 forceRealtime={service === "realtime"}
                 currentOverrides={portee === "agent" ? props.remplacementsAgent : undefined}
                 onSave={enregistrer}
+                surModification={setModifie}
             />
         </FenetreOnglets>
     );

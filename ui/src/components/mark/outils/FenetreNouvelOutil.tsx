@@ -138,6 +138,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
             sous={t(DESCRIPTIONS[type])}
             valider={enCours ? t({ en: "Creating…", fr: "Création…" }) : t({ en: "Create", fr: "Créer" })}
             desactiver={enCours}
+            modifie={nom !== "" || description !== "" || integration !== null || agent !== ""}
             onValider={() => void creer()}
             pied={erreur ? <span className="text-sm text-destructive">{erreur}</span> : undefined}
         >

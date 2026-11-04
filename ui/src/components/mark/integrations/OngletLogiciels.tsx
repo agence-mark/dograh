@@ -775,6 +775,7 @@ function FenetreBrancher({
             }
             valider={labo ? t({ en: "Authorize now", fr: "Autoriser maintenant" }) : t({ en: "Propose to the client", fr: "Proposer au client" })}
             desactiver={enCours}
+            modifie={nom !== ""}
             onValider={() => void (labo ? autoriser() : proposer())}
             pied={
                 !labo ? (
