@@ -194,12 +194,16 @@ class BuilderFilClient(BaseDBClient):
 
     # --- U12 : le miroir des conversations Claude Code -------------------------------------------------------------
 
-    async def fil_de_la_session(self, organization_id: int, session_externe: str) -> MarkBuilderConversationModel | None:
+    async def fil_de_la_session(
+        self, organization_id: int, session_externe: str, user_id: int
+    ) -> MarkBuilderConversationModel | None:
+        """La conversation miroir d'une session Claude Code, de CE compte seulement (revue serveur, mineur 5)."""
         async with self.async_session() as session:
             resultat = await session.execute(
                 select(MarkBuilderConversationModel)
                 .where(
                     MarkBuilderConversationModel.organization_id == organization_id,
+                    MarkBuilderConversationModel.user_id == user_id,
                     MarkBuilderConversationModel.genre == "claude_code",
                     MarkBuilderConversationModel.session_externe == session_externe,
                 )

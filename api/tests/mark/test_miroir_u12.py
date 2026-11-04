@@ -253,3 +253,20 @@ async def test_le_resume_de_session_se_lit_avec_la_cle_de_la_personne(db_session
         assert set(corps) >= {"a_ameliorer", "tests_en_echec", "appels_a_juger", "chats_du_builder"}
         assert (await c.get(f"{B}/resume?depuis=hier", headers={"X-API-Key": cle})).status_code == 422
         assert (await c.get(f"{B}/resume")).status_code == 401
+
+
+async def test_deux_comptes_de_la_meme_organisation_ne_partagent_jamais_une_conversation(db_session, sans_preparation_des_organisations):
+    """Revue serveur, mineur 5 : la conversation d'une session se retrouve par l'organisation ET le compte. Le même identifiant
+    de session envoyé par la clé d'un autre compte ouvre SA conversation, jamais celle du premier."""
+    org, user, jeton, agent, cle = await decor(db_session, "f")
+    pierre, jeton_pierre = await creer_compte(db_session, "pierre.i1f@example.test", role="Administrateur", organisations=[org])
+    _modele, cle_pierre = await db_session.create_api_key(org, "mcp-pierre", created_by=pierre.id)
+    async with client_http() as c:
+        await allumer(c, jeton, org)
+        await allumer(c, jeton_pierre, org)
+        fil_evan = (await c.post(f"{B}/miroir", json=charge(agent), headers={"X-API-Key": cle})).json()["fil_id"]
+        r = await c.post(f"{B}/miroir", json=charge(agent), headers={"X-API-Key": cle_pierre})
+    assert r.status_code == 200, r.text
+    assert r.json()["fil_id"] != fil_evan
+    assert (await db_session.fil_de_la_session(org, "session-abc123", user.id)).id == fil_evan
+    assert (await db_session.fil_de_la_session(org, "session-abc123", pierre.id)).id == r.json()["fil_id"]
