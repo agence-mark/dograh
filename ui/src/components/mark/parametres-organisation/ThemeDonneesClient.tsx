@@ -23,7 +23,7 @@ import type { Conservation, EtatBaseClient } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -52,7 +52,7 @@ export const useBaseClient = () => {
     const relire = useCallback(async () => {
         const reponse = await getBaseClientApiV1OrganizationsBaseClientGet();
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Client database state unreadable"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);
@@ -70,7 +70,7 @@ export const useBaseClient = () => {
         setEnCours(false);
         if (reponse.error || !reponse.data) {
             // 409: the name is taken (another organization's database, or one the server already has).
-            setErreur(reponse.response?.status === 409 ? NOM_PRIS : detailFromError(reponse.error, "Action refused"));
+            setErreur(reponse.response?.status === 409 ? NOM_PRIS : echecAffiche(reponse.error));
             return false;
         }
         setEtat(reponse.data);

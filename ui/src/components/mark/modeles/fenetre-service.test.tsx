@@ -86,7 +86,8 @@ describe("« Tester la connexion »", () => {
         m.valider.mockResolvedValue({ error: { detail: "Mistral: invalid key" } });
         monter();
         fireEvent.click(screen.getByRole("button", { name: "Test the connection" }));
-        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toContain("Mistral: invalid key"));
+        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).not.toContain("Mistral: invalid key"));
         expect(document.querySelector('[data-essai="ok"]')).toBeNull();
     });
 });

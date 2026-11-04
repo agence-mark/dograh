@@ -15,8 +15,7 @@ import { essayerUnOutilApiV1ToolsToolUuidEssaiPost, validerLePremierEssaiApiV1To
 import type { ToolResponse, VerdictEssai } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs, LigneChamp, Segmente } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
@@ -72,7 +71,7 @@ export function OngletEssai({
         setEnCours(false);
         if (r.error || !r.data) {
             setVerdict(null);
-            return setErreur(detailFromError(r.error, "Trial failed"));
+            return setErreur(echecAffiche(r.error));
         }
         setVerdict(r.data);
         apres();
@@ -80,7 +79,7 @@ export function OngletEssai({
 
     const valider = async () => {
         const r = await validerLePremierEssaiApiV1ToolsToolUuidPremierEssaiPost({ path: { tool_uuid: outil.tool_uuid } });
-        if (r.error) return setErreur(detailFromError(r.error, "Not validated"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         setErreur(null);
         apres();
     };

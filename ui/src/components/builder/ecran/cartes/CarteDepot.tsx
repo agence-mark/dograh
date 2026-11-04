@@ -18,8 +18,7 @@ import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confi
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -59,7 +58,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { fichier },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
         } else notifier.succes({ en: "File added.", fr: "Fichier ajouté." });
         await rafraichir(workflowId);
@@ -75,7 +74,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { adresse: adresse.trim() },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
         } else {
             setAdresse("");

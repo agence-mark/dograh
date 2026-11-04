@@ -38,8 +38,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../../langue/langue";
 import { Info } from "../../studio/marques";
 import { CadreModale } from "../phrases/cadre";
@@ -226,7 +225,7 @@ export const ModaleModeles = ({
             mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet({ path: { workflow_id: workflowId } }),
         ]);
         if (modeles.error || !modeles.data) {
-            setErreur(detailFromError(modeles.error, t({ en: "The templates could not be read.", fr: "Les modèles n'ont pas pu être lus." })));
+            setErreur(echecAffiche(modeles.error));
             return;
         }
         setErreur(null);
@@ -576,7 +575,7 @@ const VueApplication = ({
                 body: { workflow_id: workflowId, sections: cochees, a_blanc: true },
             });
             if (annule) return;
-            if (reponse.error || !reponse.data) setRefus(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+            if (reponse.error || !reponse.data) setRefus(echecAffiche(reponse.error));
             else setApercu(reponse.data);
         })();
         return () => {

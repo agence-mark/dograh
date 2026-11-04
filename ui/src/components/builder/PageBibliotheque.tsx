@@ -44,8 +44,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ColonneDesFamilles } from "./ColonneDesFamilles";
 import { FenetreElement } from "./FenetreElement";
 import { FenetreNouvelElement } from "./FenetreNouvelElement";
@@ -86,7 +85,7 @@ export function PageBibliotheque() {
     const chargerLesFamilles = useCallback(async () => {
         const reponse = await listerLesFamillesApiV1BuilderBibliothequeFamillesGet();
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The families could not be read"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setFamilles(reponse.data);
@@ -147,7 +146,7 @@ export function PageBibliotheque() {
             },
         });
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The library could not be read"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);
@@ -166,7 +165,7 @@ export function PageBibliotheque() {
             lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet({ path: { famille: f, slug } }),
         ]);
         if (element.error || !element.data) {
-            setErreur(detailFromError(element.error, "The element could not be read"));
+            setErreur(echecAffiche(element.error));
             return;
         }
         setDetail(element.data);

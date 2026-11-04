@@ -31,7 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 /**
@@ -162,7 +162,7 @@ export function SectionLexiqueMetier() {
         // existe, on ne laisse pas écraser (relecture indépendante du 17/09).
         setLu(false);
         setErreur(
-          detailFromError(reponse.error, "Failed to load the trade vocabulary"),
+          echecAffiche(reponse.error),
         );
         return;
       }
@@ -222,7 +222,7 @@ export function SectionLexiqueMetier() {
       const reponse = await saveLexiqueApiV1OrganizationsLexiquePut({ body: suivant });
       if (reponse.error) {
         // The server's own message: a spelling shared by two terms names both.
-        setErreur(detailFromError(reponse.error, "Failed to save the trade vocabulary"));
+        setErreur(echecAffiche(reponse.error));
         return false;
       }
       setLexique(reponse.data ?? suivant);
@@ -315,7 +315,7 @@ export function SectionLexiqueMetier() {
       const contenu = JSON.parse(await choisi.text()) as LexiqueMetier;
       const reponse = await importLexiqueApiV1OrganizationsLexiqueImportPost({ body: contenu });
       if (reponse.error) {
-        setErreur(detailFromError(reponse.error, "Failed to import the template"));
+        setErreur(echecAffiche(reponse.error));
         return;
       }
       const resultat = reponse.data;

@@ -166,7 +166,11 @@ describe("[.mark] the Library page: the list", () => {
         cleanup();
         m.elements.mockResolvedValueOnce({ error: { detail: "The library organization is not configured" } });
         render(<PageBibliotheque />);
-        expect((await screen.findByRole("alert")).textContent).toContain("not configured");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("not configured");
+        }
     });
 });
 
@@ -273,7 +277,11 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
         fireEvent.change(depot.querySelector("[data-depot-fichier]") as HTMLInputElement, { target: { files: [new File(["x"], "x.exe")] } });
         m.deposer.mockResolvedValue({ error: { detail: "The document is not read: Format not supported" } });
         fireEvent.click(within(depot).getByRole("button", { name: "Drop as a Candidate" }));
-        expect((await within(depot).findByRole("alert")).textContent).toContain("Format not supported");
+        {
+            const affiche = (await within(depot).findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("Format not supported");
+        }
     });
 });
 
@@ -355,7 +363,11 @@ describe("[.mark] the Library page: one element", () => {
         fireEvent.change(within(detail).getByLabelText("The bench that proves it"), { target: { value: "banc" } });
         m.statut.mockResolvedValue({ error: { detail: "Only members of the .mark organization write in the library." } });
         fireEvent.click(within(detail).getByRole("button", { name: "Promote to Recipe" }));
-        expect((await screen.findByRole("alert")).textContent).toContain("Only members of the .mark organization");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("Only members of the .mark organization");
+        }
     });
 });
 

@@ -153,7 +153,11 @@ describe("The variable creator", () => {
         m.put.mockResolvedValue({ error: { detail: "« parfois » n'est pas une valeur de type oui_non (colonne « Suivie »)" } });
         const fermer = ouvrir(MARQUES);
         fireEvent.click(screen.getByTestId("enregistrer-objet"));
-        expect((await screen.findByTestId("erreur-objet")).textContent).toContain("oui_non");
+        {
+            const affiche = (await screen.findByTestId("erreur-objet")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("oui_non");
+        }
         expect(fermer).not.toHaveBeenCalled();
     });
 

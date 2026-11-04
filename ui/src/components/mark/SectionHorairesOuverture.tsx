@@ -17,7 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 
@@ -65,7 +65,7 @@ interface SectionHorairesOuvertureProps {
 const messageLisible = (erreur: unknown): string => {
     const brut = erreur instanceof Error && erreur.message
         ? erreur.message
-        : detailFromError(erreur, "Opening hours not saved. Check the entry and try again.");
+        : echecAffiche(erreur);
     // Several refusals come joined by line breaks: strip the prefix on each.
     return brut.replace(/^Value error,\s*/gm, "");
 };

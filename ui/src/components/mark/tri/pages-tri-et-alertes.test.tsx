@@ -109,7 +109,11 @@ describe("[.mark] the « To triage » page", () => {
         render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
         await screen.findByText("Signalé par l'agent");
         fireEvent.change(screen.getAllByLabelText("Statut")[0], { target: { value: "fusionné" } });
-        expect((await screen.findByRole("alert")).textContent).toContain("Flag not found");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("Flag not found");
+        }
         expect((screen.getAllByLabelText("Statut")[0] as HTMLSelectElement).value).toBe("ouvert");
     });
 

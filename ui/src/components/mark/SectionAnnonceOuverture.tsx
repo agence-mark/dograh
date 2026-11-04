@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { useFormeMaquette } from "./ecran/forme-maquette";
@@ -151,7 +151,7 @@ export function useAnnonceOuverture() {
         // ⛔ Saving REPLACES the settings whole: until what is saved has been
         // read, nothing may overwrite it.
         setLu(false);
-        setErreur(detailFromError(reponse.error, "Failed to load the announcement settings"));
+        setErreur(echecAffiche(reponse.error));
         return;
       }
       setReglages(reponse.data);
@@ -177,7 +177,7 @@ export function useAnnonceOuverture() {
       if (reponse.error) {
         // The server's own message: an unclosed bracket, a placeholder that
         // does not exist, a date without a forced state.
-        setErreur(detailFromError(reponse.error, "Failed to save the announcement settings"));
+        setErreur(echecAffiche(reponse.error));
         return false;
       }
       setReglages(reponse.data ?? reglages);

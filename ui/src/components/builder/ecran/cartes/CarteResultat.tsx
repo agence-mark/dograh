@@ -18,8 +18,7 @@ import { lancerLEssaiDUnOutilApiV1BuilderOutilsEssaiPost } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Carte } from "./Carte";
 
 export const TITRES_DES_CARTES: Record<string, Texte> = {
@@ -126,7 +125,7 @@ function EssaiAValider({ essai, workflowId }: { essai: NonNullable<ReturnType<ty
             body: { workflow_id: workflowId, outil: essai.outil, donnees_test: essai.donnees },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.essaiEchec)));
+            setErreur(echecAffiche(reponse.error));
             setEtat("attente");
             return;
         }

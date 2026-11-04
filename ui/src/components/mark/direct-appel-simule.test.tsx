@@ -81,7 +81,11 @@ describe("[.mark] the live view of a simulated call", () => {
             .mockResolvedValueOnce({ error: { detail: "Live view unavailable; the call goes on and its transcript is saved at the end." } })
             .mockResolvedValueOnce({ data: { evenements: [], suivant: 0, fini: true } });
         render(<DirectAppelSimule runId={7} workflowId={34} />);
-        expect((await screen.findByRole("alert")).textContent).toContain("Live view unavailable");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("Live view unavailable");
+        }
         await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 3000 });
     });
 });

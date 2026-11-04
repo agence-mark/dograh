@@ -14,8 +14,6 @@ import {
 } from "@/client/sdk.gen";
 import { notifier } from "@/components/mark/notifications";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
-import { detailFromError } from "@/lib/apiError";
-
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
 
@@ -55,7 +53,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
 
     const changer = async (slug: string) => {
         const r = await changerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePut({ path: { workflow_id: workflowId }, body: { recette: slug } });
-        if (r.error || !r.data) return notifier.echec({ en: `${t(T.echec)} ${detailFromError(r.error, "")}`.trim(), fr: T.echec.fr });
+        if (r.error || !r.data) return notifier.echec(T.echec, { erreur: r.error });
         setVue(r.data as VueAgent);
         notifier.succes(T.changee);
     };

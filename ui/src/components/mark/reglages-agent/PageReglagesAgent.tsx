@@ -38,7 +38,7 @@ import type { FlowEdge, FlowNode } from "@/components/flow/types";
 import { Input } from "@/components/ui/input";
 import { useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
 import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
 import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/types/workflow-configurations";
 
@@ -280,12 +280,12 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 fetchModelConfigurationPricing(),
             ]);
             if (defaultsResult.error) {
-                setModelConfigurationError(detailFromError(defaultsResult.error, "Failed to load model configuration defaults"));
+                setModelConfigurationError(echecAffiche(defaultsResult.error));
                 setModelConfigurationLoading(false);
                 return;
             }
             if (configurationResult.error) {
-                setModelConfigurationError(detailFromError(configurationResult.error, "Failed to load model configuration"));
+                setModelConfigurationError(echecAffiche(configurationResult.error));
                 setModelConfigurationLoading(false);
                 return;
             }

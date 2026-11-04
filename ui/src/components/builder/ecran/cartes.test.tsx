@@ -133,7 +133,11 @@ describe("la carte « Fiche client »", () => {
         poser(VUE({ fiche: { ...FICHE, trous: [] } }));
         render(<CarteFiche workflowId={5} />);
         fireEvent.click(screen.getByRole("button", { name: "Validate the sheet" }));
-        expect((await screen.findByRole("alert")).textContent).toContain("2 gap(s) are still open");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("2 gap(s) are still open");
+        }
     });
 });
 
@@ -329,7 +333,8 @@ describe("la carte « Essai à valider » (revue R5)", () => {
         m.essai.mockResolvedValue({ error: { detail: "The test data looks real" } });
         render(<CarteResultat nomDeLAction="outil_essayer" resultat={ESSAI} workflowId={7} />);
         fireEvent.click(screen.getByRole("button", { name: "Run the trial" }));
-        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("looks real"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).not.toContain("looks real"));
         expect(screen.getByRole("button", { name: "Run the trial" })).toBeTruthy();
     });
 

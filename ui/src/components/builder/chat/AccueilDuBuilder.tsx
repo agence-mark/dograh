@@ -26,7 +26,7 @@ import { useMoi } from "@/components/mark/studio/moi";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { FenetreFichier } from "../fichier/FenetreFichier";
@@ -137,7 +137,7 @@ export function AccueilDuBuilder() {
         const message = [saisie.trim(), ...fichiers.map((f) => `\n[Fichier : ${f.nom}]\n${f.texte}`)].join("\n");
         const r = await ouvrirUnFilApiV1BuilderFilsPost({ body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null } });
         if (r.error || !r.data) {
-            setErreur(detailFromError(r.error, t(T.echec)));
+            setErreur(echecAffiche(r.error));
             return;
         }
         router.push(adresses.fil(r.data.id));

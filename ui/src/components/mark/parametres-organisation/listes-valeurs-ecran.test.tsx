@@ -103,6 +103,10 @@ describe("Value list boxes (« Client data »)", () => {
         await screen.findByTestId("enregistrer-listes-valeurs");
         fireEvent.click(document.getElementById("liste-motif_appel-devis-opportunite") as HTMLElement);
         fireEvent.click(screen.getByTestId("enregistrer-listes-valeurs"));
-        expect((await screen.findByTestId("erreur-listes-valeurs")).textContent).toContain("is not a value of the list");
+        {
+            const affiche = (await screen.findByTestId("erreur-listes-valeurs")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("is not a value of the list");
+        }
     });
 });

@@ -14,8 +14,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 // The families whose content has a shape read by the code: a document cannot be dropped in them (the server says so too).
 export const STRUCTUREES = ["personnages-appelant", "scenarios-test", "criteres-types", "phrases-du-code", "lexiques", "modeles-reglages"];
 
@@ -46,7 +45,7 @@ export function DepotDeDocument({ familles, familleChoisie, onDepose, integre = 
         });
         if (reponse.error || !reponse.data) {
             setMessage(null);
-            setErreur(detailFromError(reponse.error, "The document was not dropped"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);

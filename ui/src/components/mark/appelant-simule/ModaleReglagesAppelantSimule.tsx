@@ -29,8 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
@@ -190,7 +189,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
             const reglages = await getReglagesAppelantSimuleApiV1AppelSimuleReglagesGet();
             if (annule) return;
             if (reglages.error) {
-                setErreur(detailFromError(reglages.error, "Simulated caller settings unreadable"));
+                setErreur(echecAffiche(reglages.error));
                 return;
             }
             setBrouillon(completer(reglages.data as ReglagesAppelantSimule));
@@ -211,7 +210,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
         const reponse = await saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut({ body: brouillon });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Simulated caller settings not saved"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         notifier.succes({ fr: "Réglages de l'appelant simulé enregistrés.", en: "Simulated caller settings saved." });

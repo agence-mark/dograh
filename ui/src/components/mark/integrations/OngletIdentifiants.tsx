@@ -22,7 +22,7 @@ import {
 import type { CredentialResponse, UtilisePar } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
@@ -55,7 +55,7 @@ export function OngletIdentifiants() {
 
     const relire = useCallback(async () => {
         const [liste, utilises] = await Promise.all([listCredentialsApiV1CredentialsGet(), utilisationDesIdentifiantsApiV1CredentialsUtilisationGet()]);
-        if (liste.error || !liste.data) return setErreur(detailFromError(liste.error, "Credentials unreadable"));
+        if (liste.error || !liste.data) return setErreur(echecAffiche(liste.error));
         setErreur(null);
         setIdentifiants(liste.data);
         setUsage(utilises.data ?? {});
@@ -126,7 +126,7 @@ function FenetreIdentifiant({
 
     const remplacer = async () => {
         const r = await remplacerLaValeurApiV1CredentialsCredentialUuidValeurPut({ path: { credential_uuid: identifiant.uuid }, body: { valeur } });
-        if (r.error) return setErreur(detailFromError(r.error, "Value not replaced"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         setValeur("");
         setErreur(null);
         notifier.succes({ fr: "Valeur remplacée.", en: "Value replaced." });
@@ -134,7 +134,7 @@ function FenetreIdentifiant({
     };
     const supprimer = async () => {
         const r = await deleteCredentialApiV1CredentialsCredentialUuidDelete({ path: { credential_uuid: identifiant.uuid } });
-        if (r.error) return setErreur(detailFromError(r.error, "Not deleted"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         notifier.succes({ fr: "Identifiant supprimé.", en: "Credential deleted." });
         apres();
         fermer();
@@ -207,7 +207,7 @@ function FenetreNouvelIdentifiant({ fermer, apres, libelleSorte }: { fermer: () 
         if (!nom.trim() || !secret) return setErreur(t({ en: "A name and a value are required.", fr: "Un nom et une valeur sont requis." }));
         if ((sorte === "basic_auth" || sorte === "custom_header") && !champ1.trim()) return setErreur(t({ en: "Fill the first field.", fr: "Remplissez le premier champ." }));
         const r = await createCredentialApiV1CredentialsPost({ body: { name: nom.trim(), credential_type: sorte, credential_data: donnees() } });
-        if (r.error) return setErreur(detailFromError(r.error, "Not created"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         notifier.succes({ fr: "Identifiant créé.", en: "Credential created." });
         apres();
         fermer();

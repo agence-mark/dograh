@@ -27,8 +27,7 @@ import {
 import type { ResumeOutil, ToolResponse, UpdateToolRequest } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { comptesDuLogiciel } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -105,7 +104,7 @@ export function FenetreOutil({
         };
         const r = await updateToolApiV1ToolsToolUuidPut({ path: { tool_uuid: courant.tool_uuid }, body: corps });
         setEnCours(false);
-        if (r.error || !r.data) return setErreur(detailFromError(r.error, "Failed to save tool"));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
         setErreur(null);
         setCourant(r.data);
         setModifs({});
@@ -118,7 +117,7 @@ export function FenetreOutil({
         const r = archive
             ? await unarchiveToolApiV1ToolsToolUuidUnarchivePost({ path: { tool_uuid: courant.tool_uuid } })
             : await deleteToolApiV1ToolsToolUuidDelete({ path: { tool_uuid: courant.tool_uuid } });
-        if (r.error) return setErreur(detailFromError(r.error, "Failed"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         apresEcriture();
         fermer();
         if (archive) notifier.succes({ fr: "Outil restauré.", en: "Tool restored." });

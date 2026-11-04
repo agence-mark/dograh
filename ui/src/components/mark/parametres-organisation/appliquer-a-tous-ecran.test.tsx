@@ -154,7 +154,8 @@ describe("[.mark] Apply to all establishments (D152)", () => {
         fireEvent.click(screen.getByTestId("appliquer-a-tous-fiche-adresse"));
         fireEvent.click(screen.getByTestId("confirmer-appliquer-a-tous"));
         const erreur = await screen.findByTestId("erreur-appliquer-a-tous");
-        expect(erreur.textContent).toContain("behind this installation");
+        expect(erreur.textContent).toMatch(/That did not work|Cela n'a pas abouti/);
+        expect(erreur.textContent).not.toContain("behind this installation");
         expect(screen.getByTestId("modale-appliquer-a-tous")).toBeTruthy();
     });
 });

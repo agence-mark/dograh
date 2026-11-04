@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -161,7 +161,7 @@ export const CreateurVariable = ({
                 ? await putObjetApiV1OrganizationsObjetsObjetIdPut({ path: { objet_id: objet.id }, body: envoye })
                 : await postObjetApiV1OrganizationsObjetsPost({ body: envoye });
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Variable refused"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             notifier.succes({ fr: "Variable enregistrée.", en: "Variable saved." });
@@ -179,7 +179,7 @@ export const CreateurVariable = ({
         try {
             const reponse = await deleteObjetApiV1OrganizationsObjetsObjetIdDelete({ path: { objet_id: objet.id } });
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Variable not deleted"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             notifier.succes({ fr: "Variable supprimée.", en: "Variable deleted." });

@@ -22,7 +22,7 @@
 import { useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -109,7 +109,7 @@ export const useEnregistrementTheme = ({
                         [partie.nom],
                         erreur instanceof Error && erreur.message
                             ? erreur.message
-                            : detailFromError(erreur, "Not saved."),
+                            : echecAffiche(erreur),
                     );
                 }
             }
@@ -123,7 +123,7 @@ export const useEnregistrementTheme = ({
                         charge.parties.map((p) => p.nom),
                         erreur instanceof Error && erreur.message
                             ? erreur.message
-                            : detailFromError(erreur, "Not saved."),
+                            : echecAffiche(erreur),
                     );
                 }
             }

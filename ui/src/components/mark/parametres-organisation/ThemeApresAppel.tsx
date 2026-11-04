@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { PREFIXE_REFERENCE } from "../cles/ChampCleModele";
@@ -68,7 +68,7 @@ export const useApresAppel = () => {
     const relire = useCallback(async () => {
         const reponse = await getApresAppelApiV1OrganizationsApresAppelGet();
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "After-call settings unreadable"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);

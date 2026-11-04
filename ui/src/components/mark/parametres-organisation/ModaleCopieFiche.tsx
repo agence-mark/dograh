@@ -18,8 +18,7 @@ import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "../langue/langue";
 import { identifiantPour } from "./ModaleEtablissements";
 
@@ -59,7 +58,7 @@ export function ModaleCopieFiche({
         });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Copy failed"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         notifier.succes({ fr: "Fiche copiée.", en: "Sheet copied." });

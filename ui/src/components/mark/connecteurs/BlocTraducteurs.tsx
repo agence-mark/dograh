@@ -23,7 +23,7 @@ import { notifier } from "@/components/mark/notifications";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -52,7 +52,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                 getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
             ]);
             if (liste.error || !liste.data) {
-                setErreur(detailFromError(liste.error, "Calendar software unreadable"));
+                setErreur(echecAffiche(liste.error));
                 return;
             }
             setTraducteurs(liste.data.filter((x) => x.domaine === "agenda"));
@@ -74,7 +74,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
         const r = await putChoixTraducteursApiV1ConnecteursTraducteursChoixPut({ body: { agenda: choix || null } });
         setEnCours(false);
         if (r.error) {
-            setErreur(detailFromError(r.error, "Calendar software not saved"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         setEnregistre(choix);

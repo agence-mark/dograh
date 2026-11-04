@@ -19,7 +19,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet } from "@/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
@@ -1075,12 +1075,12 @@ export function useAnalyseDuRun(workflowId: number, runId: number, actif = true)
                 });
                 if (annule) return;
                 if (reponse.error) {
-                    setErreur(detailFromError(reponse.error, "Analysis failed"));
+                    setErreur(echecAffiche(reponse.error));
                     return;
                 }
                 setAnalyse(reponse.data as unknown as AnalyseDuRun);
             } catch (e) {
-                if (!annule) setErreur(detailFromError(e, "Analysis failed"));
+                if (!annule) setErreur(echecAffiche(e));
             }
         })();
         return () => {

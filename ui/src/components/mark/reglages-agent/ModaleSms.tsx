@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { SmsAgent } from "@/types/workflow-configurations";
 
 import { ChampEtiquettes } from "../ChampEtiquettes";
@@ -65,7 +65,7 @@ function Apercu({ workflowId, texte }: { workflowId?: number; texte: string | nu
         const minuterie = setTimeout(async () => {
             const r = await postApercuSmsApiV1WorkflowWorkflowIdSmsApercuPost({ path: { workflow_id: workflowId }, body: { texte: texte ?? "" } });
             if (r.error || !r.data) {
-                setErreur(detailFromError(r.error, "No preview"));
+                setErreur(echecAffiche(r.error));
                 return;
             }
             setErreur(null);

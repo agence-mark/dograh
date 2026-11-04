@@ -14,8 +14,7 @@ import type { RapportSerie, SerieSimulee } from "@/client/types.gen";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Resultat = {
@@ -217,7 +216,7 @@ export function ModaleRapportSeries({
             const reponse = await getSeriesSimuleesApiV1AppelSimuleSeriesGet({ query: { workflow_id: workflowId } });
             if (annule) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Series unreadable"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             const liste = (reponse.data as SerieSimulee[]) ?? [];
@@ -238,7 +237,7 @@ export function ModaleRapportSeries({
                 const reponse = await getRapportSerieApiV1AppelSimuleSeriesSerieIdGet({ path: { serie_id: id } });
                 if (annule) return;
                 if (reponse.error) {
-                    setErreur(detailFromError(reponse.error, "Series report unreadable"));
+                    setErreur(echecAffiche(reponse.error));
                     return;
                 }
                 setRapports((avant) => ({ ...avant, [id]: reponse.data as RapportSerie }));

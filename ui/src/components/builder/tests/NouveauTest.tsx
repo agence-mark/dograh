@@ -13,8 +13,7 @@ import { creerUnTestApiV1BuilderTestsWorkflowIdPost } from "@/client";
 import { useLangue } from "@/components/mark/langue/langue";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type ChampDeCritere, CHAMPS, CRITERES, ORIGINES_DE_TEST } from "./libelles";
 
 const CHAMP = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
@@ -98,7 +97,7 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
         const reponse = await creerUnTestApiV1BuilderTestsWorkflowIdPost({ path: { workflow_id: workflowId }, body: corps as never });
         setEnvoi(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The test was not created"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);

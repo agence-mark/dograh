@@ -10,8 +10,7 @@
 import type { ChatModelAdapter, ThreadMessageLike } from "@assistant-ui/react";
 
 import { lireLaConversationApiV1BuilderConversationWorkflowIdGet, parlerAuBuilderApiV1BuilderConversationPost } from "@/client";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ajouterAuxParties, type EvenementDuBuilder, lireLeFlux, type PartieDuMessage } from "./flux";
 import type { GrapheDuBuilder } from "./graphe";
 import { useBuilderEcran } from "./store";
@@ -74,7 +73,7 @@ export function creerLAdaptateur(options: OptionsDeLAdaptateur): ChatModelAdapte
                     signal: abortSignal,
                 });
                 if (reponse.error || !reponse.data) {
-                    yield { content: [{ type: "text", text: detailFromError(reponse.error, options.echec) }] };
+                    yield { content: [{ type: "text", text: echecAffiche(reponse.error) }] };
                     return;
                 }
                 for await (const evenement of lireLeFlux(reponse.data as ReadableStream<Uint8Array>)) {

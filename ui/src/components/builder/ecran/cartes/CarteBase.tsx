@@ -11,8 +11,7 @@ import { rejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPost,
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -53,7 +52,7 @@ export function CarteBase({ workflowId }: { workflowId: number }) {
         const reponse = valider
             ? await validerUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPost({ path: { workflow_id: workflowId, document_id: id } })
             : await rejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPost({ path: { workflow_id: workflowId, document_id: id }, body: {} });
-        if (reponse.error) setErreur(detailFromError(reponse.error, t(T.echec)));
+        if (reponse.error) setErreur(echecAffiche(reponse.error));
         await rafraichir(workflowId);
     };
 

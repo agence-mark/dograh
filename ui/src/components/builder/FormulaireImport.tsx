@@ -11,8 +11,7 @@ import type { VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 const CHAMP = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
@@ -54,7 +53,7 @@ export function FormulaireImport({ familles, familleChoisie, onCree }: Props) {
                 body: { famille, slug, titre, contenu: objet, origine: { source: source.trim(), licence: licence.trim(), date } },
             });
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "The import failed"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             setErreur(null);
@@ -64,7 +63,7 @@ export function FormulaireImport({ familles, familleChoisie, onCree }: Props) {
         }
         const reponse = await creerUnElementApiV1BuilderBibliothequeFamillePost({ path: { famille }, body: { slug, titre, contenu: objet } });
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The element was not created"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);
