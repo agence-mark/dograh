@@ -187,7 +187,7 @@ export function ApercuWidget({
                 >
                     <div
                         ref={scene}
-                        className={`relative overflow-hidden bg-neutral-100 ${telephone ? "rounded-[40px] border-neutral-800" : "rounded-2xl border-neutral-300"}`}
+                        className={`relative overflow-hidden bg-muted ${telephone ? "rounded-[40px] border-foreground" : "rounded-2xl border-border"}`}
                         style={{
                             width: base.l,
                             height: base.h,
@@ -198,11 +198,11 @@ export function ApercuWidget({
                     >
                         {/* Le site simulé : des blocs gris, aucune donnée. */}
                         <div className="pointer-events-none space-y-3 p-5 pt-12">
-                            <div className="h-4 w-40 rounded bg-neutral-300" />
-                            <div className="h-8 w-64 max-w-full rounded bg-neutral-300/80" />
-                            <div className="h-3 w-56 max-w-full rounded bg-neutral-300/60" />
-                            <div className="h-3 w-48 max-w-full rounded bg-neutral-300/60" />
-                            <div className="h-32 rounded-xl bg-neutral-200" />
+                            <div className="h-4 w-40 rounded bg-border" />
+                            <div className="h-8 w-64 max-w-full rounded bg-border/80" />
+                            <div className="h-3 w-56 max-w-full rounded bg-border/60" />
+                            <div className="h-3 w-48 max-w-full rounded bg-border/60" />
+                            <div className="h-32 rounded-xl bg-border/40" />
                         </div>
                         <div ref={montage} className="absolute inset-0" />
                     </div>

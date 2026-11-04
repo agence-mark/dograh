@@ -822,7 +822,7 @@ function ChoixCouleur({ libelle, valeur, onChange, sansTeintes = false }: { libe
                             style={{ background: c }}
                         />
                     ))}
-                <label className="relative size-6 cursor-pointer overflow-hidden rounded-full border" title={t({ fr: "Autre couleur", en: "Other colour" })} style={{ background: "conic-gradient(#f43f5e, #f59e0b, #22c55e, #3b82f6, #a855f7, #f43f5e)" }}>
+                <label className="relative size-6 cursor-pointer overflow-hidden rounded-full border" title={t({ fr: "Autre couleur", en: "Other colour" })} style={{ background: "conic-gradient(var(--signal-danger), var(--acc), var(--signal-ok), var(--acc), var(--signal-danger))" }}>
                     <input type="color" aria-label={t({ fr: "Autre couleur", en: "Other colour" })} value={hexSur7(HEX.test(valeur) ? valeur : "#000000")} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
                 </label>
                 <Input
