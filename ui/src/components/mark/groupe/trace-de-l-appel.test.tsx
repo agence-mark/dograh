@@ -233,7 +233,7 @@ describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () =
         expect(screen.getByText("Mesures de l'appel")).toBeTruthy();
     });
 
-    it("compte les étapes visitées dans « Nodes Visited » pour les deux formes", async () => {
+    it("compte les étapes visitées dans « Étapes visitées » pour les deux formes", async () => {
         await monterLaPage({
             nodes_visited: [
                 { agent: "Principal", etape: "Qualification" },
@@ -241,7 +241,7 @@ describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () =
             ],
             passations: [{ de: 1, vers: 3, refusee: false }],
         });
-        const metrique = (await screen.findByText("Nodes Visited")).parentElement as HTMLElement;
+        const metrique = (await screen.findByText("Étapes visitées")).parentElement as HTMLElement;
         expect(texte(metrique)).toContain("2");
     });
 });

@@ -20,6 +20,8 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-facti
     createWorkflowRunApiV1WorkflowWorkflowIdRunsPost: m.creer,
     getEtablissementsApiV1OrganizationsEtablissementsGet: m.fiches,
 }));
+// La liste déroulante du design system (V1b) est un faux <select> pour le test, comme dans liste-deroulante.test.tsx.
+vi.mock("@/components/ui/select", async () => await import("./studio/select-natif-test"));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/lib/auth", () => {
     const auth = { isAuthenticated: true, loading: false, user: { id: "u-1" }, getAccessToken: async () => "jeton" };
@@ -57,7 +59,7 @@ const rendre = (ficheDeLagent: string | null) => {
 };
 
 const lancer = async () => {
-    fireEvent.click(await screen.findByRole("button", { name: /run test/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /start the call/i }));
     await waitFor(() => expect(m.creer).toHaveBeenCalledTimes(1));
     return m.creer.mock.calls[0][0].body as Record<string, unknown>;
 };

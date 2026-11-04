@@ -17,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
-import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
 
 type DestinationFieldsProps = {
   config: Record<string, unknown>;
@@ -75,7 +74,7 @@ export function CallEventsSection() {
     return <p className="text-sm text-muted-foreground">Loading call event settings…</p>;
   }
   if (error || !orgContext?.organization_id || !organizationPreferences) {
-    return <div className="space-y-2"><p role="alert">{phraseEchec(error)}</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
+    return <div className="space-y-2"><p role="alert">Could not load organization settings</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
   }
   return <CallEventsForm key={orgContext.organization_id} initialSettings={organizationPreferences.call_events} deploymentIdentityAvailable={provider === "local"} />;
 }

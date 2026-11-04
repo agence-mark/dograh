@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 import type { OrganizationPreferences } from "@/client/types.gen";
 
 import { OrganizationPreferencesSection } from "./OrganizationPreferencesSection";
@@ -61,10 +61,6 @@ vi.mock("react-timezone-select", () => ({
   default: () => <div data-testid="timezone-select" />,
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 const preferences: OrganizationPreferences = {
   test_phone_number: null,
   timezone: "UTC",
@@ -83,8 +79,7 @@ describe("OrganizationPreferencesSection disposition mapping", () => {
     }));
     mocks.refreshConfig.mockReset();
     mocks.refreshConfig.mockResolvedValue(undefined);
-    vi.mocked(toast.success).mockClear();
-    vi.mocked(toast.error).mockClear();
+    viderNotifications();
   });
 
   it("persists a mapping from the modal without another page-level save", async () => {
@@ -109,7 +104,9 @@ describe("OrganizationPreferencesSection disposition mapping", () => {
       },
     });
     await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith("Disposition mapping saved"),
+      expect(lireNotifications().map((n) => [n.sorte, n.texte.en])).toEqual([
+        ["succes", "Settings saved."],
+      ]),
     );
     expect(
       screen.queryByRole("heading", { name: "Configure disposition mapping" }),
@@ -134,6 +131,6 @@ describe("OrganizationPreferencesSection disposition mapping", () => {
     expect(
       await screen.findByRole("button", { name: "Save mapping" }),
     ).toBeTruthy();
-    expect(toast.error).toHaveBeenCalled();
+    expect(lireNotifications().map((n) => n.sorte)).toContain("echec");
   });
 });

@@ -104,7 +104,7 @@ describe("Call event organization settings", () => {
   it("retries failures through the organization context", async () => {
     mocks.org.error = new Error("Preferences unavailable");
     render(<CallEventsSection />);
-    expect(screen.getByRole("alert").textContent).toBe("Preferences unavailable");
+    expect(screen.getByRole("alert").textContent).toBe("Could not load organization settings");
     expect(screen.queryByLabelText("Private key")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(mocks.org.refreshConfig).toHaveBeenCalledOnce();

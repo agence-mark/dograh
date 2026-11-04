@@ -59,6 +59,8 @@ describe("OpenAI speech model selection", () => {
         await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
         expect(onSave.mock.calls[0][0].realtime).toEqual({
             provider: "openai_realtime", api_key: ["test-key"], model: "gpt-live-1", voice: "marin", backend_model: "gpt-5.4-mini",
+            // Masquer n'est pas effacer (règle du 11/09, masquage-par-modele.test.tsx) : la langue du modèle précédent part avec.
+            language: "en",
         });
     });
 
