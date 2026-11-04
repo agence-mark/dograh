@@ -308,7 +308,9 @@ async def passer(
                 # Avant la requête : l'étape d'arrivée répond sans avoir lu le bloc des sorties de l'étape de départ ;
                 # sa première réplique lui est donnée pour ce tour seulement (rien si elle n'en a pas).
                 poser_la_premiere_replique(moteur, cible, arrivee)
-            etat = await moteur.prendre_porte_ecrite(arete.get_function_name(), relancer=relancer)
+            etat = await moteur.prendre_porte_ecrite(
+                arete.get_function_name(), relancer=relancer, choisie_par_le_code=True
+            )
             if etat != "prise":
                 _vider_la_notice(moteur)
             elif not relancer:

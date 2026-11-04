@@ -631,6 +631,30 @@ class PipecatEngine:
             logger.info(f"Arguments: {function_call_params.arguments}")
 
             try:
+                # [.mark] RA-B R4a (audit 01 A2) : une condition écrite sur la fiche ferme la porte au
+                # modèle quand la fiche décide ; rien ne bouge, il le sait et reste sur l'étape.
+                fermee = self.porte_fermee_par_la_fiche(name, transition_to_node, agent)
+                if fermee is not None:
+                    suivi = self._suivi_de(agent)
+                    relance = (
+                        suivi.relance(function_call_params.tool_call_id)
+                        if suivi is not None
+                        else None
+                    )
+                    await function_call_params.result_callback(
+                        {
+                            "status": "closed",
+                            "message": (
+                                "Cette porte est fermée : la fiche de l'appel ne remplit pas sa condition. "
+                                "Reste sur cette étape et continue avec l'appelant."
+                            ),
+                        },
+                        properties=None
+                        if relance is None
+                        else FunctionCallResultProperties(run_llm=relance),
+                    )
+                    return
+
                 # Perform variable extraction before transitioning to new node
                 await self._perform_variable_extraction_if_needed(
                     self.active_agent.current_node,
@@ -752,6 +776,42 @@ class PipecatEngine:
 
         return agent.bind_tool(self, transition_func, is_node_transition=True)
 
+    def porte_fermee_par_la_fiche(
+        self, nom: str, cible: str | None = None, agent: AgentRuntime | None = None
+    ) -> dict | None:
+        """[.mark] RA-B R4a (audit 01 A2) : la porte ``nom`` de l'étape en cours porte-t-elle une condition ÉCRITE sur la
+        fiche, fausse aujourd'hui, sur une étape où la fiche décide ? Rend la condition lue (et laisse une ligne dans
+        ``passages_par_le_code``), sinon ``None``. Étape en mode ``agent`` : rien n'est lu. Une porte sans condition
+        écrite n'est jamais fermée. ⛔ Ne lève jamais (dans le doute : ouverte)."""
+        try:
+            from api.services.workflow import passage_sur_la_fiche as passage
+
+            noeud = (agent or self.active_agent).current_node
+            for arete, lecture in passage.portes_a_condition(noeud):
+                if lecture.get("implicite") or arete.get_function_name() != nom:
+                    continue
+                if cible is not None and arete.target != cible:
+                    continue
+                if lecture["type"] == "etape_complete":
+                    vraie = passage.etape_complete(self, noeud)
+                else:
+                    vraie = passage._champ_vaut(self, lecture["champ"], lecture.get("vaut"))
+                if vraie:
+                    return None
+                passage.tracer(
+                    self,
+                    raison=passage.RAISON_FICHE,
+                    resultat="fermee",
+                    porte=nom,
+                    vers=self.active_agent.workflow.nodes[arete.target].name,
+                    condition=lecture,
+                )
+                return lecture
+            return None
+        except Exception as e:  # noqa: BLE001 -- une lecture de condition ne coûte jamais l'appel
+            logger.warning(f"[porte] condition illisible, la porte reste ouverte : {e!r}")
+            return None
+
     # --- [.mark] Plan porte-parlee (lot 4) : la porte écrite dans la réponse ---
 
     def _porte_de_l_etape(self, nom: str):
@@ -839,6 +899,7 @@ class PipecatEngine:
         relancer: bool = False,
         fin_demandee: bool = False,
         au_revoir_dit: bool = False,
+        choisie_par_le_code: bool = False,
     ) -> str:
         """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
         (interruption comprise), comme ``_create_transition_func`` mais sans
@@ -855,13 +916,19 @@ class PipecatEngine:
         collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
         mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
-        Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
+        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ;
+        une porte du modèle dont la condition sur la fiche est fausse n'est pas prise (``fermee``).
+
+        Rend l'état pour la trace : ``prise``, ``inconnue``, ``fermee`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
         agent = self.active_agent
         arete = self._porte_de_l_etape(nom)
         if arete is None:
             logger.warning(f"[porte] « {nom} » n'est pas une porte de l'étape : rien")
             return "inconnue"
+        if not choisie_par_le_code and self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
+            logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
+            return "fermee"
         try:
             logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
             # [.mark] Lot 7 (K1) : une porte réécrite vers l'étape de retour laisse sa trace.
@@ -1392,7 +1459,7 @@ class PipecatEngine:
             )
             return (
                 await self.prendre_porte_ecrite(
-                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True
+                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
                 )
                 == "prise"
             )

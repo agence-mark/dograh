@@ -928,7 +928,7 @@ class PostScriptumProcessor(FrameProcessor):
             detail = await self._prendre_la_porte(*portes, relancer=relancer)
             # Revue du 16/10 (C4) : « echec » aussi, une réponse tue vers une fin figée dont le
             # changement d'étape a échoué ne laisse jamais l'appelant dans le silence.
-            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom", "echec"):
+            if relancer and detail.get("porte_etat") in ("inconnue", "sans_nom", "echec", "fermee"):
                 # Q3 (lot 3 du chantier postscriptum-et-communes, run 1089) : une porte qui
                 # n'existe pas et aucune phrase : un silence, que C3 ne relançait pas
                 # (une porte était écrite). Le modèle reparle, une fois (garde de C3).
