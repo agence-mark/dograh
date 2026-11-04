@@ -1298,7 +1298,7 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "Model guard delay: past it without the model's first words, the code says its "
             "« model is slow » sentence and tries again (at the fallback brain if one is set). "
-            "Empty: the outage setting if any, else 4 s."
+            "Empty: 4 s."
         ),
     )
     cerveau_de_repli: dict | None = Field(

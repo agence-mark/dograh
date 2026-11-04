@@ -57,7 +57,7 @@ describe("[.mark] the outage fallback on screen", () => {
         expect(document.getElementById("panne_delai_modele_s")).toBeNull();
         expect(document.querySelector('[data-note="delai-modele-deplace"]')).not.toBeNull();
         fireEvent.change(document.getElementById("panne_sonnerie_s")!, { target: { value: "30" } });
-        expect(recu.mock.calls.at(-1)?.[0]).toEqual({ actif: true, delai_modele_s: 4, delai_voix_s: 3, sonnerie_s: 30 });
+        expect(recu.mock.calls.at(-1)?.[0]).toEqual({ actif: true, delai_voix_s: 3, sonnerie_s: 30 });
         expect(erreursPanne({ ...PANNE_ETEINTE, actif: true, delai_voix_s: 0.1 })).toHaveLength(1);
         expect(erreursPanne({ ...PANNE_ETEINTE, delai_voix_s: 0.1 })).toEqual([]);
     });

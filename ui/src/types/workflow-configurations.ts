@@ -318,7 +318,7 @@ export type SmsAgent = {
 };
 
 /** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
-export type PanneAgent = { actif: boolean; delai_modele_s: number; delai_voix_s: number; sonnerie_s: number };
+export type PanneAgent = { actif: boolean; delai_voix_s: number; sonnerie_s: number };
 
 export type ApresAppelAgent = {
     actif?: boolean;

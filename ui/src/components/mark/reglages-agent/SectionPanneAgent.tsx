@@ -17,10 +17,9 @@ import type { PanneAgent } from "@/types/workflow-configurations";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
 
-export const PANNE_ETEINTE: PanneAgent = { actif: false, delai_modele_s: 4, delai_voix_s: 3, sonnerie_s: 20 };
+export const PANNE_ETEINTE: PanneAgent = { actif: false, delai_voix_s: 3, sonnerie_s: 20 };
 
-export const BORNES_PANNE: Record<"delai_modele_s" | "delai_voix_s" | "sonnerie_s", [number, number]> = {
-    delai_modele_s: [0.1, 30],
+export const BORNES_PANNE: Record<"delai_voix_s" | "sonnerie_s", [number, number]> = {
     delai_voix_s: [0.5, 30],
     sonnerie_s: [5, 60],
 };
