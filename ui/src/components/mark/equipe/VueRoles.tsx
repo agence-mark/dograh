@@ -2,7 +2,6 @@
 
 import { Plus, Shield } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
     catalogueApiV1EquipeMarkPermissionsGet,
@@ -13,6 +12,7 @@ import {
 } from "@/client/sdk.gen";
 import type { PermissionResponse, RoleResponse } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
@@ -49,13 +49,14 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
 
     if (!roles) return <EtatVide cas="chargement" />;
 
-    const enregistrer = async (role: RoleResponse | null, corps: CorpsRole) => {
+    const enregistrer = async (role: RoleResponse | null, corps: CorpsRole): Promise<boolean> => {
         const res = role
             ? await modifierUnRoleApiV1EquipeMarkRolesRoleIdPut({ path: { role_id: role.id }, body: corps })
             : await creerUnRoleApiV1EquipeMarkRolesPost({ body: corps });
         if (res.error) notifier.echec({ fr: "Rôle non enregistré. Réessayez.", en: "Role not saved. Try again." }, { erreur: res.error });
         else notifier.succes({ fr: "Rôle enregistré.", en: "Role saved." });
         void charger();
+        return !res.error;
     };
 
     const role = ouvert === "nouveau" ? null : ouvert;
@@ -128,7 +129,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                     clients={clients}
                     lecture={lecture}
                     fermer={() => setOuvert(null)}
-                    enregistrer={(corps) => void enregistrer(role, corps)}
+                    enregistrer={(corps) => enregistrer(role, corps)}
                     supprimer={
                         role
                             ? async () => {

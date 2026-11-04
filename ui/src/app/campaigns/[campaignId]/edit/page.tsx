@@ -16,6 +16,7 @@ import type { CampaignResponse, TrafficVariantRequest } from '@/client/types.gen
 import { ErreurChamp } from "@/components/mark/erreur-champ";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
@@ -279,9 +280,7 @@ function FormulaireCampagne() {
             });
 
             if (response.error) {
-                const errorMessage = detailFromError(response.error, 'Failed to update campaign');
-                setSubmitError(errorMessage);
-                notifier.echec({ fr: "Campagne non modifiée. Vérifiez les réglages et réessayez.", en: "Campaign not updated. Check the settings and try again." }, { erreur: errorMessage });
+                setSubmitError(echecAffiche(response.error, { fr: "Campagne non modifiée. Vérifiez les réglages et réessayez.", en: "Campaign not updated. Check the settings and try again." }));
                 return;
             }
 

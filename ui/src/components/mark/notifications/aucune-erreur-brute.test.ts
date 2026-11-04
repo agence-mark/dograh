@@ -13,7 +13,17 @@ import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const RACINE = join(__dirname, "..", "..", "..");
-const DOSSIERS = ["components/mark", "components/builder", "app/labo", "app/clients", "app/relation"];
+// R4 : tout `ui/src`, plus seulement les cinq dossiers de l'écran .mark (M5 hors inventaire : `OrganizationPreferencesSection`,
+// les pages d'amont montrées par les adresses du Labo : campagnes, téléphonie, atelier d'un agent).
+const DOSSIERS = ["."];
+/**
+ * Exemptions écrites : fichiers d'amont dont le texte n'est jamais montré. Vide : les fichiers d'amont qui lisaient
+ * `detailFromError` sont tous joints par une adresse du Labo ou d'un client (`app/labo/**`, `app/clients/**`, `app/agents/**`)
+ * ou par un composant de l'écran .mark, donc convertis. Une entrée = un chemin relatif à `ui/src` + la raison.
+ */
+const EXEMPTIONS: Record<string, string> = {
+    "lib/apiError.ts": "définit detailFromError",
+};
 
 function fichiers(dossier: string, sortie: string[] = []): string[] {
     let noms: string[];
@@ -38,8 +48,23 @@ export function lignesBrutes(source: string): number[] {
         if (!ligne.includes("detailFromError(")) return;
         if (/^\s*import\b/.test(ligne) || /^\s*(\/\/|\*)/.test(ligne)) return;
         if (/\{\s*erreur:\s*detailFromError\(/.test(ligne)) return; // le motif part dans « Détails »
+        // Transport : l'erreur levée est attrapée plus loin ; l'affichage de son message est jugé par `messageAffiche`.
+        if (/throw new Error\(\s*detailFromError\(/.test(ligne) || lignes.slice(Math.max(0, i - 3), i).some((l) => /throw new Error\(\s*$/.test(l))) return;
         if (/faute-de-champ/.test(ligne) || (i > 0 && /faute-de-champ/.test(lignes[i - 1]))) return;
         fautives.push(i + 1);
+    });
+    return fautives;
+}
+
+/** Les lignes qui posent dans un état d'écran le `message` d'une erreur attrapée : le texte interne de l'erreur serait montré. */
+export function messagesAffiches(source: string): number[] {
+    const lignes = source.split("\n");
+    const fautives: number[] = [];
+    lignes.forEach((ligne, i) => {
+        if (/^\s*(\/\/|\*)/.test(ligne)) return;
+        // Exemption écrite : la faute de lecture d'une saisie locale (JSON.parse), pas un texte du serveur.
+        if (/message-local/.test(ligne) || (i > 0 && /message-local/.test(lignes[i - 1]))) return;
+        if (/\bset[A-Z]\w*\([^)]*instanceof Error \? \w+\.message/.test(ligne)) fautives.push(i + 1);
     });
     return fautives;
 }
@@ -50,13 +75,31 @@ describe("aucun texte brut d'erreur serveur à l'écran", () => {
         expect(lignesBrutes('notifier.echec(T, { erreur: detailFromError(r.error, "x") });')).toEqual([]);
         expect(lignesBrutes('// faute-de-champ : 422\nconst m = detailFromError(r.error, "");')).toEqual([]);
         expect(lignesBrutes("setErreur(echecAffiche(r.error));")).toEqual([]);
+        expect(lignesBrutes('throw new Error(detailFromError(r.error, "x"));')).toEqual([]);
+        expect(lignesBrutes('throw new Error(\n  detailFromError(r.error, "x"),\n);')).toEqual([]);
+        expect(messagesAffiches("setError(e instanceof Error ? e.message : 'x');")).toEqual([1]);
+        expect(messagesAffiches("setError(echecAffiche(e));")).toEqual([]);
     });
 
-    it("aucun fichier de l'écran .mark n'affiche detailFromError directement", () => {
-        const fautifs = DOSSIERS.flatMap((d) => fichiers(join(RACINE, d)))
+    const tous = () =>
+        DOSSIERS.flatMap((d) => fichiers(join(RACINE, d)))
             .map((f) => ({ rel: relative(RACINE, f).split(sep).join("/"), f }))
-            .filter(({ rel }) => !rel.startsWith("components/mark/notifications/"))
-            .flatMap(({ rel, f }) => lignesBrutes(readFileSync(f, "utf8")).map((n) => `${rel}:${n}`));
+            .filter(({ rel }) => !rel.startsWith("components/mark/notifications/") && !(rel in EXEMPTIONS) && !rel.startsWith("client/"));
+
+    it("aucun fichier de ui/src n'affiche detailFromError directement", () => {
+        const fautifs = tous().flatMap(({ rel, f }) => lignesBrutes(readFileSync(f, "utf8")).map((n) => `${rel}:${n}`));
         expect(fautifs).toEqual([]);
+    });
+
+    it("aucun fichier de ui/src ne pose le message d'une erreur attrapée dans l'écran", () => {
+        const fautifs = tous().flatMap(({ rel, f }) => messagesAffiches(readFileSync(f, "utf8")).map((n) => `${rel}:${n}`));
+        expect(fautifs).toEqual([]);
+    });
+
+    it("les exemptions écrites existent encore et disent pourquoi", () => {
+        for (const [rel, raison] of Object.entries(EXEMPTIONS)) {
+            expect(raison.length).toBeGreaterThan(5);
+            expect(() => readFileSync(join(RACINE, rel), "utf8")).not.toThrow();
+        }
     });
 });

@@ -6,10 +6,11 @@
  * Dograh's « General » (option B of D6), the ambient noise -- its audio file
  * included -- and the speech cache.
  */
-import { Loader2, Pause, Play, Upload, AudioLines, X } from "lucide-react";
+import { AudioLines, Loader2, Pause, Play, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "@/client/sdk.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -163,7 +164,7 @@ export const ThemeVoix = ({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(err instanceof Error ? err.message : "Upload failed");
+            setAudioUploadError(echecAffiche(err));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import {
   savePreferencesApiV1OrganizationsPreferencesPut,
   testCallEventsConnectionApiV1OrganizationsCallEventsTestPost,
 } from "@/client/sdk.gen";
 import type { CallEventsSettings } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,7 +74,7 @@ export function CallEventsSection() {
     return <p className="text-sm text-muted-foreground">Loading call event settings…</p>;
   }
   if (error || !orgContext?.organization_id || !organizationPreferences) {
-    return <div className="space-y-2"><p role="alert">{error?.message ?? "Could not load organization settings"}</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
+    return <div className="space-y-2"><p role="alert">Could not load organization settings</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
   }
   return <CallEventsForm key={orgContext.organization_id} initialSettings={organizationPreferences.call_events} deploymentIdentityAvailable={provider === "local"} />;
 }

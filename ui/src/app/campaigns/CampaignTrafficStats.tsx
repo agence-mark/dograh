@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { getCampaignTrafficStatsApiV1CampaignCampaignIdTrafficStatsGet } from '@/client/sdk.gen';
 import type { CampaignResponse, CampaignTrafficStatsResponse } from '@/client/types.gen';
 import { useLangue } from '@/components/mark/langue/langue';
+import { phraseEchec } from '@/components/mark/notifications/echec-affiche';
 import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { Info } from '@/components/mark/studio/marques';
 import { Cellule, Ligne, Tableau, TitreTableau } from '@/components/mark/studio/tableau';
@@ -39,7 +40,7 @@ export default function CampaignTrafficStats({ campaign }: { campaign: CampaignR
                 setStats(response.data ?? null);
                 setError(null);
             } catch (e) {
-                if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load traffic statistics');
+                if (!cancelled) setError(phraseEchec(e));
             } finally {
                 if (!cancelled && ['running', 'syncing'].includes(campaign.state)) timer = setTimeout(fetchStats, 10000);
             }

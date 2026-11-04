@@ -130,7 +130,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
             ...(agenda ? { agendas: { ...(personneOuverte?.agendas ?? {}), [agenda.systeme]: String(valeurs.agenda ?? "") } } : {}),
         };
         const liste = personneOuverte ? personnes.map((p) => (p.cle === cle ? ecrite : p)) : [...personnes, ecrite];
-        await ecrire({ ...equipe, personnes: liste }, { fr: "Personne enregistrée.", en: "Person saved." });
+        return ecrire({ ...equipe, personnes: liste }, { fr: "Personne enregistrée.", en: "Person saved." });
     };
 
     const enregistrerSujet = async (valeurs: Valeurs) => {
@@ -147,7 +147,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
             destinataires: ((valeurs.recu as string[]) ?? []).map(clePersonne),
         };
         const liste = sujetOuvert ? sujets.map((s) => (s.code === code ? ecrit : s)) : [...sujets, ecrit];
-        await ecrire({ ...equipe, sujets: liste }, { fr: "Sujet enregistré.", en: "Subject saved." });
+        return ecrire({ ...equipe, sujets: liste }, { fr: "Sujet enregistré.", en: "Subject saved." });
     };
 
     const retirerSujet = (s: Sujet) =>
@@ -250,7 +250,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
                 titre={personne === "nouvelle" ? t({ en: "New person", fr: "Nouvelle personne" }) : personneOuverte ? nomComplet(personneOuverte) : ""}
                 valider={t({ en: "Save", fr: "Enregistrer" })}
                 verifier={verifierPersonne}
-                onValider={(v) => void enregistrerPersonne(v)}
+                onValider={(v) => enregistrerPersonne(v)}
                 sections={[
                     {
                         titre: t({ en: "Person", fr: "Personne" }),
@@ -326,7 +326,7 @@ export function OngletEquipe({ baseRattachee }: { baseRattachee: boolean | null 
                 titre={sujet === "nouveau" ? t({ en: "New subject", fr: "Nouveau sujet" }) : (sujetOuvert?.libelle ?? "")}
                 valider={t({ en: "Save", fr: "Enregistrer" })}
                 verifier={(v) => (String(v.sujet).trim() ? null : { sujet: t({ en: "A subject needs a name.", fr: "Un sujet a besoin d'un nom." }) })}
-                onValider={(v) => void enregistrerSujet(v)}
+                onValider={(v) => enregistrerSujet(v)}
                 pied={
                     sujetOuvert ? (
                         <Button variant="ghost" size="sm" className="text-(--marque-danger-texte)" onClick={() => { const s = sujetOuvert; setSujet(null); retirerSujet(s); }}>

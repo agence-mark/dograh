@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import { useLangue } from "../langue/langue";
-import { FenetreChamps, type SectionChamps, type Valeurs } from "../studio/fenetre-champs";
+import { FenetreChamps, type RetourValidation, type SectionChamps, type Valeurs } from "../studio/fenetre-champs";
 import { Info } from "../studio/marques";
 import { TitreTableau } from "../studio/tableau";
 
@@ -34,7 +34,7 @@ export function SectionLue({
     info?: React.ReactNode;
     lignes: [string, React.ReactNode][];
     fenetre: { titre: string; info?: React.ReactNode; sections: SectionChamps[] };
-    onValider: (valeurs: Valeurs) => void;
+    onValider: (valeurs: Valeurs) => RetourValidation;
     verifier?: (valeurs: Valeurs) => Record<string, string> | null;
 }) {
     const { t } = useLangue();
@@ -94,7 +94,7 @@ export function BlocLu({
         corps: React.ReactNode;
         /** Le libellé du bouton (« Enregistrer » par défaut). */
         valider?: string;
-        onValider: () => void;
+        onValider: () => RetourValidation;
         onAnnuler?: () => void;
         verifier?: () => Record<string, string> | null;
     };
@@ -137,9 +137,18 @@ export function BlocLu({
                     sections={[]}
                     corps={<div className="-my-5 divide-y">{fenetre.corps}</div>}
                     valider={fenetre.valider ?? t({ en: "Save", fr: "Enregistrer" })}
-                    onValider={() => {
+                    onValider={async () => {
                         valide.current = true;
-                        fenetre.onValider();
+                        let retour: boolean | void;
+                        try {
+                            retour = await fenetre.onValider();
+                        } catch (e) {
+                            valide.current = false;
+                            throw e;
+                        }
+                        // Échec : la fenêtre reste ouverte, un « Annuler » défait toujours le brouillon.
+                        if (retour === false) valide.current = false;
+                        return retour;
                     }}
                     verifier={fenetre.verifier ? () => fenetre.verifier!() : undefined}
                 />

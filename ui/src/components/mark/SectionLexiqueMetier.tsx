@@ -13,6 +13,7 @@ import type { BudgetLexique, LexiqueMetier, TermeLexique } from "@/client/types.
 import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
@@ -31,7 +32,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 /**
@@ -509,7 +509,7 @@ export function SectionLexiqueMetier() {
                 a_ecouter: v.a_ecouter === true,
                 propose: v.propose === true,
               };
-              void enregistrer({
+              return enregistrer({
                 ...lexique,
                 termes: terme === "nouveau" ? [...termesLus, fait] : termesLus.map((x, i) => (i === terme ? fait : x)),
               });
@@ -540,7 +540,7 @@ export function SectionLexiqueMetier() {
                 ],
               },
             ]}
-            onValider={(v) => void enregistrer({ ...lexique, seuil_mots_courants: Number(v.seuil) || SEUIL_MOTS_COURANTS_DEFAUT })}
+            onValider={(v) => enregistrer({ ...lexique, seuil_mots_courants: Number(v.seuil) || SEUIL_MOTS_COURANTS_DEFAUT })}
           />
         )}
       </section>

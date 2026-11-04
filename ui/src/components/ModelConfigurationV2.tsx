@@ -14,6 +14,7 @@ import type {
     OrganizationAiModelConfigurationV2,
 } from "@/client/types.gen";
 import { AIModelConfigurationV2Editor, type ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { detailFromError } from "@/lib/apiError";
@@ -46,12 +47,12 @@ export default function ModelConfigurationV2({ docsUrl }: { docsUrl?: string }) 
             ]);
 
             if (defaultsResult.error) {
-                setError(detailFromError(defaultsResult.error, "Failed to load model configuration defaults"));
+                setError(echecAffiche(defaultsResult.error));
                 setLoading(false);
                 return;
             }
             if (configResult.error) {
-                setError(detailFromError(configResult.error, "Failed to load model configuration"));
+                setError(echecAffiche(configResult.error));
                 setLoading(false);
                 return;
             }

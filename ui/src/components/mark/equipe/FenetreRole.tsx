@@ -11,10 +11,9 @@ import { useState } from "react";
 
 import type { PermissionResponse, RoleResponse } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
-import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { FenetreChamps, type RetourValidation } from "@/components/mark/studio/fenetre-champs";
 import { Info } from "@/components/mark/studio/marques";
 import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confirmee";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -40,7 +39,7 @@ export function FenetreRole({
     clients: { id: number; nom: string }[];
     lecture: boolean;
     fermer: () => void;
-    enregistrer: (corps: CorpsRole) => void;
+    enregistrer: (corps: CorpsRole) => RetourValidation;
     supprimer?: () => void;
 }) {
     const { t } = useLangue();

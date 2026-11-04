@@ -9,6 +9,7 @@ import {
     transcribeAudioApiV1WorkflowRecordingsTranscribePost,
 } from "@/client";
 import type { RecordingUploadResponseSchema } from "@/client/types.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -268,7 +269,7 @@ export const RecordingsUploadDialog = ({
             onUploadComplete?.();
             onOpenChange(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to upload recordings");
+            setError(echecAffiche(err));
         } finally {
             setUploading(false);
         }

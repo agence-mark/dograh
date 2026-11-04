@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { getWorkflowsSummaryApiV1WorkflowSummaryGet, getWorkflowVersionSummariesApiV1WorkflowWorkflowIdVersionSummariesGet } from '@/client/sdk.gen';
 import type { TrafficVariantRequest, WorkflowSummaryResponse, WorkflowVersionSummaryResponse } from '@/client/types.gen';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +45,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         setAgentsLoading(true);
         getWorkflowsSummaryApiV1WorkflowSummaryGet({ query: { status: 'active,archived' } }).then(response => {
             if (cancelled) return;
-            if (response.error) setAgentError(detailFromError(response.error, 'Failed to load agents'));
+            if (response.error) setAgentError(echecAffiche(response.error));
             else setAgents(response.data ?? []);
         }).catch(() => { if (!cancelled) setAgentError('Failed to load agents'); })
             .finally(() => { if (!cancelled) setAgentsLoading(false); });
@@ -62,7 +63,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         })).then(entries => {
             if (!cancelled) setVersions(Object.fromEntries(entries));
         }).catch(error => {
-            if (!cancelled) setVersionError(error instanceof Error ? error.message : 'Failed to load versions');
+            if (!cancelled) setVersionError(echecAffiche(error));
         });
         return () => { cancelled = true; };
     }, [ids, loading, user, retry]);

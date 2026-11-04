@@ -32,6 +32,8 @@ export type Champ = { id: string; l: string; info?: React.ReactNode; si?: [strin
 
 export type SectionChamps = { titre?: string; info?: React.ReactNode; champs: Champ[] };
 export type Valeurs = Record<string, string | boolean | string[]>;
+/** Ce que rend un `onValider` : `false` ou une promesse qui échoue = la fenêtre reste ouverte, la saisie est gardée. */
+export type RetourValidation = void | boolean | Promise<void | boolean>;
 
 const depart = (sections: SectionChamps[]): Valeurs =>
     Object.fromEntries(
@@ -159,7 +161,7 @@ export function FenetreChamps(props: {
      * R3 M4 : peut rendre une promesse. La fenêtre reste ouverte (saisie gardée) tant qu'elle n'est pas réglée, et si elle
      * échoue ou rend `false` ; elle ne se ferme qu'au succès. Rendre autre chose que `false` (ou rien) = succès.
      */
-    onValider?: (valeurs: Valeurs) => void | boolean | Promise<void | boolean>;
+    onValider?: (valeurs: Valeurs) => RetourValidation;
     danger?: boolean;
     /** R3 : fenêtre de lecture : un seul bouton qui ferme, `valider` en est le libellé. */
     lecture?: boolean;

@@ -3,12 +3,12 @@ import { useEffect, useId, useState } from "react";
 import { listRecordingsApiV1WorkflowRecordingsGet } from "@/client/sdk.gen";
 import type { RecordingResponseSchema } from "@/client/types.gen";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import type { AnswerMessage, AnswerSupervisorSettings } from "@/types/workflow-configurations";
 
@@ -77,7 +77,7 @@ export function AnswerSupervisorFields({ value, onChange }: {
         listRecordingsApiV1WorkflowRecordingsGet({ query: {} }).then(response => {
             if (cancelled) return;
             if (response.error || !response.data) {
-                setError(detailFromError(response.error, "Could not load recordings."));
+                setError(echecAffiche(response.error));
                 return;
             }
             setRecordings(response.data.recordings);

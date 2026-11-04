@@ -15,6 +15,7 @@ import type { CreateToolRequest, ToolResponse } from "@/client/types.gen";
 import { CredentialSelector } from "@/components/http";
 import { ChampsCreationIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import type { ConfigIntegration } from "@/components/mark/connecteurs/useConnecteurs";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +43,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import {
@@ -217,7 +217,7 @@ export default function ToolsPage() {
             });
 
             if (response.error) {
-                setCreateError(detailFromError(response.error, "Failed to create tool"));
+                setCreateError(echecAffiche(response.error));
                 return;
             }
 
@@ -234,22 +234,7 @@ export default function ToolsPage() {
                 router.push(`/tools/${response.data.tool_uuid}`);
             }
         } catch (err: unknown) {
-            let errorMessage = "Failed to create tool";
-            if (err && typeof err === "object") {
-                const errObj = err as Record<string, unknown>;
-                // Handle API client error response
-                if (errObj.error && typeof errObj.error === "object") {
-                    const errorData = errObj.error as Record<string, unknown>;
-                    if (typeof errorData.detail === "string") {
-                        errorMessage = errorData.detail;
-                    }
-                }
-                // Handle standard Error objects
-                else if (errObj.message && typeof errObj.message === "string") {
-                    errorMessage = errObj.message;
-                }
-            }
-            setCreateError(errorMessage);
+            setCreateError(echecAffiche(err));
             console.error("Error creating tool:", err);
         } finally {
             setIsCreating(false);

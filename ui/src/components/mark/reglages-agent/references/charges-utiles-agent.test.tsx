@@ -291,19 +291,23 @@ describe("payload references of the agent settings page", () => {
         expect(BASE).toEqual(references.base);
     });
 
-    it("leaves every save button disabled while nothing was touched", async () => {
+    it("freezes the same themes as the eight untouched card buttons of the old page", () => {
         // Step 1 froze the eight card buttons of the old page, all disabled
         // untouched. The themes that carry a button must be the same.
         expect(Object.values(references.boutonsInactifsSansModification).every(Boolean)).toBe(true);
-        await ouvrirLaPage();
-        const themesAvecBouton = (Object.keys(TITRE_ANGLAIS_DU_THEME) as ThemeAgent[]).filter((t) => t !== "briques");
-        for (const theme of themesAvecBouton) {
+    });
+
+    // One test per theme (R4): the seven themes opened one after the other in a single test timed out under a full run.
+    it.each((Object.keys(TITRE_ANGLAIS_DU_THEME) as ThemeAgent[]).filter((t) => t !== "briques"))(
+        "leaves the save button of the theme %s disabled while nothing was touched",
+        async (theme) => {
+            await ouvrirLaPage();
             ouvrirLeTheme(theme);
             const bouton = (await screen.findByRole("button", { name: `Save ${TITRE_ANGLAIS_DU_THEME[theme]}` })) as HTMLButtonElement;
             expect(bouton.disabled, `${theme} must be disabled untouched`).toBe(true);
-        }
-        // Seven themes opened one after the other: slow under a full run.
-    }, 30000);
+        },
+        20000,
+    );
 
     it.each(CAS_AGENT.map((cas) => [cas.id, cas] as const))("case %s sends what the reference froze", async (_id, cas) => {
         const appels = await jouer(cas);

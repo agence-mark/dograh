@@ -5,7 +5,6 @@ import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, ClipboardList, Clock,
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
 import {
     downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet,
@@ -26,6 +25,8 @@ import {
 } from "@/components/AIModelConfigurationV2Editor";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import { PageReglagesAgent } from "@/components/mark/reglages-agent/PageReglagesAgent";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
@@ -47,7 +48,6 @@ import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import logger from "@/lib/logger";
@@ -413,7 +413,7 @@ function GeneralSection({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(err instanceof Error ? err.message : "Upload failed");
+            setAudioUploadError(echecAffiche(err));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";
@@ -1755,12 +1755,12 @@ function WorkflowSettingsInner({
             ]);
 
             if (defaultsResult.error) {
-                setModelConfigurationError(detailFromError(defaultsResult.error, "Failed to load model configuration defaults"));
+                setModelConfigurationError(echecAffiche(defaultsResult.error));
                 setModelConfigurationLoading(false);
                 return;
             }
             if (configurationResult.error) {
-                setModelConfigurationError(detailFromError(configurationResult.error, "Failed to load model configuration"));
+                setModelConfigurationError(echecAffiche(configurationResult.error));
                 setModelConfigurationLoading(false);
                 return;
             }

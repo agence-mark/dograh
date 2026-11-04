@@ -30,6 +30,7 @@ import {
 } from "@/components/http";
 import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { chargeEssais, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "@/components/mark/outils/essais-outil";
 import { EssaisOutilHttp } from "@/components/mark/outils/EssaisOutilHttp";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TOOL_DOCUMENTATION_URLS } from "@/constants/documentation";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import {
@@ -840,7 +840,7 @@ export default function ToolDetailPage() {
             });
 
             if (response.error) {
-                setError(detailFromError(response.error, "Failed to save tool"));
+                setError(echecAffiche(response.error));
                 return;
             }
 

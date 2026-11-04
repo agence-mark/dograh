@@ -15,6 +15,7 @@ import type { TelephonyConfigurationListItem, TrafficVariantRequest } from '@/cl
 import { ErreurChamp } from "@/components/mark/erreur-champ";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { FenetreLibre } from "@/components/mark/studio/fenetre-libre";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
-import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../CampaignAdvancedSettings';
@@ -305,9 +305,7 @@ function FormulaireNouvelleCampagne() {
 
             if (response.error) {
                 // Extract error message from API response
-                const errorMessage = detailFromError(response.error, 'Failed to create campaign');
-                setCreateError(errorMessage);
-                notifier.echec({ fr: "Campagne non créée. Vérifiez les réglages et réessayez.", en: "Campaign not created. Check the settings and try again." }, { erreur: errorMessage });
+                setCreateError(echecAffiche(response.error, { fr: "Campagne non créée. Vérifiez les réglages et réessayez.", en: "Campaign not created. Check the settings and try again." }));
                 return;
             }
 

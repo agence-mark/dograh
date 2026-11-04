@@ -2,13 +2,14 @@
 
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { notifier } from "@/components/mark/notifications";
 
 import {
   getDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentGet,
   saveDocumentContentApiV1KnowledgeBaseDocumentsDocumentUuidContentPut,
 } from '@/client/sdk.gen';
 import type { DocumentResponseSchema } from '@/client/types.gen';
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { detailFromError } from '@/lib/apiError';
 import logger from '@/lib/logger';
 
 import ExternalProcessingNotice from './ExternalProcessingNotice';
@@ -62,7 +62,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
         });
         if (cancelled) return;
         if (response.error || !response.data) {
-          setLoadError(detailFromError(response.error, 'Failed to load document'));
+          setLoadError(echecAffiche(response.error));
           return;
         }
         setContent(response.data.content);
@@ -106,7 +106,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
         body: { content, expected_file_hash: fileHash },
       });
       if (response.error || !response.data) {
-        setSaveError(detailFromError(response.error, 'Failed to save document'));
+        setSaveError(echecAffiche(response.error));
         return;
       }
       response.data.processing_status === 'pending' ? notifier.succes({ fr: `Document « ${doc.filename} » enregistré. Analyse en cours.`, en: `Document "${doc.filename}" saved. Processing.` }) : notifier.information({ fr: "Rien à enregistrer.", en: "Nothing to save." });

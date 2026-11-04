@@ -21,12 +21,12 @@ import {
 } from "@/client/sdk.gen";
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { PREFIXE_REFERENCE } from "../cles/ChampCleModele";
@@ -153,22 +153,24 @@ export const ThemeApresAppel = ({
         setEnCours(false);
         if (reponse.error || !reponse.data) {
             notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: reponse.error });
-            return;
+            return false;
         }
         setEcran(reponse.data);
         notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
+        return true;
     };
 
-    const agir = async (action: () => Promise<{ data?: unknown; error?: unknown }>, succes: Texte) => {
+    const agir = async (action: () => Promise<{ data?: unknown; error?: unknown }>, succes: Texte): Promise<boolean> => {
         setEnCours(true);
         const reponse = await action();
         setEnCours(false);
         if (reponse.error) {
             notifier.echec({ fr: "Demande refusée.", en: "Request refused." }, { erreur: reponse.error });
-            return;
+            return false;
         }
         notifier.succes(succes);
         await apresAppel.relire();
+        return true;
     };
 
     const nuit = ecran?.derniere_nuit as { debut?: string; statut?: string; resultat?: { purge?: Record<string, number> } } | null | undefined;
@@ -328,7 +330,7 @@ export const ThemeApresAppel = ({
                 setBrouillon(JSON.parse(cle) as ReglagesApresAppel);
                 setHeures((enregistre.recapitulatif?.heures ?? [8]).join(", "));
             },
-            onValider: () => void enregistrer(),
+            onValider: () => enregistrer(),
             verifier: () => (erreurs.length > 0 ? { [erreurs[0].cle]: erreurs[0].message } : null),
         });
         return (
@@ -375,7 +377,7 @@ export const ThemeApresAppel = ({
                                 en: "One mail per request, to the people its subject is routed to (« Team and routing »), else to the default recipients.",
                                 fr: "Un mail par demande, aux personnes de son sujet (« Équipe et routage »), sinon aux destinataires par défaut.",
                             })}
-                            action={<EssaiMail enCours={enCours} bloque={modifie || !smtp.hote} envoyer={(destinataire) => void agir(() => postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost({ body: { destinataire } }), { en: "Test mail sent", fr: "Mail d'essai envoyé" })} />}
+                            action={<EssaiMail enCours={enCours} bloque={modifie || !smtp.hote} envoyer={(destinataire) => agir(() => postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost({ body: { destinataire } }), { en: "Test mail sent", fr: "Mail d'essai envoyé" })} />}
                             lignes={[
                                 [t({ en: "Server", fr: "Serveur" }), unite(smtp.hote) ? `${smtp.hote} · ${smtp.port} · ${(smtp.securite ?? "starttls").toUpperCase()}` : aucun],
                                 [t({ en: "Sender", fr: "Expéditeur" }), unite(smtp.nom_expediteur) ?? unite(smtp.expediteur) ?? aucun],
@@ -601,7 +603,7 @@ export const ThemeApresAppel = ({
 };
 
 /** Le « Mail d'essai » de la maquette : un geste direct ; l'adresse du destinataire se donne dans une petite fenêtre. */
-const EssaiMail = ({ enCours, bloque, envoyer }: { enCours: boolean; bloque: boolean; envoyer: (destinataire: string) => void }) => {
+const EssaiMail = ({ enCours, bloque, envoyer }: { enCours: boolean; bloque: boolean; envoyer: (destinataire: string) => Promise<boolean> }) => {
     const { t } = useLangue();
     const [ouverte, setOuverte] = useState(false);
     return (

@@ -15,8 +15,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1OrganizationsObjetsReglagesPut } from "@/client/sdk.gen";
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
-import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
@@ -65,10 +65,11 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
         const reponse = await putReglagesObjetsApiV1OrganizationsObjetsReglagesPut({ body: { plafond_caracteres: n } });
         if (reponse.error) {
             notifier.echec({ fr: "Le plafond n'a pas été enregistré.", en: "The ceiling was not saved." }, { erreur: detailFromError(reponse.error, "Ceiling refused") });
-            return;
+            return false;
         }
         notifier.succes({ fr: "Plafond enregistré.", en: "Ceiling saved." });
         await relire();
+        return true;
     };
 
     const genre = (o: ObjetAgent) =>
@@ -170,7 +171,7 @@ export const SectionObjets = ({ etablissements }: { etablissements: Array<{ id: 
                         const n = Number(v.plafond);
                         return Number.isInteger(n) && n >= 100 && n <= 50000 ? null : { plafond: t({ en: "Between 100 and 50,000 characters.", fr: "Entre 100 et 50 000 caractères." }) };
                     }}
-                    onValider={(v) => void enregistrerPlafond(Number(v.plafond))}
+                    onValider={(v) => enregistrerPlafond(Number(v.plafond))}
                 />
             )}
             {ouvert && (
