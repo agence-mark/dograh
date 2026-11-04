@@ -24,12 +24,11 @@ import {
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, ConnexionVue, PropositionConnecteur } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
-import { ActionDePage } from "./action-de-page";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/dateTime";
 
 import { configParDefaut, type Connecteurs } from "../connecteurs/useConnecteurs";
@@ -41,6 +40,7 @@ import { Info, Marque, PointEtat } from "../studio/marques";
 import { espaceDe } from "../studio/navigation-studio";
 import { Paginee } from "../studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
+import { ActionDePage } from "./action-de-page";
 import { type Propositions } from "./usePropositions";
 
 const initiales = (nom: string) =>

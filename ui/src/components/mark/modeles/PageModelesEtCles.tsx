@@ -21,16 +21,16 @@ import {
 } from "@/client/sdk.gen";
 import type { OrganizationAiModelConfigurationResponse } from "@/client/types.gen";
 import type { ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
-import type { ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info } from "@/components/mark/studio/marques";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
+import type { ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useAuth } from "@/lib/auth";
 
-import { useCles, nomDu } from "../cles/FenetreCles";
+import { nomDu,useCles } from "../cles/FenetreCles";
 import { TableauCles } from "../cles/TableauCles";
 import { type Texte, useLangue } from "../langue/langue";
 import {
@@ -40,8 +40,8 @@ import {
     construireCorps,
     existantDuMode,
     messageBriqueManquante,
-    type ModeModeles,
     modeEnregistre,
+    type ModeModeles,
     segmentsDeLaFenetre,
     vueDeLaBrique,
 } from "./configuration-organisation";

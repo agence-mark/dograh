@@ -9,14 +9,13 @@
  * de chaque outil (Autorisé, Confirmer avec l'appelant, Désactivé : un outil désactivé n'est jamais proposé au
  * modèle) et le comportement commun à tous ses outils.
  */
-import { notifier } from "@/components/mark/notifications";
-import { ActionDePage } from "./action-de-page";
 import { Plus, Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createToolApiV1ToolsPost, listToolsApiV1ToolsGet, testerLaConnexionMcpApiV1ToolsMcpTesterPost, updateToolApiV1ToolsToolUuidPut } from "@/client/sdk.gen";
 import type { ToolResponse } from "@/client/types.gen";
 import { CredentialSelector } from "@/components/http";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detailFromError } from "@/lib/apiError";
@@ -30,6 +29,7 @@ import { EtatVide } from "../studio/etat-vide";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp, Segmente } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
+import { ActionDePage } from "./action-de-page";
 
 type Reglage = "autorise" | "confirmer" | "desactive";
 type Decouvert = { name: string; description?: string };
