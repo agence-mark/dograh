@@ -2958,6 +2958,30 @@ export type ClientOut = {
      * Demandes Nouvelles
      */
     demandes_nouvelles: number;
+    /**
+     * Etat
+     */
+    etat?: 'actif' | 'installation';
+    /**
+     * Agents
+     */
+    agents?: number;
+    /**
+     * Appels 7J
+     */
+    appels_7j?: number;
+    /**
+     * Note
+     */
+    note?: number | null;
+    /**
+     * Signalements
+     */
+    signalements?: number;
+    /**
+     * Pannes
+     */
+    pannes?: number;
 };
 
 /**
