@@ -14,6 +14,7 @@ l'appel (S5) ajoute à l'annotation quand le visiteur écrit en cours de voix.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from api.services.site_mark import chemins as lib_chemins
@@ -71,6 +72,32 @@ def avis_du_run(run) -> dict | None:
     """L'avis que le visiteur a laissé AVANT que la base du client ait reçu la conversation (gardé sur le run)."""
     avis = _annotation(run).get("avis")
     return avis if isinstance(avis, dict) and "etoiles" in avis else None
+
+
+# Revue serveur M6 : ce que Dograh garde de l'avis du visiteur. Une fois dans la base du client, plus que le fait qu'il a
+# été donné ; sans base rattachée, jamais ses coordonnées ni son texte libre (rien ne les recevra).
+CHAMPS_PERSONNELS_DE_L_AVIS = ("contact", "commentaire")
+
+
+def avis_ecrit() -> dict:
+    return {"ecrit": True, "le": datetime.now(UTC).isoformat()}
+
+
+def avis_sans_donnees_personnelles(avis: dict) -> dict:
+    return {k: v for k, v in avis.items() if k not in CHAMPS_PERSONNELS_DE_L_AVIS}
+
+
+async def avis_entre_dans_la_base(run_id: int, organization_id: int) -> bool:
+    """Après ``recevoir_appel`` : l'avis en attente sur le run est réduit au fait qu'il a été donné. Vrai s'il l'a été."""
+    from api.db import db_client
+
+    run = await db_client.get_workflow_run(run_id, organization_id=organization_id)
+    if run is None or avis_du_run(run) is None:
+        return False
+    embed = dict(_annotation(run))
+    embed["avis"] = avis_ecrit()
+    await db_client.update_workflow_run(run.id, annotations={CLE_ANNOTATION: embed})
+    return True
 
 
 def avis_deja_donne(run) -> bool:

@@ -31,7 +31,11 @@ from api.schemas.site_conversations import (
 )
 from api.services.site_mark import chemins as lib_chemins
 from api.services.site_mark import config_site, plafond
-from api.services.site_mark.conversations import avis_deja_donne
+from api.services.site_mark.conversations import (
+    avis_deja_donne,
+    avis_ecrit,
+    avis_sans_donnees_personnelles,
+)
 from api.services.site_mark.limite_ip import autoriser_rappel
 from api.services.site_mark.reglages import ReglagesMark
 from api.services.workflow.embed_session_service import (
@@ -52,6 +56,12 @@ PLAFOND_EVENEMENTS_PAR_JOUR = 1_000_000
 # --------------------------------------------------------------------------- #
 # La base du client : écrire, ou dire proprement qu'on ne peut pas
 # --------------------------------------------------------------------------- #
+
+
+async def _base_rattachee(organization_id: int) -> bool:
+    from api.services.base_client.rattachement import nom_de_la_base
+
+    return bool(await nom_de_la_base(organization_id))
 
 
 async def _ecrire_dans_la_base(organization_id: int, operation):
@@ -119,8 +129,15 @@ async def post_avis(session_token: str, corps: AvisPublic, request: Request, res
     )
     ecrit = bool(resultat and resultat.get("ecrit"))
     embed = dict((run.annotations or {}).get("embed") or {})
-    # Écrit dans la base : plus rien d'autre que le fait qu'il a été donné (aucune coordonnée gardée dans Dograh).
-    embed["avis"] = {"ecrit": True, "le": datetime.now(UTC).isoformat()} if ecrit else avis
+    # Écrit dans la base : plus rien d'autre que le fait qu'il a été donné (aucune coordonnée gardée dans Dograh). En
+    # attente de sa conversation : entier, réduit par l'après-appel dès ``recevoir_appel``. Sans base rattachée : ni
+    # coordonnées ni texte libre, rien ne les recevra (revue serveur M6).
+    if ecrit:
+        embed["avis"] = avis_ecrit()
+    elif await _base_rattachee(jeton.organization_id):
+        embed["avis"] = avis
+    else:
+        embed["avis"] = avis_sans_donnees_personnelles(avis)
     await db_client.update_workflow_run(run.id, annotations={"embed": embed})
     return AvisRecu()
 
