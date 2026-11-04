@@ -254,7 +254,15 @@ class BaseServiceConfiguration(BaseModel):
         """
         schema = handler(core_schema)
         proprietes = handler.resolve_ref_schema(schema).get("properties", {})
-        adresses = [nom for nom in proprietes if est_champ_adresse(nom)]
+        # V4 : la phrase d'aide de chaque champ, en français, quand l'écran du fournisseur n'a pas écrit la sienne.
+        from api.services.configuration.aides_fr import aide_en_francais
+
+        for propriete in proprietes.values():
+            if isinstance(propriete, dict) and propriete.get("description") and not propriete.get("mark_aide"):
+                fr = aide_en_francais(propriete["description"])
+                if fr:
+                    propriete["mark_aide"] = {"en": propriete["description"], "fr": fr}
+        adresses =[nom for nom in proprietes if est_champ_adresse(nom)]
         if not adresses:
             proprietes.pop("adresse_libre", None)
             return schema
