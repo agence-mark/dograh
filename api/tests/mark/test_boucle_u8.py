@@ -42,6 +42,18 @@ from api.tests.mark.equipe_commun import (  # noqa: F401
 A = "/api/v1/ameliorations"
 
 
+@pytest.fixture(autouse=True)
+def _decor_dans_une_transaction_annulee(request):
+    """P0 (partie 3) : le décor écrit par ``db_client`` ; sans ``db_session`` ses comptes étaient VALIDÉS et restaient
+    en base (28 après une suite), ce qui faisait tomber les tests qui supposent une installation sans compte
+    (``test_equipe_invitations``). Les tests asynchrones passent donc dans la transaction annulée de ``db_session``."""
+    import inspect
+
+    if inspect.iscoroutinefunction(request.function):
+        request.getfixturevalue("db_session")
+    yield
+
+
 def ev(genre, instant, payload=None, turn=0):
     return {"type": f"rtf-{genre}", "timestamp": f"2026-11-03T10:00:{instant:02d}", "turn": turn, "payload": payload or {}}
 

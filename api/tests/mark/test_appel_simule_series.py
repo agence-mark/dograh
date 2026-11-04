@@ -713,7 +713,15 @@ def test_le_bloc_simulation_ne_montre_jamais_l_empreinte_du_jeton():
 
 
 @pytest.fixture
-def ecran(base):
+def ecran(base, monkeypatch):
+    # [.mark] U12 (1caf20a0) : les routes écrivent et relisent aussi la source des cerveaux (configuration de l'organisation) ;
+    # ses propres tests (``test_sources_u12``) la jouent, ici elle ne touche pas la base.
+    from unittest.mock import AsyncMock
+
+    from api.services import sources_cerveaux
+
+    monkeypatch.setattr(sources_cerveaux, "ecrire_depuis_les_roles", AsyncMock(return_value=None))
+    monkeypatch.setattr(sources_cerveaux, "surcharger_les_roles", AsyncMock(side_effect=lambda _org, reglages: reglages))
     app = FastAPI()
     app.include_router(route.router)
     app.dependency_overrides[get_user_with_selected_organization] = lambda: (

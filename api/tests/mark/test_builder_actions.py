@@ -17,10 +17,12 @@ from api.services.builder.bibliotheque import propositions, service
 from api.services.builder.bibliotheque.modele import Banc, Statut
 from api.services.lexique import stockage as lexique
 from api.services.phrases.catalogue import MOTIFS
-from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, utilisateur
+from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, ORG_MARK, utilisateur
 
 EQUIPE = Contexte(user=utilisateur(1), workflow_id=AGENT)
 CLIENT = Contexte(user=utilisateur(2), workflow_id=AGENT)  # pas de l'organisation .mark
+# La même personne de l'équipe, au travail DANS le Labo : seul endroit d'où elle écrit la bibliothèque (U2 quater, E57).
+EQUIPE_AU_LABO = Contexte(user=utilisateur(1, ORG_MARK), workflow_id=AGENT)
 MOTIF = next(iter(MOTIFS))
 
 
@@ -187,15 +189,15 @@ async def test_un_element_rejete_ne_s_applique_pas(monde):
 
 
 async def test_le_builder_cree_des_candidats_et_propose_mais_ne_touche_pas_une_recette(monde):
-    cree = await executer("bibliotheque_ecrire_candidat", {"famille": "moules-etape", "slug": "n", "titre": "N", "contenu": {"t": 1}}, EQUIPE)
+    cree = await executer("bibliotheque_ecrire_candidat", {"famille": "moules-etape", "slug": "n", "titre": "N", "contenu": {"t": 1}}, EQUIPE_AU_LABO)
     assert cree["ok"] and cree["statut"] == "candidat"
     element = await service.lire_element("moules-etape", "n")
     assert element.courante.auteur.startswith("builder pour ")
     await service.marquer("moules-etape", "n", 1, Statut.RECETTE, "alice", banc=Banc(description="banc"))
-    refus = await executer("bibliotheque_ecrire_candidat", {"famille": "moules-etape", "slug": "n", "titre": "N", "contenu": {"t": 2}}, EQUIPE)
+    refus = await executer("bibliotheque_ecrire_candidat", {"famille": "moules-etape", "slug": "n", "titre": "N", "contenu": {"t": 2}}, EQUIPE_AU_LABO)
     assert refus["ok"] is False and (await service.lire_element("moules-etape", "n")).courante.contenu == {"t": 1}
     proposition = await executer(
-        "bibliotheque_proposer", {"type": "version", "famille": "moules-etape", "slug": "n", "justification": "Plus court", "contenu": {"t": 2}}, EQUIPE
+        "bibliotheque_proposer", {"type": "version", "famille": "moules-etape", "slug": "n", "justification": "Plus court", "contenu": {"t": 2}}, EQUIPE_AU_LABO
     )
     assert proposition["ok"] and proposition["carte"]["type"] == "proposition"
     assert [p.id for p in await propositions.lister()] == [proposition["proposition"]]
