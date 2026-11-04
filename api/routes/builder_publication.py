@@ -73,6 +73,30 @@ async def controles_de_publication(workflow_id: int, user: UserModel = Depends(g
     return await _action("publication_controler", user, workflow_id)
 
 
+@router.get("/builder/publication/{workflow_id}/changements")
+async def changements_du_brouillon(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """« Ce qui change » de la fenêtre Publier : le brouillon comparé à la version publiée, avant et après (lecture seule)."""
+    from api.services.publication import changements
+
+    workflow = await _agent_ou_404(user, workflow_id)
+    brouillon = await db_client.get_draft_version(workflow_id)
+    if brouillon is None:
+        raise HTTPException(status_code=409, detail="There is no draft: nothing to compare with the published version.")
+    publiee = getattr(workflow, "released_definition", None)
+    calcul = changements.calculer(
+        brouillon.workflow_json,
+        getattr(publiee, "workflow_json", None),
+        brouillon.workflow_configurations,
+        getattr(publiee, "workflow_configurations", None),
+    )
+    return {
+        "version_brouillon": brouillon.version_number,
+        "version_publiee": getattr(publiee, "version_number", None),
+        "publiee_le": getattr(publiee, "published_at", None),
+        **calcul,
+    }
+
+
 @router.put("/builder/publication/{workflow_id}/reglages")
 async def regler_la_publication(workflow_id: int, corps: Publication, user: UserModel = Depends(get_user_with_selected_organization)):
     from api.services.builder import reglages_agent
@@ -135,6 +159,34 @@ async def revenir_a_une_version(workflow_id: int, corps: Revenir, user: UserMode
         raise HTTPException(status_code=422, detail=str(erreur)) from None
     await journaliser(user, "agents.deploiement_retour", user.selected_organization_id, {"agent": workflow_id, "version": corps.version})
     return {"ok": True, "pourcentage": ligne["pourcentage"]}
+
+
+# --- les défauts de l'organisation (thème « Publication » des Réglages) --------------------------------------------------
+
+
+@router.get("/builder/publication-organisation", response_model=Publication)
+async def defauts_de_l_organisation(user: UserModel = Depends(get_user_with_selected_organization)):
+    from api.services.publication import defauts_org
+
+    return await defauts_org.lire(user.selected_organization_id) or Publication()
+
+
+@router.put("/builder/publication-organisation", response_model=Publication)
+async def regler_les_defauts_de_l_organisation(corps: Publication, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Les positions par défaut et l'interrupteur du déploiement progressif de l'organisation. Journalisé ; jamais par une clé d'API."""
+    from api.services.equipe_mark.acces import est_par_cle_api, journaliser
+    from api.services.publication import defauts_org
+
+    if est_par_cle_api(user):
+        raise HTTPException(status_code=403, detail="The organization's publication settings are not open to an API key")
+    await defauts_org.ecrire(user.selected_organization_id, corps)
+    await journaliser(
+        user,
+        "publication.defauts",
+        user.selected_organization_id,
+        {"deploiement": corps.deploiement.actif, "controles": corps.controles.model_dump()},
+    )
+    return corps
 
 
 # --- attaques -------------------------------------------------------------------------------------------------------------

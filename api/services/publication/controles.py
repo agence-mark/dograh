@@ -112,7 +112,10 @@ def _garde_fous(configurations: dict[str, Any]) -> list[str]:
 
 async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[str, Any]:
     """La vue de la fenêtre : un bloc par contrôle (position, statut, détail), ``bloque`` et la liste vocale en simulation."""
-    configurations = dict(getattr(brouillon, "workflow_configurations", None) or {})
+    # [.mark] Partie 3 (SE-12) : sans réglages propres à l'agent, ceux de l'organisation (thème « Publication »), puis ceux du code.
+    from api.services.publication import defauts_org
+
+    configurations = await defauts_org.effectives(organisation_id, getattr(brouillon, "workflow_configurations", None))
     pub = reglages.lire(configurations)
     controles: list[dict[str, Any]] = []
     vocale: list[dict[str, Any]] = []

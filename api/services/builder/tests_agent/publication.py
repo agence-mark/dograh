@@ -91,7 +91,11 @@ async def verifier_avant_publication(
     from api.services.publication import controles as fenetre
     from api.services.publication import reglages as reglages_publication
 
-    positions = reglages_publication.lire(getattr(brouillon, "workflow_configurations", None)).controles
+    from api.services.publication import defauts_org
+
+    positions = reglages_publication.lire(
+        await defauts_org.effectives(organization_id, getattr(brouillon, "workflow_configurations", None))
+    ).controles
     tests = []
     if positions.tests_obligatoires == "bloque":
         tests = await problemes_des_tests_obligatoires(

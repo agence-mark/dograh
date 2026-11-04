@@ -183,6 +183,7 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     "apres-appel": "After the call",
     integrations: "Integrations",
     developpeurs: "Developers",
+    publication: "Publication",
 };
 
 const ouvrirLaPage = async () => {
