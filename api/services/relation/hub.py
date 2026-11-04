@@ -89,6 +89,7 @@ async def consommer_lien(organization_id: int, jeton: str) -> dict | None:
 async def stats_avis(organization_id: int) -> dict:
     """Note moyenne et nombre d'avis lus dans la base du client ; vide sans base, ou base injoignable."""
     from api.db.bases_clients.connexion import connecter
+    from api.db.bases_clients.hub import compte_des_avis
     from api.services.base_client import rattachement
 
     nom = await rattachement.nom_de_la_base(organization_id)
@@ -100,7 +101,7 @@ async def stats_avis(organization_id: int) -> dict:
         logger.warning(f"[.mark] Reviews of organization {organization_id} not read: {type(erreur).__name__}")
         return {"note": None, "avis": 0}
     try:
-        ligne = await connexion.fetchrow("SELECT count(*) AS n, avg(etoiles) AS moyenne FROM avis")
+        ligne = await compte_des_avis(connexion)
         n = int(ligne["n"]) if ligne else 0
         return {"note": round(float(ligne["moyenne"]), 1) if n else None, "avis": n}
     except Exception as erreur:  # noqa: BLE001

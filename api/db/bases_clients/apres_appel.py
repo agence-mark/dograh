@@ -189,3 +189,11 @@ async def demander_rappel_site(connexion: asyncpg.Connection, demande: dict) -> 
         "SELECT mark.demander_rappel_site($1::jsonb)", json.dumps(demande, default=str)
     )
     return json.loads(brut) if isinstance(brut, str) else dict(brut)
+
+async def action_a_relancer(connexion: asyncpg.Connection, action_id: int) -> asyncpg.Record | None:
+    """[.mark] S3 : canal, statut et run Dograh d'une action d'après-appel (pour « Relancer »), ou ``None``."""
+    return await connexion.fetchrow(
+        "SELECT a.canal, a.statut, ap.dograh_run_id FROM mark.action a "
+        "LEFT JOIN mark.appel ap ON ap.id = a.appel_id WHERE a.id = $1",
+        action_id,
+    )

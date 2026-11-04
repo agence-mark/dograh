@@ -16,24 +16,9 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from contextlib import asynccontextmanager
 
-CLE_DU_VERROU = 7_431_900_112  # arbitraire, propre au versement de la bibliothèque
-
-
-@asynccontextmanager
-async def sous_verrou(engine):
-    """Rend vrai si CETTE réplique tient le verrou du versement, faux si une autre verse déjà. Le verrou tient une connexion à part
-    et se libère à la sortie (ou à la mort du processus : le verrou est de session)."""
-    from sqlalchemy import text
-
-    async with engine.connect() as connexion:
-        pris = bool((await connexion.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": CLE_DU_VERROU})).scalar())
-        try:
-            yield pris
-        finally:
-            if pris:
-                await connexion.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": CLE_DU_VERROU})
+from api.db.verrou_client import CLE_DU_VERSEMENT as CLE_DU_VERROU  # noqa: F401
+from api.db.verrou_client import sous_verrou_du_versement as sous_verrou  # noqa: F401 -- nom gardé pour le test
 
 
 async def _principal() -> int:

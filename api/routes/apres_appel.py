@@ -214,6 +214,7 @@ async def post_relancer_action(
     nom = await nom_de_la_base(org)
     if not nom:
         raise HTTPException(status_code=404, detail="No such action")
+    from api.db.bases_clients.apres_appel import action_a_relancer
     from api.db.bases_clients.connexion import connecter
 
     try:
@@ -221,11 +222,7 @@ async def post_relancer_action(
     except BaseClientIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from erreur
     try:
-        ligne = await connexion.fetchrow(
-            "SELECT a.canal, a.statut, ap.dograh_run_id FROM mark.action a "
-            "LEFT JOIN mark.appel ap ON ap.id = a.appel_id WHERE a.id = $1",
-            action_id,
-        )
+        ligne = await action_a_relancer(connexion, action_id)
     finally:
         await connexion.close()
     if ligne is None or ligne["dograh_run_id"] is None:

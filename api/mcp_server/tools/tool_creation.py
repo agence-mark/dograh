@@ -42,6 +42,8 @@ async def create_tool(request: CreateToolRequest) -> dict[str, Any]:
     - `validation_error` — the request failed schema validation.
     - `credential_not_found` — a supplied credential_uuid is not in this
       organization; ask the user to create/select it in the UI first.
+    - `credential_reserved` — the credential is the builder's own model key,
+      which is never attached to a tool; pick another credential.
     - `destination_not_found` — a `transfer_agent` tool's `workflow_id` is
       not an agent in this organization; confirm the id with `list_workflows`.
     - `organization_required` — the API key user has no selected organization.

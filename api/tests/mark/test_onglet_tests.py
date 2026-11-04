@@ -132,9 +132,9 @@ def test_les_executions_passees_et_les_ressources_sont_lues_dans_les_donnees(mon
     slug = creer(c).json()["test"]["slug"]
     assert c.get(f"/builder/tests/{AGENT}/executions").json() == {"executions": []}
 
-    import asyncio
+    from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
-    asyncio.run(stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": "2026-11-01T10:00:00", "version": 2, "statut": "ok", "reussis": 3, "total": 3}))
+    executer_sans_toucher_la_boucle_courante(stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": "2026-11-01T10:00:00", "version": 2, "statut": "ok", "reussis": 3, "total": 3}))
     ligne = c.get(f"/builder/tests/{AGENT}/executions").json()["executions"][0]
     assert (ligne["test"], ligne["reussis"], ligne["version"]) == (slug, 3, 2)
 

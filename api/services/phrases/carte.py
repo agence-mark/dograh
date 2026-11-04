@@ -37,6 +37,14 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
     "integrations/connectors/outil.py": [
         (NATURE_ACTION, "Phrase rendue par une action interne (planificateur, vérification)")
     ],
+    # Builder partie 2 (U3 sexies) : le comportement commun des outils qui appellent l'extérieur.
+    "outils_mark/comportement.py": [
+        (NATURE_ACTION, "Phrase avant un outil (son enregistré)"),
+        (NATURE_ACTION, "Phrase avant un outil (texte)"),
+        (NATURE_ACTION, "Phrase d'attente d'un outil qui tarde"),
+        (NATURE_ACTION, "Son pendant un outil qui tarde"),
+        (NATURE_ACTION, "Phrase de repli d'un outil en échec"),
+    ],
     "pipecat/post_scriptum.py": [(NATURE_GRAPHE, "Phrase d'une porte, mode Post-scriptum")],
     "pipecat/realtime/openai_live.py": [
         (NATURE_HORS, "Voix temps réel : accueil"),
@@ -68,8 +76,6 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
     "workflow/pipecat_engine_custom_tools.py": [
         (NATURE_ACTION, "Message d'un outil (son enregistré)"),
         (NATURE_ACTION, "Message d'un outil (texte)"),
-        (NATURE_ACTION, "Message avant un outil HTTP (son enregistré)"),
-        (NATURE_ACTION, "Message avant un outil HTTP (texte)"),
         (NATURE_ACTION, "Message d'attente d'un transfert dynamique"),
         (NATURE_ACTION, "Message d'un transfert d'appel"),
         (NATURE_ACTION, "Message d'un transfert d'appel, au clavier"),

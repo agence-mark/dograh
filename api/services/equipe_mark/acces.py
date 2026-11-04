@@ -21,11 +21,10 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 from loguru import logger
-from sqlalchemy.orm import object_session
 from starlette.requests import HTTPConnection
 
 from api.db import db_client
-from api.db.equipe_client import AccesCompte
+from api.db.equipe_client import AccesCompte, detacher_de_sa_session
 from api.services.equipe_mark.registre_routes import (
     ECRITURE,
     Exemption,
@@ -93,9 +92,7 @@ def _chemin_de_la_route(connexion: HTTPConnection) -> tuple[str, str] | None:
 
 def _fixer_organisation(user, organization_id: int | None) -> None:
     """Change l'organisation de CETTE requête sans jamais l'écrire en base : le compte est détaché de sa session d'abord."""
-    session = object_session(user)
-    if session is not None:
-        session.expunge(user)
+    detacher_de_sa_session(user)
     user.selected_organization_id = organization_id
 
 

@@ -42,3 +42,19 @@ class VerrouClient(BaseDBClient):
                 {"espace": ESPACE_DES_COPIES_D_AGENT, "cle": cle},
             )
             yield
+
+# [.mark] Versement de la bibliothèque (``scripts/mark/verser.py``) : plusieurs répliques démarrent ensemble, UNE seule verse.
+CLE_DU_VERSEMENT = 7_431_900_112
+
+
+@asynccontextmanager
+async def sous_verrou_du_versement(engine) -> AsyncIterator[bool]:
+    """Rend vrai si CETTE réplique tient le verrou du versement, faux si une autre verse déjà (sans attendre). Verrou de
+    session sur une connexion à part : libéré à la sortie, ou à la mort du processus."""
+    async with engine.connect() as connexion:
+        pris = bool((await connexion.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": CLE_DU_VERSEMENT})).scalar())
+        try:
+            yield pris
+        finally:
+            if pris:
+                await connexion.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": CLE_DU_VERSEMENT})

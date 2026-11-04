@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select, text, update
+from sqlalchemy.orm import object_session
 
 from api.db.base_client import BaseDBClient
 from api.db.models import OrganizationModel, UserModel
@@ -21,6 +22,13 @@ from api.db.models_equipe import (
     MarkRoleOrganisationModel,
     MarkRolePermissionModel,
 )
+
+
+def detacher_de_sa_session(objet) -> None:
+    """[.mark] Détache un objet de sa session : une modification en mémoire (organisation d'une requête) n'est jamais écrite en base."""
+    session = object_session(objet)
+    if session is not None:
+        session.expunge(objet)
 
 
 @dataclass(frozen=True)
