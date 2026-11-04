@@ -657,9 +657,9 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                                         </>
                                     )}
                                     <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-                                        <li><b className="text-foreground">Google Tag Manager</b> : {t({ fr: "nouvelle balise « HTML personnalisé », déclenchée sur toutes les pages.", en: "new “Custom HTML” tag, triggered on all pages." })}</li>
-                                        <li><b className="text-foreground">WordPress</b> : {t({ fr: "extension d'en-tête et de pied de page, champ « pied de page ».", en: "header and footer plugin, “footer” field." })}</li>
-                                        <li><b className="text-foreground">Wix, Shopify, Webflow, Squarespace</b> : {t({ fr: "champ « code personnalisé » des réglages du site.", en: "the site settings' “custom code” field." })}</li>
+                                        <li><b className="text-foreground">{"Google Tag Manager"}</b> : {t({ fr: "nouvelle balise « HTML personnalisé », déclenchée sur toutes les pages.", en: "new “Custom HTML” tag, triggered on all pages." })}</li>
+                                        <li><b className="text-foreground">{"WordPress"}</b> : {t({ fr: "extension d'en-tête et de pied de page, champ « pied de page ».", en: "header and footer plugin, “footer” field." })}</li>
+                                        <li><b className="text-foreground">{"Wix, Shopify, Webflow, Squarespace"}</b> : {t({ fr: "champ « code personnalisé » des réglages du site.", en: "the site settings' “custom code” field." })}</li>
                                         <li>{t({ fr: "Ou ", en: "Or " })}<b className="text-foreground">{t({ fr: "écrivez à .mark", en: "write to .mark" })}</b>{t({ fr: " : nous le posons pour vous.", en: ": we install it for you." })}</li>
                                     </ul>
                                     <p className="text-sm" data-testid="script-detecte">
@@ -875,7 +875,7 @@ function CouleurDuSite({ workflowId, domaine, onAppliquer }: { workflowId: numbe
             <PopoverContent align="start" className="w-80 space-y-3">
                 <p className="text-sm font-medium">{t({ fr: "Reprendre la couleur de votre site", en: "Use your site's colour" })}</p>
                 <div className="flex gap-2">
-                    <Input aria-label={t({ fr: "Adresse du site", en: "Site address" })} value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="www.votre-site.fr" />
+                    <Input aria-label={t({ fr: "Adresse du site", en: "Site address" })} value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder={t({ fr: "www.votre-site.fr", en: "www.your-site.com" })} />
                     <Button type="button" size="sm" className="h-9" disabled={occupe} onClick={() => void lire()}>{t({ fr: "Lire", en: "Read" })}</Button>
                 </div>
                 {lu && !lu.couleur && <p className="text-xs text-muted-foreground">{t({ fr: "Aucune couleur trouvée sur cette page. Choisissez une couleur, puis retouchez-la dans l'aperçu.", en: "No colour found on this page. Pick a colour, then tweak it in the preview." })}</p>}
