@@ -32,7 +32,9 @@ async def signaler(organisation: int, item: dict[str, Any], verdicts: list[dict[
         return await ingestion.ingerer_les_verdicts(
             organisation, int(item["workflow_id"]), None, verdicts, lignes, test=str(item["test"])
         )
-    run, organisation_du_run = await db_client.get_workflow_run_with_context(int(item["run_id"]))
+    run, organisation_du_run = await db_client.get_workflow_run_with_context(
+        int(item["run_id"]), organization_id=organisation
+    )
     if run is None or organisation_du_run != organisation:
         return 0
     return await ingestion.ingerer_un_appel_juge(run, organisation, verdicts, lignes)
@@ -53,7 +55,9 @@ async def verser_le_stock_provisoire(organisation: int) -> int:
             premier = elements[0]
             verdicts = [{k: p.get(k) for k in ("critere", "verdict", "replique", "preuve")} | {"confiance": 0.7} for p in elements]
             if premier.get("run_id") is not None:
-                run, org_du_run = await db_client.get_workflow_run_with_context(int(premier["run_id"]))
+                run, org_du_run = await db_client.get_workflow_run_with_context(
+                    int(premier["run_id"]), organization_id=organisation
+                )
                 if run is None or org_du_run != organisation:
                     continue
                 from api.services.juge import appels

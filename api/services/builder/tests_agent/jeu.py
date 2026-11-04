@@ -257,7 +257,8 @@ async def _contexte_du_run(run_id: int | None, organisation_id: int) -> dict[str
     from api.db import db_client
 
     try:
-        run, _ = await db_client.get_workflow_run_with_context(run_id)
+        # Revue serveur, mineur 6 : le run est lu AVEC l'organisation, jamais sans.
+        run, _ = await db_client.get_workflow_run_with_context(run_id, organization_id=organisation_id)
         return dict(getattr(run, "gathered_context", None) or {})
     except Exception:  # noqa: BLE001
         return {}

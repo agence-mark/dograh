@@ -83,3 +83,36 @@ async def test_mineur_7_la_recherche_borne_aussi_les_candidats_par_la_fin_de_per
     with patch.object(appels_liste, "RECHERCHE_APPELS_MAX", 1):
         runs, total = await _liste(db_session, org, recherche="devis", start_date=debut, end_date=fin)
     assert total == 1 and len(runs) == 1
+
+
+# ----------------------------------------------------------------------------- mineur 6 étendu
+async def test_mineur_6_le_run_se_lit_avec_l_organisation_dans_la_requete(db_session, async_session):
+    org_a, agent_a = await _monde(async_session, db_session, "r2-m6-a")
+    org_b, _agent_b = await _monde(async_session, db_session, "r2-m6-b")
+    run = await _run(async_session, agent_a, journal=[_replique("bonjour")])
+    lu, organisation = await db_session.get_workflow_run_with_context(run.id, organization_id=org_a.id)
+    assert lu is not None and organisation == org_a.id
+    assert await db_session.get_workflow_run_with_context(run.id, organization_id=org_b.id) == (None, None)
+    # Sans organisation : la lecture système des tâches de fond, inchangée.
+    assert (await db_session.get_workflow_run_with_context(run.id))[1] == org_a.id
+
+
+async def test_mineur_6_les_appelants_passent_l_organisation(db_session, async_session):
+    from unittest.mock import AsyncMock
+
+    from api.services.juge import a_ameliorer
+    from api.services.tests_rejouables import creation
+
+    espion = AsyncMock(return_value=(None, None))
+    with patch.object(creation.db_client, "get_workflow_run_with_context", espion):
+        with pytest.raises(creation.ErreurTestRejouable):
+            await creation.creer_depuis_un_run(5, 42, 0, {"type": "texte_present", "texte": "x"}, "nom", "")
+    assert espion.await_args.kwargs == {"organization_id": 42}
+
+    espion = AsyncMock(return_value=(None, None))
+    with patch.object(a_ameliorer.db_client, "get_workflow_run_with_context", espion):
+        try:
+            await a_ameliorer.signaler(42, {"run_id": 9, "workflow_id": 1}, [], [], "claude_code")
+        except Exception:  # noqa: BLE001 : seul l'appel de lecture compte ici
+            pass
+    assert espion.await_args.kwargs == {"organization_id": 42}

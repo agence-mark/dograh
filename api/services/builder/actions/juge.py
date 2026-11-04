@@ -57,7 +57,9 @@ async def _dossier(contexte: Contexte, item: dict[str, Any]) -> tuple[list[tuple
     """(lignes, outils, fiche, critères) d'un élément. Un run d'une autre organisation est introuvable."""
     if item["type"] == "test":
         return [(r, t) for r, t in item.get("lignes") or []], [], {}, list(item.get("criteres") or [])
-    run, organisation = await db_client.get_workflow_run_with_context(int(item["run_id"]))
+    run, organisation = await db_client.get_workflow_run_with_context(
+        int(item["run_id"]), organization_id=contexte.organisation_id
+    )
     if run is None or organisation != contexte.organisation_id:
         raise ErreurAction("This call is not found in your organization.", "introuvable")
     dossier = appels.dossier_d_un_run(run)
