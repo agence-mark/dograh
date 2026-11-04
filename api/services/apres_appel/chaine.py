@@ -39,7 +39,7 @@ from api.services.apres_appel.modules import (
     ModuleSansObjet,
 )
 from api.services.apres_appel.notification import notifier
-from api.services.site_mark.conversations import est_du_widget
+from api.services.site_mark.conversations import avis_entre_dans_la_base, est_du_widget
 from api.services.apres_appel.reglages import (
     CleManquante,
     lire_reglages,
@@ -237,6 +237,14 @@ async def _traces_de_l_appel(ctx: ContexteModule, connexion, resultat: dict, blo
         logger.warning(f"[.mark] Traces of call {appel_id} not written: {erreur!r}")
 
 
+async def _avis_ecrit_chez_le_client(ctx: ContexteModule) -> None:
+    """Revue serveur M6 : l'avis du visiteur est entré avec sa conversation ; Dograh n'en garde plus que le fait."""
+    try:
+        await avis_entre_dans_la_base(ctx.envoi["dograh_run_id"], ctx.organization_id)
+    except Exception as erreur:  # noqa: BLE001 -- l'appel est déjà écrit : la réduction se rejoue à la reprise
+        logger.warning(f"[.mark] Review of run {ctx.envoi.get('dograh_run_id')} not reduced: {type(erreur).__name__}")
+
+
 async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
     connexion = await _base(ctx.organization_id)
     try:
@@ -249,6 +257,8 @@ async def _ecriture(ctx: ContexteModule, bloc: dict) -> dict:
                 lambda workflow_id: _nom_de_l_agent(ctx.organization_id, workflow_id),
             )
         resultat = await sql.recevoir_appel(connexion, ctx.envoi)
+        if ctx.envoi.get("avis"):
+            await _avis_ecrit_chez_le_client(ctx)
         await _traces_de_l_appel(ctx, connexion, resultat, bloc)
         # l-agent-collegue, L2 (C8, C10): the assignee and the transfers, idempotent.
         if ctx.envoi.get("equipe"):

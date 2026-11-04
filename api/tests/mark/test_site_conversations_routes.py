@@ -18,6 +18,7 @@ Le cloisonnement d'abord : une session, une clé de site ou un domaine d'une aut
 
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -27,9 +28,10 @@ import pytest
 
 from api.db.bases_clients import apres_appel as sql
 from api.db.bases_clients import connexion as schema
-from api.schemas.apres_appel import ApresAppelAgent
+from api.schemas.apres_appel import ApresAppelAgent, ReglagesApresAppel
 from api.services.apres_appel import chaine
 from api.services.apres_appel.envoi import construire_envoi
+from api.services.apres_appel.modules import ContexteModule
 from api.services.site_mark import config_site
 from api.services.site_mark.conservation import purger_sessions
 from api.services.site_mark.conversations import (
@@ -94,7 +96,9 @@ def _base_du_client(nom_base, organisations_vues=None):
         finally:
             await connexion.close()
 
-    with patch.object(routes, "_ecrire_dans_la_base", ecrire):
+    with patch.object(routes, "_ecrire_dans_la_base", ecrire), patch.object(
+        routes, "_base_rattachee", AsyncMock(return_value=True)
+    ):
         yield
 
 
@@ -293,6 +297,67 @@ async def test_sans_base_rattachee_l_avis_attend_sur_le_run_sans_erreur(db_sessi
     assert r.status_code == 200
     run = await db_session.get_workflow_run(session["workflow_run_id"], organization_id=w.org)
     assert run.annotations["embed"]["avis"]["etoiles"] == 4
+
+
+async def test_sans_base_rattachee_l_avis_ne_garde_ni_coordonnees_ni_commentaire(db_session, async_session):
+    """Revue serveur M6 : sans base rattachée, rien ne recevra les coordonnées ni le texte libre du visiteur."""
+    w = await _widget(db_session, async_session)
+    contact = {"nom": "Claire", "telephone": "06 44 44 55 55", "mail": "claire@exemple.fr"}
+    with limiteur_en_memoire():
+        async with client_http() as c:
+            session = await _session(c, w)
+            await db_session.update_workflow_run(session["workflow_run_id"], is_completed=True)
+            r = await c.post(
+                f"{API}/public/embed/avis/{session['session_token']}",
+                json={**AVIS, "rappel_demande": True, "contact": contact},
+                headers=CLIENT,
+            )
+    assert r.status_code == 200, r.text
+    run = await db_session.get_workflow_run(session["workflow_run_id"], organization_id=w.org)
+    avis = run.annotations["embed"]["avis"]
+    assert avis["etoiles"] == 4 and avis["obtenu"] == "oui"
+    assert "contact" not in avis and "commentaire" not in avis
+    assert "Claire" not in json.dumps(run.annotations) and "Merci" not in json.dumps(run.annotations)
+
+
+async def test_l_avis_en_attente_est_reduit_des_que_sa_conversation_entre_dans_la_base(
+    db_session, async_session, base_prete
+):
+    """Revue serveur M6 : l'après-appel écrit la conversation avec son avis, puis Dograh n'en garde que le fait."""
+    w = await _widget(db_session, async_session)
+    contact = {"nom": "Claire", "telephone": "06 44 44 55 55"}
+    with limiteur_en_memoire():
+        async with client_http() as c:
+            session = await _session(c, w)
+            run_id = session["workflow_run_id"]
+            await db_session.update_workflow_run(run_id, is_completed=True)
+            with _base_du_client(base_prete):
+                r = await c.post(
+                    f"{API}/public/embed/avis/{session['session_token']}",
+                    json={**AVIS, "rappel_demande": True, "contact": contact},
+                    headers=CLIENT,
+                )
+    assert r.status_code == 200, r.text
+    run = await db_session.get_workflow_run(run_id, organization_id=w.org)
+    assert run.annotations["embed"]["avis"]["contact"]["nom"] == "Claire"  # en attente : entier, pour la base
+    envoi = {**_envoi_minimal(run_id), "avis": construire_envoi(run, {}, ApresAppelAgent(actif=True))["avis"]}
+    ctx = ContexteModule(
+        organization_id=w.org, run=run, reglages=ReglagesApresAppel(), agent=ApresAppelAgent(actif=True), envoi=envoi
+    )
+
+    async def la_base_de_test(_organization_id):
+        return await schema.connecter(base_prete)
+
+    with patch.object(chaine, "_base", la_base_de_test):
+        await chaine._ecriture(ctx, {})
+    connexion = await schema.connecter(base_prete)
+    try:
+        assert await connexion.fetchval("SELECT count(*) FROM mark.avis") == 1
+    finally:
+        await connexion.close()
+    apres = await db_session.get_workflow_run(run_id, organization_id=w.org)
+    assert set(apres.annotations["embed"]["avis"]) == {"ecrit", "le"}
+    assert "Claire" not in json.dumps(apres.annotations)
 
 
 # --------------------------------------------------------------------------- #

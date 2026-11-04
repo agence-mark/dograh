@@ -19,7 +19,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user
 from api.services.builder.constantes import organisation_bibliotheque
-from api.services.equipe_mark.acces import journaliser, organisation_accessible
+from api.services.equipe_mark.acces import acces_de, journaliser, organisation_accessible
 from api.services.equipe_mark.espaces import lister_espaces
 from api.services.export_agent import ecriture
 from api.services.export_agent.modeles import (
@@ -51,7 +51,7 @@ def _http(erreur: ErreurCopie) -> HTTPException:
 
 async def _cible_ouverte(user: UserModel, cible: int) -> None:
     """La cible doit être une organisation que le rôle du compte ouvre ; sinon elle n'existe pas pour lui."""
-    acces = await db_client.acces_du_compte(user.id)
+    acces = await acces_de(user)
     if not await organisation_accessible(user.id, cible, acces, organisation_bibliotheque()):
         raise HTTPException(status_code=404, detail="Space not found")
 

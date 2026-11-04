@@ -171,6 +171,9 @@ REGLES: tuple[Regle, ...] = (
     _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("cles.gerer")),
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),
+    # Revue serveur M1 : les réglages .mark d'un agent de site (plafonds de coût, durée, sessions par adresse, domaines,
+    # expiration) sont ceux de .mark, jamais d'une clé d'API ; l'apparence et l'emplacement restent ouverts au portail.
+    _r({"PUT"}, r"^/organizations/agents-site/\{workflow_id\}/reglages$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/organizations/.*$", MEMBRE, par_defaut=True),
     # U3 bis : le catalogue des variables d'un agent (lecture seule, tout membre de l'organisation).

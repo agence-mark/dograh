@@ -20,6 +20,7 @@ from loguru import logger
 
 from api.constants import UI_APP_URL
 from api.db import db_client
+from api.services.equipe_mark.acces import acces_de
 from api.services.equipe_mark.espaces import synchroniser_appartenances
 from api.services.equipe_mark.permissions import PERMISSIONS, permissions_valides
 from api.utils.auth import create_jwt_token, hash_password, verify_password
@@ -236,7 +237,7 @@ async def accepter_invitation(jeton: str, prenom: str, nom: str, mot_de_passe: s
 
 # ---------------------------------------------------------------------- profil
 async def mon_profil(user) -> dict:
-    acces = await db_client.acces_du_compte(user.id)
+    acces = await acces_de(user)
     membre = await db_client.obtenir_membre(user.id)
     preferences = await db_client.get_user_configuration_value(user.id, CLE_PROFIL) or {}
     return {

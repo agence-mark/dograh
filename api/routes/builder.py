@@ -102,6 +102,11 @@ def _flux(evenements: AsyncIterator[dict[str, Any]]) -> StreamingResponse:
 
 
 async def _cerveau_de(user: UserModel) -> tuple[Cerveau, ReglagesCerveau]:
+    # Le cerveau et la clé du builder sont ceux du Labo, payés par .mark : jamais pour une clé d'API (revue serveur B1).
+    from api.services.equipe_mark.acces import est_par_cle_api
+
+    if est_par_cle_api(user):
+        raise HTTPException(status_code=403, detail="The builder is not open to an API key")
     organisation = await reglages_cerveau.organisation_des_reglages(user)
     # K7 : l'interrupteur du builder et la porte « Dans l'écran » (Réglages du Labo > Builder IA).
     from api.services.builder import portes

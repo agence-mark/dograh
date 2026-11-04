@@ -94,7 +94,7 @@ async def _agent_de_l_organisation(organisation: int, workflow_id: int | None) -
 
 async def _fil_de_la_session(user: Any, charge: ChargeMiroir, premier_message: str) -> Any:
     organisation = user.selected_organization_id
-    fil = await db_client.fil_de_la_session(organisation, charge.session)
+    fil = await db_client.fil_de_la_session(organisation, charge.session, user.id)
     if fil is not None:
         return fil
     agent = await _agent_de_l_organisation(organisation, charge.workflow_id)

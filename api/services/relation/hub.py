@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from loguru import logger
 
 from api.db import db_client
+from api.services.equipe_mark.acces import acces_de
 
 DUREE_LIEN_S = 60
 
@@ -33,7 +34,7 @@ async def exiger_equipe(user, x_api_key: str | None) -> None:
     """403 pour une clé d'API ou pour un compte sans rôle d'équipe."""
     if est_une_cle_d_api(x_api_key):
         raise HTTPException(status_code=403, detail="The Relation hub is not open to an API key")
-    if await db_client.acces_du_compte(user.id) is None:
+    if await acces_de(user) is None:
         raise HTTPException(status_code=403, detail="Reserved to the .mark team")
 
 

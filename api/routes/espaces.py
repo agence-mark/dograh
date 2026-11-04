@@ -14,7 +14,11 @@ from api.db.models import UserModel
 from api.services.auth.depends import get_user
 from api.services.builder.constantes import organisation_bibliotheque
 from api.services.equipe_mark import espaces
-from api.services.equipe_mark.acces import journaliser, organisation_accessible
+from api.services.equipe_mark.acces import (
+    acces_de,
+    journaliser,
+    organisation_accessible,
+)
 
 router = APIRouter(prefix="/espaces", tags=["espaces"])
 
@@ -105,7 +109,7 @@ async def regler_un_espace(
     user: UserModel = Depends(get_user),
 ) -> ReglerEspaceResponse:
     """Nomme un espace et/ou le marque comme Labo (un seul Labo : le marquage précédent est retiré)."""
-    acces = await db_client.acces_du_compte(user.id)
+    acces = await acces_de(user)
     if not await organisation_accessible(
         user.id, organization_id, acces, organisation_bibliotheque()
     ):

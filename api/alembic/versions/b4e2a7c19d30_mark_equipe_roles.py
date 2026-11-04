@@ -5,10 +5,18 @@ Revises: 7c4e1a9b2d58
 
 Chantier builder partie 2, U2 ter. Migration .mark permise (additive, nommée ``mark_*``, rien d'amont modifié).
 Graine : le rôle Administrateur (fixe, toutes les permissions, le Labo et tous les clients) et le rôle Membre
-(quatre permissions courantes). Tout compte déjà présent devient Administrateur : avant cette migration chaque
-compte pouvait tout faire dans ses organisations, rien ne change pour lui. Réversible : ``downgrade`` retire les
-six tables.
+(quatre permissions courantes). Revue serveur M8 : seuls des comptes NOMMÉS deviennent Administrateurs, jamais tous
+les comptes présents :
+
+* ``MARK_ADMINISTRATEURS`` (adresses séparées par des virgules, casse ignorée) : ces comptes-là ;
+* variable absente ou vide, ou aucune adresse trouvée : le plus ancien compte seul (le premier compte, comme A2),
+  pour qu'une installation ne reste jamais sans administrateur ;
+* tous les autres comptes restent sans rôle (ils ne voient que leurs organisations, routes ``MEMBRE``).
+
+Réversible : ``downgrade`` retire les six tables.
 """
+
+import os
 
 import sqlalchemy as sa
 from alembic import op
@@ -37,6 +45,30 @@ PERMISSIONS = [
     "atelier.regler",
 ]
 PERMISSIONS_MEMBRE = ["agents.modifier", "builder.lancer", "tests.jouer", "conversations.voir"]
+VARIABLE_ADMINISTRATEURS = "MARK_ADMINISTRATEURS"
+
+
+def adresses_des_administrateurs(brut: str | None) -> list[str]:
+    """Les adresses de ``MARK_ADMINISTRATEURS``, en minuscules, sans doublon ni vide."""
+    return sorted({a.strip().lower() for a in (brut or "").split(",") if a.strip()})
+
+
+def comptes_a_promouvoir(connexion, brut: str | None) -> list[int]:
+    """Les comptes nommés par la variable ; à défaut, le plus ancien compte seul ; aucun si la base n'a aucun compte."""
+    adresses = adresses_des_administrateurs(brut)
+    if adresses:
+        nommes = connexion.execute(
+            sa.text("SELECT id FROM users WHERE lower(email) IN :adresses ORDER BY id").bindparams(
+                sa.bindparam("adresses", expanding=True)
+            ),
+            {"adresses": adresses},
+        ).scalars().all()
+        if nommes:
+            return list(nommes)
+    premier = connexion.execute(
+        sa.text("SELECT id FROM users ORDER BY created_at ASC NULLS LAST, id ASC LIMIT 1")
+    ).scalar()
+    return [premier] if premier is not None else []
 
 
 def upgrade():
@@ -119,10 +151,11 @@ def upgrade():
             sa.text("INSERT INTO mark_role_permissions (role_id, permission) VALUES (:r, :p)"),
             {"r": membre_id, "p": permission},
         )
-    connexion.execute(
-        sa.text("INSERT INTO mark_membres (user_id, role_id) SELECT id, :r FROM users"),
-        {"r": admin_id},
-    )
+    for user_id in comptes_a_promouvoir(connexion, os.environ.get(VARIABLE_ADMINISTRATEURS)):
+        connexion.execute(
+            sa.text("INSERT INTO mark_membres (user_id, role_id) VALUES (:u, :r)"),
+            {"u": user_id, "r": admin_id},
+        )
 
 
 def downgrade():
