@@ -110,6 +110,7 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     # (attribut en mémoire, hors des colonnes : jamais écrit en base), posé à CHAQUE requête dans les deux sens, car un
     # même objet de compte peut servir deux requêtes (carte d'identité d'une session partagée).
     user.par_cle_api = bool(par_cle_api)
+    user.par_porte_mcp = False  # posé à True par la seule porte MCP (``mcp_server/auth.py``), jamais par une route HTTP
     acces = await acces_de(user)
     brut = (connexion.headers.get(ENTETE_ORGANISATION) or "").strip()
     espace = (connexion.headers.get(ENTETE_ESPACE) or "").strip().lower()

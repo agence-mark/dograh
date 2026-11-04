@@ -23,6 +23,17 @@ async def est_membre_de_l_equipe(user) -> bool:
     return bool(await db_client.is_user_member_of_organization(user.id, org))
 
 
+async def _cle_du_labo_par_mcp(user, labo: int | None) -> bool:
+    """Exemption explicite et étroite : une clé d'API qui passe par la porte MCP, rattachée au Labo, créée par un membre de l'équipe.
+
+    Une clé de client, ou une clé par une route HTTP, n'en profite jamais. À trancher par Evan (18) : fermer aussi cette porte."""
+    if labo is None or not getattr(user, "par_porte_mcp", False):
+        return False
+    if getattr(user, "selected_organization_id", None) != labo or getattr(user, "id", None) is None:
+        return False
+    return bool(await db_client.is_user_member_of_organization(user.id, labo))
+
+
 async def exiger_l_equipe(user) -> None:
     """403 pour qui n'est pas de l'équipe .mark ; 503 si la bibliothèque n'est pas réglée."""
     if organisation_bibliotheque() is None:
@@ -37,8 +48,11 @@ async def exiger_l_equipe_au_labo(user) -> None:
     Dans l'espace d'un client, le builder lit la bibliothèque et n'y écrit pas : rien ne remonte au Labo sans « Ramener au Labo ».
     Les autres gestes de l'équipe (régler le cerveau, lire les prix) restent ceux de ``exiger_l_equipe`` : le builder d'un client
     prend le cerveau et la clé du Labo."""
+    labo = organisation_bibliotheque()
+    if await _cle_du_labo_par_mcp(user, labo):
+        return  # exemption explicite (revue de contrôle, point 3) : Claude Code écrit dans la bibliothèque avec une clé du Labo
     await exiger_l_equipe(user)
-    if getattr(user, "selected_organization_id", None) != organisation_bibliotheque():
+    if getattr(user, "selected_organization_id", None) != labo:
         raise ErreurBibliotheque("In a client space the library is read-only: write in it from the Labo.", 403)
 
 

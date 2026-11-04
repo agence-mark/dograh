@@ -43,6 +43,11 @@ async def authenticate_mcp_request() -> UserModel:
             detail="Missing API key — send X-API-Key or Authorization: Bearer <key>",
         )
     user = await _handle_api_key_auth(api_key)
+    # [.mark] Revue de contrôle, point 3 (B1) : la porte MCP est un accès par clé comme les autres, sans rôle d'équipe.
+    # ``par_porte_mcp`` ne sert qu'à l'exemption explicite « clé du Labo » de l'écriture en bibliothèque
+    # (``bibliotheque.droits.exiger_l_equipe_au_labo``), en attendant la décision d'Evan (18).
+    user.par_cle_api = True
+    user.par_porte_mcp = True
 
     span = trace.get_current_span()
     if span.is_recording():
