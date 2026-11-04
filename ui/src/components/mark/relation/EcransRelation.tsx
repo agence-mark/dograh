@@ -22,12 +22,14 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { useMoi } from "@/components/mark/studio/moi";
 import { NouveauClient } from "@/components/mark/studio/selecteur-espace";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Liste } from "@/components/mark/studio/liste";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
-import { Info, Marque } from "@/components/mark/studio/marques";
+import { Info, Marque, PointEtat } from "@/components/mark/studio/marques";
 import { Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -459,66 +461,134 @@ export function EcranAvis() {
     );
 }
 
-function AvisInterne({ t }: { t: ReturnType<typeof useLangue>["t"] }) {
+type FiltreAvis = "tous" | "donne" | "a_demander";
+const FILTRES_AVIS: FiltreAvis[] = ["tous", "donne", "a_demander"];
+
+function AvisInterne({ t }: { t: Dire }) {
     const { donnees, etat, recharger } = useCharge(() => avisEtTemoignagesApiV1RelationAvisGet());
+    const [filtre, setFiltre] = useState<FiltreAvis>("tous");
+    const [ajout, setAjout] = useState(false);
+    const [asupprimer, setAsupprimer] = useState<{ organisation: number; id: number } | null>(null);
+    const lignes = (donnees ?? []).flatMap((c) => c.temoignages.map((x) => ({ client: c, x })));
+    const noms: Record<FiltreAvis, string> = { tous: t({ en: "All", fr: "Tous" }), donne: t({ en: "Agreed", fr: "Accord donné" }), a_demander: t({ en: "Agreement to ask", fr: "Accord à demander" }) };
+    const dans = (f: FiltreAvis, accord: boolean) => f === "tous" || (f === "donne") === accord;
+    const libelle = (f: FiltreAvis) => `${noms[f]} ${lignes.filter((l) => dans(f, l.x.accord)).length}`;
+    const visibles = lignes.filter((l) => dans(filtre, l.x.accord));
+    const decider = async (organisation: number, id: number, accord: boolean) => {
+        const res = await reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch({ path: { organization_id: organisation, temoignage_id: id }, body: { accord } });
+        if (res.error) return notifier.echec({ fr: "Accord non enregistré. Réessayez.", en: "Agreement not saved. Try again." }, { erreur: res.error });
+        notifier.succes(accord ? { fr: "Accord noté.", en: "Agreement noted." } : { fr: "Accord retiré.", en: "Agreement withdrawn." });
+        recharger();
+    };
+    const supprimer = async () => {
+        if (!asupprimer) return;
+        const res = await supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete({ path: { organization_id: asupprimer.organisation, temoignage_id: asupprimer.id } });
+        setAsupprimer(null);
+        if (res.error) return notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: res.error });
+        notifier.succes({ fr: "Témoignage supprimé.", en: "Testimonial deleted." });
+        recharger();
+    };
     return (
         <div className={CONTENEUR}>
             <TitrePage
                 titre={t({ en: "Reviews and testimonials", fr: "Avis et témoignages" })}
                 info={t({ en: "The average comes from the visitors' reviews on each client's site. A testimonial is publishable only with the client's agreement.", fr: "La moyenne vient des avis des visiteurs du site de chaque client. Un témoignage n'est publiable qu'avec l'accord du client." })}
+                action={
+                    donnees && donnees.length > 0 ? (
+                        <Button className="cursor-pointer" onClick={() => setAjout(true)}>
+                            <Plus className="size-4" /> {t({ en: "Add a testimonial", fr: "Ajouter un témoignage" })}
+                        </Button>
+                    ) : undefined
+                }
             />
             {etat === "chargement" && <EtatVide cas="chargement" />}
             {etat === "erreur" && <EtatVide cas="erreur" reessayer={recharger} />}
             {donnees?.length === 0 && <EtatVide cas="premier" icone={Star} titre={t({ en: "No client yet", fr: "Aucun client pour l'instant" })} />}
-            {donnees?.map((c) => (
-                <div key={c.organization_id} className="space-y-2 border-b pb-4">
-                    <p className="flex items-center gap-2 font-medium">
-                        {c.client}
-                        <span className="text-sm font-normal text-muted-foreground">
-                            {c.note !== null ? `${c.note} / 5 · ${c.avis} ${t({ en: "reviews", fr: "avis" })}` : t({ en: "No review", fr: "Aucun avis" })}
-                        </span>
-                    </p>
-                    {c.temoignages.map((x) => (
-                        <div key={x.id} className="flex items-start justify-between gap-3 text-sm">
-                            <div>
-                                <p>{x.texte}</p>
-                                <p className="text-xs text-muted-foreground">{x.auteur}</p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                                <Marque ton={x.accord ? "succes" : "neutre"}>{x.accord ? t({ en: "Agreed", fr: "Accord donné" }) : t({ en: "No agreement", fr: "Sans accord" })}</Marque>
-                                <Button variant="ghost" size="sm" onClick={async () => { await reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch({ path: { organization_id: c.organization_id, temoignage_id: x.id }, body: { accord: !x.accord } }); recharger(); }}>
-                                    {x.accord ? t({ en: "Withdraw", fr: "Retirer l'accord" }) : t({ en: "Mark agreed", fr: "Accord obtenu" })}
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={async () => { await supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete({ path: { organization_id: c.organization_id, temoignage_id: x.id } }); recharger(); }}>
-                                    {t({ en: "Delete", fr: "Supprimer" })}
-                                </Button>
-                            </div>
+            {donnees && donnees.length > 0 && (
+                <>
+                    <Segmente valeur={libelle(filtre)} options={FILTRES_AVIS.map(libelle)} changer={(v) => setFiltre(FILTRES_AVIS.find((f) => libelle(f) === v) ?? "tous")} />
+                    {visibles.length === 0 ? (
+                        <EtatVide cas="premier" icone={Star} titre={t({ en: "No testimonial", fr: "Aucun témoignage" })} />
+                    ) : (
+                        <div className="divide-y border-y">
+                            {visibles.map(({ client: c, x }) => (
+                                <div key={x.id} className="flex items-center gap-4 py-3.5">
+                                    <AvatarClient id={c.organization_id} nom={c.client} taille={40} />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{c.client}</span> · {x.auteur}</p>
+                                        <p className="mt-0.5 text-sm italic">« {x.texte} »</p>
+                                    </div>
+                                    {c.note !== null && (
+                                        <span className="inline-flex shrink-0 items-center gap-1 text-sm tabular-nums">
+                                            <Star className="size-4 fill-current" />
+                                            <span className="font-medium">{t({ en: String(c.note), fr: String(c.note).replace(".", ",") })}</span>
+                                            <span className="text-muted-foreground">({c.avis} {t({ en: "reviews", fr: "avis" })})</span>
+                                        </span>
+                                    )}
+                                    <span className="w-40 shrink-0">
+                                        <PointEtat etat={x.accord ? "publie" : "attente"}>{x.accord ? t({ en: "Agreement given", fr: "Accord donné" }) : t({ en: "Agreement to ask", fr: "Accord à demander" })}</PointEtat>
+                                    </span>
+                                    <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => void decider(c.organization_id, x.id, !x.accord)}>
+                                        {x.accord ? t({ en: "Withdraw", fr: "Retirer l'accord" }) : t({ en: "Mark agreed", fr: "Accord obtenu" })}
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => setAsupprimer({ organisation: c.organization_id, id: x.id })}>
+                                        {t({ en: "Delete", fr: "Supprimer" })}
+                                    </Button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                    <AjoutTemoignage organisation={c.organization_id} fait={recharger} />
-                </div>
-            ))}
+                    )}
+                </>
+            )}
+            <AjoutTemoignage ouvert={ajout} fermer={() => setAjout(false)} clients={(donnees ?? []).map((c) => ({ id: c.organization_id, nom: c.client }))} fait={recharger} />
+            <Dialog open={asupprimer !== null} onOpenChange={(o) => !o && setAsupprimer(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t({ en: "Delete this testimonial?", fr: "Supprimer ce témoignage ?" })}</DialogTitle>
+                        <DialogDescription>{t({ en: "It is removed for good. The client's agreement goes with it.", fr: "Il est retiré définitivement, avec l'accord du client." })}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" className="cursor-pointer" onClick={() => setAsupprimer(null)}>{t({ en: "Cancel", fr: "Annuler" })}</Button>
+                        <Button variant="destructive" className="cursor-pointer" onClick={() => void supprimer()}>{t({ en: "Delete", fr: "Supprimer" })}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
 
-function AjoutTemoignage({ organisation, fait }: { organisation: number; fait: () => void }) {
+/** Ajouter un témoignage : le client, le texte et son auteur, dans une fenêtre centrée à corps blanc. */
+function AjoutTemoignage({ ouvert, fermer, clients, fait }: { ouvert: boolean; fermer: () => void; clients: { id: number; nom: string }[]; fait: () => void }) {
     const { t } = useLangue();
+    const [client, setClient] = useState("");
     const [texte, setTexte] = useState("");
     const [auteur, setAuteur] = useState("");
+    const choisi = client || String(clients[0]?.id ?? "");
     const ajouter = async () => {
-        const res = await ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost({ path: { organization_id: organisation }, body: { texte, auteur, accord: false } });
+        const res = await ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost({ path: { organization_id: Number(choisi) }, body: { texte, auteur, accord: false } });
         if (res.error) return notifier.echec({ fr: "Témoignage non enregistré. Réessayez.", en: "Testimonial not saved. Try again." }, { erreur: res.error });
+        notifier.succes({ fr: "Témoignage ajouté.", en: "Testimonial added." });
         setTexte("");
         setAuteur("");
+        fermer();
         fait();
     };
     return (
-        <div className="flex flex-wrap items-center gap-2">
-            <Input className="min-w-64 flex-1" value={texte} onChange={(e) => setTexte(e.target.value)} placeholder={t({ en: "Testimonial", fr: "Témoignage" })} />
-            <Input className="w-48" value={auteur} onChange={(e) => setAuteur(e.target.value)} placeholder={t({ en: "Author, role", fr: "Auteur, fonction" })} />
-            <Button size="sm" disabled={!texte.trim() || !auteur.trim()} onClick={ajouter}>{t({ en: "Add", fr: "Ajouter" })}</Button>
-        </div>
+        <Dialog open={ouvert} onOpenChange={(o) => !o && fermer()}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{t({ en: "Add a testimonial", fr: "Ajouter un témoignage" })}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                    <Liste valeur={choisi} changer={setClient} options={clients.map((c) => ({ valeur: String(c.id), libelle: c.nom }))} className="w-full" />
+                    <Textarea value={texte} onChange={(e) => setTexte(e.target.value)} rows={3} aria-label={t({ en: "Testimonial", fr: "Témoignage" })} placeholder={t({ en: "Testimonial", fr: "Témoignage" })} />
+                    <Input value={auteur} onChange={(e) => setAuteur(e.target.value)} aria-label={t({ en: "Author, role", fr: "Auteur, fonction" })} placeholder={t({ en: "Author, role", fr: "Auteur, fonction" })} />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" className="cursor-pointer" onClick={fermer}>{t({ en: "Cancel", fr: "Annuler" })}</Button>
+                    <Button className="cursor-pointer" disabled={!texte.trim() || !auteur.trim()} onClick={() => void ajouter()}>{t({ en: "Add", fr: "Ajouter" })}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
-

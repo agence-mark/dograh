@@ -23,6 +23,7 @@ const sdk = vi.hoisted(() => ({
     repondre: vi.fn(),
     avis: vi.fn(),
     entree: vi.fn(),
+    supprimer: vi.fn(),
 }));
 vi.mock("@/client/sdk.gen", () => ({
     maFileApiV1RelationFileGet: sdk.file,
@@ -40,7 +41,7 @@ vi.mock("@/client/sdk.gen", () => ({
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete: vi.fn(),
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost: vi.fn(),
     reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch: vi.fn(),
-    supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete: vi.fn(),
+    supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete: sdk.supprimer,
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: "a@b.c" } }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -181,8 +182,21 @@ describe("Avis et témoignages", () => {
             ok([{ organization_id: 7, client: "Nuances de Feu", note: 4.4, avis: 21, temoignages: [{ id: 1, organization_id: 7, texte: "Très bien", auteur: "Martine, dirigeante", accord: false }] }]),
         );
         avec(<EcranAvis />);
-        expect(await screen.findByText(/4.4 \/ 5 · 21 avis/)).toBeTruthy();
-        expect(screen.getByText("Très bien")).toBeTruthy();
-        expect(screen.getByText("Sans accord")).toBeTruthy();
+        expect(await screen.findByText("(21 avis)")).toBeTruthy();
+        expect(screen.getByText("4,4")).toBeTruthy();
+        expect(screen.getByText(/Très bien/)).toBeTruthy();
+        expect(screen.getAllByText("Accord à demander").length).toBeGreaterThan(0);
+    });
+    it("demande une confirmation avant de supprimer un témoignage", async () => {
+        sdk.avis.mockImplementation(() =>
+            ok([{ organization_id: 7, client: "Nuances de Feu", note: null, avis: 0, temoignages: [{ id: 1, organization_id: 7, texte: "Très bien", auteur: "Martine", accord: true }] }]),
+        );
+        sdk.supprimer.mockImplementation(() => Promise.resolve({ error: undefined }));
+        avec(<EcranAvis />);
+        fireEvent.click(await screen.findByRole("button", { name: "Supprimer" }));
+        expect(sdk.supprimer).not.toHaveBeenCalled();
+        expect(await screen.findByText("Supprimer ce témoignage ?")).toBeTruthy();
+        fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" }).at(-1) as HTMLElement);
+        await waitFor(() => expect(sdk.supprimer).toHaveBeenCalled());
     });
 });
