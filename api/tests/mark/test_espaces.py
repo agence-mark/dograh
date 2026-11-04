@@ -167,3 +167,26 @@ async def test_un_nom_choisi_n_est_pas_ecrase_par_labo(db_session):
     await espaces.definir_labo(org, True)
     conf = await db_session.get_configuration(org, "MARK_NOM_AFFICHAGE")
     assert conf.value == {"nom": "Atelier"}
+
+
+async def test_une_page_du_labo_sans_identifiant_ne_retombe_jamais_sur_un_client(db_session):
+    """R3 M1 : l'en-tête d'espace « labo » force le Labo, ou refuse ; l'organisation par défaut du compte ne sert pas."""
+    labo = await creer_organisation(db_session, "esp-m1-labo")
+    client = await creer_organisation(db_session, "esp-m1-client")
+    await espaces.definir_labo(labo, True)
+    # Le compte a le CLIENT pour organisation par défaut : c'est le piège de la revue.
+    _, jeton = await creer_compte(db_session, "m1@example.com", role="Administrateur", organisations=[client, labo])
+    base = {"Authorization": f"Bearer {jeton}"}
+    async with client_http() as c:
+        sans_en_tete = await c.post("/api/v1/folder/", headers=base, json={"name": "m1-defaut"})
+        en_labo = await c.post("/api/v1/folder/", headers={**base, "X-Mark-Espace": "labo"}, json={"name": "m1-labo"})
+        contradictoire = await c.get("/api/v1/folder/", headers={**base, "X-Mark-Espace": "labo", "X-Mark-Organisation": str(client)})
+        espace_inconnu = await c.get("/api/v1/folder/", headers={**base, "X-Mark-Espace": "autre"})
+        dans_labo = await c.get("/api/v1/folder/", headers={**base, "X-Mark-Organisation": str(labo)})
+        dans_client = await c.get("/api/v1/folder/", headers={**base, "X-Mark-Organisation": str(client)})
+    assert sans_en_tete.status_code == 200  # comportement historique des routes hors Labo
+    assert en_labo.status_code == 200
+    assert contradictoire.status_code == 403
+    assert espace_inconnu.status_code == 400
+    assert [d["name"] for d in dans_labo.json()] == ["m1-labo"]
+    assert [d["name"] for d in dans_client.json()] == ["m1-defaut"]

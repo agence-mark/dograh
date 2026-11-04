@@ -117,7 +117,16 @@ describe("les actions de la barre avec l'éditeur", () => {
         expect(within(menu2).queryByText("Phone call")).toBeNull();
     });
 
+    it("R3 : espace inconnu (onglet neuf) : ni « Exporter » (Labo) ni « Ramener » (client) ne sont montrés", async () => {
+        window.sessionStorage.clear();
+        render(<ActionsAgent {...base} workflowUuid="abc" editeur={editeur()} />);
+        const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
+        expect(within(menu).queryByText("Export to a client")).toBeNull();
+        expect(within(menu).queryByText(/Bring back/i)).toBeNull();
+    });
+
     it("le menu ⋯ garde appels, étiquettes, dupliquer, télécharger, identifiant ; « Exporter » y ouvre la fenêtre de l'export", async () => {
+        window.sessionStorage.setItem("mark:espace-courant", "labo");
         render(<ActionsAgent {...base} workflowUuid="abc" editeur={editeur()} />);
         const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
         expect(within(menu).getByText("See the calls").closest("a")?.getAttribute("href")).toBe("/agents/5/runs");

@@ -34,6 +34,8 @@ from api.services.equipe_mark.registre_routes import (
 )
 
 ENTETE_ORGANISATION = "X-Mark-Organisation"
+# R3 M1 : l'écran dit « je suis dans le Labo » ; sans identifiant, le serveur lit le Labo lui-même, jamais un client.
+ENTETE_ESPACE = "X-Mark-Espace"
 PREFIXE_API = "/api/v1"
 PERMISSIONS_JAMAIS_PAR_CLE = frozenset({"equipe.gerer", "roles.gerer", "clients.creer", "atelier.regler"})
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/")
@@ -110,6 +112,17 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     user.par_cle_api = bool(par_cle_api)
     acces = await acces_de(user)
     brut = (connexion.headers.get(ENTETE_ORGANISATION) or "").strip()
+    espace = (connexion.headers.get(ENTETE_ESPACE) or "").strip().lower()
+
+    if espace and not par_cle_api:
+        # Page du Labo : l'organisation est le Labo, ou la requête est refusée. Jamais le repli sur l'organisation du compte.
+        if espace != "labo":
+            raise HTTPException(status_code=400, detail="Invalid space in the address")
+        if labo_id is None:
+            raise HTTPException(status_code=403, detail="Organization not accessible")
+        if brut and brut != str(labo_id):
+            raise HTTPException(status_code=403, detail="Organization not accessible")
+        brut = str(labo_id)
 
     if par_cle_api:
         # Une clé d'API appartient à UNE organisation : l'adresse ne peut pas la déplacer.

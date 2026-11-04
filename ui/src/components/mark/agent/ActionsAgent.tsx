@@ -128,8 +128,12 @@ export function ActionsAgent({
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
     const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | null>(null);
-    const [labo, setLabo] = useState(true);
-    useEffect(() => setLabo(typeof espaceRetenu() !== "number"), []);
+    // Espace inconnu (onglet neuf, sans mémoire) : ni les gestes du Labo ni ceux du client ne sont montrés.
+    const [espace, setEspace] = useState<"labo" | "client" | null>(null);
+    useEffect(() => {
+        const retenu = espaceRetenu();
+        setEspace(retenu === "labo" ? "labo" : typeof retenu === "number" ? "client" : null);
+    }, []);
 
     const lire = useCallback(async () => {
         try {
@@ -337,11 +341,12 @@ export function ActionsAgent({
                     <DropdownMenuItem asChild>
                         <Link href={adresseOnglet(agentId, "appels")}>{t(T.appels)}</Link>
                     </DropdownMenuItem>
-                    {labo ? (
+                    {espace === "labo" && (
                         <DropdownMenuItem onClick={() => setFenetre("exporter")}>
                             <Send className="mr-2 size-4" /> {t(T.exporter)}
                         </DropdownMenuItem>
-                    ) : (
+                    )}
+                    {espace === "client" && (
                         <DropdownMenuItem onClick={() => setFenetre("ramener")}>
                             <Undo2 className="mr-2 size-4" /> {t(T.ramener)}
                         </DropdownMenuItem>

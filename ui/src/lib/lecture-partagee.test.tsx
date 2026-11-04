@@ -75,4 +75,21 @@ describe("[.mark] C4 : lecture partagée", () => {
         await act(async () => { await lecture.relire(); });
         expect(screen.getByTestId("a").textContent).toBe("v1");
     });
+
+    it("R3 : une lecture partie du Labo n'est jamais rendue dans un client", async () => {
+        window.history.pushState({}, "", "/labo/builder");
+        let rendre: (v: { data: string }) => void = () => {};
+        const lire = vi
+            .fn()
+            .mockImplementationOnce(() => new Promise((r) => (rendre = r)))
+            .mockResolvedValueOnce({ data: "du-client" });
+        const lecture = creerLecturePartagee<string>(lire);
+        const A = montrer(lecture, "a");
+        render(<A />);
+        window.history.pushState({}, "", "/clients/2/builder"); // l'onglet change d'espace pendant la lecture
+        await act(async () => rendre({ data: "du-labo" }));
+        await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("du-client"));
+        expect(lire).toHaveBeenCalledTimes(2);
+        window.history.pushState({}, "", "/");
+    });
 });

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
     definirLabo,
+    adresseClientInvalide,
+    entetesDeRequete,
     espaceDeAdresse,
     organisationPourRequete,
     organisationPourRequeteAttendue,
@@ -62,5 +64,35 @@ describe("organisation d'une requête", () => {
         expect(sansOrganisation("http://api/api/v1/espaces")).toBe(true);
         expect(sansOrganisation("http://api/api/v1/espaces/conversations")).toBe(false);
         expect(sansOrganisation("http://api/api/v1/workflow/count")).toBe(false);
+    });
+});
+
+describe("R3 M1 : le Labo inconnu ne retombe jamais sur un client", () => {
+    it("depuis le Labo sans identifiant, la requête est refusée", async () => {
+        preparerLabo(async () => {
+            throw new Error("panne");
+        });
+        await expect(entetesDeRequete("/labo/agents")).rejects.toThrow();
+    });
+
+    it("un échec n'est pas gardé : la requête suivante relit les espaces", async () => {
+        let appels = 0;
+        preparerLabo(async () => {
+            appels += 1;
+            if (appels === 1) throw new Error("panne");
+            definirLabo(5);
+        });
+        await expect(entetesDeRequete("/labo")).rejects.toThrow();
+        expect(await entetesDeRequete("/labo")).toEqual({ "X-Mark-Espace": "labo", "X-Mark-Organisation": "5" });
+        expect(appels).toBe(2);
+    });
+
+    it("un client illisible dans l'adresse est refusé, jamais remplacé par l'espace retenu", async () => {
+        retenirEspace("/labo");
+        definirLabo(3);
+        expect(adresseClientInvalide("/clients/acme/agents")).toBe(true);
+        expect(adresseClientInvalide("/clients/12/agents")).toBe(false);
+        await expect(entetesDeRequete("/clients/acme/agents")).rejects.toThrow();
+        expect(await entetesDeRequete("/clients/12")).toEqual({ "X-Mark-Organisation": "12" });
     });
 });

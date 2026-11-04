@@ -345,7 +345,7 @@ function RenderWorkflow({
     const [bibliothequeHref, setBibliothequeHref] = useState<string | undefined>(undefined);
     useEffect(() => {
         const espace = espaceRetenu();
-        setBibliothequeHref(typeof espace === 'number' ? undefined : '/labo/bibliotheque');
+        setBibliothequeHref(espace === 'labo' ? '/labo/bibliotheque' : undefined);
     }, []);
 
     // [.mark] U3 : « Try ▾ » choisit l'onglet du panneau d'essai ; `cle` change à chaque choix.
