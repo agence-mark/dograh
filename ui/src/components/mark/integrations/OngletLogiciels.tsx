@@ -24,11 +24,11 @@ import {
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, ConnexionVue, PropositionConnecteur } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
-import { ActionDePage } from "./action-de-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/dateTime";
 
 import { configParDefaut, type Connecteurs } from "../connecteurs/useConnecteurs";
@@ -40,6 +40,7 @@ import { Info, Marque, PointEtat } from "../studio/marques";
 import { espaceDe } from "../studio/navigation-studio";
 import { Paginee } from "../studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
+import { ActionDePage } from "./action-de-page";
 import { type Propositions } from "./usePropositions";
 
 const initiales = (nom: string) =>
@@ -482,20 +483,27 @@ function FenetreLogiciel({
                                 fr: "Branché par une autorisation (OAuth) gérée par Nango : le client ouvre un lien et autorise l'accès ; nous ne voyons jamais son mot de passe.",
                             })}
                             action={
-                                <Button size="sm" disabled={!brancheParNango || (labo && !connecteurs.etat?.nango_configure)} onClick={() => setBrancher(true)}>
-                                    <Plus className="size-4" />{" "}
-                                    {labo ? t({ en: "Connect a test account", fr: "Brancher un compte de test" }) : t({ en: "Propose to the client", fr: "Proposer au client" })}
-                                </Button>
+                                // V2b : la raison d'un bouton grisé se lit au survol, jamais dans une phrase du corps de la fenêtre.
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span id={labo && !connecteurs.etat?.nango_configure ? "connexions-nango-absent" : undefined}>
+                                            <Button size="sm" disabled={!brancheParNango || (labo && !connecteurs.etat?.nango_configure)} onClick={() => setBrancher(true)}>
+                                                <Plus className="size-4" />{" "}
+                                                {labo ? t({ en: "Connect a test account", fr: "Brancher un compte de test" }) : t({ en: "Propose to the client", fr: "Proposer au client" })}
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    {labo && !connecteurs.etat?.nango_configure && (
+                                        <TooltipContent className="max-w-xs text-xs leading-snug">
+                                            {t({
+                                                en: "No Nango on this installation (NANGO_URL, NANGO_SECRET_KEY): the integration tools fall back to their phrase.",
+                                                fr: "Pas de Nango sur cette installation (NANGO_URL, NANGO_SECRET_KEY) : les outils d'intégration disent leur phrase de repli.",
+                                            })}
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
                             }
                         >
-                            {labo && !connecteurs.etat?.nango_configure && (
-                                <p className="pb-2 text-sm text-muted-foreground" id="connexions-nango-absent">
-                                    {t({
-                                        en: "No Nango on this installation (NANGO_URL, NANGO_SECRET_KEY): the integration tools fall back to their phrase.",
-                                        fr: "Pas de Nango sur cette installation (NANGO_URL, NANGO_SECRET_KEY) : les outils d'intégration disent leur phrase de repli.",
-                                    })}
-                                </p>
-                            )}
                             {comptes.length === 0 && attentes.length === 0 ? (
                                 <p className="py-2 text-sm text-muted-foreground">{t({ en: "No account connected in this space.", fr: "Aucun compte branché dans cet espace." })}</p>
                             ) : (

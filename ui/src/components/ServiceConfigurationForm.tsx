@@ -10,6 +10,7 @@ import { ChampCleModele } from "@/components/mark/cles/ChampCleModele";
 import { useLangue } from "@/components/mark/langue/langue";
 import { CarteDesVoix, type VoixConnue } from "@/components/mark/modeles/CarteDesVoix";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
+import { ListeFournisseurs } from "@/components/mark/modeles/ListeFournisseurs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -149,6 +150,35 @@ const VOICE_DISPLAY_NAMES: Record<string, string> = {
     "hitesh": "Hitesh (Male)",
 };
 
+// The tabs of a window that shows several services at once (an organization that has set none yet).
+const ONGLETS_DE_LA_FENETRE: Record<ServiceSegment, { en: string; fr: string }> = {
+    llm: { en: "Brain", fr: "Cerveau" },
+    tts: { en: "Voice", fr: "Voix" },
+    stt: { en: "Transcription", fr: "Transcription" },
+    embeddings: { en: "Embedding", fr: "Plongement" },
+    realtime: { en: "Realtime model", fr: "Modèle temps réel" },
+};
+
+const LIBELLES_COMMUNS: Record<string, { en: string; fr: string }> = {
+    model: { en: "Model", fr: "Modèle" },
+    voice: { en: "Voice", fr: "Voix" },
+    speed: { en: "Speed", fr: "Vitesse" },
+    volume: { en: "Volume", fr: "Volume" },
+    language: { en: "Language", fr: "Langue" },
+    temperature: { en: "Temperature", fr: "Température" },
+    base_url: { en: "API address", fr: "Adresse de l'API" },
+};
+
+/** [.mark] V2b: the card of the upstream form, or nothing in a window (body white, no card inside). */
+function Enveloppe({ sansCarte, children }: { sansCarte: boolean; children: ReactNode }) {
+    if (sansCarte) return <div>{children}</div>;
+    return (
+        <Card>
+            <CardContent className="pt-6">{children}</CardContent>
+        </Card>
+    );
+}
+
 export interface ServiceConfigurationFormProps {
     mode: 'global' | 'override';
     currentOverrides?: ModelOverrides;
@@ -175,6 +205,12 @@ export interface ServiceConfigurationFormProps {
      * Absent = every service of the mode, as before.
      */
     segments?: ServiceSegment[];
+    /**
+     * [.mark] V2b (E51): in the window of a service the form is a plain body (no card, no tab bar for a single
+     * service) and its submit button lives in the window's footer, which submits this form by its id.
+     */
+    idFormulaire?: string;
+    sansBoutonEnregistrer?: boolean;
 }
 
 function getProviderDisplayName(
@@ -322,8 +358,12 @@ export function ServiceConfigurationForm({
     forceRealtime,
     voixVerrouillee,
     segments,
+    idFormulaire,
+    sansBoutonEnregistrer,
 }: ServiceConfigurationFormProps) {
     const { t } = useLangue();
+    // [.mark] V2b: in the window of a service the usual field names are written in the screen's language.
+    const libelleDuChamp = (champ: string) => (idFormulaire && LIBELLES_COMMUNS[champ] ? t(LIBELLES_COMMUNS[champ]) : champ.replace(/_/g, ' '));
     const [apiError, setApiError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isRealtime, setIsRealtime] = useState(forceRealtime ?? false);
@@ -941,6 +981,7 @@ export function ServiceConfigurationForm({
         const availableProviders = schemas?.[service] ? Object.keys(schemas[service]) : [];
         return (
             <div className="space-y-2">
+                {!idFormulaire && (<>
                 <Label>Provider</Label>
                 <Select
                     value={currentProvider}
@@ -959,6 +1000,7 @@ export function ServiceConfigurationForm({
                         ))}
                     </SelectContent>
                 </Select>
+                </>)}
                 {(providerSchema?.description || providerSchema?.provider_docs_url) && (
                     <p className="text-xs text-muted-foreground">
                         {providerSchema?.description}{" "}
@@ -1006,7 +1048,7 @@ export function ServiceConfigurationForm({
         );
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${idFormulaire ? "grid-cols-1" : "grid-cols-2"}`}>
                     {renderProviderSelect(service)}
                     {enHaut && champ(enHaut)}
                 </div>
@@ -1042,12 +1084,12 @@ export function ServiceConfigurationForm({
 
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${idFormulaire ? "grid-cols-1" : "grid-cols-2"}`}>
                     {renderProviderSelect(service)}
 
                     {currentProvider && providerSchema && configFields[0] && (
                         <div className="space-y-2">
-                            <Label className="capitalize">{configFields[0].replace(/_/g, ' ')}</Label>
+                            <Label className="capitalize">{libelleDuChamp(configFields[0])}</Label>
                             {renderField(service, configFields[0], providerSchema)}
                         </div>
                     )}
@@ -1070,7 +1112,7 @@ export function ServiceConfigurationForm({
                             if (!estVisibleSelonLesAutresChamps(actualFieldSchema, lire)) return null;
                             return (
                                 <div key={field} data-champ={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
-                                    <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
+                                    <Label className="capitalize">{libelleDuChamp(field)}</Label>
                                     {renderField(service, field, providerSchema)}
                                 </div>
                             );
@@ -1480,7 +1522,7 @@ export function ServiceConfigurationForm({
     const defaultTab = visibleTabs[0]?.key ?? (isRealtime ? "realtime" : "llm");
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form id={idFormulaire} onSubmit={handleSubmit(onSubmit)}>
             {/* Realtime toggle — hidden when the parent locks the mode (v2 tabs) */}
             {forceRealtime === undefined && (
                 <div className="flex items-center justify-between mb-4 p-4 border rounded-lg">
@@ -1500,13 +1542,12 @@ export function ServiceConfigurationForm({
                 </div>
             )}
 
-            <Card>
-                <CardContent className="pt-6">
+            <Enveloppe sansCarte={Boolean(segments)}>
                     <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
-                        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
+                        <TabsList className={segments && visibleTabs.length === 1 ? "hidden" : "grid w-full mb-6"} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
                             {visibleTabs.map(({ key, label }) => (
                                 <TabsTrigger key={key} value={key}>
-                                    {label}
+                                    {idFormulaire ? t(ONGLETS_DE_LA_FENETRE[key]) : label}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
@@ -1521,6 +1562,16 @@ export function ServiceConfigurationForm({
                                             {(mode === 'global' || enabledOverrides[key]) && renderServiceFields(key)}
                                         </fieldset>
                                     </>
+                                ) : idFormulaire ? (
+                                    <div className="grid grid-cols-[180px_1fr] gap-5">
+                                        <ListeFournisseurs
+                                            fournisseurs={Object.keys(schemas[key] ?? {}).map((id) => ({ id, nom: getProviderDisplayName(id, schemas[key]?.[id]) ?? id }))}
+                                            choisi={serviceProviders[key]}
+                                            choisir={(id) => handleProviderChange(key, id)}
+                                            libelle={label}
+                                        />
+                                        <div className="min-w-0">{renderServiceFields(key)}</div>
+                                    </div>
                                 ) : (
                                     <>
                                         {mode === 'override' && renderOverrideToggle(key, label)}
@@ -1530,14 +1581,15 @@ export function ServiceConfigurationForm({
                             </TabsContent>
                         ))}
                     </Tabs>
-                </CardContent>
-            </Card>
+            </Enveloppe>
 
             {apiError && <p className="text-destructive mt-4">{apiError}</p>}
 
-            <Button type="submit" className="w-full mt-6" disabled={isSaving}>
-                {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
-            </Button>
+            {!sansBoutonEnregistrer && (
+                <Button type="submit" className="w-full mt-6" disabled={isSaving}>
+                    {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
+                </Button>
+            )}
         </form>
     );
 }

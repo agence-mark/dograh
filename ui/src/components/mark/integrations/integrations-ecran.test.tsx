@@ -62,11 +62,11 @@ const m = vi.hoisted(() => ({
     retirer: vi.fn(),
 }));
 const chemin = vi.hoisted(() => ({ valeur: "/labo/integrations" }));
-const etat = vi.hoisted(() => ({ connexions: [] as unknown[] }));
+const etat = vi.hoisted(() => ({ connexions: [] as unknown[], nango: true }));
 vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
         getCatalogueApiV1ConnecteursCatalogueGet: () => Promise.resolve({ data: CATALOGUE }),
-        getConnexionsApiV1ConnecteursConnexionsGet: () => Promise.resolve({ data: etat.connexions.length ? { ...CONNEXIONS, connexions: etat.connexions } : CONNEXIONS }),
+        getConnexionsApiV1ConnecteursConnexionsGet: () => Promise.resolve({ data: { ...CONNEXIONS, nango_configure: etat.nango, ...(etat.connexions.length ? { connexions: etat.connexions } : {}) } }),
         getPropositionsApiV1ConnecteursPropositionsGet: (...a: unknown[]) => m.propositions(...a),
         postPropositionApiV1ConnecteursPropositionsPost: (...a: unknown[]) => m.proposer(...a),
         postRelanceApiV1ConnecteursPropositionsIdentifiantRelancerPost: (...a: unknown[]) => m.relancer(...a),
@@ -95,6 +95,7 @@ afterEach(() => {
     vi.clearAllMocks();
     chemin.valeur = "/labo/integrations";
     etat.connexions = [];
+    etat.nango = true;
     m.propositions.mockResolvedValue({ data: [] });
     window.history.replaceState(null, "", "/");
 });
@@ -132,7 +133,28 @@ describe("[.mark] Intégrations : l'action de l'onglet actif est dans la rangée
     it("le bouton de la rangée du titre ouvre bien la fenêtre de son onglet", async () => {
         monter("mcp");
         fireEvent.click(await within(titre()).findByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ }));
-        expect(await screen.findByText(/Brancher un serveur MCP|Connect an MCP server/)).toBeTruthy();
+        expect(await screen.findByText(/Nouveau serveur MCP|New MCP server/)).toBeTruthy();
+    });
+
+    it("V2b : la fenêtre d'un nouveau serveur ajoute le serveur, teste dans son pied, sans note dans le corps", async () => {
+        monter("mcp");
+        fireEvent.click(await within(titre()).findByRole("button", { name: /Ajouter un serveur MCP|Add an MCP server/ }));
+        const fenetre = await screen.findByRole("dialog");
+        expect(within(fenetre).getByRole("tab", { name: /Configurer|Configure/ })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: /Ajouter le serveur|Add the server/ })).toBeTruthy();
+        expect(within(fenetre).getByRole("button", { name: /Tester la connexion|Test the connection/ })).toBeTruthy();
+        expect(fenetre.textContent).not.toMatch(/No credentials found|Aucun identifiant\./);
+    });
+});
+
+describe("[.mark] V2b : un logiciel sans Nango", () => {
+    it("grise « Brancher un compte de test » sans écrire la raison dans le corps de la fenêtre", async () => {
+        etat.nango = false;
+        await ouvrirLeCatalogue();
+        fireEvent.click(await screen.findByText("CRM d'essai"));
+        const bouton = await screen.findByRole("button", { name: /Brancher un compte de test|Connect a test account/ });
+        expect((bouton as HTMLButtonElement).disabled).toBe(true);
+        expect(document.body.textContent).not.toMatch(/Pas de Nango|No Nango/);
     });
 });
 

@@ -119,7 +119,8 @@ export function CredentialSelector({
                 </Button>
             </div>
 
-            {credentials.length === 0 && !loading && (
+            {/* [.mark] V2b: in a window (no label) no note box inside: the empty selector says it by itself. */}
+            {credentials.length === 0 && !loading && showLabel && (
                 <div className="p-3 border rounded-md bg-muted/20">
                     <p className="text-sm text-muted-foreground">
                         No credentials found. Click the + button to create one.

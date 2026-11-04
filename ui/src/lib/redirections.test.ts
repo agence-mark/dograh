@@ -122,6 +122,18 @@ describe("redirections (U1)", () => {
         }
     });
 
+    it("les anciennes adresses d'un outil et des connecteurs mènent à l'écran actuel, sans page propre (V2b)", () => {
+        const uuid = "11111111-2222-3333-4444-555555555555";
+        expect(destinationDe(`/labo/outils/${uuid}`)).toBe(`/labo/outils?outil=${uuid}`);
+        expect(destinationDe(`/clients/acme/outils/${uuid}`)).toBe(`/clients/acme/outils?outil=${uuid}`);
+        expect(destinationDe(`/tools/${uuid}`)).toBe(`/labo/outils?outil=${uuid}`);
+        expect(destinationDe("/labo/connecteurs")).toBe("/labo/integrations");
+        expect(destinationDe("/clients/acme/connecteurs")).toBe("/clients/acme/integrations");
+        for (const a of ["labo/outils/[toolUuid]", "clients/[org]/outils/[toolUuid]", "labo/connecteurs", "clients/[org]/connecteurs"]) {
+            expect(existsSync(join(APP, ...a.split("/"), "page.tsx")), a).toBe(false);
+        }
+    });
+
     it("une adresse nouvelle n'est pas redirigée", () => {
         for (const a of ["/labo", "/labo/agents", "/agents/12", "/conversations/9", "/clients/acme/agents"]) {
             expect(destinationDe(a), a).toBeNull();

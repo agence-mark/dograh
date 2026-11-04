@@ -505,6 +505,17 @@ async def get_model_configuration_v2(
     return await _model_configuration_v2_response(user=user)
 
 
+@router.get("/model-configurations/v2/remplacements")
+async def get_model_configuration_v2_remplacements(
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> dict[str, int]:
+    """[.mark] V2b (E51) : par brique (llm, tts, stt, realtime), le nombre d'agents qui la remplacent ; la carte
+    de l'organisation dit « remplacé par N agents »."""
+    return await db_client.compter_remplacements_de_modeles(
+        user.selected_organization_id
+    )
+
+
 @router.get(
     "/model-configurations/v2/pricing",
     response_model=ModelConfigurationPricingResponse,

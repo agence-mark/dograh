@@ -69,9 +69,7 @@ const CHAT = e("chat", { en: "Chat", fr: "Chat" }, MessagesSquare, "chat", "/wor
 const A_AMELIORER = e("a-ameliorer", { en: "To improve", fr: "À améliorer" }, Inbox, "a-ameliorer", "/a-trier");
 const AGENTS = e("agents", { en: "Agents", fr: "Agents" }, Bot, "agents", "/workflow", { prefixes: ["/agents", "/workflow"] });
 const BIBLIOTHEQUE = e("bibliotheque", { en: "Library", fr: "Bibliothèque" }, BookOpen, "bibliotheque", "/bibliotheque");
-const OUTILS = e("outils", { en: "Tools", fr: "Outils" }, Wrench, "outils", "/tools", {
-    sous: [{ suite: "[toolUuid]", actuelle: "/tools/[toolUuid]" }],
-});
+const OUTILS = e("outils", { en: "Tools", fr: "Outils" }, Wrench, "outils", "/tools");
 const CONNAISSANCES = e("connaissances", { en: "Knowledge", fr: "Connaissances" }, BookOpen, "connaissances", "/files");
 const ENTREPRISE = e("entreprise", { en: "Company", fr: "Entreprise" }, Store, "entreprise", "/settings", { alias: true });
 const CAMPAGNES = e("campagnes", { en: "Campaigns", fr: "Campagnes" }, Megaphone, "campagnes", "/campaigns", {
@@ -82,7 +80,7 @@ const CAMPAGNES = e("campagnes", { en: "Campaigns", fr: "Campagnes" }, Megaphone
     ],
 });
 const BASE = e("base", { en: "Data and automations", fr: "Base et automatisations" }, Database, "base", "/settings", { alias: true });
-const INTEGRATIONS = e("integrations", { en: "Integrations", fr: "Intégrations" }, Plug, "integrations", "/settings", { alias: true, prefixes: ["/labo/connecteurs", "/clients/[org]/connecteurs"] });
+const INTEGRATIONS = e("integrations", { en: "Integrations", fr: "Intégrations" }, Plug, "integrations", "/settings", { alias: true });
 const MODELES = e("modeles", { en: "Models and keys", fr: "Modèles et clés" }, KeyRound, "modeles", "/model-configurations");
 const TELEPHONIE = e("telephonie", { en: "Telephony", fr: "Téléphonie" }, Phone, "telephonie", "/telephony-configurations", {
     sous: [{ suite: "[configId]", actuelle: "/telephony-configurations/[configId]" }],
