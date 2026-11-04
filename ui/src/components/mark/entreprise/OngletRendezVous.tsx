@@ -182,7 +182,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
             actif: valeurs.actif === true,
         };
         const types = typeOuvert ? (plan.types ?? []).map((x) => (x === typeOuvert ? ecrit : x)) : [...(plan.types ?? []), ecrit];
-        await ecrire({ ...plan, types }, { fr: "Type enregistré.", en: "Type saved." });
+        return ecrire({ ...plan, types }, { fr: "Type enregistré.", en: "Type saved." });
     };
     const verifierType = (valeurs: Valeurs) => {
         const fautes: Record<string, string> = {};
@@ -275,7 +275,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                 fenetre={{ titre: t({ en: "Slots", fr: "Créneaux" }), sections: [{ champs: [plagesChamp, ...nombreChamps(NOMBRES)] }] }}
                 verifier={verifierNombres(NOMBRES)}
                 onValider={(v) =>
-                    void ecrire(posePart({ plages: String(v.plages).trim() || null, ...Object.fromEntries(NOMBRES.map((f) => [f.cle, lireNombre(v, f)])) }), { fr: "Créneaux enregistrés.", en: "Slots saved." })
+                    ecrire(posePart({ plages: String(v.plages).trim() || null, ...Object.fromEntries(NOMBRES.map((f) => [f.cle, lireNombre(v, f)])) }), { fr: "Créneaux enregistrés.", en: "Slots saved." })
                 }
             />
             <SectionLue
@@ -303,7 +303,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                 verifier={verifierNombres([rayon, ...autresTrajets])}
                 onValider={(v) => {
                     const codes = String(v.zone_communes).split(/[,\s]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);
-                    void ecrire(
+                    return ecrire(
                         posePart({
                             zone_rayon_km: lireNombre(v, rayon),
                             zone_communes: codes.length ? codes : null,
@@ -326,7 +326,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                 fenetre={{ titre: t({ en: "Distribution and fallback", fr: "Répartition et repli" }), sections: [{ champs: [champChoix(CHOIX[0]), champNombre(FENETRE), champChoix(CHOIX[1]), champChoix(CHOIX[2]), champOuiNon(OUI_NON[1])] }] }}
                 verifier={verifierNombres([FENETRE])}
                 onValider={(v) =>
-                    void ecrire(
+                    ecrire(
                         posePart({
                             repartition: lireChoix(v, CHOIX[0]) as ReglagesPlanificateur["repartition"],
                             fenetre_equite_jours: lireNombre(v, FENETRE),
@@ -345,7 +345,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                 titre={type === "nouveau" ? t({ en: "New appointment type", fr: "Nouveau type de rendez-vous" }) : (typeOuvert?.libelle ?? "")}
                 valider={t({ en: "Save", fr: "Enregistrer" })}
                 verifier={verifierType}
-                onValider={(v) => void enregistrerType(v)}
+                onValider={(v) => enregistrerType(v)}
                 pied={
                     typeOuvert ? (
                         <span className="flex items-center gap-1">

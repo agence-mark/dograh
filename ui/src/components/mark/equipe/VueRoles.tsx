@@ -49,13 +49,14 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
 
     if (!roles) return <EtatVide cas="chargement" />;
 
-    const enregistrer = async (role: RoleResponse | null, corps: CorpsRole) => {
+    const enregistrer = async (role: RoleResponse | null, corps: CorpsRole): Promise<boolean> => {
         const res = role
             ? await modifierUnRoleApiV1EquipeMarkRolesRoleIdPut({ path: { role_id: role.id }, body: corps })
             : await creerUnRoleApiV1EquipeMarkRolesPost({ body: corps });
         if (res.error) notifier.echec({ fr: "Rôle non enregistré. Réessayez.", en: "Role not saved. Try again." }, { erreur: res.error });
         else notifier.succes({ fr: "Rôle enregistré.", en: "Role saved." });
         void charger();
+        return !res.error;
     };
 
     const role = ouvert === "nouveau" ? null : ouvert;
@@ -128,7 +129,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                     clients={clients}
                     lecture={lecture}
                     fermer={() => setOuvert(null)}
-                    enregistrer={(corps) => void enregistrer(role, corps)}
+                    enregistrer={(corps) => enregistrer(role, corps)}
                     supprimer={
                         role
                             ? async () => {

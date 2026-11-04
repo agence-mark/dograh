@@ -75,21 +75,23 @@ export const useConservationAppels = () => {
     const modifie = Boolean(vue && brouillon && JSON.stringify(brouillon) !== JSON.stringify(vue.reglages));
     const invalide = Boolean(brouillon && (!moisValide(brouillon.duree_mois) || !moisValide(brouillon.audio_duree_mois)));
 
-    const enregistrer = async (succes: Texte) => {
-        if (!brouillon || enCours) return;
+    const enregistrer = async (succes: Texte): Promise<boolean> => {
+        if (!brouillon || enCours) return false;
         setEnCours(true);
         setErreur(null);
         try {
             const reponse = await putConservationDesAppelsApiV1OrganizationsConservationAppelsPut({ body: brouillon });
             if (reponse.error || !reponse.data) {
                 setErreur(echecAffiche(reponse.error));
-                return;
+                return false;
             }
             setVue(reponse.data);
             setBrouillon(reponse.data.reglages);
             notifier.succes(succes);
+            return true;
         } catch {
             setErreur("Call retention settings: the server did not answer");
+            return false;
         } finally {
             setEnCours(false);
         }
@@ -212,7 +214,7 @@ export const SectionConservationAppels = ({ etat }: { etat: ReturnType<typeof us
                     corps: champs,
                     valider: t({ en: "Save call retention", fr: "Enregistrer la conservation des appels" }),
                     onAnnuler: () => poser(reglages),
-                    onValider: () => void enregistrer({ fr: "Durée de conservation enregistrée.", en: "Retention period saved." }),
+                    onValider: () => enregistrer({ fr: "Durée de conservation enregistrée.", en: "Retention period saved." }),
                     verifier: () => (invalide ? { duree: "invalide" } : null),
                 }}
             />

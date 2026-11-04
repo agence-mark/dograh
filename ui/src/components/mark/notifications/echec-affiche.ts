@@ -24,3 +24,11 @@ export function echecAffiche(erreur: unknown, texte: Texte = ECHEC_GENERIQUE): s
     notifier.echec(texte, { erreur, groupe: "echec-ecran" });
     return texte[langueActive()];
 }
+
+/**
+ * Comme `echecAffiche`, sans notification : pour un sondage répété (une alerte toutes les dix secondes serait pire que le mal)
+ * ou un état d'erreur dont le motif est déjà posé ailleurs. Rend la phrase fixe, ou la faute d'un champ.
+ */
+export function phraseEchec(erreur: unknown, texte: Texte = ECHEC_GENERIQUE): string {
+    return estFauteDeChamp(erreur) ? detailFromError(erreur, texte[langueActive()]) : texte[langueActive()];
+}

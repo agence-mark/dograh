@@ -170,8 +170,8 @@ export function ActionsAgent({
         setEnregistrement(false);
     };
 
-    const dupliquer = async (nomDeLaCopie: string, avecTests: boolean) => {
-        if (duplication) return;
+    const dupliquer = async (nomDeLaCopie: string, avecTests: boolean): Promise<boolean> => {
+        if (duplication) return false;
         setDuplication(true);
         const promesse = duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost({
             path: { workflow_id: agentId },
@@ -186,8 +186,10 @@ export function ActionsAgent({
         });
         try {
             const { data } = await promesse;
-            if (data?.id) router.push(adresseOnglet(data.id, "parcours"));
             void nomDeLaCopie;
+            if (!data?.id) return false;
+            router.push(adresseOnglet(data.id, "parcours"));
+            return true;
         } finally {
             setDuplication(false);
         }
@@ -399,7 +401,7 @@ export function ActionsAgent({
                         ],
                     },
                 ]}
-                onValider={(valeurs) => void dupliquer(String(valeurs.nom ?? ""), valeurs.tests === true)}
+                onValider={(valeurs) => dupliquer(String(valeurs.nom ?? ""), valeurs.tests === true)}
             />
             <FenetreChamps
                 ouverte={fenetre === "renommer"}
@@ -409,9 +411,14 @@ export function ActionsAgent({
                 sections={[{ champs: [{ id: "nom", t: "texte", l: t(T.nomAgent), v: nom }] }]}
                 onValider={(valeurs) => {
                     const propre = String(valeurs.nom ?? "").trim();
-                    if (propre && propre !== nom) {
-                        editeur?.renommer(propre).catch(() => notifier.echec({ fr: "Renommage impossible. Réessayez.", en: "Could not rename. Try again." }));
-                    }
+                    if (!propre || propre === nom || !editeur) return;
+                    return editeur
+                        .renommer(propre)
+                        .then(() => true)
+                        .catch(() => {
+                            notifier.echec({ fr: "Renommage impossible. Réessayez.", en: "Could not rename. Try again." });
+                            return false;
+                        });
                 }}
             />
         </>

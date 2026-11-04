@@ -516,7 +516,7 @@ export function ListeAgents({
                 sections={[{ champs: [{ id: "nom", t: "texte", l: t(T.nomDuDossier), v: "" }] }]}
                 onValider={(v) => {
                     const nom = String(v.nom ?? "").trim();
-                    if (nom) void creerDossier(nom).catch(() => undefined);
+                    if (nom) return creerDossier(nom).then(() => true, () => false);
                 }}
             />
             <FenetreChamps
@@ -527,7 +527,7 @@ export function ListeAgents({
                 sections={[{ champs: [{ id: "nom", t: "texte", l: t(T.nomDuDossier), v: renommage?.name ?? "" }] }]}
                 onValider={(v) => {
                     const nom = String(v.nom ?? "").trim();
-                    if (nom && nom !== renommage?.name) void renommer(nom).catch(() => undefined);
+                    if (nom && nom !== renommage?.name) return renommer(nom).then(() => true, () => false);
                 }}
             />
             <AlertDialog open={suppression !== null} onOpenChange={(o) => !o && setSuppression(null)}>

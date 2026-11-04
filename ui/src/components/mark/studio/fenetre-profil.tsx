@@ -39,7 +39,7 @@ export function FenetreProfil({
             const res = await modifierMonProfilApiV1EquipeMarkMoiPatch({ body: corps });
             if (res.error || !res.data) {
                 notifier.echec({ fr: "Modification impossible. Réessayez.", en: "Could not save the change. Try again." }, { erreur: res.error });
-                return;
+                return false;
             }
             apres?.(res.data);
             notifier.succes({ fr: "Profil enregistré.", en: "Profile saved." });
@@ -51,10 +51,11 @@ export function FenetreProfil({
             const res = await changerMonMotDePasseApiV1EquipeMarkMoiMotDePassePost({ body: { actuel, nouveau } });
             if (res.error) {
                 notifier.echec({ fr: "Mot de passe inchangé. Vérifiez le mot de passe actuel.", en: "Password unchanged. Check the current password." }, { erreur: res.error });
-                return;
+                return false;
             }
             notifier.succes({ fr: "Mot de passe changé.", en: "Password changed." });
         }
+        return true;
     };
 
     return (
@@ -70,7 +71,7 @@ export function FenetreProfil({
                 if (String(v.nouveau).length < MOT_DE_PASSE_MIN) fautes.nouveau = t({ en: "12 characters at least.", fr: "12 caractères au moins." });
                 return Object.keys(fautes).length ? fautes : null;
             }}
-            onValider={(v) => void enregistrer(v)}
+            onValider={(v) => enregistrer(v)}
             sections={[
                 {
                     titre: t({ en: "Identity", fr: "Identité" }),

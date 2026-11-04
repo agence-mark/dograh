@@ -509,7 +509,7 @@ export function SectionLexiqueMetier() {
                 a_ecouter: v.a_ecouter === true,
                 propose: v.propose === true,
               };
-              void enregistrer({
+              return enregistrer({
                 ...lexique,
                 termes: terme === "nouveau" ? [...termesLus, fait] : termesLus.map((x, i) => (i === terme ? fait : x)),
               });
@@ -540,7 +540,7 @@ export function SectionLexiqueMetier() {
                 ],
               },
             ]}
-            onValider={(v) => void enregistrer({ ...lexique, seuil_mots_courants: Number(v.seuil) || SEUIL_MOTS_COURANTS_DEFAUT })}
+            onValider={(v) => enregistrer({ ...lexique, seuil_mots_courants: Number(v.seuil) || SEUIL_MOTS_COURANTS_DEFAUT })}
           />
         )}
       </section>

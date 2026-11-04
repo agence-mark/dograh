@@ -35,6 +35,7 @@ import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./cata
 import { useEnregistrementTheme } from "./enregistrement";
 import { modeRetenu } from "./mode-envoi-du-texte";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export const ID_THEME_VOIX = "voix";
 export const TITRE_VOIX = { en: "Voice", fr: "Voix" };
@@ -163,7 +164,7 @@ export const ThemeVoix = ({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(err instanceof Error ? err.message : "Upload failed");
+            setAudioUploadError(echecAffiche(err));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";
