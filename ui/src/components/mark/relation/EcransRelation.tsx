@@ -81,10 +81,10 @@ export function tachesDeLaFile(file: FilOut[], clients: ClientOut[], t: Dire): T
         const s = c.signalements ?? 0;
         const p = c.pannes ?? 0;
         if (s > 0) {
-            taches.push({ id: `s${c.id}`, type: "signalement", titre: t({ en: `${s} report${s > 1 ? "s" : ""} on a call`, fr: `${s} signalement${s > 1 ? "s" : ""} sur un appel` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
+            taches.push({ id: `s${c.id}`, type: "signalement", titre: t({ en: `${s} report${s !== 1 ? "s" : ""} on a call`, fr: `${s} signalement${s > 1 ? "s" : ""} sur un appel` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
         }
         if (p > 0) {
-            taches.push({ id: `p${c.id}`, type: "panne", titre: t({ en: `${p} outage${p > 1 ? "s" : ""} or alert${p > 1 ? "s" : ""}`, fr: `${p} panne${p > 1 ? "s" : ""} ou alerte${p > 1 ? "s" : ""}` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
+            taches.push({ id: `p${c.id}`, type: "panne", titre: t({ en: `${p} outage${p !== 1 ? "s" : ""} or alert${p !== 1 ? "s" : ""}`, fr: `${p} panne${p > 1 ? "s" : ""} ou alerte${p > 1 ? "s" : ""}` }), client: c, qui: "", quand: "", href: `/clients/${c.id}/a-ameliorer` });
         }
     }
     return taches;
@@ -140,7 +140,7 @@ function AccueilInterne({ t }: { t: Dire }) {
                 {taches.length > 0 && (
                     <p className="mt-1 text-muted-foreground">
                         {t({
-                            en: `${taches.length} thing${taches.length > 1 ? "s are" : " is"} waiting for the team across ${nbClients} client${nbClients > 1 ? "s" : ""}.`,
+                            en: `${taches.length} thing${taches.length !== 1 ? "s are" : " is"} waiting for the team across ${nbClients} client${nbClients !== 1 ? "s" : ""}.`,
                             fr: `${taches.length} chose${taches.length > 1 ? "s attendent" : " attend"} l'équipe chez ${nbClients} client${nbClients > 1 ? "s" : ""}.`,
                         })}
                     </p>
@@ -271,8 +271,8 @@ function ClientsInterne({ t }: { t: Dire }) {
                                             <p className="truncate text-sm font-medium">{c.nom}</p>
                                             <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                                 <EtatClient etat={c.etat ?? "installation"} />
-                                                <span className="inline-flex items-center gap-1"><Bot className="size-3.5" />{t({ en: `${agents} agent${agents > 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
-                                                <span className="inline-flex items-center gap-1"><PhoneCall className="size-3.5" />{t({ en: `${appels} call${appels > 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
+                                                <span className="inline-flex items-center gap-1"><Bot className="size-3.5" />{t({ en: `${agents} agent${agents !== 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
+                                                <span className="inline-flex items-center gap-1"><PhoneCall className="size-3.5" />{t({ en: `${appels} call${appels !== 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
                                                 {c.note != null && <span className="inline-flex items-center gap-1"><Star className="size-3.5" />{t({ en: String(c.note), fr: String(c.note).replace(".", ",") })}</span>}
                                             </p>
                                         </div>
@@ -323,8 +323,8 @@ function FicheInterne({ id }: { id: number }) {
                     <h2 className="truncate text-2xl font-semibold tracking-tight">{client.nom}</h2>
                     <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <EtatClient etat={client.etat ?? "installation"} />
-                        <span className="inline-flex items-center gap-1"><Bot className="size-4" />{t({ en: `${agents} agent${agents > 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
-                        <span className="inline-flex items-center gap-1"><PhoneCall className="size-4" />{t({ en: `${appels} call${appels > 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
+                        <span className="inline-flex items-center gap-1"><Bot className="size-4" />{t({ en: `${agents} agent${agents !== 1 ? "s" : ""}`, fr: `${agents} agent${agents > 1 ? "s" : ""}` })}</span>
+                        <span className="inline-flex items-center gap-1"><PhoneCall className="size-4" />{t({ en: `${appels} call${appels !== 1 ? "s" : ""} in 7 days`, fr: `${appels} appel${appels > 1 ? "s" : ""} en 7 jours` })}</span>
                         {client.note != null && <span className="inline-flex items-center gap-1"><Star className="size-4" />{t({ en: String(client.note), fr: String(client.note).replace(".", ",") })}</span>}
                     </p>
                 </div>
@@ -348,8 +348,8 @@ function FicheInterne({ id }: { id: number }) {
                                     <EtatVide cas="fait" compact titre={t({ en: "Nothing technical is waiting", fr: "Rien de technique n'attend" })} />
                                 ) : (
                                     <div className="divide-y border-y">
-                                        {signalements > 0 && <p className="flex items-center gap-2 py-3"><Flag className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${signalements} report${signalements > 1 ? "s" : ""} on a call`, fr: `${signalements} signalement${signalements > 1 ? "s" : ""} sur un appel` })}</p>}
-                                        {pannes > 0 && <p className="flex items-center gap-2 py-3"><AlertTriangle className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${pannes} outage${pannes > 1 ? "s" : ""} or alert${pannes > 1 ? "s" : ""}`, fr: `${pannes} panne${pannes > 1 ? "s" : ""} ou alerte${pannes > 1 ? "s" : ""}` })}</p>}
+                                        {signalements > 0 && <p className="flex items-center gap-2 py-3"><Flag className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${signalements} report${signalements !== 1 ? "s" : ""} on a call`, fr: `${signalements} signalement${signalements > 1 ? "s" : ""} sur un appel` })}</p>}
+                                        {pannes > 0 && <p className="flex items-center gap-2 py-3"><AlertTriangle className="size-4" style={{ color: "var(--pastille-urgente)" }} />{t({ en: `${pannes} outage${pannes !== 1 ? "s" : ""} or alert${pannes !== 1 ? "s" : ""}`, fr: `${pannes} panne${pannes > 1 ? "s" : ""} ou alerte${pannes > 1 ? "s" : ""}` })}</p>}
                                     </div>
                                 )}
                                 <Button variant="outline" size="sm" className="cursor-pointer" asChild>
