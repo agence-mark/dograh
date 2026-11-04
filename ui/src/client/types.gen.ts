@@ -504,6 +504,20 @@ export type AgentPublie = {
 };
 
 /**
+ * AgentQuiLit
+ */
+export type AgentQuiLit = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * AgentServi
  */
 export type AgentServi = {
@@ -744,7 +758,7 @@ export type ApparenceWidget = {
     /**
      * Police
      */
-    police?: 'switzer' | 'inter' | 'systeme' | 'site';
+    police?: 'switzer' | 'inter' | 'systeme' | 'site' | 'poppins' | 'montserrat' | 'lato' | 'nunito' | 'dm-sans' | 'playfair-display';
     /**
      * Embleme
      */
@@ -2395,6 +2409,32 @@ export type ChampCitant = {
 };
 
 /**
+ * ChampDeFamille
+ */
+export type ChampDeFamille = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Sorte
+     */
+    sorte: 'texte' | 'long' | 'liste' | 'nombre' | 'choix' | 'objet';
+    /**
+     * Obligatoire
+     */
+    obligatoire?: boolean;
+    /**
+     * Choix
+     */
+    choix?: Array<string>;
+    /**
+     * Longueur Max
+     */
+    longueur_max?: number | null;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -2644,6 +2684,26 @@ export type ChargeMiroir = {
 };
 
 /**
+ * ChiffresClient
+ *
+ * Partie 3, lot 15 (O-1) : la bande de chiffres de l'accueil d'un client. ``None`` = aucun appel noté, jamais un zéro inventé.
+ */
+export type ChiffresClient = {
+    /**
+     * Appels 7J
+     */
+    appels_7j: number;
+    /**
+     * Note Juge
+     */
+    note_juge: number | null;
+    /**
+     * Agents Publies
+     */
+    agents_publies: number;
+};
+
+/**
  * ChoixDeRecette
  */
 export type ChoixDeRecette = {
@@ -2651,6 +2711,10 @@ export type ChoixDeRecette = {
      * Recette
      */
     recette: string;
+    /**
+     * Confirmer
+     */
+    confirmer?: boolean;
 };
 
 /**
@@ -3198,6 +3262,14 @@ export type ConnecteurVue = {
      * Categorie
      */
     categorie?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Description En
+     */
+    description_en?: string | null;
 };
 
 /**
@@ -3274,6 +3346,10 @@ export type ConnexionVue = {
      * Autorise Par
      */
     autorise_par?: string | null;
+    /**
+     * Dernier Usage Le
+     */
+    dernier_usage_le?: string | null;
 };
 
 /**
@@ -4720,6 +4796,14 @@ export type DemandeCopie = {
      * Avec Tests
      */
     avec_tests?: boolean;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Dossier Id
+     */
+    dossier_id?: number | null;
 };
 
 /**
@@ -5084,6 +5168,10 @@ export type DemandeTestMcp = {
      * En Tetes Ext
      */
     en_tetes_ext?: Array<EnteteDeRequete>;
+    /**
+     * Outil Uuid
+     */
+    outil_uuid?: string | null;
 };
 
 /**
@@ -5563,6 +5651,20 @@ export type DograhTtsService = {
 };
 
 /**
+ * DossierPropose
+ */
+export type DossierPropose = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * DuplicateTemplateRequest
  */
 export type DuplicateTemplateRequest = {
@@ -6018,6 +6120,10 @@ export type EmplacementLu = {
      * Version Publiee
      */
     version_publiee?: number | null;
+    /**
+     * Etablissement Nom
+     */
+    etablissement_nom?: string | null;
 };
 
 /**
@@ -8270,6 +8376,14 @@ export type InvitationLueResponse = {
      * Role Nom
      */
     role_nom: string;
+    /**
+     * Invite Par
+     */
+    invite_par?: string | null;
+    /**
+     * Expire Le
+     */
+    expire_le?: string | null;
 };
 
 /**
@@ -8413,6 +8527,14 @@ export type JournalLigne = {
      * Nom
      */
     nom: string | null;
+    /**
+     * Qui
+     */
+    qui?: string | null;
+    /**
+     * Sans Nom
+     */
+    sans_nom?: boolean;
     /**
      * Action
      */
@@ -9640,6 +9762,12 @@ export type MessageDuFil = {
      * Message
      */
     message: string;
+    /**
+     * Depasser Le Plafond
+     *
+     * Continue although the monthly ceiling is reached, for this request only (.mark team).
+     */
+    depasser_le_plafond?: boolean;
 };
 
 /**
@@ -10622,6 +10750,12 @@ export type NouveauFil = {
      * Demarrage
      */
     demarrage?: string | null;
+    /**
+     * Depasser Le Plafond
+     *
+     * Continue although the monthly ceiling is reached, for this request only (.mark team).
+     */
+    depasser_le_plafond?: boolean;
 };
 
 /**
@@ -13906,6 +14040,10 @@ export type Releve = {
      */
     nb_tests: number;
     deja_copie?: DejaCopie | null;
+    /**
+     * Dossiers
+     */
+    dossiers?: Array<DossierPropose>;
 };
 
 /**
@@ -17542,6 +17680,22 @@ export type UserResponse = {
 };
 
 /**
+ * UtilisationDocument
+ */
+export type UtilisationDocument = {
+    /**
+     * Nombre
+     */
+    nombre: number;
+    /**
+     * Agents
+     *
+     * The first agents, by name (at most 10).
+     */
+    agents?: Array<AgentQuiLit>;
+};
+
+/**
  * UtilisationDocumentSchema
  */
 export type UtilisationDocumentSchema = {
@@ -18536,6 +18690,10 @@ export type VueFamille = {
      */
     du_code?: boolean;
     fiche?: Fiche;
+    /**
+     * Nombre
+     */
+    nombre?: number;
 };
 
 /**
@@ -18730,6 +18888,10 @@ export type VueRecetteDeLAgent = {
      * Modifiable
      */
     modifiable: boolean;
+    /**
+     * Tests A Rejouer Depuis
+     */
+    tests_a_rejouer_depuis?: string | null;
 };
 
 /**
@@ -22124,6 +22286,12 @@ export type DuplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePostData = 
          * [.mark] Recopier aussi les tests de l'agent (jamais leurs résultats)
          */
         avec_tests?: boolean;
+        /**
+         * Nom
+         *
+         * [.mark] Le nom de la copie ; vide : « nom - Duplicate »
+         */
+        nom?: string | null;
     };
     url: '/api/v1/workflow/{workflow_id}/duplicate';
 };
@@ -23217,6 +23385,56 @@ export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses = {
 
 export type CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponse = CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses[keyof CreerUneFamilleApiV1BuilderBibliothequeFamillesPostResponses];
 
+export type ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Famille
+         */
+        famille: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/bibliotheque/familles/{famille}/champs';
+};
+
+export type ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetError = ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetErrors[keyof ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetErrors];
+
+export type ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetResponses = {
+    /**
+     * Response Champs D Une Famille Api V1 Builder Bibliotheque Familles  Famille  Champs Get
+     *
+     * Successful Response
+     */
+    200: Array<ChampDeFamille>;
+};
+
+export type ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetResponse = ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetResponses[keyof ChampsDUneFamilleApiV1BuilderBibliothequeFamillesFamilleChampsGetResponses];
+
 export type SupprimerUneFamilleApiV1BuilderBibliothequeFamillesFamilleDeleteData = {
     body?: never;
     headers?: {
@@ -23682,8 +23900,10 @@ export type ParcourirApiV1BuilderBibliothequeParcourirGetData = {
         famille?: string | null;
         /**
          * Statut
+         *
+         * Several statuses add up.
          */
-        statut?: Statut | null;
+        statut?: Array<Statut> | null;
         /**
          * Dossier
          */
@@ -25354,7 +25574,14 @@ export type ReprendreUnFilApiV1BuilderFilsFilIdReprendrePostData = {
          */
         fil_id: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Depasser Le Plafond
+         *
+         * Continue although the monthly ceiling is reached, for this request only (.mark team).
+         */
+        depasser_le_plafond?: boolean;
+    };
     url: '/api/v1/builder/fils/{fil_id}/reprendre';
 };
 
@@ -35102,8 +35329,16 @@ export type LireLeJournalApiV1EquipeMarkJournalGetData = {
     query?: {
         /**
          * Organization Id
+         *
+         * Only this space.
          */
         organization_id?: number | null;
+        /**
+         * Membre
+         *
+         * Only this member (his user id).
+         */
+        membre?: number | null;
         /**
          * Limit
          */
@@ -35182,6 +35417,54 @@ export type ListerClientsApiV1RelationClientsGetResponses = {
 };
 
 export type ListerClientsApiV1RelationClientsGetResponse = ListerClientsApiV1RelationClientsGetResponses[keyof ListerClientsApiV1RelationClientsGetResponses];
+
+export type ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/relation/clients/{organization_id}/chiffres';
+};
+
+export type ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetError = ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetErrors[keyof ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetErrors];
+
+export type ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChiffresClient;
+};
+
+export type ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetResponse = ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetResponses[keyof ChiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGetResponses];
 
 export type MaFileApiV1RelationFileGetData = {
     body?: never;
@@ -35471,7 +35754,14 @@ export type MembresAQuiConfierUnFilApiV1RelationMembresGetData = {
         'X-Mark-Auteur'?: string | null;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Client
+         *
+         * The client of the thread: only the members whose role opens it.
+         */
+        client?: number | null;
+    };
     url: '/api/v1/relation/membres';
 };
 
@@ -38122,6 +38412,54 @@ export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses = 
 };
 
 export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponse = RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses[keyof RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses];
+
+export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Document Uuid
+         */
+        document_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/knowledge-base/documents/{document_uuid}/utilisation';
+};
+
+export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetError = UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetErrors[keyof UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetErrors];
+
+export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UtilisationDocument;
+};
+
+export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetResponse = UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetResponses[keyof UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetResponses];
 
 export type ListCredentialsApiV1CredentialsGetData = {
     body?: never;
