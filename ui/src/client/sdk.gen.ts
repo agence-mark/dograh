@@ -4444,7 +4444,7 @@ export const postRappelApiV1PublicEmbedRappelClePost = <ThrowOnError extends boo
 /**
  * Post Evenement
  *
- * +1 au compteur du jour de l'agent. Aucune donnée du visiteur n'est lue : ni adresse, ni agent utilisateur.
+ * +1 au compteur du jour de l'agent. Aucune donnée du visiteur n'est gardée : ni adresse (seule son empreinte salée sert à la limite), ni agent utilisateur.
  */
 export const postEvenementApiV1PublicEmbedEvenementPost = <ThrowOnError extends boolean = false>(options: Options<PostEvenementApiV1PublicEmbedEvenementPostData, ThrowOnError>): RequestResult<PostEvenementApiV1PublicEmbedEvenementPostResponses, PostEvenementApiV1PublicEmbedEvenementPostErrors, ThrowOnError> => (options.client ?? client).post<PostEvenementApiV1PublicEmbedEvenementPostResponses, PostEvenementApiV1PublicEmbedEvenementPostErrors, ThrowOnError>({
     url: '/api/v1/public/embed/evenement',
