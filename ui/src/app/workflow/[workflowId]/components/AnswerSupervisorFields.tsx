@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import type { AnswerMessage, AnswerSupervisorSettings } from "@/types/workflow-configurations";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 const selectClass = "w-full rounded-md border bg-background p-2 text-sm";
 
@@ -77,7 +77,7 @@ export function AnswerSupervisorFields({ value, onChange }: {
         listRecordingsApiV1WorkflowRecordingsGet({ query: {} }).then(response => {
             if (cancelled) return;
             if (response.error || !response.data) {
-                setError(detailFromError(response.error, "Could not load recordings."));
+                setError(echecAffiche(response.error));
                 return;
             }
             setRecordings(response.data.recordings);

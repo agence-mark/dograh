@@ -9,12 +9,12 @@ import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.g
 import { FlowEdge, FlowNode } from '@/components/flow/types';
 import { EtatVide } from '@/components/mark/studio/etat-vide';
 import SpinLoader from '@/components/SpinLoader';
-import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import WorkflowLayout from '../WorkflowLayout';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 export default function WorkflowDetailPage() {
     const params = useParams();
@@ -65,10 +65,7 @@ export default function WorkflowDetailPage() {
                 if (cancelled) return;
 
                 if (response.error) {
-                    const fallback = response.response?.status === 503
-                        ? 'Dograh is temporarily unavailable. Please try again later.'
-                        : 'Failed to fetch workflow';
-                    setError(detailFromError(response.error, fallback));
+                    setError(echecAffiche(response.error));
                     return;
                 }
 
@@ -78,7 +75,7 @@ export default function WorkflowDetailPage() {
                     return;
                 }
                 if (versionResponse?.error) {
-                    setError(detailFromError(versionResponse.error, 'Failed to fetch workflow version'));
+                    setError(echecAffiche(versionResponse.error));
                     return;
                 }
                 const selectedVersion = versionResponse?.data?.[0];

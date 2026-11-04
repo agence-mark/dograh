@@ -19,6 +19,7 @@ import { useUserConfig } from "@/context/UserConfigContext";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export default function ModelConfigurationV2({ docsUrl }: { docsUrl?: string }) {
     const auth = useAuth();
@@ -46,12 +47,12 @@ export default function ModelConfigurationV2({ docsUrl }: { docsUrl?: string }) 
             ]);
 
             if (defaultsResult.error) {
-                setError(detailFromError(defaultsResult.error, "Failed to load model configuration defaults"));
+                setError(echecAffiche(defaultsResult.error));
                 setLoading(false);
                 return;
             }
             if (configResult.error) {
-                setError(detailFromError(configResult.error, "Failed to load model configuration"));
+                setError(echecAffiche(configResult.error));
                 setLoading(false);
                 return;
             }

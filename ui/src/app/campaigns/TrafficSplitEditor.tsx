@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 export function trafficSplitError(variants: TrafficVariantRequest[]): string | null {
     if (!variants.length || variants.length > 5) return 'Choose between one and five variants.';
@@ -44,7 +45,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         setAgentsLoading(true);
         getWorkflowsSummaryApiV1WorkflowSummaryGet({ query: { status: 'active,archived' } }).then(response => {
             if (cancelled) return;
-            if (response.error) setAgentError(detailFromError(response.error, 'Failed to load agents'));
+            if (response.error) setAgentError(echecAffiche(response.error));
             else setAgents(response.data ?? []);
         }).catch(() => { if (!cancelled) setAgentError('Failed to load agents'); })
             .finally(() => { if (!cancelled) setAgentsLoading(false); });
@@ -62,7 +63,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         })).then(entries => {
             if (!cancelled) setVersions(Object.fromEntries(entries));
         }).catch(error => {
-            if (!cancelled) setVersionError(error instanceof Error ? error.message : 'Failed to load versions');
+            if (!cancelled) setVersionError(echecAffiche(error));
         });
         return () => { cancelled = true; };
     }, [ids, loading, user, retry]);

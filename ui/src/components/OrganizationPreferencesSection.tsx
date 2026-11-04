@@ -193,7 +193,6 @@ export function OrganizationPreferencesSection() {
         );
 
       if (result.error) {
-        const message = detailFromError(result.error, "Failed to save preferences");
         // [.mark] A refused address is shown under its fields, not only in a
         // toast that disappears. Only an ADDRESS refusal: the route raises it
         // as a plain string, while a validation error of another field comes
@@ -203,7 +202,8 @@ export function OrganizationPreferencesSection() {
           typeof detail === "string" ||
           JSON.stringify(detail ?? "").includes("adresse_etablissement");
         if (result.response?.status === 422 && refusAdresse) {
-          setErreurAdresse(message);
+          // faute-de-champ : refus d'adresse écrit par notre propre validateur, lu sous ses champs
+          setErreurAdresse(detailFromError(result.error, "Failed to save preferences"));
         }
         notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: result.error });
         return false;

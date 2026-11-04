@@ -23,9 +23,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 const PAGE_SIZE = 25;
 const SORT_OPTIONS = [
@@ -104,7 +104,7 @@ export default function TtsCacheList() {
                 const result = await listTtsCacheApiV1TtsCacheGet({ query, signal: controller.signal });
                 if (controller.signal.aborted) return;
                 if (result.error || !result.data) {
-                    setError(detailFromError(result.error, "Could not load cached speech."));
+                    setError(echecAffiche(result.error));
                     setEntries([]);
                     return;
                 }

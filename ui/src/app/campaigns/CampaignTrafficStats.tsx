@@ -13,6 +13,7 @@ import { Cellule, Ligne, Tableau, TitreTableau } from '@/components/mark/studio/
 import { Button } from '@/components/ui/button';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
+import { phraseEchec } from '@/components/mark/notifications/echec-affiche';
 
 /**
  * [.mark] K8 : la répartition du trafic d'une campagne, en tableau nu (jamais dans un cadre). Mêmes routes, mêmes
@@ -39,7 +40,7 @@ export default function CampaignTrafficStats({ campaign }: { campaign: CampaignR
                 setStats(response.data ?? null);
                 setError(null);
             } catch (e) {
-                if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load traffic statistics');
+                if (!cancelled) setError(phraseEchec(e));
             } finally {
                 if (!cancelled && ['running', 'syncing'].includes(campaign.state)) timer = setTimeout(fetchStats, 10000);
             }

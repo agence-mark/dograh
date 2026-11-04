@@ -18,6 +18,7 @@ import { formatDateTime } from '@/lib/dateTime';
 import logger from '@/lib/logger';
 
 import DocumentEditor, { isEditableDocument } from './DocumentEditor';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 interface DocumentListProps {
   refreshTrigger: number;
@@ -49,7 +50,7 @@ export default function DocumentList({ refreshTrigger }: DocumentListProps) {
 
       setDocuments(response.data.documents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch documents');
+      setError(echecAffiche(err));
       logger.error('Error fetching documents:', err);
     } finally {
       setIsLoading(false);

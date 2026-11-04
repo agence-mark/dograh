@@ -24,6 +24,7 @@ import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
 import logger from "@/lib/logger";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 export default function RecordingsList({ refreshKey }: { refreshKey?: number }) {
     const organizationTimezone = useOrganizationTimezone();
@@ -58,7 +59,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
 
             setRecordings(response.data.recordings);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to fetch recordings");
+            setError(echecAffiche(err));
             logger.error("Error fetching recordings:", err);
         } finally {
             setIsLoading(false);
@@ -149,7 +150,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
             cancelEditing();
             fetchRecordings();
         } catch (err) {
-            setEditError(err instanceof Error ? err.message : "Failed to update recording ID");
+            setEditError(echecAffiche(err));
         }
     };
 
@@ -167,15 +168,17 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
 
     // [.mark] K4b : la forme de la maquette (`OngletEcouteSons`) : un tableau nu, un clic ouvre la fenêtre de l'enregistrement.
     if (maquette) {
-        const renommer = async (rec: RecordingResponseSchema, nouveau: string) => {
-            if (nouveau === rec.recording_id) return;
+        const renommer = async (rec: RecordingResponseSchema, nouveau: string): Promise<boolean> => {
+            if (nouveau === rec.recording_id) return true;
             try {
                 const response = await updateRecordingApiV1WorkflowRecordingsIdPatch({ path: { id: rec.id }, body: { recording_id: nouveau } });
                 if (response.error) throw response.error;
                 notifier.succes({ fr: `Identifiant changé en « ${nouveau} ». Les agents concernés sont à jour.`, en: `ID changed to "${nouveau}". Affected agents are up to date.` });
                 fetchRecordings();
+                return true;
             } catch (err) {
                 notifier.echec({ fr: "Identifiant non changé. Réessayez.", en: "ID not changed. Try again." }, { erreur: err });
+                return false;
             }
         };
         return (
@@ -290,7 +293,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
                             if (!/^[a-zA-Z0-9_-]+$/.test(id)) return { identifiant: t({ en: "Only letters, digits, hyphens and underscores.", fr: "Seulement des lettres, chiffres, tirets et tirets bas." }) };
                             return null;
                         }}
-                        onValider={(v) => void renommer(fiche, String(v.identifiant).trim())}
+                        onValider={(v) => renommer(fiche, String(v.identifiant).trim())}
                     />
                 )}
             </div>

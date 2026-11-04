@@ -8,11 +8,11 @@ import type { ConversationNodeTransitionItem, RealtimeFeedbackMessage as Feedbac
 import { isLlmTtfb } from "@/components/workflow/conversation/adapters/fromRealtimeFeedback";
 import { useAppConfig } from "@/context/AppConfigContext";
 import { resolveBrowserBackendUrl } from '@/lib/apiClient';
-import { detailFromError } from '@/lib/apiError';
 import logger from '@/lib/logger';
 
 import { sdpFilterCodec } from "../utils";
 import { useDeviceInputs } from "./useDeviceInputs";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 
 interface UseWebSocketRTCProps {
     workflowId: number;
@@ -729,12 +729,10 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
 
             if (response.error) {
                 const isServiceUnavailable = response.response?.status === 503;
-                const message = detailFromError(
-                    response.error,
-                    isServiceUnavailable
-                        ? 'Dograh is temporarily unavailable. Please try again later.'
-                        : 'API Key Error',
-                );
+                // [.mark] R4 M5 : jamais le texte du serveur ; la phrase fixe, le motif dans « Détails ».
+                const message = isServiceUnavailable
+                    ? 'Dograh is temporarily unavailable. Please try again later.'
+                    : echecAffiche(response.error);
 
                 if (isServiceUnavailable) {
                     // MPS is a Dograh-owned dependency. Do not tell the customer

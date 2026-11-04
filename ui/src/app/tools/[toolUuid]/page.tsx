@@ -47,7 +47,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TOOL_DOCUMENTATION_URLS } from "@/constants/documentation";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import {
@@ -79,6 +78,7 @@ import {
     type TransferAgentWorkflowOption,
     TransferCallToolConfig,
 } from "./components";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 function normalizeParameterType(value: string | null | undefined): ParameterType {
     switch (value) {
@@ -840,7 +840,7 @@ export default function ToolDetailPage() {
             });
 
             if (response.error) {
-                setError(detailFromError(response.error, "Failed to save tool"));
+                setError(echecAffiche(response.error));
                 return;
             }
 

@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import {
@@ -25,6 +24,7 @@ import {
     isUnsafeHttpMethod,
     parseTestParameterValues,
 } from "./helpers";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 
 type HttpToolTestDialogProps = {
     open: boolean;
@@ -258,6 +258,7 @@ export function HttpToolTestDialog({
             setJsonEditDraft(JSON.stringify(parsed, null, 2));
             setJsonEditError(null);
         } catch (caughtError) {
+            // message-local : la faute de lecture du JSON saisi, pas un texte du serveur
             setJsonEditError(caughtError instanceof Error ? caughtError.message : "Invalid JSON");
         }
     };
@@ -272,6 +273,7 @@ export function HttpToolTestDialog({
             setValues((previous) => ({ ...previous, [target.name]: JSON.stringify(parsed) }));
             closeJsonEditDialog();
         } catch (caughtError) {
+            // message-local : la faute de lecture du JSON saisi, pas un texte du serveur
             setJsonEditError(caughtError instanceof Error ? caughtError.message : "Invalid JSON");
         }
     };
@@ -296,13 +298,13 @@ export function HttpToolTestDialog({
             });
 
             if (response.error) {
-                setTestError(detailFromError(response.error, "Failed to test tool"));
+                setTestError(echecAffiche(response.error));
                 return;
             }
 
             if (response.data) setResult(response.data);
         } catch (caughtError) {
-            setTestError(caughtError instanceof Error ? caughtError.message : "Failed to test tool");
+            setTestError(echecAffiche(caughtError));
         } finally {
             setIsTesting(false);
         }
