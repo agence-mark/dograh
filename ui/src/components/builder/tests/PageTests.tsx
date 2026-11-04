@@ -167,6 +167,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
         URL.revokeObjectURL(lien.href);
     };
 
+    // suppression-confirmee : FenetreDeTest demande « Supprimer ce test et ses résultats ? » (Non / Supprimer) avant `onSupprimer`.
     const supprimer = async (slug: string) => {
         const r = await supprimerUnTestApiV1BuilderTestsWorkflowIdSlugDelete({ path: { workflow_id: workflowId, slug } });
         if (r.error) setErreur(detailFromError(r.error, "The test was not deleted"));

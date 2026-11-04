@@ -153,6 +153,7 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
     };
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : « Supprimer cette clé ? » en place avant ce bouton.
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {

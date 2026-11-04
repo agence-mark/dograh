@@ -166,6 +166,7 @@ function FenetreDeLaCle({
 
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : confirmation en place (`confirme`) avant `supprimer`.
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {

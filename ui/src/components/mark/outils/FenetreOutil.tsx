@@ -121,7 +121,12 @@ export function FenetreOutil({
         if (r.error) return setErreur(detailFromError(r.error, "Failed"));
         apresEcriture();
         fermer();
-        notifier.succes(archive ? { fr: "Outil restauré.", en: "Tool restored." } : { fr: "Outil archivé.", en: "Tool archived." });
+        if (archive) notifier.succes({ fr: "Outil restauré.", en: "Tool restored." });
+        else
+            notifier.reversible({ fr: "Outil archivé.", en: "Tool archived." }, async () => {
+                await unarchiveToolApiV1ToolsToolUuidUnarchivePost({ path: { tool_uuid: courant.tool_uuid } });
+                apresEcriture();
+            });
     };
 
     // Après un essai, le serveur a écrit « dernier essai » / « premier essai » : on relit l'outil sans perdre les modifications en cours.

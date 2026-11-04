@@ -13,6 +13,7 @@ import type { PermissionResponse, RoleResponse } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Info } from "@/components/mark/studio/marques";
+import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confirmee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -98,9 +99,9 @@ export function FenetreRole({
             }
             pied={
                 role && !fixe && !lecture && supprimer ? (
-                    <Button variant="ghost" size="sm" className="text-(--marque-danger-texte)" onClick={supprimer}>
+                    <SuppressionConfirmee className="text-(--marque-danger-texte)" onConfirmer={supprimer}>
                         <Trash2 className="size-3.5" /> {t({ en: "Delete the role", fr: "Supprimer le rôle" })}
-                    </Button>
+                    </SuppressionConfirmee>
                 ) : undefined
             }
             corps={

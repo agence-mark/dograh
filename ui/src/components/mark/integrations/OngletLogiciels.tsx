@@ -419,6 +419,7 @@ function FenetreLogiciel({
         notifier.succes({ fr: "Connexions relues.", en: "Connections read again." });
     };
     const debrancher = async (c: ConnexionVue) => {
+        // suppression-confirmee : `GesteConfirme` : « Non / Confirmer » avant `debrancher`.
         const r = await deleteConnexionApiV1ConnecteursConnexionsIntegrationDelete({
             path: { integration: connecteur.integration },
             query: c.compte ? { compte: c.compte } : undefined,
@@ -440,6 +441,7 @@ function FenetreLogiciel({
         notifier.succes({ fr: "Lien d'autorisation copié.", en: "Authorization link copied." });
     };
     const retirer = async (p: PropositionConnecteur) => {
+        // suppression-confirmee : `GesteConfirme` : « Non / Confirmer » avant `retirer`.
         const r = await deletePropositionApiV1ConnecteursPropositionsIdentifiantDelete({ path: { identifiant: p.identifiant } });
         if (r.error) return notifier.echec({ fr: "Proposition non retirée. Réessayez.", en: "Proposal not withdrawn. Try again." }, { erreur: r.error });
         notifier.succes({ fr: "Proposition retirée.", en: "Proposal withdrawn." });

@@ -31,6 +31,7 @@ import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreLarge } from "@/components/mark/studio/fenetre-large";
 import { Info, Pastille, PointEtat } from "@/components/mark/studio/marques";
 import { Paginee } from "@/components/mark/studio/pagination";
+import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
 import { Tableau } from "@/components/mark/studio/tableau";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ const POINT = { recette: "publie", rejete: "panne", candidat: "brouillon" } as c
 
 export function PageBibliotheque() {
     const { t } = useLangue();
+    const [dossierASupprimer, setDossierASupprimer] = useState<string | null>(null);
     const [familles, setFamilles] = useState<VueFamille[]>([]);
     const [famille, setFamille] = useState("");
     const [dossier, setDossier] = useState<string | null>(null);
@@ -227,7 +229,17 @@ export function PageBibliotheque() {
                         if (reponse.error) notifier.echec({ fr: "Dossier non créé. Réessayez.", en: "Folder not created. Try again." }, { erreur: reponse.error });
                         else void chargerLesDossiers(famille);
                     }}
-                    onSupprimerDossier={async (chemin) => {
+                    onSupprimerDossier={(chemin) => setDossierASupprimer(chemin)}
+                />
+                <ConfirmerSuppression
+                    ouvert={dossierASupprimer !== null}
+                    titre={t({ en: "Delete this sub-folder?", fr: "Supprimer ce sous-dossier ?" })}
+                    description={dossierASupprimer ?? undefined}
+                    onFermer={() => setDossierASupprimer(null)}
+                    onConfirmer={async () => {
+                        const chemin = dossierASupprimer;
+                        setDossierASupprimer(null);
+                        if (chemin === null) return;
                         const reponse = await supprimerUnDossierApiV1BuilderBibliothequeFamillesFamilleDossiersDelete({
                             path: { famille },
                             query: { chemin },

@@ -160,6 +160,8 @@ describe("la carte « Dépôt »", () => {
         m.retirerDepot.mockResolvedValue({ data: {} });
         render(<CarteDepot workflowId={5} />);
         fireEvent.click(screen.getByLabelText("Remove audit.pdf"));
+        expect(m.retirerDepot).not.toHaveBeenCalled(); // R3 M3 : un clic ne supprime pas
+        fireEvent.click(screen.getByText("Yes, delete"));
         await waitFor(() => expect(m.retirerDepot).toHaveBeenCalled());
         expect(m.retirerDepot.mock.calls[0][0].path).toEqual({ workflow_id: 5, depot_id: "a" });
     });

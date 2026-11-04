@@ -100,6 +100,7 @@ export function GestionDesEtiquettes({ etiquettes, fermer, apres }: Props) {
                                     size="sm"
                                     className="bg-(--pastille-urgente) text-white hover:bg-(--pastille-urgente)/90"
                                     onClick={async () => {
+                                        // suppression-confirmee : « Non / Supprimer » en place, avec le nombre d'éléments touchés.
                                         verifier(await supprimerUneEtiquetteApiV1BuilderBibliothequeEtiquettesDelete({ query: { nom: e.nom } }), {
                                             fr: "Étiquette non supprimée. Réessayez.",
                                             en: "Label not deleted. Try again.",

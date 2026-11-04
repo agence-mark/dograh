@@ -21,6 +21,7 @@ import type { ClientOut, FilOut } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { useMoi } from "@/components/mark/studio/moi";
 import { NouveauClient } from "@/components/mark/studio/selecteur-espace";
+import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confirmee";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Liste } from "@/components/mark/studio/liste";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
@@ -418,7 +419,7 @@ function NotesClient({ organisation }: { organisation: number }) {
                             <p className="text-xs text-muted-foreground">{n.auteur} · {quand(n.cree_le)}</p>
                             <p className="whitespace-pre-wrap">{n.texte}</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => retirer(n.id)}>{t({ en: "Delete", fr: "Supprimer" })}</Button>
+                        <SuppressionConfirmee onConfirmer={() => void retirer(n.id)}>{t({ en: "Delete", fr: "Supprimer" })}</SuppressionConfirmee>
                     </div>
                 ))}
             </div>
@@ -524,6 +525,7 @@ function AvisInterne({ t }: { t: Dire }) {
     };
     const supprimer = async () => {
         if (!asupprimer) return;
+        // suppression-confirmee : la fenêtre « Supprimer ce témoignage ? » précède `supprimer`.
         const res = await supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete({ path: { organization_id: asupprimer.organisation, temoignage_id: asupprimer.id } });
         setAsupprimer(null);
         if (res.error) return notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: res.error });

@@ -280,6 +280,7 @@ export const ModaleModeles = ({
 
     const supprimer = async (id: string) => {
         const fait = await geste(
+            // suppression-confirmee : bouton « Confirmer » (data-confirmer-suppression) avant `supprimer`.
             () => supprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDelete({ path: { modele_id: id } }),
             t({ en: "Template deleted. The agents already set keep their settings.", fr: "Modèle supprimé. Les agents déjà réglés gardent leurs réglages." }),
         );

@@ -28,6 +28,7 @@ import { useAuth } from "@/lib/auth";
 import { useLangue } from "../langue/langue";
 import { EtatVide } from "../studio/etat-vide";
 import { BlocChamp, Champs, FenetreOnglets, LigneChamp } from "../studio/fenetre-onglets";
+import { SuppressionConfirmee } from "../studio/suppression-confirmee";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
 import { Paginee } from "../studio/pagination";
@@ -176,9 +177,9 @@ function FenetreIdentifiant({
                     </div>
                 </BlocChamp>
                 <LigneChamp libelle={t({ en: "Delete the credential", fr: "Supprimer l'identifiant" })}>
-                    <Button variant="outline" size="sm" disabled={utilisePar.length > 0} onClick={() => void supprimer()}>
+                    <SuppressionConfirmee variant="outline" disabled={utilisePar.length > 0} onConfirmer={() => void supprimer()}>
                         {t({ en: "Delete", fr: "Supprimer" })}
-                    </Button>
+                    </SuppressionConfirmee>
                 </LigneChamp>
             </Champs>
         </FenetreOnglets>
