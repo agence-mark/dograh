@@ -276,3 +276,16 @@ async def test_les_executions_et_les_points_se_lisent_avec_l_organisation_de_la_
     assert autre["ok"] is False
     inconnu = await registre.executer("chat_etat", {"fil_id": 999999}, mcp())
     assert inconnu["ok"] is False
+
+
+async def test_un_appel_se_lit_avec_l_organisation_dans_la_requete(monde, monkeypatch):
+    """Revue serveur, mineur 6 : le run est relu AVEC l'organisation de la personne (filtre dans la requête), jamais lu puis
+    comparé en Python ; un run d'ailleurs est introuvable."""
+    run = SimpleNamespace(id=42, workflow_id=AGENT, logs={}, gathered_context={"nom": "Dupont"}, annotations={})
+    lu = AsyncMock(side_effect=lambda run_id, organization_id=None: run if organization_id == ORG_CLIENT else None)
+    monkeypatch.setattr("api.services.builder.actions.lecture_fork.db_client", SimpleNamespace(get_workflow_run=lu))
+    ici = await registre.executer("appel_lire", {"run_id": 42}, mcp())
+    assert ici["ok"] and ici["run_id"] == 42 and ici["fiche"] == {"nom": "Dupont"}
+    ailleurs = await registre.executer("appel_lire", {"run_id": 42}, mcp(2, ORG_AUTRE))
+    assert ailleurs["ok"] is False and ailleurs["code"] == "introuvable"
+    assert [appel.kwargs["organization_id"] for appel in lu.await_args_list] == [ORG_CLIENT, ORG_AUTRE]

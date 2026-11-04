@@ -150,8 +150,9 @@ async def _appels(contexte: Contexte, p: _Appels) -> dict[str, Any]:
 
 
 async def _appel(contexte: Contexte, p: _Appel) -> dict[str, Any]:
-    run, organisation = await db_client.get_workflow_run_with_context(p.run_id)
-    if run is None or organisation != contexte.organisation_id:
+    # L'organisation est filtrée DANS la requête (revue serveur, mineur 6) : un run d'ailleurs n'est jamais lu.
+    run = await db_client.get_workflow_run(p.run_id, organization_id=contexte.organisation_id)
+    if run is None:
         raise ErreurAction("This call is not found in your organization.", "introuvable")
     from api.services.juge import verdicts as v
 
