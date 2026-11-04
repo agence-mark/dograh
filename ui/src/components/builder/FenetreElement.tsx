@@ -21,8 +21,7 @@ import { PointEtat } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { dateCourte, type StatutDeLaBibliotheque, STATUTS } from "./libelles";
 import { RangementDeLElement } from "./RangementDeLElement";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
@@ -55,7 +54,7 @@ export function FenetreElement({ element, nomDeFamille, utilisePar, dossiers, et
 
     const apres = (reponse: { data?: ElementBibliotheque; error?: unknown }, secours: string) => {
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, secours));
+            setErreur(echecAffiche(reponse.error));
             return false;
         }
         setErreur(null);

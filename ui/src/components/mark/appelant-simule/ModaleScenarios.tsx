@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
@@ -295,7 +294,7 @@ export function ModaleScenarios({
             });
             if (annule) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Scenario library unreadable"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             setBrouillon((reponse.data as ScenarioSimule[]) ?? []);
@@ -324,7 +323,7 @@ export function ModaleScenarios({
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Scenarios not saved"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         notifier.succes({ fr: "Scénarios enregistrés.", en: "Scenarios saved." });

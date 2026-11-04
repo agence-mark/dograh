@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
@@ -87,7 +87,7 @@ export const SectionAdresseEtablissement = ({
         } catch (e) {
             const message = e instanceof Error && e.message
                 ? e.message
-                : detailFromError(e, "Business address not saved. Check the entry and try again.");
+                : echecAffiche(e);
             setErreur(message);
             notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` });
         } finally {

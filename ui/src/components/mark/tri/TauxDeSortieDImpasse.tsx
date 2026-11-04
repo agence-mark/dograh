@@ -10,8 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
 import type { LigneDeTaux } from "@/client/types.gen";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "../langue/langue";
 
 const PERIODES = [7, 30] as const;
@@ -36,7 +35,7 @@ export function TauxDeSortieDImpasse({ agentChoisi, onChoisir, onAgents }: {
         const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours: demandee } });
         if (demandee !== periodeCourante.current) return;
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The rates could not be read"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);

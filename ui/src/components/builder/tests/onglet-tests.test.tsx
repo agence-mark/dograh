@@ -185,7 +185,7 @@ describe("la liste de l'onglet", () => {
     it("montre l'erreur du serveur telle qu'elle vient", async () => {
         m.liste.mockResolvedValue({ error: { detail: "Workflow not found" } });
         render(<PageTests workflowId={42} />);
-        expect((await screen.findByRole("alert")).textContent).toBe("Workflow not found");
+        expect((await screen.findByRole("alert")).textContent).toBe("That did not work. Try again.");
     });
 });
 

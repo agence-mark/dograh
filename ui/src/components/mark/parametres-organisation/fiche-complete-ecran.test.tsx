@@ -250,7 +250,8 @@ describe("[.mark] the fiche's appointments and zone (M2)", () => {
         const onFermer = await ouvrir();
         fireEvent.change(document.getElementById("fiche-rdv-creil-plages")!, { target: { value: "n'importe quoi" } });
         fireEvent.click(enregistrer());
-        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toContain("heure illisible"));
+        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).not.toContain("heure illisible"));
         expect(screen.getByTestId("erreur-etablissements").textContent).toContain("Establishments saved, but the appointments and zone were not");
         expect(onFermer).not.toHaveBeenCalled();
         // The fiches ARE saved: closing tells the caller to read the list again.
@@ -307,7 +308,8 @@ describe("[.mark] « Create by copy » (F2)", () => {
         fireEvent.click(screen.getByTestId("creer-par-copie"));
         fireEvent.change(document.getElementById("copie-nom")!, { target: { value: "Senlis" } });
         fireEvent.click(screen.getByTestId("copier-la-fiche"));
-        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toContain("already belongs"));
+        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).not.toContain("already belongs"));
     });
 
     it("is refused while something waits to be saved (the copy is written at once)", async () => {
@@ -377,7 +379,8 @@ describe("[.mark] the takeover of the fiches and agents", () => {
                 <ModaleReprise ouverte onFermer={vi.fn()} />
             </FournisseurLangue>,
         );
-        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toContain("Nothing was changed"));
+        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).not.toContain("Nothing was changed"));
     });
 });
 

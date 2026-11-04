@@ -20,7 +20,7 @@ import {
 import type { CasesDUneValeur, ListesValeurs, ValeurDeListe } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { Intertitre } from "../ecran/Intertitre";
@@ -61,7 +61,7 @@ export const useListesValeurs = (actif: boolean) => {
         void (async () => {
             const reponse = await getListesValeursApiV1OrganizationsListesValeursGet();
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Value lists unreadable"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             if (reponse.data) poser(reponse.data);
@@ -92,7 +92,7 @@ export const useListesValeurs = (actif: boolean) => {
         try {
             const reponse = await putListesValeursApiV1OrganizationsListesValeursPut({ body: { valeurs } });
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "Value list boxes refused"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             poser(reponse.data);

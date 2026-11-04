@@ -15,8 +15,7 @@ import { lireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGet } from "@
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { FenetreOnglets } from "@/components/mark/studio/fenetre-onglets";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 const T = {
     chercher: { en: "Search in the file", fr: "Rechercher dans le fichier" },
     resultat: { en: "result", fr: "résultat" },
@@ -122,7 +121,7 @@ type Page = { genre: string; page: number; pages: number; texte: string };
 /** Lit toutes les pages d'un fichier du serveur (bornées : un fichier énorme ne bloque pas la fenêtre). */
 async function lireSurLeServeur(uuid: string): Promise<ContenuFichier> {
     const premiere = await lireLeTexteDUnFichierApiV1BuilderFichiersDocumentUuidTexteGet({ path: { document_uuid: uuid }, query: { page: 1 } });
-    if (premiere.error || !premiere.data) throw new Error(detailFromError(premiere.error, "The file could not be read"));
+    if (premiere.error || !premiere.data) throw new Error(echecAffiche(premiere.error));
     const base = premiere.data as unknown as Page;
     const morceaux = [base.texte];
     for (let p = 2; p <= Math.min(base.pages, 60); p++) {

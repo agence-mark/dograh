@@ -36,8 +36,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
@@ -124,7 +123,7 @@ export function useCles(fournisseur?: Fournisseur, actif = true) {
         if (!actif) return;
         const reponse = await listerLesClesApiV1ClesGet({ query: fournisseur ? { fournisseur } : undefined });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Keys unreadable"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);
@@ -146,17 +145,18 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
         setErreur(null);
         const reponse = await usagesDUneCleApiV1ClesUuidUsagesGet({ path: { uuid: cle.uuid } });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Key usage unreadable"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setUsages((reponse.data as Usage[] | undefined) ?? []);
     };
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : « Supprimer cette clé ? » en place avant ce bouton.
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Key not deleted"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         onSupprimee();
@@ -268,7 +268,7 @@ export function FormulaireAjoutCle({
         });
         setEnCours(false);
         if (reponse.error) {
-            setFaute(detailFromError(reponse.error, "Key not saved"));
+            setFaute(echecAffiche(reponse.error));
             return;
         }
         const ajoutee = reponse.data as Cle;

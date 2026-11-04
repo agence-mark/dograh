@@ -33,8 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const PHRASES_ENREGISTREES: Texte = { en: "Sentences saved", fr: "Phrases enregistrées" };
@@ -154,7 +153,7 @@ export function ModalePhrases({
         void (async () => {
             const reponse = await getPhrasesApiV1OrganizationsPhrasesGet();
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "Sentences unreadable"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             setListe(reponse.data.phrases ?? []);
@@ -182,7 +181,7 @@ export function ModalePhrases({
         const reponse = await savePhrasesApiV1OrganizationsPhrasesPut({ body: charge_utile_phrases(liste) });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Sentences not saved"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         notifier.succes({ fr: "Phrases enregistrées.", en: "Phrases saved." });

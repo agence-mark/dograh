@@ -18,8 +18,7 @@ import { ConversationContainer } from "@/components/workflow/conversation/Conver
 import { ConversationTimeline } from "@/components/workflow/conversation/ConversationTimeline";
 import type { RealtimeFeedbackEvent } from "@/components/workflow/conversation/types";
 import { countConversationMessages } from "@/components/workflow/conversation/utils";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "../langue/langue";
 
 export const INTERVALLE_DIRECT_MS = 1000;
@@ -95,7 +94,7 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
             }
             if (arrete) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Live view unavailable"));
+                setErreur(echecAffiche(reponse.error));
             } else {
                 const direct = reponse.data as Direct;
                 setErreur(null);

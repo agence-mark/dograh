@@ -130,6 +130,7 @@ export function TableauCles({
                 titre={t(T.ajouter)}
                 info={t(DESCRIPTION_BIBLIOTHEQUE)}
                 sections={[]}
+                lecture
                 valider={t(T.fermer)}
                 etroite
                 corps={<FormulaireAjoutCle sansCadre onAjoutee={async () => {
@@ -166,6 +167,7 @@ function FenetreDeLaCle({
 
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : confirmation en place (`confirme`) avant `supprimer`.
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {
@@ -183,6 +185,7 @@ function FenetreDeLaCle({
             fermer={fermer}
             titre={cle.nom}
             sections={[]}
+            lecture
             valider={t(T.fermer)}
             etroite
             corps={

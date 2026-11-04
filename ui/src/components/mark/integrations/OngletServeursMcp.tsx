@@ -18,7 +18,7 @@ import { CredentialSelector } from "@/components/http";
 import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
@@ -44,7 +44,7 @@ export function OngletServeursMcp() {
 
     const relire = useCallback(async () => {
         const r = await listToolsApiV1ToolsGet({ query: { status: "active,draft", category: "mcp" } });
-        if (r.error || !r.data) return setErreur(detailFromError(r.error, "Servers unreadable"));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
         setErreur(null);
         setServeurs(r.data);
     }, []);
@@ -119,7 +119,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
                 en_tetes_ext: liste<NonNullable<Parameters<typeof testerLaConnexionMcpApiV1ToolsMcpTesterPost>[0]["body"]["en_tetes_ext"]>[number]>(config, "en_tetes_ext"),
             },
         });
-        if (r.error || !r.data) return setErreur(detailFromError(r.error, "Test failed"));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
         if (!r.data.ok) return setErreur(r.data.erreur ?? t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
         const trouves = r.data.outils ?? [];
         setDecouverts(trouves);
@@ -134,7 +134,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
         const r = serveur
             ? await updateToolApiV1ToolsToolUuidPut({ path: { tool_uuid: serveur.tool_uuid }, body: { name: nom.trim(), definition: definition as never } })
             : await createToolApiV1ToolsPost({ body: { name: nom.trim(), category: "mcp", definition: definition as never } });
-        if (r.error) return setErreur(detailFromError(r.error, "Failed to save the server"));
+        if (r.error) return setErreur(echecAffiche(r.error));
         notifier.succes({ fr: "Serveur enregistré.", en: "Server saved." });
         apres();
         fermer();

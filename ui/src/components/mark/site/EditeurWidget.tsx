@@ -54,7 +54,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
@@ -230,7 +230,7 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
         try {
             if (JSON.stringify(ap) !== JSON.stringify(charge.ap)) {
                 const res = await reglerLApparenceApiV1OrganizationsAgentsSiteWorkflowIdApparencePut({ path, body: ap });
-                if (res.error) throw new Error(detailFromError(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error));
             }
             if (JSON.stringify(rm) !== JSON.stringify(charge.saisie)) {
                 const res = await reglerLesReglagesApiV1OrganizationsAgentsSiteWorkflowIdReglagesPut({
@@ -246,11 +246,11 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                         ...(rm.expire !== charge.saisie.expire ? { jeton_expire_le: rm.expire } : {}),
                     },
                 });
-                if (res.error) throw new Error(detailFromError(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error));
             }
             if (actif !== charge.actif) {
                 const res = await reglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePut({ path, body: { actif } });
-                if (res.error) throw new Error(detailFromError(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error));
             }
             notifier.succes({ fr: "Widget enregistré.", en: "Widget saved." });
             onFermer();
@@ -822,7 +822,7 @@ function ChoixCouleur({ libelle, valeur, onChange, sansTeintes = false }: { libe
                             style={{ background: c }}
                         />
                     ))}
-                <label className="relative size-6 cursor-pointer overflow-hidden rounded-full border" title={t({ fr: "Autre couleur", en: "Other colour" })} style={{ background: "conic-gradient(#f43f5e, #f59e0b, #22c55e, #3b82f6, #a855f7, #f43f5e)" }}>
+                <label className="relative size-6 cursor-pointer overflow-hidden rounded-full border" title={t({ fr: "Autre couleur", en: "Other colour" })} style={{ background: "conic-gradient(var(--signal-danger), var(--acc), var(--signal-ok), var(--acc), var(--signal-danger))" }}>
                     <input type="color" aria-label={t({ fr: "Autre couleur", en: "Other colour" })} value={hexSur7(HEX.test(valeur) ? valeur : "#000000")} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
                 </label>
                 <Input

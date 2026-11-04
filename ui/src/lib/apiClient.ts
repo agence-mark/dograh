@@ -1,6 +1,6 @@
 import type { Client } from '@/client/client';
 import type { CreateClientConfig } from '@/client/client.gen';
-import { ENTETE_ORGANISATION, organisationPourRequeteAttendue, sansOrganisation } from '@/lib/espaceCourant';
+import { ENTETE_ORGANISATION, entetesDeRequete, sansOrganisation } from '@/lib/espaceCourant';
 import { fetchPartage } from '@/lib/fetch-partage';
 
 export function getServerBackendUrl() {
@@ -67,8 +67,9 @@ export function setupAuthInterceptor(apiClient: Client, getAccessToken: () => Pr
     apiClient.interceptors.request.use(async (request) => {
         // [.mark] U2 : l'organisation vient de l'adresse de l'onglet ; le serveur contrôle le droit d'y entrer.
         if (typeof window !== 'undefined' && !request.headers.get(ENTETE_ORGANISATION) && !sansOrganisation(request.url)) {
-            const organisation = await organisationPourRequeteAttendue(window.location.pathname);
-            if (organisation !== null) request.headers.set(ENTETE_ORGANISATION, String(organisation));
+            // Page du Labo sans identifiant connu (ou client illisible dans l'adresse) : la requête est refusée ici, elle ne part pas.
+            const entetes = await entetesDeRequete(window.location.pathname);
+            for (const [nom, valeur] of Object.entries(entetes)) request.headers.set(nom, valeur);
         }
         if (request.headers.get('Authorization')) {
             return request;

@@ -239,7 +239,7 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             error: { detail: "The trade vocabulary saved for this organization cannot be read." },
         });
         render(<SectionLexiqueMetier />);
-        await screen.findByText(/cannot be read/i);
+        await screen.findByText(/That did not work/);
         expect(document.body.textContent).toMatch(/Saving is disabled/i);
         // Ni ouvrir la modale, ni importer : les deux mènent à un remplacement.
         expect(

@@ -200,7 +200,11 @@ describe("les réglages du builder", () => {
         render(<ReglagesDuBuilder ouvert onOuvertChange={vi.fn()} />);
         await waitFor(() => expect((screen.getByLabelText("Model") as HTMLInputElement).value).toBe("modele-x"));
         fireEvent.click(screen.getByRole("button", { name: "Save" }));
-        expect((await screen.findByRole("alert")).textContent).toContain("Reserved to the .mark team");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("Reserved to the .mark team");
+        }
         expect(m.prefsEcrire).not.toHaveBeenCalled();
     });
 });

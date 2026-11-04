@@ -44,8 +44,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { DepuisLaBibliotheque } from "./DepuisLaBibliotheque";
 import { DetailDunTest } from "./DetailDunTest";
 import { FenetreAttaques } from "./FenetreAttaques";
@@ -104,7 +103,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
             ressourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGet({ path: { workflow_id: workflowId } }),
         ]);
         if (a.error) {
-            setErreur(detailFromError(a.error, "The tests could not be read"));
+            setErreur(echecAffiche(a.error));
             return;
         }
         setErreur(null);
@@ -124,7 +123,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const lire = async (slug: string) => {
         const r = await lireUnTestApiV1BuilderTestsWorkflowIdSlugGet({ path: { workflow_id: workflowId, slug } });
         if (r.error) {
-            setErreur(detailFromError(r.error, "The test could not be read"));
+            setErreur(echecAffiche(r.error));
             return null;
         }
         return r.data as { test: TestComplet; resultats: Execution[] };
@@ -147,7 +146,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
         });
         setEnCours(false);
         if (r.error) {
-            setErreur(detailFromError(r.error, "The suite could not be replayed"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         setSuite(r.data as ResultatDeSuite);
@@ -157,7 +156,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const exporter = async () => {
         const r = await exporterLesTestsApiV1BuilderTestsWorkflowIdExportGet({ path: { workflow_id: workflowId } });
         if (r.error) {
-            setErreur(detailFromError(r.error, "The export failed"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         const lien = document.createElement("a");
@@ -167,9 +166,10 @@ export function PageTests({ workflowId }: { workflowId: number }) {
         URL.revokeObjectURL(lien.href);
     };
 
+    // suppression-confirmee : FenetreDeTest demande « Supprimer ce test et ses résultats ? » (Non / Supprimer) avant `onSupprimer`.
     const supprimer = async (slug: string) => {
         const r = await supprimerUnTestApiV1BuilderTestsWorkflowIdSlugDelete({ path: { workflow_id: workflowId, slug } });
-        if (r.error) setErreur(detailFromError(r.error, "The test was not deleted"));
+        if (r.error) setErreur(echecAffiche(r.error));
         else {
             setEdition(null);
             await charger();
@@ -179,7 +179,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const revenir = async (id: string) => {
         const r = await retourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPost({ path: { workflow_id: workflowId, correction_id: id } });
         if (r.error) {
-            setErreur(detailFromError(r.error, "The rollback failed"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         setMessage((r.data as { message?: string }).message ?? null);

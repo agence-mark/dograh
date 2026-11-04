@@ -23,7 +23,7 @@ import type { ReglagesConservationAppels, VueConservationAppels } from "@/client
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
@@ -57,7 +57,7 @@ export const useConservationAppels = () => {
     const lire = useCallback(async () => {
         const reponse = await getConservationDesAppelsApiV1OrganizationsConservationAppelsGet();
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Call retention settings unreadable"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         if (!reponse.data) return;
@@ -82,7 +82,7 @@ export const useConservationAppels = () => {
         try {
             const reponse = await putConservationDesAppelsApiV1OrganizationsConservationAppelsPut({ body: brouillon });
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "Call retention settings refused"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             setVue(reponse.data);

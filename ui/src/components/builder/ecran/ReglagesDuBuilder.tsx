@@ -24,8 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { OptionsDeConstruction } from "./OptionsDeConstruction";
 
 const T = {
@@ -98,7 +97,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
         });
         if (reponse.error) {
             setOccupe(false);
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         await ecrireLesPreferencesApiV1BuilderPreferencesPut({ body: { texte: preferences } });

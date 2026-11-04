@@ -20,8 +20,7 @@ import { appliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifi
 import type { DemandeAppliquerATous, ResultatAppliquerATous } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../langue/langue";
 
 export type ReglageAppliquable = DemandeAppliquerATous["reglage"];
@@ -75,7 +74,7 @@ export function BoutonAppliquerATous({
         });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Not applied"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setOuverte(false);

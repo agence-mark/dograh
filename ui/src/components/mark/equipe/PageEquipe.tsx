@@ -63,6 +63,7 @@ export function EquipeEtRoles() {
                     en: "All the actions of the team, the most recent first. Nothing is erased: a cancelled action is a new line.",
                     fr: "Toutes les actions de l'équipe, la plus récente d'abord. Rien ne s'efface : une action annulée est une nouvelle ligne.",
                 })}
+                lecture
                 valider={t({ en: "Close", fr: "Fermer" })}
                 sections={[]}
                 corps={<VueJournal />}

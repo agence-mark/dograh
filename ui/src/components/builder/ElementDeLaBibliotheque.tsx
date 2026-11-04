@@ -17,8 +17,7 @@ import {
 import type { Element as ElementBibliotheque } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { dateCourte, type StatutDeLaBibliotheque,STATUTS } from "./libelles";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
 
@@ -43,7 +42,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
 
     const apres = (reponse: { data?: ElementBibliotheque; error?: unknown }, secours: string) => {
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, secours));
+            setErreur(echecAffiche(reponse.error));
             return false;
         }
         setErreur(null);

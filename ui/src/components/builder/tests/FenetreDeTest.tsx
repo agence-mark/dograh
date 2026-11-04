@@ -27,8 +27,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { EditeurDeCriteres, ligneDuCritere, ligneVide } from "./EditeurDeCriteres";
 import { critereDeLaLigne, type LigneDeCritere } from "./NouveauTest";
 import { type RessourcesDeTest, type SorteDeTest, sorteDuTest, type TestComplet } from "./types";
@@ -154,14 +153,14 @@ export function FenetreDeTest({
             const r = await changerUnTestApiV1BuilderTestsWorkflowIdSlugPatch({ path: { workflow_id: workflowId, slug: test.slug }, body: corps as never });
             if (r.error) {
                 setEnvoi(false);
-                setErreur(detailFromError(r.error, "The test was not changed"));
+                setErreur(echecAffiche(r.error));
                 return;
             }
         } else {
             const r = await creerUnTestApiV1BuilderTestsWorkflowIdPost({ path: { workflow_id: workflowId }, body: { ...corps, origine: "manuel" } as never });
             if (r.error || !r.data) {
                 setEnvoi(false);
-                setErreur(detailFromError(r.error, "The test was not created"));
+                setErreur(echecAffiche(r.error));
                 return;
             }
             slug = ((r.data as { test?: { slug?: string } }).test?.slug ?? "") as string;

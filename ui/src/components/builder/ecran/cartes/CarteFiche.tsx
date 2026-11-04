@@ -18,8 +18,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -79,7 +78,7 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
             body: { champ, valeur, classement: classement ?? null },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
             return;
         }
@@ -93,7 +92,7 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
         setErreur(null);
         const reponse = await validerLaFicheApiV1BuilderFicheWorkflowIdValiderPost({ path: { workflow_id: workflowId } });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
         } else notifier.succes({ en: "Sheet validated.", fr: "Fiche validée." });
         await rafraichir(workflowId);

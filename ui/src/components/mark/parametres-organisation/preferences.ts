@@ -119,14 +119,20 @@ export const usePreferencesOrganisation = () => {
             });
 
             if (result.error) {
-                const message = detailFromError(result.error, "Failed to save preferences");
+                // faute-de-champ : la phrase de validation d'une adresse refusée se lit sous le champ adresse (422 seulement).
+                const message = detailFromError(result.error, "");
                 // Only an ADDRESS refusal goes under the address: the route raises
                 // it as a plain string, while a validation error of another field
                 // comes as a list naming that field (review of 2026-09-16).
                 const detail = (result.error as { detail?: unknown } | undefined)?.detail;
                 const refusAdresse =
                     typeof detail === "string" || JSON.stringify(detail ?? "").includes("adresse_etablissement");
-                notifier.echec(refusAdresse ? { fr: message, en: message } : { fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: result.error });
+                notifier.echec(
+                    refusAdresse
+                        ? { fr: "Adresse non enregistrée. Vérifiez la saisie.", en: "Address not saved. Check the entry." }
+                        : { fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." },
+                    { erreur: result.error },
+                );
                 return { ok: false, refusAdresse: result.response?.status === 422 && refusAdresse ? message : null };
             }
             if (!result.data) {

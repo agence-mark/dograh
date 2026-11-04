@@ -60,7 +60,8 @@ export function appliquer(lignes: LigneDuFil[], id: number, e: EvenementDuFil): 
                 l.genre === "carte" && l.carte.type === "delegation" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, fini: true, cout: e.cout } } : l,
             );
         case "erreur":
-            return [...lignes, { genre: "erreur", message: String(e.message ?? "") }];
+            // R3 M5 : le texte du serveur n'entre pas dans le fil (il part dans « Détails » d'une notification, voir `useFil`).
+            return [...lignes, { genre: "erreur", message: "" }];
         case "fin":
             return e.raison === "fin" || e.raison === "tours" ? lignes : [...lignes, { genre: "fin", raison: String(e.raison ?? "") }];
         case "retrait": {

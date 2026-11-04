@@ -21,8 +21,7 @@ import {
 import { createToolApiV1ToolsPost, getWorkflowsSummaryApiV1WorkflowSummaryGet } from "@/client/sdk.gen";
 import type { CreateToolRequest, ToolResponse } from "@/client/types.gen";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ChampsCreationIntegration } from "../connecteurs/ConfigOutilIntegration";
 import type { ConfigIntegration } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -96,7 +95,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
         setEnCours(true);
         const r = await createToolApiV1ToolsPost({ body: corps });
         setEnCours(false);
-        if (r.error || !r.data) return setErreur(detailFromError(r.error, "Failed to create tool"));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
         cree(r.data);
         notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };

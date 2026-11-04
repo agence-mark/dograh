@@ -125,6 +125,20 @@ describe("Réglages du Labo, onglet Builder IA : les vraies données (K7)", () =
         expect(m.cerveauPut.mock.calls[0][0].body.plafond_mois).toBe(80);
     });
 
+    it("R3 M2 : une virgule décimale se lit comme un point ; un texte non numérique est refusé sous le champ sans rien enregistrer", async () => {
+        render(<OngletBuilderIA aller={vi.fn()} />);
+        const champ = (await screen.findByLabelText(/Spending per conversation|Dépense par conversation/)) as HTMLInputElement;
+        fireEvent.change(champ, { target: { value: "2,5" } });
+        fireEvent.blur(champ);
+        await waitFor(() => expect(m.cerveauPut).toHaveBeenCalledTimes(1));
+        expect(m.cerveauPut.mock.calls[0][0].body.plafond_depense).toBe(2.5);
+        m.cerveauPut.mockClear();
+        fireEvent.change(champ, { target: { value: "beaucoup" } });
+        fireEvent.blur(champ);
+        expect((await screen.findByRole("alert")).textContent).toMatch(/nombre|number/);
+        expect(m.cerveauPut).not.toHaveBeenCalled();
+    });
+
     it("l'interrupteur et les portes écrivent UNE option, sans écraser les autres", async () => {
         render(<OngletBuilderIA aller={vi.fn()} />);
         const porte = await screen.findByRole("switch", { name: /Dans l'écran|In the screen/ });

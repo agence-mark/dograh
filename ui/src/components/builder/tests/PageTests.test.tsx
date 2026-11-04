@@ -165,7 +165,11 @@ describe("le formulaire d'un nouveau test", () => {
         fireEvent.change(screen.getByLabelText("Reply"), { target: { value: "bonjour" } });
         expect(bouton.disabled).toBe(false);
         fireEvent.click(bouton);
-        expect((await screen.findByRole("alert")).textContent).toContain("looks real");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).not.toContain("looks real");
+        }
     });
 
     it("traduit une ligne de critère en critère du serveur", () => {

@@ -216,6 +216,7 @@ const FicheDuModele = ({
 
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : `confirmer` en place avant `supprimer`.
         const reponse = await supprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDelete({ path: { modele_id: modele.id } });
         setEnCours(false);
         if (reponse.error) {

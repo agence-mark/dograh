@@ -10,6 +10,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, Pencil, RotateCw, Square } from "lucide-
 import { useEffect, useRef, useState } from "react";
 
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { ECHEC_DU_FIL } from "@/components/mark/notifications/echec-affiche";
 import { AvertissementClaudeCode, EnDirect, LigneLecture, MarqueClaudeCode } from "@/components/mark/sources/marques";
 import { LigneLive } from "@/components/mark/sources/useModifications";
 import { useSources } from "@/components/mark/sources/useSources";
@@ -339,7 +340,7 @@ function Ligne({
             return null;
         }
         case "erreur":
-            return <p className="text-sm text-destructive">{ligne.message}</p>;
+            return <p className="text-sm text-destructive">{t(ECHEC_DU_FIL)}</p>;
         case "fin":
             return (
                 <p className="text-xs text-muted-foreground">

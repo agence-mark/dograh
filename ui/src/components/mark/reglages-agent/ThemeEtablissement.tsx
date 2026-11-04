@@ -38,7 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 import {
     DEFAULT_VOICEMAIL_DETECTION_CONFIGURATION,
@@ -254,7 +254,7 @@ export const ThemeEtablissement = ({
             await onSave({ ...resolue, adresse_etablissement: null }, workflowName);
             notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
-            const message = e instanceof Error && e.message ? e.message : detailFromError(e, "Business address not saved.");
+            const message = e instanceof Error && e.message ? e.message : echecAffiche(e);
             setErreurAdresse(message);
             notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` });
         } finally {

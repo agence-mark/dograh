@@ -14,7 +14,12 @@ vi.mock("@/lib/auth/server", () => ({ getServerAccessToken: vi.fn(), getServerAu
 vi.mock("@/components/mark/agent/ListeAgents", () => ({ ListeAgents: () => null }));
 vi.mock("./WorkflowLayout", () => ({ default: () => null }));
 
-const { enteteOrganisation } = await import("./page-des-agents");
+const introuvable = vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+});
+vi.mock("next/navigation", () => ({ notFound: () => introuvable(), redirect: vi.fn() }));
+
+const { enteteOrganisation, PageDesAgents } = await import("./page-des-agents");
 
 describe("organisation de la liste des agents (côté serveur)", () => {
     it("chez un client, l'identifiant de l'adresse part en en-tête", async () => {
@@ -23,11 +28,21 @@ describe("organisation de la liste des agents (côté serveur)", () => {
 
     it("sur /labo, c'est le Labo que disent les espaces du compte", async () => {
         espaces.mockResolvedValue({ data: { espaces: [{ id: 2, espace: "client" }, { id: 1, espace: "labo" }] } });
-        expect(await enteteOrganisation("jeton", undefined, true)).toEqual({ "X-Mark-Organisation": "1" });
+        expect(await enteteOrganisation("jeton", undefined, true)).toEqual({ "X-Mark-Espace": "labo", "X-Mark-Organisation": "1" });
+    });
+
+    it("sur /labo, si la lecture des espaces échoue, le serveur reçoit quand même l'espace Labo (jamais le compte)", async () => {
+        espaces.mockRejectedValue(new Error("panne"));
+        expect(await enteteOrganisation("jeton", undefined, true)).toEqual({ "X-Mark-Espace": "labo" });
     });
 
     it("une adresse neutre garde l'organisation du compte, et une adresse truquée n'envoie rien", async () => {
         expect(await enteteOrganisation("jeton", undefined, false)).toEqual({});
         expect(await enteteOrganisation("jeton", "2; DROP", false)).toEqual({});
+    });
+
+    it("/clients/<pas un nombre> est une page introuvable (R3)", async () => {
+        await expect(PageDesAgents({ params: Promise.resolve({ org: "acme" }) })).rejects.toThrow("NEXT_NOT_FOUND");
+        expect(introuvable).toHaveBeenCalled();
     });
 });

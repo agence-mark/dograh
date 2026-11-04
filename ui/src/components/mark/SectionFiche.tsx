@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { ChampFiche, WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "./langue/langue";
@@ -793,9 +793,7 @@ export const SectionFiche = ({
             );
             notifier.succes({ fr: "Fiche d'appel enregistrée.", en: "Call record saved." }, { publier: true });
         } catch (e) {
-            const message = detailFromError(e, "Call record not saved. Check the fields and try again.");
-            setErreur(message);
-            notifier.echec({ fr: `Fiche non enregistrée : ${message}.`, en: `Call record not saved: ${message}.` });
+            setErreur(echecAffiche(e, { fr: "Fiche d'appel non enregistrée. Vérifiez les champs.", en: "Call record not saved. Check the fields." }));
         } finally {
             setIsSaving(false);
         }

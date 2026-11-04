@@ -15,8 +15,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { BilanDeScenario, RessourcesDeTest } from "./types";
 
 export function DepuisLaBibliotheque({
@@ -40,7 +39,7 @@ export function DepuisLaBibliotheque({
         setBilan(null);
         setErreur(null);
         const r = await examinerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPost({ path: { slug }, body: { workflow_id: workflowId } as never });
-        if (r.error) setErreur(detailFromError(r.error, "The scenario could not be read"));
+        if (r.error) setErreur(echecAffiche(r.error));
         else setBilan(r.data as unknown as BilanDeScenario);
     };
 
@@ -51,7 +50,7 @@ export function DepuisLaBibliotheque({
             body: { workflow_id: workflowId, copier_quand_meme: quandMeme } as never,
         });
         if (r.error) {
-            setErreur(detailFromError(r.error, "The scenario was not copied"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         const donnees = r.data as unknown as { copie?: boolean; test?: { slug: string } } & BilanDeScenario;

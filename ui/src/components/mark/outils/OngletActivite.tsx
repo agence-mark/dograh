@@ -9,8 +9,7 @@ import { useEffect, useState } from "react";
 
 import { statistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGet } from "@/client/sdk.gen";
 import type { StatistiquesOutil } from "@/client/types.gen";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "../langue/langue";
 import { Section } from "../studio/fenetre-onglets";
 import { Info } from "../studio/marques";
@@ -27,7 +26,7 @@ export function OngletActivite({ toolUuid }: { toolUuid: string }) {
         let actif = true;
         void statistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGet({ path: { tool_uuid: toolUuid }, query: { page } }).then((r) => {
             if (!actif) return;
-            if (r.error || !r.data) return setErreur(detailFromError(r.error, "Activity unreadable"));
+            if (r.error || !r.data) return setErreur(echecAffiche(r.error));
             setErreur(null);
             setStats(r.data);
         });

@@ -132,6 +132,7 @@ export function VueRoles({ peutGerer }: { peutGerer: boolean }) {
                     supprimer={
                         role
                             ? async () => {
+                                  // suppression-confirmee : `FenetreRole` enveloppe `supprimer` dans `SuppressionConfirmee`.
                                   const res = await supprimerUnRoleApiV1EquipeMarkRolesRoleIdDelete({ path: { role_id: role.id } });
                                   if (res.error) notifier.echec({ fr: "Rôle non supprimé. Réessayez.", en: "Role not deleted. Try again." }, { erreur: res.error });
                                   else {

@@ -17,6 +17,7 @@ import {
     suivreUnFilApiV1BuilderFilsFilIdEvenementsGet,
     type VueFil,
 } from "@/client";
+import { ECHEC_DU_FIL, echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -36,7 +37,7 @@ export function useFil(filId: number) {
     const rafraichir = useCallback(async () => {
         const r = await lireUnFilApiV1BuilderFilsFilIdGet({ path: { fil_id: filId } });
         if (r.error || !r.data) {
-            setErreur(detailFromError(r.error, "Conversation not found"));
+            setErreur(echecAffiche(r.error));
             return null;
         }
         setFil(r.data);
@@ -65,11 +66,12 @@ export function useFil(filId: number) {
                         signal: arret.signal,
                     });
                     if (r.error || !r.data) {
-                        setErreur(detailFromError(r.error, "The conversation could not be read"));
+                        setErreur(echecAffiche(r.error));
                         return;
                     }
                     for await (const { id, evenement } of lireLesBlocs(r.data as ReadableStream<Uint8Array>)) {
                         dernierId.current = id;
+                        if (evenement.type === "erreur") notifier.echec(ECHEC_DU_FIL, { erreur: evenement.message, groupe: "echec-fil" });
                         setLignes((avant) => appliquer(avant, id, evenement));
                         if (evenement.type === "depense" || evenement.type === "fin") void rafraichir();
                     }

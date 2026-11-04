@@ -9,6 +9,8 @@
  * Le serveur contrôle ensuite que le compte a le droit d'entrer dans cette organisation (`X-Mark-Organisation`).
  */
 export const ENTETE_ORGANISATION = "X-Mark-Organisation";
+/** R3 M1 : posé sur toute requête faite depuis le Labo ; le serveur lit alors le Labo lui-même ou refuse (jamais un client). */
+export const ENTETE_ESPACE = "X-Mark-Espace";
 const CLE = "mark:espace-courant";
 
 let laboId: number | null = null;
@@ -27,6 +29,9 @@ export const preparerLabo = (chargeur: () => Promise<unknown>) => {
 
 /** Ces adresses se lisent SANS organisation (elles servent justement à la connaître). */
 export const sansOrganisation = (url: string) => /\/api\/v1\/espaces\/?(\?.*)?$/.test(url);
+
+/** R3 : `/clients/<autre chose qu'un nombre>` : l'adresse vise un client qui n'existe pas, jamais l'espace retenu. */
+export const adresseClientInvalide = (pathname: string): boolean => /^\/clients\/(?!\d+(?:\/|$))[^/]/.test(pathname);
 
 /** L'espace que dit l'adresse : un client (son identifiant), le Labo, ou rien (adresse neutre). */
 export function espaceDeAdresse(pathname: string): number | "labo" | null {
@@ -74,9 +79,24 @@ export async function organisationPourRequeteAttendue(pathname: string): Promise
     if (laboId === null && chargeurLabo) {
         chargementLabo ??= chargeurLabo().catch(() => null);
         await chargementLabo;
+        if (laboId === null) chargementLabo = null; // un échec ne se garde pas : la requête suivante relit les espaces
     }
     return laboId;
 }
+
+/** Les en-têtes d'espace d'une requête faite depuis cet onglet ; refuse (lève) quand l'espace est connu mais pas son identifiant. */
+export async function entetesDeRequete(pathname: string): Promise<Record<string, string>> {
+    if (adresseClientInvalide(pathname)) throw new ErreurEspace("Unknown client in the address");
+    const espace = espaceDeAdresse(pathname) ?? lireMemoire();
+    const organisation = await organisationPourRequeteAttendue(pathname);
+    if (espace === "labo") {
+        if (organisation === null) throw new ErreurEspace("The Labo could not be identified");
+        return { [ENTETE_ESPACE]: "labo", [ENTETE_ORGANISATION]: String(organisation) };
+    }
+    return organisation === null ? {} : { [ENTETE_ORGANISATION]: String(organisation) };
+}
+
+export class ErreurEspace extends Error {}
 
 /** Vrai pour l'équipe .mark : seuls ses comptes ouvrent le Labo (utilisé pour la ligne « Détails » des notifications). */
 export const compteDeLEquipe = () => laboId !== null;

@@ -7,8 +7,7 @@ import type { AdresseEtablissement, CommuneDuCodePostal } from "@/client/types.g
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useLangue } from "./langue/langue";
 
 /**
@@ -98,7 +97,7 @@ export const ChampAdresseEtablissement = ({
             });
             if (derniereDemande.current !== cp) return;
             if (reponse.error) {
-                setErreurListe(detailFromError(reponse.error, "Could not load the towns for this postal code."));
+                setErreurListe(echecAffiche(reponse.error));
                 setCommunes([]);
                 return;
             }

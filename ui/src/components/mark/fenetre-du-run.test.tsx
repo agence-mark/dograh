@@ -223,7 +223,7 @@ describe("Fenêtre du run", () => {
     it("dit qu'une requête refusée a échoué, au lieu d'une fenêtre vide", async () => {
         lireAnalyse.mockResolvedValue({ error: { detail: "Workflow run not found" } });
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
-        expect(texte(await screen.findByRole("alert"))).toContain("Analyse du run indisponible : Workflow run not found");
+        expect(texte(await screen.findByRole("alert"))).toContain("Analyse du run indisponible");
     });
 
     it("est MONTÉE sur la page du run : la vraie page la rend pour un run terminé", async () => {

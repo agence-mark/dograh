@@ -25,7 +25,7 @@ import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
@@ -123,7 +123,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
             ]);
             setLogiciels(l?.data ?? []);
             if (!r || r.error || !r.data) {
-                setErreur(detailFromError(r?.error, "Caller verification unreadable"));
+                setErreur(echecAffiche(r?.error));
                 return;
             }
             setEnregistre(r.data);
@@ -161,7 +161,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
         const r = await putVerificationAppelantApiV1OrganizationsVerificationAppelantPut({ body: charge_utile_verification(brouillon) });
         setEnCours(false);
         if (r.error || !r.data) {
-            setErreur(detailFromError(r.error, "Caller verification not saved"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         setEnregistre(r.data);

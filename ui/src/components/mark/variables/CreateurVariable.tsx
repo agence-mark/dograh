@@ -24,10 +24,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { SuppressionConfirmee } from "../studio/suppression-confirmee";
 import { CadreModale, L } from "../reglages-agent/phrases/cadre";
 import { EditeurDeTableau, JaugeCaracteres, ResumeTableau } from "./EditeurDeTableau";
 import { COLONNE_DE_LISTE, formeDuGenre, type Genre, genreDe, GENRES, nomTechnique, phraseDePrompt, TYPE_DU_GENRE } from "./genres";
@@ -160,7 +161,7 @@ export const CreateurVariable = ({
                 ? await putObjetApiV1OrganizationsObjetsObjetIdPut({ path: { objet_id: objet.id }, body: envoye })
                 : await postObjetApiV1OrganizationsObjetsPost({ body: envoye });
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Variable refused"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             notifier.succes({ fr: "Variable enregistrée.", en: "Variable saved." });
@@ -178,7 +179,7 @@ export const CreateurVariable = ({
         try {
             const reponse = await deleteObjetApiV1OrganizationsObjetsObjetIdDelete({ path: { objet_id: objet.id } });
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Variable not deleted"));
+                setErreur(echecAffiche(reponse.error));
                 return;
             }
             notifier.succes({ fr: "Variable supprimée.", en: "Variable deleted." });
@@ -215,9 +216,9 @@ export const CreateurVariable = ({
                 <>
                     <div>
                         {objet && (
-                            <Button variant="ghost" className="text-destructive" disabled={enCours} onClick={() => void supprimer()} data-testid="supprimer-objet">
+                            <SuppressionConfirmee size="default" className="text-destructive" disabled={enCours} onConfirmer={() => void supprimer()}>
                                 <Trash2 className="h-4 w-4" /> {t({ en: "Delete", fr: "Supprimer" })}
-                            </Button>
+                            </SuppressionConfirmee>
                         )}
                     </div>
                     <div className="flex gap-2">

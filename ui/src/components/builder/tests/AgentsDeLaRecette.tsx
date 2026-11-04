@@ -14,8 +14,7 @@ import {
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { AgentDeRecette } from "./types";
 
 const ETATS: Record<string, Texte> = {
@@ -43,7 +42,7 @@ export function AgentsDeLaRecette({ famille, slug }: { famille: string; slug: st
 
     useEffect(() => {
         void agentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGet({ path: { famille, slug } }).then((r) => {
-            if (r.error) setErreur(detailFromError(r.error, "The agents could not be read"));
+            if (r.error) setErreur(echecAffiche(r.error));
             else {
                 const d = r.data as { version: number; agents: AgentDeRecette[] };
                 setVersion(d.version);
@@ -57,7 +56,7 @@ export function AgentsDeLaRecette({ famille, slug }: { famille: string; slug: st
         const r = await preparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPost({ path: { famille, slug }, body: { rejouer_la_suite: true } });
         setEnCours(false);
         if (r.error) {
-            setErreur(detailFromError(r.error, "The updates could not be prepared"));
+            setErreur(echecAffiche(r.error));
             return;
         }
         setLignes((r.data as { agents: LigneDePreparation[] }).agents);

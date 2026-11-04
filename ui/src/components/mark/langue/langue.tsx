@@ -48,6 +48,11 @@ interface ValeurLangue {
 
 const traduire = (langue: Langue) => (texte: Texte) => texte[langue];
 
+// R3 M5 : la langue en cours, lisible hors d'un composant (un texte d'erreur posé dans un état). Hors fournisseur : anglais.
+let langueEnCours: Langue = "en";
+/** La langue de l'écran à cet instant, pour un code qui n'est pas un composant. */
+export const langueActive = (): Langue => langueEnCours;
+
 const ContexteLangue = createContext<ValeurLangue>({
     langue: "en",
     choisir: () => undefined,
@@ -83,6 +88,7 @@ export const FournisseurLangue = ({ children }: { children: ReactNode }) => {
         if (gardee) setLangue(gardee);
     }, []);
 
+    langueEnCours = langue;
     useEffect(() => {
         document.documentElement.lang = langue;
     }, [langue]);

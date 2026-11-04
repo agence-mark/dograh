@@ -110,6 +110,7 @@ export function ListeDesFils({ limite, workflowId, variante = "page" }: { limite
 
     const supprimer = async (f: VueFil) => {
         setASupprimer(null);
+        // suppression-confirmee : la fenêtre « Supprimer ce chat ? » précède `supprimer`.
         const r = await supprimerUnFilApiV1BuilderFilsFilIdDelete({ path: { fil_id: f.id } });
         if (r.error) return notifier.echec(T.suppressionImpossible, { erreur: r.error });
         setFils((liste) => (liste ?? []).filter((x) => x.id !== f.id));

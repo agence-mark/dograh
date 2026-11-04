@@ -16,6 +16,7 @@ import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1Organizatio
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
@@ -38,7 +39,7 @@ export const useObjets = () => {
     const relire = useCallback(async () => {
         const reponse = await getObjetsApiV1OrganizationsObjetsGet();
         if (reponse.error) {
-            setRefus(detailFromError(reponse.error, "Objects unreadable"));
+            setRefus(echecAffiche(reponse.error));
             return;
         }
         setRefus(null);

@@ -15,8 +15,7 @@ import type { Proposition } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { dateCourte, TYPES_DE_PROPOSITION } from "./libelles";
 
 const CHAMP = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
@@ -31,7 +30,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
     const charger = useCallback(async () => {
         const reponse = await listerLesPropositionsApiV1BuilderBibliothequePropositionsGet({ query: { etat: "en_attente" } });
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The queue could not be read"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setErreur(null);
@@ -49,7 +48,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: description ? { banc: { description } } : {},
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "The proposal was not accepted"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         await charger();
@@ -62,7 +61,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: { motif: (motif[p.id] ?? "").trim() },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "The proposal was not refused"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         await charger();

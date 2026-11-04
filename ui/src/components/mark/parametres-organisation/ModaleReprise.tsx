@@ -18,8 +18,7 @@ import { repriseDesFichesApiV1OrganizationsEtablissementsReprisePost } from "@/c
 import type { ResultatReprise } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { type Texte, useLangue } from "../langue/langue";
 
 const SUJETS: Record<"fiche" | "rendez_vous" | "agent", Texte> = {
@@ -41,7 +40,7 @@ export function ModaleReprise({ ouverte, onFermer }: { ouverte: boolean; onFerme
         const reponse = await repriseDesFichesApiV1OrganizationsEtablissementsReprisePost({ body: { ecrire } });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Takeover failed"));
+            setErreur(echecAffiche(reponse.error));
             return;
         }
         setEssai(reponse.data);

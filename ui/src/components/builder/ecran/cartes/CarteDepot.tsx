@@ -14,11 +14,11 @@ import {
 } from "@/client";
 import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
+import { SuppressionConfirmee } from "@/components/mark/studio/suppression-confirmee";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -58,7 +58,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { fichier },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
         } else notifier.succes({ en: "File added.", fr: "Fichier ajouté." });
         await rafraichir(workflowId);
@@ -74,7 +74,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { adresse: adresse.trim() },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, t(T.echec)));
+            setErreur(echecAffiche(reponse.error));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." });
         } else {
             setAdresse("");
@@ -111,9 +111,9 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
                                 >
                                     {d.statut === "lu" ? t(T.lu) : t(T.illisible)}
                                 </span>
-                                <button type="button" aria-label={`${t(T.retirer)} ${d.nom}`} onClick={() => void retirer(d.id)} className="text-muted-foreground hover:text-foreground">
+                                <SuppressionConfirmee libelle={`${t(T.retirer)} ${d.nom}`} onConfirmer={() => void retirer(d.id)} className="h-6 px-1 text-muted-foreground hover:text-foreground">
                                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                </button>
+                                </SuppressionConfirmee>
                             </div>
                             {d.statut === "lu" ? (
                                 <p className="mt-1 text-muted-foreground">

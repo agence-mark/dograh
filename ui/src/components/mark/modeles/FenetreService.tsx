@@ -22,7 +22,7 @@ import { useState } from "react";
 import { validateUserConfigurationsApiV1UserConfigurationsUserValidateGet } from "@/client/sdk.gen";
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm, type ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import type { ModelOverrides } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -81,14 +81,14 @@ export function FenetreService(props: FenetreServiceProps) {
                 query: { validity_ttl_seconds: 0 },
             });
             if (reponse.error) {
-                setEssai({ etat: "echec", message: detailFromError(reponse.error, t(T.echec)) });
+                setEssai({ etat: "echec", message: echecAffiche(reponse.error) });
                 return;
             }
             // Le fork rend une ligne par service dont la clé ou le modèle est refusé ; une liste vide = tout est bon.
             const refuse = (reponse.data?.status ?? []).find((s) => s.model === service);
             setEssai(refuse ? { etat: "echec", message: refuse.message } : { etat: "ok" });
         } catch (e) {
-            setEssai({ etat: "echec", message: detailFromError(e, t(T.echec)) });
+            setEssai({ etat: "echec", message: echecAffiche(e) });
         }
     };
 

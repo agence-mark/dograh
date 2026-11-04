@@ -13,7 +13,7 @@ import {
     postLienApiV1ConnecteursLienPost,
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, EtatConnexions, IntegrationToolConfig } from "@/client/types.gen";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { useAuth } from "@/lib/auth";
 
 export type ConfigIntegration = IntegrationToolConfig;
@@ -59,12 +59,12 @@ export const useConnecteurs = () => {
             return;
         }
         if (c.error || !c.data) {
-            setErreur(detailFromError(c.error, "Connector catalogue unreadable"));
+            setErreur(echecAffiche(c.error));
             return;
         }
         setErreur(null);
         setCatalogue(c.data);
-        setEtat(e.data ?? { nango_configure: false, connexions: [], erreur: detailFromError(e.error, "Connections unreadable") });
+        setEtat(e.data ?? { nango_configure: false, connexions: [], erreur: echecAffiche(e.error) });
     }, []);
 
     useEffect(() => {
@@ -75,7 +75,7 @@ export const useConnecteurs = () => {
 
     const demanderLien = useCallback(async (connecteurs: string[], compte?: string) => {
         const r = await postLienApiV1ConnecteursLienPost({ body: { connecteurs, compte } });
-        if (r.error || !r.data) throw new Error(detailFromError(r.error, "No authorization link"));
+        if (r.error || !r.data) throw new Error(echecAffiche(r.error));
         return r.data;
     }, []);
 

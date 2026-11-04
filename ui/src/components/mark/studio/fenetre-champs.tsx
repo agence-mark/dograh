@@ -72,6 +72,7 @@ function ChampVue({ c, valeur, changer, erreur }: { c: Champ; valeur: string | b
             {c.t === "secret" && (
                 <Input
                     type="password"
+                    autoComplete="new-password"
                     value={texte}
                     aria-label={c.l}
                     placeholder={t({ en: "Entered once, never shown again", fr: "Saisi une fois, jamais réaffiché" })}
@@ -154,8 +155,14 @@ export function FenetreChamps(props: {
     info?: React.ReactNode;
     sections: SectionChamps[];
     valider: string;
-    onValider?: (valeurs: Valeurs) => void;
+    /**
+     * R3 M4 : peut rendre une promesse. La fenêtre reste ouverte (saisie gardée) tant qu'elle n'est pas réglée, et si elle
+     * échoue ou rend `false` ; elle ne se ferme qu'au succès. Rendre autre chose que `false` (ou rien) = succès.
+     */
+    onValider?: (valeurs: Valeurs) => void | boolean | Promise<void | boolean>;
     danger?: boolean;
+    /** R3 : fenêtre de lecture : un seul bouton qui ferme, `valider` en est le libellé. */
+    lecture?: boolean;
     pied?: React.ReactNode;
     /** Contenu libre sous les champs (liste, tableau) ; reste un corps blanc, sans carte. */
     corps?: React.ReactNode;
@@ -171,16 +178,54 @@ export function FenetreChamps(props: {
     return props.ouverte ? <FenetreOuverte {...props} /> : null;
 }
 
-function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier, etroite }: Parameters<typeof FenetreChamps>[0]) {
+function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier, etroite, lecture = false }: Parameters<typeof FenetreChamps>[0]) {
     const { t } = useLangue();
-    const [valeurs, setValeurs] = useState<Valeurs>(() => depart(sections));
+    const [initiales] = useState<Valeurs>(() => depart(sections));
+    const [valeurs, setValeurs] = useState<Valeurs>(initiales);
     const [fautes, setFautes] = useState<Record<string, string>>({});
+    const [enCours, setEnCours] = useState(false);
+    const [abandon, setAbandon] = useState(false);
+    const modifie = JSON.stringify(valeurs) !== JSON.stringify(initiales);
+    // R3 M4 : Échap, clic dehors et « Annuler » ne jettent jamais une saisie sans demander.
+    const demanderFermeture = () => {
+        if (enCours) return;
+        if (modifie && !lecture) setAbandon(true);
+        else fermer();
+    };
+    const validerLaSaisie = async () => {
+        const refus = verifier?.(valeurs);
+        if (refus && Object.keys(refus).length > 0) {
+            setFautes(refus);
+            return;
+        }
+        let resultat: ReturnType<NonNullable<typeof onValider>>;
+        try {
+            resultat = onValider?.(valeurs);
+        } catch {
+            return;
+        }
+        if (resultat && typeof (resultat as Promise<unknown>).then === "function") {
+            setEnCours(true);
+            let succes = true;
+            try {
+                succes = (await resultat) !== false;
+            } catch {
+                succes = false;
+            }
+            if (!succes) {
+                setEnCours(false);
+                return; // l'enregistrement a échoué : la saisie reste là
+            }
+        } else if (resultat === false) {
+            return;
+        }
+        fermer();
+    };
     const visible = (c: Champ) => !c.si || c.si[1].includes(valeurs[c.si[0]] as string | boolean);
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps && !etroite ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
-    const lecture = valider === "Fermer" || valider === "Close";
     return (
-        <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
+        <Dialog open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${taille} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">
@@ -221,23 +266,24 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
                     {pied && <div className="mr-auto">{pied}</div>}
                     {lecture ? (
                         <Button onClick={fermer}>{valider}</Button>
+                    ) : abandon ? (
+                        <>
+                            <span className="text-sm" role="alert">
+                                {t({ en: "Discard your changes?", fr: "Abandonner vos modifications ?" })}
+                            </span>
+                            <Button variant="outline" className="cursor-pointer" autoFocus onClick={() => setAbandon(false)}>
+                                {t({ en: "Keep editing", fr: "Continuer la saisie" })}
+                            </Button>
+                            <Button variant="destructive" className="cursor-pointer" data-abandonner onClick={fermer}>
+                                {t({ en: "Discard", fr: "Abandonner" })}
+                            </Button>
+                        </>
                     ) : (
                         <>
-                            <Button variant="outline" onClick={fermer}>
+                            <Button variant="outline" onClick={demanderFermeture}>
                                 {t({ en: "Cancel", fr: "Annuler" })}
                             </Button>
-                            <Button
-                                variant={danger ? "destructive" : "default"}
-                                onClick={() => {
-                                    const refus = verifier?.(valeurs);
-                                    if (refus && Object.keys(refus).length > 0) {
-                                        setFautes(refus);
-                                        return;
-                                    }
-                                    onValider?.(valeurs);
-                                    fermer();
-                                }}
-                            >
+                            <Button variant={danger ? "destructive" : "default"} disabled={enCours} onClick={() => void validerLaSaisie()}>
                                 {valider}
                             </Button>
                         </>
