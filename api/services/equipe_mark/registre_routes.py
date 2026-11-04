@@ -92,6 +92,8 @@ REGLES: tuple[Regle, ...] = (
     # U11 : le déploiement progressif et les positions de la publication sont des gestes de publication ; la liste vocale écrit le brouillon ; les attaques se jouent comme des tests.
     _r(ECRITURE, r"^/builder/publication/[^/]+/(deploiement/.*|reglages)$", P("agents.publier")),
     _r(ECRITURE, r"^/builder/publication/.*$", P("agents.modifier")),
+    # Partie 3 (SE-12) : les défauts de publication de l'organisation (thème « Publication » des Réglages) sont un geste de publication.
+    _r(ECRITURE, r"^/builder/publication-organisation$", P("agents.publier")),
     _r(ECRITURE, r"^/builder/attaques/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/tests/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/.*$", P("builder.lancer"), par_defaut=True),

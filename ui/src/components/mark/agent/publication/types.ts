@@ -65,3 +65,22 @@ export interface RapportDAttaque {
         non_concluants: string[];
     };
 }
+
+/** [.mark] Partie 3, sous-lot 3 (D-4) : ce que rend `/builder/publication/{agent}/changements` (voir `api/services/publication/changements.py`). */
+export type GenreDeChangement = "node_added" | "node_changed" | "node_removed" | "link_added" | "link_changed" | "link_removed" | "setting_changed";
+
+export interface LigneDeChangement {
+    genre: GenreDeChangement;
+    ou: string;
+    champ: string | null;
+    avant: string;
+    apres: string;
+}
+
+export interface VueDesChangements {
+    version_brouillon: number | null;
+    version_publiee: number | null;
+    publiee_le: string | null;
+    lignes: LigneDeChangement[];
+    total: number;
+}

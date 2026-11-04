@@ -208,6 +208,8 @@ async def initiate_call(
                 },
                 use_draft=True,
                 include_template_context=True,
+                # [.mark] SE-8 : sortant direct, clé = le numéro appelé (déploiement progressif, sans brouillon).
+                appelant=phone_number or "",
             )
             workflow_run = await db_client.create_workflow_run(
                 workflow_run_name,

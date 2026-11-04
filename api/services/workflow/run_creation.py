@@ -27,6 +27,7 @@ async def definition_to_run(
     use_draft: bool = False,
     definition_id: int | None = None,
     appelant: str | None = None,
+    cle_de_repartition: str | None = None,
 ):
     """The definition a run of ``workflow`` should pin.
 
@@ -53,11 +54,12 @@ async def definition_to_run(
         draft = await workflow_client.get_draft_version(workflow.id)
         if draft is not None:
             return draft
-    if appelant is not None:
+    if appelant is not None or cle_de_repartition is not None:
         # [.mark] U11 (E103) : déploiement progressif, éteint par défaut (aucune lecture de plus tant qu'il est éteint).
+        # Partie 3 (SE-8) : tous les chemins le demandent, chacun avec sa clé de répartition (voir ``deploiement.py``).
         from api.services.publication.deploiement import definition_pour_l_appel
 
-        attribuee = await definition_pour_l_appel(workflow, appelant)
+        attribuee = await definition_pour_l_appel(workflow, appelant, cle_de_repartition)
         if attribuee is not None:
             definition = await workflow_client.get_workflow_definition(
                 workflow.id, attribuee, workflow.organization_id
@@ -76,6 +78,7 @@ async def prepare_workflow_run_inputs(
     include_template_context: bool = False,
     definition_id: int | None = None,
     appelant: str | None = None,
+    cle_de_repartition: str | None = None,
 ) -> WorkflowRunInputs:
     """Resolve definition binding and optional template defaults for a run.
 
@@ -84,7 +87,8 @@ async def prepare_workflow_run_inputs(
     flows.
     """
     target_definition = await definition_to_run(
-        workflow_client, workflow, use_draft=use_draft, definition_id=definition_id, appelant=appelant
+        workflow_client, workflow, use_draft=use_draft, definition_id=definition_id,
+        appelant=appelant, cle_de_repartition=cle_de_repartition,
     )
 
     default_context = {}

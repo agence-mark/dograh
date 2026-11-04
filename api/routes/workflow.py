@@ -990,6 +990,14 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
     from api.services.publication import deploiement as deploiement_progressif
     from api.services.publication.reglages import deploiement_actif
 
+    # [.mark] Partie 3 (SE-12) : un agent sans réglages de publication propres reçoit ceux de l'organisation, recopiés dans son
+    # brouillon avant la publication (la création d'un appel lit le dictionnaire de la version publiée, rien de plus).
+    from api.services.publication import defauts_org
+
+    configurations_effectives = await defauts_org.effectives(user.selected_organization_id, draft.workflow_configurations)
+    if configurations_effectives != (draft.workflow_configurations or {}):
+        await db_client.save_workflow_draft(workflow_id, workflow_configurations=configurations_effectives)
+        draft.workflow_configurations = configurations_effectives
     part = demande.pourcentage if demande is not None else None
     progressif = deploiement_actif(draft.workflow_configurations)
     if part is not None and not progressif:

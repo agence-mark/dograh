@@ -22,16 +22,17 @@ import {
     ThemeIntegrations,
     ThemeOrganisationGenerale,
 } from "@/components/mark/parametres-organisation/ThemesOrganisation";
+import { ThemePublication } from "@/components/mark/reglages/ThemePublication";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 
-type Section = "organisation" | "integrations" | "developpeurs";
+type Section = "organisation" | "integrations" | "developpeurs" | "publication";
 type Etat = { modifie: boolean; enErreur: boolean };
 
 const lireSection = (): Section => {
     try {
         const v = new URLSearchParams(window.location.search).get("section");
-        return v === "integrations" || v === "developpeurs" ? v : "organisation";
+        return v === "integrations" || v === "developpeurs" || v === "publication" ? v : "organisation";
     } catch {
         return "organisation";
     }
@@ -92,6 +93,7 @@ export function ReglagesOrganisation() {
         { id: "organisation", titre: t({ en: "General", fr: "Général" }) },
         { id: "integrations", titre: t({ en: "Integrations", fr: "Intégrations" }) },
         { id: "developpeurs", titre: t({ en: "Developers", fr: "Développeurs" }) },
+        { id: "publication", titre: t({ en: "Publication", fr: "Publication" }) },
     ];
 
     return (
@@ -122,6 +124,7 @@ export function ReglagesOrganisation() {
                         />
                     )}
                     {section === "integrations" && <ThemeIntegrations key={cle} {...commun("integrations")} preferences={preferences} />}
+                    {section === "publication" && <ThemePublication key={cle} {...commun("publication")} />}
                     {section === "developpeurs" && (
                         <ThemeDeveloppeurs
                             key={cle}

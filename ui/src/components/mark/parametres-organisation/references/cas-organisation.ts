@@ -23,7 +23,8 @@ export type ThemeOrganisation =
     | "donnees"
     | "apres-appel"
     | "integrations"
-    | "developpeurs";
+    | "developpeurs"
+    | "publication";
 
 export interface CasOrganisation {
     id: string;

@@ -289,6 +289,8 @@ async def _execute_resolved_target(
             initial_context=initial_context,
             use_draft=use_draft,
             include_template_context=use_draft,
+            # [.mark] SE-8 : appel déclenché par l'API, clé = le numéro appelé (déploiement progressif).
+            appelant=request.phone_number or "",
         )
         workflow_run = await db_client.create_workflow_run(
             name=workflow_run_name,

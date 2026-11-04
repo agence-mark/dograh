@@ -43,10 +43,18 @@ export const usePublierLeGroupe = () => {
     const { t } = useLangue();
     const router = useRouter();
     const [enCours, setEnCours] = useState(false);
-    const publier = async (principalId: number): Promise<PublierGroupeResponse | null> => {
+    // [.mark] Partie 3 (SE-12) : `choix` = les seuls spécialistes à publier (un choix par spécialiste), le principal restant à part
+    // quand `avecLePrincipal` est faux (la fenêtre Publier vient de le publier avec ses propres contrôles). Sans choix : tout le groupe.
+    const publier = async (
+        principalId: number,
+        choix?: { specialises: number[]; avecLePrincipal: boolean },
+    ): Promise<PublierGroupeResponse | null> => {
         setEnCours(true);
         try {
-            const reponse = await publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost({ path: { workflow_id: principalId } });
+            const reponse = await publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost({
+                path: { workflow_id: principalId },
+                ...(choix ? { body: { specialises: choix.specialises, avec_le_principal: choix.avecLePrincipal } } : {}),
+            });
             if (reponse.error || !reponse.data) {
                 notifier.echec({ fr: "Groupe non publié. Réessayez.", en: "Group not published. Try again." }, { erreur: reponse.error });
                 return null;

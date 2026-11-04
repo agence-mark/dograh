@@ -7,31 +7,46 @@
  * écrite au journal avec la personne. Le déploiement progressif n'apparaît que s'il est allumé (éteint par défaut).
  * Forme de la maquette (`components/studio/avant-publier.tsx`) ; les données viennent du serveur, jamais d'un exemple.
  */
-import { AlertTriangle, Play } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+    changementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGet,
     controlesDePublicationApiV1BuilderPublicationWorkflowIdGet,
     corrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPost,
+    lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet,
+    ouvrirUnFilApiV1BuilderFilsPost,
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost,
     reglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPut,
 } from "@/client/sdk.gen";
-import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
+import { STATUT_PLAFOND, statutDe, TEXTES_PLAFOND } from "@/components/builder/chat/plafond-du-mois";
+import { usePublierLeGroupe } from "@/components/mark/groupe/PublierLeGroupe";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { DateRelative } from "@/components/mark/studio/date-relative";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Champs, FenetreOnglets, LigneChamp, Section, Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Info, PointEtat } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { CleControle, PositionControle, StatutControle, VueDePublication } from "./types";
+import { CarteRelecture, DEMANDE_DE_RELECTURE } from "./CarteRelecture";
+import type { CleControle, GenreDeChangement, PositionControle, StatutControle, VueDePublication, VueDesChangements } from "./types";
 
 const POSITIONS: PositionControle[] = ["eteint", "previent", "bloque"];
 const PARTS = [10, 25, 50];
 const POINT: Record<StatutControle, "publie" | "attente" | "panne" | "fini"> = { ok: "publie", alerte: "attente", echec: "panne", eteint: "fini" };
+const GENRES: Record<GenreDeChangement, { en: string; fr: string }> = {
+    node_added: { en: "Step added", fr: "Étape ajoutée" },
+    node_changed: { en: "Step changed", fr: "Étape changée" },
+    node_removed: { en: "Step removed", fr: "Étape retirée" },
+    link_added: { en: "Link added", fr: "Liaison ajoutée" },
+    link_changed: { en: "Link changed", fr: "Liaison changée" },
+    link_removed: { en: "Link removed", fr: "Liaison retirée" },
+    setting_changed: { en: "Setting changed", fr: "Réglage changé" },
+};
 
 export function FenetreDePublication({
     agentId,
@@ -53,6 +68,14 @@ export function FenetreDePublication({
     const [forcer, setForcer] = useState(false);
     const [raison, setRaison] = useState("");
     const [enCours, setEnCours] = useState(false);
+    // [.mark] Partie 3 (SE-12) : « Ce qui change » (tableau avant / après), la relecture du builder, les spécialistes du groupe.
+    const [changements, setChangements] = useState<VueDesChangements | "erreur" | null>(null);
+    const [filDeRelecture, setFilDeRelecture] = useState<number | null>(null);
+    const [relectureEnCours, setRelectureEnCours] = useState(false);
+    const [specialistes, setSpecialistes] = useState<{ id: number; name: string }[]>([]);
+    const [avecLeGroupe, setAvecLeGroupe] = useState(false);
+    const [choisis, setChoisis] = useState<number[]>([]);
+    const groupe = usePublierLeGroupe();
 
     const T = {
         controles: t({ en: "Checks", fr: "Contrôles" }),
@@ -119,6 +142,49 @@ export function FenetreDePublication({
         void charger();
     }, [charger]);
 
+    // Les spécialistes ne se proposent que dans la fenêtre du PRINCIPAL de leur groupe (un agent seul ou un spécialiste : rien).
+    useEffect(() => {
+        let vivant = true;
+        void (async () => {
+            const r = await lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet({ path: { workflow_id: agentId } });
+            if (!vivant || r.error || !r.data || r.data.principal?.id !== agentId) return;
+            const liste = (r.data.specialises ?? []).map((m) => ({ id: m.id, name: m.name }));
+            setSpecialistes(liste);
+            setChoisis(liste.map((m) => m.id));
+        })();
+        return () => {
+            vivant = false;
+        };
+    }, [agentId]);
+
+    const chargerLesChangements = useCallback(async () => {
+        setChangements(null);
+        const r = await changementsDuBrouillonApiV1BuilderPublicationWorkflowIdChangementsGet({ path: { workflow_id: agentId } });
+        setChangements(r.error || !r.data ? "erreur" : (r.data as VueDesChangements));
+    }, [agentId]);
+    useEffect(() => {
+        if (onglet === "changements" && changements === null) void chargerLesChangements();
+    }, [onglet, changements, chargerLesChangements]);
+
+    const demanderLaRelecture = async () => {
+        if (relectureEnCours) return;
+        setRelectureEnCours(true);
+        const r = await ouvrirUnFilApiV1BuilderFilsPost({ body: { message: t(DEMANDE_DE_RELECTURE), workflow_id: agentId, demarrage: null } });
+        setRelectureEnCours(false);
+        if (r.error && statutDe(r) === STATUT_PLAFOND) {
+            notifier.avertissement(TEXTES_PLAFOND.notification, { groupe: "plafond-du-mois" });
+            return;
+        }
+        if (r.error || !r.data) {
+            notifier.echec(
+                { fr: "Le builder n'a pas pu relire. Réessayez ou ouvrez le Chat.", en: "The builder could not read the changes. Try again or open the Chat." },
+                { erreur: r.error },
+            );
+            return;
+        }
+        setFilDeRelecture(r.data.id);
+    };
+
     const regler = async (cle: CleControle, position: PositionControle) => {
         if (!vue) return;
         const controles = Object.fromEntries(vue.controles.map((c) => [c.cle, c.position])) as Record<string, PositionControle>;
@@ -167,6 +233,9 @@ export function FenetreDePublication({
             part === null ? { fr: "Agent publié.", en: "Agent published." } : { fr: `Agent publié sur ${part} % des appels.`, en: `Agent published on ${part}% of the calls.` },
             { groupe: "publication-agent" },
         );
+        // Les spécialistes cochés partent après le principal (ses contrôles, sa raison de forcer, sa part d'appels sont passés) ;
+        // chacun dit son résultat, un refus s'arrête au premier et se dit.
+        if (avecLeGroupe && choisis.length > 0) await groupe.publier(agentId, { specialises: choisis, avecLePrincipal: false });
         onPublie();
         fermer();
     };
@@ -190,7 +259,7 @@ export function FenetreDePublication({
                 changerOnglet={(o) => setOnglet(o === T.controles ? "controles" : "changements")}
                 valider={bloque ? null : part !== null ? `${t({ en: "Publish on", fr: "Publier sur" })} ${part} %` : t({ en: "Publish", fr: "Publier" })}
                 onValider={() => void publier(false)}
-                desactiver={!vue || enCours}
+                desactiver={!vue || enCours || groupe.enCours}
                 modifie={part !== null}
                 pied={
                     <>
@@ -318,21 +387,103 @@ export function FenetreDePublication({
                                 </Champs>
                             </Section>
                         )}
+                        {specialistes.length > 0 && (
+                            <Section titre={t({ en: "Group", fr: "Groupe" })}>
+                                <Champs>
+                                    <LigneChamp
+                                        libelle={t({ en: "Publish the specialists of the group too", fr: "Publier aussi les spécialistes du groupe" })}
+                                        info={t({
+                                            en: "After this agent, each specialist ticked below is published with the same gesture, one by one, stopping at the first refusal. Those you leave unticked stay as drafts.",
+                                            fr: "Après cet agent, chaque spécialiste coché ci-dessous est publié du même geste, un par un, en s'arrêtant au premier refus. Ceux que vous laissez décochés restent en brouillon.",
+                                        })}
+                                    >
+                                        <Switch
+                                            aria-label={t({ en: "Publish the specialists of the group too", fr: "Publier aussi les spécialistes du groupe" })}
+                                            checked={avecLeGroupe}
+                                            onCheckedChange={setAvecLeGroupe}
+                                        />
+                                    </LigneChamp>
+                                    {avecLeGroupe &&
+                                        specialistes.map((m) => (
+                                            <div key={m.id} className="flex items-center gap-3 py-2.5 text-sm" data-specialiste={m.id}>
+                                                <Checkbox
+                                                    aria-label={`${t({ en: "Publish", fr: "Publier" })} ${m.name}`}
+                                                    checked={choisis.includes(m.id)}
+                                                    onCheckedChange={(c) => setChoisis(c ? [...choisis, m.id] : choisis.filter((i) => i !== m.id))}
+                                                />
+                                                <span>{m.name}</span>
+                                            </div>
+                                        ))}
+                                </Champs>
+                            </Section>
+                        )}
                     </>
                 ) : (
-                    <div className="space-y-3 text-sm">
-                        <p className="flex items-center gap-1.5 text-muted-foreground">
-                            {t({ en: "The draft compared with the published version", fr: "Le brouillon comparé à la version publiée" })}
-                            <Info>
-                                {t({
-                                    en: "Each line opens on the text before and after, as « Compare » does in Versions.",
-                                    fr: "Chaque ligne s'ouvre sur le texte avant et après, comme « Comparer » dans Versions.",
-                                })}
-                            </Info>
-                        </p>
-                        <Button variant="outline" asChild>
-                            <Link href={adresseOnglet(agentId, "versions")}>{t({ en: "Compare in Versions", fr: "Comparer dans Versions" })}</Link>
-                        </Button>
+                    <div className="text-sm">
+                        {changements === null ? (
+                            <EtatVide cas="chargement" lignes={4} />
+                        ) : changements === "erreur" ? (
+                            <EtatVide cas="erreur" reessayer={() => void chargerLesChangements()} />
+                        ) : (
+                            <>
+                                <p className="flex items-center gap-1.5 pb-2 text-muted-foreground" data-changements-en-tete>
+                                    {changements.version_publiee == null ? (
+                                        t({ en: "The draft: nothing is published yet", fr: "Le brouillon : rien n'est encore publié" })
+                                    ) : (
+                                        <>
+                                            {t({ en: `Draft compared with v${changements.version_publiee}, published`, fr: `Brouillon comparé à v${changements.version_publiee}, publiée` })}{" "}
+                                            <DateRelative valeur={changements.publiee_le} />
+                                        </>
+                                    )}
+                                    <Info>
+                                        {t({
+                                            en: "One line per change, with the text before and after. « Compare » in Versions shows the same two versions side by side.",
+                                            fr: "Une ligne par changement, avec le texte avant et après. « Comparer » dans Versions montre les deux mêmes versions côte à côte.",
+                                        })}
+                                    </Info>
+                                </p>
+                                {changements.lignes.length === 0 ? (
+                                    <p className="border-t py-3 text-muted-foreground">{t({ en: "No change: the draft is the published version.", fr: "Aucun changement : le brouillon est la version publiée." })}</p>
+                                ) : (
+                                    <table className="w-full table-fixed" data-tableau="changements">
+                                        <thead className="border-b text-xs text-muted-foreground">
+                                            <tr>
+                                                <th className="w-56 py-2 text-left font-normal">{t({ en: "Where", fr: "Où" })}</th>
+                                                <th className="pl-4 text-left font-normal">{t({ en: "Before", fr: "Avant" })}</th>
+                                                <th className="pl-4 text-left font-normal">{t({ en: "After", fr: "Après" })}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {changements.lignes.map((l, i) => (
+                                                <tr key={`${l.genre}-${l.ou}-${l.champ}-${i}`} className="align-top" data-changement={l.genre}>
+                                                    <td className="py-3 pr-2">
+                                                        <span className="block font-medium break-words">{l.ou}</span>
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {t(GENRES[l.genre])}
+                                                            {l.champ ? ` · ${l.champ}` : ""}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 pl-4 break-words whitespace-pre-wrap text-muted-foreground">{l.avant || "–"}</td>
+                                                    <td className="py-3 pl-4 break-words whitespace-pre-wrap">{l.apres || "–"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                                {changements.total > changements.lignes.length && (
+                                    <p className="pt-2 text-xs text-muted-foreground">
+                                        {t({
+                                            en: `${changements.lignes.length} of ${changements.total} changes shown. « Compare » in Versions has them all.`,
+                                            fr: `${changements.lignes.length} changements sur ${changements.total}. « Comparer » dans Versions les montre tous.`,
+                                        })}
+                                    </p>
+                                )}
+                                <Button variant="ghost" size="sm" className="-ml-2 mt-3" disabled={relectureEnCours || filDeRelecture !== null} onClick={() => void demanderLaRelecture()}>
+                                    <Sparkles className="size-4" /> {t({ en: "Ask the builder to review", fr: "Demander au builder de relire" })}
+                                </Button>
+                                {filDeRelecture !== null && <CarteRelecture filId={filDeRelecture} />}
+                            </>
+                        )}
                     </div>
                 )}
             </FenetreOnglets>
