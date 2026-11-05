@@ -19,6 +19,8 @@ from api.services.builder.controle import regles
 from api.services.builder.controle.regles import AVERTISSEMENT, BLOQUANT, Defaut, Entree, ObjetConnu, OutilConnu
 
 # Le tableau de chaque règle : ce qui rend le contrôle lisible par une carte générique (statut, message).
+# Les réglages que le brouillon lu par la fenêtre « Publier » ou la garde impose au contrôle.
+CLES_DE_PUBLICATION = ("publication", "cerveau_plafond_prompt", "cerveau_poids_max")
 STATUT_ECHEC = "echec"
 STATUT_AVERTISSEMENT = "avertissement"
 
@@ -137,18 +139,41 @@ def genre_de_la_voix(configurations: dict[str, Any]) -> str | None:
     return None
 
 
-async def construire_l_entree(workflow: Any, organisation_id: int, *, graphe: dict[str, Any] | None = None) -> Entree:
+def _seuil(valeur: Any) -> int | None:
+    """Un seuil de saisie libre : un entier strictement positif, sinon rien (vide = aucun seuil)."""
+    try:
+        nombre = int(valeur)
+    except (TypeError, ValueError):
+        return None
+    return nombre if nombre > 0 else None
+
+
+async def construire_l_entree(
+    workflow: Any, organisation_id: int, *, graphe: dict[str, Any] | None = None, configurations: dict[str, Any] | None = None
+) -> Entree:
     from api.services.modeles_reglages import service as modeles
     from api.services.objets_agent.noms_poses_par_le_code import variables_posees_par_le_code
     from api.services.workflow.signaler_un_probleme import NOM_OUTIL
 
     graphe = graphe if graphe is not None else await graphe_de_travail(workflow)
     try:
-        configurations = (await modeles.configuration_active(workflow.id, organisation_id))["configurations"]
+        actives = (await modeles.configuration_active(workflow.id, organisation_id))["configurations"]
     except Exception:  # noqa: BLE001
-        configurations = dict(getattr(workflow, "workflow_configurations", None) or {})
+        actives = dict(getattr(workflow, "workflow_configurations", None) or {})
+    # La fenêtre « Publier » et la garde passent les réglages du BROUILLON qu'elles viennent de lire : les positions des contrôles
+    # et les seuils du cerveau sont ceux de ce brouillon (le reste vient des réglages actifs, comme avant).
+    configurations = {**actives, **{k: v for k, v in (configurations or {}).items() if k in CLES_DE_PUBLICATION}}
+    # [.mark] Lot « façon Tala par motif » : les positions des contrôles de rédaction (le MÊME réglage que les autres contrôles de
+    # publication, avec les défauts de l'organisation) et la taille que le cerveau supporte (vide = aucun seuil).
+    from api.services.publication import defauts_org
+    from api.services.publication import reglages as reglages_publication
+
+    positions = reglages_publication.lire(await defauts_org.effectives(organisation_id, configurations)).controles
     return Entree(
         graphe=graphe,
+        plafond=_seuil(configurations.get("cerveau_plafond_prompt")),
+        poids_max=_seuil(configurations.get("cerveau_poids_max")),
+        redaction={code: getattr(positions, code) for code in regles.CODES_DE_REDACTION},
         outils=await _outils(graphe, organisation_id),
         noms_d_outils_du_moteur=(NOM_OUTIL,),
         phrases_du_code=phrases_du_code(configurations, graphe),
@@ -182,6 +207,8 @@ def rendre_le_resultat(defauts: list[Defaut]) -> dict[str, Any]:
     }
 
 
-async def controler_l_agent(workflow: Any, organisation_id: int, *, graphe: dict[str, Any] | None = None) -> dict[str, Any]:
-    entree = await construire_l_entree(workflow, organisation_id, graphe=graphe)
+async def controler_l_agent(
+    workflow: Any, organisation_id: int, *, graphe: dict[str, Any] | None = None, configurations: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    entree = await construire_l_entree(workflow, organisation_id, graphe=graphe, configurations=configurations)
     return rendre_le_resultat(regles.controler(entree))

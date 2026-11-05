@@ -22,7 +22,15 @@ CONTROLES = (
     "sans_effet",
     "sortie_d_impasse",
     "deux_webhooks",
+    # Lot « façon Tala par motif » : les contrôles de rédaction (``controle/regles.CODES_DE_REDACTION``, même ordre).
+    "valeur_en_dur",
+    "verbe_ecran",
+    "action_sans_outil",
+    "sortie_non_citee",
+    "poids_agent",
 )
+# Les contrôles de rédaction : jouent la même lecture du prompt (``controle/service``) ; K5 ne bloque jamais.
+CONTROLES_DE_REDACTION = CONTROLES[-5:]
 
 
 def lire(configurations: dict[str, Any] | None) -> Publication:

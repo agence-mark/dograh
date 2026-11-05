@@ -4,6 +4,7 @@
 - ``PUT  /builder/publication/{agent}/reglages``                 les trois positions de chaque contrôle, le déploiement (brouillon) ;
 - ``POST /builder/publication/{agent}/liste-vocale/corriger``    écrire les corrections ACCEPTÉES ;
 - ``POST /builder/publication/{agent}/corriger-un-reglage``      la correction en un clic d'un réglage sans effet (« Prêt à publier ») ;
+- ``POST /builder/publication/{agent}/ignorer-un-defaut``        « Ignorer pour cette version » : un défaut de rédaction mis de côté, écrit au journal ;
 - (la part des appels vit dans ``/builder/branches`` : un seul mécanisme de répartition du trafic) ;
 - ``GET  /builder/attaques/catalogue`` · ``GET|POST /builder/attaques/{agent}[/lancer|/rejouer]`` ;
 - ``GET|POST /builder/attaques/jeu-public[/importer]`` le jeu public fourni par une personne ;
@@ -62,6 +63,16 @@ class CorrigerUnReglage(BaseModel):
     correction: str = Field(min_length=1, max_length=80)
     noeud_id: str | None = Field(default=None, max_length=100)
     liaison_id: str | None = Field(default=None, max_length=100)
+
+
+class IgnorerUnDefaut(BaseModel):
+    """« Ignorer pour cette version » (Bilan de santé du prompt) : le défaut de rédaction mis de côté pour la version en cours."""
+
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(pattern="^(valeur_en_dur|verbe_ecran|action_sans_outil|sortie_non_citee|poids_agent)$")
+    etape: str | None = Field(default=None, max_length=200)
+    extrait: str | None = Field(default=None, max_length=200)
+    version: int | None = Field(default=None, ge=0)
 
 
 class Lancer(BaseModel):
@@ -153,6 +164,22 @@ async def corriger_un_reglage(workflow_id: int, corps: CorrigerUnReglage, user: 
         raise HTTPException(status_code=422, detail=str(erreur)) from None
     await journaliser(user, "agents.corriger_un_reglage", user.selected_organization_id, {"agent": workflow_id, "correction": corps.correction})
     return {"ok": True, **vue}
+
+
+@router.post("/builder/publication/{workflow_id}/ignorer-un-defaut")
+async def ignorer_un_defaut(workflow_id: int, corps: IgnorerUnDefaut, user: UserModel = Depends(get_user_with_selected_organization)):
+    """« Ignorer pour cette version » : un défaut de rédaction qui PRÉVIENT est mis de côté pour la version en cours. Rien n'est écrit dans
+    l'agent (l'écran le range pour cette version) ; le geste est écrit au journal avec la personne, l'agent, l'étape et l'extrait."""
+    from api.services.equipe_mark.acces import journaliser
+
+    await _agent_ou_404(user, workflow_id)
+    await journaliser(
+        user,
+        "publication.ignorer_un_defaut",
+        user.selected_organization_id,
+        {"agent": workflow_id, "code": corps.code, "etape": corps.etape, "extrait": corps.extrait, "version": corps.version},
+    )
+    return {"ok": True}
 
 
 # --- les défauts de l'organisation (thème « Publication » des Réglages) --------------------------------------------------

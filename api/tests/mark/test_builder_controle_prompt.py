@@ -132,9 +132,9 @@ def test_un_graphe_sans_etape_de_fin_est_bloquant():
     assert "etape_sans_sortie" in codes(controle(graphe(noeud("1", "startCall", "Départ", "p"), liens=[])), BLOQUANT)
 
 
-def test_un_prompt_trop_long_est_bloquant_selon_le_plafond():
+def test_un_prompt_trop_long_previent_selon_le_plafond_du_cerveau():
     long = "Une consigne tout à fait ordinaire. " * 10
-    assert "longueur" in codes(controle(sain(long), plafond=100), BLOQUANT)
+    assert "longueur" in codes(controle(sain(long), plafond=100), AVERTISSEMENT)  # T3 : plus un blocage
     assert "longueur" not in codes(controle(sain(long), plafond=5000))
 
 

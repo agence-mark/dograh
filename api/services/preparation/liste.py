@@ -31,6 +31,12 @@ ENDROIT_DES_CONTROLES = {
     "annonce_ia": {"theme": "phrases", "onglet": None},
     "etiquettes": {"theme": "agent", "onglet": "parcours"},
     "blocs_a_jour": {"theme": "agent", "onglet": "parcours"},
+    # Lot « façon Tala par motif » : les contrôles de rédaction et le poids se règlent dans le parcours (l'étape visée est ouverte).
+    "valeur_en_dur": {"theme": "agent", "onglet": "parcours"},
+    "verbe_ecran": {"theme": "agent", "onglet": "parcours"},
+    "action_sans_outil": {"theme": "agent", "onglet": "parcours"},
+    "sortie_non_citee": {"theme": "agent", "onglet": "parcours"},
+    "poids_agent": {"theme": "agent", "onglet": "parcours"},
 }
 STATUT_VERS_ETAT = {"ok": FAIT, "alerte": A_FAIRE, "echec": BLOQUANT, "eteint": SANS_OBJET}
 

@@ -105,14 +105,31 @@ async def verifier_avant_publication(
             organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
         )
     if positions.bilan_du_prompt == "bloque" and await agent_suivi(organization_id, workflow.id):
-        controle = await controler_l_agent(workflow, organization_id, graphe=brouillon.workflow_json)
+        controle = await controler_l_agent(
+            workflow,
+            organization_id,
+            graphe=brouillon.workflow_json,
+            configurations=await defauts_org.effectives(organization_id, getattr(brouillon, "workflow_configurations", None)),
+        )
     else:
         controle = {"ok": True, "elements": [], "bloquants": []}
+    # [.mark] Lot « façon Tala par motif » : K1 à K4 ont leur propre position (et leur propre ligne plus bas) ; le bilan ne les compte pas deux fois.
+    from api.services.builder.controle.regles import CODES_DE_REDACTION
+
+    elements = [e for e in controle["elements"] if e.get("code") not in CODES_DE_REDACTION]
+    controle = {
+        **controle,
+        "elements": elements,
+        "bloquants": [d for d in controle["bloquants"] if d.get("code") not in CODES_DE_REDACTION],
+        "ok": not any(e["statut"] == "echec" for e in elements),
+    }
     autres = []
     # [.mark] Partie 3 (SA-L3a) : les lignes obligatoires de « Prêt à publier » (variables, briques, outils), la sortie d'impasse sans
     # issue, les réglages sans effet et les deux webhooks bloquent par le même réglage que les autres contrôles.
     cles_de_la_fenetre = (
         "liste_vocale", "attaques", "garde_fous", "variables", "briques", "outils", "sans_effet", "sortie_d_impasse", "deux_webhooks",
+        # Lot « façon Tala par motif » : K1 à K4 bloquent par le même réglage ; K5 (le poids) ne bloque jamais.
+        "valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee",
     )
     if any(getattr(positions, cle) == "bloque" for cle in cles_de_la_fenetre):
         vue = await fenetre.evaluer(workflow, brouillon, organization_id)

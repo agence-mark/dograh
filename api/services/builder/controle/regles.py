@@ -4,7 +4,7 @@
 d'exemple, sortie du graphe, longueur, variable inconnue...), jamais un mot du métier d'un client.
 
 Bloquants (Q12, B34, B49) : règle écrite deux fois, règles qui se contredisent, nom d'outil dans le texte, exemple de
-valeur, outil sans consigne d'échec, étape sans sortie vers la fin, longueur au-delà du plafond, persona qui porte une règle
+valeur, outil sans consigne d'échec, étape sans sortie vers la fin, longueur au-delà du plafond (avertissement depuis T3), persona qui porte une règle
 de conduite, phrase dite par le code écrite aussi dans un prompt, ``{{nom}}`` inconnu.
 Avertissements : outil d'écriture sans relecture en deux temps (R0-3), genre du persona différent de celui de la voix (B31),
 fait écrit en dur alors qu'un objet de même contenu existe (B49), base du client injoignable (B49).
@@ -23,7 +23,6 @@ from api.utils.template_renderer import TEMPLATE_VAR_PATTERN, is_builtin_variabl
 BLOQUANT = "bloquant"
 AVERTISSEMENT = "avertissement"
 
-PLAFOND_PAR_DEFAUT = 6000  # caractères par prompt
 LONGUEUR_MIN_D_UNE_REGLE = 25
 LONGUEUR_MIN_D_UNE_PHRASE = 12
 LONGUEUR_MIN_D_UN_FAIT = 8
@@ -69,7 +68,13 @@ class Entree:
     variables_posees_par_le_code: frozenset[str] = frozenset()
     variables_de_l_agent: frozenset[str] = frozenset()  # contexte de l'agent, extractions, fiche, phrases du client
     genre_de_la_voix: str | None = None  # "f" | "m" | None (non relevé : on ne devine pas)
-    plafond: int = PLAFOND_PAR_DEFAUT
+    # [.mark] Lot « façon Tala par motif » (T3) : le plafond d'un prompt lit le réglage « Taille supportée par le cerveau »
+    # (``cerveau_plafond_prompt``) ; vide = aucun seuil, la règle ``longueur`` est muette. Même principe pour le poids d'une réplique.
+    plafond: int | None = None
+    poids_max: int | None = None
+    # La position (« eteint » | « previent » | « bloque ») de chaque contrôle de rédaction, lue dans ``publication.controles`` :
+    # le MÊME réglage que les autres contrôles de publication. Absent = « previent ».
+    redaction: dict[str, str] = field(default_factory=dict)
 
 
 # --- outils de texte ----------------------------------------------------------------------------------------------
@@ -263,8 +268,11 @@ def etape_sans_sortie(e: Entree) -> list[Defaut]:
 
 
 def longueur(e: Entree) -> list[Defaut]:
+    """Un avertissement (jamais un blocage) : le plafond est celui du cerveau (Réglages › Briques), vide = aucun seuil = muette."""
+    if not e.plafond:
+        return []
     return [
-        Defaut("longueur", BLOQUANT, f"The prompt is {len(p)} characters long, above the ceiling of {e.plafond}.", _nom(n))
+        Defaut("longueur", AVERTISSEMENT, f"The prompt is {len(p)} characters long, above the ceiling of {e.plafond}.", _nom(n))
         for n, p in _prompts_de_parole(e.graphe)
         if len(p) > e.plafond
     ]
@@ -449,6 +457,191 @@ def fait_en_dur(e: Entree) -> list[Defaut]:
     return defauts
 
 
+# --- 13. contrôles de rédaction K1 à K5 (lot « façon Tala par motif ») -------------------------------------------------------
+# Une bonne pratique ne bloque jamais seule (décision du 04/11) : AVERTISSEMENT par défaut. Chaque contrôle a sa position dans
+# ``publication.controles`` (Éteint · Prévient · Bloque), lue dans ``Entree.redaction`` : « Éteint » = aucun défaut, « Bloque » =
+# BLOQUANT. K5 (le poids) n'a que Éteint et Prévient.
+
+K1, K2, K3, K4, K5 = "valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent"
+CODES_DE_REDACTION = (K1, K2, K3, K4, K5)
+
+
+def _gravite_de(e: Entree, code: str) -> str | None:
+    """``None`` : le contrôle est éteint (aucun défaut). Sinon la gravité que sa position donne."""
+    position = e.redaction.get(code, "previent")
+    if position == "eteint":
+        return None
+    return BLOQUANT if position == "bloque" and code != K5 else AVERTISSEMENT
+
+
+_MONTANT = re.compile(r"(?<![\w{])\d[\d  .,]*\s?(?:€|euros?\b|eur\b|\$|dollars?\b)", re.IGNORECASE)
+_DELAI = re.compile(r"(?<![\w{.])\d+\s?(?:jours?|heures?|minutes?|semaines?|mois|secondes?|hours?|days?|weeks?|months?)\b", re.IGNORECASE)
+_PRENOM_EN_EXEMPLE = re.compile(r"(?:par exemple|ex\.|e\.g\.|for example|for instance)\s*:?\s*(?:de\s+|comme\s+)?([A-ZÉÈÀ][a-zéèêàïîô-]{2,})")
+
+
+def valeur_en_dur(e: Entree) -> list[Defaut]:
+    """K1 : un montant, un délai chiffré ou un prénom donné « par exemple » dans un prompt. Complète ``exemple_de_valeur`` (adresse,
+    numéro, date, exemple entre guillemets) et ``fait_en_dur`` (texte d'un objet), sans les remplacer."""
+    gravite = _gravite_de(e, K1)
+    if gravite is None:
+        return []
+    defauts = []
+    for n, prompt in _prompts_de_parole(e.graphe):
+        sans_variables = re.sub(r"\{\{[^}]*\}\}", " ", prompt)
+        for genre, motif in (("an amount", _MONTANT), ("a figure delay", _DELAI), ("a first name given as an example", _PRENOM_EN_EXEMPLE)):
+            m = motif.search(sans_variables)
+            if m:
+                defauts.append(
+                    Defaut(K1, gravite, f"The prompt writes {genre} in the text: a value that changes belongs in a variable or an object.", _nom(n), m.group(0).strip()[:60])
+                )
+    return defauts
+
+
+_VERBE_ECRAN = re.compile(
+    r"(?<![\w])(affich\w*|s'affich\w*|clique\w*|cliqu\w*|clic|a l'ecran|sur l'ecran|l'ecran|ecran|display\w*|click\w*|on screen|on the screen|on-screen)(?![\w])"
+)
+
+
+def verbe_ecran(e: Entree) -> list[Defaut]:
+    """K2 : un verbe d'écran (afficher, cliquer, à l'écran) dans le prompt d'un agent vocal : la personne n'a pas d'écran."""
+    gravite = _gravite_de(e, K2)
+    if gravite is None:
+        return []
+    defauts = []
+    for n, prompt in _prompts_de_parole(e.graphe):
+        m = _VERBE_ECRAN.search(normaliser(sans_etiquettes(prompt)))
+        if m:
+            defauts.append(Defaut(K2, gravite, "A screen verb is written in a voice prompt: the caller has no screen.", _nom(n), m.group(0)[:60]))
+    return defauts
+
+
+_ACTION = re.compile(
+    r"(?<![\w])(enregistr\w*|reserv\w*|annul\w*|envoi\w*|envoy\w*|notez? dans|noter dans|inscri\w*|supprim\w*|deplac\w*|"
+    r"book\w*|cancel\w*|save\w*|send\w*|schedule\w*)(?![\w])"
+)
+
+
+def _outil_qui_ecrit(e: Entree, uuid: str) -> bool:
+    outil = e.outils.get(uuid)
+    if outil is None:
+        return False
+    if (outil.categorie or "http_api") == "http_api":
+        return (outil.methode or "").upper() in _METHODES_D_ECRITURE
+    return True  # transfert, outil natif ou serveur d'outils : on ne devine pas qu'il se contente de lire
+
+
+def action_sans_outil(e: Entree) -> list[Defaut]:
+    """K3 : « enregistrer, réserver, annuler, envoyer, noter dans » dans une étape sans aucun outil qui écrit. Étend
+    ``outil_d_ecriture_sans_relecture`` (un outil qui écrit sans relecture) au cas inverse : l'action est promise, aucun outil ne la fait."""
+    gravite = _gravite_de(e, K3)
+    if gravite is None:
+        return []
+    defauts = []
+    for n in _noeuds(e.graphe):
+        if n.get("type") not in ("startCall", "agentNode"):
+            continue
+        m = _ACTION.search(normaliser(sans_etiquettes(_prompt(n))))
+        if m and not any(_outil_qui_ecrit(e, u) for u in _outils_de(n)):
+            defauts.append(
+                Defaut(K3, gravite, "The step promises an action but has no tool that writes: the model would say it did it.", _nom(n), m.group(0)[:60])
+            )
+    return defauts
+
+
+def sortie_non_citee(e: Entree) -> list[Defaut]:
+    """K4 : une étape à deux sorties de travail ou plus dont le texte ne cite aucune étape visée (ni son nom, ni le libellé de la liaison)."""
+    gravite = _gravite_de(e, K4)
+    if gravite is None:
+        return []
+    noeuds = {str(n.get("id")): n for n in _noeuds(e.graphe)}
+    sortantes: dict[str, list[dict[str, Any]]] = {}
+    for liaison in e.graphe.get("edges") or []:
+        if isinstance(liaison, dict):
+            cible = noeuds.get(str(liaison.get("target")))
+            if cible is not None and cible.get("type") == "agentNode" and not _donnees(cible).get("is_end"):
+                sortantes.setdefault(str(liaison.get("source")), []).append(liaison)
+    defauts = []
+    for identifiant, liaisons in sortantes.items():
+        origine = noeuds.get(identifiant)
+        if origine is None or len(liaisons) < 2:
+            continue
+        texte = normaliser(sans_etiquettes(_prompt(origine)))
+        citees = []
+        for liaison in liaisons:
+            cibles = [_nom(noeuds[str(liaison.get("target"))]), str((liaison.get("data") or {}).get("label") or "")]
+            citees.append(any(len(normaliser(c)) >= 3 and normaliser(c) in texte for c in cibles))
+        if not any(citees):
+            visees = ", ".join(_nom(noeuds[str(item.get("target"))]) for item in liaisons)
+            defauts.append(Defaut(K4, gravite, "The step has several work exits but its text names none of them.", _nom(origine), visees[:80]))
+    return defauts
+
+
+@dataclass
+class PoidsDUneEtape:
+    """Ce que le cerveau lit à chaque réplique dans une étape : le prompt général, celui de l'étape, les conditions de ses sorties."""
+
+    etape: str
+    noeud_id: str
+    general: int
+    texte: int
+    conditions: int
+    nb_conditions: int
+
+    @property
+    def total(self) -> int:
+        return self.general + self.texte + self.conditions
+
+    def en_json(self) -> dict[str, Any]:
+        return {
+            "etape": self.etape,
+            "noeud_id": self.noeud_id,
+            "general": self.general,
+            "texte": self.texte,
+            "conditions": self.conditions,
+            "nb_conditions": self.nb_conditions,
+            "total": self.total,
+        }
+
+
+def poids_par_etape(graphe: dict[str, Any]) -> list[PoidsDUneEtape]:
+    """K5 : le poids de chaque étape, calculé sur les VRAIS textes (caractères), du plus lourd au plus léger. L'historique de l'appel,
+    qui vient en plus, n'est pas compté. Le prompt général n'entre que dans une étape qui le lit (``add_global_prompt`` non faux)."""
+    general = _global(graphe)
+    longueur_generale = len(_prompt(general)) if general else 0
+    sortantes: dict[str, list[dict[str, Any]]] = {}
+    for liaison in graphe.get("edges") or []:
+        if isinstance(liaison, dict):
+            sortantes.setdefault(str(liaison.get("source")), []).append(liaison.get("data") if isinstance(liaison.get("data"), dict) else {})
+    lignes = []
+    for n in _noeuds(graphe):
+        if n.get("type") not in ("startCall", "agentNode", "endCall"):
+            continue
+        liees = sortantes.get(str(n.get("id")), [])
+        lit_le_general = _donnees(n).get("add_global_prompt") is not False
+        lignes.append(
+            PoidsDUneEtape(
+                etape=_nom(n),
+                noeud_id=str(n.get("id")),
+                general=longueur_generale if lit_le_general else 0,
+                texte=len(_prompt(n)),
+                conditions=sum(len(str(d.get("condition") or "")) + len(str(d.get("label") or "")) for d in liees),
+                nb_conditions=len(liees),
+            )
+        )
+    return sorted(lignes, key=lambda p: p.total, reverse=True)
+
+
+def poids_agent(e: Entree) -> list[Defaut]:
+    """K5 : informe, ne contraint jamais. Sans seuil (``cerveau_poids_max`` vide) aucun défaut : l'écran montre les nombres seuls."""
+    if _gravite_de(e, K5) is None or not e.poids_max:
+        return []
+    return [
+        Defaut(K5, AVERTISSEMENT, f"The brain reads {p.total} characters at each reply in this step, above the threshold of {e.poids_max}.", p.etape, str(p.total))
+        for p in poids_par_etape(e.graphe)
+        if p.total > e.poids_max
+    ]
+
+
 REGLES = (
     regle_en_double,
     regles_contradictoires,
@@ -463,6 +656,11 @@ REGLES = (
     outil_d_ecriture_sans_relecture,
     genre_persona_contre_voix,
     fait_en_dur,
+    valeur_en_dur,
+    verbe_ecran,
+    action_sans_outil,
+    sortie_non_citee,
+    poids_agent,
 )
 
 
