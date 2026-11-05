@@ -384,7 +384,7 @@ export interface ConsigneDeSecurite {
 /** [.mark] U11: see `api/schemas/publication.py`. */
 export type PositionControle = "eteint" | "previent" | "bloque";
 export interface PublicationAgent {
-    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous", PositionControle>>;
+    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks", PositionControle>>;
     deploiement?: { actif?: boolean };
 }
 

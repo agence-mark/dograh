@@ -28,6 +28,8 @@ REQUIS = "requis"
 CONSEILLE = "conseille"
 FAIT = "fait"
 A_FAIRE = "a_faire"
+BLOQUANT = "bloquant"
+HERITE = "herite"
 SANS_OBJET = "sans_objet"
 
 
@@ -40,6 +42,15 @@ class Etape:
     source: str
     # Ce qui manque (noms de variables, de briques, d'outils, de tests) : l'écran les nomme.
     manquants: list[str] = field(default_factory=list)
+    # [.mark] Partie 3, SA-L3a : « Prêt à publier ». L'étape où ça se règle (le thème ne suffit pas pour une étape du graphe),
+    # le contrôle de publication qui la garde (``controle``) et sa position, les corrections en un clic, et « hérité du principal ».
+    noeud_id: str | None = None
+    controle: str | None = None
+    position: str | None = None
+    corrections: list[dict[str, Any]] = field(default_factory=list)
+    constat: str | None = None
+    liaison_id: str | None = None
+    noms: list[str] = field(default_factory=list)
 
 
 def _noeuds(definition: Mapping[str, Any] | None) -> list[dict[str, Any]]:
@@ -75,6 +86,23 @@ def outils_du_graphe(definition: Mapping[str, Any] | None) -> list[str]:
     return vus
 
 
+def noeud_des_variables(definition: Mapping[str, Any] | None, manquantes: list[str]) -> str | None:
+    """La première étape dont un texte lit une variable manquante : l'endroit exact où la régler."""
+    for noeud in _noeuds(definition):
+        donnees = noeud.get("data") or {}
+        texte = " ".join(str(donnees.get(c) or "") for c in ("prompt", "greeting", "premiere_replique"))
+        if any(f"{{{{{v}}}}}" in texte for v in manquantes):
+            return str(noeud.get("id"))
+    return None
+
+
+def noeud_des_outils(definition: Mapping[str, Any] | None, perdus: list[str]) -> str | None:
+    for noeud in _noeuds(definition):
+        if any(u in perdus for u in (noeud.get("data") or {}).get("tool_uuids") or []):
+            return str(noeud.get("id"))
+    return None
+
+
 def briques_manquantes(effective: Any | None) -> list[str]:
     """``llm`` / ``stt`` / ``tts`` absents de la configuration effective (temps réel : ``realtime`` suffit)."""
     if effective is None:
@@ -94,18 +122,21 @@ def calculer(
     fiche: Any | None,
     tests: list[dict[str, Any]],
     problemes_tests_obligatoires: list[dict[str, Any]],
+    suivies_du_principal: frozenset[str] = frozenset(),
 ) -> list[Etape]:
-    """Les étapes, dans l'ordre d'un appel. Pure."""
+    """Les étapes, dans l'ordre d'un appel. Pure. ``suivies_du_principal`` : les clés qu'un spécialisé reçoit de son principal
+    (une ligne faite sur une de ces clés se dit « hérité du principal »)."""
     etapes: list[Etape] = []
 
     manquantes = variables_manquantes(definition, variables_du_modele)
     etapes.append(
-        Etape("variables", REQUIS, A_FAIRE if manquantes else FAIT, "agent", "prompts, phrases et variables du modèle", manquantes)
+        Etape("variables", REQUIS, A_FAIRE if manquantes else FAIT, "agent", "prompts, phrases et variables du modèle", manquantes,
+              noeud_id=noeud_des_variables(definition, manquantes) if manquantes else None, controle="variables")
     )
 
     briques = briques_manquantes(effective)
     etapes.append(
-        Etape("briques", REQUIS, A_FAIRE if briques else FAIT, "briques", "configuration effective des modèles", briques)
+        Etape("briques", REQUIS, A_FAIRE if briques else FAIT, "briques", "configuration effective des modèles", briques, controle="briques")
     )
 
     branches = outils_du_graphe(definition)
@@ -118,13 +149,15 @@ def calculer(
             "agent",
             "outils portés par les étapes du graphe",
             perdus,
+            noeud_id=noeud_des_outils(definition, perdus) if perdus else None,
+            controle="outils",
         )
     )
 
     if problemes_tests_obligatoires:
         etapes.append(
             Etape("tests", REQUIS, A_FAIRE, "agent", "tests obligatoires de l'agent et leurs dernières exécutions",
-                  [str(p.get("nom") or p.get("slug")) for p in problemes_tests_obligatoires])
+                  [str(p.get("nom") or p.get("slug")) for p in problemes_tests_obligatoires], controle="tests_obligatoires")
         )
     else:
         etapes.append(
@@ -156,15 +189,42 @@ def calculer(
     etapes.append(
         Etape("phrases", CONSEILLE, FAIT if configurations.get("phrases_regles") else A_FAIRE, "phrases", "règles des phrases du code")
     )
+    # Lignes conditionnelles : en temps réel la fiche d'appel n'est pas écrite pendant l'appel (sans objet) ; un spécialisé qui
+    # reçoit le réglage de son principal le dit « hérité du principal » quand il est fait.
+    temps_reel = bool(getattr(effective, "is_realtime", False))
+    for etape in etapes:
+        if etape.id == "fiche" and temps_reel:
+            etape.etat = SANS_OBJET
+        cle = CLES_HERITEES.get(etape.id)
+        if cle in suivies_du_principal and etape.etat == FAIT:
+            etape.etat = HERITE
     return etapes
+
+
+# La clé de réglage que lit chaque ligne : celle qu'un spécialisé reçoit de son principal.
+CLES_HERITEES = {"etablissement": "etablissement_id", "fiche": "fiche_champs", "panne": "panne", "phrases": "phrases_regles"}
 
 
 def en_dicts(etapes: list[Etape]) -> list[dict[str, Any]]:
     return [asdict(e) for e in etapes]
 
 
+@dataclass
+class Contexte:
+    """Ce que le calcul a lu : la liste « Prêt à publier » en tire aussi les réglages sans effet (même lecture, une seule fois)."""
+
+    definition: Mapping[str, Any]
+    configurations: Mapping[str, Any]
+    temps_reel: bool
+    specialiste: bool
+
+
 async def lire(organization_id: int, workflow_id: int) -> list[Etape]:
     """Le calcul pour un agent de l'organisation (``ModeleRefuse`` 404 pour l'agent d'une autre). Lecture seule."""
+    return (await lire_avec_contexte(organization_id, workflow_id))[0]
+
+
+async def lire_avec_contexte(organization_id: int, workflow_id: int) -> tuple[list[Etape], Contexte]:
     from api.db import db_client
     from api.services.builder.tests_agent import publication, stockage
     from api.services.configuration.ai_model_configuration import _effective_for_workflow
@@ -197,7 +257,11 @@ async def lire(organization_id: int, workflow_id: int) -> list[Etape]:
     problemes = await publication.problemes_des_tests_obligatoires(
         organization_id, workflow_id, active.get("version_number")
     )
-    return calculer(
+    from api.services.groupe.passations import agent_principal_de
+    from api.services.heritage_reglages import cles_suivies_du_principal
+
+    principal = agent_principal_de(configurations)
+    etapes = calculer(
         definition=definition,
         variables_du_modele=variables,
         configurations=configurations,
@@ -206,4 +270,12 @@ async def lire(organization_id: int, workflow_id: int) -> list[Etape]:
         fiche=fiche,
         tests=tests,
         problemes_tests_obligatoires=problemes,
+        suivies_du_principal=cles_suivies_du_principal(configurations),
     )
+    contexte = Contexte(
+        definition=definition,
+        configurations=configurations,
+        temps_reel=bool(getattr(effective, "is_realtime", False)),
+        specialiste=principal is not None and principal != workflow_id,
+    )
+    return etapes, contexte

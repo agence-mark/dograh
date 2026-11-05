@@ -3,6 +3,7 @@
 - ``GET  /builder/publication/{agent}``                          les contrôles sur le brouillon (même fonction que l'action) ;
 - ``PUT  /builder/publication/{agent}/reglages``                 les trois positions de chaque contrôle, le déploiement (brouillon) ;
 - ``POST /builder/publication/{agent}/liste-vocale/corriger``    écrire les corrections ACCEPTÉES ;
+- ``POST /builder/publication/{agent}/corriger-un-reglage``      la correction en un clic d'un réglage sans effet (« Prêt à publier ») ;
 - ``GET  /builder/publication/{agent}/deploiement``              la part en cours ;
 - ``POST /builder/publication/{agent}/deploiement/passer-a-100`` · ``.../revenir``   gestes humains, jamais automatiques ;
 - ``GET  /builder/attaques/catalogue`` · ``GET|POST /builder/attaques/{agent}[/lancer|/rejouer]``.
@@ -50,6 +51,16 @@ async def _action(nom: str, user: UserModel, workflow_id: int, **arguments: Any)
 class Corriger(BaseModel):
     model_config = ConfigDict(extra="forbid")
     ids: list[str] = Field(min_length=1, max_length=20)
+
+
+class CorrigerUnReglage(BaseModel):
+    """La correction en un clic d'un réglage « sans effet » : l'identifiant que la liste « Prêt à publier » a proposé, et l'étape ou
+    la liaison qu'il vise. Le serveur ne joue que ce que le brouillon propose."""
+
+    model_config = ConfigDict(extra="forbid")
+    correction: str = Field(min_length=1, max_length=80)
+    noeud_id: str | None = Field(default=None, max_length=100)
+    liaison_id: str | None = Field(default=None, max_length=100)
 
 
 class Lancer(BaseModel):
@@ -112,6 +123,25 @@ async def regler_la_publication(workflow_id: int, corps: Publication, user: User
 @router.post("/builder/publication/{workflow_id}/liste-vocale/corriger")
 async def corriger_la_liste_vocale(workflow_id: int, corps: Corriger, user: UserModel = Depends(get_user_with_selected_organization)):
     return await _action("publication_corriger_la_liste_vocale", user, workflow_id, ids=corps.ids)
+
+
+@router.post("/builder/publication/{workflow_id}/corriger-un-reglage")
+async def corriger_un_reglage(workflow_id: int, corps: CorrigerUnReglage, user: UserModel = Depends(get_user_with_selected_organization)):
+    """« Prêt à publier » : la correction en un clic d'un réglage sans effet, écrite dans le BROUILLON ; rend la liste recalculée."""
+    from api.services.equipe_mark.acces import journaliser
+    from api.services.publication import corriger_reglage, sans_effet
+
+    workflow = await _agent_ou_404(user, workflow_id)
+    try:
+        vue = await corriger_reglage.corriger(
+            workflow, user.selected_organization_id, corps.correction, noeud_id=corps.noeud_id, liaison_id=corps.liaison_id
+        )
+    except corriger_reglage.CorrectionIntrouvable as erreur:
+        raise HTTPException(status_code=409, detail=str(erreur)) from None
+    except sans_effet.CorrectionRefusee as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    await journaliser(user, "agents.corriger_un_reglage", user.selected_organization_id, {"agent": workflow_id, "correction": corps.correction})
+    return {"ok": True, **vue}
 
 
 @router.get("/builder/publication/{workflow_id}/deploiement")

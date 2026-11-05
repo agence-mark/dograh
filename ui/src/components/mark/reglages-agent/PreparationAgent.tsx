@@ -1,22 +1,19 @@
 "use client";
 
 /**
- * [.mark] U4 (E42, E44) : la liste de préparation d'un agent, en tête de l'onglet Réglages.
+ * [.mark] U4 (E42, E44) puis partie 3 (SA-L3a) : « Prêt à publier », en tête de l'onglet Réglages.
  *
- * Calculée par le serveur à l'ouverture (`GET /workflow/{id}/preparation`), jamais stockée. Étape requise non faite =
- * cercle rouge ; conseillée non faite = cercle bleu .mark (jamais d'orange, E100) ; faite = coche. La source de chaque
- * étape est dite dans le « ! ». Une ligne cliquable ouvre le thème qui règle l'étape. Une étape « sans objet » n'est pas
- * montrée ; une lecture qui échoue le dit, sans inventer d'état.
+ * La MÊME liste que la fenêtre « Publier » (`agent/pret/ListePret`), calculée par le serveur (`GET /workflow/{id}/preparation`),
+ * jamais stockée, relue après chaque enregistrement et chaque geste du builder. Quatre états ; « Régler » ouvre l'endroit exact
+ * (thème de cette page, étape du graphe, onglet) ; un réglage sans effet propose sa correction en un clic. Une lecture qui
+ * échoue le dit, sans inventer d'état.
  */
-import { Circle, CircleCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet } from "@/client/sdk.gen";
-import type { EtapeDePreparation } from "@/client/types.gen";
-import { cn } from "@/lib/utils";
-
+import { ListePret, useListeDePret } from "../agent/pret/ListePret";
+import { useCorrectionEnUnClic } from "../agent/pret/useCorrection";
+import { endroitDeLaLigne } from "../agent/pret/endroit";
 import { type Texte, useLangue } from "../langue/langue";
-import { Info } from "../studio/marques";
 
 export const TEXTES_ETAPES: Record<string, { titre: Texte; source: Texte }> = {
     variables: {
@@ -68,27 +65,20 @@ export const TEXTES_ETAPES: Record<string, { titre: Texte; source: Texte }> = {
     },
 };
 
-export const PreparationAgent = ({ workflowId, versTheme }: { workflowId: number; versTheme: (theme: string) => void }) => {
+export const PreparationAgent = ({
+    workflowId,
+    versTheme,
+    recalcul,
+}: {
+    workflowId: number;
+    versTheme: (theme: string) => void;
+    /** Ce qui change à chaque enregistrement de l'agent (ses réglages) : la liste se relit. */
+    recalcul?: unknown;
+}) => {
     const { t } = useLangue();
-    const [etapes, setEtapes] = useState<EtapeDePreparation[] | null>(null);
-    const [echec, setEchec] = useState(false);
-
-    useEffect(() => {
-        let annule = false;
-        (async () => {
-            try {
-                const reponse = await lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet({ path: { workflow_id: workflowId } });
-                if (annule) return;
-                if (reponse.error || !reponse.data) setEchec(true);
-                else setEtapes(reponse.data.etapes);
-            } catch {
-                if (!annule) setEchec(true);
-            }
-        })();
-        return () => {
-            annule = true;
-        };
-    }, [workflowId]);
+    const router = useRouter();
+    const { lignes, echec, relire } = useListeDePret(workflowId, recalcul);
+    const { corriger, enCours } = useCorrectionEnUnClic(workflowId, relire);
 
     if (echec) {
         return (
@@ -97,82 +87,19 @@ export const PreparationAgent = ({ workflowId, versTheme }: { workflowId: number
             </p>
         );
     }
-    if (!etapes) return null;
-    const visibles = etapes.filter((e) => e.etat !== "sans_objet");
-    const restantes = visibles.filter((e) => e.etat !== "fait" && e.niveau === "requis").length;
-    const faites = visibles.filter((e) => e.etat === "fait").length;
-    // L'anneau de la maquette (`VuePreparation`) : la part des étapes faites.
-    const rayon = 52;
-    const tour = 2 * Math.PI * rayon;
-    const part = visibles.length === 0 ? 0 : faites / visibles.length;
-
+    if (!lignes) return null;
     return (
-        <section
-            aria-label={t({ en: "Preparation", fr: "Préparation" })}
-            data-preparation="liste"
-            className="grid items-center gap-6 rounded-2xl border bg-card p-6 md:grid-cols-[180px_1fr]"
-        >
-            <div className="relative mx-auto size-[120px]" role="img" aria-label={`${faites}/${visibles.length}`}>
-                <svg width="120" height="120" className="-rotate-90">
-                    <circle cx="60" cy="60" r={rayon} fill="none" stroke="currentColor" className="text-foreground/10" strokeWidth="8" />
-                    <circle
-                        cx="60"
-                        cy="60"
-                        r={rayon}
-                        fill="none"
-                        stroke="currentColor"
-                        className="text-foreground"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={tour}
-                        strokeDashoffset={tour * (1 - part)}
-                    />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-semibold tabular-nums">
-                        {faites}/{visibles.length}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{t({ en: "steps done", fr: "étapes faites" })}</span>
-                </div>
-            </div>
-            <div className="space-y-1">
-                <span className="sr-only" data-preparation="restantes">
-                    {restantes === 0
-                        ? t({ en: "Nothing required is missing", fr: "Rien d'obligatoire ne manque" })
-                        : t({ en: `${restantes} required to do`, fr: `${restantes} obligatoire${restantes > 1 ? "s" : ""} à faire` })}
-                </span>
-                {visibles.map((etape) => {
-                    const textes = TEXTES_ETAPES[etape.id];
-                    if (!textes) return null;
-                    const fait = etape.etat === "fait";
-                    const requis = etape.niveau === "requis";
-                    const manquants = fait ? [] : (etape.manquants ?? []);
-                    return (
-                        <div key={etape.id} data-etape={etape.id} data-etat={etape.etat}>
-                            <button
-                                type="button"
-                                onClick={() => versTheme(etape.theme)}
-                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-muted/50"
-                            >
-                                {fait ? (
-                                    <CircleCheck data-cercle="fait" className="size-4 shrink-0 text-(--point-fini)" />
-                                ) : (
-                                    <Circle
-                                        data-cercle={requis ? "requis" : "conseille"}
-                                        className={cn("size-4 shrink-0", requis ? "text-destructive" : "text-(--acc)")}
-                                    />
-                                )}
-                                <span className={cn("flex flex-1 items-center gap-1.5 text-sm", fait ? "text-muted-foreground" : "font-medium")}>
-                                    {t(textes.titre)}
-                                    {!requis && <span className="text-[11px] font-normal text-muted-foreground">{t({ en: "advised", fr: "conseillé" })}</span>}
-                                    <Info>{t(textes.source)}</Info>
-                                </span>
-                                {manquants.length > 0 && <span className="text-xs text-muted-foreground">{manquants.join(", ")}</span>}
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
-        </section>
+        <ListePret
+            avecAnneau
+            lignes={lignes}
+            textesDesEtapes={TEXTES_ETAPES}
+            enCours={enCours}
+            corriger={(_, c) => void corriger(c)}
+            regler={(ligne) => {
+                const endroit = endroitDeLaLigne(ligne, workflowId);
+                if (endroit.sorte === "theme") versTheme(endroit.theme);
+                else router.push(endroit.adresse);
+            }}
+        />
     );
 };

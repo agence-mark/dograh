@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from api.services.groupe import groupe as service
 from api.services.publication import changements, defauts_org, deploiement
 from api.tests.mark.test_apres_appel import _organisation, base_v4, smtp  # noqa: F401  (fixtures)
@@ -93,6 +95,13 @@ def test_une_premiere_publication_montre_tout_comme_ajoute():
 
 
 # --- la route des changements ------------------------------------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _sans_la_garde_de_publication(monkeypatch):
+    """Ces tests prouvent le tableau des changements et la publication du groupe, pas la garde : les agents de l'essai n'ont ni
+    modèles ni retour pour la sortie d'impasse (SA-L3a), que la garde refuserait. La garde a ses propres tests."""
+    monkeypatch.setenv("MARK_PUBLICATION_SANS_GARDE", "1")
 
 
 async def _groupe(client, db_session, org):

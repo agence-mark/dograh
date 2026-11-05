@@ -14,7 +14,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.publication import liste_vocale, reglages
+from api.services.publication import liste_vocale, reglages, sans_effet
 
 ECHEC = "echec"
 ALERTE = "alerte"
@@ -29,6 +29,12 @@ LIBELLES = {
     "liste_vocale": "Liste de contrôle vocale",
     "attaques": "Attaques",
     "garde_fous": "Garde-fous",
+    "variables": "Variables des prompts",
+    "briques": "Modèles configurés",
+    "outils": "Outils branchés",
+    "sans_effet": "Réglages sans effet",
+    "sortie_d_impasse": "Sortie d'impasse",
+    "deux_webhooks": "Deux webhooks",
 }
 
 
@@ -110,6 +116,30 @@ def _garde_fous(configurations: dict[str, Any]) -> list[str]:
     return ["No safety layer of the conversation is on."]
 
 
+async def _lectures_de_la_liste(workflow: Any, brouillon: Any, org: int, configurations: dict[str, Any]):
+    """Les étapes de la préparation et les constats « sans effet » du brouillon. Une lecture qui tombe en panne ne fait pas
+    tomber la fenêtre : elle rend une liste vide."""
+    from api.services import preparation
+
+    try:
+        etapes, contexte = await preparation.lire_avec_contexte(org, workflow.id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[publication] préparation en panne ({type(erreur).__name__})")
+        return [], []
+    definition = getattr(brouillon, "workflow_json", None) or contexte.definition
+    confs = {**dict(contexte.configurations), **configurations}
+    try:
+        from api.services.apres_appel.reglages import lire_reglages
+
+        webhook_pret = bool((await lire_reglages(org)).webhook.url)
+    except Exception:  # noqa: BLE001
+        webhook_pret = False
+    constats = sans_effet.evaluer(
+        definition, confs, temps_reel=contexte.temps_reel, specialiste=contexte.specialiste, webhook_mark_pret=webhook_pret
+    )
+    return etapes, constats
+
+
 async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[str, Any]:
     """La vue de la fenêtre : un bloc par contrôle (position, statut, détail), ``bloque`` et la liste vocale en simulation."""
     # [.mark] Partie 3 (SE-12) : sans réglages propres à l'agent, ceux de l'organisation (thème « Publication »), puis ceux du code.
@@ -119,12 +149,21 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
     pub = reglages.lire(configurations)
     controles: list[dict[str, Any]] = []
     vocale: list[dict[str, Any]] = []
+    # [.mark] Partie 3 (SA-L3a) : une seule lecture alimente la préparation, les lignes obligatoires et les réglages sans effet.
+    etapes, constats = await _lectures_de_la_liste(workflow, brouillon, organisation_id, configurations)
+    par_cle = {e.controle: e for e in etapes if e.controle}
     for cle in reglages.CONTROLES:
         position = getattr(pub.controles, cle)
         problemes: list[str] = []
         if position != "eteint":  # un contrôle éteint ne joue pas
             try:
-                if cle == "tests_obligatoires":
+                if cle in ("variables", "briques", "outils"):
+                    etape = par_cle.get(cle)
+                    if etape is not None and etape.etat == "a_faire":
+                        problemes = [str(m) for m in etape.manquants] or ["To do."]
+                elif cle in sans_effet.CONTROLES_DES_CONSTATS:
+                    problemes = [c.message() for c in constats if c.controle == cle]
+                elif cle == "tests_obligatoires":
                     problemes = await _tests(workflow, brouillon, organisation_id)
                 elif cle == "bilan_du_prompt":
                     problemes = await _bilan(workflow, brouillon, organisation_id)
@@ -140,9 +179,12 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
         controles.append(
             {"cle": cle, "libelle": LIBELLES[cle], "position": position, "statut": _statut(position, problemes), "problemes": problemes[:20]}
         )
+    from api.services.preparation import liste
+
     return {
         "version": getattr(brouillon, "version_number", None),
         "controles": controles,
+        "lignes": liste.assembler(etapes, constats, controles),
         "bloque": any(c["statut"] == ECHEC for c in controles),
         "liste_vocale": vocale,
         "deploiement_actif": pub.deploiement.actif,

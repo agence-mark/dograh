@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.db.models import UserModel
-from api.services import heritage_reglages, preparation
+from api.services import heritage_reglages
+from api.services.preparation import liste as liste_pret
 from api.services.juge import file as file_du_juge
 from api.services.auth.depends import get_user
 from api.services.modeles_reglages.service import ModeleRefuse
@@ -29,6 +30,16 @@ class EtapeDePreparation(BaseModel):
     theme: str
     source: str
     manquants: list[str] = []
+    # [.mark] Partie 3, SA-L3a : « Prêt à publier ». Où régler (étape, onglet), le contrôle qui garde la ligne et sa position, les
+    # corrections en un clic, et le cas « sans effet » qu'elle dit.
+    noeud_id: str | None = None
+    controle: str | None = None
+    position: str | None = None
+    corrections: list[dict[str, Any]] = []
+    constat: str | None = None
+    liaison_id: str | None = None
+    noms: list[str] = []
+    onglet: str | None = None
 
 
 class PreparationResponse(BaseModel):
@@ -50,11 +61,12 @@ class HeritageReglagesResponse(BaseModel):
 
 @router.get("/{workflow_id}/preparation")
 async def lire_la_preparation(workflow_id: int, user: UserModel = Depends(get_user)) -> PreparationResponse:
+    # [.mark] Partie 3 (SA-L3a) : la même liste « Prêt à publier » que la fenêtre Publier et le builder.
     try:
-        etapes = await preparation.lire(user.selected_organization_id, workflow_id)
+        lignes = await liste_pret.lire_la_liste(user.selected_organization_id, workflow_id)
     except ModeleRefuse as erreur:
         raise HTTPException(status_code=erreur.statut, detail=erreur.message) from None
-    return PreparationResponse(etapes=[EtapeDePreparation(**e) for e in preparation.en_dicts(etapes)])
+    return PreparationResponse(etapes=[EtapeDePreparation(**ligne) for ligne in lignes])
 
 
 @router.get("/{workflow_id}/heritage-reglages")

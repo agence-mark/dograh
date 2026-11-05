@@ -467,11 +467,15 @@ def test_la_calibration_compare_le_juge_a_nos_notes():
 
 
 def brouillon_v(version, graphe=None):
-    return SimpleNamespace(workflow_json=graphe or graphe_depart(), version_number=version)
+    from api.tests.mark.builder_commun import sans_les_lignes_de_pret
+
+    return SimpleNamespace(workflow_json=graphe or graphe_depart(), version_number=version, workflow_configurations=sans_les_lignes_de_pret())
 
 
 def empreinte_de(graphe=None, configurations=None):
-    return boucle.empreinte_du_brouillon(graphe or graphe_depart(), configurations or {})
+    from api.tests.mark.builder_commun import sans_les_lignes_de_pret
+
+    return boucle.empreinte_du_brouillon(graphe or graphe_depart(), configurations if configurations is not None else sans_les_lignes_de_pret())
 
 
 async def enregistrer_execution(slug, *, version, statut="ok", empreinte="defaut"):
@@ -562,11 +566,14 @@ async def test_un_brouillon_modifie_sans_changer_de_numero_n_est_pas_publie_avan
 
 async def test_le_rejeu_range_l_empreinte_du_graphe_et_des_reglages(banc):
     await un_test("a", obligatoire=True)
-    banc.brouillons[AGENT].workflow_configurations = {"fiche_au_fil_de_leau": True}
+    from api.tests.mark.builder_commun import sans_les_lignes_de_pret
+
+    configurations = sans_les_lignes_de_pret({"fiche_au_fil_de_leau": True})
+    banc.brouillons[AGENT].workflow_configurations = configurations
     execution.DEPENDANCES.rejouer_un_tour = un_rejeu([essai(i, "Bien.") for i in (1, 2, 3)])
     await executer("tests_rejouer", {}, EQUIPE)
     derniere = await stockage.derniere_execution(ORG_CLIENT, AGENT, "a")
-    assert derniere["empreinte"] == empreinte_de(None, {"fiche_au_fil_de_leau": True}) != empreinte_de()
+    assert derniere["empreinte"] == empreinte_de(None, configurations) != empreinte_de()
     # la publication du MÊME brouillon (graphe + réglages) passe
     banc.brouillons[AGENT].version_number = 2
     assert await publication.verifier_avant_publication(banc.workflows[AGENT], banc.brouillons[AGENT], ORG_CLIENT) is None

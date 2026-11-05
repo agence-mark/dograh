@@ -720,8 +720,10 @@ async def test_archiver_un_agent_seul_est_inchange(org, db_session, async_sessio
 
 
 async def test_publier_le_groupe_publie_les_specialises_puis_le_principal(
-    org, db_session, async_session, test_client_factory
+    org, db_session, async_session, test_client_factory, monkeypatch
 ):
+    # Ce test prouve l'ordre de publication du groupe, pas la garde (SA-L3a : les agents d'essai n'ont pas de modèles).
+    monkeypatch.setenv("MARK_PUBLICATION_SANS_GARDE", "1")
     orgid = org.organisation.id
     async with test_client_factory(org.utilisateur) as client:
         principal_id, _, [s1, s2] = await _creer_groupe(

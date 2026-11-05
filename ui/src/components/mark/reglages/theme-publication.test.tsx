@@ -45,7 +45,7 @@ describe("le thème « Publication »", () => {
         const { container } = rendre();
         await screen.findByRole("switch");
         expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(5);
+        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(11);
         const ligne = container.querySelector("[data-reglage='publication.controles.tests_obligatoires']") as HTMLElement;
         expect(ligne.querySelector("button[aria-pressed='true']")?.textContent).toBe("Bloque");
         const eteinte = container.querySelector("[data-reglage='publication.controles.attaques']") as HTMLElement;

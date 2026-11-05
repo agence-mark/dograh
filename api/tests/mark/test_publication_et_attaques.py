@@ -20,7 +20,7 @@ from api.services.builder.actions.registre import Contexte, executer
 from api.services.builder.tests_agent import jeu, publication
 from api.services.builder.tests_agent.jeu import Moteur, Session, TourAgent
 from api.services.publication import controles, deploiement, liste_vocale, reglages
-from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, graphe_depart, utilisateur
+from api.tests.mark.builder_commun import AGENT, ORG_CLIENT, graphe_depart, sans_les_lignes_de_pret, utilisateur
 from api.tests.mark.test_builder_tests_agent import banc, brouillon_v, enregistrer_execution, un_test  # noqa: F401
 
 EQUIPE = Contexte(user=utilisateur(1), workflow_id=AGENT)
@@ -34,7 +34,7 @@ def _monde_du_lot(monde, monkeypatch):
 
 
 def brouillon_avec(configurations, version=2):
-    return SimpleNamespace(workflow_json=graphe_depart(), version_number=version, workflow_configurations=configurations, status="draft")
+    return SimpleNamespace(workflow_json=graphe_depart(), version_number=version, workflow_configurations=sans_les_lignes_de_pret(configurations), status="draft")
 
 
 # --- les contrôles de la fenêtre « Publier » ----------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ async def test_la_liste_vocale_simule_d_abord_et_ne_corrige_que_les_points_accep
 
 
 async def test_corriger_la_liste_vocale_ecrit_le_brouillon_puis_rejoue_le_controle_complet(banc):  # noqa: F811
-    banc.brouillons[AGENT].workflow_configurations = {"publication": {"controles": {"liste_vocale": "previent"}}}
+    banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret({"publication": {"controles": {"liste_vocale": "previent"}}})
     avant = await executer("publication_controler", {}, EQUIPE)
     assert next(c for c in avant["controles"] if c["cle"] == "liste_vocale")["statut"] == "alerte"
     refus = await executer("publication_corriger_la_liste_vocale", {"ids": ["modele_de_secours"]}, EQUIPE)
@@ -239,6 +239,7 @@ def route(banc, monkeypatch):  # noqa: F811
         publish_workflow_draft=publier,
     )
     banc.workflows[AGENT].released_definition_id = 12
+    banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret(getattr(banc.brouillons[AGENT], 'workflow_configurations', None))
     monkeypatch.setattr(route_workflow, "db_client", db)
     monkeypatch.setattr(route_workflow, "_validate_workflow_definition", AsyncMock(return_value=[]))
     monkeypatch.setattr(route_workflow, "capture_event", lambda **k: None)
@@ -283,7 +284,7 @@ async def test_une_part_des_appels_n_est_permise_que_deploiement_allume_et_ecrit
     with pytest.raises(HTTPException) as e:  # éteint : refus net, rien n'est publié
         await route.module.publier_un_agent(AGENT, user, DemandeDePublication(pourcentage=20))
     assert e.value.status_code == 422 and route.publiees == []
-    route.banc.brouillons[AGENT].workflow_configurations = {"publication": {"deploiement": {"actif": True}}}
+    route.banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret({"publication": {"deploiement": {"actif": True}}})
     await route.module.publier_un_agent(AGENT, user, DemandeDePublication(pourcentage=20))
     assert route.publiees == [AGENT]
     assert await deploiement.lire(ORG_CLIENT, AGENT) == {"nouvelle": 13, "precedente": 12, "pourcentage": 20, "par": "3"}

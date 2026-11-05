@@ -1,8 +1,21 @@
+import type { EtapeDePreparation } from "@/client/types.gen";
+
 /** [.mark] U11 : les formes rendues par `/builder/publication` et `/builder/attaques` (voir `api/services/publication`, `attaques`). */
 
 export type PositionControle = "eteint" | "previent" | "bloque";
 export type StatutControle = "ok" | "alerte" | "echec" | "eteint";
-export type CleControle = "tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous";
+export type CleControle =
+    | "tests_obligatoires"
+    | "bilan_du_prompt"
+    | "liste_vocale"
+    | "attaques"
+    | "garde_fous"
+    | "variables"
+    | "briques"
+    | "outils"
+    | "sans_effet"
+    | "sortie_d_impasse"
+    | "deux_webhooks";
 
 export interface ControleDePublication {
     cle: CleControle;
@@ -26,6 +39,8 @@ export interface VueDePublication {
     ok?: boolean;
     version: number | null;
     controles: ControleDePublication[];
+    /** [.mark] Partie 3 (SA-L3a) : « Prêt à publier », la même liste que la carte des Réglages (`GET /workflow/{id}/preparation`). */
+    lignes?: EtapeDePreparation[];
     bloque: boolean;
     liste_vocale: PointDeLaListeVocale[];
     deploiement_actif: boolean;
