@@ -486,6 +486,20 @@ export type AgentCopie = {
 };
 
 /**
+ * AgentDuClient
+ */
+export type AgentDuClient = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * AgentPublie
  */
 export type AgentPublie = {
@@ -5260,6 +5274,24 @@ export type DemandeDeRappelConfig = {
 };
 
 /**
+ * DemandeDemarrer
+ */
+export type DemandeDemarrer = {
+    /**
+     * Nom
+     *
+     * Company name, as shown everywhere.
+     */
+    nom: string;
+    /**
+     * Identifiant
+     *
+     * Stable identifier of the organization; derived from the name when omitted.
+     */
+    identifiant?: string | null;
+};
+
+/**
  * DemandeEmplacement
  */
 export type DemandeEmplacement = {
@@ -5325,6 +5357,19 @@ export type DemandeEtablissementsDeLagent = {
      * The fiche the agent chose, as on its screen.
      */
     etablissement_id?: string | null;
+};
+
+/**
+ * DemandeEtape
+ */
+export type DemandeEtape = {
+    donnees?: DonneesEtape;
+    /**
+     * Confirmer
+     *
+     * Required for a step that spends money (the estimated amount was shown).
+     */
+    confirmer?: boolean;
 };
 
 /**
@@ -6090,6 +6135,46 @@ export type DograhTtsService = {
 };
 
 /**
+ * DonneesEtape
+ *
+ * Ce que chaque étape reçoit de la fenêtre (les champs d'une autre étape sont ignorés).
+ */
+export type DonneesEtape = {
+    /**
+     * Mode
+     */
+    mode?: 'creer' | 'rattacher' | null;
+    /**
+     * Nom Base
+     */
+    nom_base?: string | null;
+    /**
+     * Etablissements
+     */
+    etablissements?: Array<EtablissementDemande> | null;
+    /**
+     * Personnes
+     */
+    personnes?: Array<PersonneDemande> | null;
+    /**
+     * Sujets
+     */
+    sujets?: Array<SujetDemande> | null;
+    /**
+     * Propositions
+     */
+    propositions?: Array<PropositionDemande> | null;
+    /**
+     * Workflow Id
+     */
+    workflow_id?: number | null;
+    /**
+     * Scenario Ids
+     */
+    scenario_ids?: Array<string> | null;
+};
+
+/**
  * DossierPropose
  */
 export type DossierPropose = {
@@ -6115,6 +6200,28 @@ export type DuplicateTemplateRequest = {
      * Workflow Name
      */
     workflow_name: string;
+};
+
+/**
+ * EchecInstallation
+ */
+export type EchecInstallation = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Fr
+     */
+    fr: string;
+    /**
+     * En
+     */
+    en: string;
+    /**
+     * Precisions
+     */
+    precisions?: Array<string>;
 };
 
 /**
@@ -6882,6 +6989,28 @@ export type EssaiMail = {
 };
 
 /**
+ * EstimationInstallation
+ */
+export type EstimationInstallation = {
+    /**
+     * Scenarios
+     */
+    scenarios: number;
+    /**
+     * Montant
+     */
+    montant?: number | null;
+    /**
+     * Plafond
+     */
+    plafond?: number | null;
+    /**
+     * Devise
+     */
+    devise?: string;
+};
+
+/**
  * Etablissement
  *
  * One establishment. Every optional field left empty is empty: nothing is inherited (F-8).
@@ -6965,6 +7094,20 @@ export type Etablissement = {
      * Terms this establishment adds to the organization's trade vocabulary (E6).
      */
     termes_lexique?: Array<TermeLexique>;
+};
+
+/**
+ * EtablissementDemande
+ */
+export type EtablissementDemande = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Horaires Ouverture
+     */
+    horaires_ouverture?: string | null;
 };
 
 /**
@@ -7140,6 +7283,52 @@ export type EtapeDePreparation = {
      * Onglet
      */
     onglet?: string | null;
+};
+
+/**
+ * EtapeVue
+ */
+export type EtapeVue = {
+    /**
+     * Numero
+     */
+    numero: number;
+    /**
+     * Cle
+     */
+    cle: string;
+    titre: PhraseInstallation;
+    /**
+     * Passable
+     */
+    passable: boolean;
+    /**
+     * Depense
+     */
+    depense: boolean;
+    /**
+     * Etat
+     */
+    etat: 'a_faire' | 'en_cours' | 'faite' | 'erreur' | 'passee';
+    /**
+     * Le
+     */
+    le?: string | null;
+    /**
+     * Par
+     */
+    par?: number | null;
+    erreur?: PhraseInstallation | null;
+    /**
+     * Code Erreur
+     */
+    code_erreur?: string | null;
+    /**
+     * Resultat
+     */
+    resultat?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -8736,6 +8925,79 @@ export type InitiateCallRequest = {
      * From Phone Number Id
      */
     from_phone_number_id?: number | null;
+};
+
+/**
+ * InstallationResume
+ */
+export type InstallationResume = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    /**
+     * Prochaine
+     */
+    prochaine?: number | null;
+    /**
+     * Faites
+     */
+    faites: number;
+    /**
+     * Erreur
+     */
+    erreur: boolean;
+};
+
+/**
+ * InstallationVue
+ */
+export type InstallationVue = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Etat
+     */
+    etat: 'ouverte' | 'terminee' | 'abandonnee';
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+    /**
+     * Etapes
+     */
+    etapes: Array<EtapeVue>;
+    /**
+     * Prochaine
+     */
+    prochaine?: number | null;
+    estimation?: EstimationInstallation | null;
+    /**
+     * Agents Du Client
+     */
+    agents_du_client?: Array<AgentDuClient> | null;
 };
 
 /**
@@ -12749,6 +13011,28 @@ export type PersonneAssignable = {
 };
 
 /**
+ * PersonneDemande
+ */
+export type PersonneDemande = {
+    /**
+     * Prenom
+     */
+    prenom: string;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+};
+
+/**
  * PhoneNumberCreateRequest
  *
  * Create a new phone number under a telephony configuration.
@@ -12944,6 +13228,20 @@ export type Phrase = {
      * organisation: the same for every establishment. etablissement: each establishment may have its own.
      */
     niveau?: 'organisation' | 'etablissement';
+};
+
+/**
+ * PhraseInstallation
+ */
+export type PhraseInstallation = {
+    /**
+     * Fr
+     */
+    fr: string;
+    /**
+     * En
+     */
+    en: string;
 };
 
 /**
@@ -13514,6 +13812,24 @@ export type PropositionConnecteur = {
      * Autorise Par
      */
     autorise_par?: string | null;
+};
+
+/**
+ * PropositionDemande
+ */
+export type PropositionDemande = {
+    /**
+     * Connecteur
+     */
+    connecteur: string;
+    /**
+     * Compte
+     */
+    compte?: string | null;
+    /**
+     * Message
+     */
+    message?: string | null;
 };
 
 /**
@@ -15153,6 +15469,24 @@ export type ResultatDepot = {
 };
 
 /**
+ * ResultatEtape
+ */
+export type ResultatEtape = {
+    installation: InstallationVue;
+    /**
+     * Sautee
+     */
+    sautee: boolean;
+    echec?: EchecInstallation | null;
+    /**
+     * Montre
+     */
+    montre?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * ResultatRattachement
  */
 export type ResultatRattachement = {
@@ -16687,6 +17021,22 @@ export type Sujet = {
      * Identifiers of the people, in order of priority.
      */
     destinataires?: Array<string>;
+};
+
+/**
+ * SujetDemande
+ */
+export type SujetDemande = {
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Destinataires
+     *
+     * Indexes in ``personnes``.
+     */
+    destinataires?: Array<number>;
 };
 
 /**
@@ -29427,6 +29777,233 @@ export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJour
      */
     200: unknown;
 };
+
+export type DemarrerUneInstallationApiV1InstallationsClientPostData = {
+    body: DemandeDemarrer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/installations-client';
+};
+
+export type DemarrerUneInstallationApiV1InstallationsClientPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DemarrerUneInstallationApiV1InstallationsClientPostError = DemarrerUneInstallationApiV1InstallationsClientPostErrors[keyof DemarrerUneInstallationApiV1InstallationsClientPostErrors];
+
+export type DemarrerUneInstallationApiV1InstallationsClientPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: InstallationVue;
+};
+
+export type DemarrerUneInstallationApiV1InstallationsClientPostResponse = DemarrerUneInstallationApiV1InstallationsClientPostResponses[keyof DemarrerUneInstallationApiV1InstallationsClientPostResponses];
+
+export type InstallationsOuvertesApiV1InstallationsClientOuvertesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/installations-client/ouvertes';
+};
+
+export type InstallationsOuvertesApiV1InstallationsClientOuvertesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InstallationsOuvertesApiV1InstallationsClientOuvertesGetError = InstallationsOuvertesApiV1InstallationsClientOuvertesGetErrors[keyof InstallationsOuvertesApiV1InstallationsClientOuvertesGetErrors];
+
+export type InstallationsOuvertesApiV1InstallationsClientOuvertesGetResponses = {
+    /**
+     * Response Installations Ouvertes Api V1 Installations Client Ouvertes Get
+     *
+     * Successful Response
+     */
+    200: Array<InstallationResume>;
+};
+
+export type InstallationsOuvertesApiV1InstallationsClientOuvertesGetResponse = InstallationsOuvertesApiV1InstallationsClientOuvertesGetResponses[keyof InstallationsOuvertesApiV1InstallationsClientOuvertesGetResponses];
+
+export type InstallationCouranteApiV1InstallationsClientCouranteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/installations-client/courante';
+};
+
+export type InstallationCouranteApiV1InstallationsClientCouranteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InstallationCouranteApiV1InstallationsClientCouranteGetError = InstallationCouranteApiV1InstallationsClientCouranteGetErrors[keyof InstallationCouranteApiV1InstallationsClientCouranteGetErrors];
+
+export type InstallationCouranteApiV1InstallationsClientCouranteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallationVue;
+};
+
+export type InstallationCouranteApiV1InstallationsClientCouranteGetResponse = InstallationCouranteApiV1InstallationsClientCouranteGetResponses[keyof InstallationCouranteApiV1InstallationsClientCouranteGetResponses];
+
+export type ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostData = {
+    body: DemandeEtape;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Numero
+         */
+        numero: number;
+    };
+    query?: never;
+    url: '/api/v1/installations-client/courante/etapes/{numero}';
+};
+
+export type ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostError = ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostErrors[keyof ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostErrors];
+
+export type ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatEtape;
+};
+
+export type ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostResponse = ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostResponses[keyof ExecuterUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPostResponses];
+
+export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Numero
+         */
+        numero: number;
+    };
+    query?: never;
+    url: '/api/v1/installations-client/courante/etapes/{numero}/passer';
+};
+
+export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostError = PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostErrors[keyof PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostErrors];
+
+export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallationVue;
+};
+
+export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponse = PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponses[keyof PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponses];
 
 export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetData = {
     body?: never;
