@@ -55,7 +55,9 @@ export function useStatistiquesDesEtapes(workflowId: number, allumees: boolean):
                 notifier.echec({ fr: "Statistiques illisibles. Réessayez dans un instant.", en: "Could not read the statistics. Try again in a moment." });
                 return;
             }
-            setStats(lireLesEtapes(reponse.data.runs as AppelLu[]));
+            const lues = lireLesEtapes(reponse.data.runs as AppelLu[]);
+            if (lues.appels === 0) notifier.information({ fr: "Aucun appel enregistré pour cet agent : pas encore de statistiques.", en: "No call recorded for this agent yet: no statistics." });
+            setStats(lues);
         })();
         return () => {
             annule = true;

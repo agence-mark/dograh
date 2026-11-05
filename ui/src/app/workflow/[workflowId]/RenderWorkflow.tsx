@@ -32,6 +32,7 @@ import { partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
 import { useDecalagePanneau } from "@/components/mark/studio/panneau-droit";
 import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
+import { libelleDuType } from "@/components/flow/nodes/GenericNode";
 import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
 import { useLangue } from "@/components/mark/langue/langue";
@@ -605,9 +606,14 @@ function RenderWorkflow({
         },
         [rfInstance],
     );
+    const { langue } = useLangue();
     const etapesCherchables = useMemo(
-        () => nodes.map((n) => ({ id: n.id, nom: String((n.data as { name?: string }).name ?? n.id), type: n.type })),
-        [nodes],
+        () =>
+            nodes.map((n) => {
+                const spec = specs.find((s) => s.name === n.type);
+                return { id: n.id, nom: String((n.data as { name?: string }).name ?? n.id), type: spec ? libelleDuType(spec, langue) : n.type };
+            }),
+        [nodes, specs, langue],
     );
     // Supprimer au clavier demande aussi confirmation (la barre au survol a la sienne).
     const [suppressionDemandee, setSuppressionDemandee] = useState<{ nombre: number; nom: string; reponse: (ok: boolean) => void } | null>(null);
@@ -625,6 +631,20 @@ function RenderWorkflow({
         [],
     );
     const decalagePanneau = useDecalagePanneau();
+    // Le panneau de droite s'ouvre ou s'élargit : la zone du graphe rétrécit ; le graphe glisse (sans toucher au zoom) pour garder
+    // l'étape choisie entièrement visible (maquette `canevas.tsx`).
+    useEffect(() => {
+        const minuteur = setTimeout(() => {
+            const instance = rfInstance.current;
+            const choisie = useWorkflowStore.getState().nodes.find((n) => n.selected);
+            if (!instance || !choisie) return;
+            const mesuree = instance.getInternalNode(choisie.id);
+            const largeur = mesuree?.measured?.width ?? 250;
+            const hauteur = mesuree?.measured?.height ?? 100;
+            instance.setCenter(choisie.position.x + largeur / 2, choisie.position.y + hauteur / 2, { zoom: instance.getZoom(), duration: 250 });
+        }, 120);
+        return () => clearTimeout(minuteur);
+    }, [decalagePanneau, rfInstance]);
 
     // The nodes appear one by one: keep the whole graph in view while the operations arrive.
     useEffect(() => {

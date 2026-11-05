@@ -109,8 +109,11 @@ export const DecalagePanneau = createContext(0);
 export const useDecalagePanneau = () => useContext(DecalagePanneau);
 export const usePanneau = () => useContext(ContextePanneau);
 
-/** Largeur annoncée par une fenêtre : sa classe `sm:max-w-*` (hors panneau, c'est sa largeur centrée). */
-const LARGEURS: Record<string, number> = { sm: 384, md: 448, lg: 512, xl: 576, "2xl": 672, "3xl": 768, "4xl": 896, "5xl": 1024, "6xl": 1152 };
+/**
+ * Largeur annoncée par une fenêtre : sa classe `sm:max-w-*` lue comme un besoin de place, ramenée à ce que le panneau offre
+ * (une fenêtre centrée de 896 px n'a pas besoin de 896 px dans un panneau : 640 suffisent, la page garde sa place).
+ */
+const LARGEURS: Record<string, number> = { sm: 480, md: 480, lg: 480, xl: 480, "2xl": 520, "3xl": 600, "4xl": 640, "5xl": 720, "6xl": 800 };
 export function largeurAnnoncee(classes?: string): number | undefined {
     const m = /(?:^|\s)(?:sm:|md:|lg:)?max-w-(sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl)(?:\s|$)/.exec(classes ?? "");
     return m ? LARGEURS[m[1]] : undefined;

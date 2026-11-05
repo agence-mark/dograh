@@ -159,7 +159,7 @@ describe("fenêtres dans le panneau de droite", () => {
 
 describe("largeur et adaptation", () => {
     it("lit la largeur annoncée par la fenêtre", () => {
-        expect(largeurAnnoncee("flex sm:max-w-3xl h-[86vh]")).toBe(768);
+        expect(largeurAnnoncee("flex sm:max-w-3xl h-[86vh]")).toBe(600);
         expect(largeurAnnoncee("p-0")).toBeUndefined();
     });
 
