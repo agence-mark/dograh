@@ -6,6 +6,9 @@ la visionneuse de fichiers.
 - ``GET  /builder/agents/{id}/versions``                         les versions de brouillon restaurables ;
 - ``POST /builder/agents/{id}/versions/{n}/restaurer``;
 - ``POST /builder/fils/{id}/depenses/{depense}``                 l'accord (ou le refus) d'une dépense annoncée ;
+- ``PUT  /builder/fils/{id}/mode``                               le mode du chat (N1 : demander, agent, tout, plan) ;
+- ``POST /builder/fils/{id}/autorisations/{demande}``            la réponse à une carte d'autorisation (une fois, pour ce chat, refuser) ;
+- ``DELETE /builder/fils/{id}/autorisations/{demande}``          retirer une autorisation « pour ce chat » ;
 - ``GET  /builder/fils/{id}/sous-agents`` · ``PUT .../sous-agents/interrupteur`` · ``POST .../sous-agents/arreter``;
 - ``GET|PUT /builder/sous-agents/reglages``                      Labo › Builder IA › Sous-agents ;
 - ``GET  /builder/fichiers/{uuid}/texte``                        le texte extrait d'un fichier de la base de connaissances (visionneuse).
@@ -15,7 +18,7 @@ Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0).
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -184,6 +187,116 @@ async def repondre_a_une_depense(
     except service_fil.ErreurFil as erreur:
         raise HTTPException(status_code=erreur.statut, detail=str(erreur)) from None
     return {"ok": True, "statut": depense["statut"]}
+
+
+# --- N1 : le mode du chat et les cartes d'autorisation ------------------------------------------------------------------------------
+
+
+class ModeDemande(BaseModel):
+    mode: Literal["demander", "agent", "tout", "plan"]
+
+
+class ReponseAutorisation(BaseModel):
+    decision: Literal["une_fois", "pour_ce_chat", "refuser"]
+    raison: str | None = Field(default=None, max_length=500, description="Why it is refused (optional): the builder reads it.")
+
+
+def _chat_modifiable(fil) -> None:
+    if fil.genre in ("sous_agent", "claude_code"):
+        raise HTTPException(status_code=409, detail="This conversation has no permission mode.")
+    if service_fil.en_cours(fil.id):
+        raise HTTPException(status_code=409, detail="The builder is still working: wait for it to stop.")
+
+
+@router.put("/fils/{fil_id}/mode")
+async def regler_le_mode(fil_id: int, demande: ModeDemande, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Le mode vaut pour CE chat (un nouveau chat repart sur « demander »). Il ne donne jamais plus que le rôle de la personne : chaque
+    action reste vérifiée côté serveur (``modes.decider``). « Tout permettre » est journalisé (qui, quel chat, quand)."""
+    fil = await _fil_ou_404(user, fil_id)
+    _chat_modifiable(fil)
+    historique = dict(fil.historique or {})
+    avant = historique.get("mode") or "demander"
+    historique["mode"] = demande.mode
+    await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
+    await service_fil.noter(fil.id, {"type": "mode", "mode": demande.mode, "avant": avant})
+    if demande.mode in ("agent", "tout") and avant != demande.mode:
+        from api.services.equipe_mark.acces import journaliser
+
+        await journaliser(user, "builder.mode", user.selected_organization_id, {"fil": fil.id, "mode": demande.mode, "agent": fil.workflow_id})
+    return {"ok": True, "mode": demande.mode}
+
+
+def _demande_ou_erreur(historique: dict[str, Any], demande_id: str) -> dict[str, Any]:
+    demandes = {k: dict(v) for k, v in (historique.get("autorisations") or {}).items()}
+    historique["autorisations"] = demandes
+    demande = demandes.get(demande_id)
+    if demande is None:
+        raise HTTPException(status_code=404, detail="Unknown permission request")
+    return demande
+
+
+def _message_de_reponse(demande: dict[str, Any], decision: str, raison: str | None) -> str:
+    nom = demande.get("nom")
+    if decision == "une_fois":
+        return f"Allowed once: call « {nom} » again with exactly the same arguments, then go on."
+    if decision == "pour_ce_chat":
+        return f"Allowed for this chat: « {nom} » on {demande.get('objet')}. Call it again, then go on."
+    motif = f" Reason given by the person: {raison.strip()}" if raison and raison.strip() else ""
+    return f"Refused: do not do « {nom} ». Find another way or tell the person what stays to do.{motif}"
+
+
+@router.post("/fils/{fil_id}/autorisations/{demande_id}")
+async def repondre_a_une_autorisation(
+    fil_id: int, demande_id: str, reponse: ReponseAutorisation, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Enregistre la réponse de la personne à une carte, puis rend la main au builder : rien n'est exécuté sans ce clic, et c'est le
+    builder qui rappelle l'action (la porte des modes la laisse passer d'après cette réponse)."""
+    from api.routes import builder as routes_builder
+
+    fil = await _fil_ou_404(user, fil_id)
+    _chat_modifiable(fil)
+    historique = dict(fil.historique or {})
+    demande = _demande_ou_erreur(historique, demande_id)
+    if demande.get("statut") != "attente":
+        raise HTTPException(status_code=409, detail="This request was already answered.")
+    demande["statut"] = "refusee" if reponse.decision == "refuser" else reponse.decision
+    if reponse.decision == "refuser" and reponse.raison:
+        demande["raison"] = reponse.raison.strip()[:500]
+    historique["autorisations"][demande_id] = demande
+    await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
+    fil.historique = historique
+    await service_fil.noter(fil.id, {"type": "autorisation_reponse", "id": demande_id, "statut": demande["statut"]})
+    if reponse.decision != "refuser":
+        from api.services.equipe_mark.acces import journaliser
+
+        await journaliser(
+            user,
+            "builder.autorisation",
+            user.selected_organization_id,
+            {"fil": fil.id, "action": demande.get("nom"), "famille": demande.get("famille"), "objet": demande.get("objet"), "decision": reponse.decision},
+        )
+    cerveau, reglages = await routes_builder._cerveau_de(user)
+    try:
+        await service_fil.lancer(user, fil, _message_de_reponse(demande, reponse.decision, reponse.raison), cerveau, reglages)
+    except service_fil.ErreurFil as erreur:
+        raise HTTPException(status_code=erreur.statut, detail=str(erreur)) from None
+    return {"ok": True, "statut": demande["statut"]}
+
+
+@router.delete("/fils/{fil_id}/autorisations/{demande_id}")
+async def retirer_une_autorisation(fil_id: int, demande_id: str, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Retire une autorisation « pour ce chat » : la prochaine action de ce type sur cet objet redemande."""
+    fil = await _fil_ou_404(user, fil_id)
+    _chat_modifiable(fil)
+    historique = dict(fil.historique or {})
+    demande = _demande_ou_erreur(historique, demande_id)
+    if demande.get("statut") != "pour_ce_chat":
+        raise HTTPException(status_code=409, detail="Only a permission for this chat can be withdrawn.")
+    demande["statut"] = "retiree"
+    historique["autorisations"][demande_id] = demande
+    await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
+    await service_fil.noter(fil.id, {"type": "autorisation_reponse", "id": demande_id, "statut": "retiree"})
+    return {"ok": True, "statut": "retiree"}
 
 
 # --- les sous-agents -------------------------------------------------------------------------------------------------------

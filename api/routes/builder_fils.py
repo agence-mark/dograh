@@ -77,9 +77,24 @@ class VueFil(BaseModel):
     sous_agents_actifs: bool = True
     # U12 : une conversation recopiée depuis Claude Code (genre « claude_code ») : lecture seule, auteur affiché « Claude Code · <prénom> ».
     auteur: str | None = None
+    # N1 : le mode du chat (« demander », « agent », « tout », « plan ») et ses autorisations « pour ce chat » (retirables).
+    mode: str = "demander"
+    autorisations_du_chat: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _autorisations_du_chat(historique: dict[str, Any] | None) -> list[dict[str, Any]]:
+    demandes = (historique or {}).get("autorisations") or {}
+    return [
+        {"id": i, "nom": d.get("nom"), "famille": d.get("famille"), "objet": d.get("objet")}
+        for i, d in demandes.items()
+        if isinstance(d, dict) and d.get("statut") == "pour_ce_chat"
+    ]
 
 
 def _vue(fil) -> VueFil:
+    from api.services.builder import modes
+
+    historique = fil.historique if isinstance(getattr(fil, "historique", None), dict) else {}
     return VueFil(
         id=fil.id,
         workflow_id=fil.workflow_id,
@@ -97,6 +112,8 @@ def _vue(fil) -> VueFil:
         parent_id=fil.parent_id,
         sous_agents_actifs=bool(fil.sous_agents_actifs),
         auteur=fil.auteur,
+        mode=modes.mode_de(historique),
+        autorisations_du_chat=_autorisations_du_chat(historique),
     )
 
 
