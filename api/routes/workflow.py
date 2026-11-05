@@ -996,10 +996,8 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
         if refus_canal:
             raise HTTPException(status_code=422, detail=refus_canal)
 
-    # [.mark] U11 (E103) : déploiement progressif, ÉTEINT par défaut. Éteint, rien n'est lu ni écrit ici.
-    from api.services.publication import deploiement as deploiement_progressif
-    from api.services.publication.reglages import deploiement_actif
-
+    # [.mark] Partie 3, SA-L3b (05 § 12) : la part des appels est la RÉPARTITION ENTRE BRANCHES (``/builder/branches``), plus une
+    # option de la publication. Publier ici publie la branche principale ; les branches gardent leur part.
     # [.mark] Partie 3 (SE-12) : un agent sans réglages de publication propres reçoit ceux de l'organisation, recopiés dans son
     # brouillon avant la publication (la création d'un appel lit le dictionnaire de la version publiée, rien de plus).
     from api.services.publication import defauts_org
@@ -1008,25 +1006,13 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
     if configurations_effectives != (draft.workflow_configurations or {}):
         await db_client.save_workflow_draft(workflow_id, workflow_configurations=configurations_effectives)
         draft.workflow_configurations = configurations_effectives
-    part = demande.pourcentage if demande is not None else None
-    progressif = deploiement_actif(draft.workflow_configurations)
-    if part is not None and not progressif:
-        raise HTTPException(status_code=422, detail="The progressive deployment is off for this agent (Settings > Publication).")
-    if part is not None and workflow.released_definition_id is None:
-        raise HTTPException(status_code=422, detail="There is no earlier published version to keep the rest of the calls on.")
-    precedente_id = workflow.released_definition_id
 
     try:
         published = await db_client.publish_workflow_draft(workflow_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    if part is not None:
-        await deploiement_progressif.demarrer(
-            user.selected_organization_id, workflow_id, published.id, precedente_id, part, str(user.id)
-        )
-    elif progressif:  # une publication ordinaire vaut pour tous les appels : la part en cours est close (geste de la personne)
-        await deploiement_progressif.passer_a_100(user.selected_organization_id, workflow_id)
+    # Une nouvelle version en ligne : la principale la suit (une épingle posée par un retour en arrière ou une migration tombe).
+    await db_client.epingler_la_principale(user.selected_organization_id, workflow_id, None)
 
     capture_event(
         distinct_id=str(user.provider_id),

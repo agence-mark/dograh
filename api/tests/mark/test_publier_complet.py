@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from api.services.groupe import groupe as service
-from api.services.publication import changements, defauts_org, deploiement
+from api.services.publication import changements, defauts_org
 from api.tests.mark.test_apres_appel import _organisation, base_v4, smtp  # noqa: F401  (fixtures)
 from api.tests.mark.test_sous_dossiers_et_groupe import _creer_groupe, _oublier, autre_org, org  # noqa: F401
 
@@ -205,21 +205,22 @@ async def test_un_agent_sans_reglages_propres_recoit_ceux_de_l_organisation_et_l
     async with test_client_factory(org.utilisateur) as client:
         principal_id, [s1, _] = await _groupe(client, db_session, org)
         await _oublier(async_session)
-        # Sans défauts de l'organisation : une part est refusée (déploiement éteint).
+        # Sans défauts de l'organisation : la répartition du trafic entre branches est refusée (éteinte).
         assert (await client.post(f"/api/v1/workflow/{principal_id}/publish")).status_code == 200
         await db_session.save_workflow_draft(principal_id, workflow_configurations={"user_speech_timeout": 1.2})
         await _oublier(async_session)
-        refus = await client.post(f"/api/v1/workflow/{principal_id}/publish", json={"pourcentage": 25})
+        cree = (await client.post(f"/api/v1/builder/branches/{principal_id}", json={"nom": "Essai"})).json()
+        vue = (await client.get(f"/api/v1/builder/branches/{principal_id}")).json()
+        parts = {b["id"]: (30 if b["id"] == cree["id"] else 70) for b in vue["branches"]}
+        refus = await client.put(f"/api/v1/builder/branches/{principal_id}/repartition", json={"parts": parts})
         assert refus.status_code == 422, refus.text
-        # L'organisation allume le déploiement : la fenêtre le montre, la publication par part passe, la ligne est écrite.
+        # L'organisation allume la répartition : la fenêtre le montre et la publication copie ce réglage dans l'agent.
         await client.put("/api/v1/builder/publication-organisation", json={"controles": {}, "deploiement": {"actif": True}})
         vue = (await client.get(f"/api/v1/builder/publication/{principal_id}")).json()
         assert vue["deploiement_actif"] is True
-        ok = await client.post(f"/api/v1/workflow/{principal_id}/publish", json={"pourcentage": 25})
+        ok = await client.post(f"/api/v1/workflow/{principal_id}/publish")
         assert ok.status_code == 200, ok.text
         await _oublier(async_session)
-        ligne = await deploiement.lire(org.organisation.id, principal_id)
-        assert ligne is not None and ligne["pourcentage"] == 25
         publie = (await db_session.get_workflow(principal_id, organization_id=org.organisation.id)).released_definition
         assert publie.workflow_configurations["publication"]["deploiement"]["actif"] is True
         # Le sien gagne : un agent qui a écrit « éteint » ne suit pas l'organisation.

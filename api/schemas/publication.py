@@ -51,7 +51,4 @@ class DemandeDePublication(BaseModel):
 
     forcer: bool = Field(default=False, description="Publish although a blocking check fails. A reason is then required.")
     raison: str | None = Field(default=None, max_length=600, description="Why the publication is forced: written to the journal with the person.")
-    pourcentage: int | None = Field(
-        default=None, ge=1, le=99, description="Progressive deployment only: the share of calls the new version takes (the rest stays on the previous one)."
-    )
     note: str | None = Field(default=None, max_length=600, description="What changes, for the journal.")

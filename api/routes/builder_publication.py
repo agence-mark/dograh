@@ -4,8 +4,7 @@
 - ``PUT  /builder/publication/{agent}/reglages``                 les trois positions de chaque contrôle, le déploiement (brouillon) ;
 - ``POST /builder/publication/{agent}/liste-vocale/corriger``    écrire les corrections ACCEPTÉES ;
 - ``POST /builder/publication/{agent}/corriger-un-reglage``      la correction en un clic d'un réglage sans effet (« Prêt à publier ») ;
-- ``GET  /builder/publication/{agent}/deploiement``              la part en cours ;
-- ``POST /builder/publication/{agent}/deploiement/passer-a-100`` · ``.../revenir``   gestes humains, jamais automatiques ;
+- (la part des appels vit dans ``/builder/branches`` : un seul mécanisme de répartition du trafic) ;
 - ``GET  /builder/attaques/catalogue`` · ``GET|POST /builder/attaques/{agent}[/lancer|/rejouer]``.
 
 Tout est lu et écrit AVEC l'organisation de l'utilisateur ; un agent d'une autre organisation est un 404.
@@ -69,11 +68,6 @@ class Lancer(BaseModel):
     confirme: bool = False
     modifie_l_environnement: bool = False
     corrige: bool = False
-
-
-class Revenir(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    version: int = Field(ge=1, description="The version number to go back to (an earlier published or archived version).")
 
 
 # --- publication ----------------------------------------------------------------------------------------------------------
@@ -142,53 +136,6 @@ async def corriger_un_reglage(workflow_id: int, corps: CorrigerUnReglage, user: 
         raise HTTPException(status_code=422, detail=str(erreur)) from None
     await journaliser(user, "agents.corriger_un_reglage", user.selected_organization_id, {"agent": workflow_id, "correction": corps.correction})
     return {"ok": True, **vue}
-
-
-@router.get("/builder/publication/{workflow_id}/deploiement")
-async def deploiement_en_cours(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
-    from api.services.publication import deploiement
-
-    await _agent_ou_404(user, workflow_id)
-    ligne = await deploiement.lire(user.selected_organization_id, workflow_id)
-    versions = await db_client.get_workflow_versions(workflow_id, limit=50)
-    numeros = {v.id: v.version_number for v in versions}
-    if ligne is None:
-        return {"en_cours": False}
-    return {
-        "en_cours": True,
-        "pourcentage": ligne.get("pourcentage"),
-        "nouvelle": numeros.get(ligne.get("nouvelle")),
-        "precedente": numeros.get(ligne.get("precedente")),
-    }
-
-
-@router.post("/builder/publication/{workflow_id}/deploiement/passer-a-100")
-async def passer_a_100(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
-    from api.services.equipe_mark.acces import journaliser
-    from api.services.publication import deploiement
-
-    await _agent_ou_404(user, workflow_id)
-    resultat = await deploiement.passer_a_100(user.selected_organization_id, workflow_id)
-    await journaliser(user, "agents.deploiement_100", user.selected_organization_id, {"agent": workflow_id})
-    return {"ok": True, **resultat}
-
-
-@router.post("/builder/publication/{workflow_id}/deploiement/revenir")
-async def revenir_a_une_version(workflow_id: int, corps: Revenir, user: UserModel = Depends(get_user_with_selected_organization)):
-    from api.services.equipe_mark.acces import journaliser
-    from api.services.publication import deploiement
-
-    await _agent_ou_404(user, workflow_id)
-    versions = await db_client.get_workflow_versions(workflow_id, limit=100)
-    cible = next((v for v in versions if v.version_number == corps.version and v.status in ("published", "archived")), None)
-    if cible is None:
-        raise HTTPException(status_code=404, detail="Published or archived agent version not found")
-    try:
-        ligne = await deploiement.revenir(user.selected_organization_id, workflow_id, cible.id, corps.version, str(user.id))
-    except deploiement.ErreurDeploiement as erreur:
-        raise HTTPException(status_code=422, detail=str(erreur)) from None
-    await journaliser(user, "agents.deploiement_retour", user.selected_organization_id, {"agent": workflow_id, "version": corps.version})
-    return {"ok": True, "pourcentage": ligne["pourcentage"]}
 
 
 # --- les défauts de l'organisation (thème « Publication » des Réglages) --------------------------------------------------
