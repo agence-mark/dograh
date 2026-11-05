@@ -121,8 +121,10 @@ def _decision_pour_une_cle(methode: str, chemin: str) -> dict:
     trouvee = registre.decision_de(methode, modele)
     assert trouvee is not None, f"{methode} {chemin} n'a pas de décision de permission"
     decision = trouvee[0]
+    de_cle = None
     if isinstance(decision, registre.Permission):
-        nom, permise = decision.cle, decision.cle in PERMISSIONS_DE_CLE
+        de_cle = decision.pour_cle or decision.cle  # RV (point 3) : la permission que la CLÉ doit porter
+        nom, permise = decision.cle, de_cle in PERMISSIONS_DE_CLE
     elif isinstance(decision, registre.Exemption):
         nom, permise = "exemption", True
     else:
@@ -131,7 +133,7 @@ def _decision_pour_une_cle(methode: str, chemin: str) -> dict:
         permise = False
     if methode in registre.ECRITURE and any(modele == r or modele.startswith(r + "/") for r in ROUTES_ECRITURE_FERMEES_AUX_CLES):
         permise = False
-    return {"permission": nom, "ouverte_a_la_cle": permise}
+    return {"permission": nom, "permission_de_cle": de_cle, "ouverte_a_la_cle": permise}
 
 
 def forme_de(spec: dict, methode: str, chemin: str) -> dict:

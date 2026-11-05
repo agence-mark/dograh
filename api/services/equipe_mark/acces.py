@@ -43,7 +43,8 @@ PERMISSIONS_JAMAIS_PAR_CLE = frozenset(PERMISSIONS) - PERMISSIONS_DE_CLE
 ROUTES_ECRITURE_FERMEES_AUX_CLES = ("/campaign",)
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client")
 # Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
-ROUTES_FERMEES_AUX_CLES = ("/espaces", "/vues-equipe")
+# RV (point 3) : l'agent en fichiers (export comme import) n'a pas sa propre permission de lecture : fermé aux clés (``18-a-exposer.md``).
+ROUTES_FERMEES_AUX_CLES = ("/espaces", "/vues-equipe", "/agent-fichiers")
 
 
 def est_par_cle_api(user) -> bool:
@@ -163,10 +164,13 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
             # Une clé d'API est un accès de machine à UNE organisation (le portail, les scripts) : comme avant U2 ter, elle
             # n'a pas de rôle d'équipe. Mais jamais les gestes de l'équipe elle-même : une clé fuitée ne crée ni invitation,
             # ni rôle, ni client, et ne règle pas l'atelier. Liste fermée (17a) : toute permission hors de la liste est refusée.
-            if decision.cle not in PERMISSIONS_DE_CLE:
-                raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle} (not available to an API key)")
+            requise = decision.pour_cle or decision.cle
+            if requise not in PERMISSIONS_DE_CLE:
+                raise HTTPException(status_code=403, detail=f"Permission required: {requise} (not available to an API key)")
         elif acces is None or not (
-            decision.cle in acces.permissions or PERMISSIONS_IMPLIQUEES.get(decision.cle) in acces.permissions
+            decision.cle in acces.permissions
+            or PERMISSIONS_IMPLIQUEES.get(decision.cle) in acces.permissions
+            or (decision.pour_cle is not None and decision.pour_cle in acces.permissions)
         ):
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).

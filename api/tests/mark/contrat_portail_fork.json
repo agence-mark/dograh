@@ -73,6 +73,7 @@
    }
   ],
   "permission": "connecteurs.autoriser",
+  "permission_de_cle": "connecteurs.autoriser",
   "reponses": {
    "200": {
     "application/json": {
@@ -151,6 +152,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {}
@@ -208,6 +210,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -441,6 +444,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -553,6 +557,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -709,6 +714,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -891,6 +897,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -976,6 +983,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -1285,6 +1293,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -1710,6 +1719,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -1920,6 +1930,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -2201,6 +2212,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -2384,6 +2396,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -2618,6 +2631,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -2841,6 +2855,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -3101,6 +3116,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -3505,6 +3521,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -3794,6 +3811,7 @@
    }
   ],
   "permission": "connecteurs.autoriser",
+  "permission_de_cle": "connecteurs.autoriser",
   "reponses": {
    "200": {
     "application/json": {
@@ -3910,6 +3928,7 @@
    }
   ],
   "permission": "connecteurs.autoriser",
+  "permission_de_cle": "connecteurs.autoriser",
   "reponses": {
    "200": {
     "application/json": {
@@ -4014,6 +4033,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -4191,6 +4211,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -4274,6 +4295,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -4349,6 +4371,7 @@
    }
   ],
   "permission": "base_client.connexion_portail",
+  "permission_de_cle": "base_client.connexion_portail",
   "reponses": {
    "200": {
     "application/json": {
@@ -4432,6 +4455,7 @@
    }
   ],
   "permission": "contacts.traiter",
+  "permission_de_cle": "contacts.traiter",
   "reponses": {
    "200": {
     "application/json": {
@@ -4600,6 +4624,7 @@
    }
   ],
   "permission": "contacts.traiter",
+  "permission_de_cle": "contacts.traiter",
   "reponses": {
    "200": {
     "application/json": {
@@ -4783,6 +4808,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -4927,6 +4953,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -5203,6 +5230,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -5303,6 +5331,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "200": {
     "application/json": {
@@ -5424,6 +5453,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "201": {
     "application/json": {
@@ -5667,6 +5697,7 @@
    }
   ],
   "permission": "membre",
+  "permission_de_cle": null,
   "reponses": {
    "201": {
     "application/json": {
@@ -6118,6 +6149,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -6569,6 +6601,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -6736,6 +6769,7 @@
    }
   ],
   "permission": "contacts.traiter",
+  "permission_de_cle": "contacts.traiter",
   "reponses": {
    "200": {
     "application/json": {
@@ -7043,6 +7077,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
@@ -7357,6 +7392,7 @@
    }
   ],
   "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
   "reponses": {
    "200": {
     "application/json": {
