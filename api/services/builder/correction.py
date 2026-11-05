@@ -13,6 +13,7 @@ Après un plafond atteint ou des tours épuisés, le rapport dit « non revérif
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import AsyncIterator
 from typing import Any
@@ -34,7 +35,10 @@ async def corriger(
 ) -> AsyncIterator[dict[str, Any]]:
     """Rejoue la suite, fait corriger par le cerveau, rejoue, jusqu'au vert ou au plafond. Événements du moteur + ``rapport``."""
     arguments = {"workflow_id": ctx.workflow_id, **(parametres_de_rejeu or {})}
-    resultat = await executer("tests_rejouer", arguments, ctx)
+    # N1 : le rejeu de la suite est le geste de la personne qui a lancé la correction (sa route l'a permis), pas une action du cerveau :
+    # il passe hors du chat (pas de carte d'autorisation), même après que la conversation de correction a commencé.
+    rejeu = dataclasses.replace(ctx, conversation=None)
+    resultat = await executer("tests_rejouer", arguments, rejeu)
     if resultat.get("disponible") is False:
         yield {"type": "rapport", "etat": "tests_non_disponibles", "message": resultat.get("message", "")}
         yield {"type": "fin", "raison": "tests_non_disponibles"}
@@ -70,7 +74,7 @@ async def corriger(
             raison = "erreur"
             break
         # B38 : après CHAQUE correction, toute la suite est rejouée.
-        resultat = await executer("tests_rejouer", arguments, ctx)
+        resultat = await executer("tests_rejouer", arguments, rejeu)
         verifie = bool(resultat.get("ok"))
         raison = "vert" if verifie else "tours"
     yield {

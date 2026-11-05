@@ -77,6 +77,10 @@ def consommer_un_accord(contexte: Contexte) -> None:
     Sans conversation (la personne agit elle-même depuis l'écran), rien n'est exigé."""
     if contexte.conversation is None:
         return
+    if contexte.accord_donne:
+        # N1 : le mode du chat (« Tout permettre ») ou une carte d'autorisation vient de permettre CETTE action de dépense.
+        contexte.accord_donne = False
+        return
     for depense in (contexte.conversation.get("depenses") or {}).values():
         if depense.get("statut") == "accordee" and not depense.get("utilisee"):
             depense["utilisee"] = True

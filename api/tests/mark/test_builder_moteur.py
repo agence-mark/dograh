@@ -1,7 +1,7 @@
-"""[.mark] builder-agent-vocal, lot 1 : le moteur (flux, cartes, opérations, plafond, compactage, interdits, conception, correction).
+"""[.mark] builder-agent-vocal, lot 1 : le moteur (flux, cartes, opérations, plafond, compactage, cartes d'autorisation, conception, correction).
 
 Cerveau FACTICE : aucun appel réel, aucune dépense. Ce qui doit tenir : le flux rend texte, actions, résultats,
-cartes et opérations dans l'ordre ; une action interdite est refusée et ne change rien ; le plafond arrête la
+cartes et opérations dans l'ordre ; un geste de personne demande une carte et ne change rien (N1) ; le plafond arrête la
 conversation ; les vieux tours sont résumés et l'état est RELU SUR LE DISQUE ; rien ne se construit avant
 l'approbation du document de conception ; les opérations s'enregistrent en UN brouillon ; la correction a un plafond
 de tours et ne dit « vérifié » que sur une suite entièrement verte.
@@ -79,36 +79,43 @@ async def test_une_action_est_executee_son_resultat_rendu_au_cerveau_et_la_carte
     assert '"ok": true' in messages[-1]["content"]
 
 
-async def test_les_actions_interdites_sont_refusees_et_ne_changent_rien(monde):
+async def test_les_gestes_de_personne_demandent_une_carte_et_ne_changent_rien_en_mode_demander(monde):
+    """N1 : publier, archiver, les clics de la bibliothèque sont des actions ; en « Demander » (défaut) chacun pose une carte, rien n'est fait,
+    et le tour s'arrête sur la demande. Un nom inconnu reste une erreur."""
     await bibliotheque.creer("moules-etape", "a", "A", {"t": 1}, "alice")
     cerveau = CerveauFactice(
         tour(
-            appel("publish_workflow", {"workflow_id": AGENT}, "i1"),
-            appel("delete_workflow", {"workflow_id": AGENT}, "i2"),
-            appel("bibliotheque_marquer_recette", {"famille": "moules-etape", "slug": "a"}, "i3"),
-            appel("bibliotheque_accepter_proposition", {"id": "x"}, "i4"),
+            appel("agent_publier", {"workflow_id": AGENT}, "i1"),
+            appel("agent_archiver", {"workflow_id": AGENT}, "i2"),
+            appel("bibliotheque_marquer", {"famille": "moules-etape", "slug": "a", "version": 1, "statut": "recette"}, "i3"),
+            appel("bibliotheque_accepter_proposition", {"identifiant": "x"}, "i4"),
             appel("action_qui_n_existe_pas", {}, "i5"),
         ),
-        tour(texte("Je ne peux pas.")),
+        tour(texte("Je continue sans attendre.")),
     )
     evenements = await jouer(cerveau)
     resultats = {e["id"]: e for e in evenements if e["type"] == "resultat"}
     assert all(resultats[i]["ok"] is False for i in ("i1", "i2", "i3", "i4", "i5"))
-    assert all(resultats[i]["resultat"].get("interdit") for i in ("i1", "i2", "i3", "i4"))
-    assert not resultats["i5"]["resultat"].get("interdit")
+    assert all(resultats[i]["resultat"]["code"] == "autorisation_requise" for i in ("i1", "i2", "i3", "i4"))
+    assert "code" not in resultats["i5"]["resultat"]
+    cartes = [e["carte"] for e in evenements if e["type"] == "carte"]
+    assert [c["action"] for c in cartes] == ["agent_publier", "agent_archiver", "bibliotheque_marquer", "bibliotheque_accepter_proposition"]
+    assert [c["definitif"] for c in cartes] == [False, True, False, False]  # supprimer, archiver : « Définitif »
+    assert evenements[-1] == {"type": "fin", "raison": "attente"} and len(cerveau.requetes) == 1  # rien ne continue avant le clic
     assert (await bibliotheque.lire_element("moules-etape", "a")).statut.value == "candidat"
     assert not monde.brouillons and not monde.ecritures_de_reglages  # rien n'a bougé
+    assert monde.workflows[AGENT].status == "active"
 
 
-def test_aucune_action_interdite_n_est_dans_le_registre():
-    assert not (set(registre.REGISTRE) & registre.INTERDITES)
-    for nom in registre.INTERDITES:
-        with pytest.raises(ValueError):
-            registre.enregistrer(registre.Action(nom=nom, description="", parametres=registre.BaseModel, fonction=None))
-    # Aucune action de passage en Recette, de rejet, d'acceptation ou de publication n'existe, sous aucun nom.
-    # ``tests_supprimer`` (C2) PROPOSE seulement : rien n'est effacé par le builder, une personne supprime depuis l'onglet Tests.
-    for nom in registre.REGISTRE:
-        assert not any(mot in nom for mot in ("publi", "supprim", "delete", "recette", "rejet", "accept", "retour")) or nom in ("tests_supprimer", "recette_lire", "attaques_jeu_public", "attaques_importer_le_jeu_public") or nom.startswith("publication_")  # recette_lire (lot M) : lecture seule ; publication_* (G2) : contrôle et correction de la liste, jamais une publication ; attaques_*jeu_public (SA-6) : le « jeu public » de phrases d'attaque, rien à voir avec publier
+def test_plus_aucun_interdit_code_chaque_action_a_sa_famille():
+    """N1 : les anciens interdits (publier, archiver, bibliothèque) sont des actions ; c'est la famille et la permission qui décident."""
+    from api.services.builder.actions.familles_actions import FAMILLES
+
+    assert not hasattr(registre, "INTERDITES")
+    for nom in ("agent_publier", "groupe_publier", "branche_fusionner", "repartition_regler", "agent_archiver", "outil_supprimer",
+                "bibliotheque_marquer", "bibliotheque_accepter_proposition", "bibliotheque_refuser_proposition", "bibliotheque_retour_arriere"):
+        assert nom in registre.REGISTRE, nom
+    assert all(a.famille in FAMILLES for a in registre.REGISTRE.values())
 
 
 async def test_une_erreur_du_cerveau_est_rendue_puis_la_conversation_se_ferme_proprement(monde):
@@ -363,7 +370,8 @@ async def test_tant_que_les_tests_ne_sont_pas_disponibles_la_correction_ne_depen
 
 async def test_la_correction_ne_publie_jamais(monde, monkeypatch):
     remplacer_les_tests(monkeypatch, {"ok": False, "echecs": [{"test": "t"}]}, {"ok": True})
-    cerveau = CerveauFactice(tour(appel("publish_workflow", {"workflow_id": AGENT}, "p1")), tour(texte("Refusé, je corrige autrement.")))
+    cerveau = CerveauFactice(tour(appel("agent_publier", {"workflow_id": AGENT}, "p1")), tour(texte("Refusé, je corrige autrement.")))
     evenements = await lancer_la_correction(cerveau)
-    assert next(e for e in evenements if e["type"] == "resultat")["resultat"]["interdit"] is True
+    # N1 : publier existe, mais en « Demander » il pose une carte ; rien n'est publié sans le clic de la personne.
+    assert next(e for e in evenements if e["type"] == "resultat")["resultat"]["code"] == "autorisation_requise"
     assert monde.workflows[AGENT].released_definition.version_number == 1 and not monde.brouillons

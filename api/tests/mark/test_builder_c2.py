@@ -216,16 +216,17 @@ async def test_le_chat_ne_rejoue_pas_sans_accord(db_session, sans_preparation_de
     org, user, jeton, agent = await decor(db_session, "d1")
     conv = {"depenses": {}}
     ctx = Contexte(user=user, workflow_id=agent.id, conversation=conv)
+    # N1 : en « Demander », rejouer (famille « dépense ») pose une carte ; une dépense annoncée et accordée vaut la même autorisation.
     refus = await executer("tests_rejouer", {}, ctx)
-    assert refus["ok"] is False and refus["code"] == "accord_requis"
+    assert refus["ok"] is False and refus["code"] == "autorisation_requise"
     annonce = await executer("depense_annoncer", {"motif": "Rejouer la suite 3 fois", "montant_estime": 0.4}, ctx)
     assert annonce["carte"]["statut"] == "attente" and annonce["id"] == "d1"
     # annoncée mais pas accordée : toujours refusé
-    assert (await executer("tests_rejouer", {}, ctx))["code"] == "accord_requis"
+    assert (await executer("tests_rejouer", {}, ctx))["code"] == "autorisation_requise"
     conv["depenses"]["d1"]["statut"] = "accordee"
     await executer("tests_rejouer", {}, ctx)
     assert conv["depenses"]["d1"]["utilisee"] is True  # l'accord est consommé : une seule dépense par accord
-    assert (await executer("tests_rejouer", {}, ctx))["code"] == "accord_requis"
+    assert (await executer("tests_rejouer", {}, ctx))["code"] == "autorisation_requise"
     # la personne qui agit depuis l'écran (sans conversation) n'est pas freinée
     assert (await executer("tests_rejouer", {}, Contexte(user=user, workflow_id=agent.id))).get("code") != "accord_requis"
 
@@ -298,12 +299,13 @@ async def test_le_builder_ne_change_pas_les_criteres_d_un_test(db_session, sans_
     org, user, jeton, agent = await decor(db_session, "t2")
     slug = await un_test(user, agent)
     nouveaux = [{"type": "texte_absent", "texte": "x"}]
-    builder = await executer("tests_modifier", {"test": slug, "criteres": nouveaux}, Contexte(user=user, workflow_id=agent.id, conversation={}))
+    # N1 : en « Tout permettre sur cet agent », la carte d'autorisation ne s'interpose pas : c'est la garde du code qui refuse.
+    builder = await executer("tests_modifier", {"test": slug, "criteres": nouveaux}, Contexte(user=user, workflow_id=agent.id, conversation={"mode": "agent"}))
     assert builder["ok"] is False and builder["code"] == "garde_du_code" and builder["carte"]["type"] == "proposition_test"
     mcp = await executer("tests_modifier", {"test": slug, "criteres": nouveaux}, Contexte(user=user, workflow_id=agent.id, porte="mcp"))
     assert mcp["code"] == "garde_du_code"
     # le nom, lui, peut changer ; et la personne (écran, sans conversation) change aussi les critères
-    assert (await executer("tests_modifier", {"test": slug, "nom": "Autre nom"}, Contexte(user=user, workflow_id=agent.id, conversation={})))["ok"]
+    assert (await executer("tests_modifier", {"test": slug, "nom": "Autre nom"}, Contexte(user=user, workflow_id=agent.id, conversation={"mode": "agent"})))["ok"]
     personne = await executer("tests_modifier", {"test": slug, "criteres": nouveaux}, Contexte(user=user, workflow_id=agent.id))
     assert personne["ok"] is True
 

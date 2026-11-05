@@ -30,10 +30,11 @@ TITRE_MAX = 60
 MESSAGE_DE_REPRISE = (
     "Reprends là où tu t'es arrêté : relis l'état actuel, dis en une phrase où tu en étais, puis continue sans refaire ce qui est fait."
 )
-ETAT_DE_FIN = {"fin": "terminee", "tours": "terminee", "plafond": "arretee", "erreur": "erreur", "arret": "arretee"}
+ETAT_DE_FIN = {"fin": "terminee", "tours": "terminee", "attente": "terminee", "plafond": "arretee", "erreur": "erreur", "arret": "arretee"}
 
 # C2 : ce que la conversation garde en plus de l'historique (plan en cases, dépenses annoncées, rapport de fin).
-CLES_GARDEES = ("plan", "depenses", "rapport")
+# N1 : le mode du chat et ses autorisations (« pour ce chat » ne survit pas au chat : elles vivent dans SA ligne).
+CLES_GARDEES = ("plan", "depenses", "rapport", "mode", "autorisations")
 
 _TACHES: dict[int, asyncio.Task] = {}
 # Le cerveau et les réglages de chaque conversation en cours : un sous-agent (``deleguer``) s'en sert pour son propre cerveau.

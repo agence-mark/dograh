@@ -12,8 +12,11 @@ import {
     envoyerUnMessageApiV1BuilderFilsFilIdMessagesPost,
     lireUnFilApiV1BuilderFilsFilIdGet,
     modifierLeDernierMessageApiV1BuilderFilsFilIdModifierDernierPost,
+    reglerLeModeApiV1BuilderFilsFilIdModePut,
+    repondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPost,
     repondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPost,
     reprendreUnFilApiV1BuilderFilsFilIdReprendrePost,
+    retirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDelete,
     suivreUnFilApiV1BuilderFilsFilIdEvenementsGet,
     type VueFil,
 } from "@/client";
@@ -24,6 +27,7 @@ import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { appliquer, dernierMessage, type LigneDuFil, lireLesBlocs } from "./evenements";
+import type { Decision, ModeDuChat } from "./permissions-du-chat";
 import { STATUT_PLAFOND, STATUT_REFUSE, statutDe, TEXTES_PLAFOND } from "./plafond-du-mois";
 
 const REPRISE_MS = 1000;
@@ -77,7 +81,7 @@ export function useFil(filId: number) {
                         dernierId.current = id;
                         if (evenement.type === "erreur") notifier.echec(ECHEC_DU_FIL, { erreur: evenement.message, groupe: "echec-fil" });
                         setLignes((avant) => appliquer(avant, id, evenement));
-                        if (evenement.type === "depense" || evenement.type === "fin") void rafraichir();
+                        if (["depense", "fin", "mode", "autorisation_reponse"].includes(evenement.type)) void rafraichir();
                     }
                 } catch (e) {
                     if ((e as { name?: string })?.name === "AbortError") return;
@@ -147,6 +151,47 @@ export function useFil(filId: number) {
         rafraichir,
         repondreDepense: async (depenseId: string, accord: boolean) =>
             apres({ error: (await repondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPost({ path: { fil_id: filId, depense_id: depenseId }, body: { accord } })).error }),
+        // N1 : le mode du chat et les réponses aux cartes d'autorisation (le serveur vérifie tout ; l'écran dit le résultat).
+        reglerLeMode: async (mode: ModeDuChat) => {
+            const r = await reglerLeModeApiV1BuilderFilsFilIdModePut({ path: { fil_id: filId }, body: { mode } });
+            if (r.error) {
+                notifier.echec(
+                    { en: "The mode was not changed. Try again when the builder has stopped.", fr: "Le mode n'a pas changé. Réessayez quand le builder s'est arrêté." },
+                    { erreur: detailFromError(r.error, "The request failed") },
+                );
+                return false;
+            }
+            notifier.succes({ en: "Mode changed for this chat.", fr: "Mode changé pour ce chat." });
+            await rafraichir();
+            return true;
+        },
+        repondreAutorisation: async (demandeId: string, decision: Decision, raison?: string) => {
+            const r = await repondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPost({
+                path: { fil_id: filId, demande_id: demandeId },
+                body: raison ? { decision, raison } : { decision },
+            });
+            if (!r.error) {
+                notifier.succes(
+                    decision === "refuser"
+                        ? { en: "Refused: the builder looks for another way.", fr: "Refusé : le builder cherche une autre voie." }
+                        : { en: "Allowed: the builder goes on.", fr: "Autorisé : le builder reprend." },
+                );
+            }
+            await apres({ error: r.error });
+        },
+        retirerAutorisation: async (demandeId: string) => {
+            // suppression-confirmee : retirer une autorisation ne détruit rien, elle RESTREINT le builder (la prochaine action redemande).
+            const r = await retirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDelete({ path: { fil_id: filId, demande_id: demandeId } });
+            if (r.error) {
+                notifier.echec(
+                    { en: "The permission was not withdrawn. Try again.", fr: "L'autorisation n'a pas été retirée. Réessayez." },
+                    { erreur: detailFromError(r.error, "The request failed") },
+                );
+                return;
+            }
+            notifier.succes({ en: "Permission withdrawn: the builder will ask again.", fr: "Autorisation retirée : le builder redemandera." });
+            await rafraichir();
+        },
         reprendre: async () => {
             const envoi = (depasser: boolean) =>
                 reprendreUnFilApiV1BuilderFilsFilIdReprendrePost({

@@ -53,6 +53,11 @@ export function appliquer(lignes: LigneDuFil[], id: number, e: EvenementDuFil): 
             return lignes.map((l) =>
                 l.genre === "carte" && l.carte.type === "depense" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, statut: e.statut } } : l,
             );
+        case "autorisation_reponse":
+            // N1 : la personne a répondu à une carte d'autorisation (ou retiré « pour ce chat ») : la carte garde sa place et change d'état.
+            return lignes.map((l) =>
+                l.genre === "carte" && l.carte.type === "autorisation" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, statut: e.statut } } : l,
+            );
         case "delegation":
             return [...lignes, { genre: "carte", carte: { type: "delegation", id: e.id, usage: e.usage, total: e.total, modele: e.modele, fini: false } }];
         case "delegation_fin":
@@ -63,7 +68,8 @@ export function appliquer(lignes: LigneDuFil[], id: number, e: EvenementDuFil): 
             // R3 M5 : le texte du serveur n'entre pas dans le fil (il part dans « Détails » d'une notification, voir `useFil`).
             return [...lignes, { genre: "erreur", message: "" }];
         case "fin":
-            return e.raison === "fin" || e.raison === "tours" ? lignes : [...lignes, { genre: "fin", raison: String(e.raison ?? "") }];
+            // N1 : « attente » = une carte d'autorisation attend la personne ; la carte le dit, pas de ligne de fin.
+            return e.raison === "fin" || e.raison === "tours" || e.raison === "attente" ? lignes : [...lignes, { genre: "fin", raison: String(e.raison ?? "") }];
         case "retrait": {
             // « Modifier et relancer » : le message retiré et tout ce qui a suivi disparaissent du fil.
             const rang = lignes.findIndex((l) => l.genre === "message" && l.id === Number(e.depuis));
