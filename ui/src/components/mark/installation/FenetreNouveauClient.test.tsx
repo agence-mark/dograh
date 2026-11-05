@@ -146,6 +146,25 @@ describe("Nouveau client : les étapes", () => {
         expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
     });
 
+    it("une faute de saisie rendue par la route s'affiche sous l'étape", async () => {
+        await demarree({ 2: "faite" });
+        m.executer.mockResolvedValue({
+            data: {
+                installation: vue({ 2: "faite", 3: "erreur" }, {}, 3),
+                sautee: false,
+                echec: { code: "etablissements_refuses", fr: "Refusé.", en: "Refused.", precisions: ["Atelier : ligne 1 : il manque « : »"] },
+                montre: null,
+            },
+            error: undefined,
+        });
+        fireEvent.change(screen.getByLabelText("Establishment name"), { target: { value: "Atelier" } });
+        fireEvent.change(screen.getByLabelText("Opening hours"), { target: { value: "Lun-Ven" } });
+        fireEvent.click(screen.getByRole("button", { name: "Save the establishments" }));
+        const faute = await screen.findByText("Atelier : ligne 1 : il manque « : »");
+        expect(faute.closest("[data-section='fautes-de-saisie']")).toBeTruthy();
+        expect(appel(m.executer).body).toEqual({ donnees: { etablissements: [{ nom: "Atelier", horaires_ouverture: "Lun-Ven" }] }, confirmer: false });
+    });
+
     it("passer une étape passable", async () => {
         await demarree();
         m.passer.mockResolvedValue({ data: vue({ 2: "passee" }), error: undefined });

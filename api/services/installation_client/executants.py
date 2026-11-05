@@ -26,11 +26,13 @@ NOM_CLE_PORTAIL = "Portail .mark"
 
 
 class ErreurEtape(Exception):
-    """Un échec d'étape, dit par un code de phrase (``etapes.PHRASES``)."""
+    """Un échec d'étape, dit par un code de phrase (``etapes.PHRASES``). ``precisions`` : les fautes de saisie qu'une route a
+    rendues en 422 (messages de validation écrits pour l'écran, lus sous le champ), jamais un autre texte du serveur."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, precisions: list[str] | None = None):
         super().__init__(code)
         self.code = code
+        self.precisions = precisions or []
 
 
 @dataclass
@@ -62,8 +64,15 @@ def identifiant(texte: str, separateur: str = "-", longueur: int = 40) -> str:
     return propre[:longueur].strip(separateur) or "x"
 
 
+def _fautes_de_saisie(erreur: HTTPException) -> list[str]:
+    """Les messages d'une faute de validation (422, liste ``{msg, loc}``), bornés ; rien pour tout autre refus."""
+    if erreur.status_code != 422 or not isinstance(erreur.detail, list):
+        return []
+    return [str(d.get("msg"))[:300] for d in erreur.detail[:5] if isinstance(d, dict) and d.get("msg")]
+
+
 def _code_http(erreur: HTTPException, par_statut: dict[int, str], defaut: str = "inconnue") -> ErreurEtape:
-    return ErreurEtape(par_statut.get(erreur.status_code, defaut))
+    return ErreurEtape(par_statut.get(erreur.status_code, defaut), _fautes_de_saisie(erreur))
 
 
 # --- 2. La base du client -------------------------------------------------------------------------------------------------

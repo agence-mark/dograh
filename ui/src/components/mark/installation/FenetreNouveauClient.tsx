@@ -33,6 +33,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { EXEMPLE_HORAIRES } from "@/components/mark/SectionHorairesOuverture";
 import { ENTETE_ORGANISATION, retenirEspace } from "@/lib/espaceCourant";
 
 const T = {
@@ -78,7 +80,6 @@ const T = {
     // 3. établissements
     etabNom: { en: "Establishment name", fr: "Nom de l'établissement" },
     etabHoraires: { en: "Opening hours", fr: "Horaires d'ouverture" },
-    etabHorairesAide: { en: "E.g. Mon-Fri 8am-6pm", fr: "Ex. Lun-Ven 8h-18h" },
     etabAjouter: { en: "Add an establishment", fr: "Ajouter un établissement" },
     etabFaire: { en: "Save the establishments", fr: "Enregistrer les établissements" },
     retirer: { en: "Remove", fr: "Retirer" },
@@ -213,6 +214,7 @@ export function FenetreNouveauClient({
     const [fiche, setFiche] = useState<Record<string, unknown> | null>(null);
     const [confirmerDepense, setConfirmerDepense] = useState(false);
     const [confirmerFermeture, setConfirmerFermeture] = useState(false);
+    const [precisions, setPrecisions] = useState<string[]>([]);
 
     const organisation = installation?.organization_id ?? null;
     const entetes = useMemo(() => (organisation ? { [ENTETE_ORGANISATION]: String(organisation) } : undefined), [organisation]);
@@ -329,6 +331,7 @@ export function FenetreNouveauClient({
                 return;
             }
             setInstallation(r.data.installation);
+            setPrecisions(r.data.echec?.precisions ?? []);
             if (r.data.echec) {
                 notifier.echec({ fr: r.data.echec.fr, en: r.data.echec.en });
                 return;
@@ -384,7 +387,6 @@ export function FenetreNouveauClient({
         : installation && etapeCourante
           ? `${t({ fr: dire(T.etapeSur.fr, { n: etapeCourante.numero }), en: dire(T.etapeSur.en, { n: etapeCourante.numero }) })} · ${t(etapeCourante.titre)}`
           : `${t({ fr: dire(T.etapeSur.fr, { n: 1 }), en: dire(T.etapeSur.en, { n: 1 }) })} · ${t({ fr: "Le client et son organisation", en: "The client and its organization" })}`;
-    const avance = installation ? installation.etapes.filter((e) => e.etat === "faite" || e.etat === "passee").length : 0;
 
     // --- le formulaire de l'étape courante ------------------------------------------------------------------------------
     const ligne = "grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end";
@@ -435,11 +437,13 @@ export function FenetreNouveauClient({
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor={`etab-horaires-${i}`}>{t(T.etabHoraires)}</Label>
-                                <Input
+                                <Textarea
                                     id={`etab-horaires-${i}`}
                                     value={e.horaires_ouverture}
                                     maxLength={500}
-                                    placeholder={t(T.etabHorairesAide)}
+                                    rows={3}
+                                    className="min-h-16 text-sm"
+                                    placeholder={EXEMPLE_HORAIRES}
                                     onChange={(ev) => {
                                         setEtablissements((l) => l.map((x, j) => (j === i ? { ...x, horaires_ouverture: ev.target.value } : x)));
                                         setSaisie(true);
@@ -666,7 +670,7 @@ export function FenetreNouveauClient({
                         <DialogDescription>{installation ? `${installation.nom} · ${sousTitre}` : sousTitre}</DialogDescription>
                         <div className="flex gap-1.5 pt-2" aria-hidden>
                             {Array.from({ length: 9 }, (_, i) => (
-                                <span key={i} className={`h-1 flex-1 rounded-full ${i < Math.max(avance, 1) ? "bg-primary" : "bg-muted"}`} />
+                                <span key={i} className={`h-1 flex-1 rounded-full ${i < (terminee ? 9 : (prochaine ?? 1)) ? "bg-primary" : "bg-muted"}`} />
                             ))}
                         </div>
                     </DialogHeader>
@@ -755,6 +759,13 @@ export function FenetreNouveauClient({
                                                     {t(e.erreur)}
                                                 </p>
                                             )}
+                                            {courante && e.etat === "erreur" && precisions.length > 0 && (
+                                                <div className="pl-6" data-section="fautes-de-saisie">
+                                                    {precisions.map((p) => (
+                                                        <ErreurChamp key={p}>{p}</ErreurChamp>
+                                                    ))}
+                                                </div>
+                                            )}
                                             {courante && <div className="pl-6">{formulaire()}</div>}
                                         </li>
                                     );
@@ -809,7 +820,7 @@ export function FenetreNouveauClient({
                             </div>
                         )}
                     </div>
-                    <DialogFooter className="flex-row flex-wrap items-center justify-between gap-2 border-t bg-background px-6 py-4">
+                    <DialogFooter className="flex-row flex-wrap items-center justify-between gap-2 border-t bg-background px-6 py-4 sm:justify-between">
                         {confirmerFermeture ? (
                             <div role="alertdialog" aria-label={t(T.fermerQuandMeme)} className="flex w-full flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm">{t(T.fermerSansEnregistrer)}</p>

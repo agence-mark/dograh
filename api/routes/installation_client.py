@@ -73,6 +73,8 @@ class EchecInstallation(BaseModel):
     code: str
     fr: str
     en: str
+    # Les fautes de saisie qu'une route a rendues (422), à lire sous le champ ; jamais un autre texte du serveur.
+    precisions: list[str] = Field(default_factory=list)
 
 
 class ResultatEtape(BaseModel):

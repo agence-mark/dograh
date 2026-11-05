@@ -503,3 +503,32 @@ async def test_la_route_demarre_et_rend_un_refus_en_phrase(org, db_session, test
         assert reponse.status_code == 422 and reponse.json()["detail"]["code"] == "non_passable"
         assert set(reponse.json()["detail"]) == {"code", "fr", "en"}
         assert (await client.get("/api/v1/installations-client/courante")).json()["id"] == vue["id"]
+
+
+async def test_une_faute_de_saisie_d_une_route_est_rendue_sous_le_champ_jamais_un_autre_texte(org, db_session, monkeypatch):
+    """Constaté à l'écran (05/11) : des horaires « Lun-Ven 8h-18h » refusés par la vraie route ; la fenêtre doit dire pourquoi."""
+    from api.routes import etablissements as routes
+    from api.schemas.etablissements import CatalogueEtablissements
+
+    async def lire(user):
+        return CatalogueEtablissements(etablissements=[])
+
+    async def refuser(request, user):
+        raise HTTPException(status_code=422, detail=[{"msg": "Atelier : ligne 1 : il manque « : »", "loc": ["body", "etablissements", 0, "horaires_ouverture"]}])
+
+    monkeypatch.setattr(routes, "get_etablissements", lire)
+    monkeypatch.setattr(routes, "save_etablissements", refuser)
+    await _installation(db_session, org)
+    user = _client(org)
+    await moteur.passer(user, org.organisation.id, 2)
+    resultat = await moteur.executer(user, org.organisation.id, 3, {"etablissements": [{"nom": "Atelier", "horaires_ouverture": "Lun-Ven"}]})
+    assert resultat["echec"]["code"] == "etablissements_refuses"
+    assert resultat["echec"]["precisions"] == ["Atelier : ligne 1 : il manque « : »"]
+
+    async def panne(request, user):
+        raise HTTPException(status_code=503, detail="connection to 10.0.0.3 refused: SELECT secret")
+
+    monkeypatch.setattr(routes, "save_etablissements", panne)
+    resultat = await moteur.executer(user, org.organisation.id, 3, {"etablissements": [{"nom": "Atelier"}]})
+    assert resultat["echec"]["code"] == "base_injoignable" and resultat["echec"]["precisions"] == []
+    assert "SELECT" not in str(resultat)

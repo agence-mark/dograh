@@ -181,18 +181,20 @@ async def executer(user, organization_id: int, numero: int, donnees: dict[str, A
         noter=noter,
     )
     echec: str | None = None
+    precisions: list[str] = []
     sortie: executants.Sortie | None = None
     try:
         sortie = await executants.EXECUTANTS[numero](contexte)
     except executants.ErreurEtape as erreur:
         echec = erreur.code
+        precisions = erreur.precisions
     except Exception as erreur:  # noqa: BLE001 -- l'étape s'arrête proprement ; jamais le texte de l'erreur à l'écran
         logger.warning(f"[.mark] Installation step {numero} of organization {organization_id} failed ({type(erreur).__name__}).")
         echec = "inconnue"
     if echec is not None:
         await db_client.finir_etape(organization_id, installation["id"], numero, etat="erreur", user_id=user.id, erreur=echec)
         await journaliser(user, "installation.etape", organization_id, {"etape": numero, "cle": definition.cle, "etat": "erreur", "code": echec})
-        return {"installation": await lire(organization_id), "sautee": False, "montre": None, "echec": {"code": echec, **(phrase(echec) or {})}}
+        return {"installation": await lire(organization_id), "sautee": False, "montre": None, "echec": {"code": echec, **(phrase(echec) or {}), "precisions": precisions}}
     assert sortie is not None
     await db_client.finir_etape(organization_id, installation["id"], numero, etat="faite", user_id=user.id, resultat=sortie.resultat)
     await journaliser(user, "installation.etape", organization_id, {"etape": numero, "cle": definition.cle, "etat": "faite"})
