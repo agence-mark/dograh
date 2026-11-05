@@ -1026,6 +1026,10 @@ class PipecatEngine:
                     agent, principal, fin_demandee=fin_voulue, au_revoir_dit=au_revoir_dit
                 ):
                     return "prise"
+            # [.mark] Builder partie 3, lot P (P3) : l'étape d'arrivée est réglée « passation par le code » (éteint par
+            # défaut) : le code passe la main tout de suite, sans redemander une réponse au modèle de l'accueil.
+            if not fin and await self._passation_par_le_code(agent, arete.target):
+                return "prise"
             if phrase_figee is not None:
                 self._mute_pipeline = True
                 self._tache_du_groupe(
@@ -1086,6 +1090,58 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001 -- une porte ne coûte jamais l'appel
             logger.error(f"[porte] porte écrite « {nom} » en échec : {e!r}")
             return "echec"
+
+    async def _passation_par_le_code(self, agent: AgentRuntime, cible: str) -> bool:
+        """[.mark] Builder partie 3, lot P (P3) : une passe de moins. L'étape ``cible`` est réglée
+        ``passation_par_le_code`` et porte UNE seule passation vers un collègue : le code l'appelle lui-même, par le
+        gestionnaire de l'outil (mêmes refus, même annonce, même trace), au lieu de relancer le modèle pour qu'il le
+        fasse. Rend ``True`` si la passation est partie ; ``False`` (réglage éteint, aucun ou plusieurs outils de
+        passation, refus, passation déjà en cours) : le comportement d'avant suit. ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if getattr(getattr(noeud, "data", None), "passation_par_le_code", None) is not True:
+                return False
+            if not self.agent_transfer_enabled or self.transfer_coordinator.in_progress:
+                return False
+            uuids = list(getattr(noeud, "tool_uuids", None) or [])
+            organisation = await self._get_organization_id() if uuids else None
+            outils = await self.lire_outils(uuids, organisation) if organisation else []
+            passations = [o for o in outils if o.category == ToolCategory.TRANSFER_AGENT.value]
+            if len(passations) != 1:
+                logger.info(
+                    f"[passation] « {getattr(noeud, 'name', cible)} » : {len(passations)} outil(s) de passation, "
+                    "le code ne choisit pas : le modèle reparle"
+                )
+                return False
+            outil = passations[0]
+            from types import SimpleNamespace
+
+            from api.services.workflow.tools.custom_tool import tool_to_function_schema
+
+            nom = tool_to_function_schema(outil)["function"]["name"]
+            gestionnaire = self._custom_tool_manager or CustomToolManager(self, agent)
+            issue: dict = {}
+
+            async def rappel(resultat, properties=None) -> None:
+                if isinstance(resultat, dict):
+                    issue.update(resultat)
+                # Comme un vrai résultat d'outil : la passation attend que le contexte soit prêt.
+                pret = getattr(properties, "on_context_updated", None)
+                if pret is not None:
+                    await pret()
+
+            await gestionnaire._create_transfer_agent_handler(outil, nom)(
+                SimpleNamespace(arguments={}, result_callback=rappel, function_name=nom, tool_call_id=None)
+            )
+            partie = issue.get("status") == "transferring"
+            logger.info(
+                f"[passation] « {getattr(noeud, 'name', cible)} » : passation par le code "
+                f"{'partie' if partie else 'refusée (' + str(issue.get('reason')) + ')'}"
+            )
+            return partie
+        except Exception as e:  # noqa: BLE001 -- le modèle garde la main
+            logger.error(f"[passation] passation par le code en échec : {e!r}")
+            return False
 
     # --- [.mark] Lot E de greffier-conversation (C4, D6) : le transfert garanti ---
 

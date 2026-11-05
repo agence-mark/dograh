@@ -78,6 +78,7 @@ const PAR_PROPRIETE: Record<string, SectionNoeud> = {
     delai_du_passage: "passage",
     arbitre: "passage",
     seuil_de_l_arbitre: "passage",
+    passation_par_le_code: "passage",
     enabled: "requete",
     trigger_path: "requete",
     http_method: "requete",
