@@ -102,7 +102,6 @@ export const ECHECS = {
     outilsListe: { fr: "La liste des outils ne se charge pas. Réessayez.", en: "The list of tools did not load. Try again." },
     outilsStatistiques: { fr: "Les chiffres des outils ne se chargent pas. Réessayez.", en: "The tools' figures did not load. Try again." },
     outilStatistiques: { fr: "L'activité de l'outil ne se charge pas. Réessayez.", en: "The tool's activity did not load. Try again." },
-    outilTester: { fr: "Le test de l'outil n'a pas abouti. Vérifiez la requête et réessayez.", en: "The tool test did not complete. Check the request and try again." },
     outilValiderEssai: { fr: "Premier essai non validé. Réessayez.", en: "First trial not validated. Try again." },
     phrasesEnregistrer: { fr: "Phrases non enregistrées. Vérifiez-les et réessayez.", en: "Sentences not saved. Check them and try again." },
     phrasesLire: { fr: "Les phrases de l'entreprise ne se chargent pas. Réessayez.", en: "The company's sentences did not load. Try again." },
