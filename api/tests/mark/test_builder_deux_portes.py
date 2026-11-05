@@ -14,6 +14,7 @@ import pytest
 from fastmcp import Client
 
 from api.mcp_server.server import mcp
+from api.services.builder import modes
 from api.services.builder.actions import registre
 from api.services.builder.actions.registre import Contexte
 from api.services.builder.identite import UTILISATEUR_DIRECT
@@ -164,6 +165,11 @@ async def test_les_deux_portes_appellent_la_meme_fonction(nom, monde, monkeypatc
         par_le_mcp = (await client.call_tool(nom, ARGUMENTS[nom])).structured_content
     # Lot M : la porte MCP ajoute la clé « suite » (consigne de suite) ; le reste est identique à l'écran.
     assert par_le_mcp.pop("suite")["prochaine"]
+    if nom in modes.DEPENSES_HORS_PORTE_MCP:
+        # RV (point 5) : un rejeu qui dépense la clé de l'organisation se décide à l'écran, avec une carte d'accord ; la porte MCP le refuse.
+        assert par_l_ecran == {"ok": True, "vu": nom} and par_le_mcp["code"] == "porte_mcp"
+        assert [a[0] for a in appels] == ["ecran"]
+        return
     assert par_l_ecran == par_le_mcp == {"ok": True, "vu": nom}
     assert [a[0] for a in appels] == ["ecran", "mcp"]
     assert appels[0][1] == appels[1][1] == 1 and appels[0][2] == appels[1][2]  # même utilisateur, mêmes paramètres validés

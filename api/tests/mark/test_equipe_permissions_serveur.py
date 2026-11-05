@@ -155,7 +155,7 @@ async def test_une_cle_d_api_ecrit_sans_role_mais_jamais_les_gestes_de_l_equipe(
     _, cle = await db_session.create_api_key(org, "portail", createur.id)
     en_tete = {"X-API-Key": cle, "X-Mark-Auteur": "Lea"}
     async with client_http() as c:
-        ecrit = await c.post("/api/v1/folder/", headers=en_tete, json={"name": "dossier-portail"})
+        ecrit = await c.put("/api/v1/organizations/lexique", headers=en_tete, json={})  # RV : une écriture du portail (``portail.ecrire``)
         invite = await c.post(
             "/api/v1/equipe-mark/invitations", headers=en_tete, json={"email": "x@example.com", "role_id": 1}
         )

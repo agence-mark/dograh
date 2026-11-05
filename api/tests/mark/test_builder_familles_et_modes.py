@@ -252,3 +252,22 @@ async def test_le_mode_ou_la_carte_vaut_l_accord_de_depense_pour_cette_action_se
     assert vus == [False] and contexte.accord_donne is False  # consommé, et jamais gardé pour l'action suivante
     # Sans le mode ni la carte, l'accord manque : la porte pose la carte avant même la fonction.
     assert (await registre.executer("essai_payant", {}, _chat()))["code"] == "autorisation_requise"
+
+
+async def test_un_accord_de_depense_ne_vaut_qu_une_fois(monde, monkeypatch):
+    """Revue : un accord accordé laissait passer toute action « dépense » sans être marqué utilisé (RV, point 1)."""
+    lancees = []
+
+    async def depense(contexte, parametres):
+        lancees.append(1)
+        return {"ok": True}
+
+    monkeypatch.setitem(
+        registre.REGISTRE, "attaques_lancer_essai", Action(nom="attaques_lancer_essai", description="", parametres=_Params, fonction=depense, ecriture=True, famille="depense")
+    )
+    contexte = _chat()
+    contexte.conversation["depenses"] = {"d1": {"motif": "x", "montant_estime": 1, "statut": "accordee", "utilisee": False}}
+    assert (await registre.executer("attaques_lancer_essai", {}, contexte)) == {"ok": True}
+    assert contexte.conversation["depenses"]["d1"]["utilisee"] is True
+    seconde = await registre.executer("attaques_lancer_essai", {}, contexte)
+    assert seconde["code"] == "autorisation_requise" and len(lancees) == 1

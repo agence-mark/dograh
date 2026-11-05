@@ -19,6 +19,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder.tests_agent import automatisation
+from api.services.call_concurrency.rate_limiter import rate_limiter
 from api.services.tests_rejouables.modele import ErreurTestRejouable
 
 router = APIRouter(prefix="/automatisation", tags=["automatisation"])
@@ -85,6 +86,18 @@ async def lancer_les_tests(
     corps = corps or LancerLesTests()
     nommes = [*(corps.tests or []), *(test or [])] or None
     workflow = await _agent_ou_404(user, workflow_id)
+    try:
+        await automatisation.verifier_le_budget(user)
+    except automatisation.BudgetNonRegle as refus:
+        raise HTTPException(status_code=409, detail=str(refus)) from None
+    try:  # limite de débit par organisation ; limiteur injoignable : on refuse (prudent), comme ``/builder/miroir``
+        permis = await rate_limiter.acquire_token(
+            user.selected_organization_id, automatisation.PAR_HEURE, scope_key=f"tests-api:{user.selected_organization_id}", window_seconds=3600.0
+        )
+    except Exception:  # noqa: BLE001
+        permis = False
+    if not permis:
+        raise HTTPException(status_code=429, detail="Too many test launches this hour: wait before launching again.")
     try:
         return await automatisation.lancer(user, workflow, tests=nommes, repetitions=corps.repetitions)
     except automatisation.DejaEnCours:

@@ -43,6 +43,12 @@ def _cache_du_labo_propre():
     espaces.reinitialiser_cache()
 
 
+@pytest.fixture(autouse=True)
+def _budget_du_mois_regle(monkeypatch):
+    """RV (point 2) : une clé exige un budget du mois réglé ; ces tests ne portent pas là-dessus (voir ``test_rv_depense_des_tests.py``)."""
+    monkeypatch.setattr(automatisation, "verifier_le_budget", AsyncMock(return_value=None))
+
+
 async def _monde(db, s: str):
     a = await creer_organisation(db, f"n3b-a-{s}")
     b = await creer_organisation(db, f"n3b-b-{s}")

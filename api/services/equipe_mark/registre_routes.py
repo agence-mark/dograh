@@ -25,6 +25,9 @@ TOUTES = LECTURE | ECRITURE | {"OPTIONS", "WS"}
 @dataclass(frozen=True)
 class Permission:
     cle: str
+    # Revue RV (point 3) : la permission qu'une CLÉ d'API doit porter à la place de ``cle`` (celle du portail). Une session d'équipe garde
+    # ``cle`` ; elle passe aussi avec ``pour_cle`` si son rôle la porte.
+    pour_cle: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,8 @@ def _r(methodes, motif, decision, par_defaut=False) -> Regle:
 
 
 P = Permission
+# RV (point 3) : écriture du portail. Session d'équipe : ``agents.modifier`` comme avant ; clé d'API : ``portail.ecrire`` seulement.
+PORTAIL = Permission("agents.modifier", pour_cle="portail.ecrire")
 
 REGLES: tuple[Regle, ...] = (
     # ------------------------------------------------------------------ sans session de compte
@@ -106,7 +111,8 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/builder/alertes/.*$", P("agents.modifier")),
     # [.mark] Partie 3 : le miroir de Claude Code (U12) envoie la conversation d'un agent avec la clé de son organisation ;
     # depuis la liste fermée des clés (17a), `builder.lancer` lui était refusé. La conversation se range avec son agent.
-    _r(ECRITURE, r"^/builder/miroir$", P("agents.modifier")),
+    # RV (point 3) : la clé garde le miroir sous sa propre permission, ``builder.miroir`` (elle n'a plus ``agents.modifier``).
+    _r(ECRITURE, r"^/builder/miroir$", Permission("agents.modifier", pour_cle="builder.miroir")),
     # Partie 3, N1 : « Annuler » défait une action du builder (la route vérifie en plus la permission de l'action défaite) ; lire le journal = pouvoir modifier.
     _r({"POST"}, r"^/builder/journal/[^/]+/annuler$", P("agents.modifier")),
     _r({"GET"}, r"^/builder/journal$", P("agents.modifier")),
@@ -135,6 +141,9 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/agents/.*$", P("agents.modifier"), par_defaut=True),
     _r(ECRITURE, r"^/workflow-recordings/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/workflow-recordings/.*$", MEMBRE, par_defaut=True),
+    # RV (point 3) : les trois écritures de connaissances que fait le portail ; le reste de ``/knowledge-base`` reste fermé aux clés.
+    _r({"POST"}, r"^/knowledge-base/(upload-url|documents/\{document_uuid\}/remplacer)$", PORTAIL),
+    _r({"DELETE"}, r"^/knowledge-base/documents/\{document_uuid\}$", PORTAIL),
     _r(ECRITURE, r"^/(tools|knowledge-base|folder|tts-cache)(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/(tools|knowledge-base|folder|tts-cache|node-types)(/.*)?$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ campagnes
@@ -209,7 +218,10 @@ REGLES: tuple[Regle, ...] = (
     # Revue serveur M1 : les réglages .mark d'un agent de site (plafonds de coût, durée, sessions par adresse, domaines,
     # expiration) sont ceux de .mark, jamais d'une clé d'API ; l'apparence et l'emplacement restent ouverts au portail.
     _r({"PUT"}, r"^/organizations/agents-site/\{workflow_id\}/reglages$", P("atelier.regler")),
-    _r(ECRITURE, r"^/organizations/.*$", P("agents.modifier"), par_defaut=True),
+    # RV (point 3) : toutes les autres écritures /organizations/* sont celles du portail (apparence, emplacement, établissements, fiches en bloc,
+    # phrases, objets, listes, planificateur, équipe, lexique, relance d'une action : plan du portail et ``contrat_portail_fork.json``). Une clé
+    # y entre avec ``portail.ecrire`` et rien d'autre ; une session garde ``agents.modifier``. Les routes plus sensibles ont leur règle plus haut.
+    _r(ECRITURE, r"^/organizations/.*$", PORTAIL, par_defaut=True),
     _r(LECTURE, r"^/organizations/.*$", MEMBRE, par_defaut=True),
     # U3 bis : le catalogue des variables d'un agent (lecture seule, tout membre de l'organisation).
     _r(LECTURE, r"^/mark/variables(/.*)?$", MEMBRE),

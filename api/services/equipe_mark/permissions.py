@@ -32,6 +32,13 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     "contacts.traiter": ("Clients", "Traiter les contacts d'un client (fusionner, séparer, ne pas mémoriser)"),
     # Partie 3, N3b (décision 20) : lancer la suite de tests d'un agent depuis une automatisation (n8n), avec la clé de l'organisation.
     "tests.automatiser": ("Tests", "Lancer les tests d'un agent depuis une automatisation"),
+    # Revue RV (point 3, tranché par Pierre le 05/11) : la permission PROPRE au portail. Elle n'ouvre que les écritures que le portail fait avec la
+    # clé du client (apparence, emplacement, établissements, équipe, lexique, connaissances, relance d'une action : ``contrat_portail_fork.json``).
+    # Une session d'équipe n'en a pas besoin : elle garde ``agents.modifier`` sur ces routes, exactement comme avant.
+    # RV (point 3) : le miroir de Claude Code (conversation rangée avec son agent, sans secret) se range avec la clé MCP de l'organisation ; c'est la seule
+    # route ``/builder`` qu'une clé garde (``/builder/miroir``), sous sa propre permission.
+    "builder.miroir": ("Builder IA", "Ranger les conversations de Claude Code dans le miroir (clé MCP)"),
+    "portail.ecrire": ("Clés", "Écrire dans l'espace d'un client depuis son portail (apparence, établissements, équipe, lexique, connaissances)"),
 }
 
 # Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
@@ -40,7 +47,8 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
 PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
     {
         "conversations.voir",  # lire les appels et leur rapport
-        "agents.modifier",  # apparence, sites, établissements, équipe, lexique, connaissances, relance d'une action (routes /organizations)
+        "builder.miroir",  # RV : seulement ``POST /builder/miroir`` (le hook de Claude Code)
+        "portail.ecrire",  # RV : apparence, sites, établissements, équipe, lexique, connaissances, relance d'une action (les routes du contrat du portail)
         "connecteurs.autoriser",
         "base_client.connexion_portail",
         "contacts.traiter",

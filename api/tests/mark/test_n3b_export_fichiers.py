@@ -306,12 +306,18 @@ async def test_les_reglages_de_rattachement_de_l_agent_cible_sont_gardes(org, db
 # --- par la clé de l'organisation ----------------------------------------------------------------------------------------------
 
 
-async def test_la_cle_de_l_organisation_exporte_et_importe_son_agent_et_pas_celui_d_une_autre(org, autre_org, db_session, monkeypatch):
+async def test_une_session_exporte_et_importe_son_agent_et_pas_celui_d_une_autre_et_une_cle_n_y_entre_plus(org, autre_org, db_session, monkeypatch):
+    """RV (point 3) : l'agent en fichiers n'a pas sa propre permission de clé : fermé aux clés, export comme import. La session d'une personne
+    (avec son organisation dans l'adresse) exporte et importe SON agent ; celle d'une autre organisation reçoit 404."""
+    from api.tests.mark.equipe_commun import creer_compte, entetes
+
     a, _ = await _agent_complet(db_session, org)
+    _, jeton = await creer_compte(db_session, "n3b-fichiers@example.com", role="Administrateur", organisations=[org.organisation.id, autre_org.organisation.id])
+    pour, contre = entetes(jeton, org.organisation.id), entetes(jeton, autre_org.organisation.id)
     _, cle = await db_session.create_api_key(org.organisation.id, "n8n", org.utilisateur.id)
-    _, cle_autre = await db_session.create_api_key(autre_org.organisation.id, "n8n autre", autre_org.utilisateur.id)
-    pour, contre = {"X-API-Key": cle}, {"X-API-Key": cle_autre}
     async with client_http() as c:
+        assert (await c.get(f"/api/v1/agent-fichiers/{a.id}/export", headers={"X-API-Key": cle})).status_code == 403
+        assert (await c.post(f"/api/v1/agent-fichiers/{a.id}/import", headers={"X-API-Key": cle}, json={"fichiers": {}})).status_code == 403
         r = await c.get(f"/api/v1/agent-fichiers/{a.id}/export", headers=pour)
         z = await c.get(f"/api/v1/agent-fichiers/{a.id}/export?format=zip", headers=pour)
         partiel = await c.get(f"/api/v1/agent-fichiers/{a.id}/export?contenus=tests", headers=pour)

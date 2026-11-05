@@ -18,6 +18,7 @@ Les dépendances qui touchent la base et le modèle sont rassemblées dans ``DEP
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -129,6 +130,57 @@ async def cerveaux_des_tests(user: Any, workflow: Any) -> CerveauxDesTests:
     )
 
 
+async def compter_le_modele_de_l_agent(workflow: Any, organisation_id: int, run_ids: list[int]) -> float:
+    """Revue RV (point 2) : les jetons que le modèle de L'AGENT a consommés pendant le rejeu (lus dans l'usage des runs d'essai) sont
+    comptés dans la dépense du mois par le mécanisme des budgets de rôles (``budget_roles.enregistrer``, rôle « appelant » : le budget du rejeu),
+    jamais par un second compteur. Un prix inconnu compte les jetons à zéro dollar. Ne lève jamais : un compte ne casse pas un rejeu."""
+    if not run_ids:
+        return 0.0
+    try:
+        from api.db import db_client
+        from api.services.builder.cerveau import budget_roles, prix
+
+        table = await prix.lire(organisation_id)
+        modele_agent = await _modele_de_l_agent(workflow, organisation_id)
+        total = 0.0
+        for run_id in run_ids:
+            run = await db_client.get_workflow_run(run_id, organization_id=organisation_id)
+            for cle, usage in ((getattr(run, "usage_info", None) or {}).get("llm") or {}).items():
+                entree, sortie = int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0)
+                if entree <= 0 and sortie <= 0:
+                    continue
+                modele = cle.split("|||", 1)[1] if "|||" in cle else modele_agent
+                ligne = table.prix_de(modele or "") or (table.prix_de(modele_agent) if modele_agent else None)
+                total += await budget_roles.enregistrer(
+                    organisation_id,
+                    "appelant",
+                    entree=entree,
+                    sortie=sortie,
+                    prix_entree=ligne.entree_par_million if ligne else 0.0,
+                    prix_sortie=ligne.sortie_par_million if ligne else 0.0,
+                )
+        return total
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[tests] dépense du modèle de l'agent non comptée : {type(erreur).__name__}")
+        return 0.0
+
+
+async def _budget_du_rejeu_atteint(organisation_id: int) -> str | None:
+    """Le budget du mois du rejeu (rôle « appelant », où se compte aussi le modèle de l'agent) est-il atteint ? Cause ou ``None``."""
+    try:
+        from api.services import sources_cerveaux
+        from api.services.appel_simule import reglages as appel_simule
+        from api.services.builder.cerveau import budget_roles
+
+        roles = await sources_cerveaux.surcharger_les_roles(organisation_id, await appel_simule.lire_reglages(organisation_id))
+        await budget_roles.verifier(organisation_id, "appelant", roles.appelant.budget_mois)
+    except BudgetDuRole as budget:
+        return f"budget_{budget.role}"
+    except Exception:  # noqa: BLE001 -- budget illisible : les plafonds du rejeu tiennent déjà
+        return None
+    return None
+
+
 # --- le plafond du rejeu (C2) ----------------------------------------------------------------------------------------------
 
 
@@ -212,7 +264,7 @@ async def _essais_d_une_replique(test: dict[str, Any], workflow: Any, organisati
 
 
 async def _essais_d_une_conversation(
-    test: dict[str, Any], workflow: Any, user: Any, n: int, cerveau: Cerveau | None, source: str = "cle_api"
+    test: dict[str, Any], workflow: Any, user: Any, n: int, cerveau: Cerveau | None, source: str = "cle_api", runs: list[int] | None = None
 ) -> list[dict[str, Any]]:
     if cerveau is None:
         raison = (
@@ -227,6 +279,15 @@ async def _essais_d_une_conversation(
 
     appelant = AppelantParCerveau(cerveau, jeu.consigne_de_l_appelant(personnage, scenario, await consignes.consigne_appelant()))
     moteur = DEPENDANCES.moteur()
+    if runs is not None:  # RV : les runs d'essai, pour compter ce que le modèle de l'agent y a consommé
+        clore_d_origine = moteur.clore
+
+        async def clore(session):
+            if session.run_id is not None:
+                runs.append(session.run_id)
+            await clore_d_origine(session)
+
+        moteur = dataclasses.replace(moteur, clore=clore)
     sorties = []
     for i in range(1, n + 1):
         try:
@@ -410,18 +471,22 @@ async def rejouer_la_suite(
     echecs: list[dict[str, Any]] = []
     plafond: str | None = None
     for test in voulus:
-        if (plafond := cerveaux.atteint()) is not None:
+        if (plafond := cerveaux.atteint()) is not None or (plafond := await _budget_du_rejeu_atteint(organisation_id)) is not None:
             break
+        runs_d_essai: list[int] = []
         try:
             if test.get("scenario"):
-                essais = await _essais_d_une_conversation(test, workflow, user, repetitions, cerveaux.appelant, cerveaux.source_appelant)
+                essais = await _essais_d_une_conversation(test, workflow, user, repetitions, cerveaux.appelant, cerveaux.source_appelant, runs_d_essai)
             else:
                 essais = await _essais_d_une_replique(test, workflow, organisation_id, repetitions)
+                runs_d_essai = [e["run_id"] for e in essais if e.get("run_id")]
         except ErreurTestRejouable as erreur:
             essais = [{"numero": 1, "erreur": str(erreur), "criteres": [], "reussi": False, "lignes": []}]
         except PlafondDuRejeu as atteint:
             plafond = atteint.quoi
+            await compter_le_modele_de_l_agent(workflow, organisation_id, runs_d_essai)
             break
+        await compter_le_modele_de_l_agent(workflow, organisation_id, runs_d_essai)
         statut = _statut_d_un_test(essais)
         avis = None
         if avec_le_juge and test.get("questions_juge") and essais and essais[0].get("lignes"):
