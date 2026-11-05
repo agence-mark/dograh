@@ -243,7 +243,8 @@ async def test_les_deux_premieres_fiches_reprennent_les_deux_recettes_actuelles(
     polyai = await recettes.lire("facon-polyai")
     assert tala.fiche.defaut_de_depart and tala.fiche.capacites == []
     assert recettes.CAPACITE_REGLE_DE_DESCENTE in polyai.fiche.capacites
-    assert len(tala.fiche.pieces) == 10 and len(polyai.fiche.pieces) == 10
+    # Lot L8 (SA-T1) : la recette façon Tala d'Evan remplace celle du fork (10 pièces d'avant, 38 ajoutées).
+    assert len(tala.fiche.pieces) == 48 and len(polyai.fiche.pieces) == 10
     # Chaque pièce citée existe vraiment dans la bibliothèque versée.
     rendu = await recettes.lire_avec_les_pieces("facon-tala")
     assert not [p for p in rendu["pieces"] if p.get("manque")]
