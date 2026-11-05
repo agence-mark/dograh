@@ -1469,6 +1469,9 @@ class EdgeDataDTO(BaseModel):
     transition_speech_recording_id: Optional[str] = None
     # [.mark] passages-fiables (lot A) : la condition de la porte sur la fiche (étape complète, ou champ = valeur).
     condition_sur_la_fiche: Optional[ConditionDePorteDTO] = None
+    # [.mark] L6+ (audit 01 A8) : l'identifiant STABLE de la porte, le nom de la fonction que le modèle appelle. Posé une fois
+    # (``services/workflow/portes.py``), gardé quand on renomme le libellé. Absent : le nom vient du libellé, comme avant.
+    identifiant: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]{1,200}$")
 
 
 class RFEdgeDTO(BaseModel):

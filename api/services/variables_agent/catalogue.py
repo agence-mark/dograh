@@ -64,7 +64,15 @@ def _du_code() -> list[Variable]:
         Variable(CLE_HORAIRES, "Horaires d'ouverture", "entreprise", "lundi au vendredi, 9 h à 18 h"),
         Variable(CLE_ETAT, "État d'ouverture", "entreprise", "ouvert"),
         Variable(CLE_REOUVERTURE, "Prochaine réouverture", "entreprise", "demain 9 h"),
-        Variable(CLE_ANNONCE, "Annonce d'ouverture", "entreprise"),
+        # [.mark] L6+ (audit 02 B5) : l'annonce d'ouverture est une ÉTIQUETTE de l'accueil, sous la forme que le moteur rend sans la
+        # réclamer aux campagnes (``initial_context.``, revue du 18/09) ; la forme nue reste connue (noms réservés).
+        Variable(
+            f"initial_context.{CLE_ANNONCE}",
+            "Annonce d'ouverture",
+            "entreprise",
+            "Nous sommes fermés en ce moment, nous rouvrons demain à 9 heures. ",
+            "Dite à l'accueil seulement quand l'établissement est fermé ou en pause.",
+        ),
         Variable(CLE_PROPOSE, "Vocabulaire proposé", "appel"),
         Variable(CLE_A_ECOUTER, "Vocabulaire à écouter", "appel"),
         Variable(CLE_DATE_APPEL, "Date de l'appel", "appel", "2026-11-04"),

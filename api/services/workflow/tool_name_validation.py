@@ -7,7 +7,7 @@ from api.db import db_client
 from api.enums import ToolCategory
 from api.services.workflow.errors import ItemKind, WorkflowError
 from api.services.workflow.tools.custom_tool import custom_tool_function_name
-from api.services.workflow.workflow_graph import transition_tool_name
+from api.services.workflow.workflow_graph import nom_de_porte
 
 _DYNAMIC_SCHEMA_CATEGORIES = {
     ToolCategory.CALCULATOR.value,
@@ -100,7 +100,7 @@ async def validate_workflow_tool_name_collisions(
         ):
             continue
 
-        function_name = transition_tool_name(label)
+        function_name = nom_de_porte(data)  # [.mark] L6+ : identifiant stable de la porte, sinon libellé
         matching_tools = custom_tools_by_node.get(source, {}).get(function_name, [])
         if not matching_tools:
             continue

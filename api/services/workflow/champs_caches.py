@@ -81,6 +81,13 @@ def fusionner_champs_caches(
             continue
         ancienne = anciennes_liaisons.get((source, cible, (liaison.get("data") or {}).get("label") or ""))
         if ancienne is None:
+            # [.mark] L6+ : une liaison RENOMMÉE par le builder garde son identifiant de porte, si une seule liaison relie ces deux
+            # étapes (sinon on ne devine pas).
+            memes = [e for (s, c, _l), e in anciennes_liaisons.items() if (s, c) == (source, cible)]
+            if len(memes) == 1 and not (liaison.get("data") or {}).get("identifiant"):
+                from api.services.workflow.portes import nom_de_porte
+
+                liaison.setdefault("data", {})["identifiant"] = nom_de_porte(memes[0].get("data") or {})
             continue
         donnees = liaison.setdefault("data", {})
         for champ in caches_liaison:
