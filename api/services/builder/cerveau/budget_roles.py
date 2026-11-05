@@ -82,17 +82,18 @@ class CerveauBudgete:
         self.budget = budget
         self._prix_entree = prix_entree
         self._prix_sortie = prix_sortie
+        # RA-C : ce que CE cerveau a consommé depuis sa construction (un jugement = un cerveau), pour le dire sur le résultat.
+        self.jetons = 0
+        self.cout = 0.0
 
     async def tour(self, *, systeme: str, messages: list[dict[str, Any]], outils: list[dict[str, Any]]):
         await verifier(self._organisation, self.role, self.budget, prix_connus=bool(self._prix_entree or self._prix_sortie))
         async for evenement in self._cerveau.tour(systeme=systeme, messages=messages, outils=outils):
             if evenement.get("type") == "usage":
-                await enregistrer(
-                    self._organisation,
-                    self.role,
-                    entree=int(evenement.get("entree", 0) or 0),
-                    sortie=int(evenement.get("sortie", 0) or 0),
-                    prix_entree=self._prix_entree,
-                    prix_sortie=self._prix_sortie,
+                entree, sortie = int(evenement.get("entree", 0) or 0), int(evenement.get("sortie", 0) or 0)
+                cout = await enregistrer(
+                    self._organisation, self.role, entree=entree, sortie=sortie, prix_entree=self._prix_entree, prix_sortie=self._prix_sortie
                 )
+                self.jetons += max(entree, 0) + max(sortie, 0)
+                self.cout = round(self.cout + cout, 6)
             yield evenement

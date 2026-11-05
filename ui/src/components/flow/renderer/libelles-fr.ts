@@ -77,6 +77,7 @@ const FR: Record<string, Fr> = {
     },
     pre_call_fetch_url: { libelle: "Adresse de la requête", explication: "L'adresse à laquelle part la requête POST. Le corps contient les numéros de l'appelant et de l'appelé." },
     pre_call_fetch_credential_uuid: { libelle: "Authentification", explication: "Un identifiant facultatif joint à la requête." },
+    pre_call_fetch_remplace: { libelle: "Objets que la lecture peut remplacer", explication: "Les noms des objets de l'agent (séparés par des virgules) que la lecture avant l'appel a le droit de remplacer. Vide, elle n'en remplace aucun. Chaque remplacement est tracé dans l'appel." },
     enabled: { libelle: "Actif", explication: "Éteint, l'élément est ignoré." },
     trigger_path: { libelle: "Chemin du déclencheur", explication: "Le morceau d'adresse qui identifie ce déclencheur : 36 caractères au plus, lettres, chiffres, tirets ou soulignés." },
     http_method: { libelle: "Méthode HTTP", explication: "Le verbe HTTP de la requête sortante." },

@@ -10,21 +10,33 @@
  * exclus), et le libellé « allumé mais pas réglé » quand le juge du Labo est éteint ou sans clé (jusque-là l'après-appel ne faisait
  * rien, en silence). Les bornes sont celles du serveur (`routes/reglages_agent.py`). Une lecture ou un enregistrement qui échoue le
  * dit, sans inventer d'état.
+ *
+ * RA-C (06 point 6) : la dépense du mois du juge (jetons, dollars, budget) est dite sous l'interrupteur, lue sur la même route que celle de
+ * l'appelant simulé (`/appel-simule/depense`, compteur unique de SA-3) ; illisible, la ligne disparaît au lieu d'afficher un faux zéro.
  */
 import { useEffect, useState } from "react";
 
 import {
+    getDepenseDesRolesApiV1AppelSimuleDepenseGet,
     lireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGet,
     reglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPut,
 } from "@/client/sdk.gen";
 import { Input } from "@/components/ui/input";
 
+import { montant } from "../appelant-simule/montant";
 import { type Texte, useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { Info } from "../studio/marques";
 
 const PART = { min: 1, max: 100 };
 const DUREE = { min: 0, max: 600 };
+
+interface DepenseDuJuge {
+    jetons: number;
+    cout: number;
+    budget_mois: number;
+    atteint: boolean;
+}
 
 interface Vue {
     actif: boolean;
@@ -47,6 +59,14 @@ const TEXTES = {
         en: "Filters that limit what the judge spends: a call that is not judged says why in its page.",
         fr: "Des filtres qui bornent la dépense du juge : un appel non jugé dit pourquoi sur sa page.",
     },
+    depense: { en: "Spent this month", fr: "Dépensé ce mois-ci" },
+    jetons: { en: "tokens", fr: "jetons" },
+    surBudget: { en: "of", fr: "sur" },
+    aucunPlafond: { en: "no cap", fr: "aucun plafond" },
+    budgetAtteint: {
+        en: "Budget reached: new calls are not judged. Raise it in the Labo settings › Simulated caller.",
+        fr: "Budget atteint : les nouveaux appels ne sont pas jugés. Relevez-le dans les Réglages du Labo › Appelant simulé.",
+    },
     illisible: { en: "Could not read or save this setting", fr: "Réglage illisible ou non enregistré" },
     enregistre: { en: "Judge setting saved.", fr: "Réglage du juge enregistré." },
     pasRegle: { en: "Switched on but not set up", fr: "Allumé mais pas réglé" },
@@ -63,8 +83,9 @@ const TEXTES = {
 const horsBornes = (valeur: number, b: { min: number; max: number }) => !Number.isInteger(valeur) || valeur < b.min || valeur > b.max;
 
 export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [vue, setVue] = useState<Vue | null>(null);
+    const [depense, setDepense] = useState<DepenseDuJuge | null>(null);
     const [erreur, setErreur] = useState(false);
     const [saisie, setSaisie] = useState<{ part: string; duree: string }>({ part: "100", duree: "0" });
     const [fautes, setFautes] = useState<{ part?: Texte; duree?: Texte }>({});
@@ -88,6 +109,10 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
                     repondeurs_exclus: Boolean(d.repondeurs_exclus),
                     etat_du_juge: d.etat_du_juge ?? "regle",
                 });
+        });
+        void getDepenseDesRolesApiV1AppelSimuleDepenseGet().then((reponse) => {
+            const j = reponse?.error ? undefined : reponse?.data?.juge;
+            if (!annule) setDepense(j ? { jetons: j.jetons ?? 0, cout: j.cout ?? 0, budget_mois: j.budget_mois ?? 0, atteint: Boolean(j.atteint) } : null);
         });
         return () => {
             annule = true;
@@ -153,6 +178,14 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
                     </span>
                 )}
             </div>
+            {vue?.actif && depense && (
+                <p className="text-xs text-muted-foreground" data-depense-du-juge>
+                    <span className="font-medium text-foreground">{t(TEXTES.depense)}</span> {montant(depense.cout, langue)} $ ·{" "}
+                    {depense.jetons.toLocaleString(langue === "fr" ? "fr-FR" : "en-US")} {t(TEXTES.jetons)} ·{" "}
+                    {depense.budget_mois > 0 ? `${t(TEXTES.surBudget)} ${depense.budget_mois} $` : t(TEXTES.aucunPlafond)}
+                    {depense.atteint && <span className="block text-destructive">{t(TEXTES.budgetAtteint)}</span>}
+                </p>
+            )}
             {pasRegle && (
                 <p role="status" className="text-xs text-muted-foreground" data-etat-du-juge={vue.etat_du_juge}>
                     <span className="font-medium text-foreground">{t(TEXTES.pasRegle)}.</span>{" "}

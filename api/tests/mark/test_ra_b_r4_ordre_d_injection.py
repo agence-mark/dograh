@@ -56,9 +56,10 @@ def test_l_ordre_est_ecrit_du_plus_bas_au_plus_haut():
     ]
 
 
-def test_le_reglage_de_l_etape_de_depart_existe_et_reste_cache_du_formulaire():
+def test_le_reglage_de_l_etape_de_depart_existe_et_se_saisit_dans_le_formulaire():
+    """RA-C : il était caché du formulaire (RA-B) ; il est visible, donc plus dans les champs cachés repris à l'enregistrement."""
     from api.services.workflow.champs_caches import champs_caches
     from api.services.workflow.dto import StartCallNodeData
 
     assert "pre_call_fetch_remplace" in StartCallNodeData.model_fields
-    assert "pre_call_fetch_remplace" in champs_caches("startCall")
+    assert "pre_call_fetch_remplace" not in champs_caches("startCall")

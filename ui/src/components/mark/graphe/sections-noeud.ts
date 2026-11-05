@@ -66,6 +66,7 @@ const PAR_PROPRIETE: Record<string, SectionNoeud> = {
     pre_call_fetch_mode: "avant",
     pre_call_fetch_url: "avant",
     pre_call_fetch_credential_uuid: "avant",
+    pre_call_fetch_remplace: "avant",
     champs_etape: "donnees",
     extraction_enabled: "donnees",
     extraction_prompt: "donnees",

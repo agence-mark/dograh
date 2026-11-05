@@ -572,6 +572,7 @@ class _ToolDocumentRefsMixin(BaseModel):
         "pre_call_fetch_mode",
         "pre_call_fetch_url",
         "pre_call_fetch_credential_uuid",
+        "pre_call_fetch_remplace",
     ),
     field_overrides={
         "name": {
@@ -679,6 +680,20 @@ class _ToolDocumentRefsMixin(BaseModel):
                 show={"pre_call_fetch_mode": ["always", "inbound", "outbound"]}
             ),
         },
+        # [.mark] RA-C : la saisie de l'ordre d'injection (audit 02 B2), dans la section « avant ».
+        "pre_call_fetch_remplace": {
+            "display_name": "Objects the lookup may replace",
+            "description": (
+                "Names of agent objects (comma-separated) that the pre-call lookup is "
+                "allowed to replace. Empty = the lookup never replaces an agent object; "
+                "each replacement is traced in the run."
+            ),
+            "llm_hint": "Object names, comma-separated. Leave empty unless the lookup must override an object.",
+            "display_options": DisplayOptions(
+                show={"pre_call_fetch_mode": ["always", "inbound", "outbound"]}
+            ),
+            "placeholder": "brands, opening_hours",
+        },
     },
 )
 class StartCallNodeData(
@@ -716,9 +731,11 @@ class StartCallNodeData(
     pre_call_fetch_credential_uuid: Optional[str] = spec_field(
         default=None, ui_type=PropertyType.credential_ref
     )
-    # [.mark] RA-B R4d : les objets que la lecture avant l'appel peut remplacer (noms séparés par des virgules).
-    # Hors du formulaire généré (comme les autres réglages cachés, repris à l'enregistrement par ``champs_caches``).
-    pre_call_fetch_remplace: Optional[str] = spec_field(default=None, spec_exclude=True)
+    # [.mark] RA-B R4d / RA-C : les objets que la lecture avant l'appel peut remplacer (noms séparés par des virgules),
+    # saisis dans la section « avant » de l'étape de départ.
+    pre_call_fetch_remplace: Optional[str] = spec_field(
+        default=None, ui_type=PropertyType.string
+    )
 
     @model_validator(mode="before")
     @classmethod
