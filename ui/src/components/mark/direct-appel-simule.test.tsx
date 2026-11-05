@@ -7,6 +7,8 @@
  *     pieces into one bubble? Is the live view read from the last event seen, until the call ends,
  *     then pointed at the saved transcript? Does a live view that cannot be read say so?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -83,7 +85,7 @@ describe("[.mark] the live view of a simulated call", () => {
         render(<DirectAppelSimule runId={7} workflowId={34} />);
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.appelSimuleDirect));
             expect(affiche).not.toContain("Live view unavailable");
         }
         await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 3000 });

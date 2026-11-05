@@ -10,6 +10,8 @@
  * | importer, exporter | le fichier part tel quel ; un refus du serveur est montre avec le nom du reglage |
  * | modale | centree, a en-tete fixe, jamais un panneau lateral ; textes en deux langues |
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -246,7 +248,7 @@ describe("[.mark] settings templates on screen", () => {
         })) as never);
         await ouvrirLaModale();
         fireEvent.click(await screen.findByText("Apply", { selector: "[data-appliquer-modele]" }));
-        await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).toMatch(phraseAttendue(ECHECS.modeleAppliquer)));
         await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).not.toContain("would not be accepted"));
         expect((document.querySelector("[data-valider-application]") as HTMLButtonElement).disabled).toBe(true);
     });

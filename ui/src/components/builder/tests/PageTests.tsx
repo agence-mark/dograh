@@ -45,6 +45,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { DepuisLaBibliotheque } from "./DepuisLaBibliotheque";
 import { DetailDunTest } from "./DetailDunTest";
 import { BandeauDAlertes } from "./BandeauDAlertes";
@@ -107,7 +108,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
             ressourcesDeLAgentApiV1BuilderTestsWorkflowIdRessourcesGet({ path: { workflow_id: workflowId } }),
         ]);
         if (a.error) {
-            setErreur(echecAffiche(a.error));
+            setErreur(echecAffiche(a.error, ECHECS.testsListe));
             return;
         }
         setErreur(null);
@@ -127,7 +128,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const lire = async (slug: string) => {
         const r = await lireUnTestApiV1BuilderTestsWorkflowIdSlugGet({ path: { workflow_id: workflowId, slug } });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.testLire));
             return null;
         }
         return r.data as { test: TestComplet; resultats: Execution[] };
@@ -150,7 +151,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
         });
         setEnCours(false);
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.testRejouer));
             return;
         }
         setSuite(r.data as ResultatDeSuite);
@@ -160,7 +161,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const exporter = async () => {
         const r = await exporterLesTestsApiV1BuilderTestsWorkflowIdExportGet({ path: { workflow_id: workflowId } });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.testExporter));
             return;
         }
         const lien = document.createElement("a");
@@ -173,7 +174,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     // suppression-confirmee : FenetreDeTest demande « Supprimer ce test et ses résultats ? » (Non / Supprimer) avant `onSupprimer`.
     const supprimer = async (slug: string) => {
         const r = await supprimerUnTestApiV1BuilderTestsWorkflowIdSlugDelete({ path: { workflow_id: workflowId, slug } });
-        if (r.error) setErreur(echecAffiche(r.error));
+        if (r.error) setErreur(echecAffiche(r.error, ECHECS.testSupprimer));
         else {
             setEdition(null);
             await charger();
@@ -183,7 +184,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const revenir = async (id: string) => {
         const r = await retourArriereApiV1BuilderTestsWorkflowIdCorrectionsCorrectionIdRetourPost({ path: { workflow_id: workflowId, correction_id: id } });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.correctionAnnuler));
             return;
         }
         setMessage((r.data as { message?: string }).message ?? null);

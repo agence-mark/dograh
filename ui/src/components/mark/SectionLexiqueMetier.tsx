@@ -14,6 +14,7 @@ import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
@@ -162,7 +163,7 @@ export function SectionLexiqueMetier() {
         // existe, on ne laisse pas écraser (relecture indépendante du 17/09).
         setLu(false);
         setErreur(
-          echecAffiche(reponse.error),
+          echecAffiche(reponse.error, ECHECS.lexiqueLire),
         );
         return;
       }
@@ -222,7 +223,7 @@ export function SectionLexiqueMetier() {
       const reponse = await saveLexiqueApiV1OrganizationsLexiquePut({ body: suivant });
       if (reponse.error) {
         // The server's own message: a spelling shared by two terms names both.
-        setErreur(echecAffiche(reponse.error));
+        setErreur(echecAffiche(reponse.error, ECHECS.lexiqueEnregistrer));
         return false;
       }
       setLexique(reponse.data ?? suivant);
@@ -315,7 +316,7 @@ export function SectionLexiqueMetier() {
       const contenu = JSON.parse(await choisi.text()) as LexiqueMetier;
       const reponse = await importLexiqueApiV1OrganizationsLexiqueImportPost({ body: contenu });
       if (reponse.error) {
-        setErreur(echecAffiche(reponse.error));
+        setErreur(echecAffiche(reponse.error, ECHECS.lexiqueImporter));
         return;
       }
       const resultat = reponse.data;

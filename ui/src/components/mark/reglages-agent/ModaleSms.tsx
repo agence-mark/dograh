@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { SmsAgent } from "@/types/workflow-configurations";
 
 import { ChampEtiquettes } from "../ChampEtiquettes";
@@ -65,7 +66,7 @@ function Apercu({ workflowId, texte }: { workflowId?: number; texte: string | nu
         const minuterie = setTimeout(async () => {
             const r = await postApercuSmsApiV1WorkflowWorkflowIdSmsApercuPost({ path: { workflow_id: workflowId }, body: { texte: texte ?? "" } });
             if (r.error || !r.data) {
-                setErreur(echecAffiche(r.error));
+                setErreur(echecAffiche(r.error, ECHECS.smsApercu));
                 return;
             }
             setErreur(null);

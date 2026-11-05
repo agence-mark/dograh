@@ -27,6 +27,7 @@ import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { useAuth } from "@/lib/auth";
 
@@ -151,7 +152,7 @@ export function AccueilDuBuilder() {
             return;
         }
         if (r.error || !r.data) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.builderOuvrirFil));
             return;
         }
         router.push(adresses.fil(r.data.id));
@@ -163,7 +164,7 @@ export function AccueilDuBuilder() {
         setPlafond(null);
         if (r.error && statutDe(r) === STATUT_REFUSE) return notifier.echec(TEXTES_PLAFOND.reserve);
         if (r.error || !r.data) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.builderOuvrirFil));
             return;
         }
         router.push(adresses.fil(r.data.id));

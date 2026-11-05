@@ -19,6 +19,7 @@ import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -78,7 +79,7 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
             body: { champ, valeur, classement: classement ?? null },
         });
         if (reponse.error) {
-            setErreur(phraseEchec(reponse.error));
+            setErreur(phraseEchec(reponse.error, ECHECS.builderLigneFiche));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
             return;
         }
@@ -92,7 +93,7 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
         setErreur(null);
         const reponse = await validerLaFicheApiV1BuilderFicheWorkflowIdValiderPost({ path: { workflow_id: workflowId } });
         if (reponse.error) {
-            setErreur(phraseEchec(reponse.error));
+            setErreur(phraseEchec(reponse.error, ECHECS.builderValiderFiche));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
         } else notifier.succes({ en: "Sheet validated.", fr: "Fiche validée." });
         await rafraichir(workflowId);

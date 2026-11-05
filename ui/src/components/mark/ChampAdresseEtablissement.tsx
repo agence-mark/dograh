@@ -8,6 +8,7 @@ import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "./langue/langue";
 
 /**
@@ -97,7 +98,7 @@ export const ChampAdresseEtablissement = ({
             });
             if (derniereDemande.current !== cp) return;
             if (reponse.error) {
-                setErreurListe(echecAffiche(reponse.error));
+                setErreurListe(echecAffiche(reponse.error, ECHECS.communesCodePostal));
                 setCommunes([]);
                 return;
             }

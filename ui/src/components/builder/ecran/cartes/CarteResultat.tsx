@@ -19,6 +19,7 @@ import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Carte } from "./Carte";
 
 export const TITRES_DES_CARTES: Record<string, Texte> = {
@@ -125,7 +126,7 @@ function EssaiAValider({ essai, workflowId }: { essai: NonNullable<ReturnType<ty
             body: { workflow_id: workflowId, outil: essai.outil, donnees_test: essai.donnees },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.builderEssaiOutil));
             setEtat("attente");
             return;
         }

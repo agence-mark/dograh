@@ -14,6 +14,7 @@ import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Liste } from "@/components/mark/studio/liste";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
@@ -104,7 +105,7 @@ export default function TtsCacheList() {
                 const result = await listTtsCacheApiV1TtsCacheGet({ query, signal: controller.signal });
                 if (controller.signal.aborted) return;
                 if (result.error || !result.data) {
-                    setError(echecAffiche(result.error));
+                    setError(echecAffiche(result.error, ECHECS.cacheVoixListe));
                     setEntries([]);
                     return;
                 }

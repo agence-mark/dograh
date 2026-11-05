@@ -18,6 +18,7 @@ import {
     type VueFil,
 } from "@/client";
 import { ECHEC_DU_FIL, echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -40,7 +41,7 @@ export function useFil(filId: number) {
     const rafraichir = useCallback(async () => {
         const r = await lireUnFilApiV1BuilderFilsFilIdGet({ path: { fil_id: filId } });
         if (r.error || !r.data) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.builderLireFil));
             return null;
         }
         setFil(r.data);
@@ -69,7 +70,7 @@ export function useFil(filId: number) {
                         signal: arret.signal,
                     });
                     if (r.error || !r.data) {
-                        setErreur(echecAffiche(r.error));
+                        setErreur(echecAffiche(r.error, ECHECS.builderSuivreFil));
                         return;
                     }
                     for await (const { id, evenement } of lireLesBlocs(r.data as ReadableStream<Uint8Array>)) {

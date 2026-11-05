@@ -16,6 +16,7 @@ import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1Organizatio
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
@@ -39,7 +40,7 @@ export const useObjets = () => {
     const relire = useCallback(async () => {
         const reponse = await getObjetsApiV1OrganizationsObjetsGet();
         if (reponse.error) {
-            setRefus(echecAffiche(reponse.error));
+            setRefus(echecAffiche(reponse.error, ECHECS.objetsLire));
             return;
         }
         setRefus(null);

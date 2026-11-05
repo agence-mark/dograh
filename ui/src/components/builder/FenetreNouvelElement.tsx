@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ChoixEtiquettes } from "./ChoixEtiquettes";
 import { DepotDeDocument, STRUCTUREES } from "./DepotDeDocument";
 
@@ -163,7 +164,7 @@ export function FenetreNouvelElement({ familles, famille: depart, dossier: dossi
             : await creerUnElementApiV1BuilderBibliothequeFamillePost({ path: { famille: slug }, body: { slug: id, titre: titre.trim(), contenu, notes } });
         if (reponse.error || !reponse.data) {
             setEnCours(false);
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeCreer));
             return;
         }
         const donnees = reponse.data as { comparatif?: unknown };

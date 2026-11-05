@@ -12,6 +12,7 @@ import type { Element as ElementBibliotheque, VueEtiquette } from "@/client/type
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ChoixEtiquettes } from "./ChoixEtiquettes";
 
 interface Props {
@@ -32,7 +33,7 @@ export function RangementDeLElement({ element, dossiers, etiquettes, onChange }:
             body: corps,
         });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeRanger));
             return;
         }
         setErreur(null);

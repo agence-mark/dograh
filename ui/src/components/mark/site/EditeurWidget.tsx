@@ -55,6 +55,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
@@ -230,7 +231,7 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
         try {
             if (JSON.stringify(ap) !== JSON.stringify(charge.ap)) {
                 const res = await reglerLApparenceApiV1OrganizationsAgentsSiteWorkflowIdApparencePut({ path, body: ap });
-                if (res.error) throw new Error(echecAffiche(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error, ECHECS.widgetApparence));
             }
             if (JSON.stringify(rm) !== JSON.stringify(charge.saisie)) {
                 const res = await reglerLesReglagesApiV1OrganizationsAgentsSiteWorkflowIdReglagesPut({
@@ -246,11 +247,11 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
                         ...(rm.expire !== charge.saisie.expire ? { jeton_expire_le: rm.expire } : {}),
                     },
                 });
-                if (res.error) throw new Error(echecAffiche(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error, ECHECS.widgetReglages));
             }
             if (actif !== charge.actif) {
                 const res = await reglerLAffichageApiV1OrganizationsAgentsSiteWorkflowIdAffichagePut({ path, body: { actif } });
-                if (res.error) throw new Error(echecAffiche(res.error));
+                if (res.error) throw new Error(echecAffiche(res.error, ECHECS.widgetAffichage));
             }
             notifier.succes({ fr: "Widget enregistré.", en: "Widget saved." });
             onFermer();

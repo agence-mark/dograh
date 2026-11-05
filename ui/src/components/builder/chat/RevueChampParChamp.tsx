@@ -20,6 +20,7 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { echecAffiche, phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { FenetreRestauration } from "./FenetreRestauration";
 
 const T = {
@@ -67,7 +68,7 @@ export function RevueChampParChamp({
 
     const charger = useCallback(async () => {
         const r = await lireLesChangementsApiV1BuilderFilsFilIdChangementsGet({ path: { fil_id: filId } });
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.builderChangements));
         const donnees = r.data as { changements: Changement[] };
         setListe(donnees.changements);
         setRang((n) => Math.min(n, Math.max(donnees.changements.length - 1, 0)));
@@ -87,7 +88,7 @@ export function RevueChampParChamp({
             : refuserLesChangementsApiV1BuilderFilsFilIdChangementsRefuserPost;
         const r = await appel({ path: { fil_id: filId }, body: { rangs } });
         if (r.error) {
-            setErreur(phraseEchec(r.error));
+            setErreur(phraseEchec(r.error, ECHECS.agentVersionsListe));
             notifier.echec({ en: "The decision could not be saved. Try again.", fr: "La décision n'a pas pu être enregistrée. Réessayez." }, { erreur: r.error });
             return;
         }
@@ -102,7 +103,7 @@ export function RevueChampParChamp({
         setAApercevoir(null);
         const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero }, body: { familles } });
         if (r.error) {
-            setErreur(phraseEchec(r.error));
+            setErreur(phraseEchec(r.error, ECHECS.versionRestaurer));
             notifier.echec({ en: "The version could not be restored. Try again.", fr: "La version n'a pas pu être restaurée. Réessayez." }, { erreur: r.error });
             return;
         }

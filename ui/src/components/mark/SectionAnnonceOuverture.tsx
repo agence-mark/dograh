@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { useFormeMaquette } from "./ecran/forme-maquette";
@@ -151,7 +152,7 @@ export function useAnnonceOuverture() {
         // ⛔ Saving REPLACES the settings whole: until what is saved has been
         // read, nothing may overwrite it.
         setLu(false);
-        setErreur(echecAffiche(reponse.error));
+        setErreur(echecAffiche(reponse.error, ECHECS.annonceLire));
         return;
       }
       setReglages(reponse.data);
@@ -177,7 +178,7 @@ export function useAnnonceOuverture() {
       if (reponse.error) {
         // The server's own message: an unclosed bracket, a placeholder that
         // does not exist, a date without a forced state.
-        setErreur(echecAffiche(reponse.error));
+        setErreur(echecAffiche(reponse.error, ECHECS.annonceEnregistrer));
         return false;
       }
       setReglages(reponse.data ?? reglages);

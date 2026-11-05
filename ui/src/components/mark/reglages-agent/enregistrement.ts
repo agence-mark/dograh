@@ -23,6 +23,7 @@ import { useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -107,7 +108,7 @@ export const useEnregistrementTheme = ({
                 } catch (erreur) {
                     throw new EchecPartie(
                         [partie.nom],
-                        phraseEchec(erreur),
+                        phraseEchec(erreur, ECHECS.reglagesAgentEnregistrer),
                     );
                 }
             }
@@ -119,7 +120,7 @@ export const useEnregistrementTheme = ({
                 } catch (erreur) {
                     throw new EchecPartie(
                         charge.parties.map((p) => p.nom),
-                        phraseEchec(erreur),
+                        phraseEchec(erreur, ECHECS.reglagesAgentEnregistrer),
                     );
                 }
             }

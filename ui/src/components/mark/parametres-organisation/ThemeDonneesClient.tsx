@@ -24,6 +24,7 @@ import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -52,7 +53,7 @@ export const useBaseClient = () => {
     const relire = useCallback(async () => {
         const reponse = await getBaseClientApiV1OrganizationsBaseClientGet();
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.baseClientLire));
             return;
         }
         setErreur(null);
@@ -70,7 +71,7 @@ export const useBaseClient = () => {
         setEnCours(false);
         if (reponse.error || !reponse.data) {
             // 409: the name is taken (another organization's database, or one the server already has).
-            setErreur(reponse.response?.status === 409 ? NOM_PRIS : echecAffiche(reponse.error));
+            setErreur(reponse.response?.status === 409 ? NOM_PRIS : echecAffiche(reponse.error, ECHECS.baseClientLire));
             return false;
         }
         setEtat(reponse.data);

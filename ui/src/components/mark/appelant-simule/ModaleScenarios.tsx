@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
@@ -294,7 +295,7 @@ export function ModaleScenarios({
             });
             if (annule) return;
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.scenariosListe));
                 return;
             }
             setBrouillon((reponse.data as ScenarioSimule[]) ?? []);
@@ -323,7 +324,7 @@ export function ModaleScenarios({
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.scenariosEnregistrer));
             return;
         }
         notifier.succes({ fr: "Scénarios enregistrés.", en: "Scenarios saved." });

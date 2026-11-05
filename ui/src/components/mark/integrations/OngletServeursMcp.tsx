@@ -19,6 +19,7 @@ import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { useLangue } from "../langue/langue";
@@ -59,7 +60,7 @@ export function OngletServeursMcp() {
 
     const relire = useCallback(async () => {
         const r = await listToolsApiV1ToolsGet({ query: { status: "active,draft", category: "mcp" } });
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.outilsListe));
         setErreur(null);
         setServeurs(r.data);
     }, []);
@@ -145,7 +146,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
             },
         });
         if (serveur && !r.error) apres(); // l'état et la date de l'essai sont gardés par le serveur : la liste les relit
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.mcpTester));
         if (!r.data.ok) return setErreur(r.data.erreur ?? t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
         const trouves = r.data.outils ?? [];
         setDecouverts(trouves);
@@ -160,7 +161,7 @@ function FenetreServeur({ serveur, fermer, apres }: { serveur: ToolResponse | nu
         const r = serveur
             ? await updateToolApiV1ToolsToolUuidPut({ path: { tool_uuid: serveur.tool_uuid }, body: { name: nom.trim(), definition: definition as never } })
             : await createToolApiV1ToolsPost({ body: { name: nom.trim(), category: "mcp", definition: definition as never } });
-        if (r.error) return setErreur(echecAffiche(r.error));
+        if (r.error) return setErreur(echecAffiche(r.error, ECHECS.outilCreer));
         notifier.succes({ fr: "Serveur enregistré.", en: "Server saved." });
         apres();
         fermer();

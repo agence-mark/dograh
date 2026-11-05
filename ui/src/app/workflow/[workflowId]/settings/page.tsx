@@ -27,6 +27,7 @@ import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
 import { notifier, useAgentCourant } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import { PageReglagesAgent } from "@/components/mark/reglages-agent/PageReglagesAgent";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
@@ -413,7 +414,7 @@ function GeneralSection({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(echecAffiche(err));
+            setAudioUploadError(echecAffiche(err, ECHECS.bruitAmbiantEnvoyer));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";
@@ -1755,12 +1756,12 @@ function WorkflowSettingsInner({
             ]);
 
             if (defaultsResult.error) {
-                setModelConfigurationError(echecAffiche(defaultsResult.error));
+                setModelConfigurationError(echecAffiche(defaultsResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }
             if (configurationResult.error) {
-                setModelConfigurationError(echecAffiche(configurationResult.error));
+                setModelConfigurationError(echecAffiche(configurationResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }

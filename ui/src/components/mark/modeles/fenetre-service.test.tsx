@@ -7,6 +7,8 @@
  *     l'organisation et « remplacement » pour l'agent ? « Tester la connexion » dit-il ce que le fork répond, sans
  *     rien écrire ? Aucun appel à un fournisseur : la vérification du fork est simulée.
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -87,7 +89,7 @@ describe("« Tester la connexion »", () => {
         m.valider.mockResolvedValue({ error: { detail: "Mistral: invalid key" } });
         monter();
         fireEvent.click(screen.getByRole("button", { name: "Test the connection" }));
-        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).toMatch(phraseAttendue(ECHECS.modelesValider)));
         await waitFor(() => expect(document.querySelector('[data-essai="echec"]')?.textContent).not.toContain("Mistral: invalid key"));
         expect(document.querySelector('[data-essai="ok"]')).toBeNull();
     });

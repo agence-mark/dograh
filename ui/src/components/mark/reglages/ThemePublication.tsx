@@ -13,6 +13,7 @@ import { defautsDeLOrganisationApiV1BuilderPublicationOrganisationGet, reglerLes
 import type { CleControle, PositionControle } from "@/components/mark/agent/publication/types";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Segmente } from "@/components/mark/studio/fenetre-onglets";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
@@ -140,7 +141,7 @@ export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre
         void (async () => {
             const r = await defautsDeLOrganisationApiV1BuilderPublicationOrganisationGet();
             if (r.error || !r.data) {
-                setErreur(echecAffiche(r.error));
+                setErreur(echecAffiche(r.error, ECHECS.publicationDefauts));
                 return;
             }
             const lu = r.data as DefautsDePublication;

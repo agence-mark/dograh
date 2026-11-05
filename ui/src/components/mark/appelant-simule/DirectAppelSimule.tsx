@@ -19,6 +19,7 @@ import { ConversationTimeline } from "@/components/workflow/conversation/Convers
 import type { RealtimeFeedbackEvent } from "@/components/workflow/conversation/types";
 import { countConversationMessages } from "@/components/workflow/conversation/utils";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 
 export const INTERVALLE_DIRECT_MS = 1000;
@@ -94,7 +95,7 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
             }
             if (arrete) return;
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.appelSimuleDirect));
             } else {
                 const direct = reponse.data as Direct;
                 setErreur(null);

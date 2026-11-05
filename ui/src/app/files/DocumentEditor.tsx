@@ -11,6 +11,7 @@ import type { DocumentResponseSchema } from '@/client/types.gen';
 import { useLangue } from '@/components/mark/langue/langue';
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -65,7 +66,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
         });
         if (cancelled) return;
         if (response.error || !response.data) {
-          setLoadError(echecAffiche(response.error));
+          setLoadError(echecAffiche(response.error, ECHECS.documentLire));
           return;
         }
         setContent(response.data.content);
@@ -109,7 +110,7 @@ export default function DocumentEditor({ doc, onClose, onSaved }: DocumentEditor
         body: { content, expected_file_hash: fileHash },
       });
       if (response.error || !response.data) {
-        setSaveError(echecAffiche(response.error));
+        setSaveError(echecAffiche(response.error, ECHECS.documentEnregistrer));
         return;
       }
       response.data.processing_status === 'pending' ? notifier.succes({ fr: `Document « ${doc.filename} » enregistré. Analyse en cours.`, en: `Document "${doc.filename}" saved. Processing.` }) : notifier.information({ fr: "Rien à enregistrer.", en: "Nothing to save." });

@@ -7,6 +7,7 @@ import { testToolApiV1ToolsToolUuidTestPost } from "@/client/sdk.gen";
 import type { ToolTestResponse } from "@/client/types.gen";
 import type { HttpMethod, PresetToolParameter, ToolParameter } from "@/components/http";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
@@ -298,13 +299,13 @@ export function HttpToolTestDialog({
             });
 
             if (response.error) {
-                setTestError(echecAffiche(response.error));
+                setTestError(echecAffiche(response.error, ECHECS.outilTester));
                 return;
             }
 
             if (response.data) setResult(response.data);
         } catch (caughtError) {
-            setTestError(echecAffiche(caughtError));
+            setTestError(echecAffiche(caughtError, ECHECS.outilTester));
         } finally {
             setIsTesting(false);
         }

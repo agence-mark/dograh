@@ -12,6 +12,8 @@
  *   (the places of a person (M5) : prouvés sur la fenêtre d'une personne, `entreprise/inventaire-fenetres.test.tsx`;)
  *   - the test window: the choice of the establishment only for an agent without a fiche (C8).
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -250,7 +252,7 @@ describe("[.mark] the fiche's appointments and zone (M2)", () => {
         const onFermer = await ouvrir();
         fireEvent.change(document.getElementById("fiche-rdv-creil-plages")!, { target: { value: "n'importe quoi" } });
         fireEvent.click(enregistrer());
-        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toMatch(phraseAttendue(ECHECS.rendezVousEnregistrer)));
         await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).not.toContain("heure illisible"));
         expect(screen.getByTestId("erreur-etablissements").textContent).toContain("Establishments saved, but the appointments and zone were not");
         expect(onFermer).not.toHaveBeenCalled();
@@ -308,7 +310,7 @@ describe("[.mark] « Create by copy » (F2)", () => {
         fireEvent.click(screen.getByTestId("creer-par-copie"));
         fireEvent.change(document.getElementById("copie-nom")!, { target: { value: "Senlis" } });
         fireEvent.click(screen.getByTestId("copier-la-fiche"));
-        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toMatch(phraseAttendue(ECHECS.etablissementCopier)));
         await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).not.toContain("already belongs"));
     });
 
@@ -379,7 +381,7 @@ describe("[.mark] the takeover of the fiches and agents", () => {
                 <ModaleReprise ouverte onFermer={vi.fn()} />
             </FournisseurLangue>,
         );
-        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toMatch(phraseAttendue(ECHECS.fichesReprise)));
         await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).not.toContain("Nothing was changed"));
     });
 });

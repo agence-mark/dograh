@@ -10,6 +10,8 @@
  *   - « Apply » sends the setting only (never the value), then the list is read again ;
  *   - a refusal of the server is shown and the window stays open.
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -154,7 +156,7 @@ describe("[.mark] Apply to all establishments (D152)", () => {
         fireEvent.click(screen.getByTestId("appliquer-a-tous-fiche-adresse"));
         fireEvent.click(screen.getByTestId("confirmer-appliquer-a-tous"));
         const erreur = await screen.findByTestId("erreur-appliquer-a-tous");
-        expect(erreur.textContent).toMatch(/That did not work|Cela n'a pas abouti/);
+        expect(erreur.textContent).toMatch(phraseAttendue(ECHECS.etablissementsAppliquerATous));
         expect(erreur.textContent).not.toContain("behind this installation");
         expect(screen.getByTestId("modale-appliquer-a-tous")).toBeTruthy();
     });

@@ -55,6 +55,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { type Texte, useLangue } from "../langue/langue";
@@ -301,7 +302,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
             // appointments and zone are said to live elsewhere. Never a reason to lose the fiche.
             setPlanificateur(null);
             setPlanificateurLu(null);
-            setPlanificateurIndisponible(echecAffiche(lecturePlanif.error));
+            setPlanificateurIndisponible(echecAffiche(lecturePlanif.error, ECHECS.rendezVousLire));
         } else {
             setPlanificateur(lecturePlanif.data);
             setPlanificateurLu(lecturePlanif.data);
@@ -309,7 +310,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         }
         if (catalogue.error || !catalogue.data) {
             // ⛔ Unreadable: nothing to edit, or the save would replace what is there.
-            setErreur(echecAffiche(catalogue.error));
+            setErreur(echecAffiche(catalogue.error, ECHECS.etablissementsLire));
             return;
         }
         const lus = catalogue.data.etablissements ?? [];
@@ -433,7 +434,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
         const reponse = await saveEtablissementsApiV1OrganizationsEtablissementsPut({ body: charge_utile_etablissements(liste) });
         if (reponse.error) {
             setEnCours(false);
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.etablissementsEnregistrer));
             return;
         }
         // The fiches exist now (the client's database knows them): the planner's levels can be written.
@@ -447,7 +448,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                 setLue(JSON.stringify(charge_utile_etablissements(liste)));
                 setIdsEnregistres(liste.map((e) => e.id));
                 setErreur(
-                    `${t({ en: "Establishments saved, but the appointments and zone were not:", fr: "Établissements enregistrés, mais pas les rendez-vous et la zone :" })} ${echecAffiche(suite.error)}`,
+                    `${t({ en: "Establishments saved, but the appointments and zone were not:", fr: "Établissements enregistrés, mais pas les rendez-vous et la zone :" })} ${echecAffiche(suite.error, ECHECS.rendezVousEnregistrer)}`,
                 );
                 return;
             }
@@ -488,7 +489,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
             const reponse = await saveEtablissementsApiV1OrganizationsEtablissementsPut({ body: charge_utile_etablissements(reste) });
             setEnCours(false);
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.etablissementsEnregistrer));
                 return;
             }
             notifier.succes({ fr: "Établissement retiré.", en: "Establishment removed." });

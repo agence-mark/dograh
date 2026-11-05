@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { cerveauxPartages, optionsPartagees } from "./lectures-partagees";
@@ -410,7 +411,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
     const suivre = (appel: Promise<Reponse>, quandBon?: () => void): Promise<Reponse> => {
         const suivi = appel.then((r) => {
             if (!r.error) quandBon?.();
-            else setErreurChamp(phraseEchec(r.error));
+            else setErreurChamp(phraseEchec(r.error, ECHECS.reglageBuilderEnregistrer));
             return r;
         });
         notifier.suivre(suivi, { encours: T.encours, succes: T.ok, echec: T.echec, echecSi: (r) => r.error });

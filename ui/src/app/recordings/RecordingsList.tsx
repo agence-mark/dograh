@@ -13,6 +13,7 @@ import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Paginee } from "@/components/mark/studio/pagination";
@@ -59,7 +60,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
 
             setRecordings(response.data.recordings);
         } catch (err) {
-            setError(echecAffiche(err));
+            setError(echecAffiche(err, ECHECS.enregistrementsListe));
             logger.error("Error fetching recordings:", err);
         } finally {
             setIsLoading(false);
@@ -150,7 +151,7 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
             cancelEditing();
             fetchRecordings();
         } catch (err) {
-            setEditError(echecAffiche(err));
+            setEditError(echecAffiche(err, ECHECS.enregistrementModifier));
         }
     };
 

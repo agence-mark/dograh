@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -179,7 +180,7 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
             path: { workflow_id: workflowId, run_id: runId },
         });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.appelApresAppel));
             return null;
         }
         setErreur(null);
@@ -211,7 +212,7 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
             path: { workflow_id: workflowId, run_id: runId, etape },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.apresAppelRelancer));
             return;
         }
         if (reponse.data) setDonnees(reponse.data);

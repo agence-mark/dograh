@@ -11,6 +11,7 @@ import { useRef, useState } from "react";
 
 import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "@/client/sdk.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -164,7 +165,7 @@ export const ThemeVoix = ({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(echecAffiche(err));
+            setAudioUploadError(echecAffiche(err, ECHECS.bruitAmbiantEnvoyer));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Brique = LignePrix["brique"];
@@ -151,7 +152,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
             const reponse = await getReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGet();
             if (annule) return;
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.fenetreAppelLire));
                 return;
             }
             const lue = reponse.data as ReglagesFenetreDuRun;
@@ -177,7 +178,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.fenetreAppelEnregistrer));
             return;
         }
         notifier.succes({ fr: "Tarifs enregistrés.", en: "Prices saved." });

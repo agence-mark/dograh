@@ -19,6 +19,7 @@ import { notifier } from "@/components/mark/notifications/notifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -58,7 +59,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { fichier },
         });
         if (reponse.error) {
-            setErreur(phraseEchec(reponse.error));
+            setErreur(phraseEchec(reponse.error, ECHECS.builderDeposerFichier));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
         } else notifier.succes({ en: "File added.", fr: "Fichier ajouté." });
         await rafraichir(workflowId);
@@ -74,7 +75,7 @@ export function CarteDepot({ workflowId }: { workflowId: number }) {
             body: { adresse: adresse.trim() },
         });
         if (reponse.error) {
-            setErreur(phraseEchec(reponse.error));
+            setErreur(phraseEchec(reponse.error, ECHECS.builderDeposerSite));
             notifier.echec({ en: "That did not work. Try again.", fr: "Cela n'a pas abouti. Réessayez." }, { erreur: reponse.error });
         } else {
             setAdresse("");

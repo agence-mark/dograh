@@ -15,6 +15,7 @@ import { CredentialSelector } from "@/components/http";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs, LigneChamp, Section } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
@@ -50,7 +51,7 @@ export function BlocEntetes({ config, pose }: { config: Config; pose: Pose }) {
                 credential_data: { header_name: nom, header_value: valeur },
             },
         });
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.identifiantCreer));
         setErreur(null);
         setSaisies((v) => ({ ...v, [i]: "" }));
         pose({ en_tetes_ext: entetes.map((e, j) => (j === i ? { nom: e.nom, sorte: "secret", identifiant_uuid: r.data!.uuid } : e)) });

@@ -8,6 +8,7 @@ import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1Wor
 import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import SpinLoader from '@/components/SpinLoader';
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
@@ -64,7 +65,7 @@ export default function WorkflowDetailPage() {
                 if (cancelled) return;
 
                 if (response.error) {
-                    setError(echecAffiche(response.error));
+                    setError(echecAffiche(response.error, ECHECS.agentVersions));
                     return;
                 }
 
@@ -74,7 +75,7 @@ export default function WorkflowDetailPage() {
                     return;
                 }
                 if (versionResponse?.error) {
-                    setError(echecAffiche(versionResponse.error));
+                    setError(echecAffiche(versionResponse.error, ECHECS.agentVersions));
                     return;
                 }
                 const selectedVersion = versionResponse?.data?.[0];

@@ -21,6 +21,7 @@ import type { DemandeAppliquerATous, ResultatAppliquerATous } from "@/client/typ
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export type ReglageAppliquable = DemandeAppliquerATous["reglage"];
@@ -74,7 +75,7 @@ export function BoutonAppliquerATous({
         });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.etablissementsAppliquerATous));
             return;
         }
         setOuverte(false);

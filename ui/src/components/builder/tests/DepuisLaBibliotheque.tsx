@@ -16,6 +16,7 @@ import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { BilanDeScenario, RessourcesDeTest } from "./types";
 
 export function DepuisLaBibliotheque({
@@ -39,7 +40,7 @@ export function DepuisLaBibliotheque({
         setBilan(null);
         setErreur(null);
         const r = await examinerUnScenarioApiV1BuilderBibliothequeScenariosTypesSlugExaminerPost({ path: { slug }, body: { workflow_id: workflowId } as never });
-        if (r.error) setErreur(echecAffiche(r.error));
+        if (r.error) setErreur(echecAffiche(r.error, ECHECS.scenarioExaminer));
         else setBilan(r.data as unknown as BilanDeScenario);
     };
 
@@ -50,7 +51,7 @@ export function DepuisLaBibliotheque({
             body: { workflow_id: workflowId, copier_quand_meme: quandMeme } as never,
         });
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.scenarioCopier));
             return;
         }
         const donnees = r.data as unknown as { copie?: boolean; test?: { slug: string } } & BilanDeScenario;
