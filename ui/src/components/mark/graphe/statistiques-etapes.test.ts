@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { lireLesEtapes, partDesAppels } from "./statistiques-etapes";
+import { latenceDeLEtape, lireLesEtapes, partDesAppels } from "./statistiques-etapes";
 
 describe("statistiques par étape", () => {
     it("compte, par étape, les appels qui l'ont traversée", () => {
@@ -32,5 +32,28 @@ describe("statistiques par étape", () => {
         expect(partDesAppels(stats, "A")).toBe(25);
         expect(partDesAppels(stats, "Inconnue")).toBe(0);
         expect(partDesAppels(lireLesEtapes([]), "A")).toBeNull();
+    });
+});
+
+describe("N3a : la latence par étape", () => {
+    const appel = (par_etape: Record<string, { tours: number; total: { moyenne_ms: number; pire_ms: number } }> | null) => ({
+        gathered_context: { nodes_visited: ["Accueil"] },
+        annotations: par_etape ? { latence: { par_etape } } : null,
+    });
+
+    it("pondère la moyenne par les tours mesurés et garde le pire tour ; un appel non mesuré n'y compte pas", () => {
+        const stats = lireLesEtapes([
+            appel({ Accueil: { tours: 2, total: { moyenne_ms: 1000, pire_ms: 1400 } } }),
+            appel({ Accueil: { tours: 1, total: { moyenne_ms: 2200, pire_ms: 2200 } } }),
+            appel(null), // un ancien appel : ni zéro ni compté
+        ]);
+        expect(latenceDeLEtape(stats, "Accueil")).toEqual({ moyenne_ms: 1400, pire_ms: 2200, tours: 3 });
+        expect(stats.appels).toBe(3);
+    });
+
+    it("sans mesure, l'étape n'a pas de latence (null, jamais 0)", () => {
+        const stats = lireLesEtapes([appel(null), { gathered_context: {} }]);
+        expect(latenceDeLEtape(stats, "Accueil")).toBeNull();
+        expect(lireLesEtapes([]).latenceParEtape).toEqual({});
     });
 });

@@ -78,7 +78,7 @@ describe("[.mark] K8 : Conversations", () => {
         expect(await screen.findByText("Standard Nuances de Feu")).toBeTruthy();
         expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Conversations");
         expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
-            "Quand", "Agent", "Version", "Client", "Motif", "Résumé", "Canal", "Issue", "Durée", "Note", "Jugé par", "Médias",
+            "Quand", "Agent", "Version", "Client", "Motif", "Résumé", "Canal", "Issue", "Durée", "Latence", "Note", "Jugé par", "Médias",
         ]);
         expect(screen.getByText("Rendez-vous créé")).toBeTruthy();
         expect(screen.getByText("+33344000000")).toBeTruthy(); // le numéro reste, sous le nom
@@ -99,6 +99,23 @@ describe("[.mark] K8 : Conversations", () => {
         expect(container.querySelector('[data-resume-appel="synthese"]')).toBeTruthy();
         expect(container.querySelectorAll("[data-resume-appel]").length).toBe(2);
         expect(container.querySelectorAll('[data-resume-appel]:not([data-resume-appel="synthese"])')[0]?.textContent).toBe("-");
+    });
+
+    it("N3a : la colonne Latence dit la moyenne d'un tour et le pire tour, et « non mesuré » pour un appel sans mesure (jamais 0 s)", async () => {
+        m.historique.mockResolvedValue(
+            page([
+                { ...RUN, latence: { moyenne_ms: 1100, pire_ms: 1600, tours: 2 } },
+                { ...RUN, id: 42, latence: null },
+            ]),
+        );
+        const { container } = monter();
+        await screen.findAllByText("Standard Nuances de Feu");
+        const mesuree = container.querySelector('[data-latence="mesuree"]') as HTMLElement;
+        expect(mesuree.textContent).toBe("1.1 s");
+        expect(mesuree.getAttribute("title")).toBe("pire tour 1.6 s");
+        const non = container.querySelectorAll('[data-latence="non-mesuree"]');
+        expect(non).toHaveLength(1);
+        expect(non[0].textContent).toBe("non mesuré");
     });
 
     it("un clic sur la ligne ouvre l'appel ; le bouton d'aperçu n'ouvre pas la ligne", async () => {

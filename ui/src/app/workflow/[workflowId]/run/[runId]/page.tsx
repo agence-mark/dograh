@@ -500,7 +500,7 @@ export default function WorkflowRunPage() {
                                         <FenetreDuRun
                                             workflowId={idAgent}
                                             runId={idRun}
-                                            blocs={['incidents', 'latence', 'chrono', 'reseau']}
+                                            blocs={['incidents', 'latence', 'latence-par-phase', 'chrono', 'reseau']}
                                             lue={analyseLue}
                                         />
                                     </div>

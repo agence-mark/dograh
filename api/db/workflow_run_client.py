@@ -354,6 +354,12 @@ class WorkflowRunClient(BaseDBClient):
                         "initial_context": run.initial_context,
                         "gathered_context": run.gathered_context,
                         "call_type": run.call_type,
+                        # [.mark] N3a : seule la latence par phase sort des annotations (les statistiques par étape du graphe la lisent).
+                        "annotations": (
+                            {"latence": run.annotations["latence"]}
+                            if isinstance(run.annotations, dict) and run.annotations.get("latence")
+                            else None
+                        ),
                     }
                 )
                 for run in result.scalars().all()
