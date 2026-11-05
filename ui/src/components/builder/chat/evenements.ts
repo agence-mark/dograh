@@ -58,6 +58,13 @@ export function appliquer(lignes: LigneDuFil[], id: number, e: EvenementDuFil): 
             return lignes.map((l) =>
                 l.genre === "carte" && l.carte.type === "autorisation" && l.carte.id === e.id ? { genre: "carte", carte: { ...l.carte, statut: e.statut } } : l,
             );
+        case "journal_annule":
+            // N1 : une action du builder a été défaite (« Annuler » sur sa ligne ou depuis le journal) : sa ligne le dit, aussi après rechargement.
+            return lignes.map((l) => {
+                const journal = l.genre === "action" ? (l.resultat as { journal?: { id?: number } } | undefined)?.journal : undefined;
+                if (l.genre !== "action" || !journal || journal.id !== Number(e.id)) return l;
+                return { ...l, resultat: { ...(l.resultat as object), journal: { ...journal, annulee: true } } };
+            });
         case "delegation":
             return [...lignes, { genre: "carte", carte: { type: "delegation", id: e.id, usage: e.usage, total: e.total, modele: e.modele, fini: false } }];
         case "delegation_fin":

@@ -165,7 +165,9 @@ async def test_sauvegarde_allumee_refuse_la_premiere_modification_puis_laisse_pa
     suivant = await executer("brouillon_enregistrer", {}, ctx())
     assert suivant.get("code") != "sauvegarde_requise"
     instantanes = await revue.instantanes(ORG_CLIENT, AGENT, complets=True)
-    assert instantanes[0]["cause"] == "sauvegarde du builder" and instantanes[0]["avant"]["nodes"]  # « Revenir avant » peut la restaurer
+    # N1 (journal) : l'action qui suit range elle aussi un instantané « avant … (builder) » (plus récent) ; la sauvegarde reste là, restaurable.
+    sauvegardes = [i for i in instantanes if i["cause"] == "sauvegarde du builder"]
+    assert len(sauvegardes) == 1 and sauvegardes[0]["avant"]["nodes"]  # « Revenir avant » peut la restaurer
 
 
 async def test_une_lecture_et_un_agent_cree_ici_ne_sont_pas_retenus(monde):

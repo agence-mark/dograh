@@ -26,6 +26,7 @@ from api.services.builder.actions import etiquettes_prompt  # noqa: F401,E402 --
 from api.services.builder.actions import lecture_fork  # noqa: F401,E402 -- U12 (I1) : lire le fork dans Claude Code
 from api.services.builder.actions import appelant_claude_code  # noqa: F401,E402 -- U12 (I1) : l'appelant simulé joué par Claude Code
 from api.services.builder.actions import gestes  # noqa: F401,E402 -- N1 : publier, fusionner, archiver... entrés au registre
+from api.services.builder.actions import entreprise  # noqa: F401,E402 -- N1 (sous-lot 5) : établissements, phrases, annonce, listes, équipe, campagnes, téléphonie
 from api.services.builder import sous_agents  # noqa: F401,E402 -- C2 (E96) : l'action deleguer
 from api.services.builder.actions.registre import (  # noqa: F401
     REGISTRE,

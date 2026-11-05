@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { EtapeDuPlan, LigneDuFil } from "./evenements";
+import { BoutonAnnuler, type JournalDeLaLigne } from "./journal-du-builder";
 
 const T = {
     plan: { en: "Plan", fr: "Plan" },
@@ -112,6 +113,12 @@ export function CarteQuestion({
     );
 }
 
+/** N1 : la ligne du journal que le serveur joint au résultat d'une écriture (``{id, annulable, raison}``). */
+const journalDe = (ligne: Extract<LigneDuFil, { genre: "action" }>): JournalDeLaLigne | null => {
+    const r = ligne.resultat as { journal?: JournalDeLaLigne } | null | undefined;
+    return r && typeof r === "object" && r.journal && typeof r.journal.id === "number" ? r.journal : null;
+};
+
 /** « Lit les dossiers d'audit ✓ » : une ligne compacte, dépliable pour voir les arguments et le résultat ; une roue tant que le résultat n'est pas là. */
 export function LigneAction({ ligne }: { ligne: Extract<LigneDuFil, { genre: "action" }> }) {
     const { t } = useLangue();
@@ -129,6 +136,7 @@ export function LigneAction({ ligne }: { ligne: Extract<LigneDuFil, { genre: "ac
                     <X className="size-3.5 text-destructive" aria-label={t({ en: "failed", fr: "échec" })} />
                 )}
             </button>
+            {ligne.fini && journalDe(ligne) && <BoutonAnnuler journal={journalDe(ligne) as JournalDeLaLigne} />}
             {ouverte && (
                 <div className="mt-1 ml-5 space-y-1">
                     <p className="font-semibold">{t(T.arguments)}</p>

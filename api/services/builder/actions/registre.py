@@ -45,6 +45,10 @@ class Contexte:
     permissions: frozenset[str] | None = None
     # N1 : une action de la famille « dépense » vient d'être permise par le mode ou une carte (vaut l'accord de ``consommer_un_accord``).
     accord_donne: bool = False
+    # N1 (sous-lot 4) : comment la permission a été donnée à l'action en cours (``mode``, ``une_fois``, ``pour_ce_chat``, ``depense``...), posé par ``modes.decider``.
+    autorisation: str | None = None
+    # N1 (sous-lot 4) : la ligne du journal de la dernière action écrite (``{id, annulable, raison}``), lue par le moteur pour la montrer à l'écran.
+    journal: dict[str, Any] | None = None
 
     @property
     def organisation_id(self) -> int:
@@ -116,6 +120,7 @@ def pas_encore_disponible(nom: str, lot: str) -> dict[str, Any]:
 
 async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> dict[str, Any]:
     """L'unique chemin d'exécution d'une action, pour les deux portes. Ne lève jamais : un refus est un résultat."""
+    contexte.journal = None
     action = REGISTRE.get(nom)
     if action is None:
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
@@ -141,11 +146,16 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         premier = erreur.errors()[0]
         lieu = ".".join(str(p) for p in premier.get("loc", ()))
         return {"ok": False, "erreur": f"Invalid arguments ({lieu}): {premier.get('msg', 'invalid')}."}
-    # N1 : la permission décide (rôle, mode du chat, carte d'autorisation), côté serveur, avant toute écriture.
-    from api.services.builder import modes
+    # N1 (sous-lot 6) : les secrets ne passent jamais, dans aucun mode (le builder les choisit par leur nom, une personne les saisit).
+    from api.services.builder import garde_secrets, journal, modes
 
+    if (refus := garde_secrets.refus_d_un_secret(parametres.model_dump(mode="json", exclude_unset=True))) is not None:
+        return refus
+    # N1 : la permission décide (rôle, mode du chat, carte d'autorisation), côté serveur, avant toute écriture.
+    contexte.autorisation = None
     if (decision := await modes.decider(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)) is not None:
         return decision
+    # Les garde-fous qui refusent SANS rien écrire passent avant le journal : un refus n'a ni ligne ni instantané.
     try:
         # [.mark] lot M : sauvegarde avant la première modification d'un agent existant (éteinte par défaut, ``sauvegarde.py``).
         from api.services.builder import sauvegarde
@@ -155,21 +165,39 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         from api.services.builder.actions import etiquettes_prompt as garde_etiquettes
 
         await garde_etiquettes.garde(nom, arguments, contexte)
+    except ErreurAction as erreur:
+        contexte.accord_donne = False
+        return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
+    # N1 (sous-lot 4) : toute écriture a sa ligne de journal AVANT d'être jouée ; sans ligne, rien n'est fait (même en « Tout permettre »).
+    try:
+        entree = await journal.ouvrir(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)
+    except journal.ErreurJournal:
+        contexte.accord_donne = False
+        return {"ok": False, "code": "journal", "erreur": "Nothing was done: the journal of the builder cannot be written. Tell the person."}
+    ok = False
+    try:
         resultat = await action.fonction(contexte, parametres)
         if nom == "create_workflow" and isinstance(resultat, dict) and resultat.get("ok", True):
+            from api.services.builder import sauvegarde
+
             await sauvegarde.apres_creation(contexte, resultat)
+        ok = not (isinstance(resultat, dict) and resultat.get("ok", True) is False)
     except ErreurAction as erreur:
-        return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
+        resultat = {"ok": False, "code": erreur.code, "erreur": str(erreur)}
     except PrincipaleProtegee as erreur:
         # SA-L3c : la principale d'un agent client en ligne n'a plus de brouillon à écrire ; le cerveau passe par une branche.
-        return {"ok": False, "code": erreur.code, "erreur": f"{erreur} Tell the person: the change goes on a branch, merged after a review."}
+        resultat = {"ok": False, "code": erreur.code, "erreur": f"{erreur} Tell the person: the change goes on a branch, merged after a review."}
     except Exception as erreur:  # noqa: BLE001 -- une action qui échoue ne fait pas tomber la conversation
         logger.warning(f"[builder] action {nom} en échec : {type(erreur).__name__}")
-        return {"ok": False, "erreur": f"The action failed ({type(erreur).__name__}): {str(erreur)[:200]}"}
+        resultat = {"ok": False, "erreur": f"The action failed ({type(erreur).__name__}): {str(erreur)[:200]}"}
     finally:
         contexte.accord_donne = False  # N1 : l'accord donné par la permission vaut pour CETTE action seulement
     resultat = resultat if isinstance(resultat, dict) else {"ok": True, "resultat": resultat}
-    if action.ecriture and resultat.get("ok", True) is not False:
+    # N1 (sous-lot 6) : rien de ce que l'action rend ne montre un secret au builder, quel que soit le mode.
+    resultat = garde_secrets.masquer(resultat)
+    if entree is not None:
+        contexte.journal = await journal.clore(entree, resultat, ok)  # l'écran le lit (carte « Annuler ») ; le résultat du builder ne change pas
+    if action.ecriture and ok:
         await _publier_la_modification(action, arguments or {}, contexte, resultat)
     return resultat
 

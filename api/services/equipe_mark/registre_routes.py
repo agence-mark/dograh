@@ -107,6 +107,9 @@ REGLES: tuple[Regle, ...] = (
     # [.mark] Partie 3 : le miroir de Claude Code (U12) envoie la conversation d'un agent avec la clé de son organisation ;
     # depuis la liste fermée des clés (17a), `builder.lancer` lui était refusé. La conversation se range avec son agent.
     _r(ECRITURE, r"^/builder/miroir$", P("agents.modifier")),
+    # Partie 3, N1 : « Annuler » défait une action du builder (la route vérifie en plus la permission de l'action défaite) ; lire le journal = pouvoir modifier.
+    _r({"POST"}, r"^/builder/journal/[^/]+/annuler$", P("agents.modifier")),
+    _r({"GET"}, r"^/builder/journal$", P("agents.modifier")),
     _r(ECRITURE, r"^/builder/.*$", P("builder.lancer"), par_defaut=True),
     _r(LECTURE, r"^/builder/.*$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ appelant simulé

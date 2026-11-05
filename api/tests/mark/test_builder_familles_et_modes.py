@@ -174,7 +174,7 @@ async def test_autoriser_une_fois_vaut_pour_cet_appel_une_seule_fois(monde, essa
     demande = await registre.executer("essai_reglages", {"workflow_id": AGENT}, contexte)
     contexte.conversation["autorisations"][demande["demande"]]["statut"] = "une_fois"
     # d'autres arguments : la carte redemande
-    assert (await registre.executer("essai_reglages", {"workflow_id": AGENT, "api_key": "x"}, contexte))["code"] == "autorisation_requise"
+    assert (await registre.executer("essai_reglages", {"workflow_id": AGENT, "api_key": "[key-hidden]"}, contexte))["code"] == "autorisation_requise"
     assert (await registre.executer("essai_reglages", {"workflow_id": AGENT}, contexte)) == {"ok": True}
     assert (await registre.executer("essai_reglages", {"workflow_id": AGENT}, contexte))["code"] == "autorisation_requise"
     assert len(essais["reglages"]) == 1
@@ -184,7 +184,7 @@ async def test_autoriser_pour_ce_chat_vaut_pour_ce_type_d_action_sur_cet_objet_e
     contexte = _chat()
     demande = await registre.executer("essai_reglages", {"workflow_id": AGENT}, contexte)
     contexte.conversation["autorisations"][demande["demande"]]["statut"] = "pour_ce_chat"
-    assert (await registre.executer("essai_reglages", {"workflow_id": AGENT, "api_key": "x"}, contexte)) == {"ok": True}
+    assert (await registre.executer("essai_reglages", {"workflow_id": AGENT, "api_key": "[key-hidden]"}, contexte)) == {"ok": True}
     assert (await registre.executer("essai_reglages", {"workflow_id": AGENT}, contexte)) == {"ok": True}
     # un autre objet, une autre action : redemande
     assert (await registre.executer("essai_reglages", {"workflow_id": AUTRE_AGENT}, contexte))["code"] == "autorisation_requise"
@@ -197,7 +197,10 @@ async def test_autoriser_pour_ce_chat_vaut_pour_ce_type_d_action_sur_cet_objet_e
 
 
 async def test_la_carte_dit_definitif_pour_l_irreversible_et_ne_montre_aucun_secret(monde, essais):
-    carte = (await registre.executer("essai_irreversible", {"workflow_id": AGENT, "api_key": "sk-ne-pas-montrer"}, _chat("agent")))["carte"]
+    # N1 (sous-lot 6) : un secret en clair est refusé AVANT la carte (garde des secrets) ; une référence masquée passe, sans jamais être montrée.
+    refus = await registre.executer("essai_irreversible", {"workflow_id": AGENT, "api_key": "sk-ne-pas-montrer"}, _chat("agent"))
+    assert refus["code"] == "secret" and "carte" not in refus and "sk-ne-pas-montrer" not in str(refus)
+    carte = (await registre.executer("essai_irreversible", {"workflow_id": AGENT, "api_key": "[key-hidden]"}, _chat("agent")))["carte"]
     assert carte["definitif"] is True and carte["depense"] is False
     assert "sk-ne-pas-montrer" not in str(carte)
     carte = (await registre.executer("essai_depense", {"workflow_id": AGENT}, _chat("agent")))["carte"]

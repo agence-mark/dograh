@@ -212,7 +212,7 @@ async def _tours(
                 "id": appel["id"],
                 "nom": appel["nom"],
                 "ok": bool(resultat.get("ok", True)),
-                "resultat": _sans_carte(resultat),
+                "resultat": {**_sans_carte(resultat), **({"journal": ctx.journal} if ctx.journal else {})},
             }
             conv["messages"].append(
                 {
