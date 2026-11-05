@@ -3540,6 +3540,30 @@ export type ControlesDePublication = {
      * Garde Fous
      */
     garde_fous?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Variables
+     */
+    variables?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Briques
+     */
+    briques?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Outils
+     */
+    outils?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Sans Effet
+     */
+    sans_effet?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Sortie D Impasse
+     */
+    sortie_d_impasse?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Deux Webhooks
+     */
+    deux_webhooks?: 'eteint' | 'previent' | 'bloque';
 };
 
 /**
@@ -3652,6 +3676,27 @@ export type Corriger = {
      * Ids
      */
     ids: Array<string>;
+};
+
+/**
+ * CorrigerUnReglage
+ *
+ * La correction en un clic d'un réglage « sans effet » : l'identifiant que la liste « Prêt à publier » a proposé, et l'étape ou
+ * la liaison qu'il vise. Le serveur ne joue que ce que le brouillon propose.
+ */
+export type CorrigerUnReglage = {
+    /**
+     * Correction
+     */
+    correction: string;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Liaison Id
+     */
+    liaison_id?: string | null;
 };
 
 /**
@@ -6751,6 +6796,40 @@ export type EtapeDePreparation = {
      * Manquants
      */
     manquants?: Array<string>;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Controle
+     */
+    controle?: string | null;
+    /**
+     * Position
+     */
+    position?: string | null;
+    /**
+     * Corrections
+     */
+    corrections?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Constat
+     */
+    constat?: string | null;
+    /**
+     * Liaison Id
+     */
+    liaison_id?: string | null;
+    /**
+     * Noms
+     */
+    noms?: Array<string>;
+    /**
+     * Onglet
+     */
+    onglet?: string | null;
 };
 
 /**
@@ -28007,6 +28086,52 @@ export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCor
 export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostError = CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostErrors[keyof CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostErrors];
 
 export type CorrigerLaListeVocaleApiV1BuilderPublicationWorkflowIdListeVocaleCorrigerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostData = {
+    body: CorrigerUnReglage;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/corriger-un-reglage';
+};
+
+export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostError = CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors[keyof CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors];
+
+export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostResponses = {
     /**
      * Successful Response
      */
