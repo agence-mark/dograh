@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 from api.db import db_client
 from api.schemas.fiche_agent import verifier_extraction_contre_fiche
 from api.db.agent_trigger_client import TriggerPathConflictError
+from api.db.protection_principale import PrincipaleProtegee
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
 from api.enums import (
@@ -939,6 +940,9 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
             status_code=404, detail=f"Workflow with id {workflow_id} not found"
         )
 
+    # [.mark] Partie 3, SA-L3c : la principale protégée ne se publie que par une fusion relue (refus avant tout contrôle).
+    await db_client.exiger_la_principale_modifiable(workflow_id)
+
     draft = await db_client.get_draft_version(workflow_id)
     if draft is None:
         raise HTTPException(status_code=400, detail="No draft to publish")
@@ -1651,7 +1655,7 @@ async def update_workflow(
             "version_number": active_def.version_number if active_def else None,
             "version_status": active_def.status if active_def else None,
         }
-    except HTTPException:
+    except (HTTPException, PrincipaleProtegee):
         raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

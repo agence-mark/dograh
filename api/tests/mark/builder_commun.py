@@ -129,6 +129,14 @@ class FauxDb:
             if w.organization_id == organization_id and status in (None, w.status)
         ]
 
+    async def branche_ouverte_de(self, workflow_id):
+        from api.db import branche_ouverte
+
+        return branche_ouverte.Cible(None, None)  # SA-L3c : la principale (les branches ont leurs propres tests, en vraie base)
+
+    async def exiger_la_principale_modifiable(self, workflow_id):
+        return None  # SA-L3c : la protection a ses propres tests, en vraie base
+
     async def get_draft_version(self, workflow_id):
         return self.brouillons.get(workflow_id)
 

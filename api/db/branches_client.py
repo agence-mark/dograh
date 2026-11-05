@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
@@ -324,6 +324,302 @@ class BranchesClient(BaseDBClient):
             await self._agent_de_l_organisation(session, organization_id, workflow_id)
             principale = await self._principale(session, organization_id, workflow_id)
             principale.head_definition_id = definition_id
+            await session.commit()
+
+    # --- fusion et mise à jour (SA-L3c) ---------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _contenu(definition: WorkflowDefinitionModel | None) -> dict[str, Any] | None:
+        if definition is None:
+            return None
+        return {
+            "id": definition.id,
+            "numero": definition.version_number,
+            "graphe": definition.workflow_json or {},
+            "reglages": definition.workflow_configurations or {},
+            "variables": definition.template_context_variables or {},
+        }
+
+    async def lire_pour_la_fusion(self, organization_id: int, workflow_id: int, branch_id: int, user_id: int | None) -> dict[str, Any]:
+        """Tout ce qu'il faut pour fusionner ou mettre à jour une branche, en UNE session et bornée à l'organisation : la branche, la
+        principale, la version de départ (base), les versions en ligne des deux, le brouillon de la personne sur la branche et la
+        présence d'un brouillon sur la principale. Aucune écriture."""
+        async with self.async_session() as session:
+            agent = await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            branche = await session.scalar(
+                select(WorkflowBranchModel).where(
+                    WorkflowBranchModel.id == branch_id,
+                    WorkflowBranchModel.workflow_id == workflow_id,
+                    WorkflowBranchModel.organization_id == organization_id,
+                )
+            )
+            if branche is None or branche.est_principale or branche.statut != "active":
+                raise ErreurDeBranche("Branch not found", "introuvable")
+
+            async def definition(identifiant: int | None):
+                if identifiant is None:
+                    return None
+                return await session.scalar(
+                    select(WorkflowDefinitionModel).where(
+                        WorkflowDefinitionModel.id == identifiant, WorkflowDefinitionModel.workflow_id == workflow_id
+                    )
+                )
+
+            tete_principale = principale.head_definition_id or agent.released_definition_id
+            brouillon = None
+            if user_id is not None:
+                brouillon = await session.scalar(
+                    select(WorkflowDefinitionModel).where(
+                        WorkflowDefinitionModel.workflow_id == workflow_id,
+                        WorkflowDefinitionModel.status == "draft",
+                        WorkflowDefinitionModel.branch_id == branch_id,
+                        WorkflowDefinitionModel.draft_owner_id == user_id,
+                    )
+                )
+            brouillon_principale = await session.scalar(
+                select(WorkflowDefinitionModel.id).where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status == "draft",
+                    WorkflowDefinitionModel.branch_id.is_(None),
+                )
+            )
+            return {
+                "branche": {"id": branche.id, "nom": branche.nom, "part": branche.part_trafic, "base": branche.base_definition_id, "tete": branche.head_definition_id},
+                "principale": {"id": principale.id, "part": principale.part_trafic, "tete": tete_principale},
+                "base": self._contenu(await definition(branche.base_definition_id)),
+                "tete_branche": self._contenu(await definition(branche.head_definition_id)),
+                "tete_principale": self._contenu(await definition(tete_principale)),
+                "mon_brouillon": self._contenu(brouillon),
+                "brouillon_de_la_principale": brouillon_principale is not None,
+            }
+
+    async def appliquer_la_fusion(
+        self,
+        organization_id: int,
+        workflow_id: int,
+        branch_id: int,
+        *,
+        graphe: dict[str, Any],
+        reglages: dict[str, Any],
+        variables: dict[str, Any],
+        attendu_source: int,
+        attendu_cible: int,
+    ) -> dict[str, Any]:
+        """La fusion, d'un seul bloc : une version PUBLIÉE sur la principale (l'ancienne passe en archivée), la part de la branche
+        reprise par la principale, la branche archivée. Les verrous sont pris AVANT les contrôles : si la branche ou la principale ont
+        bougé depuis l'aperçu, rien n'est écrit (``perime``). Rend de quoi défaire."""
+        async with self.async_session() as session:
+            agent = await session.scalar(
+                select(WorkflowModel)
+                .where(WorkflowModel.id == workflow_id, WorkflowModel.organization_id == organization_id)
+                .with_for_update()
+            )
+            if agent is None:
+                raise ErreurDeBranche("Agent not found", "introuvable")
+            principale = await self._principale(session, organization_id, workflow_id)
+            verrouillees = (
+                await session.scalars(
+                    select(WorkflowBranchModel)
+                    .where(
+                        WorkflowBranchModel.workflow_id == workflow_id,
+                        WorkflowBranchModel.organization_id == organization_id,
+                        WorkflowBranchModel.id.in_([branch_id, principale.id]),
+                    )
+                    .order_by(WorkflowBranchModel.id)
+                    .with_for_update()
+                )
+            ).all()
+            par_id = {b.id: b for b in verrouillees}
+            branche, principale = par_id.get(branch_id), par_id[principale.id]
+            if branche is None or branche.est_principale or branche.statut != "active":
+                raise ErreurDeBranche("Branch not found", "introuvable")
+            tete_principale = principale.head_definition_id or agent.released_definition_id
+            if branche.head_definition_id != attendu_source or tete_principale != attendu_cible:
+                raise ErreurDeBranche("The branch or the main branch changed since the preview: read it again", "perime")
+            brouillon_principale = await session.scalar(
+                select(WorkflowDefinitionModel.id).where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status == "draft",
+                    WorkflowDefinitionModel.branch_id.is_(None),
+                )
+            )
+            if brouillon_principale is not None:
+                raise ErreurDeBranche("The main branch has an unpublished draft: publish or discard it first", "brouillon_en_attente")
+
+            await session.execute(
+                update(WorkflowDefinitionModel)
+                .where(WorkflowDefinitionModel.workflow_id == workflow_id, WorkflowDefinitionModel.status == "published")
+                .values(status="archived", is_current=False)
+            )
+            version = WorkflowDefinitionModel(
+                workflow_id=workflow_id,
+                workflow_json=graphe,
+                workflow_configurations=reglages,
+                template_context_variables=variables,
+                status="published",
+                version_number=await self._next_version_number(session, workflow_id),
+                is_current=True,
+                published_at=datetime.now(UTC),
+                branch_id=None,
+                draft_owner_id=None,
+            )
+            session.add(version)
+            await session.flush()
+            defaire = {
+                "version_creee": version.id,
+                "ancienne_en_ligne": agent.released_definition_id,
+                "ancienne_tete_principale": principale.head_definition_id,
+                "part_de_la_branche": branche.part_trafic,
+                "part_de_la_principale": principale.part_trafic,
+            }
+            agent.released_definition_id = version.id
+            agent.workflow_definition = graphe
+            agent.workflow_configurations = reglages
+            agent.template_context_variables = variables
+            principale.head_definition_id = None  # la principale suit de nouveau la version en ligne
+            principale.part_trafic = principale.part_trafic + branche.part_trafic
+            branche.part_trafic = 0
+            branche.statut = "archived"
+            await session.commit()
+            await session.refresh(version)
+            return {"version_id": version.id, "version_number": version.version_number, "defaire": defaire, "part_reprise": defaire["part_de_la_branche"]}
+
+    async def defaire_la_fusion(self, organization_id: int, workflow_id: int, branch_id: int, defaire: dict[str, Any]) -> int:
+        """Remet les choses comme avant la fusion, tant que la version qu'elle a créée est encore la version en ligne."""
+        async with self.async_session() as session:
+            agent = await session.scalar(
+                select(WorkflowModel)
+                .where(WorkflowModel.id == workflow_id, WorkflowModel.organization_id == organization_id)
+                .with_for_update()
+            )
+            if agent is None:
+                raise ErreurDeBranche("Agent not found", "introuvable")
+            if agent.released_definition_id != defaire["version_creee"]:
+                raise ErreurDeBranche("The agent was published again since this merge: it cannot be undone any more", "depassee")
+            principale = await self._principale(session, organization_id, workflow_id)
+            branche = await session.scalar(
+                select(WorkflowBranchModel)
+                .where(
+                    WorkflowBranchModel.id == branch_id,
+                    WorkflowBranchModel.workflow_id == workflow_id,
+                    WorkflowBranchModel.organization_id == organization_id,
+                )
+                .with_for_update()
+            )
+            if branche is None:
+                raise ErreurDeBranche("Branch not found", "introuvable")
+            creee = await session.get(WorkflowDefinitionModel, defaire["version_creee"])
+            ancienne = await session.get(WorkflowDefinitionModel, defaire["ancienne_en_ligne"]) if defaire.get("ancienne_en_ligne") else None
+            creee.status = "archived"
+            creee.is_current = False
+            if ancienne is not None:
+                ancienne.status = "published"
+                ancienne.is_current = True
+                agent.workflow_definition = ancienne.workflow_json
+                agent.workflow_configurations = ancienne.workflow_configurations
+                agent.template_context_variables = ancienne.template_context_variables
+            agent.released_definition_id = defaire.get("ancienne_en_ligne")
+            principale.head_definition_id = defaire.get("ancienne_tete_principale")
+            principale.part_trafic = defaire["part_de_la_principale"]
+            branche.part_trafic = defaire["part_de_la_branche"]
+            branche.statut = "active"
+            await session.commit()
+            return creee.version_number
+
+    async def ecrire_le_brouillon_de_branche(
+        self,
+        organization_id: int,
+        workflow_id: int,
+        branch_id: int,
+        user_id: int | None,
+        *,
+        graphe: dict[str, Any],
+        reglages: dict[str, Any],
+        variables: dict[str, Any],
+        attendu_base: int | None,
+        nouvelle_base: int,
+    ) -> WorkflowDefinitionModel:
+        """La mise à jour depuis la principale : écrit le brouillon DE LA PERSONNE sur la branche (le crée au besoin) et avance la base
+        de la branche. Refusé (``perime``) si la base a bougé depuis l'aperçu. Une autre personne garde son brouillon intact."""
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            branche = await session.scalar(
+                select(WorkflowBranchModel)
+                .where(
+                    WorkflowBranchModel.id == branch_id,
+                    WorkflowBranchModel.workflow_id == workflow_id,
+                    WorkflowBranchModel.organization_id == organization_id,
+                )
+                .with_for_update()
+            )
+            if branche is None or branche.est_principale or branche.statut != "active":
+                raise ErreurDeBranche("Branch not found", "introuvable")
+            if branche.base_definition_id != attendu_base:
+                raise ErreurDeBranche("The branch changed since the preview: read it again", "perime")
+            brouillon = await session.scalar(
+                select(WorkflowDefinitionModel).where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status == "draft",
+                    WorkflowDefinitionModel.branch_id == branch_id,
+                    WorkflowDefinitionModel.draft_owner_id == user_id,
+                )
+            )
+            if brouillon is None:
+                brouillon = WorkflowDefinitionModel(
+                    workflow_id=workflow_id,
+                    status="draft",
+                    version_number=await self._next_version_number(session, workflow_id),
+                    is_current=False,
+                    branch_id=branch_id,
+                    draft_owner_id=user_id,
+                    workflow_json=graphe,
+                    workflow_configurations=reglages,
+                    template_context_variables=variables,
+                )
+                session.add(brouillon)
+            else:
+                brouillon.workflow_json = graphe
+                brouillon.workflow_configurations = reglages
+                brouillon.template_context_variables = variables
+            branche.base_definition_id = nouvelle_base
+            await session.commit()
+            await session.refresh(brouillon)
+            return brouillon
+
+    async def contenus_de_definitions(self, organization_id: int, workflow_id: int, ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Le contenu (graphe, réglages, variables) de ces versions, en UNE requête bornée à l'organisation. Pour comparer."""
+        async with self.async_session() as session:
+            lignes = (
+                await session.scalars(
+                    select(WorkflowDefinitionModel)
+                    .join(WorkflowModel, WorkflowModel.id == WorkflowDefinitionModel.workflow_id)
+                    .where(
+                        WorkflowModel.organization_id == organization_id,
+                        WorkflowDefinitionModel.workflow_id == workflow_id,
+                        WorkflowDefinitionModel.id.in_(ids),
+                        WorkflowDefinitionModel.status.in_(("published", "archived")),
+                    )
+                )
+            ).all()
+            return {d.id: self._contenu(d) for d in lignes}
+
+    async def protection_de_la_principale(self, organization_id: int, workflow_id: int) -> tuple[bool, bool]:
+        """(protégée en fait, protégée par la règle seule). La règle : agent client en ligne (voir ``protection_principale``). Le
+        drapeau ne lève que ce que la règle n'impose pas."""
+        from api.db import protection_principale
+
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            en_fait = await protection_principale.est_protegee(session, workflow_id)
+            return en_fait, en_fait and not principale.protegee
+
+    async def regler_la_protection_de_la_principale(self, organization_id: int, workflow_id: int, protegee: bool) -> None:
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            principale.protegee = protegee
             await session.commit()
 
     async def compter_les_branches(self, organization_id: int, workflow_ids: list[int]) -> dict[int, int]:

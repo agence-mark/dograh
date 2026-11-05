@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 import importlib
 
+from api.db import db_client
 from api.schemas.tool import CreateToolRequest
 from api.services.builder import brouillon, conception
 from api.services.builder.actions._commun import (
@@ -194,6 +195,7 @@ async def _exiger_la_conception(contexte: Contexte, identifiant: int) -> None:
 async def _operer(contexte: Contexte, parametres: _Operations) -> dict[str, Any]:
     workflow = await agent_de_l_organisation(contexte, parametres.workflow_id)
     await _exiger_la_conception(contexte, workflow.id)
+    await db_client.exiger_la_principale_modifiable(workflow.id)  # SA-L3c : refus dès la mise en attente, pas à l'enregistrement
     org = contexte.organisation_id
     graphe, version = await brouillon.source_courante(workflow)
     nouvelles = [o.model_dump(exclude_none=True) for o in parametres.operations]

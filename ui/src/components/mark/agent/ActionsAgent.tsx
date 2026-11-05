@@ -38,6 +38,7 @@ import { ouvrirBranche } from "@/lib/brancheOuverte";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
+import { FenetreFusion, type SensDeFusion } from "./branches/FenetreFusion";
 import { FenetreNouvelleBranche } from "./branches/FenetreNouvelleBranche";
 import { FenetreRepartition } from "./branches/FenetreRepartition";
 import { FenetreVersions } from "./branches/FenetreVersions";
@@ -139,7 +140,9 @@ export function ActionsAgent({
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
-    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | "branche" | "versions" | "repartition" | null>(null);
+    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | "branche" | "versions" | "repartition" | "fusion" | null>(null);
+    // [.mark] Partie 3, SA-L3c : la fenêtre Fusionner / Mettre à jour (quelle branche, dans quel sens).
+    const [fusion, setFusion] = useState<{ sens: SensDeFusion; brancheId: number } | null>(null);
     // [.mark] Partie 3, SA-L3b : la branche ouverte dans cet onglet ; en changer relit tout l'écran avec son brouillon.
     const branches = useBranches(agentId);
     const ouvrirEtRelire = (brancheId: number | null) => {
@@ -426,6 +429,32 @@ export function ActionsAgent({
                     ouverteId={branches.ouverte}
                     ouvrir={ouvrirEtRelire}
                     repartition={() => setFenetre("repartition")}
+                    agentId={agentId}
+                    fusionner={(brancheId) => {
+                        setFusion({ sens: "fusion", brancheId });
+                        setFenetre("fusion");
+                    }}
+                    mettreAJour={(brancheId) => {
+                        setFusion({ sens: "maj", brancheId });
+                        setFenetre("fusion");
+                    }}
+                    apres={() => void branches.recharger()}
+                />
+            )}
+            {fenetre === "fusion" && fusion && (
+                <FenetreFusion
+                    agentId={agentId}
+                    brancheId={fusion.brancheId}
+                    sens={fusion.sens}
+                    ouverte
+                    fermer={() => setFenetre("versions")}
+                    apres={(ecrit) => {
+                        // Une mise à jour change le brouillon de la branche ouverte, une fusion archive la branche : l'écran se relit.
+                        if (ecrit === "maj" && branches.ouverte === fusion.brancheId) return window.location.reload();
+                        if (ecrit === "fusion" && branches.ouverte === fusion.brancheId) return ouvrirEtRelire(null);
+                        void branches.recharger();
+                        void lire();
+                    }}
                 />
             )}
             {fenetre === "repartition" && branches.vue && (

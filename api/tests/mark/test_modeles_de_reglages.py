@@ -130,6 +130,11 @@ async def monde(db_session, async_session, monkeypatch):
         await db_session.publish_workflow_draft(workflow.id)
         return workflow
 
+    # SA-L3c : ces tests éprouvent les modèles, pas la protection de la principale d'un client en ligne (``test_principale_protegee.py``).
+    async def _jamais_protegee(_session, _workflow_id):
+        return False
+
+    monkeypatch.setattr("api.db.protection_principale.est_protegee", _jamais_protegee)
     org_a, user_a = await _organisation("a")
     org_b, user_b = await _organisation("b")
     # D1 (E45): the templates live in the library, which belongs to the .mark organization (here: A).

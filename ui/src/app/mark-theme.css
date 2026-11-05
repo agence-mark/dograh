@@ -122,6 +122,12 @@
   --notif-encours: #0f1c2e;
   --etat-fait: #1a9e5c;
 
+  /* SA-L3c, Comparer en duel : la meilleure valeur (fond vert) et l'écart défavorable (rouge), jamais d'orange. */
+  --meilleur-fond: #e3f5ea;
+  --meilleur-texte: #146c3a;
+  --ecart-mal: #b4302a;
+  --ecart-mal-fond: #fbe9e8;
+
   /* Pastilles des sources de variables (E63) : texte blanc dessus, contraste >= 4,5:1 dans les deux thèmes. */
   --source-entreprise: #0e7490;
   --source-appel: #4f46e5;
@@ -226,6 +232,11 @@
   --notif-information: #2f6fe0;
   --notif-encours: oklch(0.32 0 0);
   --etat-fait: #3ecf7a;
+
+  --meilleur-fond: #15361f;
+  --meilleur-texte: #7be3a6;
+  --ecart-mal: #f2928c;
+  --ecart-mal-fond: #3a1a19;
 
   --source-entreprise: #0e7490;
   --source-appel: #5b57e8;

@@ -31,6 +31,12 @@ class EpinglerLaPrincipale(BaseModel):
     version: int | None = Field(default=None, ge=1, description="Version number to serve; none: follow the agent's live version.")
 
 
+class ProtectionDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    protegee: bool = Field(description="Protect the main branch (entered only by a reviewed merge) or lift the flag.")
+
+
 class VersionDeBranche(BaseModel):
     id: int
     numero: int | None
@@ -48,6 +54,7 @@ class BrancheVue(BaseModel):
     nom: str
     principale: bool
     protegee: bool
+    protegee_par_defaut: bool = False
     part: int
     version_en_ligne: int | None
     versions: list[VersionDeBranche]
@@ -57,3 +64,147 @@ class BrancheVue(BaseModel):
 class BranchesVue(BaseModel):
     repartition_active: bool
     branches: list[BrancheVue]
+
+
+# --- fusion et mise à jour (SA-L3c) ---------------------------------------------------------------------------------------------------
+
+
+class ChampDeFusion(BaseModel):
+    cle: str
+    famille: str
+    libelle: str
+    statut: str = Field(description="reprise (source seule), gardee (cible seule) ou conflit (les deux, à choisir).")
+    avant: str | None = None
+    source: str | None = None
+    cible: str | None = None
+
+
+class ProblemeDeFusion(BaseModel):
+    code: str
+    cle: str | None = None
+    message: str | None = None
+
+
+class ResumeDeFusion(BaseModel):
+    reprise: int
+    gardee: int
+    conflit: int
+
+
+class BrancheDeFusion(BaseModel):
+    id: int
+    nom: str
+    version: int | None = None
+    id_version: int
+
+
+class CibleDeFusion(BaseModel):
+    nom: str
+    version: int | None = None
+    id_version: int
+
+
+class DepartDeFusion(BaseModel):
+    version: int | None = None
+
+
+class TraficDeFusion(BaseModel):
+    part_branche: int
+    part_principale: int
+    part_principale_apres: int
+
+
+class ApercuDeFusion(BaseModel):
+    branche: BrancheDeFusion
+    cible: CibleDeFusion
+    depart: DepartDeFusion
+    champs: list[ChampDeFusion]
+    resume: ResumeDeFusion
+    problemes: list[ProblemeDeFusion]
+    protegee: bool
+    relue_obligatoire: bool
+    trafic: TraficDeFusion
+    defaisable: bool = False
+
+
+class FusionDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    choix: dict[str, str] = Field(default_factory=dict, description="Field key -> 'source' or 'cible'; one per conflict.")
+    relue: bool = Field(default=False, description="The merge was reviewed: required when the main branch is protected.")
+    version_branche: int = Field(description="The branch version id the preview was read on.")
+    version_cible: int = Field(description="The main branch version id the preview was read on.")
+
+
+class BrancheDeMiseAJour(BaseModel):
+    id: int
+    nom: str
+    version: int | None = None
+    brouillon: bool
+    id_base: int | None = None
+
+
+class PrincipaleDeMiseAJour(BaseModel):
+    version: int | None = None
+    id_version: int
+
+
+class ApercuDeMiseAJour(BaseModel):
+    branche: BrancheDeMiseAJour
+    principale: PrincipaleDeMiseAJour
+    depart: DepartDeFusion
+    a_jour: bool
+    champs: list[ChampDeFusion]
+    resume: ResumeDeFusion
+    problemes: list[ProblemeDeFusion]
+
+
+class MiseAJourDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    choix: dict[str, str] = Field(default_factory=dict)
+    version_principale: int = Field(description="The main branch version id the preview was read on.")
+    base_attendue: int | None = Field(default=None, description="The branch start version id the preview was read on.")
+
+
+# --- comparer en duel (SA-L3c) --------------------------------------------------------------------------------------------------------
+
+
+class CoteDeComparaison(BaseModel):
+    type: str = Field(description="branche or version")
+    id: int
+    nom: str
+    version: int | None = None
+    part: int | None = None
+
+
+class MesureDeComparaison(BaseModel):
+    cle: str
+    gauche: float | None = None
+    droite: float | None = None
+    ecart: float | None = None
+    meilleur: str | None = Field(default=None, description="gauche or droite when the line has a better side")
+
+
+class VerdictDeComparaison(BaseModel):
+    gagnant: str = Field(description="gauche, droite, egalite or insuffisant (too few calls on a side)")
+    pour_gauche: list[str]
+    pour_droite: list[str]
+
+
+class LigneDeConfiguration(BaseModel):
+    cle: str
+    famille: str
+    libelle: str
+    avant: str | None = None
+    apres: str | None = None
+
+
+class ComparaisonVue(BaseModel):
+    jours: int
+    appels_min: int
+    gauche: CoteDeComparaison
+    droite: CoteDeComparaison
+    mesures: list[MesureDeComparaison]
+    verdict: VerdictDeComparaison
+    configuration: list[LigneDeConfiguration]
