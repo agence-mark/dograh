@@ -91,6 +91,22 @@ class MinuteurDuree:
             await self._couper()
 
 
+async def dire_la_fin(engine) -> None:
+    """La phrase de fin, par le catalogue des phrases (motif ``fin_duree_max`` : l'agent peut la réécrire). Sans règle,
+    ou règle éteinte, ou diseur absent : la phrase d'avant, dite telle quelle ; la conversation ne finit jamais en
+    silence. Rend la main quand la phrase est jouée. ⛔ Ne lève jamais plus que ``queue_speech`` d'avant."""
+    from api.services.phrases.catalogue import FIN_DE_DUREE_MAX
+    from api.services.phrases.diseur import DiseurDePhrases
+
+    lecture = None
+    diseur = getattr(engine, "phrases", None)
+    if isinstance(diseur, DiseurDePhrases):
+        lecture = await diseur.dire_la_parole(FIN_DE_DUREE_MAX)
+    if lecture is None:
+        lecture = await engine.queue_speech(PHRASE_DE_FIN, timeout=15)
+    await lecture.wait()
+
+
 def lancer_pour_moteur(
     engine, duree_s: float, a_la_fin: Callable[[int], Awaitable[None]] | None = None
 ) -> "asyncio.Task":
@@ -112,9 +128,8 @@ def lancer_pour_moteur(
         )
 
     async def phrase_de_fin():
-        lecture = await engine.queue_speech(PHRASE_DE_FIN, timeout=15)
         try:
-            await lecture.wait()
+            await dire_la_fin(engine)
         finally:
             await engine.end_call_with_reason(raison)
 

@@ -22,6 +22,7 @@ import { BoutonCreerUnTest } from '@/components/builder/tests/BoutonCreerUnTest'
 import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { JournalDesEvenements } from '@/components/mark/conversation/JournalDesEvenements';
 import { LecteurConversation } from '@/components/mark/conversation/LecteurConversation';
+import { libelleEtatDuJuge } from '@/components/mark/reglages-agent/etat-du-juge';
 import { titreDeLaConversation } from '@/components/mark/conversation/titre';
 import { FenetreDuRun, LigneNue, useAnalyseDuRun, VueTranscription } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { TableauDesCouts } from '@/components/mark/fenetre-du-run/TableauDesCouts';
@@ -336,6 +337,10 @@ export default function WorkflowRunPage() {
         const nomDeLAgent = workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`;
         const note = workflowRun?.note_juge ?? null;
         const noteDite = note === null ? null : langue === 'fr' ? String(note).replace('.', ',') : String(note);
+        // [.mark] RA-B R6 : qui a jugé, lu dans l'annotation du juge (même règle que la colonne de la liste des appels).
+        const annotationJuge = (workflowRun?.annotations as { juge?: { source?: string; modele?: string } } | null | undefined)?.juge;
+        const jugePar = annotationJuge?.source === 'claude_code' ? 'Claude Code' : (annotationJuge?.modele || null);
+        const etatDuJuge = libelleEtatDuJuge((annotationJuge as { etat?: string } | undefined)?.etat);
         returnValue = (
             <PageStudio>
                 <div data-page-conversation>
@@ -390,9 +395,13 @@ export default function WorkflowRunPage() {
                                 .filter(Boolean)
                                 .join(' · ')}
                         </span>
+                        {noteDite === null && etatDuJuge && (
+                            <span className="text-muted-foreground" data-etat-du-juge>{tp(etatDuJuge)}</span>
+                        )}
                         {noteDite !== null && (
                             <span className="flex items-center gap-1.5" data-note-du-juge>
                                 <Star className="size-4 fill-current text-(--acc)" /> {tp({ en: 'judge', fr: 'juge' })} {noteDite}/5
+                                {jugePar && <span className="text-muted-foreground" data-juge-par>· {tp({ en: 'Judged by', fr: 'Jugé par' })} {jugePar}</span>}
                             </span>
                         )}
                         <span className="ml-auto flex gap-2">

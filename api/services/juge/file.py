@@ -2,7 +2,7 @@
 
 Deux lignes de ``organization_configurations`` (aucune migration) :
 
-* ``MARK_JUGE_AGENT:<agent>`` : ``{"actif": bool}``, le réglage de l'agent (éteint par défaut) ;
+* ``MARK_JUGE_AGENT:<agent>`` : ``{"actif": bool, "part", "duree_min_s", "repondeurs_exclus"}``, le réglage de l'agent (éteint par défaut ; les filtres sont ceux de ``tri.py``) ;
 * ``MARK_JUGE_FILE`` : les éléments à juger, bornés (``FILE_MAX``). Un élément est un vrai appel (``type: appel``, la transcription est
   relue dans le run) ou un test (``type: test``, ses lignes et ses propres questions sont gardées dans l'élément).
 
@@ -36,8 +36,37 @@ async def juge_des_vrais_appels(organisation: int, workflow_id: int) -> bool:
     return bool((await stock.lire(organisation, cle_agent(workflow_id)) or {}).get("actif"))
 
 
-async def regler(organisation: int, workflow_id: int, actif: bool) -> bool:
-    await stock.ecrire(organisation, cle_agent(workflow_id), {"actif": bool(actif)})
+async def lire_reglages(organisation: int, workflow_id: int) -> dict[str, Any]:
+    """Le réglage complet d'un agent : l'interrupteur et les filtres (``tri.py``, défauts = tout est jugé)."""
+    from api.services.juge import tri
+
+    ligne = await stock.lire(organisation, cle_agent(workflow_id)) or {}
+    r = tri.lire(ligne)
+    return {"actif": bool(ligne.get("actif")), "part": r.part, "duree_min_s": r.duree_min_s, "repondeurs_exclus": r.repondeurs_exclus}
+
+
+async def regler(
+    organisation: int,
+    workflow_id: int,
+    actif: bool,
+    *,
+    part: int | None = None,
+    duree_min_s: int | None = None,
+    repondeurs_exclus: bool | None = None,
+) -> bool:
+    """Range l'interrupteur et, pour ceux qu'on donne, les filtres ; ce qu'on ne donne pas reste comme il était."""
+    from api.services.juge import tri
+
+    ligne = dict(await stock.lire(organisation, cle_agent(workflow_id)) or {})
+    ligne["actif"] = bool(actif)
+    neufs = tri.lire({"part": part, "duree_min_s": duree_min_s, "repondeurs_exclus": repondeurs_exclus})
+    if part is not None:
+        ligne["part"] = neufs.part
+    if duree_min_s is not None:
+        ligne["duree_min_s"] = neufs.duree_min_s
+    if repondeurs_exclus is not None:
+        ligne["repondeurs_exclus"] = neufs.repondeurs_exclus
+    await stock.ecrire(organisation, cle_agent(workflow_id), ligne)
     return bool(actif)
 
 

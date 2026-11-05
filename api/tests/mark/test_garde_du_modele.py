@@ -28,8 +28,7 @@ from api.services.panne.garde_modele import (
 
 def test_le_delai_de_garde_et_ses_replis_de_lecture():
     assert delai_de_garde({}) == 4.0
-    assert delai_de_garde({"panne": {"actif": False, "delai_modele_s": 6}}) == 6.0
-    assert delai_de_garde({"delai_garde_modele_s": 2.5, "panne": {"delai_modele_s": 6}}) == 2.5
+    assert delai_de_garde({"delai_garde_modele_s": 2.5}) == 2.5
     assert delai_de_garde({"delai_garde_modele_s": "x"}) == 4.0
 
 

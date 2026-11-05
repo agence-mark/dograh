@@ -1,0 +1,79 @@
+/**
+ * [.mark] RA-B (R6, audit 06) : « Juge des vrais appels » par agent : l'interrupteur, les trois filtres repris de Dograh (part
+ * jugée, durée minimale, répondeurs exclus) et le libellé « allumé mais pas réglé » quand le juge du Labo ne peut pas juger.
+ */
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { FournisseurLangue } from "../langue/langue";
+import { JugeDesVraisAppels } from "./JugeDesVraisAppels";
+
+const m = vi.hoisted(() => ({ lire: vi.fn(), regler: vi.fn() }));
+vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
+    lireLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsGet: m.lire,
+    reglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPut: m.regler,
+}));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), loading: vi.fn() } }));
+
+const lu = (c: object = {}) => ({ data: { actif: true, part: 100, duree_min_s: 0, repondeurs_exclus: false, etat_du_juge: "regle", ...c } });
+const monter = () => render(<FournisseurLangue><JugeDesVraisAppels workflowId={7} /></FournisseurLangue>);
+
+beforeEach(() => {
+    m.regler.mockImplementation(async ({ body }) => ({ data: { ...lu().data, ...body } }));
+});
+afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+});
+
+describe("Juge des vrais appels", () => {
+    it("éteint : seul l'interrupteur se montre, aucun filtre", async () => {
+        m.lire.mockResolvedValue(lu({ actif: false }));
+        monter();
+        await waitFor(() => expect((screen.getByRole("checkbox", { name: "Juge des vrais appels" }) as HTMLInputElement).disabled).toBe(false));
+        expect(document.querySelector('[data-filtre="part"]')).toBeNull();
+    });
+
+    it("allumé : les trois filtres se règlent et partent avec leur valeur", async () => {
+        m.lire.mockResolvedValue(lu());
+        monter();
+        const part = (await screen.findByLabelText("Part des appels jugés (%)")) as HTMLInputElement;
+        fireEvent.change(part, { target: { value: "30" } });
+        fireEvent.blur(part);
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, part: 30 } }));
+        const duree = screen.getByLabelText("Durée minimale (secondes)");
+        fireEvent.change(duree, { target: { value: "10" } });
+        fireEvent.blur(duree);
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, duree_min_s: 10 } }));
+        fireEvent.click(screen.getByRole("checkbox", { name: "Exclure les répondeurs" }));
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, repondeurs_exclus: true } }));
+    });
+
+    it("une valeur hors bornes est dite sous le champ et n'est pas envoyée", async () => {
+        m.lire.mockResolvedValue(lu());
+        monter();
+        const part = (await screen.findByLabelText("Part des appels jugés (%)")) as HTMLInputElement;
+        fireEvent.change(part, { target: { value: "250" } });
+        fireEvent.blur(part);
+        expect(await screen.findByText(/entre 1 et 100/i)).toBeTruthy();
+        expect(m.regler).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["eteint", /allumé mais pas réglé/i, /est éteint/i],
+        ["sans_cle", /allumé mais pas réglé/i, /n'a pas de clé/i],
+    ])("allumé mais pas réglé (%s) : l'écran le dit", async (etat, titre, detail) => {
+        m.lire.mockResolvedValue(lu({ etat_du_juge: etat }));
+        monter();
+        const alerte = await screen.findByRole("status");
+        expect(alerte.textContent).toMatch(titre);
+        expect(alerte.textContent).toMatch(detail);
+    });
+
+    it("allumé et réglé : aucun libellé d'alerte", async () => {
+        m.lire.mockResolvedValue(lu());
+        monter();
+        await screen.findByLabelText("Part des appels jugés (%)");
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+});

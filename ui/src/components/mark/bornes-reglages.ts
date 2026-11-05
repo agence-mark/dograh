@@ -55,6 +55,8 @@ export interface Borne {
  */
 export const BORNES: Record<string, Borne> = {
     // Turn taking
+    // Rhythm theme: the longest a call may last (`MAX_CALL_DURATION_SECONDS`, kept under the 20-minute stale-call purge).
+    max_call_duration: { min: 0, minStrict: true, max: 1200 },
     user_speech_timeout: { min: 0, minStrict: true, max: 10 },
     stt_ttfs_p99_latency: { min: 0, minStrict: true, max: 10 },
     user_turn_stop_timeout: { min: 0, minStrict: true, max: 60 },

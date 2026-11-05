@@ -69,7 +69,12 @@ const bornesDuSchema = (cle: string) => {
         // assertions below exist: a bound this parser cannot read has to turn
         // red, not vanish.
         const m = bloc.match(new RegExp(`\\b${nom}=([0-9.]+)`));
-        return m ? Number(m[1]) : null;
+        if (m) return Number(m[1]);
+        // RA-B R5 : une borne écrite comme une constante nommée du schéma (`le=MAX_CALL_DURATION_SECONDS`) est lue
+        // dans sa définition `NOM = 1200` ; sinon elle passait pour « pas de borne ».
+        const c = bloc.match(new RegExp(`\\b${nom}=([A-Z][A-Z0-9_]+)`));
+        const d = c ? SCHEMA.match(new RegExp(`^${c[1]} = ([0-9.]+)`, "m")) : null;
+        return d ? Number(d[1]) : null;
     };
     return {
         gt: lire("gt"),
@@ -88,6 +93,8 @@ const bornesDuSchema = (cle: string) => {
 const CLES_TRAVAIL = ["travail_delai_max_s"] as const;
 // fiabilite-orchestration, lot 4 (F20): the model guard delay (theme Services).
 const CLES_GARDE = ["delai_garde_modele_s"] as const;
+// RA-B R5: the longest a call may last (theme Rythme).
+const CLES_DUREE = ["max_call_duration"] as const;
 
 describe("Les bornes affichees a l'ecran", () => {
     it("trouve bien le schema Python (sinon tout le reste est vide et vert pour rien)", () => {
@@ -120,7 +127,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // The other direction: a numeric setting shown without a bound is an
         // unchecked field, and an unchecked field is a save that fails without
         // a word.
-        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE, ...CLES_DUREE] as string[];
         const bornesAuSchema = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && (s.le !== null || s.lt !== null);

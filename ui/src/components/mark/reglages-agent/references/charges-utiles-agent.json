@@ -1683,7 +1683,6 @@
           "modifiees": {
             "panne": {
               "actif": true,
-              "delai_modele_s": 4,
               "delai_voix_s": 3,
               "sonnerie_s": 20
             }

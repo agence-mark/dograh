@@ -97,23 +97,24 @@ async def test_les_adieux_de_la_bibliotheque_terminent_la_conversation(monde):
 # --- l'indépendance du juge (D9) ----------------------------------------------------------------------------------
 
 
-def test_un_juge_sur_cle_ne_note_ni_l_agent_ni_le_builder():
+def test_le_code_ne_restreint_rien_le_juge_peut_etre_du_modele_de_l_agent_ou_du_builder():
+    # RA-B R6 (décision d'Evan, 04/11 soir) : l'indépendance est une discipline à la main, jamais un refus du code.
     a = independance.controler(source_juge="cle_api", modele_juge="mistral/mistral-large-latest", modele_agent="mistral-large-latest")
-    assert a.refuse and "agent" in a.refus
+    assert not hasattr(a, "refus") and "mistral/mistral-large-latest" in a.mention
     b = independance.controler(source_juge="cle_api", modele_juge="openai/gpt-x", modele_builder="gpt-x")
-    assert b.refuse and "builder" in b.refus
-    assert not independance.controler(source_juge="cle_api", modele_juge="a/m1", modele_agent="m2", modele_builder="m3").refuse
+    assert not hasattr(b, "refus") and "openai/gpt-x" in b.mention
+    c = independance.controler(source_juge="cle_api", modele_juge="a/m1", modele_agent="m2", modele_builder="m3")
+    assert c.mention == "Jugé par a/m1"
 
 
-def test_sur_claude_code_l_exemption_est_dite():
+def test_sur_claude_code_le_verdict_dit_le_modele_qui_a_juge():
     c = independance.controler(source_juge="claude_code", modele_juge="x", modele_agent="x", modele_builder="x")
-    assert not c.refuse and c.mention == independance.MENTION_CLAUDE_CODE
+    assert c.mention == independance.MENTION_CLAUDE_CODE == "Jugé par Claude Code"
 
 
-async def test_la_route_refuse_un_juge_du_modele_du_builder(monkeypatch):
+async def test_la_route_accepte_un_juge_du_modele_du_builder(monkeypatch):
     from api.routes import appel_simule as route
 
-    monkeypatch.setattr(independance, "modele_du_builder", AsyncMock(return_value="mistral-large-latest"))
     monkeypatch.setattr(route.stockage, "enregistrer_reglages", AsyncMock(side_effect=lambda org, r: r))
     from api.services import sources_cerveaux
 
@@ -121,12 +122,7 @@ async def test_la_route_refuse_un_juge_du_modele_du_builder(monkeypatch):
     reglages = ReglagesAppelantSimule(
         appelant=RoleSimule(consigne="c"), juge=RoleSimule(consigne="j", modele="mistral/mistral-large-latest")
     )
-    with pytest.raises(HTTPException) as erreur:
-        await route.save_reglages_appelant_simule(reglages, user=EQUIPE.user)
-    assert erreur.value.status_code == 422
-    # sur Claude Code l'exemption passe
-    ok = reglages.model_copy(update={"juge": reglages.juge.model_copy(update={"source": "claude_code"})})
-    assert (await route.save_reglages_appelant_simule(ok, user=EQUIPE.user)).juge.source == "claude_code"
+    assert (await route.save_reglages_appelant_simule(reglages, user=EQUIPE.user)).juge.modele == "mistral/mistral-large-latest"
 
 
 # --- les cerveaux d'un test : chacun son rôle, aucun appel réel -----------------------------------------------------
@@ -193,7 +189,7 @@ async def test_un_test_prend_l_appelant_et_le_juge_du_labo_pas_celui_du_builder(
     assert r["resultats"][0]["essais"][0]["reussi"] is True
 
 
-async def test_un_juge_du_modele_de_l_agent_est_refuse_et_ne_juge_pas(banc, monkeypatch):
+async def test_un_juge_du_modele_de_l_agent_juge_quand_meme_et_porte_le_modele_sur_son_verdict(banc, monkeypatch):
     roles = ReglagesAppelantSimule(
         appelant=RoleSimule(consigne="c", modele="mistral/appelant-m", identifiant="k1"),
         juge=RoleSimule(consigne="j", modele="mistral/agent-m", identifiant="k2"),
@@ -201,8 +197,8 @@ async def test_un_juge_du_modele_de_l_agent_est_refuse_et_ne_juge_pas(banc, monk
     construits = await _suite(banc, monkeypatch, roles)
     r = await execution.rejouer_la_suite(EQUIPE.user, _agent(), repetitions=1)
     avis = r["resultats"][0]["juge"]
-    assert avis["avis"] == [] and "same model as the judged agent" in avis["erreur"]
-    assert "mistral/agent-m" not in construits  # le cerveau du juge n'est même pas construit
+    assert "erreur" not in avis and avis["mention"] == "Jugé par mistral/agent-m"
+    assert "mistral/agent-m" in construits  # le cerveau du juge est construit : le code ne restreint rien
 
 
 async def test_sur_claude_code_le_juge_ne_fait_aucun_appel_et_porte_sa_mention(banc, monkeypatch):

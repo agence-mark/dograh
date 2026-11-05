@@ -37,6 +37,18 @@ def client():
     return func.nullif(func.trim(prenom + literal(" ") + nom), "")
 
 
+def juge_par(annotations) -> str | None:
+    """Qui a jugé l'appel (RA-B R6, 05 § 9) : « Claude Code », ou le modèle du juge sur clé d'API, lu dans l'annotation
+    ``juge`` du run ; ``None`` tant que rien ne l'a jugé (juge éteint, non réglé, budget atteint…). Pur."""
+    juge = annotations.get("juge") if isinstance(annotations, dict) else None
+    if not isinstance(juge, dict):
+        return None
+    if juge.get("source") == "claude_code":
+        return "Claude Code"
+    modele = juge.get("modele")
+    return modele.strip() or None if isinstance(modele, str) else None
+
+
 def version_jouee():
     return (
         select(WorkflowDefinitionModel.version_number)

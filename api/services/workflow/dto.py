@@ -716,6 +716,9 @@ class StartCallNodeData(
     pre_call_fetch_credential_uuid: Optional[str] = spec_field(
         default=None, ui_type=PropertyType.credential_ref
     )
+    # [.mark] RA-B R4d : les objets que la lecture avant l'appel peut remplacer (noms séparés par des virgules).
+    # Hors du formulaire généré (comme les autres réglages cachés, repris à l'enregistrement par ``champs_caches``).
+    pre_call_fetch_remplace: Optional[str] = spec_field(default=None, spec_exclude=True)
 
     @model_validator(mode="before")
     @classmethod

@@ -26,6 +26,7 @@ import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
 import { OngletsNoeud } from "@/components/mark/graphe/OngletsNoeud";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { OrdreDInjection } from "@/components/mark/graphe/OrdreDInjection";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import {
@@ -795,6 +796,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                     onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
                 />,
             );
+        }
+        if (type === "startCall") {
+            poser("avant", <OrdreDInjection key="ordre-d-injection" />);
         }
         if (type === "trigger") {
             poser("requete", <TriggerWebhookUrls key="urls" endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)} />);

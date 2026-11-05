@@ -126,10 +126,10 @@ describe("amont inutile", () => {
         expect(texte).not.toMatch(/Usage pricing|PricingSummary|TabsTrigger value="dograh"|managed transcriber/);
     });
 
-    it("le menu d'ajout d'un nœud ne propose plus Noveum, Paygent ni Tuner (un agent qui en porte déjà un le garde)", () => {
+    it("le menu d'ajout d'un nœud ne propose plus Noveum, Paygent, Tuner, le webhook de Dograh ni « Contrôle qualité » (un agent qui en porte déjà un le garde)", () => {
         const spec = (name: string) => ({ name, display_name: name, category: "integration" }) as unknown as NodeSpec;
         const proposees = specsProposees(["noveum", "paygent", "tuner", "webhook", "qa", "startCall"].map(spec)).map((s) => s.name);
-        expect(proposees).toEqual(["webhook", "qa", "startCall"]);
+        expect(proposees).toEqual(["startCall"]);
     });
 
     it("l'outil « Native (Coming Soon) » n'est plus proposé", () => {

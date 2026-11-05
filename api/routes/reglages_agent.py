@@ -10,7 +10,7 @@ Toute lecture est bornée à l'organisation de l'appelant : l'agent d'une autre 
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.db.models import UserModel
@@ -67,7 +67,14 @@ async def lire_l_heritage_des_reglages(workflow_id: int, user: UserModel = Depen
 
 
 class JugeDesVraisAppels(BaseModel):
+    """Le réglage par agent. En écriture, un filtre absent (``None``) reste comme il était ; en lecture, les valeurs effectives
+    et ``etat_du_juge`` (``regle`` | ``eteint`` | ``sans_cle``) : le juge du Labo est-il prêt à juger ?"""
+
     actif: bool = False
+    part: int | None = Field(default=None, ge=1, le=100, description="Share of the real calls judged, 1 to 100 %.")
+    duree_min_s: int | None = Field(default=None, ge=0, le=600, description="Calls shorter than this are not judged (0 = no minimum).")
+    repondeurs_exclus: bool | None = Field(default=None, description="Calls that ended on an answering machine are not judged.")
+    etat_du_juge: str | None = None
 
 
 async def _agent_de_l_organisation(workflow_id: int, user: UserModel) -> None:
@@ -75,10 +82,16 @@ async def _agent_de_l_organisation(workflow_id: int, user: UserModel) -> None:
         raise HTTPException(status_code=404, detail="Agent not found")
 
 
+async def _vue_du_juge(organisation: int, workflow_id: int) -> JugeDesVraisAppels:
+    from api.services.juge import etat
+
+    return JugeDesVraisAppels(**await file_du_juge.lire_reglages(organisation, workflow_id), etat_du_juge=await etat.etat_du_juge(organisation))
+
+
 @router.get("/{workflow_id}/juge-vrais-appels")
 async def lire_le_juge_des_vrais_appels(workflow_id: int, user: UserModel = Depends(get_user)) -> JugeDesVraisAppels:
     await _agent_de_l_organisation(workflow_id, user)
-    return JugeDesVraisAppels(actif=await file_du_juge.juge_des_vrais_appels(user.selected_organization_id, workflow_id))
+    return await _vue_du_juge(user.selected_organization_id, workflow_id)
 
 
 @router.put("/{workflow_id}/juge-vrais-appels")
@@ -86,4 +99,12 @@ async def regler_le_juge_des_vrais_appels(
     workflow_id: int, requete: JugeDesVraisAppels, user: UserModel = Depends(get_user)
 ) -> JugeDesVraisAppels:
     await _agent_de_l_organisation(workflow_id, user)
-    return JugeDesVraisAppels(actif=await file_du_juge.regler(user.selected_organization_id, workflow_id, requete.actif))
+    await file_du_juge.regler(
+        user.selected_organization_id,
+        workflow_id,
+        requete.actif,
+        part=requete.part,
+        duree_min_s=requete.duree_min_s,
+        repondeurs_exclus=requete.repondeurs_exclus,
+    )
+    return await _vue_du_juge(user.selected_organization_id, workflow_id)

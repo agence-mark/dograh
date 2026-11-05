@@ -7,6 +7,7 @@ Chaque passe rend UN verdict fermé (``verdicts.py``) ; une réponse hors forme 
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections import Counter
@@ -17,6 +18,10 @@ from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.tests_agent.jeu import completer
 from api.services.builder.tests_agent.juge import PASSES_MAX, SEUIL_DE_CONFIANCE
 from api.services.juge import verdicts as v
+
+# RA-B (R6, audit 06) : une erreur passagère du modèle est réessayée avant de passer le reste de la grille en « non vérifiable »
+# (sinon « À améliorer » se remplit de faux signaux) : 3 essais au plus, avec attente. Une erreur définitive n'est pas réessayée.
+ATTENTES_DE_REESSAI_S = (1.0, 3.0)
 
 FORMAT = (
     'Réponds UNIQUEMENT par un objet JSON : {"critere": "<le critère>", "verdict": "reussi|rate|non_verifiable", '
@@ -82,6 +87,19 @@ async def juger_critere(
     return {**retenu, "passes": len(valides), "serre": True}
 
 
+async def _juger_critere_avec_reessais(
+    cerveau: Cerveau, systeme: str, critere: str, lignes: list[tuple[str, str]], dossier: str
+) -> dict[str, Any]:
+    for attente in (*ATTENTES_DE_REESSAI_S, None):
+        try:
+            return await juger_critere(cerveau, systeme, critere, lignes, dossier)
+        except ErreurCerveau as erreur:
+            if attente is None or not erreur.reessayable:
+                raise
+            await asyncio.sleep(attente)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 async def juger(
     cerveau: Cerveau,
     lignes: list[tuple[str, str]],
@@ -100,7 +118,7 @@ async def juger(
             rendus.append({"critere": critere, "verdict": "non_verifiable", "replique": None, "preuve": erreur, "confiance": 0.0, "passes": 0})
             continue
         try:
-            rendus.append(await juger_critere(cerveau, systeme, critere, lignes, dossier))
+            rendus.append(await _juger_critere_avec_reessais(cerveau, systeme, critere, lignes, dossier))
         except ErreurCerveau as e:
             erreur = f"The judge brain failed: {e.code}."
             rendus.append({"critere": critere, "verdict": "non_verifiable", "replique": None, "preuve": erreur, "confiance": 0.0, "passes": 0})

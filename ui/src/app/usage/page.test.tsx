@@ -55,6 +55,7 @@ const RUN = {
     client: "Claire Dupont",
     motif: "Devis",
     note_juge: 3.2,
+    juge_par: "openai/juge-m",
     version: 4,
     canal: "site",
 };
@@ -77,7 +78,7 @@ describe("[.mark] K8 : Conversations", () => {
         expect(await screen.findByText("Standard Nuances de Feu")).toBeTruthy();
         expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Conversations");
         expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
-            "Quand", "Agent", "Version", "Client", "Motif", "Canal", "Issue", "Durée", "Note", "Médias",
+            "Quand", "Agent", "Version", "Client", "Motif", "Canal", "Issue", "Durée", "Note", "Jugé par", "Médias",
         ]);
         expect(screen.getByText("Rendez-vous créé")).toBeTruthy();
         expect(screen.getByText("+33344000000")).toBeTruthy(); // le numéro reste, sous le nom
@@ -120,7 +121,7 @@ describe("[.mark] K8 : Conversations", () => {
     });
 
     it("chaque colonne est lue de la ligne : client, motif, version, canal, note (pastille sous 3,5)", async () => {
-        m.historique.mockResolvedValue(page([RUN, { ...RUN, id: 42, client: null, motif: null, note_juge: null, version: null, canal: "telephony" }]));
+        m.historique.mockResolvedValue(page([RUN, { ...RUN, id: 42, client: null, motif: null, note_juge: null, juge_par: null, version: null, canal: "telephony" }]));
         const { container } = monter();
         await screen.findAllByText("Standard Nuances de Feu");
         expect(screen.getByText("Claire Dupont")).toBeTruthy();
@@ -129,6 +130,7 @@ describe("[.mark] K8 : Conversations", () => {
         expect(screen.getByText("Site")).toBeTruthy();
         expect(screen.getByText("Téléphone")).toBeTruthy();
         expect(screen.getByText("3,2")).toBeTruthy();
+        expect(screen.getByText("openai/juge-m")).toBeTruthy(); // RA-B R6 : « Jugé par [modèle] » en colonne
         expect(screen.getByText("–")).toBeTruthy(); // pas encore jugé : un tiret, jamais 0
         expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
     });

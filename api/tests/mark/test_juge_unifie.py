@@ -182,7 +182,7 @@ async def test_sur_cle_l_appel_est_juge_et_ecrit_fusionne_sous_la_cle_juge(monde
     await appels.apres_appel(_run(), ORG_CLIENT)
     (run_id, annotations), = mondes.ecrits
     assert run_id == 5 and list(annotations) == ["juge"]  # seule la clé « juge » : QA et « À trier » gardent la leur
-    assert annotations["juge"]["etat"] == "juge" and len(annotations["juge"]["verdicts"]) == len(grille) == 6 and sorties == []
+    assert annotations["juge"]["etat"] == "juge" and len(annotations["juge"]["verdicts"]) == len(grille) == 11 and sorties == []
 
 
 async def test_la_note_du_juge_est_gardee_avec_le_resultat_sur_cle_et_effacee_hors_juge(mondes, monkeypatch):
@@ -192,7 +192,7 @@ async def test_la_note_du_juge_est_gardee_avec_le_resultat_sur_cle_et_effacee_ho
     cerveau = CerveauFactice(*[tour(_json()) for _ in grille])
     monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=cerveau))
     await appels.apres_appel(_run(), ORG_CLIENT)
-    assert mondes.notes == [(5, 5.0)]  # 6 critères réussis sur 6
+    assert mondes.notes == [(5, 5.0)]  # 11 critères réussis sur 11 (les 6 du code et les 5 du vécu de l appelant)
     # Claude Code : l'appel attend, la note est effacée (un ancien jugement ne reste pas)
     _juge(monkeypatch, source="claude_code")
     await appels.apres_appel(_run(), ORG_CLIENT)
@@ -210,11 +210,15 @@ async def test_sur_claude_code_l_appel_reste_a_juger_sans_aucun_appel_de_fournis
     assert mondes.ecrits[0][1]["juge"]["etat"] == "a_juger" and mondes.ecrits[0][1]["juge"]["mention"] == independance.MENTION_CLAUDE_CODE
 
 
-async def test_un_juge_du_modele_de_l_agent_ne_juge_pas_et_le_dit(mondes, monkeypatch):
+async def test_un_juge_du_modele_de_l_agent_juge_quand_meme_et_dit_qui_a_juge(mondes, monkeypatch):
+    # RA-B R6 : plus de refus d'indépendance ; le résultat porte « Jugé par [modèle] ».
     await file.regler(ORG_CLIENT, AGENT, True)
     _juge(monkeypatch, modele="mistral/agent-m", identifiant="k")
+    grille = await appels.grille()
+    monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=CerveauFactice(*[tour(_json()) for _ in grille])))
     await appels.apres_appel(_run(), ORG_CLIENT)
-    assert mondes.ecrits[0][1]["juge"]["etat"] == "refuse"
+    resultat = mondes.ecrits[0][1]["juge"]
+    assert resultat["etat"] == "juge" and resultat["mention"] == "Jugé par mistral/agent-m"
 
 
 async def test_un_juge_en_panne_n_abime_pas_l_apres_appel(mondes, monkeypatch):
@@ -244,7 +248,7 @@ async def test_le_cycle_a_faire_lire_ecrire_d_un_vrai_appel(mondes):
     liste = await executer("juge_a_faire", {}, MCP)
     assert liste["total"] == 1 and liste["a_juger"][0]["id"] == "appel-5"
     dossier = await executer("juge_lire", {"id": "appel-5"}, MCP)
-    assert [t["n"] for t in dossier["transcription"]] == [1, 2, 3] and len(dossier["criteres"]) == 6 and dossier["consigne"]
+    assert [t["n"] for t in dossier["transcription"]] == [1, 2, 3] and len(dossier["criteres"]) == 11 and dossier["consigne"]
     verdicts = [verdict(c) for c in dossier["criteres"]]
     ok = await executer("juge_ecrire", {"id": "appel-5", "verdicts": verdicts}, MCP)
     assert ok["ok"] is True and ok["reussi"] is True and ok["mention"] == independance.MENTION_CLAUDE_CODE

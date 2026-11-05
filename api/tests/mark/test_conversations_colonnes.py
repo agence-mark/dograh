@@ -115,6 +115,16 @@ async def test_la_liste_rend_client_motif_note_version_et_canal_d_une_seule_requ
     assert r["canal"] == "telephony" and r["version"] == definition.version_number
 
 
+async def test_la_liste_dit_qui_a_juge_l_appel(db_session, async_session, monde):
+    # RA-B R6 (05 § 9) : « Jugé par [modèle] » en colonne.
+    org_a, agent_a, _, _ = monde
+    await _run(async_session, agent_a, note_juge=4.0, annotations={"juge": {"etat": "juge", "source": "cle_api", "modele": "openai/juge-m"}})
+    await _run(async_session, agent_a, annotations={"juge": {"etat": "a_juger", "source": "claude_code"}})
+    await _run(async_session, agent_a)
+    runs, _ = await _liste(db_session, org_a)
+    assert sorted((r["juge_par"] or "") for r in runs) == ["", "Claude Code", "openai/juge-m"]
+
+
 async def test_le_canal_site_vient_de_la_marque_du_widget_pas_du_mode(db_session, async_session, monde):
     org_a, agent_a, _, _ = monde
     await _run(async_session, agent_a, mode="smallwebrtc", annotations={"embed": {"source": "embed_widget"}})

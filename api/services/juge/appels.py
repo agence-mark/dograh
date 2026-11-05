@@ -6,7 +6,7 @@ Quand l'agent a « juge des vrais appels » allumé (``file.regler``), l'après-
 * source **clé d'API** : l'appel est jugé tout de suite (``passes.juger``), le résultat est ÉCRIT FUSIONNÉ dans
   ``workflow_runs.annotations`` sous la clé ``juge`` (``update_workflow_run`` fusionne par clé : QA et « À trier » gardent la leur) ;
 * source **Claude Code** : l'appel est rangé dans « À juger » (``file``) et reste « à juger » tant qu'une session ne l'a pas jugé ;
-* indépendance (D9) : un juge sur clé du modèle de l'agent ou du builder est refusé, l'appel n'est pas jugé et la raison est écrite.
+* indépendance (RA-B R6) : le code ne restreint rien ; chaque résultat porte « Jugé par [modèle] » (``mention``).
 
 ⛔ Un juge en panne n'abîme ni l'appel ni l'après-appel : ``apres_appel`` ne lève jamais.
 """
@@ -22,7 +22,7 @@ from api.services.builder import consignes
 from api.services.builder.cerveau import budget_roles, independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
-from api.services.juge import file, note, passes
+from api.services.juge import file, note, passes, tri
 from api.services.juge import verdicts as v
 
 
@@ -31,7 +31,9 @@ async def grille() -> list[str]:
     contenu = await consignes.contenu_de("criteres-types", "grille-du-juge-v1")
     brut = (contenu.get("critere") or {}).get("grille") if isinstance(contenu.get("critere"), dict) else None
     criteres = [str(c) for c in brut if str(c).strip()] if isinstance(brut, list) else []
-    return criteres or list(v.GRILLE_SECOURS)
+    base = criteres or list(v.GRILLE_SECOURS)
+    # RA-B R6 : les critères du vécu de l'appelant font partie de la grille (sans doublon si la bibliothèque les porte déjà).
+    return [*base, *(c for c in v.CRITERES_DU_VECU if c not in base)]
 
 
 def dossier_d_un_run(run: Any) -> dict[str, Any]:
@@ -74,6 +76,11 @@ async def apres_appel(run: Any, organisation: int) -> None:
     try:
         if est_un_appel_d_essai(run) or not await file.juge_des_vrais_appels(organisation, run.workflow_id):
             return
+        # RA-B R6 : la part jugée, la durée minimale et les répondeurs exclus (repris de Dograh) ; un appel écarté le dit.
+        juger_cet_appel, etat_ecarte = tri.decision(run, tri.lire(await file.lire_reglages(organisation, run.workflow_id)))
+        if not juger_cet_appel:
+            await ecrire_dans_le_run(run.id, {"etat": etat_ecarte})
+            return
         from api.services.appel_simule import reglages as appel_simule
 
         from api.services import sources_cerveaux
@@ -89,9 +96,6 @@ async def apres_appel(run: Any, organisation: int) -> None:
             modele_agent=await _modele_de_l_agent(run, organisation),
         )
         mention = {"mention": controle.mention} if controle.mention else {}
-        if controle.refuse:
-            await ecrire_dans_le_run(run.id, {"etat": "refuse", "raison": controle.refus})
-            return
         if juge.source == "claude_code":
             await file.ajouter(organisation, {"id": f"appel-{run.id}", "type": "appel", "workflow_id": run.workflow_id, "run_id": run.id})
             await ecrire_dans_le_run(run.id, {"etat": "a_juger", "source": "claude_code", **mention})

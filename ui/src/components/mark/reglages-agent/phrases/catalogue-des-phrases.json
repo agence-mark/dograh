@@ -527,6 +527,44 @@
       },
       "silence_de_l_appelant": false,
       "sortie_par_le_code": false
+    },
+    {
+      "id": "fin_duree_max",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "The website conversation reaches its maximum duration",
+        "fr": "La conversation du site atteint sa durée maximale"
+      },
+      "quand": {
+        "en": "A website widget conversation reaches its maximum duration: the code says this sentence, then ends the call.",
+        "fr": "Une conversation du widget du site arrive à sa durée maximale : le code dit cette phrase puis met fin à l'appel."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Je dois malheureusement conclure cette conversation. Merci de votre visite et à bientôt."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code still says the default sentence: a conversation never ends in silence.",
+        "fr": "Le code dit quand même la phrase par défaut : une conversation ne se termine jamais en silence."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false
     }
   ]
 }

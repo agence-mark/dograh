@@ -583,8 +583,15 @@ async def _signaler_la_panne(
         cible = _action_du_agent(agent, moteur, params)
         if cible is None:
             return resultat, kwargs, None
+        # [.mark] RA-B R4c (audit 02 B4) : le repli de l'outil (``said_to_caller``) vient d'être dit : il remplace
+        # la phrase de la règle, qui ne redit rien (compteur et sortie de la règle inchangés).
+        deja_dit = resultat.get("said_to_caller") if isinstance(resultat, dict) else None
         probleme = await diseur.signaler_un_probleme(
-            OUTIL_ECHOUE, cible, outil=nom_outil, seulement_si_posee=True
+            OUTIL_ECHOUE,
+            cible,
+            outil=nom_outil,
+            seulement_si_posee=True,
+            deja_dit=deja_dit if isinstance(deja_dit, str) and deja_dit.strip() else None,
         )
         if probleme.dit is None and probleme.issue is None:
             return resultat, kwargs, None

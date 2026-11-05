@@ -2,7 +2,7 @@
 
 Measured on the fork: nothing bounds Mistral's request (600 s by default), and a model error is
 not fatal, so the caller stays in silence. For an agent with the outage fallback on, the
-conversation's Mistral service bounds its answer by ``delai_modele_s`` (4 s by default):
+conversation's Mistral service bounds its answer by ``delai_garde_modele_s`` (4 s by default):
 
 - no first piece within the delay, or the answer stalls that long between two pieces →
   ``DelaiModeleDepasse``; the service closes the stream, pushes NO error, and fires

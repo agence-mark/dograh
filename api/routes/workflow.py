@@ -7,9 +7,10 @@ from typing import Annotated, List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from api.db import db_client
+from api.schemas.fiche_agent import verifier_extraction_contre_fiche
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
@@ -365,6 +366,15 @@ class UpdateWorkflowRequest(BaseModel):
     # enforced by FastAPI; extra="allow" keeps passthrough keys like
     # model_configuration_v2_override intact.
     workflow_configurations: WorkflowConfigurationDefaults | None = None
+
+    @model_validator(mode="after")
+    def extraction_hors_des_champs_de_la_fiche(self) -> "UpdateWorkflowRequest":
+        """[.mark] RA-B R4b : l'extraction de Dograh ne porte pas le nom d'un champ de la fiche (audit 02 B1)."""
+        if self.workflow_definition is not None and self.workflow_configurations is not None:
+            verifier_extraction_contre_fiche(
+                self.workflow_definition, self.workflow_configurations.fiche_champs
+            )
+        return self
 
     @field_validator("workflow_configurations")
     @classmethod
