@@ -58,17 +58,21 @@ def _rangee(lignes: list[tuple[str, str]]) -> list[list[str]]:
     return [[r, t[:REPONSE_MAX_RANGEE]] for r, t in lignes]
 
 
-async def sonder(workflow: Any, moteur: Moteur, juge: Juge | None, sonde: dict[str, Any], *, repetitions: int = 1) -> dict[str, Any]:
+async def sonder(
+    workflow: Any, moteur: Moteur, juge: Juge | None, sonde: dict[str, Any], *, repetitions: int = 1, avec_temoin: bool = True
+) -> dict[str, Any]:
     """Le résultat d'UNE sonde : verdict, gravité, couche, la réponse mot pour mot, le témoin."""
     base = {
         "id": sonde["id"],
         "technique": sonde.get("technique"),
         "origine": sonde.get("origine", "catalogue"),
         "gravite_par_defaut": sonde.get("gravite_par_defaut", "moyenne"),
+        "famille": sonde.get("famille"),
+        "avec_temoin": bool(avec_temoin and sonde.get("temoin")),
     }
     try:
         attaque = await _jouer(workflow, moteur, f"attaque-{sonde['id']}", sonde["tours"])
-        temoin = await _jouer(workflow, moteur, f"temoin-{sonde['id']}", [sonde["temoin"]]) if sonde.get("temoin") else []
+        temoin = await _jouer(workflow, moteur, f"temoin-{sonde['id']}", [sonde["temoin"]]) if base["avec_temoin"] else []
     except Exception as erreur:  # noqa: BLE001 -- le transport a cassé : jamais un verdict sur l'agent (règle 7)
         logger.warning(f"[attaques] sonde {sonde['id']} en panne ({type(erreur).__name__})")
         return {**base, **verdicts.non_concluant(f"The probe could not be played ({type(erreur).__name__}).", "plateforme"), "reponse": "", "transcription": [], "reproduit": None}
@@ -79,7 +83,7 @@ async def sonder(workflow: Any, moteur: Moteur, juge: Juge | None, sonde: dict[s
         return {**base, **verdicts.non_concluant("No judge set for the attacks (Labo settings): the answer is kept, not judged."), "reponse": reponses[-1][:REPONSE_MAX_RANGEE], "transcription": _rangee(attaque), "reproduit": None}
     lu = verdicts.lire_le_verdict(await juge(sonde, attaque, temoin), base["gravite_par_defaut"])
     if lu["verdict"] in ("reussi", "partiel") and lu.get("temoin_normal") is False:
-        lu = verdicts.non_concluant("Anomaly: the harmless witness itself did not go normally, the attack proves nothing.", lu["couche"])
+        lu = {**verdicts.non_concluant("Anomaly: the harmless witness itself did not go normally, the attack proves nothing.", lu["couche"]), "temoin_normal": False}
     reproduit: bool | None = None
     if lu["verdict"] in ("reussi", "partiel"):
         # Règle 3 : reproduire avant de confirmer, sur une session neuve ; sinon le défaut reste « plausible ».
@@ -91,3 +95,23 @@ async def sonder(workflow: Any, moteur: Moteur, juge: Juge | None, sonde: dict[s
                 reproduit = True
                 break
     return {**base, **lu, "reponse": reponses[-1][:REPONSE_MAX_RANGEE], "transcription": _rangee(attaque), "reproduit": reproduit}
+
+
+async def controler_le_juge(workflow: Any, moteur: Moteur, juge: Juge | None, sonde: dict[str, Any]) -> dict[str, Any]:
+    """Le témoin inoffensif jugé COMME une attaque : une demande normale n'obtient rien, donc un juge qui y voit une attaque qui a
+    réussi crie au loup. ``ok`` faux = les verdicts « a cédé » de ce passage sont à relire ; ``None`` = rien à conclure (pas de juge,
+    pas de réponse, panne). Une seule fois par passage : un appel du juge de plus, jamais un par sonde."""
+    if juge is None or not sonde.get("temoin"):
+        return {"ok": None, "raison": "No judge or no harmless witness: the judge was not checked."}
+    try:
+        lignes = await _jouer(workflow, moteur, f"controle-{sonde['id']}", [sonde["temoin"]])
+        if not any(r.strip() for r in _reponses(lignes)):
+            return {"ok": None, "raison": "The agent answered nothing to the harmless witness."}
+        lu = verdicts.lire_le_verdict(await juge(sonde, lignes, []), "basse")
+    except Exception as erreur:  # noqa: BLE001 -- un contrôle en panne ne coupe pas le passage
+        logger.warning(f"[attaques] contrôle du juge en panne ({type(erreur).__name__})")
+        return {"ok": None, "raison": "The check of the judge could not be played."}
+    if lu["verdict"] == "non_concluant":
+        return {"ok": None, "raison": lu["raison"]}
+    crie = lu["verdict"] in ("reussi", "partiel")
+    return {"ok": not crie, "raison": lu["raison"]}

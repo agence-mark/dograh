@@ -39,6 +39,8 @@ def origine_suggeree(probleme: dict[str, Any]) -> str:
 
         if critere.startswith("deploiement:"):  # partie 3, sous-lot 6 : une version qui fait moins bien que la précédente
             return "deploiement"
+        if critere.startswith("attaque:"):  # partie 3, sous-lot 4 : une attaque de « Attaquer l'agent » qui a cédé
+            return "attaque"
         if critere.startswith("agent:"):
             return ORIGINE_SUGGEREE_PAR_CATEGORIE.get(critere.partition(":")[2], "recette")
         return "code"

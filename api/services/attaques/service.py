@@ -11,9 +11,9 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.attaques import catalogue, rapport, reconnaissance
+from api.services.attaques import catalogue, jeu_public, rapport, reconnaissance
 from api.services.attaques.contrat import Contrat
-from api.services.attaques.sondage import Juge, sonder
+from api.services.attaques.sondage import Juge, controler_le_juge, sonder
 from api.services.builder.tests_agent.jeu import Moteur
 
 ECHANTILLON_REJEU = 5
@@ -67,6 +67,17 @@ async def choisir_les_sondes(graphe: dict[str, Any], contrat: Contrat, jeu: dict
     return a_jouer, non_couvert, reco
 
 
+async def choisir_dans_le_jeu_public(organisation_id: int, graphe: dict[str, Any], contrat: Contrat) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    """Les premières attaques du jeu importé (ordre de l'import), après les conflits de la reconnaissance. Rien d'importé : refus dit."""
+    reco = reconnaissance.reconnaitre(graphe)
+    conflits = list(reco["sondes_de_conflit"])[: contrat.sondes_max]
+    sondes, total = await jeu_public.sondes(organisation_id, max(0, contrat.sondes_max - len(conflits)))
+    if total == 0:
+        raise jeu_public.ImportRefuse("The public set is not imported yet: import the file first, or attack with the 15 techniques.")
+    non_couvert = [f"Public set: {total - len(sondes)} attack(s) of {total} not played (over the depth chosen)."] if total > len(sondes) else []
+    return [*conflits, *sondes], non_couvert, reco
+
+
 async def lancer(
     workflow: Any,
     organisation_id: int,
@@ -76,20 +87,27 @@ async def lancer(
     juge: Juge | None,
     jeu_slug: str = catalogue.JEU,
 ) -> dict[str, Any]:
+    """Un passage. ``contrat.jeu`` choisit les 15 techniques (``catalogue``) ou le jeu public importé (``public``)."""
     from api.services.builder import brouillon
     from api.services.builder.controle.service import graphe_de_travail
     from api.services.builder.tests_agent import boucle
 
     contrat.verifier()  # ⛔ rien ne part avant le contrat confirmé
-    jeu = await catalogue.lire_le_jeu(jeu_slug)
+    public = contrat.jeu == "public"
+    jeu = {"techniques": [], "ecartees": []} if public else await catalogue.lire_le_jeu(jeu_slug)
     graphe = await graphe_de_travail(workflow)
     configurations = await brouillon.configurations_courantes(workflow)
     _, version = await brouillon.source_courante(workflow)
-    sondes, non_couvert, reco = await choisir_les_sondes(graphe, contrat, jeu)
+    if public:
+        sondes, non_couvert, reco = await choisir_dans_le_jeu_public(organisation_id, graphe, contrat)
+    else:
+        sondes, non_couvert, reco = await choisir_les_sondes(graphe, contrat, jeu)
     resultats = []
     for sonde in sondes:
-        resultat = await sonder(workflow, moteur, juge, sonde, repetitions=contrat.repetitions)
+        resultat = await sonder(workflow, moteur, juge, sonde, repetitions=contrat.repetitions, avec_temoin=contrat.temoin)
         resultats.append({**resultat, "tours": sonde["tours"], "temoin": sonde.get("temoin")})
+    # Le témoin sert aussi à prouver que le juge ne crie pas au loup : une demande normale ne doit jamais être jugée comme une attaque réussie.
+    controle = await controler_le_juge(workflow, moteur, juge, sondes[0]) if contrat.temoin and sondes else None
     fait = rapport.construire(
         version=version,
         empreinte=boucle.empreinte_du_brouillon(graphe, configurations),
@@ -97,6 +115,8 @@ async def lancer(
         resultats=resultats,
         non_couvert=non_couvert,
         reconnaissance=reco,
+        controle_du_juge=controle,
+        jeu={"slug": "public", "mention": jeu_public.MENTION} if public else {"slug": "catalogue", "mention": jeu.get("mention")},
     )
     await rapport.ranger(organisation_id, workflow.id, fait)
     logger.info(f"[attaques] agent {workflow.id} : {fait['resume']}")
@@ -117,7 +137,7 @@ async def rejouer(workflow: Any, organisation_id: int, *, moteur: Moteur, juge: 
     for ancienne in [*echecs, *tenues]:
         if not ancienne.get("tours"):
             continue
-        r = await sonder(workflow, moteur, juge, ancienne, repetitions=repetitions)
+        r = await sonder(workflow, moteur, juge, ancienne, repetitions=repetitions, avec_temoin=bool((precedent.get("contrat") or {}).get("temoin", True)))
         nouveaux.append({"id": ancienne["id"], "avant": ancienne["verdict"], "apres": r["verdict"], "reproduit": r.get("reproduit"), "gravite": r.get("gravite"), "echantillon": ancienne in tenues})
     precedent["rejeu"] = {
         "le": rapport.datetime.now(rapport.UTC).isoformat(timespec="seconds"),

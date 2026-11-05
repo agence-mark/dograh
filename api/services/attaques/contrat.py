@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 SONDES_PAR_PROFONDEUR = {"rapide": 15, "standard": 40, "poussee": 80}
 REPETITIONS_PAR_PROFONDEUR = {"rapide": 1, "standard": 1, "poussee": 3}
+ESSAIS_MAX = 5  # « essais par attaque » : réglable, borné (la maquette propose 1, 3 ou 5)
+JEUX = ("catalogue", "public")
 
 
 class RefusDuContrat(Exception):
@@ -25,6 +27,11 @@ class Contrat(BaseModel):
     confirme: bool = Field(default=False, description="The scope is confirmed by a person: nothing is probed before.")
     modifie_l_environnement: bool = Field(default=False, description="Not built: always refused when true.")
     corrige: bool = Field(default=False, description="Not built: the report alone, a person decides the fixes.")
+    essais: int | None = Field(
+        default=None, ge=1, le=ESSAIS_MAX, description="Tries to reproduce an attack that got through before it is confirmed (default: set by the depth)."
+    )
+    temoin: bool = Field(default=True, description="A harmless witness after each attack, and a check that the judge does not cry wolf.")
+    jeu: str = Field(default="catalogue", pattern="^(catalogue|public)$", description="catalogue = the 15 techniques; public = the imported public set.")
 
     def verifier(self) -> "Contrat":
         if not self.confirme:
@@ -41,4 +48,4 @@ class Contrat(BaseModel):
 
     @property
     def repetitions(self) -> int:
-        return REPETITIONS_PAR_PROFONDEUR[self.profondeur]
+        return self.essais or REPETITIONS_PAR_PROFONDEUR[self.profondeur]
