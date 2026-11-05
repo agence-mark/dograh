@@ -500,6 +500,45 @@ export type AgentDuClient = {
 };
 
 /**
+ * AgentPilotage
+ */
+export type AgentPilotage = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version
+     */
+    version: number | null;
+    /**
+     * Publie
+     */
+    publie: boolean;
+    /**
+     * Part
+     */
+    part: number;
+    /**
+     * Autres
+     */
+    autres: Array<AutreBranche>;
+    /**
+     * Appels
+     */
+    appels: number;
+    /**
+     * Note
+     */
+    note: number | null;
+    pret: PretPilotage | null;
+};
+
+/**
  * AgentPublie
  */
 export type AgentPublie = {
@@ -648,6 +687,50 @@ export type AgentsServis = {
      * Groupes
      */
     groupes?: Array<GroupeServi>;
+};
+
+/**
+ * AlerteActive
+ */
+export type AlerteActive = {
+    /**
+     * Id
+     */
+    id: string | null;
+    /**
+     * Type
+     */
+    type: string | null;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number | null;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Resume
+     */
+    resume: string;
+    /**
+     * Levee Le
+     */
+    levee_le: string;
+};
+
+/**
+ * AlertesPilotage
+ */
+export type AlertesPilotage = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Liste
+     */
+    liste: Array<AlerteActive>;
 };
 
 /**
@@ -1116,6 +1199,24 @@ export type AutoscaleMetricResponse = {
      * Value
      */
     value: number;
+};
+
+/**
+ * AutreBranche
+ */
+export type AutreBranche = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Part
+     */
+    part: number;
+    /**
+     * Version
+     */
+    version: number | null;
 };
 
 /**
@@ -2912,6 +3013,36 @@ export type ChargeMiroir = {
      * Evenements
      */
     evenements: Array<EvenementMiroir>;
+};
+
+/**
+ * ChiffrePilotage
+ */
+export type ChiffrePilotage = {
+    /**
+     * Id
+     */
+    id: 'appels' | 'resolus' | 'transferes' | 'note' | 'cout' | 'duree';
+    /**
+     * Valeur
+     */
+    valeur: number | null;
+    /**
+     * Precedente
+     */
+    precedente: number | null;
+    /**
+     * Tendance
+     */
+    tendance: number | null;
+    /**
+     * Disponible
+     */
+    disponible: boolean;
+    /**
+     * Raison
+     */
+    raison: 'aucun_appel' | 'bilan' | 'juge' | 'prix' | 'duree' | null;
 };
 
 /**
@@ -5699,6 +5830,32 @@ export type DepuisUneConversation = {
 };
 
 /**
+ * DernierMessage
+ */
+export type DernierMessage = {
+    /**
+     * Fil Id
+     */
+    fil_id: number;
+    /**
+     * Sujet
+     */
+    sujet: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+};
+
+/**
  * DerniereModification
  *
  * [.mark] Builder partie 2 (U2 bis, E56) : qui a écrit une fiche en dernier, et d'où.
@@ -7322,6 +7479,26 @@ export type EtapeDePreparation = {
 };
 
 /**
+ * EtapeInstallation
+ */
+export type EtapeInstallation = {
+    /**
+     * Numero
+     */
+    numero: number;
+    /**
+     * Titre
+     */
+    titre: {
+        [key: string]: string;
+    };
+    /**
+     * Etat
+     */
+    etat: string;
+};
+
+/**
  * EtapeVue
  */
 export type EtapeVue = {
@@ -8074,6 +8251,32 @@ export type GardeUrgence = {
      * Words or phrases of your own that also trigger it.
      */
     mots_en_plus?: Array<string>;
+};
+
+/**
+ * GestePilotage
+ */
+export type GestePilotage = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Qui
+     */
+    qui: string | null;
+    /**
+     * Par Builder
+     */
+    par_builder: boolean;
+    /**
+     * Quand
+     */
+    quand: string;
 };
 
 /**
@@ -9105,6 +9308,28 @@ export type InitiateCallRequest = {
      * From Phone Number Id
      */
     from_phone_number_id?: number | null;
+};
+
+/**
+ * InstallationPilotage
+ */
+export type InstallationPilotage = {
+    /**
+     * Etapes
+     */
+    etapes: Array<EtapeInstallation>;
+    /**
+     * Prochaine
+     */
+    prochaine: number | null;
+    /**
+     * Faites
+     */
+    faites: number;
+    /**
+     * Total
+     */
+    total: number;
 };
 
 /**
@@ -11726,6 +11951,32 @@ export type MotDePasseRequest = {
 };
 
 /**
+ * MotifPilotage
+ */
+export type MotifPilotage = {
+    /**
+     * Motif
+     */
+    motif: string;
+    /**
+     * Appels
+     */
+    appels: number;
+    /**
+     * Part Resolu
+     */
+    part_resolu: number | null;
+    /**
+     * Part Transferts
+     */
+    part_transferts: number | null;
+    /**
+     * Note
+     */
+    note: number | null;
+};
+
+/**
  * MoveFolderRequest
  *
  * [.mark] Lot 10 : déplacer un dossier sous un autre (``None`` = premier niveau).
@@ -13571,6 +13822,55 @@ export type PhraseInstallation = {
 };
 
 /**
+ * Pilotage
+ */
+export type Pilotage = {
+    /**
+     * Periode
+     */
+    periode: '24h' | '7j' | '30j' | '90j';
+    /**
+     * Jours
+     */
+    jours: number;
+    /**
+     * En Service
+     */
+    en_service: boolean;
+    /**
+     * Chiffres
+     */
+    chiffres: Array<ChiffrePilotage> | null;
+    /**
+     * Tronque
+     */
+    tronque: boolean;
+    /**
+     * Motifs
+     */
+    motifs: Array<MotifPilotage> | null;
+    /**
+     * Agents
+     */
+    agents: Array<AgentPilotage> | null;
+    alertes: AlertesPilotage | null;
+    /**
+     * Problemes Graves
+     */
+    problemes_graves: number | null;
+    installation: InstallationPilotage | null;
+    relation: RelationPilotage | null;
+    /**
+     * Activite
+     */
+    activite: Array<GestePilotage> | null;
+    /**
+     * Illisibles
+     */
+    illisibles: Array<string>;
+};
+
+/**
  * Planificateur
  *
  * What the theme « Appointments » shows and saves.
@@ -13755,6 +14055,20 @@ export type PresignedUploadUrlResponse = {
      * Expires In
      */
     expires_in: number;
+};
+
+/**
+ * PretPilotage
+ */
+export type PretPilotage = {
+    /**
+     * Etat
+     */
+    etat: 'pret' | 'afaire' | 'bloque';
+    /**
+     * N
+     */
+    n: number;
 };
 
 /**
@@ -15681,6 +15995,25 @@ export type RejouerLaSuite = {
      * Repetitions
      */
     repetitions?: number;
+};
+
+/**
+ * RelationPilotage
+ */
+export type RelationPilotage = {
+    /**
+     * Ouverts
+     */
+    ouverts: number;
+    /**
+     * Non Lus
+     */
+    non_lus: number;
+    /**
+     * Demandes Nouvelles
+     */
+    demandes_nouvelles: number;
+    dernier: DernierMessage | null;
 };
 
 /**
@@ -37990,6 +38323,59 @@ export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses = {
 };
 
 export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponse = ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses];
+
+export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: {
+        /**
+         * Periode
+         */
+        periode?: '24h' | '7j' | '30j' | '90j';
+    };
+    url: '/api/v1/vues-equipe/pilotage/{organization_id}';
+};
+
+export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetError = PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetErrors[keyof PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetErrors];
+
+export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Pilotage;
+};
+
+export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetResponse = PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetResponses[keyof PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetResponses];
 
 export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetData = {
     body?: never;
