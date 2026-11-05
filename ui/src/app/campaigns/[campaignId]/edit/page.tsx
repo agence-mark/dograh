@@ -1,7 +1,5 @@
 "use client";
 
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
@@ -18,6 +16,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { useBaseEspace } from "@/components/mark/studio/base-espace";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from '@/components/ui/button';
@@ -44,6 +43,7 @@ export default function EditCampaignPage() {
 
 function FormulaireCampagne() {
     const { t } = useLangue();
+    const base = useBaseEspace();
     const [touche, setTouche] = useState(false);
     const [erreurs, setErreurs] = useState<Erreurs>({});
     const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
@@ -286,7 +286,7 @@ function FormulaireCampagne() {
 
             if (response.data) {
                 notifier.succes({ fr: "Campagne modifiée.", en: "Campaign updated." });
-                router.push(`/campaigns/${campaignId}`);
+                router.push(`${base}/campagnes/${campaignId}`);
             }
         } catch (error) {
             console.error('Failed to update campaign:', error);
@@ -301,7 +301,7 @@ function FormulaireCampagne() {
     // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
     const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        confirmNavigate(() => router.push(`/campaigns/${campaignId}`));
+        confirmNavigate(() => router.push(`${base}/campagnes/${campaignId}`));
     };
 
     // Quitter avec des changements non enregistrés : le garde de l'application prévient.
@@ -326,14 +326,8 @@ function FormulaireCampagne() {
     return (
         <PageStudio>
             <div className="mx-auto max-w-2xl space-y-8">
-                <Link
-                    href={`/campaigns/${campaignId}`}
-                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-semibold hover:text-foreground"
-                >
-                    <ArrowLeft className="size-4" />
-                    {campaign.name}
-                </Link>
                 <TitrePage
+                    retour={{ href: `${base}/campagnes/${campaignId}`, libelle: t({ en: `Back to ${campaign.name}`, fr: `Retour à ${campaign.name}` }) }}
                     titre={t({ en: 'Edit the campaign', fr: 'Modifier la campagne' })}
                     info={t({ en: 'Update name, concurrency, retry, and schedule configuration', fr: "Nom, appels simultanés, nouvelles tentatives et plages horaires" })}
                 />

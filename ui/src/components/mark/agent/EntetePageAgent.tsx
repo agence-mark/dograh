@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth";
 
 import { ActionsAgent } from "./ActionsAgent";
 import { ContexteBrouillonLocal, useRegistreBrouillons } from "./brouillon-local";
+import { ContexteNomAgent } from "./contexte-agent";
 import { EnteteAgent } from "./EnteteAgent";
 import type { OngletAgent } from "./onglets-agent";
 
@@ -28,7 +29,7 @@ const T = {
 
 type Fiche = { nom: string; uuid: string | null; numero: number | null; statut: string | null };
 
-export function EntetePageAgent({ agentId, onglet, children }: { agentId: number; onglet: OngletAgent; children: ReactNode }) {
+export function EntetePageAgent({ agentId, onglet, fil, children }: { agentId: number; onglet: OngletAgent; /** T6 : dernier maillon d'une page ouverte depuis l'agent (ex. « Comparer »). */ fil?: string; children: ReactNode }) {
     const { user, loading: authLoading } = useAuth();
     const { t } = useLangue();
     const [fiche, setFiche] = useState<Fiche | null>(null);
@@ -73,6 +74,7 @@ export function EntetePageAgent({ agentId, onglet, children }: { agentId: number
                 agentId={agentId}
                 onglet={onglet}
                 nom={fiche?.nom ?? ""}
+                fil={fil}
                 actions={
                     <ActionsAgent
                         agentId={agentId}
@@ -96,9 +98,11 @@ export function EntetePageAgent({ agentId, onglet, children }: { agentId: number
                 </div>
             )}
             <ContexteBrouillonLocal.Provider value={declarer}>
-                <div key={remontage} className="min-h-0 flex-1">
-                    {children}
-                </div>
+                <ContexteNomAgent.Provider value={fiche?.nom ?? ""}>
+                    <div key={remontage} className="min-h-0 flex-1">
+                        {children}
+                    </div>
+                </ContexteNomAgent.Provider>
             </ContexteBrouillonLocal.Provider>
         </div>
     );

@@ -33,7 +33,10 @@ import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from '@/components/mark/studio/etat-vide';
 import { useNomEspace } from '@/components/mark/studio/nom-espace';
 import { OngletsPage } from '@/components/mark/studio/onglets-page';
+import { useBaseEspace } from '@/components/mark/studio/base-espace';
+import { espaceDe } from '@/components/mark/studio/navigation-studio';
 import { EnteteStudio, PageStudio } from '@/components/mark/studio/shell-studio';
+import { FlecheRetour } from '@/components/mark/studio/titre-page';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -236,7 +239,9 @@ export default function WorkflowRunPage() {
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
     const [workflowName, setWorkflowName] = useState<string | null>(null);
     const { t: tp, langue } = useLangue();
-    const nomEspace = useNomEspace('labo', null);
+    const base = useBaseEspace();
+    const { espace: espaceBase, org: orgBase } = espaceDe(base);
+    const nomEspace = useNomEspace(espaceBase, orgBase);
     // [.mark] U3 : l'analyse du run est lue UNE fois, les onglets s'en partagent les blocs.
     const analyse = useAnalyseDuRun(Number(params.workflowId), Number(params.runId));
 
@@ -347,11 +352,11 @@ export default function WorkflowRunPage() {
                     <EnteteStudio
                         nom={
                             <nav aria-label={tp({ en: 'Breadcrumb', fr: "Fil d'Ariane" })} className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-                                <Link href="/labo" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
+                                <Link href={base} className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
                                     {nomEspace ?? tp({ en: 'Labo', fr: 'Labo' })}
                                 </Link>
                                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                                <Link href="/labo/conversations" className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
+                                <Link href={`${base}/conversations`} className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
                                     {tp({ en: 'Conversations', fr: 'Conversations' })}
                                 </Link>
                                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
@@ -377,6 +382,9 @@ export default function WorkflowRunPage() {
                         }
                     />
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                        <div className="w-full">
+                            <FlecheRetour href={`${base}/conversations`} libelle={tp({ en: 'Back to the conversations', fr: 'Retour aux conversations' })} />
+                        </div>
                         <h1 className="w-full text-2xl font-semibold tracking-tight" data-titre-conversation>
                             {titreDeLaConversation(workflowRun?.gathered_context ?? null, nomDeLAgent)}
                         </h1>

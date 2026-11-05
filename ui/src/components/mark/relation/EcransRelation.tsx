@@ -36,6 +36,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { FlecheRetour } from "@/components/mark/studio/titre-page";
+
 import { BoiteMessages } from "./BoiteMessages";
 import { lireClientsRelation } from "./lecture-clients";
 import { ADRESSE_PORTAIL, AvatarClient, EtatClient, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
@@ -348,6 +350,7 @@ function FicheInterne({ id }: { id: number }) {
     const pannes = client.pannes ?? 0;
     return (
         <div className={CONTENEUR}>
+            <FlecheRetour href="/relation/clients" libelle={t({ en: "Back to the clients", fr: "Retour aux clients" })} />
             <div className="flex flex-wrap items-center gap-4">
                 <AvatarClient id={client.id} nom={client.nom} taille={56} />
                 <div className="min-w-0 flex-1">

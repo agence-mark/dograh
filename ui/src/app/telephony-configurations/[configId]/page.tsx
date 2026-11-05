@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  ArrowLeft,
   Copy,
   ExternalLink,
   Pencil,
@@ -12,9 +11,12 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { useBaseEspace } from "@/components/mark/studio/base-espace";
+import { FlecheRetour } from "@/components/mark/studio/titre-page";
 
 import {
   deletePhoneNumberApiV1OrganizationsTelephonyConfigsConfigIdPhoneNumbersPhoneNumberIdDelete,
@@ -73,7 +75,9 @@ import { resolveWebhookBaseUrl } from "@/lib/webhookUrl";
 const INBOUND_WEBHOOK_PATH = "/api/v1/telephony/inbound/run";
 
 export default function TelephonyConfigurationDetailPage() {
-  const router = useRouter();
+  const { t: tr } = useLangue();
+  const base = useBaseEspace();
+  const retour = { href: `${base}/telephonie`, libelle: tr({ en: "Back to the telephony", fr: "Retour à la téléphonie" }) };
   const params = useParams<{ configId: string }>();
   const configId = Number(params.configId);
 
@@ -233,9 +237,7 @@ export default function TelephonyConfigurationDetailPage() {
   if (!config) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" onClick={() => router.push("/telephony-configurations")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back
-        </Button>
+        <FlecheRetour {...retour} />
         <p className="mt-4 text-muted-foreground">Configuration not found.</p>
       </div>
     );
@@ -244,12 +246,7 @@ export default function TelephonyConfigurationDetailPage() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
       <div>
-        <Link
-          href="/telephony-configurations"
-          className="inline-flex items-center text-sm text-muted-foreground hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" /> All configurations
-        </Link>
+        <FlecheRetour {...retour} />
       </div>
 
       <Card>

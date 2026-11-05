@@ -94,6 +94,15 @@ describe("le sélecteur de branche", () => {
         expect(choisir).toHaveBeenCalledWith(2);
     });
 
+    it("le point de couleur vient AVANT l'icône de branche (T5) : plein si la branche reçoit des appels, creux sinon", () => {
+        rendre();
+        const bouton = screen.getByRole("button", { name: /Branch/ });
+        const point = bouton.querySelector("[data-point-branche]") as HTMLElement;
+        expect(point.getAttribute("data-point-branche")).toBe("plein");
+        expect(point.nextElementSibling?.tagName.toLowerCase()).toBe("svg");
+        expect(bouton.firstElementChild).toBe(point);
+    });
+
     it("choisir la principale rend null, « New branch » ouvre la fenêtre", async () => {
         const { choisir, nouvelle } = rendre(2);
         expect(screen.getByRole("button", { name: "Branch : Accueil court · Live 10 %" })).toBeTruthy();

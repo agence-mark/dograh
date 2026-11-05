@@ -7,6 +7,7 @@ import type { BranchesVue } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { Curseur } from "@/components/ui/curseur";
 
 /**
  * [.mark] Partie 3, SA-L3b (05 § 9 et § 12, maquette `FenetreRepartition`) : la répartition du trafic ENTRE BRANCHES, le seul
@@ -93,9 +94,8 @@ export function FenetreRepartition({
                                         {(parts[b.id] ?? 0) > 0 ? `${parts[b.id]} %` : t({ en: "No calls", fr: "Aucun appel" })}
                                     </span>
                                 </div>
-                                <input
+                                <Curseur
                                     id={`part-${b.id}`}
-                                    type="range"
                                     min={0}
                                     max={MAX_BRANCHE}
                                     step={1}
@@ -103,7 +103,7 @@ export function FenetreRepartition({
                                     disabled={eteinte}
                                     onChange={(e) => setParts((p) => poser(p, b.id, Number(e.target.value)))}
                                     aria-valuetext={`${parts[b.id] ?? 0} %`}
-                                    className="h-2 w-full cursor-pointer accent-primary dark:accent-white"
+                                    className="w-full"
                                 />
                             </li>
                         ))}

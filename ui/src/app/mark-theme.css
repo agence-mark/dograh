@@ -396,3 +396,25 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
 .dark img[src="/mark-symbol.svg"] {
   content: url("/mark-symbol-nuit.svg");
 }
+
+/* [.mark] T5 : curseur à glisser commun (Evan, 05/11). Rail de 4 px sans bordure sur un gris à 10 % du texte, partie
+   remplie de la même finesse, point de 12 px cerclé du fond de page, anneau de focus au clavier. Composant :
+   components/ui/curseur.tsx (donne --pct). Jetons seulement. */
+input[type="range"].curseur {
+  -webkit-appearance: none; appearance: none; height: 16px; background: transparent; border: 0; padding: 0; cursor: pointer;
+}
+input[type="range"].curseur:disabled { cursor: not-allowed; opacity: 0.5; }
+input[type="range"].curseur::-webkit-slider-runnable-track {
+  height: 4px; border: 0; border-radius: 999px;
+  background: linear-gradient(to right, var(--foreground) var(--pct, 0%), color-mix(in srgb, var(--foreground) 10%, transparent) var(--pct, 0%));
+}
+input[type="range"].curseur::-moz-range-track { height: 4px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 10%, transparent); }
+input[type="range"].curseur::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--foreground); }
+input[type="range"].curseur::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-top: -4px; border: 0; border-radius: 999px;
+  background: var(--foreground); box-shadow: 0 0 0 2px var(--background);
+}
+input[type="range"].curseur::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 999px; background: var(--foreground); box-shadow: 0 0 0 2px var(--background); }
+input[type="range"].curseur:focus-visible { outline: none; }
+input[type="range"].curseur:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+input[type="range"].curseur:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }

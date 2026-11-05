@@ -9,8 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 /**
  * [.mark] Partie 3, SA-L3b (05 § 18, maquette `selecteur-branche.tsx`) : le sélecteur de branche de la barre de l'agent, en icône
- * seule avec son point à côté (vert : la branche reçoit des appels ; creux : aucune part). Collé au bouton de la version
- * (`⑂● · v12 ▾`), sans bordure.
+ * seule avec son point AVANT l'icône (T5, Evan 05/11 ; vert : la branche reçoit des appels ; creux : aucune part). Collé au bouton de la version
+ * (`●⑂ · v12 ▾`), sans bordure.
  */
 export function SelecteurBranche({
     vue,
@@ -40,8 +40,11 @@ export function SelecteurBranche({
                     title={courante ? libelle(courante) : undefined}
                     className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 hover:bg-muted"
                 >
+                    <span
+                        data-point-branche={courante && courante.part > 0 ? "plein" : "creux"}
+                        className={`size-2 shrink-0 rounded-full ${courante && courante.part > 0 ? "bg-(--etat-fait)" : "border-[1.5px] border-muted-foreground"}`}
+                    />
                     <GitBranch className="size-4 text-muted-foreground" />
-                    <span className={`size-2 shrink-0 rounded-full ${courante && courante.part > 0 ? "bg-(--etat-fait)" : "border-[1.5px] border-muted-foreground"}`} />
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-72">
