@@ -104,6 +104,13 @@ describe("les actions de la barre avec l'éditeur", () => {
         expect(document.querySelector("[data-raison-publier]")).toBeNull();
     });
 
+    it("SA-V : la raison de Publier n’écrase pas les onglets de la barre : lue par le lecteur d’écran partout, visible dès 1536 px", () => {
+        render(<ActionsAgent {...base} editeur={editeur({ estModifie: true })} />);
+        const raison = document.querySelector("[data-raison-publier]");
+        expect(raison?.className).toContain("sr-only");
+        expect(raison?.className).toContain("2xl:not-sr-only");
+    });
+
     it("sans brouillon, pas de « Publier »", () => {
         render(<ActionsAgent {...base} aUnBrouillon={false} editeur={editeur()} />);
         expect(screen.queryByRole("button", { name: /Publish/ })).toBeNull();

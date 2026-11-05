@@ -617,8 +617,8 @@ export function SectionLexiqueMetier() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Input
-              aria-label="Search the vocabulary"
-              placeholder="Search a name, a spelling, a category…"
+              aria-label={t({ en: "Search the vocabulary", fr: "Chercher dans le vocabulaire" })}
+              placeholder={t({ en: "Search a name, a spelling, a category…", fr: "Chercher un nom, une graphie, une catégorie…" })}
               className="w-full sm:w-72"
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
