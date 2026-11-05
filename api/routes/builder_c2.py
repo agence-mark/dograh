@@ -27,7 +27,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder import fil as service_fil
-from api.services.builder import revue, sous_agents
+from api.services.builder import modes, revue, sous_agents
 
 router = APIRouter(tags=["builder"])
 
@@ -214,15 +214,7 @@ async def regler_le_mode(fil_id: int, demande: ModeDemande, user: UserModel = De
     action reste vérifiée côté serveur (``modes.decider``). « Tout permettre » est journalisé (qui, quel chat, quand)."""
     fil = await _fil_ou_404(user, fil_id)
     _chat_modifiable(fil)
-    historique = dict(fil.historique or {})
-    avant = historique.get("mode") or "demander"
-    historique["mode"] = demande.mode
-    await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
-    await service_fil.noter(fil.id, {"type": "mode", "mode": demande.mode, "avant": avant})
-    if demande.mode in ("agent", "tout") and avant != demande.mode:
-        from api.services.equipe_mark.acces import journaliser
-
-        await journaliser(user, "builder.mode", user.selected_organization_id, {"fil": fil.id, "mode": demande.mode, "agent": fil.workflow_id})
+    await modes.poser(user, fil, demande.mode)
     return {"ok": True, "mode": demande.mode}
 
 

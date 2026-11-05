@@ -18,7 +18,7 @@ joint est contrôlé de la même façon. Le travail tourne en tâche de fond : f
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -29,7 +29,7 @@ from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.equipe_mark.acces import journaliser
 from api.services import modifications_live as live
-from api.services.builder import demarrages, fil as service_fil
+from api.services.builder import demarrages, fil as service_fil, modes
 from api.services.builder.constantes import organisation_bibliotheque
 from api.services.mark_evenements import flux_sse, suivre
 
@@ -191,6 +191,8 @@ class NouveauFil(BaseModel):
     workflow_id: int | None = None
     demarrage: str | None = Field(default=None, max_length=120)
     depasser_le_plafond: bool = DEPASSER_LE_PLAFOND
+    # N4 : le mode choisi sur la page d'accueil du builder (vaut pour CE chat, posé AVANT le premier tour). Absent : « demander ».
+    mode: Literal["demander", "agent", "tout", "plan"] | None = None
 
 
 @router.post("/fils", response_model=VueFil)
@@ -208,6 +210,9 @@ async def ouvrir_un_fil(demande: NouveauFil, user: UserModel = Depends(get_user_
     message = demarrages.remplir(demande.message, getattr(workflow, "name", None))
     titre = carte["titre"] if carte else message.strip().splitlines()[0]
     fil = await service_fil.creer(user, demande.workflow_id, titre, demande.demarrage)
+    if demande.mode and demande.mode != modes.MODE_PAR_DEFAUT:
+        await modes.poser(user, fil, demande.mode)
+        fil = await _fil_ou_404(user, fil.id)  # relu : ``lancer`` part de la conversation avec son mode
     if demande.demarrage:
         await demarrages.noter_l_utilisation(demande.demarrage, user.selected_organization_id, fil.id)
     try:

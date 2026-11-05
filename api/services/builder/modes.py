@@ -59,6 +59,22 @@ def mode_de(conversation: dict[str, Any] | None) -> str:
     return mode if mode in MODES else MODE_PAR_DEFAUT
 
 
+async def poser(user, fil, mode: str) -> str:
+    """Pose le mode du chat ``fil`` (valeur déjà validée par la route) : rangé dans la conversation, noté dans le fil, « agent » et
+    « tout » journalisés (qui, quel chat, quand). Rend le mode d'avant. Un seul chemin pour la route du mode et l'ouverture d'un chat."""
+    from api.services.builder import fil as service_fil
+    from api.services.equipe_mark.acces import journaliser
+
+    historique = dict(fil.historique or {})
+    avant = historique.get("mode") or MODE_PAR_DEFAUT
+    historique["mode"] = mode
+    await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
+    await service_fil.noter(fil.id, {"type": "mode", "mode": mode, "avant": avant})
+    if mode in ("agent", "tout") and avant != mode:
+        await journaliser(user, "builder.mode", user.selected_organization_id, {"fil": fil.id, "mode": mode, "agent": fil.workflow_id})
+    return avant
+
+
 def consigne(conversation: dict[str, Any] | None) -> str:
     """La ligne que le cerveau lit avant le message du jour : son mode, et ce qu'il fait d'une carte."""
     mode = mode_de(conversation)
