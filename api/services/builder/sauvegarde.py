@@ -33,6 +33,7 @@ MODIFIENT_L_AGENT: frozenset[str] = frozenset(
         "bibliotheque_appliquer",
         "objets_agent_ecrire",
         "publication_corriger_la_liste_vocale",
+        "outil_passer_a_la_version",
     }
 )
 ETATS_QUI_LAISSENT_PASSER = frozenset({"faite", "refusee", "cree_ici"})

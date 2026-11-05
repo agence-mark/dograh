@@ -23,6 +23,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.db import branche_ouverte
 from api.services.builder import actions, contexte, methode, suites  # noqa: F401 -- ``actions`` inscrit le registre
 from api.services.builder.actions.registre import Contexte, executer, outils_du_moteur
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
@@ -126,6 +127,10 @@ async def _tours(
     ctx: Contexte, message: str, cerveau: Cerveau, reglages: ReglagesCerveau, conv: dict[str, Any], enregistrer=None
 ) -> AsyncIterator[dict[str, Any]]:
     org, agent = ctx.organisation_id, ctx.workflow_id
+    # [.mark] SA-L3d : la branche sur laquelle le builder a choisi de travailler (``branche_travailler``) reste ouverte aux tours suivants,
+    # sauf si la requête en a ouvert une autre (l'en-tête de l'écran garde la priorité).
+    if conv.get("branche") and branche_ouverte.courante().branch_id is None:
+        branche_ouverte.ouvrir(conv["branche"], getattr(ctx.user, "id", None))
     # Sans agent (chat de l'accueil) : seule une conversation de la table peut tourner ainsi (``tours``), le builder crée l'agent.
     depense = conv["depense"]
     if (atteint := plafond_atteint(depense, reglages)) is not None:

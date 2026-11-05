@@ -20,6 +20,7 @@ from api.services.builder.actions import publication  # noqa: F401,E402 -- U11 :
 from api.services.builder.actions import rapport_et_tests  # noqa: F401,E402 -- C2 : rapport, dépense, tests lus, correction
 from api.services.builder.actions import recettes  # noqa: F401,E402 -- lot M (7) : recette_lire
 from api.services.builder.actions import sauvegarde_et_graphe  # noqa: F401,E402 -- lot M : sauvegarde avant modification, rendu du graphe
+from api.services.builder.actions import branches  # noqa: F401,E402 -- SA-L3d : branches d'agent et versions des outils
 from api.services.builder.actions import lecture_fork  # noqa: F401,E402 -- U12 (I1) : lire le fork dans Claude Code
 from api.services.builder.actions import appelant_claude_code  # noqa: F401,E402 -- U12 (I1) : l'appelant simulé joué par Claude Code
 from api.services.builder import sous_agents  # noqa: F401,E402 -- C2 (E96) : l'action deleguer

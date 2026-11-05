@@ -517,7 +517,7 @@ async def appliquer_un_modele(
 
     await recopier_dans_les_specialises(workflow_id, organization_id)
     stock = await lire_le_stock(organization_id)
-    stock.applications[str(workflow_id)] = MentionApplication(
+    stock.applications[await cle_de_la_mention(workflow_id)] = MentionApplication(
         modele_id=modele.id,
         nom=modele.nom,
         applique_le=datetime.now(UTC),
@@ -527,13 +527,22 @@ async def appliquer_un_modele(
     return resultat.model_copy(update={"ecrit": True})
 
 
+async def cle_de_la_mention(workflow_id: int) -> str:
+    """[.mark] Partie 3, SA-L3d (audit 12 § 2, « blocs et modèles : suivre ou rester se décide PAR BRANCHE ») : la clé de la mention
+    d'un agent. La principale garde la clé d'avant (l'identifiant de l'agent : aucune mention existante n'est réécrite) ; une branche
+    ouverte a la sienne (``agent:branche``), donc le modèle appliqué (et sa version) se garde par branche."""
+    ouverte = (await db_client.branche_ouverte_de(workflow_id)).branch_id
+    return str(workflow_id) if ouverte is None else f"{workflow_id}:{ouverte}"
+
+
 async def mention_de_l_agent(organization_id: int, workflow_id: int) -> MentionApplication | None:
-    """The mention an agent of the organization keeps (M4). 404 for another organization's agent."""
+    """The mention an agent of the organization keeps (M4), the one of the branch the request opened (SA-L3d). 404 for another
+    organization's agent."""
     workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
     if not workflow:
         raise ModeleRefuse("Agent not found.", statut=404)
     stock = await lire_le_stock(organization_id)
-    return stock.applications.get(str(workflow_id))
+    return stock.applications.get(await cle_de_la_mention(workflow_id))
 
 
 async def sections_reglees_par_le_principal_de_l_agent(organization_id: int, workflow_id: int) -> list[str]:
