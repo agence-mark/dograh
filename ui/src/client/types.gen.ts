@@ -8621,12 +8621,37 @@ export type JournalResponse = {
 
 /**
  * JugeDesVraisAppels
+ *
+ * Le réglage par agent. En écriture, un filtre absent (``None``) reste comme il était ; en lecture, les valeurs effectives
+ * et ``etat_du_juge`` (``regle`` | ``eteint`` | ``sans_cle``) : le juge du Labo est-il prêt à juger ?
  */
 export type JugeDesVraisAppels = {
     /**
      * Actif
      */
     actif?: boolean;
+    /**
+     * Part
+     *
+     * Share of the real calls judged, 1 to 100 %.
+     */
+    part?: number | null;
+    /**
+     * Duree Min S
+     *
+     * Calls shorter than this are not judged (0 = no minimum).
+     */
+    duree_min_s?: number | null;
+    /**
+     * Repondeurs Exclus
+     *
+     * Calls that ended on an answering machine are not judged.
+     */
+    repondeurs_exclus?: boolean | null;
+    /**
+     * Etat Du Juge
+     */
+    etat_du_juge?: string | null;
 };
 
 /**
@@ -19899,7 +19924,7 @@ export type WorkflowConfigurationDefaults = {
     /**
      * Delai Garde Modele S
      *
-     * Model guard delay: past it without the model's first words, the code says its « model is slow » sentence and tries again (at the fallback brain if one is set). Empty: the outage setting if any, else 4 s.
+     * Model guard delay: past it without the model's first words, the code says its « model is slow » sentence and tries again (at the fallback brain if one is set). Empty: 4 s.
      */
     delai_garde_modele_s?: number | null;
     /**
@@ -20530,6 +20555,12 @@ export type WorkflowRunUsageResponse = {
      * The judge's grade out of 5; null until the call is judged.
      */
     note_juge?: number | null;
+    /**
+     * Juge Par
+     *
+     * Who judged the call: the judge's model, or Claude Code; null until it is judged.
+     */
+    juge_par?: string | null;
     /**
      * Version
      *
