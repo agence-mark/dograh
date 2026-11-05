@@ -10,17 +10,22 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from api.db import db_client
 from api.db.models import UserModel
 from api.schemas.traducteurs import ChoixTraducteurs, TraducteurVue
 from api.services.auth.depends import get_user_with_selected_organization
+from api.services.equipe_mark.acces import journaliser
 from api.services.integrations.connectors import nango, propositions
 from api.services.integrations.connectors.catalogue import categorie_de, connecteur, connecteurs
 from api.services.integrations.connectors.descriptions import description_de
 
 router = APIRouter(prefix="/connecteurs", tags=["connecteurs"])
+
+ACTION_GESTE = "connecteurs.geste"
+HISTORIQUE_MAX = 100
 
 
 class ParametreVue(BaseModel):
@@ -123,6 +128,12 @@ def _qui(user: UserModel) -> str:
     return user.email or f"utilisateur {user.id}"
 
 
+async def _noter_le_geste(user: UserModel, geste: str, logiciel: str, compte: str | None) -> None:
+    """Partie 3, 17b : un geste sur un logiciel (autoriser, couper) entre au journal avec qui l'a fait (l'auteur réel du portail pour une clé),
+    le logiciel et le compte. Une panne d'écriture du journal ne défait pas le geste (``journaliser`` ne lève jamais)."""
+    await journaliser(user, ACTION_GESTE, user.selected_organization_id, {"geste": geste, "logiciel": logiciel, "compte": compte})
+
+
 @router.get("/catalogue", response_model=list[ConnecteurVue])
 async def get_catalogue(user: UserModel = Depends(get_user_with_selected_organization)):
     return [
@@ -194,6 +205,50 @@ async def get_connexions(
     )
 
 
+class GesteVu(BaseModel):
+    quand: str
+    geste: str  # "autoriser" | "couper"
+    logiciel: str
+    compte: str | None = None
+    auteur: str
+
+
+class HistoriqueDesGestes(BaseModel):
+    gestes: list[GesteVu]
+    total: int
+    page: int
+    limit: int
+
+
+@router.get("/historique", response_model=HistoriqueDesGestes)
+async def get_historique(
+    logiciel: str | None = Query(None, max_length=60, description="Seulement ce logiciel (sa clé d'intégration)"),
+    page: int = Query(0, ge=0),
+    limit: int = Query(25, ge=1, le=HISTORIQUE_MAX),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> HistoriqueDesGestes:
+    """Qui a autorisé, reconnecté ou coupé quel compte, quand : le journal de CETTE organisation, le plus récent d'abord. Le filtre par
+    organisation est dans la requête ; l'auteur est celui du portail (``X-Mark-Auteur``) ou le nom du membre de l'équipe, jamais une adresse."""
+    lignes, total = await db_client.lister_journal(
+        limit=limit, offset=page * limit, organization_id=user.selected_organization_id, actions=[ACTION_GESTE], logiciel=logiciel
+    )
+    return HistoriqueDesGestes(
+        gestes=[
+            GesteVu(
+                quand=ligne["quand"].isoformat(),
+                geste=(ligne["detail"] or {}).get("geste", ""),
+                logiciel=(ligne["detail"] or {}).get("logiciel", ""),
+                compte=(ligne["detail"] or {}).get("compte"),
+                auteur=" ".join(p for p in (ligne["prenom"], ligne["nom"]) if p) or ligne["auteur"],
+            )
+            for ligne in lignes
+        ],
+        total=total,
+        page=page,
+        limit=limit,
+    )
+
+
 @router.delete("/connexions/{integration}", response_model=Suppression)
 async def delete_connexion(
     integration: str,
@@ -210,6 +265,7 @@ async def delete_connexion(
         ) from None
     except nango.NangoIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from None
+    await _noter_le_geste(user, "couper", integration, compte)
     return Suppression(integration=integration)
 
 
@@ -244,7 +300,7 @@ async def post_lien(
         if c.integration not in integrations:
             integrations.append(c.integration)
     try:
-        return Lien(
+        lien = Lien(
             **await nango.lien_d_autorisation(
                 user.selected_organization_id,
                 integrations,
@@ -254,6 +310,9 @@ async def post_lien(
         )
     except nango.NangoIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from None
+    for integration in integrations:
+        await _noter_le_geste(user, "autoriser", integration, demande.compte)
+    return lien
 
 
 # --------------------------------------------------------------------------- #
@@ -300,11 +359,14 @@ async def post_lien_proposition(
     nomme = None if getattr(user, "par_cle_api", False) else (demande.autorise_par if demande else None)
     qui = nomme or _qui(user)
     try:
-        return Lien(**await propositions.lien(user.selected_organization_id, identifiant, qui))
+        lien = Lien(**await propositions.lien(user.selected_organization_id, identifiant, qui))
+        proposee = await propositions.lire_une(user.selected_organization_id, identifiant)
     except propositions.PropositionIntrouvable:
         raise HTTPException(status_code=404, detail="Unknown proposal.") from None
     except nango.NangoIndisponible as erreur:
         raise HTTPException(status_code=503, detail=str(erreur)) from None
+    await _noter_le_geste(user, "autoriser", proposee.connecteur, proposee.compte)
+    return lien
 
 
 @router.delete("/propositions/{identifiant}", response_model=Suppression)

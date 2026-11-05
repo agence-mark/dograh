@@ -65,7 +65,8 @@ export function useCharge<T>(charger: () => Promise<{ data?: T; error?: unknown 
 
 /** L'adresse du portail, réglée dans l'environnement du déploiement ; vide : « Ouvrir son portail » est désactivé. */
 export const ADRESSE_PORTAIL = (process.env.NEXT_PUBLIC_PORTAIL_URL ?? "").replace(/\/$/, "");
-export const lienDEntree = (jeton: string) => `${ADRESSE_PORTAIL}/entree-mark?jeton=${encodeURIComponent(jeton)}`;
+// Partie 3, 17b : la route d'entrée du portail est /api/auth/entree-mark, et le lien porte le client avant le jeton (« client.jeton »).
+export const lienDEntree = (lien: string) => `${ADRESSE_PORTAIL}/api/auth/entree-mark?lien=${encodeURIComponent(lien)}`;
 
 /** Les appels de l'API partent après la connexion (l'intercepteur d'authentification n'existe pas avant). */
 export function Pret({ children }: { children: React.ReactNode }) {

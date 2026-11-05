@@ -38,7 +38,7 @@ class MarkRelationFilModel(Base):
     organization_id = Column(
         Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
-    # "message" | "demande_logiciel"
+    # "message" | "demande_logiciel" | "signalement" (un appel signalé par le client, partie 3 sous-lot 17b)
     sorte = Column(String(24), nullable=False, default="message", server_default="message")
     sujet = Column(String(200), nullable=False)
     # "nouveau" | "en_cours" | "repondu" | "clos"
@@ -51,11 +51,17 @@ class MarkRelationFilModel(Base):
     catalogue = Column(String(120), nullable=True)
     # "nouvelle" | "proposee" | "a_coder" | "refusee"
     etat_demande = Column(String(16), nullable=True)
+    # Signalement seulement : l'appel signalé (le lien tombe si l'appel est supprimé) et le problème « À améliorer » créé dans le même geste.
+    run_id = Column(Integer, ForeignKey("workflow_runs.id", ondelete="SET NULL"), nullable=True)
+    amelioration_id = Column(Integer, nullable=True)
+    # Qui a ouvert le fil (« portail : prénom nom » pour le client), pour le filtre « les miens ».
+    ouvert_par = Column(String(160), nullable=True)
     cree_le = Column(DateTime(timezone=True), nullable=False, default=_maintenant)
     modifie_le = Column(DateTime(timezone=True), nullable=False, default=_maintenant)
 
     __table_args__ = (
         Index("ix_mark_relation_fils_org", "organization_id", "modifie_le"),
+        Index("ix_mark_relation_fils_ouvert_par", "organization_id", "ouvert_par", "modifie_le"),
     )
 
 

@@ -149,6 +149,11 @@ async def _trouver(organization_id: int, identifiant: str) -> tuple[Propositions
     raise PropositionIntrouvable(identifiant)
 
 
+async def lire_une(organization_id: int, identifiant: str) -> PropositionConnecteur:
+    """La proposition de CETTE organisation ; ``PropositionIntrouvable`` pour celle d'une autre."""
+    return (await _trouver(organization_id, identifiant))[1]
+
+
 async def relancer(organization_id: int, identifiant: str) -> PropositionConnecteur:
     stockees, p = await _trouver(organization_id, identifiant)
     p2 = p.model_copy(update={"relances": p.relances + 1, "relance_le": _maintenant()})

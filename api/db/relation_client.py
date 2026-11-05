@@ -38,6 +38,9 @@ def _fil(f: MarkRelationFilModel) -> dict[str, Any]:
         "logiciel": f.logiciel,
         "catalogue": f.catalogue,
         "etat_demande": f.etat_demande,
+        "run_id": f.run_id,
+        "amelioration_id": f.amelioration_id,
+        "ouvert_par": f.ouvert_par,
         "cree_le": f.cree_le,
         "modifie_le": f.modifie_le,
     }
@@ -59,8 +62,11 @@ class RelationClient(BaseDBClient):
         texte: str,
         logiciel: str | None = None,
         catalogue: str | None = None,
+        run_id: int | None = None,
+        ouvert_par: str | None = None,
     ) -> dict[str, Any]:
-        """Un fil écrit par le client (le premier message est du côté client)."""
+        """Un fil écrit par le client (le premier message est du côté client). ``run_id`` : l'appel d'un signalement, DÉJÀ contrôlé
+        avec l'organisation par l'appelant."""
         async with self.async_session() as session:
             fil = MarkRelationFilModel(
                 organization_id=organization_id,
@@ -70,6 +76,8 @@ class RelationClient(BaseDBClient):
                 logiciel=(logiciel or None) and logiciel[:120],
                 catalogue=(catalogue or None) and catalogue[:120],
                 etat_demande="nouvelle" if sorte == "demande_logiciel" else None,
+                run_id=run_id,
+                ouvert_par=(ouvert_par or None) and ouvert_par[:160],
             )
             session.add(fil)
             await session.flush()
@@ -157,9 +165,11 @@ class RelationClient(BaseDBClient):
         a_traiter: bool = False,
         recherche: str | None = None,
         limite: int = 200,
+        decalage: int = 0,
+        ouvert_par: str | None = None,
         avec_internes: bool = False,
     ) -> list[dict[str, Any]]:
-        """Les fils des organisations données, le plus récent d'abord, avec leur dernier message."""
+        """Les fils des organisations données, le plus récent d'abord, avec leur dernier message. ``ouvert_par`` : « les miens »."""
         ids = sorted(set(organisations))
         if not ids:
             return []
@@ -173,6 +183,8 @@ class RelationClient(BaseDBClient):
                 requete = requete.where(MarkRelationFilModel.suivi_par == suivi_par)
             if a_traiter:
                 requete = requete.where(MarkRelationFilModel.etat.in_(("nouveau", "en_cours")))
+            if ouvert_par:
+                requete = requete.where(MarkRelationFilModel.ouvert_par == ouvert_par)
             if recherche:
                 motif = f"%{recherche.strip()[:80]}%"
                 requete = requete.where(
@@ -183,9 +195,9 @@ class RelationClient(BaseDBClient):
                 )
             fils = (
                 await session.execute(
-                    requete.order_by(MarkRelationFilModel.modifie_le.desc(), MarkRelationFilModel.id.desc()).limit(
-                        limite
-                    )
+                    requete.order_by(MarkRelationFilModel.modifie_le.desc(), MarkRelationFilModel.id.desc())
+                    .limit(limite)
+                    .offset(max(decalage, 0))
                 )
             ).scalars().all()
             if not fils:
@@ -210,11 +222,19 @@ class RelationClient(BaseDBClient):
                 for f in fils
             ]
 
+    async def compter_les_fils_d_une_organisation(self, organization_id: int, *, ouvert_par: str | None = None) -> int:
+        """Le nombre de fils d'UNE organisation (total de la pagination), éventuellement ceux ouverts par un auteur (« les miens »)."""
+        requete = select(func.count()).select_from(MarkRelationFilModel).where(MarkRelationFilModel.organization_id == organization_id)
+        if ouvert_par:
+            requete = requete.where(MarkRelationFilModel.ouvert_par == ouvert_par)
+        async with self.async_session() as session:
+            return int((await session.execute(requete)).scalar_one())
+
     async def modifier_fil_relation(
         self, organization_id: int, fil_id: int, champs: dict[str, Any]
     ) -> bool:
         """Modifie l'état, le suivi, la lecture ou l'état de la demande d'un fil de CETTE organisation."""
-        permis = {"etat", "suivi_par", "suivi_nom", "lu_par_mark", "etat_demande", "catalogue"}
+        permis = {"etat", "suivi_par", "suivi_nom", "lu_par_mark", "etat_demande", "catalogue", "amelioration_id"}
         valeurs = {k: v for k, v in champs.items() if k in permis}
         if not valeurs:
             return False
@@ -446,11 +466,12 @@ class RelationClient(BaseDBClient):
                     MarkRelationEntreeModel.id,
                     MarkRelationEntreeModel.auteur,
                     MarkRelationEntreeModel.motif,
+                    MarkRelationEntreeModel.user_id,
                 )
             )
             ligne = resultat.first()
             await session.commit()
-            return {"id": ligne[0], "auteur": ligne[1], "motif": ligne[2]} if ligne else None
+            return {"id": ligne[0], "auteur": ligne[1], "motif": ligne[2], "user_id": ligne[3]} if ligne else None
 
     async def terminer_entree_relation(
         self, organization_id: int, entree_id: int, maintenant: datetime

@@ -26,6 +26,7 @@ from api.services.tri import donnees
 RELEVE_PAR_JUGE = "juge"
 RELEVE_PAR_CODE = "code"
 RELEVE_PAR_TEST = "test"
+RELEVE_PAR_CLIENT = "client"
 CAUSES = ("prompt", "outil", "donnee", "voix", "moteur")
 TITRE_MAX = 300
 
@@ -90,6 +91,34 @@ def gravite_d_un_verdict(verdict: dict[str, Any]) -> int:
 
 async def _ajouter(organisation_id: int, workflow_id: int, cle: str, valeurs: dict[str, Any], cas: dict[str, Any]) -> None:
     await db_client.ajouter_un_cas_d_amelioration(organisation_id, workflow_id, cle, valeurs, cas)
+
+
+# --- Signalement du client (partie 3, sous-lot 17b) ---------------------------------------------------------------------------
+
+
+async def ingerer_un_signalement_du_client(
+    organisation_id: int, workflow_id: int, run_id: int, sujet: str, texte: str
+) -> dict[str, Any]:
+    """Un appel signalé par le client depuis son portail devient un problème « À améliorer » relevé par le CLIENT. L'appel et l'agent sont
+    DÉJÀ contrôlés avec l'organisation par l'appelant. Le même appel signalé deux fois retrouve le même problème (un cas n'est jamais
+    compté deux fois). Rend le problème (``id`` compris)."""
+    titre = " ".join((sujet or "").split())[:TITRE_MAX] or "Appel signalé par le client"
+    return await db_client.ajouter_un_cas_d_amelioration(
+        organisation_id,
+        workflow_id,
+        cle_de(RELEVE_PAR_CLIENT, f"signalement-appel-{run_id}", None),
+        {
+            "releve_par": RELEVE_PAR_CLIENT,
+            "titre": titre,
+            "critere": None,
+            "etape": None,
+            "gravite": 2,
+            "cause": None,
+            "replique": " ".join((texte or "").split())[:600] or None,
+            "confiance": None,
+        },
+        {"run_id": run_id, "citation": " ".join((texte or "").split())[:300] or None},
+    )
 
 
 # --- B : le juge -------------------------------------------------------------------------------------------------------------

@@ -64,6 +64,10 @@ class FilOut(BaseModel):
     logiciel: str | None
     catalogue: str | None
     etat_demande: str | None
+    # Signalement d'un appel (partie 3, 17b) : l'appel et le problème « À améliorer » créé avec lui ; qui a ouvert le fil.
+    run_id: int | None = None
+    amelioration_id: int | None = None
+    ouvert_par: str | None = None
     cree_le: datetime
     modifie_le: datetime
     dernier: MessageOut | None = None
@@ -126,6 +130,8 @@ class EntreeIn(BaseModel):
 class EntreeCreee(BaseModel):
     entree_id: int
     jeton: str
+    # « <client>.<jeton> » : ce que l'adresse du portail porte (``/api/auth/entree-mark?lien=``), à présenter à la vérification.
+    lien: str
     expire_le: datetime
     valable_secondes: int
 
@@ -222,7 +228,7 @@ async def ma_file(user: UserModel = Depends(membre)) -> list[FilOut]:
 @router.get("/fils", response_model=list[FilOut])
 async def lister_fils(
     etat: Etat | None = None,
-    sorte: Literal["message", "demande_logiciel"] | None = None,
+    sorte: Literal["message", "demande_logiciel", "signalement"] | None = None,
     suivi: Literal["moi"] | None = None,
     a_traiter: bool = False,
     client: int | None = None,
