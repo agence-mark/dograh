@@ -5,7 +5,7 @@
  * Cliquable (elle ouvre la modale de la règle) ; montre le motif, l'outil, l'endroit, les phrases (flèche = dans
  * l'ordre, « ou » = tournées), le délai, les redites, la sortie, la fin d'attente lue ailleurs, l'interrupteur
  * (qui n'ouvre PAS la modale), l'origine et la dernière fois dite. Éteinte, la carte est grisée et dit ce qui se
- * passe à la place ; orange quand l'étape visée n'existe plus (la règle est sans effet).
+ * passe à la place ; violet quand l'étape visée n'existe plus (la règle est sans effet).
  */
 import {
     AlertTriangle,

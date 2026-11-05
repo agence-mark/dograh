@@ -5,7 +5,7 @@
  *
  * Chantier reorganisation-ecran-reglages. A settings page is a column of
  * themes. Folded, a theme shows its title, a summary of its key values (E3) and
- * two dots: orange for a change not saved yet, red for a value that cannot be
+ * two dots: violet for a change not saved yet, red for a value that cannot be
  * saved. Open, it shows ALL its settings, separated by `Intertitre` -- nothing
  * folds inside a theme (E1).
  *
