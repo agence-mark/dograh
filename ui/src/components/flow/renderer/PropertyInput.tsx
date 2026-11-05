@@ -264,7 +264,7 @@ function BooleanWidget({ spec, value, onChange }: WidgetProps) {
     const v = !!value;
     return (
         <div className="flex items-center justify-between gap-3">
-            <Label htmlFor={`prop-${spec.name}`} className="flex items-center gap-1.5">
+            <Label htmlFor={`prop-${spec.name}`} className="flex cursor-pointer items-center gap-1.5">
                 {spec.display_name}
                 {spec.description && <Info>{spec.description}</Info>}
             </Label>
