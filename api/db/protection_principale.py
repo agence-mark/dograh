@@ -1,7 +1,7 @@
 """[.mark] Partie 3, SA-L3c (05 § 12) : la branche principale PROTÉGÉE (on n'y entre que par une fusion relue).
 
 Règle : la principale d'un agent est protégée quand (a) son drapeau ``protegee`` est posé, ou (b) l'agent est un agent CLIENT EN LIGNE
-(une version publiée, dans une organisation qui n'est pas le Labo). Le Labo n'est pas protégé par défaut. Sans Labo réglé
+(une version publiée PAR UNE PERSONNE après la création, dans une organisation qui n'est pas le Labo). Le Labo n'est pas protégé par défaut. Sans Labo réglé
 (poste de développement), on ne devine pas : seul le drapeau compte.
 
 Le refus est posé dans la couche de données, sur les trois gestes qui écrivent le brouillon de la principale ou la version en ligne
@@ -12,9 +12,9 @@ groupe passent tous par là, aucun ne peut l'oublier. Les branches ne sont pas c
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from api.db.models import WorkflowModel
+from api.db.models import WorkflowDefinitionModel, WorkflowModel
 from api.db.models_builder import WorkflowBranchModel
 
 MESSAGE = "The main branch is protected: make your changes on a branch, then merge it after a review."
@@ -48,6 +48,20 @@ async def est_protegee(session, workflow_id: int) -> bool:
     if drapeau:
         return True
     if en_ligne is None:
+        return False
+    # [.mark] « En ligne » = publié par une personne : la version 1 posée à la création (recette, Nouveau client, groupe) ne
+    # compte pas, sinon un agent neuf naît protégé et ne se construit plus (constat de SA-7). Il faut au moins une
+    # publication de la principale après la création (les versions des branches portent un ``branch_id``).
+    publiees = await session.scalar(
+        select(func.count())
+        .select_from(WorkflowDefinitionModel)
+        .where(
+            WorkflowDefinitionModel.workflow_id == workflow_id,
+            WorkflowDefinitionModel.branch_id.is_(None),
+            WorkflowDefinitionModel.status.in_(["published", "archived"]),
+        )
+    )
+    if (publiees or 0) < 2:
         return False
     from api.services.builder.constantes import organisation_bibliotheque
 

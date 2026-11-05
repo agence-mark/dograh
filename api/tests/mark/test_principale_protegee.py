@@ -44,10 +44,19 @@ def labo_est(monkeypatch):
     return regler
 
 
-async def _agent(db_session, org, nom="Agent"):
-    return await db_session.create_workflow(
+async def _agent(db_session, org, nom="Agent", *, publie_par_une_personne=True):
+    """Un agent « en ligne » : sa version de création, puis une publication par une personne (une version de la principale
+    de plus, rangée « archived » comme le fait Publier pour l'ancienne). Sans elle, l'agent vient d'être créé."""
+    agent = await db_session.create_workflow(
         name=nom, workflow_definition=GRAPHE, user_id=org.utilisateur.id, organization_id=org.organisation.id
     )
+    if publie_par_une_personne:
+        from api.db.models import WorkflowDefinitionModel
+
+        async with db_session.async_session() as s:
+            s.add(WorkflowDefinitionModel(workflow_id=agent.id, workflow_json=GRAPHE, status="archived", is_current=False))
+            await s.commit()
+    return agent
 
 
 async def _protegee(db_session, agent_id):
@@ -71,6 +80,14 @@ async def test_protegee_par_defaut_pour_un_agent_client_en_ligne_pas_pour_le_lab
         await s.execute(update(WorkflowBranchModel).where(WorkflowBranchModel.workflow_id == agent.id).values(protegee=True))
         await s.commit()
     assert await _protegee(db_session, agent.id) is True  # le drapeau force la protection, même au Labo
+
+
+async def test_un_agent_qui_vient_d_etre_cree_chez_un_client_n_est_pas_protege(org, autre_org, db_session, labo_est):
+    """Constat de SA-7 : tout agent naît avec une version 1 publiée ; il n'est pas « en ligne » pour autant. Sans cette règle,
+    un agent neuf chez un client ne se construit plus (builder, groupe, cerveau posé après la création)."""
+    agent = await _agent(db_session, org, publie_par_une_personne=False)
+    labo_est(autre_org.organisation.id)
+    assert await _protegee(db_session, agent.id) is False
 
 
 async def test_un_agent_jamais_publie_n_est_pas_protege(org, autre_org, db_session, labo_est):

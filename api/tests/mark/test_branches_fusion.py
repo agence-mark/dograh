@@ -166,6 +166,8 @@ async def test_une_principale_protegee_exige_la_fusion_relue_et_la_fusion_ecrit_
     agent = await _agent(db_session, org)
     branche, _ = await _branche_publiee(db_session, org, agent, "Essai", _graphe(prompt1="Allô"))
     monkeypatch.setattr("api.services.builder.constantes.organisation_bibliotheque", lambda: autre_org.organisation.id)
+    # un agent qui vient d'être créé n'est pas « en ligne » : la protection est posée par son drapeau
+    await db_session.regler_la_protection_de_la_principale(org.organisation.id, agent.id, True)
     await _oublier(async_session)
     async with test_client_factory(org.utilisateur) as client:
         apercu = (await client.get(_url(agent, branche, "fusion"))).json()
