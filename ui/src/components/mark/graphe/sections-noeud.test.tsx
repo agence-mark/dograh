@@ -18,13 +18,13 @@ import { proprietesDeLaSection, sectionDeLaPropriete, type SectionNoeud, section
 afterEach(cleanup);
 
 const SPECS: Record<string, string[]> = {
-    agentNode: ["name", "prompt", "premiere_replique", "champs_etape", "qui_decide_du_passage", "moment_du_passage", "delai_du_passage", "arbitre", "seuil_de_l_arbitre", "allow_interrupt", "add_global_prompt", "extraction_enabled", "extraction_prompt", "extraction_variables", "tool_uuids", "document_uuids"],
+    agentNode: ["name", "prompt", "premiere_replique", "champs_etape", "qui_decide_du_passage", "moment_du_passage", "delai_du_passage", "arbitre", "seuil_de_l_arbitre", "passation_par_le_code", "allow_interrupt", "add_global_prompt", "extraction_enabled", "extraction_prompt", "extraction_variables", "tool_uuids", "document_uuids"],
     endCall: ["name", "prompt", "premiere_replique", "add_global_prompt", "extraction_enabled", "extraction_prompt", "extraction_variables"],
     globalNode: ["name", "prompt"],
     noveum: ["name", "noveum_enabled", "noveum_api_key", "noveum_project", "noveum_environment", "noveum_record_audio"],
     paygent: ["name", "paygent_enabled", "paygent_api_key", "paygent_agent_id", "paygent_customer_id", "paygent_indicator"],
     qa: ["name", "qa_enabled", "qa_system_prompt", "qa_min_call_duration", "qa_voicemail_calls", "qa_sample_rate", "qa_use_workflow_llm", "qa_provider", "qa_model", "qa_api_key", "qa_endpoint"],
-    startCall: ["name", "greeting_type", "greeting", "greeting_recording_id", "prompt", "champs_etape", "qui_decide_du_passage", "moment_du_passage", "delai_du_passage", "arbitre", "seuil_de_l_arbitre", "allow_interrupt", "add_global_prompt", "delayed_start", "delayed_start_duration", "extraction_enabled", "extraction_prompt", "extraction_variables", "tool_uuids", "document_uuids", "pre_call_fetch_mode", "pre_call_fetch_url", "pre_call_fetch_credential_uuid", "pre_call_fetch_remplace"],
+    startCall: ["name", "greeting_type", "greeting", "greeting_recording_id", "prompt", "champs_etape", "qui_decide_du_passage", "moment_du_passage", "delai_du_passage", "arbitre", "seuil_de_l_arbitre", "passation_par_le_code", "allow_interrupt", "add_global_prompt", "delayed_start", "delayed_start_duration", "extraction_enabled", "extraction_prompt", "extraction_variables", "tool_uuids", "document_uuids", "pre_call_fetch_mode", "pre_call_fetch_url", "pre_call_fetch_credential_uuid", "pre_call_fetch_remplace"],
     trigger: ["name", "enabled", "trigger_path"],
     tuner: ["name", "tuner_enabled", "tuner_agent_id", "tuner_workspace_id", "tuner_api_key", "cost_calculation_enabled", "cost_llm_input_rate", "cost_llm_cached_input_rate", "cost_llm_output_rate", "cost_tts_rate", "cost_stt_rate", "cost_telephony_rate"],
     webhook: ["name", "enabled", "http_method", "endpoint_url", "credential_uuid", "custom_headers", "payload_template"],
@@ -94,6 +94,7 @@ describe("aucune propriété ne se perd", () => {
             document_uuids: "outils",
             moment_du_passage: "passage",
             seuil_de_l_arbitre: "passage",
+            passation_par_le_code: "passage",
             endpoint_url: "requete",
             qa_model: "analyse",
             une_propriete_inconnue: "general",

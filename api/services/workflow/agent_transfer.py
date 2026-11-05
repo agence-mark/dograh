@@ -41,6 +41,8 @@ TRANSFER_ACTIVATION_TIMEOUT_SECONDS = 5.0
 TRANSFER_MIN_HOLD_SECONDS = 1.2
 # [.mark] Au plus ce que la passation attend la fin d'une phrase pont déjà commencée.
 ATTENTE_FIN_PHRASE_PONT_S = 2.0
+# [.mark] Lot P (P2) : au plus ce qu'une passation ratée attend la fin de l'annonce avant de rendre la parole.
+ATTENTE_FIN_ANNONCE_S = 15.0
 
 
 def _noeud_d_ouverture(destination) -> str:
@@ -114,6 +116,8 @@ class AgentTransferCoordinator:
         # [.mark] La phrase pont : tâche différée, annulée si la passation finit avant le délai.
         self._phrase_task: asyncio.Task | None = None
         self._phrase_en_cours = False
+        # [.mark] Lot P : le suivi de la fin de l'annonce (mesure seulement).
+        self._suivi_annonce: asyncio.Task | None = None
 
     @property
     def phase(self):
@@ -186,22 +190,110 @@ class AgentTransferCoordinator:
         destination = None
         committed = False
         outcome = "completed"
+        # [.mark] Builder partie 3, lot P (P2) : la préparation qui court pendant l'annonce, et l'annonce elle-même.
+        preparation: asyncio.Task | None = None
+        annonce = None
+        annulee = False
         try:
             if source.visit_id != request.origin_visit_id:
                 raise AgentBuildError("stale_origin", "The requesting visit has ended")
             if context_ready is not None:
                 await asyncio.wait_for(context_ready.wait(), timeout=5)
-            await self._announce(request, source)
-            self._check_current(request)
             # [.mark] Au clavier (aucune sortie audio) ou pour un retour au principal :
             # l'agent est mis en attente, sans musique ni durée minimale. Lot 6 (A6) : vers
             # un agent DÉJÀ CONSTRUIT (le principal resté chaud), aucune musique et aucune
             # durée minimale, quel que soit le réglage (il ne vaut que pour un agent à
             # construire) ; sinon le réglage ``attente`` du principal (son, durée, où).
+            # Lot P (P2) : un collègue de la RÉSERVE est déjà construit lui aussi.
             reglage = attente_de(getattr(engine, "reglages_appel", None))
-            deja_construit = (
+            principal_chaud = (
                 engine.principal_chaud_pour(request.destination_workflow_id) is not None
             )
+            deja_construit = principal_chaud or self._en_reserve(
+                request.destination_workflow_id
+            )
+            annonce_dite = bool(request.announcement) and not (
+                request.silencieuse or self._sans_sortie_audio()
+            )
+
+            async def preparer():
+                """Prépare le collègue EN PRIVÉ (rien de partagé ne change, il n'est pas activé) et l'historique
+                qu'il recevra ; rend ``(instantané, phrase figée)``."""
+                async with asyncio.timeout(TRANSFER_PREPARE_TIMEOUT_SECONDS):
+                    await engine.pause_background_context_writers()
+                    # [.mark] Lot 6 (P5) : une conversation courte passe sans appel au modèle de
+                    # résumé (réglage ``passation_sans_resume_jusqua``, 40 par défaut dans un groupe).
+                    resumer = not request.sans_resume
+                    try:
+                        if resumer and engine.context is not None:
+                            nombre = len(conversation_messages(engine.context.get_messages()))
+                            if passation_courte(nombre, getattr(engine, "reglages_appel", None)):
+                                resumer = False
+                                logger.info(
+                                    f"[transfer] {request.request_id}: {nombre} messages, "
+                                    "historique rendu sans résumé"
+                                )
+                    except Exception as e:  # noqa: BLE001 -- jamais une raison de rater la passation
+                        logger.warning(f"[transfer] décompte des messages illisible : {e!r}")
+                    async with asyncio.TaskGroup() as group:
+                        group.create_task(prepare())
+                        compact = group.create_task(
+                            build_handoff_snapshot(
+                                engine.context,
+                                source.inference_llm,
+                                request_id=request.request_id,
+                                # Resolved here, in the parent task: the compaction
+                                # task has no ambient span of its own to inherit.
+                                parent_context=engine._get_otel_context(),
+                                resumer=resumer,
+                                depuis=request.depuis,
+                                dernieres=dernieres_a_garder(
+                                    getattr(engine, "reglages_appel", None)
+                                ),
+                            )
+                        )
+                # [.mark] Arrivée sur un transfert d'appel, entreprise ouverte : le code dit lui-même
+                # la mise en relation (réglage ``transfert_humain.phrase_mise_en_relation``). Décidé
+                # ICI, avant de couper le son d'attente (trois lectures en base : l'appelant ne doit pas
+                # les attendre en silence) et avant le commit ; appliqué après l'ouverture. Jamais au
+                # clavier, jamais pour un retour silencieux au principal.
+                fige = None
+                figer = getattr(engine, "transfert_fige_a_l_ouverture", None)
+                if (
+                    figer is not None
+                    and not self._sans_sortie_audio()
+                    and not request.silencieuse
+                ):
+                    fige = await figer(destination, _noeud_d_ouverture(destination))
+                return compact.result(), fige
+
+            async def prepare():
+                nonlocal destination
+                destination = await engine.build_agent(
+                    workflow_id=request.destination_workflow_id, visit_id=new_visit_id()
+                )
+                if not await destination.wait_until_started():
+                    raise AgentBuildError(
+                        "destination_not_ready", "Destination did not start"
+                    )
+                await engine.prepare_agent(destination)
+
+            if annonce_dite:
+                # [.mark] Lot P (P2, G17) : la préparation part DÈS que la passation est acceptée, pendant
+                # l'annonce, au lieu d'après. Privée : rien de partagé ne change avant le commit.
+                preparation = asyncio.create_task(
+                    preparer(), name=f"preparation:{request.request_id}"
+                )
+            # Vers un collègue déjà construit, l'annonce n'est plus attendue jusqu'au bout : dès qu'elle a passé
+            # entière le pont vers la voix de l'appel, le collègue est installé et sa requête part ; il parle dès
+            # qu'elle est finie, jamais par-dessus (une seule voix, qui dit ses paroles dans l'ordre d'arrivée).
+            if deja_construit and preparation is not None:
+                resultat = await self._announce(request, source, attendre=False)
+            else:
+                # La signature d'avant (l'amont la remplace dans ses tests).
+                resultat = await self._announce(request, source)
+            annonce, recouvre = resultat if isinstance(resultat, tuple) else (None, False)
+            self._check_current(request)
             attente = not (
                 request.silencieuse
                 or self._sans_sortie_audio()
@@ -229,7 +321,7 @@ class AgentTransferCoordinator:
             if (
                 pont is not None
                 and not (
-                    request.silencieuse or self._sans_sortie_audio() or deja_construit
+                    request.silencieuse or self._sans_sortie_audio() or principal_chaud
                 )
             ):
                 self._phrase_task = asyncio.create_task(
@@ -237,76 +329,24 @@ class AgentTransferCoordinator:
                     name=f"phrase-pont:{request.request_id}",
                 )
 
-            async def prepare():
-                nonlocal destination
-                destination = await engine.build_agent(
-                    workflow_id=request.destination_workflow_id, visit_id=new_visit_id()
+            self._phase = TransferPhase.PREPARING
+            if preparation is None:
+                preparation = asyncio.create_task(
+                    preparer(), name=f"preparation:{request.request_id}"
                 )
-                if not await destination.wait_until_started():
-                    raise AgentBuildError(
-                        "destination_not_ready", "Destination did not start"
-                    )
-                await engine.prepare_agent(destination)
-                # Ready and activated while the call boundary still blocks all
-                # candidate input/output. No shared prompt or tools change yet.
-                if not await engine.activate_agent(
-                    destination, timeout=TRANSFER_ACTIVATION_TIMEOUT_SECONDS
-                ):
-                    raise AgentBuildError(
-                        "activation_failed", "Destination did not activate"
-                    )
-                if destination.error:
-                    raise AgentBuildError("destination_unusable", destination.error)
-
-            async with asyncio.timeout(TRANSFER_PREPARE_TIMEOUT_SECONDS):
-                self._phase = TransferPhase.PREPARING
-                await engine.pause_background_context_writers()
-                # [.mark] Lot 6 (P5) : une conversation courte passe sans appel au modèle de
-                # résumé (réglage ``passation_sans_resume_jusqua``, 40 par défaut dans un groupe).
-                resumer = not request.sans_resume
-                try:
-                    if resumer and engine.context is not None:
-                        nombre = len(conversation_messages(engine.context.get_messages()))
-                        if passation_courte(nombre, getattr(engine, "reglages_appel", None)):
-                            resumer = False
-                            logger.info(
-                                f"[transfer] {request.request_id}: {nombre} messages, "
-                                "historique rendu sans résumé"
-                            )
-                except Exception as e:  # noqa: BLE001 -- jamais une raison de rater la passation
-                    logger.warning(f"[transfer] décompte des messages illisible : {e!r}")
-                async with asyncio.TaskGroup() as group:
-                    group.create_task(prepare())
-                    compact = group.create_task(
-                        build_handoff_snapshot(
-                            engine.context,
-                            source.inference_llm,
-                            request_id=request.request_id,
-                            # Resolved here, in the parent task: the compaction
-                            # task has no ambient span of its own to inherit.
-                            parent_context=engine._get_otel_context(),
-                            resumer=resumer,
-                            depuis=request.depuis,
-                            dernieres=dernieres_a_garder(
-                                getattr(engine, "reglages_appel", None)
-                            ),
-                        )
-                    )
-                snapshot = compact.result()
-
-            # [.mark] Arrivée sur un transfert d'appel, entreprise ouverte : le code dit lui-même
-            # la mise en relation (réglage ``transfert_humain.phrase_mise_en_relation``). Décidé
-            # ICI, avant de couper le son d'attente (trois lectures en base : l'appelant ne doit pas
-            # les attendre en silence) et avant le commit ; appliqué après l'ouverture. Jamais au
-            # clavier, jamais pour un retour silencieux au principal.
-            fige = None
-            figer = getattr(engine, "transfert_fige_a_l_ouverture", None)
-            if (
-                figer is not None
-                and not self._sans_sortie_audio()
-                and not request.silencieuse
+            snapshot, fige = await preparation
+            # Ready and activated while the call boundary still blocks all
+            # candidate input/output. No shared prompt or tools change yet.
+            # [.mark] Lot P (P2) : activé seulement après que l'accueil a quitté la conversation (jamais deux
+            # agents actifs à la fois), même quand la préparation a couru pendant l'annonce.
+            if not await engine.activate_agent(
+                destination, timeout=TRANSFER_ACTIVATION_TIMEOUT_SECONDS
             ):
-                fige = await figer(destination, _noeud_d_ouverture(destination))
+                raise AgentBuildError(
+                    "activation_failed", "Destination did not activate"
+                )
+            if destination.error:
+                raise AgentBuildError("destination_unusable", destination.error)
             # La passation est prête : une phrase pont pas encore dite ne le sera plus ; une
             # phrase en cours se termine (jamais coupée en plein mot).
             await self._annuler_phrase_pont()
@@ -315,7 +355,10 @@ class AgentTransferCoordinator:
                     max(0, duree_min - (time.monotonic() - hold_started))
                 )
             await self._stop_hold_audio()
-            if not self._sans_sortie_audio():
+            # [.mark] Lot P (P2) : l'annonce recouverte n'est pas attendue ici non plus (le vidage suivrait son son
+            # jusqu'au bout) ; aucun son d'attente n'a joué, et une phrase pont éventuelle est déjà dans la voix,
+            # devant le collègue.
+            if not self._sans_sortie_audio() and not recouvre:
                 await engine.drain_call_pipeline()
             self._check_current(request)
             if destination.error:
@@ -379,6 +422,7 @@ class AgentTransferCoordinator:
                         garantir(destination, start_node_id, getattr(resultat, "playback", None))
         except asyncio.CancelledError:
             outcome = request.cancelled_reason or "cancelled"
+            annulee = True
             raise
         except Exception as error:
             while isinstance(error, BaseExceptionGroup):
@@ -399,8 +443,16 @@ class AgentTransferCoordinator:
             )
         finally:
             try:
+                # [.mark] Lot P (P2) : une passation annulée ou en échec arrête la préparation anticipée ; le
+                # collègue n'a encore rien demandé à son modèle (sa requête ne part qu'au commit) : aucune parole
+                # orpheline.
+                await self._arreter_la_preparation(preparation)
                 await self._annuler_phrase_pont(attendre_la_fin=False)
                 await self._stop_hold_audio()
+                if not committed and not annulee:
+                    # L'annonce partie sans être attendue (collègue déjà construit) se finit avant que l'accueil,
+                    # qui garde l'appel, reprenne la parole : jamais par-dessus.
+                    await self._attendre_l_annonce(annonce)
                 if committed:
                     # [.mark] Lot 6 (A5) : le principal d'un groupe reste chaud (désactivé,
                     # jamais libéré) ; un agent seul est libéré exactement comme avant.
@@ -455,8 +507,22 @@ class AgentTransferCoordinator:
         """[.mark] Le clavier n'a ni voix ni musique (``PipecatEngine.sans_sortie_audio``)."""
         return bool(getattr(self._engine, "sans_sortie_audio", False))
 
-    async def _announce(self, request, source):
+    def _en_reserve(self, workflow_id: int) -> bool:
+        """[.mark] Lot P (P2) : le collègue appelé attend-il, construit, dans la réserve de l'appel ? ⛔ Ne lève jamais."""
+        try:
+            lire = getattr(self._engine, "collegue_en_reserve", None)
+            return callable(lire) and lire(workflow_id) is True
+        except Exception:  # noqa: BLE001
+            return False
+
+    async def _announce(self, request, source, *, attendre: bool = True):
+        """Dit l'annonce (le message de l'outil, par le code : aucune passe du modèle) et vide le circuit.
+
+        [.mark] Lot P (P2) : ``attendre=False`` (collègue déjà construit) n'attend plus la fin de l'annonce ; elle a
+        rejoint la voix de l'appel (circuit vidé derrière elle), et ce qui suivra sera dit APRÈS elle. Rend la parole de
+        l'annonce, ``None`` sans annonce."""
         engine = self._engine
+        speech = None
         if request.announcement and not (
             request.silencieuse or self._sans_sortie_audio()
         ):
@@ -467,11 +533,61 @@ class AgentTransferCoordinator:
                 persist_to_logs=False,
                 mute_user=True,
             )
+            self._mesurer_la_fin_de_l_annonce(request, speech)
+        recouvre = False
+        if speech is not None and not attendre:
+            # Vider le circuit attendrait que l'annonce soit JOUÉE (la sonde suit le son jusqu'à la sortie) : on attend
+            # seulement qu'elle ait passé le pont entière. Sinon (pont inconnu, délai passé) : comme avant.
+            passer = getattr(engine, "attendre_le_passage_de_la_parole", None)
+            recouvre = passer is not None and await passer(speech) is True
+        if speech is not None and not recouvre:
             await speech.wait()
         # Also drain when the tool has no announcement.
         await source.cancel_tools()
-        if not self._sans_sortie_audio():
+        if not self._sans_sortie_audio() and not recouvre:
             await engine.drain_call_pipeline()
+        return speech, recouvre
+
+    def _mesurer_la_fin_de_l_annonce(self, request, speech) -> None:
+        """[.mark] Lot P : l'instant où l'annonce finit (``annonce_finie_s``), pour lire en production le silence entre
+        l'annonce et le premier son du collègue. ⛔ Ne lève jamais, n'attend rien."""
+        mesure = getattr(self._engine, "mesure_passation", None)
+        if mesure is None or not hasattr(mesure, "annonce_finie"):
+            return
+
+        async def suivre() -> None:
+            try:
+                await speech.wait()
+                if mesure.request_id == request.request_id:
+                    mesure.annonce_finie()
+            except Exception as e:  # noqa: BLE001 -- une mesure ne coûte jamais l'appel
+                logger.debug(f"[transfer] fin d'annonce non datée : {e!r}")
+
+        try:
+            self._suivi_annonce = asyncio.create_task(
+                suivre(), name=f"fin-annonce:{request.request_id}"
+            )
+        except Exception:  # noqa: BLE001
+            return
+
+    async def _attendre_l_annonce(self, speech) -> None:
+        """L'annonce encore en cours se finit (au plus ``ATTENTE_FIN_ANNONCE_S``). ⛔ Ne lève jamais."""
+        try:
+            if speech is not None and not speech.done:
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(speech.wait(), timeout=ATTENTE_FIN_ANNONCE_S)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfer] fin de l'annonce non attendue : {e!r}")
+
+    @staticmethod
+    async def _arreter_la_preparation(preparation) -> None:
+        """Arrête une préparation encore en cours ; son erreur éventuelle est déjà comptée par ``_run``."""
+        if preparation is None:
+            return
+        if not preparation.done():
+            preparation.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await preparation
 
     async def _begin_hold(self, request, source, reglage: Attente | None = None):
         await self._engine.deactivate_agent(source)

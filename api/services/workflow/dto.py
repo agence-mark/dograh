@@ -351,6 +351,17 @@ class _PassageNodeDataMixin(BaseModel):
         min_value=0.0,
         max_value=1.0,
     )
+    # [.mark] Builder partie 3, lot P (P3) : une passe de moins. Éteint par défaut (vide = comportement d'avant).
+    passation_par_le_code: Optional[bool] = spec_field(
+        default=None,
+        ui_type=PropertyType.boolean,
+        display_name="Hand over by the code on arrival",
+        description=(
+            "When the call arrives on this step (an exit taken on the record, or written by the agent) and the step "
+            "carries a single hand-over to a colleague, the code hands the call over at once, with the tool's "
+            "announcement, instead of asking the agent's model one more time. Off by default."
+        ),
+    )
 
     @field_validator("delai_du_passage")
     @classmethod
@@ -603,6 +614,7 @@ class _ToolDocumentRefsMixin(BaseModel):
         "delai_du_passage",
         "arbitre",
         "seuil_de_l_arbitre",
+        "passation_par_le_code",
         "allow_interrupt",
         "add_global_prompt",
         "delayed_start",
@@ -854,6 +866,7 @@ class StartCallNodeData(
         "delai_du_passage",
         "arbitre",
         "seuil_de_l_arbitre",
+        "passation_par_le_code",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -1636,6 +1649,9 @@ def _sanitize_node(node):
     for cle in ("delai_du_passage", "arbitre", "seuil_de_l_arbitre"):
         if data.get(cle) is None or data.get(cle) == "":
             data.pop(cle, None)
+    # [.mark] Lot P (P3) : éteint = rien n'est écrit dans le JSON de l'agent.
+    if data.get("passation_par_le_code") is not True:
+        data.pop("passation_par_le_code", None)
     return {**node, "data": data}
 
 

@@ -1,5 +1,7 @@
 """The call's routing boundary for replaceable agent workers."""
 
+import asyncio
+from collections import deque
 from collections.abc import Callable
 
 from pipecat.bus.bridge_processor import BusBridgeProcessor
@@ -79,6 +81,33 @@ class AgentBridgeProcessor(BusBridgeProcessor):
         # [.mark] Lot 3 (D7) : identifiants des trames de parole que le CODE a posées ici,
         # à dire par la voix de l'appel sans passer par un agent (voir ``dire_en_local``).
         self._paroles_locales: set[int] = set()
+        # [.mark] Builder partie 3, lot P (P2) : les paroles dont la frontière de fin a passé le pont. Une passation
+        # sait ainsi que son annonce est ENTIÈRE dans la voix de l'appel (rien d'elle ne reste chez l'agent qui passe
+        # la main), sans attendre qu'elle soit jouée ; ce qui arrive ensuite à la voix sera dit après elle.
+        self._fins_passees: deque[str] = deque(maxlen=64)
+        self._attentes_de_fin: dict[str, asyncio.Event] = {}
+
+    def _noter_le_passage(self, frame: Frame) -> None:
+        speech_id = getattr(frame, "speech_id", None)
+        if speech_id is None or getattr(frame, "beginning", None) is not False:
+            return
+        self._fins_passees.append(speech_id)
+        attente = self._attentes_de_fin.pop(speech_id, None)
+        if attente is not None:
+            attente.set()
+
+    async def attendre_le_passage_de(self, speech_id: str, timeout: float) -> bool:
+        """[.mark] Lot P (P2) : la fin de la parole ``speech_id`` a-t-elle passé le pont (au plus ``timeout``) ?"""
+        if speech_id in self._fins_passees:
+            return True
+        attente = self._attentes_de_fin.setdefault(speech_id, asyncio.Event())
+        try:
+            await asyncio.wait_for(attente.wait(), timeout)
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            self._attentes_de_fin.pop(speech_id, None)
 
     async def dire_en_local(self, frame: Frame) -> None:
         """[.mark] Lot 3 (D7) : fait dire ``frame`` (une phrase dictée par le code, ou la
@@ -130,6 +159,7 @@ class AgentBridgeProcessor(BusBridgeProcessor):
         ):
             return
         await super().on_bus_message(message)
+        self._noter_le_passage(message.frame)
 
 
 class AgentWorker(PipelineWorker):
