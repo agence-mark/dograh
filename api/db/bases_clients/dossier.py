@@ -39,12 +39,15 @@ async def contact_par_reference(connexion: asyncpg.Connection, reference: str | 
 
 async def lire_dossier(connexion: asyncpg.Connection, contact_id: int) -> dict | None:
     contact = await connexion.fetchrow(
-        "SELECT id, nom, prenom, mail, ne_pas_memoriser FROM mark.contact WHERE id = $1", contact_id
+        "SELECT id, nom, prenom, mail, (ne_pas_memoriser OR doublon_de IS NOT NULL) AS ne_pas_memoriser "
+        "FROM mark.contact WHERE id = $1",
+        contact_id,
     )
     if contact is None:
         return None
     # [.mark] SA-17c (D209) : « ne pas mémoriser » -- à la demande de la personne, l'agent ne lit plus aucun historique
     # d'elle. Son identité reste (de quoi la reconnaître), ni ses demandes, ni ses rendez-vous, ni leurs références.
+    # SA-17d (D209) : un doublon à vérifier (doublon_de, posé par l'après-appel) n'est pas mémorisé non plus tant qu'il n'est pas tranché.
     oubli = bool(contact["ne_pas_memoriser"])
     telephones = [
         r["numero"]
