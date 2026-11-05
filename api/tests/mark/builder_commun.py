@@ -41,6 +41,8 @@ def utilisateur(identifiant: int = 1, organisation: int = ORG_CLIENT):
 class FauxDb:
     def __init__(self):
         self.configs: dict[tuple[int, str], dict] = {}
+        self.epingles_des_outils: dict[str, dict] = {}  # SA-L3d : {uuid: {tool_uuid, nom, epinglee, courante, figee}}
+        self.epingles_ecrites: dict | None = None
         self.membres: set[tuple[int, int]] = set()
         self.workflows: dict[int, SimpleNamespace] = {}
         self.brouillons: dict[int, SimpleNamespace] = {}
@@ -140,6 +142,12 @@ class FauxDb:
     async def get_draft_version(self, workflow_id):
         return self.brouillons.get(workflow_id)
 
+    async def outils_epingles_de_l_agent(self, organization_id, workflow_id):
+        return {"source": None, "outils": [self.epingles_des_outils[u] for u in sorted(self.epingles_des_outils)]}  # SA-L3d
+
+    async def remplacer_les_epingles_du_brouillon(self, organization_id, workflow_id, epingles):
+        self.epingles_ecrites = dict(epingles)  # SA-L3d
+
     async def save_workflow_draft(self, workflow_id, workflow_definition=None, workflow_configurations=None, template_context_variables=None):
         ancien = self.brouillons.get(workflow_id)
         numero = (ancien.version_number if ancien else self.workflows[workflow_id].released_definition.version_number) + 1
@@ -193,6 +201,7 @@ MODULES_AVEC_DB = (
     "api.services.builder.cerveau.reglages",
     "api.services.builder.bibliotheque.droits",
     "api.services.builder.brouillon",
+    "api.services.builder.instantane",
     "api.services.builder.contexte",
     "api.services.builder.creation",
     "api.services.builder.actions._commun",

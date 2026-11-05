@@ -124,7 +124,9 @@ function Rangee({
             : ""
         : constat
           ? t(constat.detail(noms))
-          : (ligne.manquants ?? []).join(", ");
+          : ligne.id === "outils_a_jour"
+            ? noms.join(", ") // les identifiants d'outils ne se montrent pas : leurs noms
+            : (ligne.manquants ?? []).join(", ");
     const corrections = (ligne.corrections ?? []) as unknown as CorrectionDeLigne[];
     return (
         <li data-etape={ligne.id} data-etat={ligne.etat} className="flex items-start gap-3 py-2.5">

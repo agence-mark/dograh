@@ -159,3 +159,29 @@ class WorkflowBranchModel(Base):
     cree_par = Column(Integer, nullable=True)
     cree_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
     archivee_le = Column(DateTime(timezone=True), nullable=True)
+
+
+class ToolVersionModel(Base):
+    """[.mark] Partie 3, SA-L3d (décision 21) : une version immuable d'un outil.
+
+    Enregistrer un outil modifié range son nouveau contenu ici sous le numéro suivant ; la ligne ne change jamais. Une version
+    d'agent épingle un numéro par outil (``workflow_definitions.outils_epingles``) et joue CE contenu, pas le contenu courant.
+    ``organization_id`` est redondant avec l'outil exprès : chaque lecture filtre par organisation dans la requête.
+    """
+
+    __tablename__ = "tool_versions"
+    __table_args__ = (
+        UniqueConstraint("tool_id", "version", name="uq_tool_versions_outil_version"),
+        Index("ix_tool_versions_org_outil", "organization_id", "tool_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    tool_id = Column(Integer, ForeignKey("tools.id", ondelete="CASCADE"), nullable=False)
+    version = Column(Integer, nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String(50), nullable=False)
+    definition = Column(JSON, nullable=False, default=dict)
+    created_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))

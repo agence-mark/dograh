@@ -12,7 +12,7 @@ reçoit). Chaque champ est comparé aux trois :
 
 Jamais « le plus récent gagne » en silence : un conflit sans choix refuse la fusion.
 
-Les champs : une étape (son entrée sans le prompt), le prompt de chaque étape, chaque liaison, chaque réglage (premier niveau de
+Les champs : la version épinglée de chaque outil (décision 21), une étape (son entrée sans le prompt), le prompt de chaque étape, chaque liaison, chaque réglage (premier niveau de
 ``workflow_configurations``), chaque variable de contexte. Une étape présente aux trois endroits a son prompt à part ; une étape
 ajoutée ou retirée quelque part est un seul champ (avec son prompt), pour qu'un prompt ne survive jamais à son étape. Un
 déplacement sur le canevas n'est pas un changement.
@@ -32,7 +32,7 @@ CLE_PHRASES = "phrases_regles"
 LONGUEUR_LISIBLE = 240
 LONGUEUR_PROMPT = 4000
 
-FAMILLES = ("graphe", "prompts", "reglages", "phrases", "variables")
+FAMILLES = ("graphe", "prompts", "reglages", "phrases", "variables", "outils")
 
 
 def _canonique(valeur: Any) -> str:
@@ -57,9 +57,16 @@ def _liaisons(definition: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
 
 
 class Etat:
-    """Un côté de la fusion : son graphe, ses réglages, ses variables."""
+    """Un côté de la fusion : son graphe, ses réglages, ses variables, les versions d'outils qu'il épingle."""
 
-    def __init__(self, graphe: dict[str, Any] | None, reglages: dict[str, Any] | None, variables: dict[str, Any] | None):
+    def __init__(
+        self,
+        graphe: dict[str, Any] | None,
+        reglages: dict[str, Any] | None,
+        variables: dict[str, Any] | None,
+        outils: dict[str, Any] | None = None,
+    ):
+        self.outils = {str(u): n for u, n in outils.items()} if isinstance(outils, dict) else {}
         self.graphe = copy.deepcopy(graphe) if isinstance(graphe, dict) else {"nodes": [], "edges": []}
         self.reglages = copy.deepcopy(reglages) if isinstance(reglages, dict) else {}
         self.variables = copy.deepcopy(variables) if isinstance(variables, dict) else {}
@@ -85,12 +92,14 @@ def aplatir(etat: Etat, communes: set[str]) -> dict[str, Any]:
         champs[f"{'phrases' if cle == CLE_PHRASES else 'reglage'}:{cle}"] = copy.deepcopy(valeur)
     for cle, valeur in etat.variables.items():
         champs[f"variable:{cle}"] = copy.deepcopy(valeur)
+    for cle, valeur in etat.outils.items():
+        champs[f"outil:{cle}"] = valeur
     return champs
 
 
 def famille_de(cle: str) -> str:
     genre = cle.split(":", 1)[0]
-    return {"etape": "graphe", "liaison": "graphe", "prompt": "prompts", "reglage": "reglages", "phrases": "phrases", "variable": "variables"}[genre]
+    return {"etape": "graphe", "liaison": "graphe", "prompt": "prompts", "reglage": "reglages", "phrases": "phrases", "variable": "variables", "outil": "outils"}[genre]
 
 
 def _masquer(valeur: Any, cle_parente: str = "") -> Any:
@@ -107,6 +116,8 @@ def lisible(cle: str, valeur: Any) -> str | None:
     """Ce que l'écran montre d'un champ : ``None`` si absent. Les prompts en entier (bornés), le reste masqué et raccourci."""
     if valeur == ABSENT:
         return None
+    if cle.startswith("outil:"):
+        return f"v{valeur}"
     if cle.startswith("prompt:"):
         texte = str(valeur)
         return texte if len(texte) <= LONGUEUR_PROMPT else texte[:LONGUEUR_PROMPT] + "…"
@@ -222,8 +233,9 @@ def _reconstruire(retenu: dict[str, Any], communes: set[str], source: Etat, cibl
     liaisons = [copy.deepcopy(v) for k, v in retenu.items() if k.startswith("liaison:")]
     reglages = {k.split(":", 1)[1]: copy.deepcopy(v) for k, v in retenu.items() if k.startswith(("reglage:", "phrases:"))}
     variables = {k.split(":", 1)[1]: copy.deepcopy(v) for k, v in retenu.items() if k.startswith("variable:")}
+    outils = {k.split(":", 1)[1]: v for k, v in retenu.items() if k.startswith("outil:")}
     graphe = {**{k: copy.deepcopy(v) for k, v in cible.graphe.items() if k not in ("nodes", "edges")}, "nodes": noeuds, "edges": liaisons}
-    return Etat(graphe, reglages, variables)
+    return Etat(graphe, reglages, variables, outils)
 
 
 def problemes(graphe: dict[str, Any]) -> list[dict[str, Any]]:

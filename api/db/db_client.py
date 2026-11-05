@@ -8,6 +8,7 @@ from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
 from api.db.boucle_client import BoucleClient
 from api.db.branches_client import BranchesClient
+from api.db.outils_versions_client import OutilsVersionsClient
 from api.db.builder_fil_client import BuilderFilClient
 from api.db.depense_roles_client import DepenseRolesClient
 from api.db.copie_agent_client import CopieAgentClient
@@ -84,6 +85,8 @@ class DBClient(
     DepenseRolesClient,
     # [.mark] builder partie 3, SA-L3b: the agent branches (versions, drafts per person, traffic shares).
     BranchesClient,
+    # [.mark] builder partie 3, SA-L3d: the versions of the tools and what each agent version pins.
+    OutilsVersionsClient,
     # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
     RelationClient,
     # [.mark] builder partie 2, U2 quinquies: copying a document or a recording from one organization to another.

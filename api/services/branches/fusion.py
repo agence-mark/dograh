@@ -28,7 +28,7 @@ PARTIE_FUSION = "FUSION"
 
 def _etat(contenu: dict[str, Any] | None) -> champs.Etat:
     contenu = contenu or {}
-    return champs.Etat(contenu.get("graphe"), contenu.get("reglages"), contenu.get("variables"))
+    return champs.Etat(contenu.get("graphe"), contenu.get("reglages"), contenu.get("variables"), contenu.get("outils"))
 
 
 def _numero(contenu: dict[str, Any] | None) -> int | None:
@@ -61,6 +61,15 @@ async def _valider(organization_id: int, workflow_id: int, fusionne: champs.Etat
     return trouves
 
 
+async def _noms_des_outils(organization_id: int, lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Le libellé d'une ligne « outil » est le NOM de l'outil (lu avec l'organisation, en une requête), pas son identifiant."""
+    uuids = [ligne["cle"].split(":", 1)[1] for ligne in lignes if ligne["famille"] == "outils"]
+    if not uuids:
+        return lignes
+    noms = {o.tool_uuid: o.name for o in await db_client.get_tools_by_uuids(uuids, organization_id)}
+    return [{**l, "libelle": noms.get(l["cle"].split(":", 1)[1], l["libelle"])} if l["famille"] == "outils" else l for l in lignes]
+
+
 def _resume(lignes: list[dict[str, Any]]) -> dict[str, int]:
     return {statut: sum(1 for ligne in lignes if ligne["statut"] == statut) for statut in ("reprise", "gardee", "conflit")}
 
@@ -75,7 +84,7 @@ async def apercu_de_la_fusion(organization_id: int, agent: Any, branch_id: int) 
     if lu["tete_principale"] is None:
         raise ErreurDeBranche("The main branch has no live version", "sans_version")
     base = _etat(lu["base"] if lu["base"] is not None else lu["tete_principale"])
-    lignes = champs.comparer(base, _etat(lu["tete_branche"]), _etat(lu["tete_principale"]))
+    lignes = await _noms_des_outils(organization_id, champs.comparer(base, _etat(lu["tete_branche"]), _etat(lu["tete_principale"])))
     protegee, par_defaut = await db_client.protection_de_la_principale(organization_id, agent.id)
     problemes: list[dict[str, Any]] = []
     if lu["brouillon_de_la_principale"]:
@@ -127,6 +136,7 @@ async def fusionner(
         graphe=fusionne.graphe,
         reglages=fusionne.reglages,
         variables=fusionne.variables,
+        outils_epingles=fusionne.outils,
         attendu_source=version_branche,
         attendu_cible=version_cible,
     )
@@ -185,7 +195,7 @@ async def apercu_de_la_mise_a_jour(organization_id: int, agent: Any, branch_id: 
         raise ErreurDeBranche("Nothing to update: the branch or the main branch has no version", "sans_version")
     a_jour = lu["branche"]["base"] == lu["tete_principale"]["id"]
     base = _etat(lu["base"] if lu["base"] is not None else lu["tete_principale"])
-    lignes = [] if a_jour else champs.comparer(base, _etat(lu["tete_principale"]), _etat(ma_branche))
+    lignes = [] if a_jour else await _noms_des_outils(organization_id, champs.comparer(base, _etat(lu["tete_principale"]), _etat(ma_branche)))
     problemes: list[dict[str, Any]] = []
     if lignes and not any(ligne["statut"] == "conflit" for ligne in lignes):
         fusionne = champs.resoudre(base, _etat(lu["tete_principale"]), _etat(ma_branche), {})
@@ -246,6 +256,7 @@ async def mettre_a_jour(
         graphe=fusionne.graphe,
         reglages=fusionne.reglages,
         variables=fusionne.variables,
+        outils_epingles=fusionne.outils,
         attendu_base=base_attendue,
         nouvelle_base=lu["tete_principale"]["id"],
     )

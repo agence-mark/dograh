@@ -175,11 +175,15 @@ class CustomToolManager:
     async def _lire_outils(self, tool_uuids: list[str], organization_id: int) -> list:
         """[.mark] Lot 6 : les outils d'une étape, lus dans le cache de préchauffage de l'appel
         quand il les a déjà chargés (aucune requête), sinon en base comme avant."""
+        # [.mark] SA-L3d (décision 21) : les versions d'outils figées par la version d'agent qui joue.
+        versions = getattr(getattr(self._agent, "workflow", None), "outils_epingles", None)
         precharge = precharge_de(self._engine)
         if precharge is None:
+            if versions:
+                return await db_client.get_tools_by_uuids(tool_uuids, organization_id, versions=versions)
             return await db_client.get_tools_by_uuids(tool_uuids, organization_id)
         return await precharge.outils(
-            tool_uuids, organization_id, db_client.get_tools_by_uuids
+            tool_uuids, organization_id, db_client.get_tools_by_uuids, versions
         )
 
     async def get_organization_id(self) -> Optional[int]:

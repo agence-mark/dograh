@@ -7,6 +7,8 @@ import { useState } from "react";
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import type { ToolResponse } from "@/client/types.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { VersionsDansEtape } from "@/components/mark/outils/versions/VersionsDansEtape";
+import { useOutilsDeLAgent } from "@/components/mark/outils/versions/useVersionsOutils";
 import { Info } from "@/components/mark/studio/marques";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -87,6 +89,9 @@ export function ToolSelector({
 }: ToolSelectorProps) {
     const { t } = useLangue();
     const workflow = useWorkflowOptional();
+    // Décision 21 (SA-L3d) : la version de chaque outil que l'agent joue, à côté de son nom.
+    const { outils: versionsDesOutils } = useOutilsDeLAgent(workflow?.workflowId);
+    const versionDe = (uuid: string) => versionsDesOutils?.find((o) => o.tool_uuid === uuid)?.epinglee;
     const activeTools = tools.filter((x) => x.status === "active");
     const httpTools = activeTools.filter((x) => !isMcp(x));
     const mcpTools = activeTools.filter(isMcp);
@@ -148,6 +153,11 @@ export function ToolSelector({
                     {choisis.map((tool) => (
                         <span key={tool.tool_uuid} className="inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs">
                             {tool.name}
+                            {versionDe(tool.tool_uuid) !== undefined && (
+                                <span className="text-muted-foreground" data-version-outil>
+                                    v{versionDe(tool.tool_uuid)}
+                                </span>
+                            )}
                             <button
                                 type="button"
                                 disabled={disabled}
@@ -188,6 +198,7 @@ export function ToolSelector({
                         </PopoverContent>
                     </Popover>
                 </div>
+                <VersionsDansEtape outilsDeLEtape={value} />
             </div>
 
             {mcpTools.length > 0 && (

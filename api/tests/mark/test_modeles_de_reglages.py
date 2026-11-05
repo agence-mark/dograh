@@ -643,3 +643,29 @@ def test_un_ancien_modele_applique_sur_tour_ou_rythme_pose_encore_les_deux_regla
     # appliqué sur « tour » seul : seul celui de « tour » est posé
     seul, _ = calculer_l_application(valeurs, ["tour"], {})
     assert "relance_apres_outil" in seul and "laisser_la_parole" not in seul
+
+
+async def test_la_mention_du_modele_est_gardee_par_branche_et_la_principale_garde_la_sienne(monde, test_client_factory, db_session):
+    """SA-L3d (audit 12 § 2) : le modèle appliqué (et sa version) se décide PAR BRANCHE. Appliquer sur une branche écrit la mention de
+    cette branche ; la principale, elle, ne bouge pas (et inversement)."""
+    from api.db import branche_ouverte
+    from api.services.modeles_reglages import service as modeles
+
+    agent = monde.agent_a2
+    branche, _ = await db_session.creer_une_branche(monde.org_a.id, agent.id, "Essai", depuis_definition_id=None, user_id=monde.user_a.id)
+    try:
+        async with test_client_factory(monde.user_a) as client:
+            modele = await _creer(client, "Par branche", monde.agent_a.id)
+            branche_ouverte.ouvrir(branche.id, monde.user_a.id)
+            applique = await client.post(
+                f"{ROUTE}/{modele['id']}/appliquer", json={"workflow_id": agent.id, "sections": ["tour"]}
+            )
+            assert applique.status_code == 200, applique.text
+            sur_la_branche = (await client.get(f"{ROUTE}/agent/{agent.id}")).json()["mention"]
+            assert sur_la_branche["nom"] == "Par branche"
+            branche_ouverte.ouvrir(None, None)
+            assert (await client.get(f"{ROUTE}/agent/{agent.id}")).json()["mention"] is None  # la principale n'a rien reçu
+        stock = await modeles.lire_le_stock(monde.org_a.id)
+        assert f"{agent.id}:{branche.id}" in stock.applications and str(agent.id) not in stock.applications
+    finally:
+        branche_ouverte.ouvrir(None, None)

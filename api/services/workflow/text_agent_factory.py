@@ -74,6 +74,7 @@ class TextAgentFactory(AgentRuntimeFactory):
         graphe = WorkflowGraph(
             ReactFlowDTO.model_validate(definition.workflow_json),
             skip_instance_constraints_for={"trigger"},
+            outils_epingles=getattr(definition, "outils_epingles", None),
         )
         llm = self._creer_llm(
             user_config,

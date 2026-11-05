@@ -3921,10 +3921,14 @@ class PipecatEngine:
     async def lire_outils(self, uuids, organization_id: int) -> list:
         """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
         préchauffage les a déjà chargés, sinon en base comme avant."""
+        # [.mark] SA-L3d (décision 21) : les versions d'outils figées par la version d'agent qui joue (l'agent actif).
+        versions = getattr(getattr(self.active_agent, "workflow", None), "outils_epingles", None)
         precharge = precharge_de(self)
         if precharge is None:
+            if versions:
+                return await db_client.get_tools_by_uuids(list(uuids), organization_id, versions=versions)
             return await db_client.get_tools_by_uuids(list(uuids), organization_id)
-        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids)
+        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids, versions)
 
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""

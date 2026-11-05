@@ -59,21 +59,34 @@ class Precharge:
         self,
         uuids: Iterable[str],
         organization_id: int,
-        lire: Callable[[list[str], int], Awaitable[list]],
+        lire: Callable[..., Awaitable[list]],
+        versions: dict[str, int] | None = None,
     ) -> list:
         """Les outils demandés, lus dans le cache quand tous y sont déjà ; sinon ``lire`` (la base),
-        dont le résultat entre dans le cache. Jamais d'outil servi à une autre organisation."""
+        dont le résultat entre dans le cache. Jamais d'outil servi à une autre organisation.
+
+        [.mark] SA-L3d (décision 21) : ``versions`` = les versions d'outils que l'agent qui demande a figées. Le cache est
+        clé par (outil, version) : deux agents d'un même appel qui épinglent deux versions d'un même outil ne se servent
+        jamais l'un à l'autre le contenu de l'autre."""
         demandes = [u for u in dict.fromkeys(uuids) if isinstance(u, str)]
         if not demandes:
             return []
+        versions = versions or None
+
+        def cle(u: str) -> str:
+            return f"{u}@{versions[u]}" if versions and versions.get(u) else u
+
+        def lecture():
+            return lire(demandes, organization_id, versions=versions) if versions else lire(demandes, organization_id)
+
         if self.organization_id is not None and organization_id != self.organization_id:
-            return await lire(demandes, organization_id)
-        if all(u in self._interroges for u in demandes):
-            return [self._outils_par_uuid[u] for u in demandes if u in self._outils_par_uuid]
-        trouves = await lire(demandes, organization_id)
+            return await lecture()
+        if all(cle(u) in self._interroges for u in demandes):
+            return [self._outils_par_uuid[cle(u)] for u in demandes if cle(u) in self._outils_par_uuid]
+        trouves = await lecture()
         for outil in trouves:
-            self._outils_par_uuid[getattr(outil, "tool_uuid", None)] = outil
-        self._interroges.update(demandes)
+            self._outils_par_uuid[cle(getattr(outil, "tool_uuid", None))] = outil
+        self._interroges.update(cle(u) for u in demandes)
         return list(trouves)
 
 

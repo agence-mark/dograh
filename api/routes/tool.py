@@ -407,6 +407,7 @@ async def update_tool(
         icon=request.icon,
         icon_color=request.icon_color,
         status=request.status,
+        user_id=user.id,
     )
 
     if not tool:

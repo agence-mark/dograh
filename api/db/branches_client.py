@@ -15,6 +15,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
+from api.db import outils_epingles as pins
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel
 from api.db.models_builder import WorkflowBranchModel
@@ -154,6 +155,7 @@ class BranchesClient(BaseDBClient):
                 is_current=False,
                 branch_id=branche.id,
                 draft_owner_id=user_id,
+                outils_epingles=pins.copie(source.outils_epingles) if source else None,  # SA-L3d
             )
             session.add(brouillon)
             await session.commit()
@@ -194,6 +196,7 @@ class BranchesClient(BaseDBClient):
             brouillon.status = "archived"
             brouillon.is_current = False
             brouillon.published_at = datetime.now(UTC)
+            await pins.figer(session, brouillon, organization_id)  # SA-L3d (décision 21)
             branche.head_definition_id = brouillon.id
             await session.commit()
             await session.refresh(brouillon)
@@ -338,6 +341,7 @@ class BranchesClient(BaseDBClient):
             "graphe": definition.workflow_json or {},
             "reglages": definition.workflow_configurations or {},
             "variables": definition.template_context_variables or {},
+            "outils": definition.outils_epingles or {},
         }
 
     async def lire_pour_la_fusion(self, organization_id: int, workflow_id: int, branch_id: int, user_id: int | None) -> dict[str, Any]:
@@ -403,6 +407,7 @@ class BranchesClient(BaseDBClient):
         graphe: dict[str, Any],
         reglages: dict[str, Any],
         variables: dict[str, Any],
+        outils_epingles: dict[str, int] | None = None,
         attendu_source: int,
         attendu_cible: int,
     ) -> dict[str, Any]:
@@ -463,7 +468,9 @@ class BranchesClient(BaseDBClient):
                 published_at=datetime.now(UTC),
                 branch_id=None,
                 draft_owner_id=None,
+                outils_epingles=pins.copie(outils_epingles),
             )
+            await pins.figer(session, version, organization_id, choix=outils_epingles)  # SA-L3d (décision 21)
             session.add(version)
             await session.flush()
             defaire = {
@@ -537,6 +544,7 @@ class BranchesClient(BaseDBClient):
         graphe: dict[str, Any],
         reglages: dict[str, Any],
         variables: dict[str, Any],
+        outils_epingles: dict[str, int] | None = None,
         attendu_base: int | None,
         nouvelle_base: int,
     ) -> WorkflowDefinitionModel:
@@ -576,12 +584,14 @@ class BranchesClient(BaseDBClient):
                     workflow_json=graphe,
                     workflow_configurations=reglages,
                     template_context_variables=variables,
+                    outils_epingles=pins.copie(outils_epingles),
                 )
                 session.add(brouillon)
             else:
                 brouillon.workflow_json = graphe
                 brouillon.workflow_configurations = reglages
                 brouillon.template_context_variables = variables
+                brouillon.outils_epingles = pins.copie(outils_epingles)
             branche.base_definition_id = nouvelle_base
             await session.commit()
             await session.refresh(brouillon)

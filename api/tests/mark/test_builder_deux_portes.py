@@ -102,6 +102,12 @@ ARGUMENTS = {
     "sauvegarde_refuser": {"workflow_id": AGENT, "raison": "non", "la_personne_a_dit_non": True},
     "agent_montrer_le_graphe": {"workflow_id": AGENT},
     "recette_lire": {"workflow_id": AGENT},
+    # SA-L3d : les branches d'agent et les versions des outils.
+    "branches_lire": {"workflow_id": AGENT},
+    "branche_creer": {"workflow_id": AGENT, "nom": "Essai"},
+    "branche_travailler": {"workflow_id": AGENT, "branche_id": 1},
+    "outils_versions_lire": {"workflow_id": AGENT},
+    "outil_passer_a_la_version": {"workflow_id": AGENT, "outil": "noter", "version": 2},
 }
 
 
