@@ -10,8 +10,8 @@ Le builder peut créer une branche, y travailler, passer un outil à une autre v
 * ``outils_versions_lire`` / ``outil_passer_a_la_version`` : la version de chaque outil que l'agent joue, et « Passer à la v5 » dans le
   BROUILLON de la branche de travail (décision 21 : jamais une version publiée, jamais seul).
 
-⛔ Fusionner, changer la part du trafic et publier ne sont PAS ici : ils restent des gestes de personne, soumis aux gardes et aux modes
-de permission d'aujourd'hui (``INTERDITES`` ; les nouveaux modes sont le lot N1). Aucun appel réel, aucune dépense.
+Fusionner, changer la part du trafic et publier une branche sont dans ``gestes.py`` (N1), famille « publication » : la permission
+décide (``modes.py``). Aucun appel réel, aucune dépense.
 """
 
 from __future__ import annotations

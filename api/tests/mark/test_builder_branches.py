@@ -6,7 +6,7 @@
 | créer | ``branche_creer`` ouvre une branche à 0 % du trafic, sans toucher la principale ; nom pris refusé ; journalisé |
 | travailler | après ``branche_travailler``, passer un outil de version écrit dans le brouillon de la BRANCHE, jamais dans la principale ; une branche inconnue ou d'un autre agent est refusée |
 | passer un outil | par nom ou par identifiant ; l'agent en ligne garde sa version ; un nom ambigu ou inconnu est refusé ; cloisonné par organisation |
-| interdits | fusionner, régler la part du trafic et publier n'existent pas pour le builder (refus explicite) |
+| gestes de personne | fusionner, régler la part du trafic et publier existent (N1, famille « publication ») et demandent une carte en « Demander » |
 | tours suivants | la branche choisie reste ouverte aux tours suivants de la conversation, et l'en-tête de l'écran garde la priorité |
 """
 
@@ -17,6 +17,7 @@ import pytest
 from api.db import branche_ouverte
 from api.services.builder.actions import registre
 from api.services.builder.actions.registre import Contexte
+from api.services.equipe_mark.permissions import PERMISSIONS
 from api.tests.mark.test_apres_appel import _organisation, base_v4, smtp  # noqa: F401  (fixtures)
 from api.tests.mark.test_outils_versions import _agent, _outil
 from api.tests.mark.test_sous_dossiers_et_groupe import _oublier, autre_org, org  # noqa: F401
@@ -29,8 +30,9 @@ def _branche_fermee():
     branche_ouverte.ouvrir(None, None)
 
 
-def _contexte(org, agent) -> Contexte:
-    return Contexte(user=org.utilisateur, workflow_id=agent.id, conversation={})
+def _contexte(org, agent, mode: str = "agent") -> Contexte:
+    # N1 : le chat « Tout permettre sur cet agent », par une personne qui a les droits (ce que ce fichier prouve est la branche).
+    return Contexte(user=org.utilisateur, workflow_id=agent.id, conversation={"mode": mode}, permissions=frozenset(PERMISSIONS))
 
 
 async def _monde(org, db_session):
@@ -93,7 +95,7 @@ async def test_travailler_refuse_une_branche_inconnue_archivee_ou_d_un_autre_age
     for visee in (999999, chez_l_autre["id"]):
         refus = await registre.executer("branche_travailler", {"branche_id": visee}, ctx)
         assert refus["ok"] is False and refus["code"] == "introuvable"
-    assert ctx.conversation == {}
+    assert ctx.conversation == {"mode": "agent"}  # aucune branche de travail retenue
 
 
 async def test_passer_un_outil_par_son_identifiant_et_refuser_l_inconnu_et_l_ambigu(org, autre_org, db_session):
@@ -107,18 +109,21 @@ async def test_passer_un_outil_par_son_identifiant_et_refuser_l_inconnu_et_l_amb
     assert inconnu["ok"] is False and inconnu["code"] == "pas_utilise"
     mauvaise_version = await registre.executer("outil_passer_a_la_version", {"outil": "reserver", "version": 9}, ctx)
     assert mauvaise_version["ok"] is False
-    etranger = Contexte(user=autre_org.utilisateur, workflow_id=agent.id, conversation={})
+    etranger = Contexte(user=autre_org.utilisateur, workflow_id=agent.id, conversation={"mode": "agent"}, permissions=frozenset(PERMISSIONS))
     refus = await registre.executer("outil_passer_a_la_version", {"outil": "reserver", "version": 2}, etranger)
     assert refus["ok"] is False and refus["code"] == "introuvable"
     assert (await registre.executer("branches_lire", {}, etranger))["ok"] is False
 
 
-@pytest.mark.parametrize("nom", ["fusionner_une_branche", "branche_fusionner", "repartition_regler", "regler_la_repartition", "publier", "publier_agent", "branche_publier"])
-async def test_fusionner_regler_la_part_et_publier_restent_des_gestes_de_personne(nom, org, db_session):
+@pytest.mark.parametrize("nom,arguments", [("branche_fusionner", {"branche_id": 1}), ("repartition_regler", {"parts": {1: 100}}), ("branche_publier", {"branche_id": 1})])
+async def test_fusionner_regler_la_part_et_publier_demandent_une_carte_en_mode_demander(nom, arguments, org, db_session):
+    """N1 : ces gestes existent (famille « publication ») ; en « Demander », la personne clique d'abord. Les anciens noms n'existent pas."""
     _, agent = await _monde(org, db_session)
-    refus = await registre.executer(nom, {}, _contexte(org, agent))
-    assert refus["ok"] is False
-    assert nom not in registre.REGISTRE
+    demande = await registre.executer(nom, arguments, _contexte(org, agent, "demander"))
+    assert demande["ok"] is False and demande["code"] == "autorisation_requise"
+    assert registre.REGISTRE[nom].famille == "publication"
+    for ancien in ("fusionner_une_branche", "regler_la_repartition", "publier", "publier_agent"):
+        assert ancien not in registre.REGISTRE
 
 
 def test_les_actions_de_branches_sont_dans_le_registre_avec_leur_famille():

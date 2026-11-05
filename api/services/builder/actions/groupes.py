@@ -10,8 +10,8 @@ Le builder lit, crée et règle un groupe par les fonctions qui existent déjà 
   mise en relation, attente) et le « cerveau propre » d'un spécialisé. Écrits dans le BROUILLON, recopiés dans les spécialisés ;
 * ``groupe_completer`` : un nœud de fin pour chaque collègue et une étape de retour pour l'accueil (les prompts restent « à rédiger »).
 
-⛔ Publier un groupe, retirer ou archiver un agent ne sont PAS ici : publier reste un geste de personne, soumis aux gardes et aux modes
-d'aujourd'hui (``INTERDITES`` ; les nouveaux modes sont le lot N1). Tout est écrit dans les BROUILLONS ; la principale protégée d'un agent
+Publier un groupe et archiver un agent sont dans ``gestes.py`` (N1), familles « publication » et « irréversible » : la permission
+décide (``modes.py``). Tout est écrit dans les BROUILLONS ; la principale protégée d'un agent
 client en ligne refuse comme pour toute écriture. Aucun appel réel, aucune dépense.
 """
 
