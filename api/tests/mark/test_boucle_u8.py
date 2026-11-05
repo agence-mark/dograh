@@ -414,7 +414,11 @@ async def test_la_qualite_agrege_les_chiffres_les_motifs_les_agents_et_les_versi
     g = q["global"]
     assert g["appels"] == 4 and g["juges"] == 2 and g["note"] == 3.75  # (5 + 2,5) / 2
     assert g["issues"] == 3 and g["part_issue"] == 0.75 and g["transferts"] == 1 and g["raccroches"] == 1 and g["reponse_mediane"] == 2.0
-    assert q["motifs"] == [{"motif": "Rendez-vous", "appels": 2, "part_resolu": 1.0}, {"motif": "Tarif", "appels": 1, "part_resolu": 0.0}]
+    # L5b : la part transférée et la note du juge de chaque motif (la page de pilotage d'un client les lit ici).
+    assert q["motifs"] == [
+        {"motif": "Rendez-vous", "appels": 2, "part_resolu": 1.0, "part_transferts": 0.0, "note": 3.75},
+        {"motif": "Tarif", "appels": 1, "part_resolu": 0.0, "part_transferts": 0.0, "note": None},
+    ]
     assert q["agents"][0]["workflow_nom"] == "Agent qualite" and q["agents"][0]["appels"] == 4
     assert q["versions"] == []  # une seule version dans la fenêtre : rien à comparer
 

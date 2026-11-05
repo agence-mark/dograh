@@ -270,6 +270,28 @@ class RelationClient(BaseDBClient):
             ).all()
             return {o: {"ouverts": a, "non_lus": b, "demandes_nouvelles": c} for o, a, b, c in lignes}
 
+    async def dernier_message_du_client(self, organization_id: int) -> dict[str, Any] | None:
+        """Partie 3, L5b : la dernière phrase REÇUE du client (côté « client », jamais une note interne) et le sujet de son fil.
+        Une requête, bornée à l'organisation."""
+        async with self.async_session() as session:
+            ligne = (
+                await session.execute(
+                    select(MarkRelationMessageModel, MarkRelationFilModel.sujet)
+                    .join(MarkRelationFilModel, MarkRelationFilModel.id == MarkRelationMessageModel.fil_id)
+                    .where(
+                        MarkRelationMessageModel.organization_id == organization_id,
+                        MarkRelationFilModel.organization_id == organization_id,
+                        MarkRelationMessageModel.cote == "client",
+                    )
+                    .order_by(MarkRelationMessageModel.id.desc())
+                    .limit(1)
+                )
+            ).first()
+            if ligne is None:
+                return None
+            message, sujet = ligne
+            return {**_message(message), "fil_id": message.fil_id, "sujet": sujet}
+
     async def statistiques_des_clients_relation(self, organisations: Iterable[int]) -> dict[int, dict[str, Any]]:
         """Par organisation, en quatre lectures groupées (jamais une par client) : agents (dont publiés), appels des 7 derniers
         jours, note moyenne du juge, problèmes à traiter (signalements du client, pannes de déploiement)."""

@@ -112,6 +112,20 @@ def assembler(
     return lignes
 
 
+def resume(lignes: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """L'état d'un agent en un mot, comme le dit la carte des Réglages (partie 3, L5b : la page de pilotage d'un client).
+
+    ``pret`` : plus rien à faire ou à voir ; ``bloque`` : au moins un contrôle bloque la publication (``n`` = combien) ;
+    ``afaire`` : rien ne bloque mais des lignes restent à voir (``n`` = combien). Les lignes « sans objet » ne comptent pas."""
+    reste = [l for l in lignes if l["etat"] in (A_FAIRE, BLOQUANT)]
+    bloquantes = sum(1 for l in reste if l["etat"] == BLOQUANT)
+    if bloquantes:
+        return {"etat": "bloque", "n": bloquantes}
+    if reste:
+        return {"etat": "afaire", "n": len(reste)}
+    return {"etat": "pret", "n": 0}
+
+
 async def lire_la_liste(organisation_id: int, workflow_id: int) -> list[dict[str, Any]]:
     """La liste « Prêt à publier » d'un agent de l'organisation (``ModeleRefuse`` 404 pour l'agent d'une autre). Lecture seule.
 

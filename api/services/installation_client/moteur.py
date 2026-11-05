@@ -49,7 +49,8 @@ def _resultat_montrable(numero: int, resultat: dict[str, Any]) -> dict[str, Any]
     return dict(resultat or {})
 
 
-async def vue(installation: dict[str, Any]) -> dict[str, Any]:
+async def vue(installation: dict[str, Any], *, complements: bool = True) -> dict[str, Any]:
+    """La vue d'une installation. ``complements=False`` : sans l'estimation ni la liste d'agents (la page de pilotage ne les montre pas)."""
     organisation = installation["organization_id"]
     par_numero = {e["numero"]: e for e in installation["etapes"]}
     etapes = []
@@ -73,9 +74,9 @@ async def vue(installation: dict[str, Any]) -> dict[str, Any]:
     prochaine = next((e["numero"] for e in etapes if e["etat"] not in ETATS_CLOS), None)
     workflow_id = (par_numero.get(6, {}).get("resultat") or {}).get("workflow_id")
     complement: dict[str, Any] = {}
-    if prochaine == 8:
+    if complements and prochaine == 8:
         complement["estimation"] = await executants.estimation(organisation, workflow_id)
-    if prochaine == 6:
+    if complements and prochaine == 6:
         agents = await db_client.get_all_workflows_for_listing(organization_id=organisation, status="active")
         complement["agents_du_client"] = [{"id": a.id, "nom": a.name} for a in agents[:20]]
     return {
