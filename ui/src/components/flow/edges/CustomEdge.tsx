@@ -1,155 +1,17 @@
 import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
-import { AlertCircle, Trash2 } from 'lucide-react';
+import { Braces, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useWorkflow, useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
-import { useLangue } from "@/components/mark/langue/langue";
+import { quiDecide, type QuiDecide } from "@/components/mark/graphe/conditions-de-porte";
+import { FenetreTransition } from "@/components/mark/graphe/FenetreTransition";
 import { STYLE_TRANSITION, typeDeTransition } from "@/components/mark/graphe/type-de-transition";
-import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
-import { Button } from "@/components/ui/button";
+import { useLangue } from "@/components/mark/langue/langue";
 import { cn } from "@/lib/utils";
 
-import { EdgeRecordCondition, FlowEdge, FlowEdgeData, FlowNode } from '../types';
-import { identifiantGarde } from './porte';
+import { FlowEdge, FlowEdgeData, FlowNode } from '../types';
 type CustomEdge = Edge<{ value: number }, 'custom'>;
-
-
-type RecordConditionMode = 'none' | 'complete' | 'field';
-
-const recordModeOf = (condition?: EdgeRecordCondition): RecordConditionMode =>
-    condition?.etape_complete ? 'complete' : condition?.champ ? 'field' : 'none';
-
-interface EdgeDetailsDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    data?: FlowEdgeData;
-    onSave: (value: FlowEdgeData) => void;
-    onDelete: () => void;
-}
-
-// [.mark] K2 : la fenêtre d'une liaison, en français et à la forme des fenêtres à champs de la maquette (« Condition de passage »).
-const FICHE = { none: 'Aucune', complete: 'Étape complète', field: 'Un champ a une valeur' } as const;
-const PHRASE = { none: 'Aucune', text: 'Texte', audio: 'Enregistrement' } as const;
-
-const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeDetailsDialogProps) => {
-    const { t } = useLangue();
-    const readOnly = useWorkflowOptional()?.readOnly ?? false;
-    const { recordings } = useWorkflow();
-    const enregistrements = recordings ?? [];
-    const phraseDepart = data?.transition_speech_type === 'audio' && data.transition_speech_recording_id ? 'audio' : data?.transition_speech ? 'text' : 'none';
-    const libelleEnregistrement = (r: { recording_id: string; transcript?: string | null }) => r.transcript || r.recording_id;
-    const choixEnregistrement = enregistrements.map(libelleEnregistrement);
-    const enregistrementDepart = enregistrements.find((r) => r.recording_id === data?.transition_speech_recording_id);
-
-    return (
-        <FenetreChamps centree={false}
-            ouverte={open}
-            fermer={() => onOpenChange(false)}
-            titre={t({ en: "Transition condition", fr: "Condition de passage" })}
-            info={t({ en: "What decides the move from one step to the next: the label, the condition the model reads, the condition on the record and the sentence said during the transition.", fr: "Ce qui décide du passage d'une étape à l'autre : le libellé, la condition que lit le modèle, la condition sur la fiche et la phrase dite pendant la transition." })}
-            lecture={readOnly}
-            valider={readOnly ? t({ en: 'Close', fr: 'Fermer' }) : t({ en: 'Save', fr: 'Enregistrer' })}
-            pied={
-                readOnly ? undefined : (
-                    <Button
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                            onDelete();
-                            onOpenChange(false);
-                        }}
-                    >
-                        <Trash2 className="size-4" /> {t({ en: 'Delete the link', fr: 'Supprimer la liaison' })}
-                    </Button>
-                )
-            }
-            corps={
-                data?.invalid && data.validationMessage ? (
-                    <div className="flex items-center gap-2 text-sm text-destructive">
-                        <AlertCircle className="size-4" />
-                        <span>{data.validationMessage}</span>
-                    </div>
-                ) : undefined
-            }
-            sections={[
-                {
-                    champs: [
-                        { id: 'label', t: 'texte', l: t({ en: 'Label', fr: 'Libellé' }), v: data?.label ?? '' },
-                        {
-                            id: 'condition',
-                            t: 'zone',
-                            l: t({ en: 'Condition (for the model)', fr: 'Condition (pour le modèle)' }),
-                            v: data?.condition ?? '',
-                            info: "Décrit quand cette porte doit s'ouvrir. Le modèle la lit pour choisir la sortie.",
-                        },
-                        {
-                            id: 'fiche',
-                            t: 'choix',
-                            l: t({ en: 'Condition on the record', fr: 'Condition sur la fiche' }),
-                            o: Object.values(FICHE),
-                            v: FICHE[recordModeOf(data?.condition_sur_la_fiche)],
-                            info: "Le code n'ouvre la porte que si la condition est vraie. Les sorties se lisent dans l'ordre du canevas, la première vraie l'emporte.",
-                        },
-                        { id: 'champ', t: 'texte', l: t({ en: 'Field', fr: 'Champ' }), v: data?.condition_sur_la_fiche?.champ ?? '', si: ['fiche', [FICHE.field]] },
-                        {
-                            id: 'vaut',
-                            t: 'texte',
-                            l: t({ en: 'Value', fr: 'Valeur' }),
-                            v: data?.condition_sur_la_fiche?.vaut ?? '',
-                            si: ['fiche', [FICHE.field]],
-                            info: "Vide : n'importe quelle valeur. « refusé » pour un refus.",
-                        },
-                        { id: 'phrase', t: 'choix', l: t({ en: 'Transition sentence', fr: 'Phrase de transition' }), o: Object.values(PHRASE), v: PHRASE[phraseDepart] },
-                        {
-                            id: 'texte',
-                            t: 'zone',
-                            l: t({ en: 'Sentence text', fr: 'Texte de la phrase' }),
-                            v: data?.transition_speech ?? '',
-                            si: ['phrase', [PHRASE.text]],
-                            info: "Dite juste avant de passer à l'étape suivante. Elle n'entre pas dans le contexte de la conversation : une phrase de remplissage qui réduit l'attente.",
-                        },
-                        ...(choixEnregistrement.length > 0
-                            ? [
-                                  {
-                                      id: 'enregistrement',
-                                      t: 'choix' as const,
-                                      l: t({ en: 'Recording', fr: 'Enregistrement' }),
-                                      o: choixEnregistrement,
-                                      v: enregistrementDepart ? libelleEnregistrement(enregistrementDepart) : choixEnregistrement[0],
-                                      si: ['phrase', [PHRASE.audio]] as [string, string[]],
-                                  },
-                              ]
-                            : []),
-                    ],
-                },
-            ]}
-            onValider={(v) => {
-                const fiche = v.fiche === FICHE.complete ? 'complete' : v.fiche === FICHE.field ? 'field' : 'none';
-                const champ = String(v.champ ?? '').trim();
-                const recordCondition: EdgeRecordCondition | undefined =
-                    fiche === 'complete'
-                        ? { etape_complete: true }
-                        : fiche === 'field' && champ
-                          ? { champ, vaut: String(v.vaut ?? '').trim() || undefined }
-                          : undefined;
-                const type = v.phrase === PHRASE.audio ? 'audio' : 'text';
-                const enregistrement = enregistrements.find((r) => libelleEnregistrement(r) === v.enregistrement)?.recording_id;
-                const label = String(v.label ?? '');
-                const identifiant = identifiantGarde(data, label); // L6+ : la porte garde son nom au renommage
-                onSave({
-                    condition: String(v.condition ?? ''),
-                    label,
-                    ...(identifiant ? { identifiant } : {}),
-                    condition_sur_la_fiche: recordCondition,
-                    transition_speech: v.phrase === PHRASE.text ? String(v.texte ?? '') || undefined : undefined,
-                    transition_speech_type: type,
-                    transition_speech_recording_id: v.phrase === PHRASE.audio ? enregistrement : undefined,
-                });
-            }}
-        />
-    );
-};
 
 interface CustomEdgeProps extends EdgeProps {
     data: FlowEdgeData;
@@ -160,9 +22,13 @@ export default function CustomEdge(props: CustomEdgeProps) {
     const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style, selected, markerEnd } = props;
 
     const { getEdges, setNodes } = useReactFlow<FlowNode, FlowEdge>();
-    const { saveWorkflow } = useWorkflow();
+    const { saveWorkflow, recordings } = useWorkflow();
+    const readOnly = useWorkflowOptional()?.readOnly ?? false;
     const updateEdge = useWorkflowStore((state) => state.updateEdge);
+    const updateNode = useWorkflowStore((state) => state.updateNode);
     const deleteEdge = useWorkflowStore((state) => state.deleteEdge);
+    // [.mark] Sous-lot 21 : l'étape d'où part la liaison (qui y décide), lue dans le magasin du graphe.
+    const noeudSource = useWorkflowStore((state) => state.nodes.find((n) => n.id === source));
     const [open, setOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
@@ -255,15 +121,26 @@ export default function CustomEdge(props: CustomEdgeProps) {
         });
     }, [selected, isHovered, source, target, setNodes]);
 
-    const handleSaveEdgeData = useCallback(async (updatedData: FlowEdgeData) => {
+    const handleSaveEdgeData = useCallback(async (updatedData: FlowEdgeData, quiPose?: QuiDecide) => {
+        // [.mark] Sous-lot 21 : la correction « faire décider la fiche » se pose sur l'étape source, avec la liaison.
+        if (quiPose && noeudSource) {
+            updateNode(noeudSource.id, { data: { ...noeudSource.data, qui_decide_du_passage: quiPose } });
+        }
         // Use the workflow store's updateEdge method to properly track history
         updateEdge(id, { data: updatedData });
         await saveWorkflow();
-    }, [id, updateEdge, saveWorkflow]);
+    }, [id, updateEdge, updateNode, noeudSource, saveWorkflow]);
 
-    // [.mark] Partie 3, sous-lot 20 : une couleur par type de transition (le modèle décide, étape de la fiche complète, champ de la fiche).
+    // [.mark] Partie 3, sous-lot 20 : une couleur par type de transition ; sous-lot 21 : règles, toujours, sinon, et l'indicateur
+    // « le code vérifie » ou « l'IA juge ». Sur une étape où le modèle décide, une condition du code est sans effet : l'icône le dit.
     const typeTransition = typeDeTransition(data);
     const style_ = STYLE_TRANSITION[typeTransition];
+    const qui = quiDecide(noeudSource?.data?.qui_decide_du_passage);
+    const inerte = style_.decide !== 'modele' && qui === 'agent';
+    const decide = inerte ? 'modele' : style_.decide;
+    const Icone = decide === 'code' ? Braces : decide === 'modele' ? Sparkles : null;
+    const titre = inerte ? `${t(style_.nom)} · ${t({ en: 'no effect: the model decides on this step', fr: "sans effet : le modèle décide sur cette étape" })}` : t(style_.nom);
+    const autreSinon = getEdges().some((e) => e.source === source && e.id !== id && !!e.data?.condition_sur_la_fiche?.sinon);
 
     const handleDeleteEdge = useCallback(() => {
         deleteEdge(id);
@@ -280,6 +157,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                         ...style,
                         stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? 'var(--liaison-survol)' : style_.trait,
                         strokeWidth: 1.5,
+                        strokeDasharray: style_.pointille ? '4 4' : undefined,
                         transition: 'stroke 0.2s ease',
                     }}
                     interactionWidth={20}
@@ -303,17 +181,31 @@ export default function CustomEdge(props: CustomEdgeProps) {
                         type="button"
                         onClick={() => setOpen(true)}
                         data-type-transition={typeTransition}
-                        title={t(style_.nom)}
+                        data-decide={decide}
+                        {...(inerte ? { 'data-sans-effet': '' } : {})}
+                        title={titre}
+                        aria-label={`${data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })} : ${titre}`}
                         className={cn(
-                            'max-w-[220px] cursor-pointer truncate rounded-md border px-2 py-0.5 text-[11px] hover:font-semibold hover:text-foreground',
+                            'inline-flex max-w-[220px] cursor-pointer items-center gap-1 truncate rounded-md border px-2 py-0.5 text-[11px] hover:font-semibold hover:text-foreground',
                             data?.invalid ? 'border-destructive bg-background text-destructive' : style_.pastille,
                         )}
                     >
-                        {data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })}
+                        {Icone && <Icone className="size-3 shrink-0" aria-hidden />}
+                        <span className="truncate">{data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })}</span>
                     </button>
                 </div>
             </EdgeLabelRenderer>
-            <EdgeDetailsDialog open={open} onOpenChange={setOpen} data={data} onSave={handleSaveEdgeData} onDelete={handleDeleteEdge} />
+            <FenetreTransition
+                ouverte={open}
+                fermer={() => setOpen(false)}
+                data={data}
+                etape={{ nom: String(noeudSource?.data?.name ?? ''), qui }}
+                autreSinon={autreSinon}
+                enregistrements={recordings ?? []}
+                lecture={readOnly}
+                onSave={handleSaveEdgeData}
+                onDelete={handleDeleteEdge}
+            />
         </>
     );
 }

@@ -63,8 +63,9 @@ const ENVELOPPES = new Set([
     "components/mark/studio/fenetre-onglets.tsx",
     "components/mark/studio/panneau-droit.tsx",
 ]);
-/** Elles demandent explicitement le panneau (`centree={false}`) alors que la règle des deux champs les centrerait. */
-const AU_PANNEAU_EXPLICITE = new Set(["components/flow/edges/CustomEdge.tsx"]);
+/** Elles demandent explicitement le panneau (`centree={false}`) alors que la règle des deux champs les centrerait. Sous-lot 21 :
+ * la fenêtre de la transition (`FenetreTransition`) n'a plus besoin de le demander (elle n'est pas une fenêtre à champs). */
+const AU_PANNEAU_EXPLICITE = new Set<string>();
 
 const declarent = () =>
     parcourir(SRC)
@@ -91,6 +92,7 @@ describe("l'inventaire des fenêtres centrées (sous-lot 19)", () => {
     it("les fenêtres de modification d'un objet (étape, transition, tests, qualité, versions) ne sont pas centrées", () => {
         const sansCentree = [
             "components/flow/nodes/common/NodeEditDialog.tsx",
+            "components/mark/graphe/FenetreTransition.tsx",
             "components/mark/agent/branches/FenetreVersions.tsx",
             "components/mark/agent/branches/FenetreRepartition.tsx",
             "components/mark/agent/branches/FenetreFusion.tsx",
