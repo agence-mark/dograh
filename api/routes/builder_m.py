@@ -37,7 +37,7 @@ async def _agent_ou_404(user: UserModel, workflow_id: int):
 async def apercu_avant_de_revenir(workflow_id: int, numero: int, user: UserModel = Depends(get_user_with_selected_organization)):
     workflow = await _agent_ou_404(user, workflow_id)
     try:
-        return await apercu.apercu_de_la_restauration(user.selected_organization_id, workflow, numero)
+        return await apercu.apercu_de_la_restauration(user.selected_organization_id, workflow, numero, user=user)
     except revue.ErreurRevue as erreur:
         raise HTTPException(status_code=404, detail=str(erreur)) from None
 

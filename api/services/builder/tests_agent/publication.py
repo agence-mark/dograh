@@ -34,7 +34,10 @@ INTERRUPTEUR = "MARK_PUBLICATION_SANS_GARDE"
 async def agent_suivi(organization_id: int, workflow_id: int) -> bool:
     if await stockage.lister(organization_id, workflow_id):
         return True
-    return bool(await stock.lister(organization_id, f"{PREFIXE_BUILDER}{workflow_id}:"))
+    lignes = await stock.lister_sans(organization_id, f"{PREFIXE_BUILDER}{workflow_id}:", ["avant", "apres", "complement"])
+    # Partie 3, sous-lot 7 : l'instantané que prend une PUBLICATION (pour « Revenir avant ») n'est pas la trace d'un builder qui suit
+    # l'agent : sans cette exception, publier suffirait à rendre l'agent « suivi » et à lui imposer les gardes de publication.
+    return any(not (":instantanes:" in cle and valeur.get("cause") == "publication") for cle, valeur in lignes)
 
 
 async def problemes_des_tests_obligatoires(

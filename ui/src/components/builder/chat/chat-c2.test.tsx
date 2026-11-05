@@ -169,7 +169,8 @@ describe("revue champ par champ", () => {
         expect(apercu).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 } });
         expect(restaurer).not.toHaveBeenCalled();
         fireEvent.click(screen.getByText("Confirm and go back"));
-        await waitFor(() => expect(restaurer).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 } }));
+        // Sous-lot 7 : un serveur qui ne parle que du graphe ne propose que le schéma, et la confirmation envoie ce qui est coché.
+        await waitFor(() => expect(restaurer).toHaveBeenCalledWith({ path: { workflow_id: 9, numero: 2 }, body: { familles: ["schema"] } }));
     });
 
     it("annuler l'aperçu ne restaure rien", async () => {

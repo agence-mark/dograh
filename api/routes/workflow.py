@@ -1062,6 +1062,11 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
     from api.services.boucle.avancement import apres_une_publication
 
     await apres_une_publication(user.selected_organization_id, workflow_id)
+    # [.mark] Partie 3, sous-lot 7 (SE-15) : l'état publié (graphe, phrases, réglages, vocabulaire, objets) est gardé pour « Revenir avant ».
+    # Ne lève jamais : une publication faite ne rate pas faute d'instantané.
+    from api.services.builder import revue as revue_du_builder
+
+    await revue_du_builder.apres_une_publication(user.selected_organization_id, workflow, published, user)
 
     return {
         "id": published.id,

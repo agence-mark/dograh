@@ -40,7 +40,7 @@ const T = {
 } satisfies Record<string, Texte>;
 
 export type Changement = { rang: number; op: string; cible: string | null; champ: string; avant: unknown; apres: unknown; invalide?: boolean };
-type Version = { numero: number; cause: string; date: string };
+type Version = { numero: number; cause: string; date: string; familles?: string[] };
 
 export function montrer(valeur: unknown, vide: string): string {
     if (valeur === null || valeur === undefined || valeur === "") return vide;
@@ -97,17 +97,17 @@ export function RevueChampParChamp({
         apres?.();
     };
 
-    const revenir = async (numero: number) => {
+    const revenir = async (numero: number, familles: string[]) => {
         if (workflowId === null) return;
         setAApercevoir(null);
-        const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero } });
+        const r = await restaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPost({ path: { workflow_id: workflowId, numero }, body: { familles } });
         if (r.error) {
             setErreur(phraseEchec(r.error));
             notifier.echec({ en: "The version could not be restored. Try again.", fr: "La version n'a pas pu être restaurée. Réessayez." }, { erreur: r.error });
             return;
         }
         setErreur(null);
-        notifier.succes({ en: "Version restored.", fr: "Version restaurée." });
+        notifier.succes({ en: "Version restored in the draft.", fr: "Version restaurée dans le brouillon." });
         await charger();
         apres?.();
     };
@@ -187,7 +187,7 @@ export function RevueChampParChamp({
             )}
             {erreur && <p className="text-sm text-destructive">{erreur}</p>}
             {aApercevoir !== null && workflowId !== null && (
-                <FenetreRestauration workflowId={workflowId} numero={aApercevoir} confirmer={() => revenir(aApercevoir)} fermer={() => setAApercevoir(null)} />
+                <FenetreRestauration workflowId={workflowId} numero={aApercevoir} confirmer={(familles) => revenir(aApercevoir, familles)} fermer={() => setAApercevoir(null)} />
             )}
         </section>
     );
