@@ -175,6 +175,10 @@ class WorkflowRunUsageResponse(BaseModel):
     juge_par: Optional[str] = Field(default=None, description="Who judged the call: the judge's model, or Claude Code; null until it is judged.")
     version: Optional[int] = Field(default=None, description="The agent version that handled the call.")
     canal: Optional[str] = Field(default=None, description="telephony, web, chat, simulated or site.")
+    resume: Optional[str] = Field(
+        default=None, description="One or two sentences on the call: the after-call summary, else the model's short summary; null when none."
+    )
+    resume_source: Optional[str] = Field(default=None, description="Where the summary comes from: synthese or modele.")
 
 
 class UsageHistoryResponse(BaseModel):
@@ -406,7 +410,7 @@ Supported `attribute` / `type` / `value` combinations:
 | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, `chat`, `simulated` (the group of run modes for that channel) or `site` (started from the site widget) |
 | `judgeNote`     | `numberRange` | `{ "min": 3.5, "max": 5 }`                   | the judge's grade out of 5 (unjudged calls never match) |
 | `agentVersion`  | `number`      | `{ "value": 3 }`                             | calls handled by that version number of their agent  |
-| `callReason`    | `text`        | `{ "value": "rdv" }`                         | substring of the call reason in the record           |
+| `callReason`    | `text`        | `{ "value": "Rendez-vous" }`                 | the call reason of the record, exact match (case and extra spaces ignored) |
 | `callClient`    | `text`        | `{ "value": "dupont" }`                      | substring of the caller's name or number             |
 
 Unknown attributes and unsupported `type` values are silently ignored.

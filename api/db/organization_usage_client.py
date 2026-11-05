@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload
 
 from api.db import appels_liste
+from api.services import resume_appel
 from api.db.base_client import BaseDBClient
 from api.db.filters import (
     apply_workflow_run_filters,
@@ -334,6 +335,8 @@ class OrganizationUsageClient(BaseDBClient):
                     "juge_par": appels_liste.juge_par(run.annotations),
                     "version": run.definition.version_number if run.definition else None,
                     "canal": _canal_du_run(run.mode, run.annotations),
+                    # [.mark] N3b : le résumé (synthèse de l'après-appel réduite, sinon résumé du modèle), lu des annotations déjà chargées.
+                    **resume_appel.champs(run.annotations),
                 }
 
                 # Add USD cost if available in cost_info

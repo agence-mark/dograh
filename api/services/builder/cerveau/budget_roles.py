@@ -18,8 +18,8 @@ from api.db import db_client
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.depense import debut_du_mois
 
-ROLES = ("appelant", "juge")
-NOM_DU_ROLE = {"appelant": "simulated caller", "juge": "judge"}
+ROLES = ("appelant", "juge", "resume")
+NOM_DU_ROLE = {"appelant": "simulated caller", "juge": "judge", "resume": "call summary"}
 CODE_BUDGET = "budget_mois"
 
 

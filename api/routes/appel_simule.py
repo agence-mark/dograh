@@ -225,6 +225,7 @@ async def save_reglages_appelant_simule(
     for uuid_ in {
         request.appelant.identifiant,
         request.juge.identifiant,
+        request.resume.identifiant,
         request.voix.identifiant,
     }:
         if uuid_ and await db_client.get_credential_by_uuid(uuid_, org) is None:
@@ -260,7 +261,10 @@ async def get_depense_des_roles(user: UserModel = Depends(get_user_with_selected
         )
 
     return DepenseDesRoles(
-        mois=budget_roles.mois_courant().isoformat(), appelant=vue("appelant", reglages.appelant), juge=vue("juge", reglages.juge)
+        mois=budget_roles.mois_courant().isoformat(),
+        appelant=vue("appelant", reglages.appelant),
+        juge=vue("juge", reglages.juge),
+        resume=vue("resume", reglages.resume),
     )
 
 

@@ -55,9 +55,10 @@ const BUDGET_MAX = 100000;
 /** The settings as read, with every part present (the server fills the defaults; the generated
  * type leaves them optional). */
 type Role = Required<Pick<RoleSimule, "modele" | "consigne" | "temperature" | "source" | "actif" | "budget_mois">> & { identifiant: string | null };
-export type ReglagesComplets = Omit<ReglagesAppelantSimule, "appelant" | "juge" | "voix"> & {
+export type ReglagesComplets = Omit<ReglagesAppelantSimule, "appelant" | "juge" | "resume" | "voix"> & {
     appelant: Role;
     juge: Role;
+    resume: Role;
     voix: Required<Pick<VoixSimulee, "voix">> & { identifiant: string | null };
 };
 
@@ -76,6 +77,8 @@ export const completer = (lu: ReglagesAppelantSimule): ReglagesComplets => ({
     ...lu,
     appelant: role(lu.appelant),
     juge: role(lu.juge),
+    // N3b : le résumé d'appel est un troisième rôle (éteint par défaut, même budget du mois).
+    resume: role(lu.resume),
     voix: { voix: lu.voix?.voix ?? "", identifiant: lu.voix?.identifiant ?? null },
 });
 
@@ -86,6 +89,7 @@ export const fautesDesReglages = (r: ReglagesComplets, t: (texte: Texte) => stri
     for (const [nom, rl] of [
         [t({ en: "Caller", fr: "Appelant" }), r.appelant],
         [t({ en: "Judge", fr: "Juge" }), r.juge],
+        [t({ en: "Call summary", fr: "Résumé d'appel" }), r.resume],
     ] as const)
         if (typeof rl.budget_mois !== "number" || Number.isNaN(rl.budget_mois) || rl.budget_mois < 0 || rl.budget_mois > BUDGET_MAX)
             fautes.push(t({ en: `${nom} budget: between 0 and ${BUDGET_MAX}`, fr: `Budget ${nom.toLowerCase()} : entre 0 et ${BUDGET_MAX}` }));
@@ -101,18 +105,20 @@ function Role({
     titre,
     role,
     juge = false,
+    resume = false,
     depense,
     onChange,
 }: {
     titre: Texte;
     role: Role;
     juge?: boolean;
+    resume?: boolean;
     depense: DepenseDuRole | null;
     onChange: (morceau: Partial<Role>) => void;
 }) {
     const { t, langue } = useLangue();
     return (
-        <fieldset className="space-y-2 rounded border border-border p-3" data-role={juge ? "juge" : "appelant"}>
+        <fieldset className="space-y-2 rounded border border-border p-3" data-role={juge ? "juge" : resume ? "resume" : "appelant"}>
             <legend className="px-1 text-sm font-medium">{t(titre)}</legend>
             <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="flex items-center gap-1.5">
@@ -299,8 +305,8 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                     <DialogTitle>{t({ en: "Simulated caller settings", fr: "Réglages de l'appelant simulé" })}</DialogTitle>
                     <DialogDescription>
                         {t({
-                            en: "For the whole organization. The simulated caller and the judge use a Mistral key of an organization other than the agent's, so they never eat its quota. Each has its own model, key, switch and monthly budget. Keys are added, picked and deleted with « Keys… ».",
-                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent une clé Mistral d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Chacun a son modèle, sa clé, son interrupteur et son budget du mois. Les clés s'ajoutent, se choisissent et se suppriment avec « Clés… ».",
+                            en: "For the whole organization. The simulated caller and the judge use a Mistral key of an organization other than the agent's, so they never eat its quota. Each has its own model, key, switch and monthly budget. The call summary writes one or two sentences on each call that has no after-call summary. Keys are added, picked and deleted with « Keys… ».",
+                            fr: "Pour toute l'organisation. L'appelant simulé et le juge utilisent une clé Mistral d'une autre organisation que celle de l'agent, pour ne jamais manger son quota. Chacun a son modèle, sa clé, son interrupteur et son budget du mois. Le résumé d'appel écrit une ou deux phrases sur chaque appel qui n'a pas de synthèse. Les clés s'ajoutent, se choisissent et se suppriment avec « Clés… ».",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -325,6 +331,13 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
                             role={brouillon.juge}
                             depense={depense?.juge ?? null}
                             onChange={(m) => changer({ juge: { ...brouillon.juge, ...m } })}
+                        />
+                        <Role
+                            titre={{ en: "Call summary", fr: "Résumé d'appel" }}
+                            resume
+                            role={brouillon.resume}
+                            depense={depense?.resume ?? null}
+                            onChange={(m) => changer({ resume: { ...brouillon.resume, ...m } })}
                         />
                         <fieldset className="grid gap-2 rounded border border-border p-3 sm:grid-cols-2">
                             <legend className="px-1 text-sm font-medium">{t({ en: "Voice", fr: "Voix" })}</legend>

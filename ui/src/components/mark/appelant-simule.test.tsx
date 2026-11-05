@@ -363,6 +363,29 @@ describe("[.mark] the simulated caller's settings (L18, Q1 to Q3)", () => {
         expect(roleAppelant.getByRole("switch", { name: "Simulated caller · Switched on" })).toBeTruthy();
     });
 
+    it("N3b : the call summary is a third role, switched off by default, with its own budget and spending", async () => {
+        m.getDepense.mockResolvedValue({
+            data: {
+                mois: "2026-11-01",
+                appelant: { appels: 0, jetons: 0, cout: 0, budget_mois: 0, actif: true, atteint: false },
+                juge: { appels: 0, jetons: 0, cout: 0, budget_mois: 0, actif: true, atteint: false },
+                resume: { appels: 3, jetons: 450, cout: 0.0045, budget_mois: 1, actif: false, atteint: false },
+            },
+        });
+        render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);
+        await screen.findByLabelText("Simulated caller · model key");
+        const resume = within(document.querySelector("[data-role=resume]") as HTMLElement);
+        expect((resume.getByRole("switch", { name: "Call summary · Switched on" }) as HTMLElement).getAttribute("aria-checked")).toBe("false");
+        expect(texte(document.querySelector("[data-role=resume] [data-depense-du-role]") as HTMLElement)).toContain("0.00 spent this month (3 calls)");
+        fireEvent.change(resume.getByLabelText("Call summary · Monthly budget"), { target: { value: "-1" } });
+        expect(texte(screen.getByTestId("fautes-appelant-simule"))).toContain("Call summary budget: between 0 and 100000");
+        fireEvent.change(resume.getByLabelText("Call summary · Monthly budget"), { target: { value: "2" } });
+        fireEvent.click(resume.getByRole("switch", { name: "Call summary · Switched on" }));
+        fireEvent.click(bouton("Save"));
+        await waitFor(() => expect(m.saveReglages).toHaveBeenCalledTimes(1));
+        expect(m.saveReglages.mock.calls[0][0].body.resume).toMatchObject({ actif: true, budget_mois: 2 });
+    });
+
     it("adds a key from the settings, picks it at once, and never shows it again", async () => {
         BIBLIOTHEQUE.splice(0, BIBLIOTHEQUE.length);
         render(<ModaleReglagesAppelantSimule ouverte onFermer={vi.fn()} />);

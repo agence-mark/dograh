@@ -616,6 +616,7 @@ export default function UsagePage() {
                             { titre: enteteTriable('version', t({ en: 'Version', fr: 'Version' })) },
                             { titre: t({ en: 'Caller', fr: 'Client' }) },
                             { titre: t({ en: 'Reason', fr: 'Motif' }) },
+                            { titre: t({ en: 'Summary', fr: 'Résumé' }) },
                             { titre: t({ en: 'Channel', fr: 'Canal' }) },
                             { titre: t({ en: 'Outcome', fr: 'Issue' }) },
                             { titre: enteteDuree, droite: true },
@@ -636,6 +637,12 @@ export default function UsagePage() {
                                     {run.client || (run.call_type === 'inbound' ? run.caller_number : run.called_number) || '-'}
                                 </Cellule>
                                 <Cellule>{run.motif || '-'}</Cellule>
+                                <Cellule className="max-w-72 whitespace-normal">
+                                    {/* N3b : la synthèse de l'après-appel réduite à deux phrases, sinon le résumé du modèle ; jamais rien d'inventé. */}
+                                    <span data-resume-appel={run.resume_source ?? "aucun"} title={run.resume ?? undefined} className="line-clamp-2">
+                                        {run.resume || '-'}
+                                    </span>
+                                </Cellule>
                                 <Cellule>
                                     <span className="inline-flex items-center gap-2">
                                         <CallTypeCell mode={run.mode} callType={run.call_type} />
