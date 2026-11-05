@@ -182,7 +182,7 @@ async def test_sur_cle_l_appel_est_juge_et_ecrit_fusionne_sous_la_cle_juge(monde
     await appels.apres_appel(_run(), ORG_CLIENT)
     (run_id, annotations), = mondes.ecrits
     assert run_id == 5 and list(annotations) == ["juge"]  # seule la clé « juge » : QA et « À trier » gardent la leur
-    assert annotations["juge"]["etat"] == "juge" and len(annotations["juge"]["verdicts"]) == len(grille) == 6 and sorties == []
+    assert annotations["juge"]["etat"] == "juge" and len(annotations["juge"]["verdicts"]) == len(grille) == 11 and sorties == []
 
 
 async def test_la_note_du_juge_est_gardee_avec_le_resultat_sur_cle_et_effacee_hors_juge(mondes, monkeypatch):
@@ -192,7 +192,7 @@ async def test_la_note_du_juge_est_gardee_avec_le_resultat_sur_cle_et_effacee_ho
     cerveau = CerveauFactice(*[tour(_json()) for _ in grille])
     monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=cerveau))
     await appels.apres_appel(_run(), ORG_CLIENT)
-    assert mondes.notes == [(5, 5.0)]  # 6 critères réussis sur 6
+    assert mondes.notes == [(5, 5.0)]  # 11 critères réussis sur 11 (les 6 du code et les 5 du vécu de l appelant)
     # Claude Code : l'appel attend, la note est effacée (un ancien jugement ne reste pas)
     _juge(monkeypatch, source="claude_code")
     await appels.apres_appel(_run(), ORG_CLIENT)
@@ -248,7 +248,7 @@ async def test_le_cycle_a_faire_lire_ecrire_d_un_vrai_appel(mondes):
     liste = await executer("juge_a_faire", {}, MCP)
     assert liste["total"] == 1 and liste["a_juger"][0]["id"] == "appel-5"
     dossier = await executer("juge_lire", {"id": "appel-5"}, MCP)
-    assert [t["n"] for t in dossier["transcription"]] == [1, 2, 3] and len(dossier["criteres"]) == 6 and dossier["consigne"]
+    assert [t["n"] for t in dossier["transcription"]] == [1, 2, 3] and len(dossier["criteres"]) == 11 and dossier["consigne"]
     verdicts = [verdict(c) for c in dossier["criteres"]]
     ok = await executer("juge_ecrire", {"id": "appel-5", "verdicts": verdicts}, MCP)
     assert ok["ok"] is True and ok["reussi"] is True and ok["mention"] == independance.MENTION_CLAUDE_CODE

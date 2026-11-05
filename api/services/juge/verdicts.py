@@ -28,6 +28,17 @@ GRILLE_SECOURS = (
     "Sort lui-même de son bug (impasse, boucle, hallucination) sans perdre l'appel entier",
 )
 
+# RA-B (R6, audit 06 § « Ce qu'on reprend ») : ce que vit l'appelant, repris des étiquettes du « Contrôle qualité » de Dograh
+# mais jugés comme les autres critères (une grille fermée, une citation exacte), jamais en étiquettes libres. Écrits comme des
+# réussites : « réussi » = l'appelant n'a pas vécu le problème.
+CRITERES_DU_VECU = (
+    "L'appelant ne paraît pas frustré",
+    "Aucun blanc prolongé pendant l'appel",
+    "L'appelant ne manifeste pas de gêne à parler à une machine",
+    "Aucun problème d'écoute (l'appelant n'a pas à répéter)",
+    "L'agent ne tourne pas en boucle",
+)
+
 PREUVE_MAX = 600
 
 

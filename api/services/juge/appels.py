@@ -22,7 +22,7 @@ from api.services.builder import consignes
 from api.services.builder.cerveau import budget_roles, independance, simules
 from api.services.builder.cerveau import reglages as reglages_cerveau
 from api.services.builder.tests_agent import verdict as verdict_code
-from api.services.juge import file, note, passes
+from api.services.juge import file, note, passes, tri
 from api.services.juge import verdicts as v
 
 
@@ -31,7 +31,9 @@ async def grille() -> list[str]:
     contenu = await consignes.contenu_de("criteres-types", "grille-du-juge-v1")
     brut = (contenu.get("critere") or {}).get("grille") if isinstance(contenu.get("critere"), dict) else None
     criteres = [str(c) for c in brut if str(c).strip()] if isinstance(brut, list) else []
-    return criteres or list(v.GRILLE_SECOURS)
+    base = criteres or list(v.GRILLE_SECOURS)
+    # RA-B R6 : les critères du vécu de l'appelant font partie de la grille (sans doublon si la bibliothèque les porte déjà).
+    return [*base, *(c for c in v.CRITERES_DU_VECU if c not in base)]
 
 
 def dossier_d_un_run(run: Any) -> dict[str, Any]:
@@ -73,6 +75,11 @@ async def apres_appel(run: Any, organisation: int) -> None:
     """Juge (ou range à juger) un vrai appel si l'agent le demande. Ne lève jamais."""
     try:
         if est_un_appel_d_essai(run) or not await file.juge_des_vrais_appels(organisation, run.workflow_id):
+            return
+        # RA-B R6 : la part jugée, la durée minimale et les répondeurs exclus (repris de Dograh) ; un appel écarté le dit.
+        juger_cet_appel, etat_ecarte = tri.decision(run, tri.lire(await file.lire_reglages(organisation, run.workflow_id)))
+        if not juger_cet_appel:
+            await ecrire_dans_le_run(run.id, {"etat": etat_ecarte})
             return
         from api.services.appel_simule import reglages as appel_simule
 
