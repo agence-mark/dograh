@@ -826,12 +826,16 @@ async def get_workflow(
         workflow_configs = draft.workflow_configurations
         template_vars = draft.template_context_variables
     else:
-        published = workflow.released_definition
+        # [.mark] Partie 3, SA-L3b : une branche ouverte sans brouillon montre SA version en ligne, pas celle de la principale.
+        published = (
+            await db_client.version_en_ligne_de_la_branche_ouverte(workflow_id)
+            or workflow.released_definition
+        )
         workflow_def = published.workflow_json
         workflow_configs = published.workflow_configurations
         template_vars = published.template_context_variables
 
-    active_def = draft or workflow.released_definition
+    active_def = draft or published
     return {
         "id": workflow.id,
         "name": workflow.name,

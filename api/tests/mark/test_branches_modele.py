@@ -245,6 +245,11 @@ async def test_les_routes_creent_listent_et_publient_et_l_en_tete_mene_le_builde
         assert (await client.post(f"/api/v1/builder/branches/{agent.id}/{identifiant}/publier")).status_code == 409
         vue = (await client.get(f"/api/v1/builder/branches/{agent.id}")).json()
         assert [v["numero"] for v in vue["branches"][1]["versions"]] == [publiee.json()["version_number"]]
+        # branche ouverte sans brouillon : l'écran montre SA version en ligne (pas celle de la principale)
+        sur_branche = (await client.get(f"/api/v1/workflow/fetch/{agent.id}", headers={"X-Mark-Branche": str(identifiant)})).json()
+        assert sur_branche["version_number"] == publiee.json()["version_number"] and sur_branche["version_status"] == "archived"
+        principale = (await client.get(f"/api/v1/workflow/fetch/{agent.id}")).json()
+        assert principale["version_number"] == 1 and principale["version_status"] == "published"
         # publier la principale par l'en-tête d'une branche est refusé net (400), pas publié par erreur
         refuse = await client.post(f"/api/v1/workflow/{agent.id}/publish", headers={"X-Mark-Branche": str(identifiant)})
         assert refuse.status_code in (400, 409, 422), refuse.text
@@ -335,3 +340,32 @@ async def test_une_branche_dont_le_brouillon_est_invalide_n_est_pas_publiee(org,
         r = await client.post(f"/api/v1/workflow/{agent.id}/publish", headers={"X-Mark-Branche": str(branche.id)})
         assert r.status_code == 422
     assert (await db_session.obtenir_une_branche(org.organisation.id, agent.id, branche.id)).head_definition_id == agent.released_definition_id
+
+
+async def test_les_objets_rendus_restent_lisibles_comme_en_production(org, db_session, async_session):
+    """La session des tests ne fait pas expirer les objets au commit (``expire_on_commit=False``) ; celle de la production, si : lire un
+    objet rendu après un commit sans relecture y levait ``DetachedInstanceError`` (constaté sur l'écran, l'API répondait 500).
+    Ici la session expire au commit, comme en production, le temps de ces appels."""
+    agent = await _agent(db_session, org)
+    o, moi, agent_id = org.organisation.id, org.utilisateur.id, agent.id
+    async_session.sync_session.expire_on_commit = True
+    try:
+        principale = await db_session.obtenir_la_principale(o, agent_id)
+        assert principale.nom == "Principale" and principale.part_trafic == 100
+        branche, brouillon = await db_session.creer_une_branche(o, agent_id, "Essai", depuis_definition_id=None, user_id=moi)
+        assert branche.nom == "Essai" and brouillon.branch_id == branche.id
+        branches = await db_session.lister_les_branches(o, agent_id)
+        assert [(b.nom, b.part_trafic, b.est_principale) for b in branches] == [("Principale", 100, True), ("Essai", 0, False)]
+        ecrites = await db_session.regler_la_repartition(o, agent_id, {principale.id: 80, branche.id: 20})
+        assert sorted(b.part_trafic for b in ecrites) == [20, 80]
+        version = await db_session.publier_le_brouillon_de_branche(o, agent_id, branche.id, moi)
+        assert version.status == "archived" and version.version_number
+        from types import SimpleNamespace
+
+        from api.services.branches import service
+
+        faux_agent = SimpleNamespace(id=agent_id, released_definition_id=None, released_definition=None, workflow_configurations=None)
+        vue = await service.vue(o, faux_agent, moi)
+        assert [b["nom"] for b in vue["branches"]] == ["Principale", "Essai"]
+    finally:
+        async_session.sync_session.expire_on_commit = False

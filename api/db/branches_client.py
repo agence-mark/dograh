@@ -66,9 +66,10 @@ class BranchesClient(BaseDBClient):
     async def obtenir_la_principale(self, organization_id: int, workflow_id: int) -> WorkflowBranchModel:
         async with self.async_session() as session:
             await self._agent_de_l_organisation(session, organization_id, workflow_id)
-            principale = await self._principale(session, organization_id, workflow_id)
+            await self._principale(session, organization_id, workflow_id)
             await session.commit()
-            return principale
+            # Relue APRÈS le commit : une session de production expire les objets au commit (jamais un objet détaché illisible).
+            return await self._principale(session, organization_id, workflow_id)
 
     async def lister_les_branches(
         self, organization_id: int, workflow_id: int, *, avec_archivees: bool = False
@@ -77,6 +78,7 @@ class BranchesClient(BaseDBClient):
         async with self.async_session() as session:
             await self._agent_de_l_organisation(session, organization_id, workflow_id)
             await self._principale(session, organization_id, workflow_id)
+            await session.commit()  # la principale posée est écrite ; la lecture suivante rend des objets qui restent lisibles
             requete = select(WorkflowBranchModel).where(
                 WorkflowBranchModel.organization_id == organization_id, WorkflowBranchModel.workflow_id == workflow_id
             )
@@ -85,7 +87,6 @@ class BranchesClient(BaseDBClient):
             lignes = (
                 await session.scalars(requete.order_by(WorkflowBranchModel.est_principale.desc(), WorkflowBranchModel.id))
             ).all()
-            await session.commit()
             return list(lignes)
 
     async def obtenir_une_branche(self, organization_id: int, workflow_id: int, branch_id: int) -> WorkflowBranchModel | None:
@@ -158,7 +159,7 @@ class BranchesClient(BaseDBClient):
             await session.commit()
             await session.refresh(branche)
             await session.refresh(brouillon)
-            return branche, brouillon
+            return branche, brouillon  # rafraîchis après le commit : lisibles même une fois la session fermée
 
     async def publier_le_brouillon_de_branche(
         self, organization_id: int, workflow_id: int, branch_id: int, user_id: int | None
@@ -197,6 +198,18 @@ class BranchesClient(BaseDBClient):
             await session.commit()
             await session.refresh(brouillon)
             return brouillon
+
+    async def version_en_ligne_de_la_branche_ouverte(self, workflow_id: int) -> WorkflowDefinitionModel | None:
+        """La version en ligne de la branche non principale que la requête a ouverte (``None`` : la principale est ouverte, ou la
+        branche n'a pas de version). Sert à montrer la bonne version quand la branche n'a pas de brouillon."""
+        async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
+            if cible.branch_id is None:
+                return None
+            branche = await session.get(WorkflowBranchModel, cible.branch_id)
+            if branche is None or branche.head_definition_id is None:
+                return None
+            return await session.get(WorkflowDefinitionModel, branche.head_definition_id)
 
     async def versions_des_branches(self, organization_id: int, workflow_id: int) -> list[dict[str, Any]]:
         """Les versions immuables des branches non principales (les plus récentes d'abord), sans leur graphe, en UNE requête."""
@@ -275,7 +288,12 @@ class BranchesClient(BaseDBClient):
             for identifiant, part in parts.items():
                 actives[identifiant].part_trafic = part
             await session.commit()
-            return list(actives.values())
+            relues = await session.scalars(
+                select(WorkflowBranchModel)
+                .where(WorkflowBranchModel.workflow_id == workflow_id, WorkflowBranchModel.organization_id == organization_id)
+                .order_by(WorkflowBranchModel.id)
+            )
+            return [b for b in relues.all() if b.id in parts]
 
     async def repartition_en_cours(self, organization_id: int, workflow_id: int) -> list[dict[str, Any]]:
         """Pour la création d'un appel : les branches actives avec leur part et leur version, les non principales d'abord (par
