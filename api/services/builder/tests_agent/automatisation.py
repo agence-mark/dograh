@@ -5,6 +5,9 @@ déchiffrer (``statut`` en mot, compteurs, tests, échecs, dépense). Rien de ne
 la fonction de l'écran et du builder, donc le MÊME plafond de rejeu et les MÊMES budgets du mois des rôles (un budget atteint arrête
 la suite, ``statut`` = ``plafond``). Un test d'un client n'appelle jamais un tiers : il joue sur les cerveaux réglés de l'organisation.
 
+* **appel par une clé : le budget du mois doit être réglé** (revue RV, point 2) : sans budget (0 = aucun plafond), une clé appelée en boucle ferait
+  dépenser sans fin ; ``verifier_le_budget`` refuse avec une phrase claire. Une limite de débit par organisation tient la route
+  (``PAR_HEURE``) ; la dépense du modèle de l'agent pendant le rejeu est comptée dans la dépense du mois (``execution.compter_le_modele_de_l_agent``) ;
 * un seul rejeu à la fois par agent (verrou nommé organisation + agent) : une automatisation qui boucle ne double pas la dépense ;
 * arrêtable : au bout de ``DELAI_MAX_S`` la requête rend 504, les résultats déjà rangés se lisent avec ``dernier`` ;
 * aucun texte interne (pile, requête, message de fournisseur) dans la réponse : seulement ce que le code des tests écrit.
@@ -21,6 +24,13 @@ from api.services.builder.tests_agent import execution, stockage
 DELAI_MAX_S = 900.0
 REPETITIONS_PAR_DEFAUT = 1
 CHAMPS_ECHEC = ("test", "nom", "obligatoire", "critere", "raison", "replique")
+
+
+PAR_HEURE = 20  # lancements par organisation et par heure (le limiteur existant, comme ``/builder/miroir``)
+
+
+class BudgetNonRegle(RuntimeError):
+    """Une clé ne lance rien tant que le budget du mois n'est pas posé (> 0) : la phrase est celle que la route rend."""
 
 
 class DejaEnCours(RuntimeError):
@@ -63,6 +73,29 @@ def lisible(workflow_id: int, rendu: dict[str, Any]) -> dict[str, Any]:
         ],
         "echecs": [{k: e.get(k) for k in CHAMPS_ECHEC} for e in (rendu.get("echecs") or [])],
     }
+
+
+async def verifier_le_budget(user: Any) -> None:
+    """Revue RV (point 2) : un appel PAR UNE CLÉ est refusé tant que le budget du mois n'est pas réglé. Il faut celui de l'appelant simulé
+    (où se compte aussi le modèle de l'agent pendant le rejeu) et celui du juge quand il tourne sur une clé d'API. La session d'une
+    personne n'est pas concernée : elle voit la dépense à l'écran."""
+    if not getattr(user, "par_cle_api", False):
+        return
+    from api.services import sources_cerveaux
+    from api.services.appel_simule import reglages as appel_simule
+
+    organisation = user.selected_organization_id
+    roles = await sources_cerveaux.surcharger_les_roles(organisation, await appel_simule.lire_reglages(organisation))
+    manquants = []
+    if roles.appelant.budget_mois <= 0:
+        manquants.append("simulated caller")
+    if roles.juge.actif and roles.juge.source == "cle_api" and roles.juge.budget_mois <= 0:
+        manquants.append("judge")
+    if manquants:
+        raise BudgetNonRegle(
+            f"Set the monthly budget of the {' and of the '.join(manquants)} (Labo settings > Simulated caller) before launching tests with an API key: "
+            "without it nothing would stop an automation that loops."
+        )
 
 
 async def lancer(user: Any, workflow: Any, *, tests: list[str] | None, repetitions: int = REPETITIONS_PAR_DEFAUT) -> dict[str, Any]:
