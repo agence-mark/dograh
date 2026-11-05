@@ -300,7 +300,9 @@ async def test_un_chat_sans_agent_se_rattache_a_l_agent_qu_il_cree(db_session, s
     cerveau = CerveauFactice(tour(appel("create_workflow", {"code": "x"})), tour(texte("Fait")))
     donner_le_cerveau(monkeypatch, cerveau)
     async with client_http() as c:
-        fil = await ouvrir(c, jeton, org, None, "Crée un agent")
+        # RV (mineur 4) : créer un agent est un objet de l'organisation, une carte est demandée hors de « Tout permettre » ;
+        # ce test vérifie le rattachement, le chat s'ouvre donc en « Tout permettre » (N4 : mode posé à l'ouverture).
+        fil = await ouvrir(c, jeton, org, None, "Crée un agent", mode="tout")
         assert fil["workflow_id"] is None
         await service_fil.attendre(fil["id"])
         vu = (await c.get(f"{B}/fils/{fil['id']}", headers=entetes(jeton, org))).json()
