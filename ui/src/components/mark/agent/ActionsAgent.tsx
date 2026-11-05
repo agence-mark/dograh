@@ -8,7 +8,7 @@
  * `?builder=1`), sans rien dupliquer.
  */
 import type { ReactFlowInstance } from "@xyflow/react";
-import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, History, Keyboard, MoreHorizontal, Pencil, Percent, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
+import { ChevronDown, Clipboard, Copy, Download, FolderInput, FolderOutput, FlaskConical, Globe, History, Keyboard, MoreHorizontal, Pencil, Percent, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -47,6 +47,7 @@ import { useBranches } from "./branches/useBranches";
 import { FenetreCopieAgent } from "./copie/FenetreCopieAgent";
 import { definitionSansSecrets } from "./definition-sans-secrets";
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
+import { FenetreExportFichiers, FenetreImportFichiers } from "./fichiers/FenetreFichiersAgent";
 import { adresseOnglet } from "./onglets-agent";
 import { FenetreDePublication } from "./publication/FenetreDePublication";
 
@@ -99,6 +100,8 @@ const T = {
     dupliquer: { en: "Duplicate", fr: "Dupliquer" },
     duplication: { en: "Duplicating...", fr: "Duplication..." },
     telecharger: { en: "Download (JSON)", fr: "Télécharger (JSON)" },
+    exporterFichiers: { en: "Export as files", fr: "Exporter en fichiers" },
+    importerFichiers: { en: "Import files", fr: "Importer des fichiers" },
     copierId: { en: "Copy the identifier", fr: "Copier l'identifiant" },
     erreur: { en: "error", fr: "erreur" },
     erreurs: { en: "errors", fr: "erreurs" },
@@ -140,7 +143,7 @@ export function ActionsAgent({
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
-    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | "branche" | "versions" | "repartition" | "fusion" | null>(null);
+    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | "branche" | "versions" | "repartition" | "fusion" | "fichiers-export" | "fichiers-import" | null>(null);
     // [.mark] Partie 3, SA-L3c : la fenêtre Fusionner / Mettre à jour (quelle branche, dans quel sens).
     const [fusion, setFusion] = useState<{ sens: SensDeFusion; brancheId: number } | null>(null);
     // [.mark] Partie 3, SA-L3b : la branche ouverte dans cet onglet ; en changer relit tout l'écran avec son brouillon.
@@ -399,6 +402,14 @@ export function ActionsAgent({
                     <DropdownMenuItem onClick={telecharger}>
                         <Download className="mr-2 size-4" /> {t(T.telecharger)}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFenetre("fichiers-export")}>
+                        <FolderOutput className="mr-2 size-4" /> {t(T.exporterFichiers)}
+                    </DropdownMenuItem>
+                    {editeur && !editeur.versionPassee && (
+                        <DropdownMenuItem onClick={() => setFenetre("fichiers-import")}>
+                            <FolderInput className="mr-2 size-4" /> {t(T.importerFichiers)}
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={copierId} disabled={!workflowUuid}>
                         <Clipboard className="mr-2 size-4" /> {t(T.copierId)}
                     </DropdownMenuItem>
@@ -469,6 +480,8 @@ export function ActionsAgent({
             {(fenetre === "exporter" || fenetre === "ramener") && (
                 <FenetreCopieAgent agentId={agentId} nom={nom} sens={fenetre} fermer={() => setFenetre(null)} />
             )}
+            {fenetre === "fichiers-export" && <FenetreExportFichiers agentId={agentId} nom={nom} fermer={() => setFenetre(null)} />}
+            {fenetre === "fichiers-import" && <FenetreImportFichiers agentId={agentId} fermer={() => setFenetre(null)} apres={() => void lire()} />}
             <FenetreEtiquettes agentId={agentId} ouvert={fenetre === "etiquettes"} onOuvertChange={(o) => setFenetre(o ? "etiquettes" : null)} />
             <FenetreChamps
                 ouverte={fenetre === "dupliquer"}

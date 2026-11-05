@@ -67,6 +67,8 @@ interface WorkflowRunResponse {
     /** [.mark] V1b : la version de l'agent jouée et la note du juge (route de l'appel). */
     version_number: number | null;
     note_juge: number | null;
+    resume?: string | null;
+    resume_source?: string | null;
 }
 
 type Contexte = Record<string, string | number | boolean | object> | null;
@@ -281,7 +283,7 @@ export default function WorkflowRunPage() {
             setWorkflowName(workflowResponse.data?.name ?? null);
             if (runResponse.error) setEnErreur(true);
             // La version et la note viennent de la route de l'appel ; le client d'API généré les porte une fois régénéré.
-            const lu = (runResponse.data ?? {}) as { version_number?: number | null; note_juge?: number | null };
+            const lu = (runResponse.data ?? {}) as { version_number?: number | null; note_juge?: number | null; resume?: string | null; resume_source?: string | null };
             const runData = {
                 mode: runResponse.data?.mode ?? '',
                 created_at: runResponse.data?.created_at ?? null,
@@ -297,6 +299,8 @@ export default function WorkflowRunPage() {
                 annotations: runResponse.data?.annotations as Record<string, unknown> | null ?? null,
                 version_number: lu.version_number ?? null,
                 note_juge: lu.note_juge ?? null,
+                resume: lu.resume ?? null,
+                resume_source: lu.resume_source ?? null,
             };
             setWorkflowRun(runData);
         } catch {
@@ -411,6 +415,12 @@ export default function WorkflowRunPage() {
                                 <Star className="size-4 fill-current text-(--acc)" /> {tp({ en: 'judge', fr: 'juge' })} {noteDite}/5
                                 {jugePar && <span className="text-muted-foreground" data-juge-par>· {tp({ en: 'Judged by', fr: 'Jugé par' })} {jugePar}</span>}
                             </span>
+                        )}
+                        {workflowRun?.resume && (
+                            <p className="w-full text-sm" data-resume-appel={workflowRun.resume_source ?? undefined}>
+                                <span className="text-muted-foreground">{tp({ en: 'Summary', fr: 'Résumé' })} · </span>
+                                {workflowRun.resume}
+                            </p>
                         )}
                         <span className="ml-auto flex gap-2">
                             <CopyDebugIdButton label={tp({ en: 'Agent ID', fr: "N° de l'agent" })} value={workflowId} />

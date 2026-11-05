@@ -68,7 +68,11 @@ def echapper_like(terme: str) -> str:
 
 
 def filtre_motif(terme: str):
-    return motif().ilike(f"%{echapper_like(terme)}%", escape="\\")
+    """N3b : le motif est un filtre EXACT (le motif classé de la fiche, sans tenir compte de la casse ni des espaces autour), pas un
+    morceau de texte : « Devis » ne prend plus « Devis urgent ». Les jokers sont du texte."""
+    # Espaces repliés comme le fait le bilan de la boucle (``" ".join(valeur.split())``), pour que liste et statistiques s'accordent.
+    replie = func.regexp_replace(func.trim(motif()), literal(r"\s+"), literal(" "), literal("g"))
+    return func.lower(replie) == " ".join(terme.split()).lower()
 
 
 def filtre_client(terme: str):

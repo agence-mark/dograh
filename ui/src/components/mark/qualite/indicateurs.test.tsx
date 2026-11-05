@@ -55,4 +55,21 @@ describe("Qualité › Indicateurs : colonnes dans la langue de l'écran", () =>
         );
         expect(await screen.findByText("Appels 7 j")).toBeTruthy();
     });
+
+    it("N3b : cliquer un motif ne garde que ses chiffres (filtre exact envoyé au serveur), et le lien ouvre ses appels filtrés", async () => {
+        qualite.mockResolvedValue({ data: { ...DONNEES, motifs: [{ motif: "Devis", appels: 4, part_resolu: 0.9 }] }, error: undefined });
+        render(
+            <FournisseurLangue>
+                <OngletIndicateurs />
+            </FournisseurLangue>,
+        );
+        fireEvent.click(await screen.findByRole("button", { name: "Devis" }));
+        await waitFor(() => expect(qualite).toHaveBeenLastCalledWith({ query: { jours: 7, motif: "Devis" } }));
+        expect(document.querySelector("[data-filtre-motif]")?.textContent).toContain("Devis");
+        const lien = screen.getByRole("link", { name: "Voir les appels" }).getAttribute("href") ?? "";
+        expect(lien.startsWith("/clients/12/conversations?filters=")).toBe(true);
+        expect(decodeURIComponent(lien)).toContain('"callReason"');
+        fireEvent.click(screen.getByRole("button", { name: "Voir tous les motifs" }));
+        await waitFor(() => expect(qualite).toHaveBeenLastCalledWith({ query: { jours: 7 } }));
+    });
 });

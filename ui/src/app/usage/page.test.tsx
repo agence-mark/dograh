@@ -72,19 +72,33 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("[.mark] K8 : Conversations", () => {
-    it("un tableau nu : Quand, Agent, Version, Client, Motif, Canal, Issue, Durée, Note, Médias ; jamais dans une carte", async () => {
+    it("un tableau nu : Quand, Agent, Version, Client, Motif, Résumé, Canal, Issue, Durée, Note, Médias ; jamais dans une carte", async () => {
         m.historique.mockResolvedValue(page([RUN]));
         const { container } = monter();
         expect(await screen.findByText("Standard Nuances de Feu")).toBeTruthy();
         expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Conversations");
         expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
-            "Quand", "Agent", "Version", "Client", "Motif", "Canal", "Issue", "Durée", "Note", "Jugé par", "Médias",
+            "Quand", "Agent", "Version", "Client", "Motif", "Résumé", "Canal", "Issue", "Durée", "Note", "Jugé par", "Médias",
         ]);
         expect(screen.getByText("Rendez-vous créé")).toBeTruthy();
         expect(screen.getByText("+33344000000")).toBeTruthy(); // le numéro reste, sous le nom
         expect(screen.getByText("2m 5s")).toBeTruthy();
         expect(container.querySelector('[data-slot="card"]')).toBeNull();
         expect(container.querySelector("table")?.parentElement?.className ?? "").not.toMatch(/border|shadow/);
+    });
+
+    it("N3b : la colonne Résumé dit les deux phrases de la ligne, son origine, et un tiret quand il n'y en a pas", async () => {
+        m.historique.mockResolvedValue(
+            page([
+                { ...RUN, resume: "La personne voulait un devis. Un rappel a été promis.", resume_source: "synthese" },
+                { ...RUN, id: 42, resume: null, resume_source: null },
+            ]),
+        );
+        const { container } = monter();
+        expect(await screen.findByText("La personne voulait un devis. Un rappel a été promis.")).toBeTruthy();
+        expect(container.querySelector('[data-resume-appel="synthese"]')).toBeTruthy();
+        expect(container.querySelectorAll("[data-resume-appel]").length).toBe(2);
+        expect(container.querySelectorAll('[data-resume-appel]:not([data-resume-appel="synthese"])')[0]?.textContent).toBe("-");
     });
 
     it("un clic sur la ligne ouvre l'appel ; le bouton d'aperçu n'ouvre pas la ligne", async () => {

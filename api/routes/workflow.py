@@ -28,6 +28,7 @@ from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user_with_selected_organization, get_user
 from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
+from api.services import resume_appel
 from api.services.groupe.reglages import CONFIGURATION_DE_CREATION
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
@@ -1882,6 +1883,8 @@ async def get_workflow_run(
         # [.mark] V1b : la version jouée et la note du juge, pour le titre de la page d'une conversation.
         "version_number": run.definition.version_number if run.definition else None,
         "note_juge": run.note_juge,
+        # [.mark] N3b : le résumé de l'appel, lu des annotations de la même ligne.
+        **resume_appel.champs(run.annotations),
     }
 
 

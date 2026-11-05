@@ -131,8 +131,11 @@ def _versions(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sortie
 
 
-async def calculer(organisation_id: int, *, jours: int = JOURS_PAR_DEFAUT, workflow_id: int | None = None) -> dict[str, Any]:
-    lignes = await db_client.runs_pour_la_qualite(organisation_id, jours=jours, workflow_id=workflow_id)
+async def calculer(
+    organisation_id: int, *, jours: int = JOURS_PAR_DEFAUT, workflow_id: int | None = None, motif: str | None = None
+) -> dict[str, Any]:
+    """``motif`` (N3b) : les chiffres d'UN motif seulement (filtre exact, dans la requête) ; la réponse le répète."""
+    lignes = await db_client.runs_pour_la_qualite(organisation_id, jours=jours, workflow_id=workflow_id, motif=motif)
     par_agent: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for ligne in lignes:
         par_agent[ligne["workflow_id"]].append(ligne)
@@ -143,6 +146,7 @@ async def calculer(organisation_id: int, *, jours: int = JOURS_PAR_DEFAUT, workf
     agents.sort(key=lambda a: (-a["appels"], a["workflow_nom"]))
     return {
         "jours": jours,
+        "motif": motif or None,
         "global": _resume(lignes),
         "motifs": _motifs(lignes),
         "agents": agents,

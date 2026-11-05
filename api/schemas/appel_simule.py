@@ -48,6 +48,14 @@ CONSIGNE_JUGE = (
     "conversation est un échec. Explique ton verdict en français, en quelques phrases."
 )
 
+# N3b : le résumé d'un appel (une ou deux phrases) quand l'agent n'a pas de synthèse d'après-appel.
+CONSIGNE_RESUME = (
+    "Tu résumes un appel téléphonique entre un agent vocal et un appelant. Écris une ou deux phrases en français, "
+    "au passé, de vingt-cinq mots au plus chacune : ce que la personne voulait, puis ce qui en est résulté. "
+    "Tu ne t'appuies que sur ce qui a été dit, sans conseil, sans jugement et sans le nom de la personne. "
+    "Texte brut, ni liste ni titre."
+)
+
 PLAFOND_SIMULTANES = 3
 MAX_SCENARIOS = 300
 MAX_CRITERES = 12
@@ -113,6 +121,11 @@ class ReglagesAppelantSimule(BaseModel):
     juge: RoleSimule = Field(
         default_factory=lambda: RoleSimule(consigne=CONSIGNE_JUGE, temperature=0.0)
     )
+    # N3b : le résumé d'appel est un TROISIÈME rôle de la même fenêtre : même interrupteur (éteint), même budget du mois, même compteur.
+    resume: RoleSimule = Field(
+        default_factory=lambda: RoleSimule(consigne=CONSIGNE_RESUME, temperature=0.2),
+        description="Third role: the short summary of a call, when the agent has no after-call summary.",
+    )
     voix: VoixSimulee = Field(default_factory=VoixSimulee)
     simultanes: int = Field(
         default=1,
@@ -132,6 +145,7 @@ class ReglagesAppelantSimule(BaseModel):
     def _nommer_les_roles(self) -> ReglagesAppelantSimule:
         self.appelant._nom = "appelant"
         self.juge._nom = "juge"
+        self.resume._nom = "resume"
         return self
 
 
@@ -229,3 +243,4 @@ class DepenseDesRoles(BaseModel):
     mois: str = Field(description="First day of the month (UTC), ISO date.")
     appelant: DepenseDuRole
     juge: DepenseDuRole
+    resume: DepenseDuRole = Field(default_factory=DepenseDuRole)

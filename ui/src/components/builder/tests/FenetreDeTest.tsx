@@ -10,7 +10,7 @@
  * The « Environment » part of the mockup (simulated date, caller number, variables, tool answers in series) is built since the
  * partie 3, sub-lot 5 (`EnvironnementDuTest.tsx`): a switch « Definition / Environment » over the left column, as in the mockup.
  */
-import { Bot, FolderPlus, Play, Plus, Trash2, User, X } from "lucide-react";
+import { Bot, FolderPlus, Play, Plus, Trash2, User, Webhook, X } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { resolveBrowserBackendUrl } from "@/lib/apiClient";
+import { notifier } from "@/components/mark/notifications";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
@@ -62,6 +64,15 @@ const SORTES: Array<{ id: SorteDeTest; fr: string; en: string; info: { fr: strin
         info: { fr: "Comme la réplique suivante, mais le critère est l'appel (ou le non-appel) d'un outil de l'agent.", en: "Like the next reply, but the criterion is a call (or no call) to one of the agent's tools." },
     },
 ];
+
+/** The address an automation (n8n) calls to play the agent's tests, with the organization's API key in `X-API-Key`. */
+export const adresseDesTestsParAutomatisation = (workflowId: number, slug?: string, base: string = resolveBrowserBackendUrl()) =>
+    `${base.replace(/\/$/, "")}/api/v1/automatisation/agents/${workflowId}/tests/lancer${slug ? `?test=${encodeURIComponent(slug)}` : ""}`;
+
+const TEXTE_AUTOMATISATION = {
+    en: "Copies the address that plays this test from an automation (n8n), for example when a client's software changes. Protected by the organization's API key (X-API-Key header); the answer says ok or failed with the detail. It spends within the monthly budgets of the judge and the caller.",
+    fr: "Copie l'adresse qui lance ce test depuis une automatisation (n8n), par exemple quand le logiciel d'un client change. Protégée par la clé de l'organisation (en-tête X-API-Key) ; la réponse dit « réussi » ou « échoué » avec le détail. Dans la limite des budgets du mois du juge et de l'appelant.",
+};
 
 const Champ = ({ titre, info, children }: { titre: string; info?: string; children: React.ReactNode }) => (
     <div className="space-y-1.5">
@@ -112,6 +123,17 @@ export function FenetreDeTest({
     const [description, setDescription] = useState(test?.description ?? "");
     const [dossier, setDossier] = useState(test?.dossier ?? "");
     const [obligatoire, setObligatoire] = useState(test?.obligatoire ?? false);
+    const copierLAdresseDeLAutomatisation = async () => {
+        try {
+            await navigator.clipboard.writeText(adresseDesTestsParAutomatisation(workflowId, test?.slug));
+            notifier.succes({
+                fr: "Adresse copiée. Appelez-la en POST avec la clé d'API de l'organisation (en-tête X-API-Key).",
+                en: "Address copied. Call it with a POST and the organization's API key (X-API-Key header).",
+            });
+        } catch {
+            notifier.echec({ fr: "Copie impossible : copiez l'adresse à la main depuis la documentation.", en: "Could not copy: copy the address by hand." });
+        }
+    };
     const [criteres, setCriteres] = useState<LigneDeCritere[]>(test ? test.criteres.map(ligneDuCritere) : [ligneVide()]);
     // The mockup shows ONE conversation: the history, then the replayed reply (the caller's last line).
     const [fil, setFil] = useState<Message[]>(() => [
@@ -454,6 +476,20 @@ export function FenetreDeTest({
                         {t({ en: "Required", fr: "Obligatoire" })}
                         <Info>{t(TEXTE_TEST_OBLIGATOIRE)}</Info>
                     </label>
+                    {test && (
+                        // N3b (décision 20) : pas d'écran dédié, une ligne qui copie l'adresse de l'API que n8n appelle avec la clé de l'organisation.
+                        <span className="flex items-center gap-1.5 text-sm">
+                            <button
+                                type="button"
+                                data-testid="lancer-depuis-une-automatisation"
+                                onClick={copierLAdresseDeLAutomatisation}
+                                className="flex cursor-pointer items-center gap-1.5 hover:font-medium"
+                            >
+                                <Webhook className="size-4" /> {t({ en: "Launch from an automation", fr: "Lancer depuis une automatisation" })}
+                            </button>
+                            <Info>{t(TEXTE_AUTOMATISATION)}</Info>
+                        </span>
+                    )}
                     <span className="flex-1" />
                     <Button variant="outline" onClick={onFermer}>
                         {t({ en: "Cancel", fr: "Annuler" })}

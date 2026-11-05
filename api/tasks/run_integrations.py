@@ -220,6 +220,14 @@ async def run_integrations_post_workflow_run(_ctx, workflow_run_id: int):
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Judge skipped: {type(e).__name__}")
 
+        # [.mark] N3b : le résumé court de l'appel par un modèle (réglage éteint par défaut, budget du mois). Ne lève jamais.
+        try:
+            from api.services.resume_appel.generation import apres_appel as resumer_l_appel
+
+            await resumer_l_appel(workflow_run, organization_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Call summary skipped: {type(e).__name__}")
+
         langfuse_config = await db_client.get_configuration_value(
             organization_id,
             OrganizationConfigurationKey.LANGFUSE_CREDENTIALS.value,

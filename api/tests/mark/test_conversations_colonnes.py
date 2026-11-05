@@ -142,7 +142,7 @@ async def test_filtres_par_note_motif_client_et_tri_par_note(db_session, async_s
     await _run(async_session, agent_a, fiche={"nom": "Petit", "motif": "Devis"})  # pas jugé
     _, bas = await _liste(db_session, org_a, filters=[_f("judgeNote", "numberRange", {"max": 3.5})])
     assert bas == 1  # l'appel non jugé ne ressemble jamais à un mauvais appel
-    _, n = await _liste(db_session, org_a, filters=[_f("callReason", "text", {"value": "dev"})])
+    _, n = await _liste(db_session, org_a, filters=[_f("callReason", "text", {"value": "devis"})])
     assert n == 2
     _, n = await _liste(db_session, org_a, filters=[_f("callClient", "text", {"value": "mart"})])
     assert n == 1
@@ -159,7 +159,7 @@ async def test_les_filtres_ne_lisent_que_l_organisation_de_l_appelant(db_session
     await _run(async_session, agent_b, fiche={"nom": "Autre", "motif": "Devis"}, note_juge=1.0)
     for filtre in (
         _f("judgeNote", "numberRange", {"max": 5}),
-        _f("callReason", "text", {"value": "dev"}),
+        _f("callReason", "text", {"value": "devis"}),
         _f("callClient", "text", {"value": "autre"}),
     ):
         assert (await _liste(db_session, org_a, filters=[filtre]))[1] == 0

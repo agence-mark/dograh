@@ -145,7 +145,7 @@ export const baseFilterAttributes: Record<string, Omit<FilterAttribute, "id">> =
   callReason: {
     type: "text",
     label: "Call reason",
-    config: { placeholder: "Enter call reason (partial match)", maxLength: 80 },
+    config: { placeholder: "Enter the exact call reason", maxLength: 80 },
   },
   callClient: {
     type: "text",

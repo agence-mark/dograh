@@ -252,10 +252,11 @@ class BoucleClient(BaseDBClient):
             return {wf: n for wf, n in (await session.execute(requete)).all()}
 
     async def runs_pour_la_qualite(
-        self, organization_id: int, *, jours: int, workflow_id: int | None = None
+        self, organization_id: int, *, jours: int, workflow_id: int | None = None, motif: str | None = None
     ) -> list[dict[str, Any]]:
         """Les runs de la fenêtre, avec SEULEMENT ce que la page Qualité lit : le bilan de la boucle (``annotations['boucle']``),
-        les verdicts du juge et la version de la définition. Au plus ``LIGNES_QUALITE_MAX``, les plus récents d'abord."""
+        les verdicts du juge et la version de la définition. Au plus ``LIGNES_QUALITE_MAX``, les plus récents d'abord.
+        N3b : ``motif`` = filtre EXACT sur le motif classé du bilan (sans tenir compte de la casse), dans la requête."""
         depuis = datetime.now(UTC) - timedelta(days=jours)
         annotations = cast(WorkflowRunModel.annotations, JSONB)
         morceau = func.jsonb_build_object(
@@ -286,6 +287,10 @@ class BoucleClient(BaseDBClient):
         )
         if workflow_id is not None:
             requete = requete.where(WorkflowRunModel.workflow_id == workflow_id)
+        if motif:
+            requete = requete.where(
+                func.lower(func.jsonb_extract_path_text(annotations, "boucle", "indicateurs", "motif")) == " ".join(motif.split()).lower()
+            )
         async with self.async_session() as session:
             lignes = (await session.execute(requete)).all()
         return [

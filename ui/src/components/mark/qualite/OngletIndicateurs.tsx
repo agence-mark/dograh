@@ -7,6 +7,8 @@
  * écrite ici. 7 ou 30 jours.
  */
 import { ArrowRightLeft, BarChart3, Clock, PhoneOff, Star, Target } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { lireLaQualiteApiV1QualiteGet, qualiteDeTousLesClientsApiV1VuesEquipeQualiteGet } from "@/client";
@@ -17,6 +19,8 @@ import { Info, NoteJuge } from "@/components/mark/studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+
+import { lienDesAppelsDuMotif } from "../client/pilotage/Blocs";
 
 import { BandeChiffres } from "./BandeChiffres";
 
@@ -83,6 +87,10 @@ const T = {
     reponseCol: { en: "Response", fr: "Réponse" },
     coutCol: { en: "Cost", fr: "Coût" },
     aucun: { en: "No call yet", fr: "Aucun appel encore" },
+    filtreMotif: { en: "Reason", fr: "Motif" },
+    retirerFiltre: { en: "Show every reason", fr: "Voir tous les motifs" },
+    chiffresDuMotif: { en: "Figures for this reason only", fr: "Chiffres de ce motif seulement" },
+    voirLesAppels: { en: "See the calls", fr: "Voir les appels" },
 };
 
 const pct = (x: number | null) => (x == null ? "–" : `${Math.round(x * 100)} %`);
@@ -95,6 +103,9 @@ export function OngletIndicateurs() {
     const [etat, setEtat] = useState<"chargement" | "erreur" | Qualite>("chargement");
     // Sous-lot 10 (SE-3) : dans le Labo, tous les clients que le rôle ouvre (lecture seule), avec une colonne « Client ».
     const tousClients = useDansLeLabo();
+    // N3b : le motif est un filtre EXACT des statistiques (et de la liste des appels, par le lien de chaque motif). Un client seulement.
+    const [motif, setMotif] = useState<string | null>(null);
+    const base = (usePathname() ?? "").replace(/\/qualite\/?$/, "");
 
     const charger = useCallback(async () => {
         setEtat("chargement");
@@ -104,9 +115,9 @@ export function OngletIndicateurs() {
             const d = r.data as unknown as { jours: number; mondial: Resume; motifs: Qualite["motifs"]; agents: Agent[] };
             return setEtat({ jours: d.jours, global: d.mondial, motifs: d.motifs, agents: d.agents, versions: [] });
         }
-        const r = await lireLaQualiteApiV1QualiteGet({ query: { jours } });
+        const r = await lireLaQualiteApiV1QualiteGet({ query: motif ? { jours, motif } : { jours } });
         setEtat(r.error || !r.data ? "erreur" : (r.data as unknown as Qualite));
-    }, [jours, tousClients]);
+    }, [jours, tousClients, motif]);
 
     useEffect(() => {
         if (loading || !user) return;
@@ -153,13 +164,45 @@ export function OngletIndicateurs() {
                     { icone: Clock, libelle: t(T.reponse), valeur: g.reponse_mediane == null ? "–" : `${virgule(g.reponse_mediane)} s`, phrase: t(T.reponsePhrase) },
                 ]}
             />
+            {motif && (
+                <div className="flex items-center gap-2 text-sm" data-filtre-motif>
+                    <span className="text-muted-foreground">{t(T.filtreMotif)} :</span>
+                    <span className="font-medium">{motif}</span>
+                    <span className="text-xs text-muted-foreground">· {t(T.chiffresDuMotif)}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setMotif(null)}>
+                        {t(T.retirerFiltre)}
+                    </Button>
+                </div>
+            )}
             {etat.motifs.length > 0 && (
                 <div>
                     <TitreTableau titre={t(T.motifs)} info={<Info>{t(T.motifsInfo)}</Info>} />
                     <ul className="divide-y">
                         {etat.motifs.map((m) => (
                             <li key={m.motif} className="flex items-center gap-4 py-3 text-sm">
-                                <span className="flex-1">{m.motif}</span>
+                                <span className="flex-1">
+                                    {tousClients ? (
+                                        m.motif
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="cursor-pointer text-left hover:font-medium"
+                                            aria-pressed={motif === m.motif}
+                                            title={t(T.chiffresDuMotif)}
+                                            onClick={() => setMotif(motif === m.motif ? null : m.motif)}
+                                        >
+                                            {m.motif}
+                                        </button>
+                                    )}
+                                </span>
+                                {!tousClients && (
+                                    <Link
+                                        href={lienDesAppelsDuMotif(base, m.motif, jours)}
+                                        className="text-xs text-muted-foreground hover:font-medium hover:text-foreground"
+                                    >
+                                        {t(T.voirLesAppels)}
+                                    </Link>
+                                )}
                                 <span className="w-24 text-right text-muted-foreground">
                                     {m.appels} {t(T.appels)}
                                 </span>
