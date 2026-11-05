@@ -23495,6 +23495,14 @@ export type WorkflowRunUsageResponse = {
      * Where the summary comes from: synthese or modele.
      */
     resume_source?: string | null;
+    /**
+     * Latence
+     *
+     * Latency per turn of the call: {moyenne_ms, pire_ms, tours}; null when it was not measured.
+     */
+    latence?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
