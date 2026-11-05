@@ -79,6 +79,8 @@ class Motif:
     # Le code prend sa sortie par défaut même quand la règle n'en pose aucune (lot A : le garde-fou de sortie
     # d'impasse rend la main de lui-même, c'est son rôle). ``False`` : une sortie ne part que si la règle la pose.
     sortie_par_le_code: bool = False
+    # L3e : un motif verrouillé ne s'éteint jamais et n'est jamais vide (l'annonce « vous parlez à une IA ») : on change son texte, pas son existence.
+    verrouille: bool = False
 
 
 PASSATION_TARDE = "passation_tarde"
@@ -102,6 +104,9 @@ IMPASSE = "impasse"
 IMPASSE_REPETEE = "impasse_repetee"
 # RA-B (R5) : la phrase de fin d'une conversation du widget à sa durée maximale (``site_mark/duree_max.py``).
 FIN_DE_DUREE_MAX = "fin_duree_max"
+# L3e : l'annonce « vous parlez à une IA » en tête de chaque appel (verrouillée) et la phrase du garde-fou urgence.
+ANNONCE_IA = "annonce_ia"
+URGENCE_VITALE = "urgence_vitale"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -118,6 +123,23 @@ _SORTIES_DE_L_IMPASSE = (
 MOTIFS: dict[str, Motif] = {
     m.id: m
     for m in (
+        # ⛔ Libellé PROVISOIRE, à valider sur le texte officiel (AI Act art. 50) avant d'être figé : voir ``18-a-exposer.md``.
+        Motif(
+            id=ANNONCE_IA,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Annonce : vous parlez à une IA",
+            libelle_en="Announcement: you are talking to an AI",
+            quand_fr="Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Verrouillée : le texte se change, l'annonce ne s'éteint jamais.",
+            quand_en="At the start of every call (phone, widget, campaign), before the greeting. Locked: the text can change, the announcement never turns off.",
+            a_un_delai=False,
+            variantes_defaut=("Vous êtes en communication avec un assistant virtuel, une intelligence artificielle.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Impossible à éteindre : une annonce vide ou éteinte est remplacée par le texte par défaut, et la publication est bloquée tant que le texte est vide.",
+            eteinte_en="Cannot be turned off: an empty or off announcement is replaced by the default text, and publishing is blocked while the text is empty.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+        ),
         Motif(
             id=OUTIL_TARDE,
             famille=FAMILLE_ATTENTE,
@@ -458,6 +480,22 @@ MOTIFS: dict[str, Motif] = {
             eteinte_en="The code still says the default sentence: a conversation never ends in silence.",
             moment=MOMENT_ACTION,
         ),
+        # ⛔ Phrase et numéro PROVISOIRES, à valider par Evan (voir ``18-a-exposer.md``). ``{{numero}}`` : le numéro d'urgence réglé dans Sécurité.
+        Motif(
+            id=URGENCE_VITALE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Danger ou urgence médicale détectés",
+            libelle_en="Danger or medical emergency detected",
+            quand_fr="Le garde-fou urgence (réglé dans Sécurité) reconnaît une détresse ou une urgence médicale dans les mots de l'appelant : le code dit cette phrase, une fois par appel.",
+            quand_en="The emergency safeguard (set in Security) recognises distress or a medical emergency in the caller's words: the code says this sentence, once per call.",
+            a_un_delai=False,
+            variantes_defaut=("Si vous ou une personne près de vous êtes en danger, raccrochez et appelez tout de suite le {{numero}}.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Le garde-fou le détecte et le note, mais l'agent ne dit pas la phrase.",
+            eteinte_en="The safeguard detects and notes it, but the agent does not say the sentence.",
+            moment=MOMENT_ACTION,
+        ),
     )
 }
 
@@ -520,6 +558,7 @@ def catalogue_pour_l_ecran() -> dict[str, Any]:
                 "eteinte": {"en": m.eteinte_en, "fr": m.eteinte_fr},
                 "silence_de_l_appelant": m.silence_de_l_appelant,
                 "sortie_par_le_code": m.sortie_par_le_code,
+                "verrouille": m.verrouille,
             }
             for m in MOTIFS.values()
         ],

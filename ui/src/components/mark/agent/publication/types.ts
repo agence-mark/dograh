@@ -15,7 +15,8 @@ export type CleControle =
     | "outils"
     | "sans_effet"
     | "sortie_d_impasse"
-    | "deux_webhooks";
+    | "deux_webhooks"
+    | "annonce_ia";
 
 export interface ControleDePublication {
     cle: CleControle;

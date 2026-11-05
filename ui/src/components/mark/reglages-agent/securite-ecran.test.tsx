@@ -83,4 +83,24 @@ describe("[.mark] le thème Sécurité", () => {
         expect(document.getElementById("securite-sensibilite")).not.toBeNull();
         expect(document.getElementById("securite-consigne")).not.toBeNull();
     });
+
+    it("garde-fou urgence : éteint par défaut, numéro et mots seulement une fois allumé, enregistré dans la clé", async () => {
+        const onSave = monter();
+        expect(completerSecurite(undefined).garde_urgence).toEqual({ actif: false, numero: "112", mots_en_plus: [] });
+        expect(document.getElementById("securite-garde-urgence-numero")).toBeNull();
+        fireEvent.click(document.getElementById("securite-garde-urgence") as HTMLElement);
+        fireEvent.change(document.getElementById("securite-garde-urgence-numero") as HTMLInputElement, { target: { value: "15" } });
+        fireEvent.change(document.getElementById("securite-garde-urgence-mots") as HTMLInputElement, { target: { value: "chèvre, brebis" } });
+        fireEvent.click(screen.getByRole("button", { name: /Enregistrer Sécurité/ }));
+        await waitFor(() => expect(onSave).toHaveBeenCalled());
+        const envoye = (onSave.mock.calls[0][0] as WorkflowConfigurations).securite_conversation;
+        expect(envoye?.garde_urgence).toEqual({ actif: true, numero: "15", mots_en_plus: ["chèvre", "brebis"] });
+    });
+
+    it("garde-fou urgence : un numéro que le serveur refuserait est dit sous le champ et bloque l'enregistrement", () => {
+        monter({ garde_urgence: { actif: true, numero: "112" } });
+        fireEvent.change(document.getElementById("securite-garde-urgence-numero") as HTMLInputElement, { target: { value: "abc" } });
+        expect(screen.getByRole("alert").textContent).toMatch(/Des chiffres seulement/);
+        expect((screen.getByRole("button", { name: /Enregistrer Sécurité/ }) as HTMLButtonElement).disabled).toBe(true);
+    });
 });

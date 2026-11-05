@@ -132,6 +132,10 @@ def banc(monde, monkeypatch):
     db = MagicMock()
     db.ajouter_un_cas_d_amelioration = AsyncMock(return_value={})
     monkeypatch.setattr(service, "db_client", db)
+    # L3e : les signaux des vrais appels lisent leurs propres lignes ; ici, aucun appel.
+    from api.services.alertes_agent import appels
+
+    monkeypatch.setattr(appels, "db_client", MagicMock(runs_pour_la_qualite=AsyncMock(return_value=[])))
     mail = AsyncMock(return_value=["equipe@exemple.test"])
     monkeypatch.setattr("api.services.apres_appel.notification.notifier", mail)
     return SimpleNS(chiffres=chiffres, db=db, mail=mail)

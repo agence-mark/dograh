@@ -133,7 +133,7 @@ async def test_chaque_personnage_cite_par_un_scenario_existe(verse):
 # --- scénarios types ----------------------------------------------------------------------------------------------
 
 
-ECRITS_PAR_MARK = {"nombres-en-francais", "outil-en-panne"}
+ECRITS_PAR_MARK = {"nombres-en-francais", "outil-en-panne", "urgence-doit-se-declencher", "urgence-appel-banal-muet"}
 
 
 async def test_les_scenarios_gardent_leur_origine_leur_licence_et_ont_des_criteres_valides(verse):

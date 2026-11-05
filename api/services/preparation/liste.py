@@ -28,6 +28,7 @@ ENDROIT_DES_CONTROLES = {
     "liste_vocale": {"theme": "agent", "onglet": None},
     "attaques": {"theme": "agent", "onglet": "tests"},
     "garde_fous": {"theme": "securite", "onglet": None},
+    "annonce_ia": {"theme": "phrases", "onglet": None},
 }
 STATUT_VERS_ETAT = {"ok": FAIT, "alerte": A_FAIRE, "echec": BLOQUANT, "eteint": SANS_OBJET}
 

@@ -110,7 +110,7 @@ def test_la_carte_rend_chaque_regle_avec_ses_cases_et_signale_l_etape_supprimee(
     )
     agent = carte["agents"][0]
     # 13 depuis passages-fiables (lot E) : « attente_accordee », la phrase douce de l'attente accordée.
-    assert len(agent["motifs"]) == 14
+    assert len(agent["motifs"]) == 16
     echoue = next(m for m in agent["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert echoue["moment"] == "probleme" and echoue["max_par_appel"] == 2
     assert echoue["ensuite"]["action"] == "raccrocher" and echoue["ensuite"]["phrases"] == ["On vous rappelle."]
