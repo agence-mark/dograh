@@ -2772,7 +2772,7 @@ export type ChangementDAmelioration = {
     /**
      * Origine
      */
-    origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
+    origine?: 'client' | 'recette' | 'code' | 'deploiement' | 'attaque' | null;
 };
 
 /**
@@ -2918,6 +2918,18 @@ export type ChiffresClient = {
      * Agents Publies
      */
     agents_publies: number;
+};
+
+/**
+ * ChoixDAttaques
+ *
+ * Les attaques du dernier rapport à traiter ; vide = celles qui ont cédé de façon confirmée.
+ */
+export type ChoixDAttaques = {
+    /**
+     * Ids
+     */
+    ids?: Array<string> | null;
 };
 
 /**
@@ -9033,6 +9045,16 @@ export type InworldTtsConfiguration = {
 export type ItemKind = 'node' | 'edge' | 'workflow';
 
 /**
+ * JeuPublic
+ */
+export type JeuPublic = {
+    /**
+     * Contenu
+     */
+    contenu: string;
+};
+
+/**
  * JournalLigne
  */
 export type JournalLigne = {
@@ -9171,6 +9193,18 @@ export type Lancer = {
      * Corrige
      */
     corrige?: boolean;
+    /**
+     * Essais
+     */
+    essais?: number | null;
+    /**
+     * Temoin
+     */
+    temoin?: boolean;
+    /**
+     * Jeu
+     */
+    jeu?: string;
 };
 
 /**
@@ -29751,6 +29785,88 @@ export type CatalogueDesAttaquesApiV1BuilderAttaquesCatalogueGetResponses = {
     200: unknown;
 };
 
+export type JeuPublicApiV1BuilderAttaquesJeuPublicGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/attaques/jeu-public';
+};
+
+export type JeuPublicApiV1BuilderAttaquesJeuPublicGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JeuPublicApiV1BuilderAttaquesJeuPublicGetError = JeuPublicApiV1BuilderAttaquesJeuPublicGetErrors[keyof JeuPublicApiV1BuilderAttaquesJeuPublicGetErrors];
+
+export type JeuPublicApiV1BuilderAttaquesJeuPublicGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostData = {
+    body: JeuPublic;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/builder/attaques/jeu-public/importer';
+};
+
+export type ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostError = ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostErrors[keyof ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostErrors];
+
+export type ImporterLeJeuPublicApiV1BuilderAttaquesJeuPublicImporterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type DernierRapportApiV1BuilderAttaquesWorkflowIdGetData = {
     body?: never;
     headers?: {
@@ -29883,6 +29999,98 @@ export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors = 
 export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostError = RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors[keyof RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostErrors];
 
 export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostData = {
+    body: ChoixDAttaques;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/attaques/{workflow_id}/creer-des-tests';
+};
+
+export type CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostError = CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostErrors[keyof CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostErrors];
+
+export type CreerDesTestsDepuisLesAttaquesApiV1BuilderAttaquesWorkflowIdCreerDesTestsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostData = {
+    body: ChoixDAttaques;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/attaques/{workflow_id}/envoyer-a-ameliorer';
+};
+
+export type EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostError = EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostErrors[keyof EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostErrors];
+
+export type EnvoyerLesAttaquesDansAAmeliorerApiV1BuilderAttaquesWorkflowIdEnvoyerAAmeliorerPostResponses = {
     /**
      * Successful Response
      */
