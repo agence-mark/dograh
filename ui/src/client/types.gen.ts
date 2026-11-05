@@ -2617,6 +2617,28 @@ export type CatalogueEtablissements = {
 };
 
 /**
+ * CatalogueEtiquettes
+ */
+export type CatalogueEtiquettes = {
+    /**
+     * Familles
+     */
+    familles: Array<string>;
+    /**
+     * Objets
+     */
+    objets: Array<ObjetCitableVu>;
+    /**
+     * Problemes
+     */
+    problemes: Array<ProblemeVu>;
+    /**
+     * Illisibles
+     */
+    illisibles?: Array<string>;
+};
+
+/**
  * CataloguePhrases
  */
 export type CataloguePhrases = {
@@ -3326,6 +3348,40 @@ export type CircuitBreakerConfigResponse = {
      * Min Calls In Window
      */
     min_calls_in_window?: number;
+};
+
+/**
+ * Citation
+ */
+export type Citation = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Champ
+     */
+    champ: string;
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Version
+     */
+    version?: number | null;
 };
 
 /**
@@ -4214,6 +4270,36 @@ export type CopieDeScenario = {
 };
 
 /**
+ * CorrectionVue
+ */
+export type CorrectionVue = {
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Champ
+     */
+    champ?: string | null;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+};
+
+/**
  * Corriger
  */
 export type Corriger = {
@@ -4221,6 +4307,32 @@ export type Corriger = {
      * Ids
      */
     ids: Array<string>;
+};
+
+/**
+ * CorrigerEtiquette
+ */
+export type CorrigerEtiquette = {
+    /**
+     * Type
+     */
+    type: 'retirer' | 'rattacher' | 'suivre' | 'passer_version';
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Champ
+     */
+    champ?: string | null;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
 };
 
 /**
@@ -6005,6 +6117,16 @@ export type Designation = {
      * Nom
      */
     nom?: string | null;
+};
+
+/**
+ * Diagnostic
+ */
+export type Diagnostic = {
+    /**
+     * Problemes
+     */
+    problemes: Array<ProblemeVu>;
 };
 
 /**
@@ -12613,6 +12735,54 @@ export type ObjetAgent = {
 };
 
 /**
+ * ObjetCitableVu
+ */
+export type ObjetCitableVu = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Resume
+     */
+    resume?: string;
+    /**
+     * Rendu
+     */
+    rendu?: string;
+    /**
+     * Lignes
+     */
+    lignes?: Array<Array<string>>;
+    /**
+     * Etapes
+     */
+    etapes?: Array<string>;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Versions
+     */
+    versions?: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * ObjetEnvoye
  *
  * An object as .mark creates or rewrites it (the whole object; the others are untouched).
@@ -14271,6 +14441,48 @@ export type ProblemeDeFusion = {
      * Message
      */
     message?: string | null;
+};
+
+/**
+ * ProblemeVu
+ */
+export type ProblemeVu = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Motif
+     */
+    motif: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Champ
+     */
+    champ: string;
+    /**
+     * Noeud Id
+     */
+    noeud_id?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Bloquant
+     */
+    bloquant?: boolean;
+    /**
+     * Corrections
+     */
+    corrections?: Array<CorrectionVue>;
 };
 
 /**
@@ -20013,6 +20225,20 @@ export type UtilisationObjets = {
     utilisation?: {
         [key: string]: Array<AgentUtilisateur>;
     };
+};
+
+/**
+ * UtiliseDans
+ */
+export type UtiliseDans = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Citations
+     */
+    citations: Array<Citation>;
 };
 
 /**
@@ -42422,6 +42648,150 @@ export type LireLesCitationsApiV1MarkVariablesCitationsGetResponses = {
 };
 
 export type LireLesCitationsApiV1MarkVariablesCitationsGetResponse = LireLesCitationsApiV1MarkVariablesCitationsGetResponses[keyof LireLesCitationsApiV1MarkVariablesCitationsGetResponses];
+
+export type LireLesEtiquettesApiV1MarkEtiquettesPromptGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Agent
+         */
+        agent?: number | null;
+    };
+    url: '/api/v1/mark/etiquettes-prompt';
+};
+
+export type LireLesEtiquettesApiV1MarkEtiquettesPromptGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesEtiquettesApiV1MarkEtiquettesPromptGetError = LireLesEtiquettesApiV1MarkEtiquettesPromptGetErrors[keyof LireLesEtiquettesApiV1MarkEtiquettesPromptGetErrors];
+
+export type LireLesEtiquettesApiV1MarkEtiquettesPromptGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CatalogueEtiquettes;
+};
+
+export type LireLesEtiquettesApiV1MarkEtiquettesPromptGetResponse = LireLesEtiquettesApiV1MarkEtiquettesPromptGetResponses[keyof LireLesEtiquettesApiV1MarkEtiquettesPromptGetResponses];
+
+export type LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    url: '/api/v1/mark/etiquettes-prompt/utilise-dans';
+};
+
+export type LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetError = LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetErrors[keyof LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetErrors];
+
+export type LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UtiliseDans;
+};
+
+export type LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetResponse = LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetResponses[keyof LireUtiliseDansApiV1MarkEtiquettesPromptUtiliseDansGetResponses];
+
+export type CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostData = {
+    body: CorrigerEtiquette;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/mark/etiquettes-prompt/{workflow_id}/corriger';
+};
+
+export type CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostError = CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostErrors[keyof CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostErrors];
+
+export type CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: Diagnostic;
+};
+
+export type CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostResponse = CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostResponses[keyof CorrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPostResponses];
 
 export type StatistiquesDesOutilsApiV1ToolsStatistiquesGetData = {
     body?: never;
