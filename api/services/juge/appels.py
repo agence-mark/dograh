@@ -119,9 +119,15 @@ async def apres_appel(run: Any, organisation: int) -> None:
         if not dossier["lignes"]:
             await ecrire_dans_le_run(run.id, {"etat": "sans_transcription"})
             return
-        rendu = await passes.juger(cerveau, dossier["lignes"], await grille(), outils=dossier["outils"], fiche=dossier["fiche"])
+        try:  # RA-C (06 point 6) : le budget du mois atteint EN COURS de jugement laisse l'appel non jugé, comme avant le premier tour
+            rendu = await passes.juger(cerveau, dossier["lignes"], await grille(), outils=dossier["outils"], fiche=dossier["fiche"])
+        except budget_roles.BudgetDuRole as budget:
+            await ecrire_dans_le_run(run.id, {"etat": "budget_atteint", "raison": budget.message})
+            return
+        # RA-C : ce que ce jugement a coûté (jetons, dollars), la même somme que celle rangée dans la dépense du mois du juge.
+        conso = {"jetons": cerveau.jetons, "cout": cerveau.cout} if isinstance(cerveau, budget_roles.CerveauBudgete) else {}
         await ecrire_dans_le_run(
-            run.id, {"etat": "juge", "source": "cle_api", "modele": juge.modele, "juge_le": file.maintenant(), **rendu, **mention}
+            run.id, {"etat": "juge", "source": "cle_api", "modele": juge.modele, "juge_le": file.maintenant(), **rendu, **conso, **mention}
         )
         # U8 (B) : un critère raté entre dans « À améliorer » avec sa réplique fautive (ne lève jamais).
         from api.services.boucle import ingestion

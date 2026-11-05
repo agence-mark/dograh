@@ -15,6 +15,7 @@ from typing import Any
 
 from api.services.builder import consignes
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
+from api.services.builder.cerveau.budget_roles import BudgetDuRole
 from api.services.builder.tests_agent.jeu import completer
 from api.services.builder.tests_agent.juge import PASSES_MAX, SEUIL_DE_CONFIANCE
 from api.services.juge import verdicts as v
@@ -108,7 +109,7 @@ async def juger(
     outils: list[dict[str, Any]] | None = None,
     fiche: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Les verdicts de tous les critères. Une erreur du cerveau rend ce qui est jugé et marque le reste « non vérifiable »."""
+    """Les verdicts de tous les critères. Une erreur du cerveau rend ce qui est jugé et marque le reste « non vérifiable » ; le budget du mois atteint (``BudgetDuRole``) remonte."""
     systeme = await _systeme()
     dossier = _dossier_texte(lignes, outils or [], fiche or {})
     rendus: list[dict[str, Any]] = []
@@ -119,6 +120,8 @@ async def juger(
             continue
         try:
             rendus.append(await _juger_critere_avec_reessais(cerveau, systeme, critere, lignes, dossier))
+        except BudgetDuRole:
+            raise  # RA-C : le budget du mois atteint n'est pas une panne du cerveau : l'appel reste non jugé, l'appelant le dit
         except ErreurCerveau as e:
             erreur = f"The judge brain failed: {e.code}."
             rendus.append({"critere": critere, "verdict": "non_verifiable", "replique": None, "preuve": erreur, "confiance": 0.0, "passes": 0})
