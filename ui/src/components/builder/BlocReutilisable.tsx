@@ -8,7 +8,7 @@
  */
 import type { Element as ElementBibliotheque } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
-import { Info } from "@/components/mark/studio/marques";
+import { Carte } from "@/components/mark/studio/fenetre-large";
 import { STYLE_FAMILLE } from "@/components/mark/variables/etiquettes-objets";
 import { UtiliseDans } from "@/components/mark/variables/UtiliseDans";
 
@@ -20,16 +20,14 @@ export function BlocReutilisable({ element }: { element: ElementBibliotheque }) 
     const recettes = element.versions.filter((v) => v.statut === "recette").map((v) => v.numero);
     const derniere = recettes.length ? Math.max(...recettes) : null;
     return (
-        <section className="space-y-2 rounded-xl border p-4" data-testid="bloc-reutilisable" aria-label={t({ en: "Reusable block", fr: "Bloc réutilisable" })}>
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-                {t({ en: "Reusable block", fr: "Bloc réutilisable" })}
-                <Info>
-                    {t({
-                        en: "A piece of prompt from the library is dropped into any prompt as a label. Each agent follows the latest version (it gets every new Recipe) or stays on its own. Deleting or rejecting the block turns the labels that cite it red: publishing is blocked.",
-                        fr: "Un morceau de prompt de la bibliothèque se dépose dans n'importe quel prompt sous forme d'étiquette. Chaque agent suit la dernière version (il reçoit chaque nouvelle Recette) ou reste sur la sienne. Supprimer ou rejeter le bloc rend rouges les étiquettes qui le citent : la publication est bloquée.",
-                    })}
-                </Info>
-            </h3>
+        <Carte
+            titre={t({ en: "Reusable block", fr: "Bloc réutilisable" })}
+            info={t({
+                en: "A piece of prompt from the library is dropped into any prompt as a label. Each agent follows the latest version (it gets every new Recipe) or stays on its own. Deleting or rejecting the block turns the labels that cite it red: publishing is blocked.",
+                fr: "Un morceau de prompt de la bibliothèque se dépose dans n'importe quel prompt sous forme d'étiquette. Chaque agent suit la dernière version (il reçoit chaque nouvelle Recette) ou reste sur la sienne. Supprimer ou rejeter le bloc rend rouges les étiquettes qui le citent : la publication est bloquée.",
+            })}
+        >
+            <div className="space-y-2" data-testid="bloc-reutilisable">
             <p className="flex flex-wrap items-center gap-2 text-sm">
                 {t({ en: "In a prompt:", fr: "Dans un prompt :" })}
                 <span className="rounded px-1.5 text-xs leading-5 text-white" style={{ background: STYLE_FAMILLE.bloc.couleur }}>
@@ -44,6 +42,7 @@ export function BlocReutilisable({ element }: { element: ElementBibliotheque }) 
                 </p>
             )}
             <UtiliseDans cle={`bloc:${element.slug}`} versionRecette={derniere} />
-        </section>
+            </div>
+        </Carte>
     );
 }

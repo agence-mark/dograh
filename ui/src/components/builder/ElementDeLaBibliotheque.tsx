@@ -19,7 +19,6 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { dateCourte, type StatutDeLaBibliotheque,STATUTS } from "./libelles";
-import { BlocReutilisable } from "./BlocReutilisable";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
 
 interface Props {
@@ -193,9 +192,6 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
                     ))}
                 </ul>
             </div>
-
-            {/* [.mark] Partie 3, lot 22 : un élément d'une famille qui écrit des prompts est un bloc citable. */}
-            <BlocReutilisable element={element} />
 
             {nouveau === null ? (
                 <Button size="sm" variant="outline" onClick={() => setNouveau(JSON.stringify(courante.contenu, null, 2))}>
