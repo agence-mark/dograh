@@ -174,8 +174,8 @@ class WorkflowClient(BaseDBClient):
         branche ; un premier brouillon part de la version en ligne de la BRANCHE, et la copie héritée de la table ``workflows``
         (qui reflète le brouillon de la principale) n'est jamais touchée.
         """
-        cible = branche_ouverte.courante()
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             base_de_la_branche = await self._base_de_la_branche(session, workflow_id, cible) if cible.branch_id else None
             # Check for existing draft
             result = await session.execute(
@@ -244,6 +244,29 @@ class WorkflowClient(BaseDBClient):
             await session.refresh(draft)
         return draft
 
+    async def _cible(self, session, workflow_id: int) -> "branche_ouverte.Cible":
+        """[.mark] SA-L3b : la branche ouverte par la requête, SI elle est une branche active de CET agent ; sinon la principale (un
+        en-tête de branche d'un autre agent, forgé ou resté d'une autre page, ne donne accès à rien et ne casse rien)."""
+        cible = branche_ouverte.courante()
+        if cible.branch_id is None:
+            return cible
+        from api.db.models_builder import WorkflowBranchModel
+
+        ok = await session.scalar(
+            select(WorkflowBranchModel.id).where(
+                WorkflowBranchModel.id == cible.branch_id,
+                WorkflowBranchModel.workflow_id == workflow_id,
+                WorkflowBranchModel.statut == "active",
+                WorkflowBranchModel.est_principale.is_(False),
+            )
+        )
+        return cible if ok else branche_ouverte.Cible(None, cible.user_id)
+
+    async def branche_ouverte_de(self, workflow_id: int) -> "branche_ouverte.Cible":
+        """La branche non principale que la requête a ouverte sur cet agent (``branch_id`` None : la principale)."""
+        async with self.async_session() as session:
+            return await self._cible(session, workflow_id)
+
     async def _base_de_la_branche(self, session, workflow_id: int, cible) -> WorkflowDefinitionModel | None:
         """[.mark] SA-L3b : la version en ligne de la branche ouverte (pour y fonder un premier brouillon). La branche doit
         appartenir à CET agent, sinon rien (un en-tête forgé ne donne accès à rien)."""
@@ -254,9 +277,7 @@ class WorkflowClient(BaseDBClient):
                 WorkflowBranchModel.id == cible.branch_id, WorkflowBranchModel.workflow_id == workflow_id
             )
         )
-        if branche is None:
-            raise ValueError(f"Branch {cible.branch_id} does not belong to workflow {workflow_id}")
-        if branche.head_definition_id is None:
+        if branche is None or branche.head_definition_id is None:
             return None
         return await session.get(WorkflowDefinitionModel, branche.head_definition_id)
 
@@ -274,10 +295,10 @@ class WorkflowClient(BaseDBClient):
         [.mark] SA-L3b : la publication de la principale seulement. Le brouillon d'une branche se publie par sa branche
         (``publier_le_brouillon_de_branche``), jamais comme la version en ligne de l'agent.
         """
-        cible = branche_ouverte.courante()
-        if cible.branch_id is not None:
-            raise ValueError("A branch draft is published from its branch, not as the agent's live version")
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
+            if cible.branch_id is not None:
+                raise ValueError("A branch draft is published from its branch, not as the agent's live version")
             # Find the draft
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
@@ -328,8 +349,8 @@ class WorkflowClient(BaseDBClient):
         workflow_id: int,
     ) -> None:
         """Delete the current draft version (of the open branch's person, on a branch)."""
-        cible = branche_ouverte.courante()
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
@@ -358,8 +379,8 @@ class WorkflowClient(BaseDBClient):
 
         Raises ValueError if a draft already exists (must discard first).
         """
-        cible = branche_ouverte.courante()
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             # Ensure no existing draft
             draft_result = await session.execute(
                 select(WorkflowDefinitionModel).where(
@@ -419,8 +440,8 @@ class WorkflowClient(BaseDBClient):
 
         [.mark] SA-L3b : sur une branche ouverte, le brouillon de la personne sur cette branche.
         """
-        cible = branche_ouverte.courante()
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,

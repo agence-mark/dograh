@@ -111,13 +111,16 @@ async def test_le_brouillon_d_une_branche_est_a_la_personne_et_la_principale_gar
     assert (await db_session.get_draft_version(agent.id)).workflow_json["x"] == "branche"
 
 
-async def test_une_branche_d_un_autre_agent_ne_donne_aucun_brouillon(org, db_session):
+async def test_une_branche_d_un_autre_agent_ne_donne_aucun_brouillon_et_ne_casse_rien(org, db_session):
     un, deux = await _agent(db_session, org, "Un"), await _agent(db_session, org, "Deux")
-    branche, _ = await db_session.creer_une_branche(org.organisation.id, un.id, "Essai", depuis_definition_id=None, user_id=org.utilisateur.id)
-    branche_ouverte.ouvrir(branche.id, org.utilisateur.id)
-    assert await db_session.get_draft_version(deux.id) is None  # l'en-tête forgé ne donne accès à rien
-    with pytest.raises(ValueError):
-        await db_session.save_workflow_draft(deux.id, workflow_definition=GRAPHE)
+    branche, brouillon = await db_session.creer_une_branche(org.organisation.id, un.id, "Essai", depuis_definition_id=None, user_id=org.utilisateur.id)
+    branche_ouverte.ouvrir(branche.id, org.utilisateur.id)  # l'en-tête reste posé quand on lit un AUTRE agent
+    assert await db_session.get_draft_version(deux.id) is None
+    ecrit = await db_session.save_workflow_draft(deux.id, workflow_definition=GRAPHE)  # écrit sur la principale de « Deux »
+    assert ecrit.branch_id is None and ecrit.draft_owner_id is None
+    assert (await db_session.branche_ouverte_de(deux.id)).branch_id is None
+    assert (await db_session.branche_ouverte_de(un.id)).branch_id == branche.id
+    assert (await db_session.get_draft_version(un.id)).id == brouillon.id  # le brouillon de la branche n'a pas bougé
 
 
 # --- version immuable ------------------------------------------------------------------------------------------------------------
@@ -293,3 +296,42 @@ async def test_le_script_pose_les_principales_manquantes_et_reprend_un_deploieme
     parts = await deploiement.lire(org.organisation.id, agent.id)
     vues = {deploiement.version_attribuee(parts, agent.id, f"0611{n:06d}") for n in range(60)}
     assert vues == {ancienne, nouvelle}
+
+
+async def test_publier_avec_une_branche_ouverte_publie_la_branche_apres_les_memes_controles(
+    org, db_session, async_session, test_client_factory, lire_l_entete_de_branche, monkeypatch
+):
+    """Le bouton Publier d'une branche ouverte joue la route de publication de l'agent : mêmes contrôles, mais la version est celle de
+    la branche, et la version en ligne de l'agent ne bouge pas."""
+    from api.services.groupe import groupe as groupe_service
+
+    monkeypatch.setenv("MARK_PUBLICATION_SANS_GARDE", "1")
+    agent = await db_session.create_workflow(
+        name="Agent", workflow_definition=groupe_service.graphe_minimal_du_principal(), user_id=org.utilisateur.id, organization_id=org.organisation.id
+    )
+    en_ligne = agent.released_definition_id
+    branche, brouillon = await db_session.creer_une_branche(org.organisation.id, agent.id, "Essai", depuis_definition_id=None, user_id=org.utilisateur.id)
+    await _oublier(async_session)
+    faux_get_user, app, get_user = lire_l_entete_de_branche
+    async with test_client_factory(org.utilisateur) as client:
+        app.dependency_overrides[get_user] = faux_get_user
+        r = await client.post(f"/api/v1/workflow/{agent.id}/publish", headers={"X-Mark-Branche": str(branche.id)})
+        assert r.status_code == 200, r.text
+        assert r.json()["id"] == brouillon.id and r.json()["status"] == "archived"
+    await _oublier(async_session)
+    relu = await db_session.get_workflow(agent.id, organization_id=org.organisation.id)
+    assert relu.released_definition_id == en_ligne
+    assert (await db_session.obtenir_une_branche(org.organisation.id, agent.id, branche.id)).head_definition_id == brouillon.id
+
+
+async def test_une_branche_dont_le_brouillon_est_invalide_n_est_pas_publiee(org, db_session, async_session, test_client_factory, lire_l_entete_de_branche):
+    """Les contrôles de la publication jouent aussi sur une branche : un brouillon sans point de départ est refusé, rien n'est publié."""
+    agent = await _agent(db_session, org)  # graphe sans « Start Call »
+    branche, _ = await db_session.creer_une_branche(org.organisation.id, agent.id, "Essai", depuis_definition_id=None, user_id=org.utilisateur.id)
+    await _oublier(async_session)
+    faux_get_user, app, get_user = lire_l_entete_de_branche
+    async with test_client_factory(org.utilisateur) as client:
+        app.dependency_overrides[get_user] = faux_get_user
+        r = await client.post(f"/api/v1/workflow/{agent.id}/publish", headers={"X-Mark-Branche": str(branche.id)})
+        assert r.status_code == 422
+    assert (await db_session.obtenir_une_branche(org.organisation.id, agent.id, branche.id)).head_definition_id == agent.released_definition_id

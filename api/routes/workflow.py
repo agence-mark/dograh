@@ -1007,6 +1007,26 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
         await db_client.save_workflow_draft(workflow_id, workflow_configurations=configurations_effectives)
         draft.workflow_configurations = configurations_effectives
 
+    # [.mark] Partie 3, SA-L3b : une branche ouverte (``X-Mark-Branche``) se publie par SA branche, avec les MÊMES contrôles que
+    # la principale (ils viennent de passer sur le brouillon de la branche) ; la version en ligne de l'agent ne bouge pas.
+    ouverte = await db_client.branche_ouverte_de(workflow_id)
+    if ouverte.branch_id is not None:
+        from api.db.branches_client import ErreurDeBranche
+        from api.services.branches import service as service_branches
+        from api.services.equipe_mark.acces import journaliser as journaliser_branche
+
+        try:
+            version = await service_branches.publier(user.selected_organization_id, workflow, ouverte.branch_id, user.id)
+        except ErreurDeBranche as erreur:
+            raise HTTPException(status_code=409 if erreur.code == "sans_brouillon" else 422, detail=str(erreur)) from None
+        await journaliser_branche(
+            user,
+            "agents.branche_publiee",
+            user.selected_organization_id,
+            {"agent": workflow_id, "branche": ouverte.branch_id, "version": version["version_number"]},
+        )
+        return {"id": version["id"], "version_number": version["version_number"], "status": version["status"], "published_at": None}
+
     try:
         published = await db_client.publish_workflow_draft(workflow_id)
     except ValueError as e:

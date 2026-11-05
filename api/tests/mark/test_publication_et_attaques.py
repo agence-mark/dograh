@@ -244,6 +244,7 @@ def route(banc, monkeypatch):  # noqa: F811
         get_draft_version=banc.get_draft_version,
         publish_workflow_draft=publier,
         epingler_la_principale=epingler,
+        branche_ouverte_de=AsyncMock(return_value=SimpleNamespace(branch_id=None, user_id=None)),
     )
     banc.workflows[AGENT].released_definition_id = 12
     banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret(getattr(banc.brouillons[AGENT], 'workflow_configurations', None))
