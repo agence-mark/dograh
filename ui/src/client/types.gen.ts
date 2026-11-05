@@ -694,6 +694,59 @@ export type AmbientNoiseUploadResponse = {
 };
 
 /**
+ * ApercuDeFusion
+ */
+export type ApercuDeFusion = {
+    branche: BrancheDeFusion;
+    cible: CibleDeFusion;
+    depart: DepartDeFusion;
+    /**
+     * Champs
+     */
+    champs: Array<ChampDeFusion>;
+    resume: ResumeDeFusion;
+    /**
+     * Problemes
+     */
+    problemes: Array<ProblemeDeFusion>;
+    /**
+     * Protegee
+     */
+    protegee: boolean;
+    /**
+     * Relue Obligatoire
+     */
+    relue_obligatoire: boolean;
+    trafic: TraficDeFusion;
+    /**
+     * Defaisable
+     */
+    defaisable?: boolean;
+};
+
+/**
+ * ApercuDeMiseAJour
+ */
+export type ApercuDeMiseAJour = {
+    branche: BrancheDeMiseAJour;
+    principale: PrincipaleDeMiseAJour;
+    depart: DepartDeFusion;
+    /**
+     * A Jour
+     */
+    a_jour: boolean;
+    /**
+     * Champs
+     */
+    champs: Array<ChampDeFusion>;
+    resume: ResumeDeFusion;
+    /**
+     * Problemes
+     */
+    problemes: Array<ProblemeDeFusion>;
+};
+
+/**
  * ApercuSms
  */
 export type ApercuSms = {
@@ -1728,6 +1781,54 @@ export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
 };
 
 /**
+ * BrancheDeFusion
+ */
+export type BrancheDeFusion = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Id Version
+     */
+    id_version: number;
+};
+
+/**
+ * BrancheDeMiseAJour
+ */
+export type BrancheDeMiseAJour = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Brouillon
+     */
+    brouillon: boolean;
+    /**
+     * Id Base
+     */
+    id_base?: number | null;
+};
+
+/**
  * BrancheVue
  */
 export type BrancheVue = {
@@ -1747,6 +1848,10 @@ export type BrancheVue = {
      * Protegee
      */
     protegee: boolean;
+    /**
+     * Protegee Par Defaut
+     */
+    protegee_par_defaut?: boolean;
     /**
      * Part
      */
@@ -2505,6 +2610,42 @@ export type ChampDeFamille = {
 };
 
 /**
+ * ChampDeFusion
+ */
+export type ChampDeFusion = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Statut
+     *
+     * reprise (source seule), gardee (cible seule) ou conflit (les deux, à choisir).
+     */
+    statut: string;
+    /**
+     * Avant
+     */
+    avant?: string | null;
+    /**
+     * Source
+     */
+    source?: string | null;
+    /**
+     * Cible
+     */
+    cible?: string | null;
+};
+
+/**
  * ChampFiche
  */
 export type ChampFiche = {
@@ -2940,6 +3081,24 @@ export type Cible = {
 };
 
 /**
+ * CibleDeFusion
+ */
+export type CibleDeFusion = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Id Version
+     */
+    id_version: number;
+};
+
+/**
  * CibleProposee
  */
 export type CibleProposee = {
@@ -3194,6 +3353,31 @@ export type CommuneDuCodePostal = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * ComparaisonVue
+ */
+export type ComparaisonVue = {
+    /**
+     * Jours
+     */
+    jours: number;
+    /**
+     * Appels Min
+     */
+    appels_min: number;
+    gauche: CoteDeComparaison;
+    droite: CoteDeComparaison;
+    /**
+     * Mesures
+     */
+    mesures: Array<MesureDeComparaison>;
+    verdict: VerdictDeComparaison;
+    /**
+     * Configuration
+     */
+    configuration: Array<LigneDeConfiguration>;
 };
 
 /**
@@ -3767,6 +3951,34 @@ export type CorrigerUnReglage = {
      * Liaison Id
      */
     liaison_id?: string | null;
+};
+
+/**
+ * CoteDeComparaison
+ */
+export type CoteDeComparaison = {
+    /**
+     * Type
+     *
+     * branche or version
+     */
+    type: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Part
+     */
+    part?: number | null;
 };
 
 /**
@@ -5295,6 +5507,16 @@ export type DemandeTestMcp = {
      * Outil Uuid
      */
     outil_uuid?: string | null;
+};
+
+/**
+ * DepartDeFusion
+ */
+export type DepartDeFusion = {
+    /**
+     * Version
+     */
+    version?: number | null;
 };
 
 /**
@@ -7462,6 +7684,38 @@ export type FolderResponse = {
 };
 
 /**
+ * FusionDemandee
+ */
+export type FusionDemandee = {
+    /**
+     * Choix
+     *
+     * Field key -> 'source' or 'cible'; one per conflict.
+     */
+    choix?: {
+        [key: string]: string;
+    };
+    /**
+     * Relue
+     *
+     * The merge was reviewed: required when the main branch is protected.
+     */
+    relue?: boolean;
+    /**
+     * Version Branche
+     *
+     * The branch version id the preview was read on.
+     */
+    version_branche: number;
+    /**
+     * Version Cible
+     *
+     * The main branch version id the preview was read on.
+     */
+    version_cible: number;
+};
+
+/**
  * Gladia
  */
 export type GladiaSttConfiguration = {
@@ -9205,6 +9459,32 @@ export type LigneDAlerte = {
 };
 
 /**
+ * LigneDeConfiguration
+ */
+export type LigneDeConfiguration = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Avant
+     */
+    avant?: string | null;
+    /**
+     * Apres
+     */
+    apres?: string | null;
+};
+
+/**
  * LigneDeLaFiche
  */
 export type LigneDeLaFiche = {
@@ -10099,6 +10379,34 @@ export type MessagePortail = {
 };
 
 /**
+ * MesureDeComparaison
+ */
+export type MesureDeComparaison = {
+    /**
+     * Cle
+     */
+    cle: string;
+    /**
+     * Gauche
+     */
+    gauche?: number | null;
+    /**
+     * Droite
+     */
+    droite?: number | null;
+    /**
+     * Ecart
+     */
+    ecart?: number | null;
+    /**
+     * Meilleur
+     *
+     * gauche or droite when the line has a better side
+     */
+    meilleur?: string | null;
+};
+
+/**
  * MiniMaxLLMConfiguration
  */
 export type MiniMaxLlmConfiguration = {
@@ -10184,6 +10492,30 @@ export type MiniMaxTtsConfiguration = {
      * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
      */
     adresse_libre?: boolean;
+};
+
+/**
+ * MiseAJourDemandee
+ */
+export type MiseAJourDemandee = {
+    /**
+     * Choix
+     */
+    choix?: {
+        [key: string]: string;
+    };
+    /**
+     * Version Principale
+     *
+     * The main branch version id the preview was read on.
+     */
+    version_principale: number;
+    /**
+     * Base Attendue
+     *
+     * The branch start version id the preview was read on.
+     */
+    base_attendue?: number | null;
 };
 
 /**
@@ -12688,6 +13020,20 @@ export type PrincipalDuGroupe = {
 };
 
 /**
+ * PrincipaleDeMiseAJour
+ */
+export type PrincipaleDeMiseAJour = {
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Id Version
+     */
+    id_version: number;
+};
+
+/**
  * PrixDUnModele
  */
 export type PrixDUnModele = {
@@ -12703,6 +13049,24 @@ export type PrixDUnModele = {
      * Sortie Par Million
      */
     sortie_par_million?: number;
+};
+
+/**
+ * ProblemeDeFusion
+ */
+export type ProblemeDeFusion = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Cle
+     */
+    cle?: string | null;
+    /**
+     * Message
+     */
+    message?: string | null;
 };
 
 /**
@@ -13018,6 +13382,18 @@ export type PropositionConnecteur = {
      * Autorise Par
      */
     autorise_par?: string | null;
+};
+
+/**
+ * ProtectionDemandee
+ */
+export type ProtectionDemandee = {
+    /**
+     * Protegee
+     *
+     * Protect the main branch (entered only by a reviewed merge) or lift the flag.
+     */
+    protegee: boolean;
 };
 
 /**
@@ -14801,6 +15177,24 @@ export type Resume = {
      * Extrait
      */
     extrait?: string | null;
+};
+
+/**
+ * ResumeDeFusion
+ */
+export type ResumeDeFusion = {
+    /**
+     * Reprise
+     */
+    reprise: number;
+    /**
+     * Gardee
+     */
+    gardee: number;
+    /**
+     * Conflit
+     */
+    conflit: number;
 };
 
 /**
@@ -17422,6 +17816,24 @@ export type TrafficVariantStats = {
 };
 
 /**
+ * TraficDeFusion
+ */
+export type TraficDeFusion = {
+    /**
+     * Part Branche
+     */
+    part_branche: number;
+    /**
+     * Part Principale
+     */
+    part_principale: number;
+    /**
+     * Part Principale Apres
+     */
+    part_principale_apres: number;
+};
+
+/**
  * TransferAgentConfig
  *
  * Configuration for Transfer Agent tools.
@@ -18299,6 +18711,26 @@ export type VariableCatalogue = {
      * Description
      */
     description?: string;
+};
+
+/**
+ * VerdictDeComparaison
+ */
+export type VerdictDeComparaison = {
+    /**
+     * Gagnant
+     *
+     * gauche, droite, egalite or insuffisant (too few calls on a side)
+     */
+    gagnant: string;
+    /**
+     * Pour Gauche
+     */
+    pour_gauche: Array<string>;
+    /**
+     * Pour Droite
+     */
+    pour_droite: Array<string>;
 };
 
 /**
@@ -28030,6 +28462,71 @@ export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
 
 export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
 
+export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query: {
+        /**
+         * Gauche
+         *
+         * 'branche:<id>' or 'version:<number>'
+         */
+        gauche: string;
+        /**
+         * Droite
+         *
+         * 'branche:<id>' or 'version:<number>'
+         */
+        droite: string;
+        /**
+         * Jours
+         */
+        jours?: number;
+    };
+    url: '/api/v1/builder/branches/{workflow_id}/comparer';
+};
+
+export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetError = ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetErrors[keyof ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetErrors];
+
+export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ComparaisonVue;
+};
+
+export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetResponse = ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetResponses[keyof ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetResponses];
+
 export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetData = {
     body?: never;
     headers?: {
@@ -28260,6 +28757,306 @@ export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionP
 export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutError = EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutErrors[keyof EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutErrors];
 
 export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutData = {
+    body: ProtectionDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/principale/protection';
+};
+
+export type ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutError = ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutErrors[keyof ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutErrors];
+
+export type ProtegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/fusion';
+};
+
+export type ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetError = ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetErrors[keyof ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetErrors];
+
+export type ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApercuDeFusion;
+};
+
+export type ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetResponse = ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetResponses[keyof ApercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGetResponses];
+
+export type FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostData = {
+    body: FusionDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/fusion';
+};
+
+export type FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostError = FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostErrors[keyof FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostErrors];
+
+export type FusionnerUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdFusionPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/fusion/defaire';
+};
+
+export type DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostError = DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostErrors[keyof DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostErrors];
+
+export type DefaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/mise-a-jour';
+};
+
+export type ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetError = ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetErrors[keyof ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetErrors];
+
+export type ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApercuDeMiseAJour;
+};
+
+export type ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetResponse = ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetResponses[keyof ApercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGetResponses];
+
+export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostData = {
+    body: MiseAJourDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/mise-a-jour';
+};
+
+export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostError = MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostErrors[keyof MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostErrors];
+
+export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPostResponses = {
     /**
      * Successful Response
      */
