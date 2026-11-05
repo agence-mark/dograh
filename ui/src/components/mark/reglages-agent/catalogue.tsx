@@ -27,6 +27,7 @@ import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 import { attributDeLongueur, attributsDeBorne, BORNES, NOMBRE_MAX_ELEMENTS, texteHorsBornes } from "../bornes-reglages";
 import { ChampReglage, ContexteLigneMaquette, decouperUnite, texteBornes } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
+import { Curseur } from "@/components/ui/curseur";
 
 type Lecture = "decimal" | "decimalPositif" | "entier" | "entierPositif";
 
@@ -870,8 +871,7 @@ export const Reglage = ({
                         <>
                             {borne && (
                                 <div className="pt-1">
-                                    <input
-                                        type="range"
+                                    <Curseur
                                         aria-label={t(definition.libelle)}
                                         min={borne.min}
                                         max={borne.max}
@@ -879,7 +879,7 @@ export const Reglage = ({
                                         value={Math.min(Math.max(courant, borne.min), borne.max)}
                                         disabled={desactive}
                                         onChange={(e) => onChange(Number(e.target.value))}
-                                        className="w-full cursor-pointer accent-foreground"
+                                        className="w-full"
                                     />
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
                                         <span>{borne.min}</span>

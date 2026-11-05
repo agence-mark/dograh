@@ -24,6 +24,7 @@ import { type Texte, useLangue } from "../langue/langue";
 import { Segments } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, type ProprietesThemeAgent, useBrouillon, useEtatTheme } from "./theme-commun";
+import { Curseur } from "@/components/ui/curseur";
 
 export const ID_THEME_SECURITE = "securite";
 export const TITRE_SECURITE = { en: "Safety", fr: "Sécurité" };
@@ -406,15 +407,14 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
                             disposition="ligne"
                             sous={
                                 <div className="pt-1">
-                                    <input
-                                        type="range"
+                                    <Curseur
                                         aria-label={t({ en: "Passage recited from", fr: "Passage récité à partir de" })}
                                         min={MOTS_MIN}
                                         max={MOTS_MAX}
                                         step={1}
                                         value={Math.min(Math.max(brouillon.jamais.mots, MOTS_MIN), MOTS_MAX)}
                                         onChange={(e) => poser("jamais", { mots: Number(e.target.value) })}
-                                        className="w-full cursor-pointer accent-foreground"
+                                        className="w-full"
                                     />
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
                                         <span>{MOTS_MIN}</span>
