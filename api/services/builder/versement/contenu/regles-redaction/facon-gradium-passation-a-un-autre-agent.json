@@ -1,0 +1,17 @@
+{
+  "titre": "Passation à un autre agent (façon Gradium)",
+  "contenu": {
+    "texte": "# Passation à un autre agent\n\n- L'agent qui passe la main **continue de parler** pendant que le suivant arrive : pas de blanc.\n- Le suivant reçoit : « l'autre agent est parti, ne parle plus comme lui », et parle avec **une autre voix**.\n- Le passage ne se propose jamais de lui-même : seulement sur demande de l'appelant."
+  },
+  "notes": "À comparer avec l'orchestrateur et les passations du fork (passation de 3 s déjà connue). Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « fantasy_shop » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "passation"
+  ]
+}
