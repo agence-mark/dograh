@@ -104,7 +104,7 @@ describe("la fenêtre « Publier »", () => {
         expect(within(ligne).getAllByRole("button").map((b) => b.textContent).slice(-3)).toEqual(["Off", "Warns", "Blocks"]);
         fireEvent.click(screen.getByRole("button", { name: "Publish" }));
         await waitFor(() => expect(m.publier).toHaveBeenCalled());
-        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: false, raison: null, pourcentage: null });
+        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: false, raison: null });
         await waitFor(() => expect(onPublie).toHaveBeenCalled());
     });
 
@@ -165,7 +165,7 @@ describe("la fenêtre « Publier »", () => {
         expect((bouton as HTMLButtonElement).disabled).toBe(false);
         fireEvent.click(bouton);
         await waitFor(() => expect(m.publier).toHaveBeenCalled());
-        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: true, raison: "vérifié au casque", pourcentage: null });
+        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: true, raison: "vérifié au casque" });
         await waitFor(() => expect(onPublie).toHaveBeenCalled());
     });
 
@@ -189,19 +189,22 @@ describe("la fenêtre « Publier »", () => {
         expect(m.corriger.mock.calls[0][0].body).toEqual({ ids: ["silence_appelant"] });
     });
 
-    it("le déploiement progressif n'apparaît que s'il est allumé ; la part choisie part avec la publication", async () => {
+    it("la fenêtre ne propose plus de part des appels (la répartition vit entre branches) et publie sans pourcentage", async () => {
+        m.lire.mockResolvedValue({ data: vue({ deploiement_actif: true }) });
         rendre();
         await screen.findByText("Required tests");
         expect(screen.queryAllByText("Deployment").length).toBe(0);
-        cleanup();
-        m.lire.mockResolvedValue({ data: vue({ deploiement_actif: true }) });
-        rendre();
-        await screen.findByRole("button", { name: "A share of the calls" });
-        fireEvent.click(screen.getByRole("button", { name: "A share of the calls" }));
-        fireEvent.click(screen.getByRole("button", { name: "25 %" }));
-        fireEvent.click(screen.getByRole("button", { name: "Publish on 25 %" }));
+        expect(screen.queryByRole("button", { name: "A share of the calls" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Publish" }));
         await waitFor(() => expect(m.publier).toHaveBeenCalled());
-        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: false, raison: null, pourcentage: 25 });
+        expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: false, raison: null });
+    });
+
+    it("sur une branche ouverte, le titre et le message disent la branche", async () => {
+        const surBranche = <FenetreDePublication agentId={7} version={4} branche="Accueil court" fermer={vi.fn()} onPublie={vi.fn()} />;
+        render(surBranche);
+        await screen.findByText("Required tests");
+        expect(screen.getByText(/Publish v4 · Accueil court/)).toBeTruthy();
     });
 
     it("une panne de lecture montre l'état d'erreur, jamais un écran blanc ni le texte du serveur", async () => {
