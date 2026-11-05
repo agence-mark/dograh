@@ -1,0 +1,17 @@
+{
+  "titre": "Écrire une étape par motif (façon Tala)",
+  "contenu": {
+    "texte": "# Écrire une étape par motif (recette façon Tala)\n\n1. Un motif = un moule de la bibliothèque, rempli, jamais réécrit. Le secteur n'apporte que les trous.\n2. L'outil est cité par son étiquette dans la tâche où il est appelé, avec son déclencheur (« dès que … sont connus »).\n3. Une action annoncée (enregistrer, réserver, envoyer) exige un outil qui écrit posé sur l'étape.\n4. Les faits du client (prix, délais, numéros, prénoms) viennent de la fiche ou d'un objet, jamais d'un exemple.\n5. Une étape qui mène à plusieurs autres les cite toutes dans son texte.\n6. Verbes de voix seulement : dire, demander, relire, jamais afficher ou cliquer.\n7. Après tout ajout de motif : relire l'orientation, les conditions et le récapitulatif.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

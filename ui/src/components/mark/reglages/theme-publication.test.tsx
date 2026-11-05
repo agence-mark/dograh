@@ -13,7 +13,7 @@ import { FournisseurLangue } from "../langue/langue";
 import { ThemePublication } from "./ThemePublication";
 
 const DEFAUTS = {
-    controles: { tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint" },
+    controles: { tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint", valeur_en_dur: "previent", verbe_ecran: "previent", action_sans_outil: "previent", sortie_non_citee: "previent", poids_agent: "previent" },
     deploiement: { actif: false },
 };
 
@@ -45,7 +45,7 @@ describe("le thème « Publication »", () => {
         const { container } = rendre();
         await screen.findByRole("switch");
         expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(11);
+        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(16); // 11 contrôles de la fenêtre + 5 contrôles de rédaction (lot « façon Tala par motif »)
         const ligne = container.querySelector("[data-reglage='publication.controles.tests_obligatoires']") as HTMLElement;
         expect(ligne.querySelector("button[aria-pressed='true']")?.textContent).toBe("Bloque");
         const eteinte = container.querySelector("[data-reglage='publication.controles.attaques']") as HTMLElement;
@@ -79,5 +79,17 @@ describe("le thème « Publication »", () => {
         await waitFor(() => expect(m.ecrire).toHaveBeenCalled());
         expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true");
         expect(document.body.textContent).not.toContain("boom-serveur");
+    });
+
+    it("les contrôles de rédaction ont leur section ; le poids n'a que Éteint et Prévient, les autres ont les trois positions", async () => {
+        const { container } = rendre();
+        await screen.findByRole("switch");
+        expect(container.querySelector("[data-groupe='publication-redaction']")).toBeTruthy();
+        const boutons = (cle: string) =>
+            Array.from((container.querySelector(`[data-reglage='publication.controles.${cle}']`) as HTMLElement).querySelectorAll("button[aria-pressed]")).map((b) => b.textContent);
+        expect(boutons("poids_agent")).toEqual(["Éteint", "Prévient"]);
+        expect(boutons("valeur_en_dur")).toEqual(["Éteint", "Prévient", "Bloque"]);
+        const poids = container.querySelector("[data-reglage='publication.controles.poids_agent']") as HTMLElement;
+        expect(poids.querySelector("button[aria-pressed='true']")?.textContent).toBe("Prévient");
     });
 });

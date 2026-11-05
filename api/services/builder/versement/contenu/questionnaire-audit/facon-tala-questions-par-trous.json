@@ -1,0 +1,17 @@
+{
+  "titre": "Questions par trous, entrant et sortant (façon Tala)",
+  "contenu": {
+    "texte": "# Questions par trous (recette façon Tala)\n\nLe builder pose ces questions sur les trous de la description, une par une, toutes facultatives. **Jamais de réponse suggérée versée telle quelle** : chez Tala, les suggestions inventent tarifs, numéros et délais, ou proposent « X ou Y » que le générateur tranche seul.\n\n## Entrant\nNuméros et transfert · horaires et fermetures · délai de rappel à annoncer · ce qu'il faut noter (appareils, références, pièces) · mail ou non · ordre de collecte · cas limites (hors zone, acheté ailleurs, refuse de donner) · logiciel qui tient la donnée et comment il répond · identifiants acceptés et leur ordre · ce qui se transfère tout de suite.\n\n## Sortant\nDélai entre l'échéance et l'appel · contact à donner pour refuser les appels · preuve demandée ou non · confirmation par message ou mail · clients ou cas prioritaires · créneau précis proposé ou préférences d'abord · motifs de refus à enregistrer · source des coordonnées à annoncer · seuils de qualification · délai maximal d'une promesse et acompte.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

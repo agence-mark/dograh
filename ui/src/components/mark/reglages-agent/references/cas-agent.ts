@@ -273,6 +273,15 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("delai_garde_modele_s", "6"),
         { type: "cliquer", nom: "Save the guard delay" },
     ], true),
+    // Lot « façon Tala par motif » (T3): the thresholds of the brain.
+    c("taille-plafond", "ajout-mark", "briques", ["cerveau_plafond_prompt"], [
+        saisir("cerveau_plafond_prompt", "6000"),
+        { type: "cliquer", nom: "Save the longest prompt" },
+    ], true),
+    c("taille-poids", "ajout-mark", "briques", ["cerveau_poids_max"], [
+        saisir("cerveau_poids_max", "9000"),
+        { type: "cliquer", nom: "Save the heaviest reply" },
+    ], true),
     c("garde-repli", "ajout-mark", "briques", ["cerveau_de_repli"], [
         { type: "cliquer", nom: "Configure the fallback brain" },
         saisir("repli_provider", "mistral"),

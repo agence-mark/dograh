@@ -38,7 +38,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+import { BilanDeSante, PoidsDeLAgentSection } from "./BilanEtPoids";
 import { CarteRelecture, DEMANDE_DE_RELECTURE } from "./CarteRelecture";
+import { CONTROLES_FIXES } from "./types";
 import type { CleControle, GenreDeChangement, PositionControle, StatutControle, VueDePublication, VueDesChangements } from "./types";
 
 const POSITIONS: PositionControle[] = ["eteint", "previent", "bloque"];
@@ -186,6 +188,47 @@ export function FenetreDePublication({
                 en: "Said at the start of every call and cannot be turned off: the text can change (Phrases theme), the announcement never. Always blocks when the text is empty.",
             },
         },
+        // Lot « façon Tala par motif » : les contrôles de rédaction, par le même réglage que les autres.
+        valeur_en_dur: {
+            fr: "Valeur écrite en dur",
+            en: "Value written in the prompt",
+            info: {
+                fr: "Un montant, un délai chiffré ou un prénom donné en exemple dans un prompt. Prévient par défaut : une bonne pratique n'est pas un blocage.",
+                en: "An amount, a figure delay or a first name given as an example in a prompt. Warns by default: a good practice is not a block.",
+            },
+        },
+        verbe_ecran: {
+            fr: "Verbe d'écran",
+            en: "Screen verb",
+            info: {
+                fr: "« Afficher », « cliquer », « à l'écran » dans un prompt d'agent vocal. Prévient par défaut.",
+                en: "« Display », « click », « on the screen » in a voice agent prompt. Warns by default.",
+            },
+        },
+        action_sans_outil: {
+            fr: "Action promise sans outil",
+            en: "Action promised without a tool",
+            info: {
+                fr: "« Enregistrer », « réserver », « annuler », « envoyer » dans une étape sans aucun outil qui écrit. Prévient par défaut.",
+                en: "« Save », « book », « cancel », « send » in a step with no tool that writes. Warns by default.",
+            },
+        },
+        sortie_non_citee: {
+            fr: "Sortie non citée",
+            en: "Exit not named",
+            info: {
+                fr: "Une étape à deux sorties de travail ou plus dont le texte ne cite aucune étape visée. Prévient par défaut.",
+                en: "A step with two work exits or more whose text names none of the steps it leads to. Warns by default.",
+            },
+        },
+        poids_agent: {
+            fr: "Poids de l'agent",
+            en: "Agent weight",
+            info: {
+                fr: "Ce que le cerveau lit à chaque réplique, comparé au seuil réglé avec le cerveau (Briques). Informe, ne bloque jamais.",
+                en: "What the brain reads at each reply, compared with the threshold set with the brain (Services). Informs, never blocks.",
+            },
+        },
         garde_fous: {
             fr: "Garde-fous",
             en: "Safeguards",
@@ -253,7 +296,8 @@ export function FenetreDePublication({
 
     const regler = async (cle: CleControle, position: PositionControle) => {
         if (!vue) return;
-        const controles = Object.fromEntries(vue.controles.map((c) => [c.cle, c.position])) as Record<string, PositionControle>;
+        // Les contrôles à position fixe (annonce, étiquettes, blocs) n'ont pas de réglage : ils ne repartent pas.
+        const controles = Object.fromEntries(vue.controles.filter((c) => !CONTROLES_FIXES.includes(c.cle)).map((c) => [c.cle, c.position])) as Record<string, PositionControle>;
         const r = await reglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPut({
             path: { workflow_id: agentId },
             body: { controles: { ...controles, [cle]: position }, deploiement: { actif: vue.deploiement_actif } },
@@ -306,6 +350,12 @@ export function FenetreDePublication({
         if (avecLeGroupe && choisis.length > 0) await groupe.publier(agentId, { specialises: choisis, avecLePrincipal: false });
         onPublie();
         fermer();
+    };
+
+    // La fenêtre se ferme avant d'aller à l'étape visée (sans étape connue : le parcours de l'agent).
+    const allerALEtape = (noeudId: string | null) => {
+        fermer();
+        router.push(noeudId ? `/workflow/${agentId}?etape=${encodeURIComponent(noeudId)}` : `/workflow/${agentId}`);
     };
 
     const bloque = vue?.bloque ?? false;
@@ -361,6 +411,17 @@ export function FenetreDePublication({
                                 }}
                             />
                         </Section>
+                        <BilanDeSante agentId={agentId} version={version} defauts={vue.defauts_du_prompt ?? []} ouvrirEtape={allerALEtape} />
+                        {vue.poids && (
+                            <PoidsDeLAgentSection
+                                poids={vue.poids}
+                                ouvrirEtape={allerALEtape}
+                                regler={() => {
+                                    fermer();
+                                    router.push(`/workflow/${agentId}/settings?theme=briques`);
+                                }}
+                            />
+                        )}
                         <table className="w-full text-sm">
                             <thead className="border-b text-xs text-muted-foreground">
                                 <tr>
@@ -372,6 +433,8 @@ export function FenetreDePublication({
                             <tbody className="divide-y">
                                 {vue.controles.map((c) => {
                                     const nom = NOMS[c.cle];
+                                    if (!nom) return null; // étiquettes et blocs : leur ligne est dans « Prêt à publier »
+                                    const positions = c.cle === "poids_agent" ? POSITIONS.filter((p) => p !== "bloque") : POSITIONS;
                                     return (
                                         <tr key={c.cle} data-controle={c.cle}>
                                             <td className="py-3">
@@ -391,8 +454,8 @@ export function FenetreDePublication({
                                             <td className="pl-4 text-right">
                                                 <Segmente
                                                     valeur={T.positions[c.position]}
-                                                    options={POSITIONS.map((p) => T.positions[p])}
-                                                    changer={(v) => void regler(c.cle, POSITIONS.find((p) => T.positions[p] === v) ?? c.position)}
+                                                    options={positions.map((p) => T.positions[p])}
+                                                    changer={(v) => void regler(c.cle, positions.find((p) => T.positions[p] === v) ?? c.position)}
                                                 />
                                             </td>
                                         </tr>
@@ -564,7 +627,7 @@ export function FenetreDePublication({
                                 .filter((c) => c.statut === "echec")
                                 .map((c) => (
                                     <p key={c.cle} className="text-sm text-muted-foreground">
-                                        <span className="text-foreground">{t(NOMS[c.cle])}</span> · {c.problemes.join(" ; ")}
+                                        <span className="text-foreground">{NOMS[c.cle] ? t(NOMS[c.cle]) : c.libelle}</span> · {c.problemes.join(" ; ")}
                                     </p>
                                 ))}
                         </div>

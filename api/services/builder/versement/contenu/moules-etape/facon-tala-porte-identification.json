@@ -1,0 +1,17 @@
+{
+  "titre": "Porte d'identification (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Porte d'identification (façon Tala, par motif)\n\nFamille : **Lire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil d'identification⟧ (lecture).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nIdentifier la personne avant toute information de compte. Tant qu'elle ne l'est pas, aucune information sur ⟦commande, facture, dossier, compte⟧.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Automatique\n- ⟦outil d'identification⟧ avec le numéro de la ligne ; trouvé : faire confirmer le nom ou l'entreprise.\n### Tâche 2 : Par référence\n- Demander les références dans l'ordre de la fiche : ⟦références acceptées⟧.\n- Vérifier la cohérence avec ce qui est retrouvé.\n- Après deux essais sans succès : expliquer qu'on ne peut rien donner sans identification et proposer une personne.\n\n## Règles métier\n- Ne dire que ce que l'outil renvoie. Erreur de l'outil : ne rien affirmer, s'en excuser, proposer ⟦repli de la fiche⟧.\n\n## Déroulement de l'appel\nBref et courtois. Une fois identifiée, retenir qui elle est et ce qu'elle veut.\n\n# Critères de succès\n- Identifiée -> étape du motif\n- Non identifiable ou personne demandée -> transfert\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers le motif : « La personne est identifiée et sa demande relève de ⟦motif⟧. Déclencher cette transition même si elle n'a pas encore donné de référence. »\n- Vers le transfert : « La personne reste impossible à identifier après deux essais, ou demande une personne. Déclencher cette transition au lieu d'insister. »\n- Depuis l'accueil : « … Déclencher cette transition même si la demande appelle une réponse immédiate, car la personne doit d'abord être identifiée. »\n\n## Pièges relevés\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/lire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

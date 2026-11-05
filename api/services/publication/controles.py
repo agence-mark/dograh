@@ -35,6 +35,11 @@ LIBELLES = {
     "sans_effet": "Réglages sans effet",
     "sortie_d_impasse": "Sortie d'impasse",
     "deux_webhooks": "Deux webhooks",
+    "valeur_en_dur": "Valeur écrite en dur",
+    "verbe_ecran": "Verbe d'écran",
+    "action_sans_outil": "Action promise sans outil",
+    "sortie_non_citee": "Sortie non citée",
+    "poids_agent": "Poids de l'agent",
     "annonce_ia": "Annonce « vous parlez à une IA »",
     "etiquettes": "Étiquettes des prompts",
     "blocs_a_jour": "Blocs à jour",
@@ -89,15 +94,21 @@ async def _tests(workflow: Any, brouillon: Any, org: int) -> list[str]:
     return [f"{t['nom']}: {t['raison']}" for t in lignes]
 
 
-async def _bilan(workflow: Any, brouillon: Any, org: int) -> list[str]:
-    from api.services.builder.controle.service import controler_l_agent
+async def _bilan(workflow: Any, brouillon: Any, org: int, controle_de_l_agent: Any) -> list[str]:
+    from api.services.builder.controle.regles import CODES_DE_REDACTION
     from api.services.builder.tests_agent import publication as garde
 
     # Comme la garde d'avant : le bilan ne garde que les agents suivis par le builder (des tests ou une trace).
     if not await garde.agent_suivi(org, workflow.id):
         return []
-    controle = await controler_l_agent(workflow, org, graphe=brouillon.workflow_json)
-    return [e["message"] for e in controle["elements"] if e["statut"] == "echec"]
+    controle = await controle_de_l_agent()
+    # Les contrôles de rédaction ont leur propre position et leur propre ligne : le bilan ne les compte pas deux fois.
+    return [e["message"] for e in controle["elements"] if e["statut"] == "echec" and e["code"] not in CODES_DE_REDACTION]
+
+
+def _de_redaction(controle: dict[str, Any], cle: str) -> list[str]:
+    """Les défauts d'un contrôle de rédaction (K1 à K5) en phrases courtes : étape · message."""
+    return [f"{e['etape'] or 'Agent'} · {e['message']}" for e in controle["elements"] if e["code"] == cle]
 
 
 async def liste_vocale_de(configurations: dict[str, Any]) -> list[dict[str, Any]]:
@@ -194,6 +205,18 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
     vocale: list[dict[str, Any]] = []
     # [.mark] Partie 3 (SA-L3a) : une seule lecture alimente la préparation, les lignes obligatoires et les réglages sans effet.
     etapes, constats = await _lectures_de_la_liste(workflow, brouillon, organisation_id, configurations)
+    # [.mark] Lot « façon Tala par motif » : UNE lecture du prompt alimente le bilan et les cinq contrôles de rédaction.
+    memo: dict[str, Any] = {}
+
+    async def controle_de_l_agent() -> dict[str, Any]:
+        if "controle" not in memo:
+            from api.services.builder.controle.service import controler_l_agent
+
+            memo["controle"] = await controler_l_agent(
+                workflow, organisation_id, graphe=brouillon.workflow_json, configurations=configurations
+            )
+        return memo["controle"]
+
     par_cle = {e.controle: e for e in etapes if e.controle}
     for cle in reglages.CONTROLES:
         position = getattr(pub.controles, cle)
@@ -209,7 +232,9 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
                 elif cle == "tests_obligatoires":
                     problemes = await _tests(workflow, brouillon, organisation_id)
                 elif cle == "bilan_du_prompt":
-                    problemes = await _bilan(workflow, brouillon, organisation_id)
+                    problemes = await _bilan(workflow, brouillon, organisation_id, controle_de_l_agent)
+                elif cle in reglages.CONTROLES_DE_REDACTION:
+                    problemes = _de_redaction(await controle_de_l_agent(), cle)
                 elif cle == "liste_vocale":
                     problemes, vocale = await _vocale(configurations)
                 elif cle == "attaques":
@@ -239,8 +264,43 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
         "lignes": liste.assembler(etapes, constats, controles),
         "bloque": any(c["statut"] == ECHEC for c in controles),
         "liste_vocale": vocale,
+        # Le bilan de santé du prompt (étape, extrait) et le poids de l'agent, pour les sections de la fenêtre.
+        **await _sections_de_redaction(controle_de_l_agent, brouillon, configurations, pub),
         "deploiement_actif": pub.deploiement.actif,
         "forcable": True,
+    }
+
+
+async def _sections_de_redaction(controle_de_l_agent: Any, brouillon: Any, configurations: dict[str, Any], pub: Any) -> dict[str, Any]:
+    """``defauts_du_prompt`` : chaque défaut de rédaction avec son étape, son extrait et l'identifiant de l'étape (pour « Régler »).
+    ``poids`` : une ligne par étape, du plus lourd au plus léger, avec les seuils réglés dans Briques (``None`` = aucun seuil)."""
+    from api.services.builder.controle import regles
+    from api.services.builder.controle.service import _seuil
+
+    graphe = getattr(brouillon, "workflow_json", None)
+    graphe = graphe if isinstance(graphe, dict) else {"nodes": [], "edges": []}
+    identifiants: dict[str, str] = {}
+    for n in graphe.get("nodes") or []:
+        if isinstance(n, dict):
+            identifiants.setdefault(str((n.get("data") or {}).get("name") or n.get("id")), str(n.get("id")))
+    defauts: list[dict[str, Any]] = []
+    try:
+        controle = await controle_de_l_agent()
+        defauts = [
+            {**e, "noeud_id": identifiants.get(e["etape"] or "")}
+            for e in controle["elements"]
+            if e["code"] in regles.CODES_DE_REDACTION and e["code"] != regles.K5
+        ]
+    except Exception as erreur:  # noqa: BLE001 -- la fenêtre ne tombe pas pour une section
+        logger.warning(f"[publication] bilan de rédaction en panne ({type(erreur).__name__})")
+    return {
+        "defauts_du_prompt": defauts,
+        "poids": {
+            "actif": pub.controles.poids_agent != "eteint",
+            "plafond_prompt": _seuil(configurations.get("cerveau_plafond_prompt")),
+            "poids_max": _seuil(configurations.get("cerveau_poids_max")),
+            "etapes": [p.en_json() for p in regles.poids_par_etape(graphe)],
+        },
     }
 
 

@@ -10,6 +10,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Position = Literal["eteint", "previent", "bloque"]
+# K5 (le poids de l'agent) informe, il ne contraint jamais : pas de position « bloque ».
+PositionInformative = Literal["eteint", "previent"]
 
 
 class ControlesDePublication(BaseModel):
@@ -29,6 +31,13 @@ class ControlesDePublication(BaseModel):
     sans_effet: Position = "previent"
     sortie_d_impasse: Position = "bloque"
     deux_webhooks: Position = "previent"
+    # [.mark] Lot « façon Tala par motif » (T2, T3) : les contrôles de rédaction K1 à K5, par le MÊME réglage que les autres. Une bonne
+    # pratique ne bloque jamais seule : ils préviennent par défaut. Le poids de l'agent (K5) n'a que Éteint et Prévient.
+    valeur_en_dur: Position = "previent"
+    verbe_ecran: Position = "previent"
+    action_sans_outil: Position = "previent"
+    sortie_non_citee: Position = "previent"
+    poids_agent: PositionInformative = "previent"
 
 
 class DeploiementProgressif(BaseModel):

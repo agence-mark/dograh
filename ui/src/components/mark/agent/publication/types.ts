@@ -16,7 +16,18 @@ export type CleControle =
     | "sans_effet"
     | "sortie_d_impasse"
     | "deux_webhooks"
-    | "annonce_ia";
+    | "annonce_ia"
+    // Lot « façon Tala par motif » : les contrôles de rédaction (K1 à K4) et le poids de l'agent (K5, sans « bloque »).
+    | "valeur_en_dur"
+    | "verbe_ecran"
+    | "action_sans_outil"
+    | "sortie_non_citee"
+    | "poids_agent";
+
+/** Les contrôles de rédaction : ils jouent la même lecture du prompt. Le poids (K5) n'a que « éteint » et « prévient ». */
+export const CONTROLES_DE_REDACTION: CleControle[] = ["valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent"];
+/** Les contrôles dont la position ne se règle pas (sans réglage, jamais éteints). */
+export const CONTROLES_FIXES: string[] = ["annonce_ia", "etiquettes", "blocs_a_jour"];
 
 export interface ControleDePublication {
     cle: CleControle;
@@ -24,6 +35,24 @@ export interface ControleDePublication {
     position: PositionControle;
     statut: StatutControle;
     problemes: string[];
+}
+
+/** Un défaut de rédaction du bilan de santé du prompt (`defauts_du_prompt`) : l'étape, l'extrait, l'identifiant de l'étape. */
+export interface DefautDuPrompt {
+    code: string;
+    statut: "avertissement" | "echec";
+    message: string;
+    etape: string | null;
+    extrait: string | null;
+    noeud_id: string | null;
+}
+
+/** Le poids de l'agent (K5) : une ligne par étape, du plus lourd au plus léger ; `poids_max` vide = aucun seuil. */
+export interface PoidsDeLAgent {
+    actif: boolean;
+    plafond_prompt: number | null;
+    poids_max: number | null;
+    etapes: Array<{ etape: string; noeud_id: string; general: number; texte: number; conditions: number; nb_conditions: number; total: number }>;
 }
 
 export interface PointDeLaListeVocale {
@@ -44,6 +73,8 @@ export interface VueDePublication {
     lignes?: EtapeDePreparation[];
     bloque: boolean;
     liste_vocale: PointDeLaListeVocale[];
+    defauts_du_prompt?: DefautDuPrompt[];
+    poids?: PoidsDeLAgent;
     deploiement_actif: boolean;
     forcable: boolean;
 }

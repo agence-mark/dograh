@@ -25,6 +25,42 @@ export const TITRES_DES_LIGNES: Record<string, { titre: Texte; source: Texte }> 
             fr: "Lu par le code : contradictions, variable inconnue, outil cité mais absent. Ne garde que les agents suivis par le builder.",
         },
     },
+    // Lot « façon Tala par motif » (T2, T3) : les contrôles de rédaction. Conseillés (ils préviennent par défaut), le bilan montre le détail.
+    valeur_en_dur: {
+        titre: { en: "No value is written in the prompts", fr: "Aucune valeur n'est écrite en dur dans les prompts" },
+        source: {
+            en: "An amount, a figure delay or a first name given as an example. See the prompt health check in the Publish window.",
+            fr: "Un montant, un délai chiffré ou un prénom donné en exemple. Le détail est dans le bilan de santé du prompt, fenêtre Publier.",
+        },
+    },
+    verbe_ecran: {
+        titre: { en: "No screen verb in the prompts", fr: "Aucun verbe d'écran dans les prompts" },
+        source: {
+            en: "« Display », « click », « on the screen »: the caller on the phone has no screen.",
+            fr: "« Afficher », « cliquer », « à l'écran » : la personne au téléphone n'a pas d'écran.",
+        },
+    },
+    action_sans_outil: {
+        titre: { en: "Every promised action has its tool", fr: "Chaque action promise a son outil" },
+        source: {
+            en: "A step that says « save », « book », « cancel », « send » carries a tool that writes.",
+            fr: "Une étape qui dit « enregistrer », « réserver », « annuler », « envoyer » porte un outil qui écrit.",
+        },
+    },
+    sortie_non_citee: {
+        titre: { en: "Every step names its exits", fr: "Chaque étape cite ses sorties" },
+        source: {
+            en: "A step with two work exits or more names the steps it leads to in its text.",
+            fr: "Une étape à deux sorties de travail ou plus cite dans son texte les étapes vers lesquelles elle mène.",
+        },
+    },
+    poids_agent: {
+        titre: { en: "The agent weight is within the brain's size", fr: "Le poids de l'agent tient dans la taille du cerveau" },
+        source: {
+            en: "What the brain reads at each reply, against the threshold set in Settings › Services. Informs, never blocks.",
+            fr: "Ce que le cerveau lit à chaque réplique, comparé au seuil réglé dans Réglages › Briques. Informe, ne bloque jamais.",
+        },
+    },
     liste_vocale: {
         titre: { en: "The voice checklist is respected", fr: "La liste de contrôle vocale est respectée" },
         source: {

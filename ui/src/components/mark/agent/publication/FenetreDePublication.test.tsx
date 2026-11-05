@@ -278,3 +278,46 @@ describe("la fenêtre « Publier »", () => {
         expect(m.publierGroupe).not.toHaveBeenCalled();
     });
 });
+
+describe("les contrôles de rédaction et le poids dans la fenêtre « Publier »", () => {
+    const redaction = () =>
+        vue({
+            controles: [
+                ...vue().controles,
+                { cle: "valeur_en_dur", libelle: "Valeur", position: "previent", statut: "alerte", problemes: ["Accueil · x"] },
+                { cle: "poids_agent", libelle: "Poids", position: "previent", statut: "alerte", problemes: [] },
+                { cle: "annonce_ia", libelle: "Annonce", position: "bloque", statut: "ok", problemes: [] },
+            ],
+            defauts_du_prompt: [{ code: "valeur_en_dur", statut: "avertissement", message: "m", etape: "Accueil", extrait: "45 euros", noeud_id: "1" }],
+            poids: {
+                actif: true,
+                plafond_prompt: null,
+                poids_max: 100,
+                etapes: [{ etape: "Accueil", noeud_id: "1", general: 50, texte: 200, conditions: 20, nb_conditions: 1, total: 270 }],
+            },
+        });
+
+    it("montre le bilan de santé et le poids sous « Prêt à publier », et la publication reste possible quand le poids dépasse", async () => {
+        m.lire.mockResolvedValue({ data: redaction() });
+        rendre();
+        await screen.findByText("Required tests");
+        expect(document.querySelector('[data-section="bilan-de-sante"]')).toBeTruthy();
+        expect(document.querySelector('[data-section="poids-de-l-agent"]')).toBeTruthy();
+        expect(document.querySelector('[data-etape-poids="1"]')?.getAttribute("data-au-dessus")).toBe("oui");
+        expect(screen.getByRole("button", { name: "Publish" }).hasAttribute("disabled")).toBe(false);
+    });
+
+    it("le poids n'a que Off et Warns, et le réglage n'envoie pas les contrôles à position fixe", async () => {
+        m.lire.mockResolvedValue({ data: redaction() });
+        rendre();
+        const ligne = await screen.findByText("Agent weight", { selector: "span.inline-flex" }).then((e) => e.closest("tr")!);
+        expect(within(ligne).getAllByRole("button").map((b) => b.textContent).slice(-2)).toEqual(["Off", "Warns"]);
+        expect(within(ligne).queryByRole("button", { name: "Blocks" })).toBeNull();
+        fireEvent.click(within(ligne).getByRole("button", { name: "Off" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalled());
+        const corps = m.regler.mock.calls[0][0].body;
+        expect(corps.controles.poids_agent).toBe("eteint");
+        expect(corps.controles.valeur_en_dur).toBe("previent");
+        expect("annonce_ia" in corps.controles).toBe(false);
+    });
+});

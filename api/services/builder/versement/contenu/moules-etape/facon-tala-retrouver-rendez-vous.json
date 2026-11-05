@@ -1,0 +1,17 @@
+{
+  "titre": "Retrouver ou confirmer un rendez-vous (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Retrouver ou confirmer un rendez-vous (façon Tala, par motif)\n\nFamille : **Lire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil de recherche de rendez-vous⟧ (lecture).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRetrouver le ou les rendez-vous à venir de la personne et les lui dire.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Retrouver\n- ⟦outil de recherche de rendez-vous⟧ avec le nom et le numéro.\n- Plusieurs : demander lequel.\n- Aucun : vérifier le nom, puis proposer d'en prendre un.\n### Tâche 2 : Dire\n- Date, heure et ⟦personne ou lieu⟧ en toutes lettres.\n- Changer ou annuler : passer à l'étape dédiée.\n\n## Règles métier\n- Ne dire que ce que l'outil renvoie. Erreur de l'outil : ne rien affirmer, s'en excuser, proposer ⟦repli de la fiche⟧.\n\n## Déroulement de l'appel\nRetrouver, dire, proposer la suite.\n\n# Critères de succès\n- Rendez-vous dit, ou aucun -> récapitulatif\n- Changement demandé -> déplacer ou annuler\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers déplacer : « Après l'annonce de son rendez-vous, la personne souhaite le déplacer. Déclencher cette transition même si elle n'a pas encore donné de nouvelle date. »\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/lire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

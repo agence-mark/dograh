@@ -1315,6 +1315,27 @@ class WorkflowConfigurationDefaults(BaseModel):
             "Fallback brain of the background brain (troubleshooting only). Empty: none."
         ),
     )
+    # [.mark] Lot « façon Tala par motif » (T3) : la taille que le cerveau supporte. Saisie libre, VIDE = aucun seuil (aucun
+    # fournisseur ne la communique : elle se mesure au banc). Ils suivent le cerveau (recopiés tant qu'il est rattaché, figés avec lui
+    # par un modèle de réglages).
+    cerveau_plafond_prompt: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000000,
+        description=(
+            "Largest prompt (in characters) the brain handles well. A longer prompt is only a warning at publication. "
+            "Empty: no threshold, the check stays silent."
+        ),
+    )
+    cerveau_poids_max: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000000,
+        description=(
+            "Heaviest reply (general prompt + step prompt + conditions of its exits, in characters) the brain handles well. "
+            "Above it a step is only flagged. Empty: no threshold, the weight is shown as a plain figure."
+        ),
+    )
     # [.mark] Chantier fiabilite-orchestration (F15, F18, F23) : les règles des phrases dites par le
     # code (motif, endroit, variantes, délai, activée). Vide : les défauts du catalogue (zéro perte).
     phrases_regles: list[ReglePhrase] = Field(

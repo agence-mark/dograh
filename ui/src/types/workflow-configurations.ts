@@ -384,7 +384,10 @@ export interface ConsigneDeSecurite {
 /** [.mark] U11: see `api/schemas/publication.py`. */
 export type PositionControle = "eteint" | "previent" | "bloque";
 export interface PublicationAgent {
-    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks", PositionControle>>;
+    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks" | "valeur_en_dur" | "verbe_ecran" | "action_sans_outil" | "sortie_non_citee", PositionControle>> & {
+        /** K5: only off or warns, never blocks. */
+        poids_agent?: "eteint" | "previent";
+    };
     deploiement?: { actif?: boolean };
 }
 
@@ -530,6 +533,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     travail_delai_max_s?: number;
     // [.mark] fiabilite-orchestration, lot 4 (F20, F26, C5): the model guard and the fallback brains.
     delai_garde_modele_s?: number | null;
+    /** Lot « façon Tala par motif » (T3): the size the brain handles, in characters. Empty = no threshold. */
+    cerveau_plafond_prompt?: number | null;
+    cerveau_poids_max?: number | null;
     cerveau_de_repli?: GreffierLlm | null;
     travail_llm_repli?: GreffierLlm | null;
     // [.mark] fiabilite-orchestration, lot 4 bis (F15, F17, F18, F23): the rules of the sentences said by the code.

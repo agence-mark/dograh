@@ -75,6 +75,9 @@ CLES_SUIVENT_LE_CERVEAU = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
+    # Lot « façon Tala par motif » (T3) : la taille que le cerveau supporte suit le cerveau.
+    "cerveau_plafond_prompt",
+    "cerveau_poids_max",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -105,6 +108,8 @@ CLES_THEME_BRIQUES: tuple[str, ...] = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
+    "cerveau_plafond_prompt",
+    "cerveau_poids_max",
 )
 
 CLES_THEME_ECOUTE: tuple[str, ...] = (
