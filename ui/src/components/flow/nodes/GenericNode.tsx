@@ -692,6 +692,19 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
             conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
             onConditionsDeChampsChange: (next: ConditionDeChamp[] | undefined) =>
                 setValues((prev) => ({ ...prev, conditions_de_champs: next })),
+            // [.mark] Lot 8 : les outils rattachés à l'étape (pour « pas dans l'étape ») et la correction en un clic. Le nœud global n'est
+            // pas une étape : un outil qu'il cite n'est pas contrôlé ici (le contrôle de publication le juge).
+            etape:
+                type === "globalNode"
+                    ? null
+                    : {
+                          outils: Array.isArray(values.tool_uuids) ? (values.tool_uuids as string[]) : [],
+                          rattacher: (uuid: string) =>
+                              setValues((prev) => {
+                                  const actuels = Array.isArray(prev.tool_uuids) ? (prev.tool_uuids as string[]) : [];
+                                  return actuels.includes(uuid) ? prev : { ...prev, tool_uuids: [...actuels, uuid] };
+                              }),
+                      },
             mcpToolFilters: (values.mcp_tool_filters as Record<string, string[]> | undefined) ?? {},
             onMcpToolFiltersChange: (next: Record<string, string[]>) =>
                 setValues((prev) => ({

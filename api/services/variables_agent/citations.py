@@ -11,6 +11,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from api.services.etiquettes_prompt.familles import est_une_etiquette
 from api.utils.template_renderer import TEMPLATE_VAR_PATTERN, is_builtin_variable
 
 _MOTIF = re.compile(TEMPLATE_VAR_PATTERN)
@@ -54,7 +55,7 @@ def cles_citees(texte: str) -> list[tuple[str, bool]]:
     sortie = []
     for m in _MOTIF.finditer(texte or ""):
         cle = m.group(1).strip()
-        if is_builtin_variable(cle):
+        if is_builtin_variable(cle) or est_une_etiquette(cle):  # lot 8 : une étiquette d'objet a son propre contrôle
             continue
         sortie.append((cle, m.group(2) is not None))
     return sortie

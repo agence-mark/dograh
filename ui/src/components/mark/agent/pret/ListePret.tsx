@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../../langue/langue";
 import { Info } from "../../studio/marques";
+import { CorrectionsEtiquettes } from "./CorrectionsEtiquettes";
 import { useRecalculDuPret } from "./recalcul";
 import { type CorrectionDeLigne, TEXTES_DES_CONSTATS, TEXTES_DES_CORRECTIONS, TITRES_DES_LIGNES } from "./textes";
 
@@ -126,7 +127,9 @@ function Rangee({
           ? t(constat.detail(noms))
           : ligne.id === "outils_a_jour"
             ? noms.join(", ") // les identifiants d'outils ne se montrent pas : leurs noms
-            : (ligne.manquants ?? []).join(", ");
+            : ligne.id === "etiquettes" || ligne.id === "blocs_a_jour"
+              ? "" // la liste des étiquettes en erreur suit, avec leurs corrections
+              : (ligne.manquants ?? []).join(", ");
     const corrections = (ligne.corrections ?? []) as unknown as CorrectionDeLigne[];
     return (
         <li data-etape={ligne.id} data-etat={ligne.etat} className="flex items-start gap-3 py-2.5">
@@ -144,6 +147,8 @@ function Rangee({
                     <Info>{t(textes.source)}</Info>
                 </button>
                 {manque && <p className="text-xs text-muted-foreground">{manque}</p>}
+                {/* Lots 8 et 22 : chaque étiquette en erreur, son prompt et sa correction en un clic. */}
+                {reste && (ligne.id === "etiquettes" || ligne.id === "blocs_a_jour") && <CorrectionsEtiquettes bloquants={ligne.id === "etiquettes"} />}
                 {reste && corrections.length > 0 && corriger && (
                     <div className="mt-1.5 flex flex-wrap gap-2">
                         {corrections.map((c, i) => {

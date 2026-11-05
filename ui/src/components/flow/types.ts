@@ -87,6 +87,8 @@ export type FlowEdgeData = {
     condition: string;
     label: string;
     condition_sur_la_fiche?: EdgeRecordCondition;
+    /** [.mark] L6+ : l'identifiant stable de la porte (le nom de la fonction), gardé quand on renomme le libellé. */
+    identifiant?: string;
     transition_speech?: string;
     transition_speech_type?: 'text' | 'audio';
     transition_speech_recording_id?: string;

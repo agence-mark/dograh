@@ -25,6 +25,7 @@ import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { dateCourte, type StatutDeLaBibliotheque, STATUTS } from "./libelles";
 import { RangementDeLElement } from "./RangementDeLElement";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
+import { BlocReutilisable } from "./BlocReutilisable";
 
 const POINT = { recette: "publie", rejete: "panne", candidat: "brouillon" } as const;
 
@@ -284,6 +285,8 @@ export function FenetreElement({ element, nomDeFamille, utilisePar, dossiers, et
                 </p>
                 {statut === "recette" && <AgentsDeLaRecette famille={element.famille} slug={element.slug} />}
             </Carte>
+            {/* [.mark] Partie 3, lot 22 : un élément d'une famille qui écrit des prompts est un bloc citable. */}
+            <BlocReutilisable element={element} />
             <Carte
                 titre={t({ en: "Labels", fr: "Étiquettes" })}
                 info={t({

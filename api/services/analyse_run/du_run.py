@@ -15,15 +15,16 @@ from api.services.analyse_run.analyse import analyser_run
 from api.services.analyse_run.cout import lire_reglages_fenetre
 from api.services.appel_simule.entree import CLE_EXTRA
 from api.services.workflow.fiche_au_fil_de_leau import CLE_CHAMPS
-from api.services.workflow.workflow_graph import transition_tool_name
+from api.services.workflow.workflow_graph import nom_de_porte
 
 
 def _portes(definition) -> set[str] | None:
     if definition is None:
         return None
     aretes = (definition.workflow_json or {}).get("edges") or []
+    # [.mark] L6+ : le nom de la porte (identifiant stable, sinon libellé), celui que les traces portent.
     return {
-        transition_tool_name(label)
+        nom_de_porte(arete.get("data") or {})
         for arete in aretes
         if isinstance(arete, dict)
         and isinstance(label := (arete.get("data") or {}).get("label"), str)

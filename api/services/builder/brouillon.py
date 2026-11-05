@@ -119,7 +119,9 @@ def appliquer_une(graphe: dict[str, Any], op: Operation) -> None:
                 liaison["target"] = op.target
             donnees = dict(liaison.get("data") or {})
             if op.label is not None:
-                donnees["label"] = op.label
+                from api.services.workflow.portes import renommer  # L6+ : la porte garde son nom au renommage
+
+                donnees = renommer(donnees, op.label)
             if op.condition is not None:
                 donnees["condition"] = op.condition
             liaison["data"] = donnees

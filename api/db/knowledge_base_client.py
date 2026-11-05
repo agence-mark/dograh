@@ -124,6 +124,24 @@ class KnowledgeBaseClient(BaseDBClient):
             result = await session.execute(query)
             return result.scalar_one_or_none()
 
+    async def get_documents_by_uuids(
+        self,
+        document_uuids: List[str],
+        organization_id: int,
+    ) -> List[KnowledgeBaseDocumentModel]:
+        """[.mark] Lot 8 (étiquettes des prompts) : les documents actifs cités, en UNE lecture, filtrés par organisation."""
+        if not document_uuids:
+            return []
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(KnowledgeBaseDocumentModel).where(
+                    KnowledgeBaseDocumentModel.document_uuid.in_(document_uuids),
+                    KnowledgeBaseDocumentModel.organization_id == organization_id,
+                    KnowledgeBaseDocumentModel.is_active == True,
+                )
+            )
+            return list(result.scalars().all())
+
     async def get_document_by_hash(
         self,
         file_hash: str,

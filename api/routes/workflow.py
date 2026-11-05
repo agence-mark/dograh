@@ -97,6 +97,7 @@ from api.services.workflow.trigger_paths import (
 from api.services.workflow.workflow_graph import (
     WorkflowGraph,
     validate_node_instance_constraints,
+    nom_de_porte,
     validate_unique_transition_tool_names,
 )
 from api.utils.artifacts import artifact_url
@@ -285,7 +286,8 @@ def _transition_tool_name_validation_errors(
             and isinstance(label, str)
             and label
         ):
-            transitions.append((edge_id, source, label))
+            # [.mark] L6+ : l'unicité porte sur le nom de la fonction (identifiant stable, sinon libellé).
+            transitions.append((edge_id, source, nom_de_porte(data)))
 
     return validate_unique_transition_tool_names(transitions)
 

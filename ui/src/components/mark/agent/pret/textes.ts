@@ -46,6 +46,22 @@ export const TITRES_DES_LIGNES: Record<string, { titre: Texte; source: Texte }> 
             fr: "Dite en tête de chaque appel, impossible à éteindre. Seul son texte se change (thème Phrases) ; un texte vide bloque la publication.",
         },
     },
+    // Lot 8 (décision d'Evan du 04/11) : bloquante, sans réglage ; présente seulement si un prompt cite un objet.
+    etiquettes: {
+        titre: { en: "The labels of the prompts are valid", fr: "Les étiquettes des prompts sont valides" },
+        source: {
+            en: "Every tool, step, agent, team subject, document, sentence or block cited by a label exists, is active, and every cited tool is attached to its step. Always blocks, no setting.",
+            fr: "Chaque outil, étape, agent, sujet de l'équipe, document, phrase ou bloc cité par une étiquette existe, est actif, et chaque outil cité est rattaché à son étape. Bloque toujours, sans réglage.",
+        },
+    },
+    // Lot 22 : conseillée, présente seulement si un prompt cite un bloc.
+    blocs_a_jour: {
+        titre: { en: "The blocks are up to date", fr: "Les blocs sont à jour" },
+        source: {
+            en: "A block kept on its version has a newer version in Recipe. Keeping it is allowed: this is only advice.",
+            fr: "Un bloc resté sur sa version a une version plus récente en Recette. Rester est permis : ce n'est qu'un conseil.",
+        },
+    },
     garde_fous: {
         titre: { en: "A safety layer of the conversation is on", fr: "Une couche de sécurité de la conversation est allumée" },
         source: {

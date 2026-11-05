@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { EdgeRecordCondition, FlowEdge, FlowEdgeData, FlowNode } from '../types';
+import { identifiantGarde } from './porte';
 type CustomEdge = Edge<{ value: number }, 'custom'>;
 
 
@@ -133,9 +134,12 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
                           : undefined;
                 const type = v.phrase === PHRASE.audio ? 'audio' : 'text';
                 const enregistrement = enregistrements.find((r) => libelleEnregistrement(r) === v.enregistrement)?.recording_id;
+                const label = String(v.label ?? '');
+                const identifiant = identifiantGarde(data, label); // L6+ : la porte garde son nom au renommage
                 onSave({
                     condition: String(v.condition ?? ''),
-                    label: String(v.label ?? ''),
+                    label,
+                    ...(identifiant ? { identifiant } : {}),
                     condition_sur_la_fiche: recordCondition,
                     transition_speech: v.phrase === PHRASE.text ? String(v.texte ?? '') || undefined : undefined,
                     transition_speech_type: type,

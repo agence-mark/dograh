@@ -125,6 +125,10 @@ async def verifier_avant_publication(
     from api.services.variables_agent.garde import cles_inconnues_du_brouillon
 
     variables = await cles_inconnues_du_brouillon(workflow, brouillon, organization_id)
+    # [.mark] Lot 8 (décision d'Evan du 04/11) : une étiquette d'objet cassée bloque toujours, sans réglage.
+    etiquettes, _conseils = await fenetre.problemes_des_etiquettes(organization_id, brouillon)
+    if etiquettes:
+        autres.append({"cle": "etiquettes", "libelle": fenetre.LIBELLES["etiquettes"], "problemes": etiquettes})
     if controle["ok"] and not tests and not variables and not autres:
         return None
     erreurs = [{"kind": "node", "id": None, "field": "data.prompt", "message": f"[Prompt check] {e['message']}"} for e in controle["elements"] if e["statut"] == "echec"]
