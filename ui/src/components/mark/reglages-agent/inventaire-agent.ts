@@ -41,6 +41,9 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // fiabilite-orchestration, lot 4 (F20, F26): the guard and the fallback brains.
     delai_garde_modele_s: { theme: "briques", cas: ["garde-delai"] },
     cerveau_de_repli: { theme: "briques", cas: ["garde-repli"] },
+    // Lot « façon Tala par motif » (T3): « Size the brain handles », the two thresholds of the brain.
+    cerveau_plafond_prompt: { theme: "briques", cas: ["taille-plafond"] },
+    cerveau_poids_max: { theme: "briques", cas: ["taille-poids"] },
     travail_llm_repli: { theme: "briques", cas: ["travail-repli"] },
     travail_consigne: { theme: "briques", cas: ["travail-modele"] },
     travail_outils: { theme: "briques", cas: ["travail-outils"] },

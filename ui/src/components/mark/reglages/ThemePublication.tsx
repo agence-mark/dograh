@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
+import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { type ProprietesThemeOrganisation, useSignaler } from "../parametres-organisation/ThemesOrganisation";
@@ -25,7 +26,7 @@ import { type ProprietesThemeOrganisation, useSignaler } from "../parametres-org
 export const TITRE_PUBLICATION: Texte = { en: "Publication", fr: "Publication" };
 
 export interface DefautsDePublication {
-    controles: Record<CleControle, PositionControle>;
+    controles: Record<Exclude<CleControle, "poids_agent">, PositionControle> & { poids_agent: "eteint" | "previent" };
     deploiement: { actif: boolean };
 }
 
@@ -90,6 +91,40 @@ export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte }>
     },
 ];
 
+/** [.mark] Lot « façon Tala par motif » (T2, T3) : les contrôles de rédaction. Une bonne pratique ne bloque jamais seule : ils préviennent
+ * par défaut. Le poids de l'agent (K5) n'a que « Éteint » et « Prévient ». */
+export const CONTROLES_DE_REDACTION: Array<{ cle: CleControle; libelle: Texte; aide: Texte; positions?: PositionControle[] }> = [
+    {
+        cle: "valeur_en_dur",
+        libelle: { en: "Value written in the prompt", fr: "Valeur écrite en dur" },
+        aide: { en: "An amount, a figure delay or a first name given as an example in a prompt. Warns by default.", fr: "Un montant, un délai chiffré ou un prénom donné en exemple dans un prompt. Prévient par défaut." },
+    },
+    {
+        cle: "verbe_ecran",
+        libelle: { en: "Screen verb", fr: "Verbe d'écran" },
+        aide: { en: "« Display », « click », « on the screen » in a voice agent prompt. Warns by default.", fr: "« Afficher », « cliquer », « à l'écran » dans un prompt d'agent vocal. Prévient par défaut." },
+    },
+    {
+        cle: "action_sans_outil",
+        libelle: { en: "Action promised without a tool", fr: "Action promise sans outil" },
+        aide: { en: "« Save », « book », « cancel », « send » in a step with no tool that writes. Warns by default.", fr: "« Enregistrer », « réserver », « annuler », « envoyer » dans une étape sans aucun outil qui écrit. Prévient par défaut." },
+    },
+    {
+        cle: "sortie_non_citee",
+        libelle: { en: "Exit not named", fr: "Sortie non citée" },
+        aide: { en: "A step with two work exits or more whose text names none of the steps it leads to. Warns by default.", fr: "Une étape à deux sorties de travail ou plus dont le texte ne cite aucune étape visée. Prévient par défaut." },
+    },
+    {
+        cle: "poids_agent",
+        libelle: { en: "Agent weight", fr: "Poids de l'agent" },
+        aide: {
+            en: "What the brain reads at each reply, against the threshold set with the brain (Settings › Services › Size the brain handles). Informs, never blocks.",
+            fr: "Ce que le cerveau lit à chaque réplique, comparé au seuil réglé avec le cerveau (Réglages › Briques › Taille supportée par le cerveau). Informe, ne bloque jamais.",
+        },
+        positions: ["eteint", "previent"],
+    },
+];
+
 export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre, titre }: ProprietesThemeOrganisation) => {
     const { t } = useLangue();
     const { user, loading: authLoading } = useAuth();
@@ -149,7 +184,7 @@ export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre
                   libelle: { en: "Progressive deployment", fr: "Déploiement progressif" },
                   valeur: brouillon.deploiement.actif ? t({ en: "On", fr: "Allumé" }) : t({ en: "Off", fr: "Éteint" }),
               },
-              ...CONTROLES.map((c) => ({ libelle: c.libelle, valeur: mot[brouillon.controles[c.cle]] })),
+              ...[...CONTROLES, ...CONTROLES_DE_REDACTION].map((c) => ({ libelle: c.libelle, valeur: mot[brouillon.controles[c.cle]] })),
           ]
         : [{ libelle: { en: "Progressive deployment", fr: "Déploiement progressif" }, valeur: erreur ?? t({ en: "Loading...", fr: "Chargement..." }) }];
 
@@ -205,6 +240,29 @@ export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre
                             />
                         </ChampReglage>
                     ))}
+                    <Intertitre
+                        id="publication-redaction"
+                        titre={{ en: "Writing checks", fr: "Contrôles de rédaction" }}
+                        description={{
+                            en: "What the code reads in the prompts before publishing. Each one is Off, Warns (default) or Blocks; the weight only Off or Warns. A good practice never blocks on its own.",
+                            fr: "Ce que le code relit dans les prompts avant de publier. Chacun est Éteint, Prévient (défaut) ou Bloque ; le poids seulement Éteint ou Prévient. Une bonne pratique ne bloque jamais seule.",
+                        }}
+                    >
+                        {CONTROLES_DE_REDACTION.map((c) => {
+                            const positions = c.positions ?? POSITIONS;
+                            return (
+                                <ChampReglage key={c.cle} cle={`publication.controles.${c.cle}`} libelle={c.libelle} aides={[c.aide]}>
+                                    <Segmente
+                                        valeur={mot[brouillon.controles[c.cle]]}
+                                        options={positions.map((p) => mot[p])}
+                                        changer={(v) =>
+                                            setBrouillon({ ...brouillon, controles: { ...brouillon.controles, [c.cle]: positions.find((p) => mot[p] === v) ?? brouillon.controles[c.cle] } })
+                                        }
+                                    />
+                                </ChampReglage>
+                            );
+                        })}
+                    </Intertitre>
                 </>
             )}
         </Theme>

@@ -1321,7 +1321,7 @@ class WorkflowConfigurationDefaults(BaseModel):
     cerveau_plafond_prompt: int | None = Field(
         default=None,
         ge=1,
-        le=1_000_000,
+        le=1000000,
         description=(
             "Largest prompt (in characters) the brain handles well. A longer prompt is only a warning at publication. "
             "Empty: no threshold, the check stays silent."
@@ -1330,7 +1330,7 @@ class WorkflowConfigurationDefaults(BaseModel):
     cerveau_poids_max: int | None = Field(
         default=None,
         ge=1,
-        le=1_000_000,
+        le=1000000,
         description=(
             "Heaviest reply (general prompt + step prompt + conditions of its exits, in characters) the brain handles well. "
             "Above it a step is only flagged. Empty: no threshold, the weight is shown as a plain figure."

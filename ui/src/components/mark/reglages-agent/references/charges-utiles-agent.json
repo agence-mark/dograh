@@ -2330,6 +2330,34 @@
           "retirees": []
         }
       ]
+    },
+    "taille-plafond": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_plafond_prompt": 6000
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "taille-poids": {
+      "carte": "ajout-mark",
+      "theme": "briques",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "cerveau_poids_max": 9000
+          },
+          "retirees": []
+        }
+      ]
     }
   }
 }

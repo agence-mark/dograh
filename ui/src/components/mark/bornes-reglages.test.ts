@@ -92,7 +92,7 @@ const bornesDuSchema = (cle: string) => {
 // Lot 4 d'orchestrateur-trois-cerveaux: the duration of the background work, shown under « Briques ».
 const CLES_TRAVAIL = ["travail_delai_max_s"] as const;
 // fiabilite-orchestration, lot 4 (F20): the model guard delay (theme Services).
-const CLES_GARDE = ["delai_garde_modele_s"] as const;
+const CLES_GARDE = ["delai_garde_modele_s", "cerveau_plafond_prompt", "cerveau_poids_max"] as const; // lot « façon Tala par motif » (T3): the thresholds of the brain are listed with the guard
 // RA-B R5: the longest a call may last (theme Rythme).
 const CLES_DUREE = ["max_call_duration"] as const;
 

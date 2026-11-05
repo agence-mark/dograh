@@ -80,6 +80,9 @@ export const BORNES: Record<string, Borne> = {
     travail_delai_max_s: { min: 5, minStrict: false, max: 300 },
     // fiabilite-orchestration, lot 4 (F20): the model guard delay.
     delai_garde_modele_s: { min: 1, minStrict: false, max: 30 },
+    // Lot « façon Tala par motif » (T3): the size the brain handles (empty = no threshold).
+    cerveau_plafond_prompt: { min: 1, minStrict: false, max: 1000000 },
+    cerveau_poids_max: { min: 1, minStrict: false, max: 1000000 },
 };
 
 /**
