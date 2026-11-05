@@ -110,6 +110,15 @@ class AgentNode(TypedNode):
     Default 0.8.
     """
 
+    passation_par_le_code: Optional[bool] = None
+    """
+    When the call arrives on this step (an exit taken on the record, or
+    written by the agent) and the step carries a single hand-over to a
+    colleague, the code hands the call over at once, with the tool's
+    announcement, instead of asking the agent's model one more time. Off by
+    default.
+    """
+
     allow_interrupt: bool = True
     """
     When true, the user can interrupt the agent mid-utterance. Set false for

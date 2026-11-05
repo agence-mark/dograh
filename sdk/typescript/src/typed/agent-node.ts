@@ -66,6 +66,10 @@ export interface AgentNode {
      */
     seuil_de_l_arbitre?: number;
     /**
+     * When the call arrives on this step (an exit taken on the record, or written by the agent) and the step carries a single hand-over to a colleague, the code hands the call over at once, with the tool's announcement, instead of asking the agent's model one more time. Off by default.
+     */
+    passation_par_le_code?: boolean;
+    /**
      * When true, the user can interrupt the agent mid-utterance. Set false for non-interruptible disclosures.
      */
     allow_interrupt?: boolean;
