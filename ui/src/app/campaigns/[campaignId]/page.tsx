@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from 'date-fns';
-import { AlertCircle, AlertTriangle, ArrowLeft, CalendarIcon, Download, Info, Megaphone, Pause, Pencil, Phone, Play, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CalendarIcon, Download, Info, Megaphone, Pause, Pencil, Phone, Play, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -21,6 +21,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info as Infobulle, PointEtat } from "@/components/mark/studio/marques";
+import { useBaseEspace } from "@/components/mark/studio/base-espace";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { TitrePage } from "@/components/mark/studio/titre-page";
@@ -52,6 +53,7 @@ function Lue({ libelle, children }: { libelle: string; children: React.ReactNode
 
 export default function CampaignDetailPage() {
     const { t, langue } = useLangue();
+    const base = useBaseEspace();
     const [redialErreur, setRedialErreur] = useState<string | null>(null);
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const organizationTimezone = useOrganizationTimezone();
@@ -491,14 +493,8 @@ export default function CampaignDetailPage() {
     return (
         <PageStudio>
             <div className="space-y-4">
-                <Link
-                    href="/campaigns"
-                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-semibold hover:text-foreground"
-                >
-                    <ArrowLeft className="size-4" />
-                    {t({ en: 'Campaigns', fr: 'Campagnes' })}
-                </Link>
                 <TitrePage
+                    retour={{ href: `${base}/campagnes`, libelle: t({ en: 'Back to the campaigns', fr: 'Retour aux campagnes' }) }}
                     titre={campaign.name}
                     phrase={
                         <span className="inline-flex flex-wrap items-center gap-4">

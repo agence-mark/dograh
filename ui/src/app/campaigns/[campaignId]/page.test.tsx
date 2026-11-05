@@ -28,6 +28,7 @@ vi.mock("@/client/sdk.gen", () => ({
 vi.mock("@/lib/auth", () => ({ useAuth: () => m.auth }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "UTC" }));
 vi.mock("next/navigation", () => ({
+    usePathname: () => "/labo/campagnes/7",
     useParams: () => ({ campaignId: "7" }),
     useRouter: () => ({ push: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
     useSearchParams: () => new URLSearchParams(),

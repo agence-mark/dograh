@@ -17,6 +17,9 @@ import { useSources } from "@/components/mark/sources/useSources";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+import { FlecheRetour } from "@/components/mark/studio/titre-page";
+
+import { useAdressesDuBuilder } from "./adresses";
 import { BandeauDuFil } from "./BandeauDuFil";
 import { CarteDuPlan, CarteQuestion, LigneAction } from "./cartes";
 import { CarteCorrection, CarteDepense, CartePropositionTest, CarteProposeArchivage, CarteRapport } from "./cartes-c2";
@@ -63,6 +66,7 @@ export function FilDuBuilder({
     entete?: boolean;
 }) {
     const { t, langue } = useLangue();
+    const adresses = useAdressesDuBuilder();
     const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense, plafond, continuerQuandMeme, annulerLePlafond } = useFil(filId);
     const { sources } = useSources();
     // U12 : une conversation menee dans Claude Code se lit seulement ; sur Claude Code, la saisie du chat de l'ecran est fermee.
@@ -115,6 +119,7 @@ export function FilDuBuilder({
 
     const principal = (
         <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
+            {entete && fil && <div className="pb-2"><FlecheRetour href={adresses.liste} libelle={t({ en: "Back to the chats", fr: "Retour aux chats" })} /></div>}
             {entete && fil && <BandeauDuFil fil={fil} enCours={enCours} lectureSeule={lectureSeule} arreter={() => void arreter()} reprendre={() => void reprendre()} />}
             {entete ? (
                 <div className="empty:hidden pb-2">

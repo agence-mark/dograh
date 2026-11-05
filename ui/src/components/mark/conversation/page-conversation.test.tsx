@@ -23,6 +23,7 @@ const m = vi.hoisted(() => ({
 
 vi.mock("next/link", () => ({ default: ({ children, href, ...r }: { children: ReactNode; href: string }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("next/navigation", () => ({
+    usePathname: () => "/labo/conversations/7",
     useParams: () => ({ runId: "7" }),
     useSearchParams: () => new URLSearchParams(m.recherche),
 }));

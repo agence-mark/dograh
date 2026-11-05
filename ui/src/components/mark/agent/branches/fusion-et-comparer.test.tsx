@@ -18,6 +18,7 @@ import { lireNotifications, notifier, viderNotifications } from "@/components/ma
 
 import { FenetreFusion } from "./FenetreFusion";
 import { FenetreVersions } from "./FenetreVersions";
+import { ContexteNomAgent } from "../contexte-agent";
 import { ecartDe, formater, PageComparer } from "./PageComparer";
 
 const m = vi.hoisted(() => ({
@@ -270,6 +271,19 @@ describe("comparer en duel", () => {
         expect(document.querySelector("[data-verdict]")?.textContent).toContain("2 of 3 measures");
         expect(screen.getByText("Median latency").closest("tr")?.textContent).toContain("–"); // une donnée absente reste vide
         expect(document.querySelector("[data-cote=gauche]")?.textContent).toContain("70 % of the calls");
+    });
+
+    it("T6 : une flèche « Retour à ⟦agent⟧ » devant le titre ramène à l'agent", async () => {
+        render(
+            <ContexteNomAgent.Provider value="Cabinet Dupont">
+                <PageComparer agentId={5} />
+            </ContexteNomAgent.Provider>,
+        );
+        await screen.findByText("Results");
+        const fleche = document.querySelector('a[href="/agents/5"]') as HTMLAnchorElement;
+        expect(fleche.getAttribute("href")).toBe("/agents/5");
+        expect(fleche.textContent).toContain("Back to Cabinet Dupont");
+        expect(fleche.compareDocumentPosition(screen.getByRole("heading", { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it("groupe la différence de configuration par famille, repliable, avant barré et après", async () => {

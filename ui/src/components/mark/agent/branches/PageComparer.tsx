@@ -15,6 +15,8 @@ import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { useAuth } from "@/lib/auth";
 
+import { useNomAgent } from "../contexte-agent";
+
 import { FenetreFusion } from "./FenetreFusion";
 import { useBranches } from "./useBranches";
 
@@ -106,6 +108,7 @@ function PointBranche({ part }: { part: number | null | undefined }) {
 
 export function PageComparer({ agentId }: { agentId: number }) {
     const { t } = useLangue();
+    const nomAgent = useNomAgent();
     const { user, loading: authLoading } = useAuth();
     const { vue, recharger } = useBranches(agentId);
     const [fusion, setFusion] = useState(false);
@@ -183,6 +186,10 @@ export function PageComparer({ agentId }: { agentId: number }) {
     return (
         <div className="mx-auto w-full max-w-5xl space-y-6 px-6 py-6" data-page-comparer>
             <TitrePage
+                retour={{
+                    href: `/agents/${agentId}`,
+                    libelle: nomAgent ? t({ en: `Back to ${nomAgent}`, fr: `Retour à ${nomAgent}` }) : t({ en: "Back to the agent", fr: "Retour à l'agent" }),
+                }}
                 titre={t(T.titre)}
                 info={t(T.info)}
                 action={

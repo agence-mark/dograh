@@ -16,7 +16,7 @@ vi.mock("@/client/sdk.gen", () => ({
     listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet: vi.fn().mockResolvedValue({ data: { configurations: [] } }),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => m.auth }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push, prefetch: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/labo/campagnes/new", useRouter: () => ({ push: m.push, prefetch: vi.fn() }) }));
 vi.mock("../page", () => ({ default: () => <div data-testid="liste-campagnes" /> }));
 vi.mock("../CsvUploadSelector", () => ({ default: () => <div data-testid="csv" /> }));
 vi.mock("../TrafficSplitEditor", () => ({ default: () => <div data-testid="repartition" />, trafficSplitError: () => null }));
@@ -45,7 +45,7 @@ describe("[.mark] K8 : nouvelle campagne", () => {
     it("« Annuler » ferme la fenêtre et ramène à la liste", async () => {
         render(<FournisseurLangue><NewCampaignPage /></FournisseurLangue>);
         fireEvent.click(await screen.findByRole("button", { name: "Annuler" }));
-        expect(m.push).toHaveBeenCalledWith("/campaigns");
+        expect(m.push).toHaveBeenCalledWith("/labo/campagnes");
     });
 
     it("« Créer la campagne » reste éteint tant que le formulaire est incomplet", async () => {
@@ -56,6 +56,6 @@ describe("[.mark] K8 : nouvelle campagne", () => {
 
     it("sans configuration de téléphonie, un lien mène à en ajouter une", async () => {
         render(<FournisseurLangue><NewCampaignPage /></FournisseurLangue>);
-        expect((await screen.findByRole("link", { name: "En ajouter une" })).getAttribute("href")).toBe("/telephony-configurations");
+        expect((await screen.findByRole("link", { name: "En ajouter une" })).getAttribute("href")).toBe("/labo/telephonie");
     });
 });
