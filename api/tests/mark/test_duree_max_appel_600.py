@@ -43,4 +43,5 @@ def test_le_repli_de_l_ecran_et_l_aide_disent_600():
     types = (RACINE / "ui/src/types/workflow-configurations.ts").read_text(encoding="utf-8")
     assert re.search(r"FALLBACK_WORKFLOW_CONFIGURATIONS[^=]*=\s*\{.*?max_call_duration:\s*600,", types, re.S)
     theme = (RACINE / "ui/src/components/mark/reglages-agent/ThemeRythme.tsx").read_text(encoding="utf-8")
-    assert "Default: 600 (10 minutes)" in theme and "Défaut : 600 (10 minutes)" in theme
+    # SA-12 (bulles réécrites) : l'aide dit la valeur en secondes et le plafond du serveur ; le défaut reste 600.
+    assert "Default: 600 s (10 minutes)" in theme and "Défaut : 600 s (10 minutes)" in theme
