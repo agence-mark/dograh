@@ -41,6 +41,7 @@ export const CENTREES: Record<string, string> = {
     "components/builder/chat/ListeDesFils.tsx": "confirmation de suppression d'un chat",
     "components/builder/chat/FenetreRestauration.tsx": "petite confirmation : revenir à une version",
     "components/builder/chat/plafond-du-mois.tsx": "plafond de dépense atteint : interrompt le geste",
+    "components/builder/chat/permissions-du-chat.tsx": "« Tout permettre » dans ce chat : confirmation d'un geste qui élargit les droits du builder (09 de la revue)",
     "components/mark/graphe/BriqueAgent.tsx": "choix court d'un agent",
     "components/layout/SidebarOrganizationSwitcher.tsx": "choix court d'une organisation",
     "components/mark/studio/fenetre-profil.tsx": "Mon profil : saisie courte, ouverte depuis la barre latérale",
