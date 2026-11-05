@@ -131,9 +131,9 @@ export function Info({ children }: { children: React.ReactNode }) {
 
 /** Gravité d'un point « À améliorer » (E100) : pastille pleine foncée, écriture blanche. */
 const GRAVITES = {
-    3: { mot: { en: "Serious", fr: "Grave" }, fond: "bg-(--gravite-grave)" },
-    2: { mot: { en: "To watch", fr: "À surveiller" }, fond: "bg-(--gravite-surveiller)" },
-    1: { mot: { en: "Minor", fr: "Faible" }, fond: "bg-(--gravite-faible)" },
+    3: { mot: { en: "Serious", fr: "Grave" }, fond: "bg-destructive text-white" },
+    2: { mot: { en: "To watch", fr: "À surveiller" }, fond: "bg-(--info-soft) text-(--info-ink)" },
+    1: { mot: { en: "Minor", fr: "Faible" }, fond: "bg-(--neutral-soft) text-(--neutral-ink)" },
 } as const;
 
 export function Gravite({ n }: { n: 1 | 2 | 3 }) {
@@ -142,7 +142,7 @@ export function Gravite({ n }: { n: 1 | 2 | 3 }) {
     return (
         <span
             data-gravite={n}
-            className={`inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full px-2 text-[11px] font-medium text-white ${g.fond}`}
+            className={`inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full px-2 text-[11px] font-medium ${g.fond}`}
         >
             {t(g.mot)}
         </span>

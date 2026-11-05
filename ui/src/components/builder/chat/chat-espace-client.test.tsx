@@ -26,7 +26,9 @@ vi.mock("@/client", () => ({
     lireLeCerveauApiV1BuilderCerveauGet: vi.fn(async () => ({ data: { modele: "un-modele", plafond_depense: 3 } })),
     lireLesDemarragesApiV1BuilderDemarragesGet: vi.fn(async () => ({ data: [] })),
     listerLesFilsApiV1BuilderFilsGet: vi.fn(async () => ({ data: [{ id: 9, titre: "Un chat", etat: "terminee", changements: 0, cout: 0.1 }] })),
+    listerLesRecettesApiV1BuilderRecettesGet: vi.fn(async () => ({ data: { recettes: [] } })),
     ouvrirUnFilApiV1BuilderFilsPost: vi.fn(),
+    lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet: vi.fn(async () => ({ data: { etapes: [] } })),
     lireLesAmeliorationsApiV1AmeliorationsGet: vi.fn(async () => ({ data: { lignes: [], page: 0, a_une_suite: false, compteurs: {} } })),
 }));
 
@@ -69,6 +71,8 @@ describe("l'écran dans l'espace d'un client", () => {
         expect(await screen.findByText(/Que construit-on pour Nuances de Feu \?|What do we build for Nuances de Feu \?/)).toBeTruthy();
         const cout = await screen.findByText(/un-modele/);
         expect(cout.closest("a")).toBeNull();
+        // N4 : la pastille du modèle dit le modèle, le plafond est dans son infobulle.
+        expect(cout.getAttribute("title")).toMatch(/\$3\.00 per chat/);
     });
     it("V2b : sans modèle réglé, l'accueil n'affiche aucune ligne de coût (jamais « - · $… par chat »)", async () => {
         m.chemin = "/clients/7/builder";
@@ -84,9 +88,11 @@ describe("l'écran dans l'espace d'un client", () => {
         m.chemin = "/clients/7/builder";
         const { default: PageAccueil } = await import("./PageAccueil");
         render(<PageAccueil />);
-        expect((await screen.findByText(/un-modele/)).textContent).toMatch(/un-modele · \$3\.00 per chat/);
+        const pastille = await screen.findByText(/un-modele/);
+        expect(pastille.textContent).toBe("un-modele");
+        expect(pastille.getAttribute("title")).toMatch(/un-modele · \$3\.00 per chat/);
     });
-    it("V4 : chaque sorte de carte de démarrage a sa couleur (un jeton), jamais la même pour toutes", async () => {
+    it("N4 (décision 19) : les cartes de démarrage sont des tuiles monochromes, l'icône dans un petit cadre, aucune couleur propre", async () => {
         m.chemin = "/labo/builder";
         const client = await import("@/client");
         const carte = (slug: string, icone: string) => ({ slug, titre: slug, phrase: "p", demande: "d", besoin: "rien", icone, proposee_dans: "labo_et_clients" });
@@ -95,13 +101,15 @@ describe("l'écran dans l'espace d'un client", () => {
         } as never);
         const { default: PageAccueil } = await import("./PageAccueil");
         render(<PageAccueil />);
-        const couleurs = await waitFor(() => {
-            const icones = [...document.querySelectorAll<HTMLElement>("[data-demarrage] [data-icone]")];
-            expect(icones).toHaveLength(5);
-            return icones.map((i) => i.style.color);
+        const icones = await waitFor(() => {
+            const trouvees = [...document.querySelectorAll<HTMLElement>("[data-demarrage] [data-icone]")];
+            expect(trouvees).toHaveLength(5);
+            return trouvees;
         });
-        expect(couleurs).toEqual(["agent", "amelioration", "test", "fichier", "etincelle"].map((n) => `var(--demarrage-${n})`));
-        expect(new Set(couleurs).size).toBe(5);
+        for (const i of icones) {
+            expect(i.style.color).toBe("");
+            expect(i.parentElement?.className).toMatch(/rounded-lg border/);
+        }
     });
     it("l'accueil d'un client a sa section « À améliorer » (état « fait » quand rien n'attend) avec le lien de son espace", async () => {
         m.chemin = "/clients/7/builder";
