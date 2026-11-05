@@ -106,3 +106,42 @@ async def test_la_grille_porte_les_criteres_du_vecu_de_l_appelant():
     grille = await appels.grille()
     assert all(c in grille for c in v.CRITERES_DU_VECU)
     assert len(v.CRITERES_DU_VECU) == 5 and len(set(grille)) == len(grille)
+
+
+# --- « allumé mais pas réglé » et le budget, dits à l'écran ----------------------------------------------------------------
+
+
+async def test_l_etat_du_juge_dit_regle_eteint_ou_sans_cle(mondes, monkeypatch):
+    from api.services.juge import etat
+
+    _juge(monkeypatch, modele="openai/juge-m", identifiant="k", actif=True)
+    monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=CerveauFactice()))
+    assert await etat.etat_du_juge(ORG_CLIENT) == "regle"
+    monkeypatch.setattr(simules, "cerveau_du_role", AsyncMock(return_value=None))
+    assert await etat.etat_du_juge(ORG_CLIENT) == "sans_cle"
+    _juge(monkeypatch, modele="openai/juge-m", identifiant="k", actif=False)
+    assert await etat.etat_du_juge(ORG_CLIENT) == "eteint"
+    _juge(monkeypatch, source="claude_code", actif=False)
+    assert await etat.etat_du_juge(ORG_CLIENT) == "regle"  # Claude Code : l'appel attend dans « À juger »
+
+
+async def test_la_route_rend_les_filtres_et_l_etat_du_juge(mondes, monkeypatch):
+    from types import SimpleNamespace as NS
+
+    from api.routes import reglages_agent as route
+    from api.tests.mark.builder_commun import utilisateur
+
+    monkeypatch.setattr(route.db_client, "get_workflow", AsyncMock(side_effect=lambda wid, organization_id: NS(id=wid)))
+    _juge(monkeypatch, modele="openai/juge-m", identifiant="k", actif=False)
+    moi = utilisateur(1, ORG_CLIENT)
+    ecrit = await route.regler_le_juge_des_vrais_appels(
+        AGENT, route.JugeDesVraisAppels(actif=True, part=25, duree_min_s=5, repondeurs_exclus=True), moi
+    )
+    assert (ecrit.actif, ecrit.part, ecrit.duree_min_s, ecrit.repondeurs_exclus) == (True, 25, 5, True)
+    lu = await route.lire_le_juge_des_vrais_appels(AGENT, moi)
+    assert lu.etat_du_juge == "eteint" and lu.part == 25  # allumé sur l'agent, mais le juge du Labo est éteint : l'écran le dit
+    # un changement qui ne parle que de l'interrupteur garde les filtres
+    ecrit = await route.regler_le_juge_des_vrais_appels(AGENT, route.JugeDesVraisAppels(actif=False), moi)
+    assert ecrit.actif is False and ecrit.part == 25
+    with pytest.raises(ValueError):
+        route.JugeDesVraisAppels(actif=True, part=0)
