@@ -23,7 +23,7 @@ import {
 import type { FolderResponse, LienDeGroupe, WorkflowListResponse } from "@/client/types.gen";
 import { etiquettesDuFiltre, filtrerLesAgents } from "@/components/mark/agent/etiquettes/logique";
 import { useEtiquettes } from "@/components/mark/agent/etiquettes/useEtiquettes";
-import { ModaleNouvelAgent } from "@/components/mark/agent/ModaleNouvelAgent";
+import { FenetreCreationAgent } from "@/components/mark/agent/FenetreCreationAgent";
 import { BadgeGroupe } from "@/components/mark/groupe/BadgeGroupe";
 import { ChoixSpecialisesArchivage } from "@/components/mark/groupe/ChoixSpecialisesArchivage";
 import { arbreDesDossiers, descendants, type NoeudDeDossier, rolesDesAgents } from "@/components/mark/groupe/liens-groupes";
@@ -500,7 +500,7 @@ export function ListeAgents({
                 </div>
             )}
 
-            <ModaleNouvelAgent ouvert={creation} fermer={() => setCreation(false)} dossierId={null} />
+            <FenetreCreationAgent ouvert={creation} fermer={() => setCreation(false)} dossierId={null} />
             <FenetreChamps
                 ouverte={creationDossier !== null}
                 fermer={() => setCreationDossier(null)}

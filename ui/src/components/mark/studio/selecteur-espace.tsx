@@ -4,17 +4,15 @@
  * [.mark] Le sélecteur d'espace (U2, E3) : le Labo et les clients que le rôle du compte ouvre (`GET /espaces`).
  * Choisir un espace ouvre son adresse (`/labo` ou `/clients/<id>`) ; l'organisation de chaque requête est lue dans
  * l'adresse de l'onglet (`lib/espaceCourant.ts`), jamais dans un réglage du compte : deux onglets, deux espaces.
- * « Nouveau client » crée une organisation (permission `clients.creer`, vérifiée par le serveur) et l'ouvre.
+ * « Nouveau client » installe un client pas à pas (permission `clients.creer`, vérifiée par le serveur ; sous-lot 9).
  */
-import { Building2, Check, ChevronsUpDown, FlaskConical, HeartHandshake, Loader2, Plus } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, FlaskConical, HeartHandshake, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { notifier } from "@/components/mark/notifications";
 
 import { useLangue } from "@/components/mark/langue/langue";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FenetreNouveauClient } from "@/components/mark/installation/FenetreNouveauClient";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,14 +21,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { retenirEspace } from "@/lib/espaceCourant";
 import { adresseDe, type Espace, listerEspaces } from "@/lib/espaces";
 import { RELATION_CLIENTS } from "./nom-espace";
 import logger from "@/lib/logger";
-import { createOrganization } from "@/lib/organizationMembership";
 
 type Props = { espace: "labo" | "client" | "relation"; org: string | null; className?: string };
 
@@ -151,60 +146,18 @@ export function SelecteurEspace({ espace, org, className }: Props) {
     );
 }
 
-export function NouveauClient({ ouvert, onOuvert }: { ouvert: boolean; onOuvert: (o: boolean) => void }) {
-    const { t } = useLangue();
-    const router = useRouter();
-    const [identifiant, setIdentifiant] = useState("");
-    const [enCours, setEnCours] = useState(false);
-
-    const creer = async () => {
-        const propre = identifiant.trim();
-        if (!propre) return;
-        setEnCours(true);
-        try {
-            const cree = await createOrganization(propre, { select: false });
-            onOuvert(false);
-            setIdentifiant("");
-            retenirEspace(`/clients/${cree.id}`);
-            router.push(`/clients/${cree.id}`);
-        } catch (e) {
-            notifier.echec({ fr: "Client non créé. Réessayez.", en: "Client not created. Try again." }, { erreur: e });
-        } finally {
-            setEnCours(false);
-        }
-    };
-
-    return (
-        <Dialog open={ouvert} onOpenChange={onOuvert}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{t({ en: "New client", fr: "Nouveau client" })}</DialogTitle>
-                    <DialogDescription>
-                        {t({
-                            en: "A client holds its own agents, numbers and keys. Nothing is shared with the others.",
-                            fr: "Un client a ses propres agents, numéros et clés. Rien n'est partagé avec les autres.",
-                        })}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2">
-                    <Label htmlFor="nouveau-client">{t({ en: "Identifier", fr: "Identifiant" })}</Label>
-                    <Input
-                        id="nouveau-client"
-                        value={identifiant}
-                        onChange={(e) => setIdentifiant(e.target.value)}
-                        autoComplete="off"
-                    />
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOuvert(false)} disabled={enCours}>
-                        {t({ en: "Cancel", fr: "Annuler" })}
-                    </Button>
-                    <Button onClick={() => void creer()} disabled={enCours || !identifiant.trim()}>
-                        {enCours && <Loader2 className="mr-2 size-4 animate-spin" />}
-                        {t({ en: "Create", fr: "Créer" })}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+/**
+ * [.mark] Partie 3, sous-lot 9 : « Nouveau client » installe vraiment le client, étape par étape (`installation/FenetreNouveauClient`).
+ * Gardée sous ce nom pour ses appelants (sélecteur d'espace, Relation clients).
+ */
+export function NouveauClient({
+    ouvert,
+    onOuvert,
+    organisationAReprendre = null,
+}: {
+    ouvert: boolean;
+    onOuvert: (o: boolean) => void;
+    organisationAReprendre?: number | null;
+}) {
+    return <FenetreNouveauClient ouvert={ouvert} onOuvert={onOuvert} organisationAReprendre={organisationAReprendre} />;
 }
