@@ -31,6 +31,7 @@ import { useFil } from "./useFil";
 import { CopierLaReponse } from "./copier-la-reponse";
 import { useEntreesDeSaisie, useMenuSaisie } from "./menu-saisie";
 import { FenetrePlafondDuMois } from "./plafond-du-mois";
+import { type AutorisationDuChat, BandeauMode, CarteAutorisation, type Decision, type ModeDuChat, SelecteurMode } from "./permissions-du-chat";
 
 const T = {
     ecrire: { en: "Write; @ to cite, / for a request. Enter sends, Shift + Enter adds a line.", fr: "Écris ; @ pour citer, / pour une demande. Entrée envoie, Maj + Entrée va à la ligne." },
@@ -51,6 +52,7 @@ const T = {
     revoir: { en: "See the changes", fr: "Voir les changements" },
     cacher: { en: "Hide the review", fr: "Masquer la relecture" },
     plafond: { en: "Ceiling reached: raise it in the builder settings, then resume.", fr: "Plafond atteint : relevez-le dans les réglages du builder, puis reprenez." },
+    planApprouve: { en: "The plan is approved: carry it out.", fr: "Le plan est approuvé : exécute-le." },
 } satisfies Record<string, Texte>;
 
 export function FilDuBuilder({
@@ -67,7 +69,10 @@ export function FilDuBuilder({
 }) {
     const { t, langue } = useLangue();
     const adresses = useAdressesDuBuilder();
-    const { fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense, plafond, continuerQuandMeme, annulerLePlafond } = useFil(filId);
+    const {
+        fil, lignes, erreur, enCours: enCoursBrut, dernier, envoyer, arreter, reprendre, modifierDernier, rafraichir, repondreDepense, plafond, continuerQuandMeme, annulerLePlafond,
+        reglerLeMode, repondreAutorisation, retirerAutorisation,
+    } = useFil(filId);
     const { sources } = useSources();
     // U12 : une conversation menee dans Claude Code se lit seulement ; sur Claude Code, la saisie du chat de l'ecran est fermee.
     const claudeCode = fil?.genre === "claude_code";
@@ -116,6 +121,12 @@ export function FilDuBuilder({
         await envoyer(texte);
     };
     const derniereQuestion = [...lignes].reverse().find((l) => l.genre === "carte" && l.carte.type === "question");
+    // N1 : le mode vaut pour ce chat (le serveur le vérifie à chaque action) ; il ne se change pas pendant que le builder travaille.
+    const mode = ((fil?.mode as ModeDuChat | undefined) ?? "demander") as ModeDuChat;
+    const autorisationsDuChat = (fil?.autorisations_du_chat ?? []) as AutorisationDuChat[];
+    const approuverLePlan = async () => {
+        if (await reglerLeMode("demander")) await envoyer(t(T.planApprouve));
+    };
 
     const principal = (
         <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
@@ -161,6 +172,8 @@ export function FilDuBuilder({
                         repondre={(texte) => void envoyer(texte)}
                         actif={!lectureSeule && !enCours}
                         accorder={(id, accord) => void repondreDepense(id, accord)}
+                        autoriser={(id, decision, raison) => void repondreAutorisation(id, decision, raison)}
+                        agentOuvert={fil?.workflow_id ?? null}
                         filId={filId}
                         sousAgents={sous.sous_agents}
                         voir={setVu}
@@ -216,6 +229,7 @@ export function FilDuBuilder({
                 <div className="pointer-events-auto relative mx-auto max-w-3xl">
                 {menuDeSaisie}
                 <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
+                    <BandeauMode mode={mode} desactive={enCours} revenir={() => void reglerLeMode("demander")} approuverLePlan={() => void approuverLePlan()} />
                     {fil && fil.changements > 0 && (
                         <div className="border-b">
                             <div className="flex items-center justify-between px-3 py-1.5 text-xs text-muted-foreground">
@@ -259,6 +273,14 @@ export function FilDuBuilder({
                         }}
                     />
                     <div className="flex items-center justify-end gap-2 px-3 pb-3">
+                        <SelecteurMode
+                            mode={mode}
+                            choisir={(m) => void reglerLeMode(m)}
+                            autorisations={autorisationsDuChat}
+                            retirer={(id) => void retirerAutorisation(id)}
+                            agentOuvert={fil?.workflow_id ?? null}
+                            desactive={enCours || ferme}
+                        />
                         <ListeDesSousAgents
                             filId={filId}
                             actifDansLeChat={fil?.sous_agents_actifs ?? true}
@@ -302,6 +324,8 @@ function Ligne({
     edition,
     actif,
     accorder,
+    autoriser,
+    agentOuvert,
     filId,
     sousAgents,
     voir,
@@ -315,6 +339,8 @@ function Ligne({
     edition: string | null;
     actif: boolean;
     accorder: (id: string, accord: boolean) => void;
+    autoriser: (id: string, decision: Decision, raison?: string) => void;
+    agentOuvert: number | null;
     filId: number;
     sousAgents: SousAgent[];
     voir: (id: number) => void;
@@ -358,6 +384,16 @@ function Ligne({
             if (ligne.carte.type === "rapport") return <CarteRapport carte={ligne.carte} />;
             if (ligne.carte.type === "depense") {
                 return <CarteDepense carte={ligne.carte} active={actif} repondre={(accord) => accorder(String(ligne.carte.id), accord)} />;
+            }
+            if (ligne.carte.type === "autorisation") {
+                return (
+                    <CarteAutorisation
+                        carte={ligne.carte}
+                        active={actif}
+                        agentOuvert={agentOuvert}
+                        repondre={(decision, raison) => autoriser(String(ligne.carte.id), decision, raison)}
+                    />
+                );
             }
             if (ligne.carte.type === "correction") return <CarteCorrection carte={ligne.carte} active={actif} repondre={repondre} />;
             if (ligne.carte.type === "proposition_test") return <CartePropositionTest carte={ligne.carte} />;
