@@ -31,6 +31,9 @@ const m = vi.hoisted(() => ({
     qualite: vi.fn(),
     sources: vi.fn(),
     push: vi.fn(),
+    tous: vi.fn(),
+    tousQualite: vi.fn(),
+    lieu: { chemin: "/clients/12/a-ameliorer" },
 }));
 
 vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
@@ -45,6 +48,8 @@ vi.mock("@/client", () => ({
     lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => m.personnes(),
     ouvrirUnFilApiV1BuilderFilsPost: (o: unknown) => m.fil(o),
     lireLaQualiteApiV1QualiteGet: (o: unknown) => m.qualite(o),
+    ameliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGet: (o: unknown) => m.tous(o),
+    qualiteDeTousLesClientsApiV1VuesEquipeQualiteGet: (o: unknown) => m.tousQualite(o),
     lireLesSourcesApiV1BuilderSourcesGet: () => m.sources(),
     lireLeMiroirApiV1BuilderMiroirReglageGet: vi.fn(),
     reglerLeMiroirApiV1BuilderMiroirReglagePut: vi.fn(),
@@ -53,7 +58,7 @@ vi.mock("@/client", () => ({
 // Un objet stable : le vrai `useAuth` ne rend pas un nouvel utilisateur à chaque rendu (les effets en dépendent).
 const SESSION = vi.hoisted(() => ({ user: { id: "u-1" }, loading: false }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => SESSION }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }), usePathname: () => "/labo/a-ameliorer" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }), usePathname: () => m.lieu.chemin }));
 
 const LIGNE = {
     id: 7, workflow_id: 3, workflow_nom: "Accueil", titre: "Suit le parcours sans erreur", critere: "Suit le parcours sans erreur", etape: null,
@@ -89,6 +94,7 @@ afterEach(() => {
     cleanup();
     vi.clearAllMocks();
     window.history.replaceState(null, "", "/");
+    m.lieu.chemin = "/clients/12/a-ameliorer";
 });
 
 describe("La liste de « À améliorer »", () => {
@@ -191,11 +197,15 @@ describe("La liste de « À améliorer »", () => {
         window.history.replaceState(null, "", "/?onglet=pannes");
         monter(<PageAAmeliorer />);
         const lien = await screen.findByRole("link", { name: /Voir toutes les alertes/ });
-        expect(lien.getAttribute("href")).toBe("/labo/qualite?onglet=alertes");
+        expect(lien.getAttribute("href")).toBe("/clients/12/qualite?onglet=alertes");
     });
 });
 
 describe("Le détail d'un problème", () => {
+    beforeEach(() => {
+        m.lieu.chemin = "/labo/a-ameliorer";
+    });
+
     const ouvrir = async (apres = vi.fn(), fermer = vi.fn()) => {
         monter(<DetailProbleme id={7} fermer={fermer} apres={apres} />);
         await screen.findByText("« C'est noté pour jeudi »");
@@ -380,5 +390,55 @@ describe("Point d'origine « Attaque » (partie 3, sous-lot 4)", () => {
     it("une attaque qui a cédé a son libellé d'origine, à côté des autres", () => {
         expect(ORIGINES.attaque).toEqual({ en: "An attack that got through", fr: "Une attaque qui a cédé" });
         expect(Object.keys(ORIGINES)).toEqual(expect.arrayContaining(["client", "recette", "code", "deploiement", "attaque"]));
+    });
+});
+
+describe("Sous-lot 10 : la vue « tous clients » du Labo (lecture seule)", () => {
+    const LIGNE_EQUIPE = { ...LIGNE, organization_id: 41, organization_nom: "Plomberie Garnier" };
+    beforeEach(() => {
+        m.lieu.chemin = "/labo/a-ameliorer";
+        m.tous.mockResolvedValue({ data: { lignes: [LIGNE_EQUIPE], page: 0, a_une_suite: false, compteurs: COMPTEURS } });
+        m.tousQualite.mockResolvedValue({
+            data: {
+                jours: 7, mondial: RESUME, motifs: QUALITE.motifs, par_client: [], total_agents: 1, limit: 50, offset: 0,
+                agents: [{ workflow_id: 3, workflow_nom: "Accueil", version: 4, organization_id: 41, organization_nom: "Plomberie Garnier", ...RESUME }],
+            },
+        });
+    });
+
+    it("À améliorer : dans le Labo la liste vient de la route d'équipe, avec le client, et la ligne mène chez lui", async () => {
+        monter(<PageAAmeliorer />);
+        const titre = await screen.findByText("Suit le parcours sans erreur");
+        expect(m.tous).toHaveBeenCalledWith({ query: { etat: "a_trier" } });
+        expect(m.liste).not.toHaveBeenCalled();
+        const ligne = titre.closest("tr")!;
+        expect(ligne.textContent).toContain("Plomberie Garnier · Accueil · v4");
+        fireEvent.click(ligne);
+        expect(m.push).toHaveBeenCalledWith("/clients/41/a-ameliorer?probleme=7");
+    });
+
+    it("À améliorer : chez un client, la route de l'espace reste la seule lue", async () => {
+        m.lieu.chemin = "/clients/41/a-ameliorer";
+        monter(<PageAAmeliorer />);
+        await screen.findByText("Suit le parcours sans erreur");
+        expect(m.tous).not.toHaveBeenCalled();
+        expect(m.liste).toHaveBeenCalled();
+    });
+
+    it("À améliorer : le lien d'une ligne du Labo ouvre le détail du problème chez le client", async () => {
+        m.lieu.chemin = "/clients/41/a-ameliorer";
+        window.history.replaceState(null, "", "/?probleme=7");
+        monter(<PageAAmeliorer />);
+        await waitFor(() => expect(m.detail).toHaveBeenCalled());
+    });
+
+    it("Qualité : dans le Labo, tous les clients avec une colonne Client", async () => {
+        m.lieu.chemin = "/labo/qualite";
+        monter(<OngletIndicateurs />);
+        expect(await screen.findByText("Note du juge")).toBeTruthy();
+        expect(m.tousQualite).toHaveBeenCalledWith({ query: { jours: 7 } });
+        expect(m.qualite).not.toHaveBeenCalled();
+        expect(screen.getByRole("columnheader", { name: "Client" })).toBeTruthy();
+        expect(screen.getByText("Plomberie Garnier")).toBeTruthy();
     });
 });

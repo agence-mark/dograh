@@ -9,7 +9,8 @@
 import { ArrowRightLeft, BarChart3, Clock, PhoneOff, Star, Target } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { lireLaQualiteApiV1QualiteGet } from "@/client";
+import { lireLaQualiteApiV1QualiteGet, qualiteDeTousLesClientsApiV1VuesEquipeQualiteGet } from "@/client";
+import { useDansLeLabo } from "@/components/mark/equipe/VuesTousClients";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Info, NoteJuge } from "@/components/mark/studio/marques";
@@ -34,7 +35,7 @@ type Resume = {
     reponse_mediane: number | null;
     cout: number | null;
 };
-type Agent = Resume & { workflow_id: number; workflow_nom: string; version: number | null };
+type Agent = Resume & { workflow_id: number; workflow_nom: string; version: number | null; organization_nom?: string; organization_id?: number };
 type Version = Resume & { workflow_id: number; workflow_nom: string; version: number };
 type Qualite = {
     jours: number;
@@ -73,6 +74,7 @@ const T = {
     },
     parAgent: { en: "By agent", fr: "Par agent" },
     agent: { en: "Agent", fr: "Agent" },
+    client: { en: "Client", fr: "Client" },
     version: { en: "Version", fr: "Version" },
     appelsCol: { en: "Calls", fr: "Appels" },
     noteCol: { en: "Score", fr: "Note" },
@@ -91,12 +93,20 @@ export function OngletIndicateurs() {
     const { user, loading } = useAuth();
     const [jours, setJours] = useState<7 | 30>(7);
     const [etat, setEtat] = useState<"chargement" | "erreur" | Qualite>("chargement");
+    // Sous-lot 10 (SE-3) : dans le Labo, tous les clients que le rôle ouvre (lecture seule), avec une colonne « Client ».
+    const tousClients = useDansLeLabo();
 
     const charger = useCallback(async () => {
         setEtat("chargement");
+        if (tousClients) {
+            const r = await qualiteDeTousLesClientsApiV1VuesEquipeQualiteGet({ query: { jours } });
+            if (r.error || !r.data) return setEtat("erreur");
+            const d = r.data as unknown as { jours: number; mondial: Resume; motifs: Qualite["motifs"]; agents: Agent[] };
+            return setEtat({ jours: d.jours, global: d.mondial, motifs: d.motifs, agents: d.agents, versions: [] });
+        }
         const r = await lireLaQualiteApiV1QualiteGet({ query: { jours } });
         setEtat(r.error || !r.data ? "erreur" : (r.data as unknown as Qualite));
-    }, [jours]);
+    }, [jours, tousClients]);
 
     useEffect(() => {
         if (loading || !user) return;
@@ -202,14 +212,16 @@ export function OngletIndicateurs() {
                 <Tableau
                     colonnes={[
                         { titre: t(T.agent) },
+                        ...(tousClients ? [{ titre: t(T.client) }] : []),
                         { titre: t(T.version) },
                         { titre: `${t(T.appelsCol)} ${jours} ${t({ en: "d", fr: "j" })}`, droite: true },
                         { titre: t(T.noteCol), droite: true },
                     ]}
                 >
                     {etat.agents.map((a) => (
-                        <Ligne key={a.workflow_id} href={`/agents/${a.workflow_id}`}>
+                        <Ligne key={`${a.organization_id ?? 0}-${a.workflow_id}`} href={tousClients && a.organization_id ? `/clients/${a.organization_id}/agents` : `/agents/${a.workflow_id}`}>
                             <Cellule principale>{a.workflow_nom}</Cellule>
+                            {tousClients && <Cellule>{a.organization_nom ?? ""}</Cellule>}
                             <Cellule>{a.version ? `v${a.version}` : "–"}</Cellule>
                             <Cellule droite>{a.appels}</Cellule>
                             <Cellule droite>

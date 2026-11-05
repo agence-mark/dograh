@@ -79,6 +79,31 @@ class BuilderFilClient(BaseDBClient):
             )
             return list((await session.execute(requete)).scalars().all())
 
+    async def lister_fils_des_organisations(
+        self, organisations: list[int], *, limite: int, decalage: int
+    ) -> tuple[list[MarkBuilderConversationModel], int]:
+        """Partie 3, sous-lot 10 (Chat du Labo) : les conversations PRINCIPALES de plusieurs organisations (lecture seule de l'équipe),
+        les plus récentes d'abord, paginées ; (lignes, total). Le filtre par organisation est dans la requête."""
+        if not organisations:
+            return [], 0
+        filtre = (
+            MarkBuilderConversationModel.organization_id.in_(organisations),
+            MarkBuilderConversationModel.parent_id.is_(None),
+        )
+        async with self.async_session() as session:
+            total = (await session.execute(select(func.count()).select_from(MarkBuilderConversationModel).where(*filtre))).scalar_one()
+            lignes = (
+                await session.execute(
+                    select(MarkBuilderConversationModel)
+                    .where(*filtre)
+                    .order_by(MarkBuilderConversationModel.modifie_le.desc(), MarkBuilderConversationModel.id.desc())
+                    .limit(limite)
+                    .offset(decalage)
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars().all()
+        return list(lignes), int(total)
+
     async def compter_les_fils_en_attente(self, organization_id: int) -> int:
         """Les conversations du builder (principales, celles de l'écran) qui ont des changements à valider et ne travaillent plus :
         c'est ce qui attend la personne. Une seule requête, bornée à l'organisation."""
@@ -90,6 +115,27 @@ class BuilderFilClient(BaseDBClient):
                         .select_from(MarkBuilderConversationModel)
                         .where(
                             MarkBuilderConversationModel.organization_id == organization_id,
+                            MarkBuilderConversationModel.parent_id.is_(None),
+                            MarkBuilderConversationModel.genre == "principal",
+                            MarkBuilderConversationModel.changements > 0,
+                            MarkBuilderConversationModel.etat != "en_cours",
+                        )
+                    )
+                ).scalar_one()
+            )
+
+    async def compter_les_fils_en_attente_des_organisations(self, organisations: list[int]) -> int:
+        """Comme ``compter_les_fils_en_attente`` pour plusieurs organisations (pastille « Chat » du Labo, tous clients). Une requête."""
+        if not organisations:
+            return 0
+        async with self.async_session() as session:
+            return int(
+                (
+                    await session.execute(
+                        select(func.count())
+                        .select_from(MarkBuilderConversationModel)
+                        .where(
+                            MarkBuilderConversationModel.organization_id.in_(organisations),
                             MarkBuilderConversationModel.parent_id.is_(None),
                             MarkBuilderConversationModel.genre == "principal",
                             MarkBuilderConversationModel.changements > 0,

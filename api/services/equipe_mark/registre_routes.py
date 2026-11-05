@@ -162,6 +162,8 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/espaces$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
+    # Partie 3, sous-lot 10 : les vues tous clients (lecture seule ; la route refuse en plus toute cle et tout compte sans role d'equipe).
+    _r({"GET"}, r"^/vues-equipe(/.*)?$", P("conversations.voir"), par_defaut=True),
     # ------------------------------------------------------------------ Hub « Relation clients » (U3 septies, E78)
     # Le Hub exige une SESSION d'équipe (la route refuse une clé d'API) ; le lien d'entrée dans un portail exige en plus la permission.
     _r({"POST"}, r"^/relation/clients/\{organization_id\}/entree$", P("clients.ouvrir_portail")),

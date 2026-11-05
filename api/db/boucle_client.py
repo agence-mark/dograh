@@ -290,6 +290,121 @@ class BoucleClient(BaseDBClient):
             for run_id, wf, nom, cree_le, version, extrait in lignes
         ]
 
+    # ------------------------------------------------------------------ vues « tous clients » (partie 3, sous-lot 10)
+    # Lecture seule, pour l'équipe .mark : le filtre par organisation est DANS chaque requête (``organization_id IN (…)``), sur la
+    # liste que le rôle du compte ouvre ; une liste vide ne lit rien. Jamais une requête par client.
+
+    async def lister_ameliorations_des_organisations(
+        self, organisations: list[int], *, etat: str, page: int = 0, par_page: int = 50
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Les problèmes d'un état pour plusieurs organisations, le plus grave puis le plus récent d'abord ; (lignes, a_une_suite)."""
+        if not organisations:
+            return [], False
+        requete = (
+            select(MarkAmeliorationModel)
+            .where(MarkAmeliorationModel.organization_id.in_(organisations), MarkAmeliorationModel.etat == etat)
+            .order_by(MarkAmeliorationModel.gravite.desc(), MarkAmeliorationModel.derniere_le.desc(), MarkAmeliorationModel.id.desc())
+            .limit(par_page + 1)
+            .offset(max(page, 0) * par_page)
+        )
+        async with self.async_session() as session:
+            lignes = (await session.execute(requete)).scalars().all()
+        return [_vue(ligne) for ligne in lignes[:par_page]], len(lignes) > par_page
+
+    async def compter_ameliorations_des_organisations(self, organisations: list[int]) -> dict[str, int]:
+        """Le nombre de problèmes par état pour plusieurs organisations (les ignorés ne comptent pas). Une seule requête."""
+        if not organisations:
+            return {}
+        requete = (
+            select(MarkAmeliorationModel.etat, func.count())
+            .where(MarkAmeliorationModel.organization_id.in_(organisations), MarkAmeliorationModel.etat != "ignoree")
+            .group_by(MarkAmeliorationModel.etat)
+        )
+        async with self.async_session() as session:
+            return {etat: n for etat, n in (await session.execute(requete)).all()}
+
+    async def appels_des_agents_des_organisations(
+        self, organisations: list[int], *, jours: int, juges_seulement: bool = False
+    ) -> dict[int, int]:
+        """Comme ``appels_de_l_agent`` pour plusieurs organisations (l'identifiant d'un agent est unique : une seule table de comptes)."""
+        if not organisations:
+            return {}
+        depuis = datetime.now(UTC) - timedelta(days=jours)
+        requete = (
+            select(WorkflowRunModel.workflow_id, func.count())
+            .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+            .where(WorkflowModel.organization_id.in_(organisations), WorkflowRunModel.created_at >= depuis)
+            .group_by(WorkflowRunModel.workflow_id)
+        )
+        if juges_seulement:
+            annotations = cast(WorkflowRunModel.annotations, JSONB)
+            requete = requete.where(func.jsonb_extract_path_text(annotations, "juge", "etat") == "juge")
+        async with self.async_session() as session:
+            return {wf: n for wf, n in (await session.execute(requete)).all()}
+
+    async def noms_des_agents_des_organisations(self, organisations: list[int], workflow_ids: list[int]) -> dict[int, str]:
+        if not organisations or not workflow_ids:
+            return {}
+        requete = select(WorkflowModel.id, WorkflowModel.name).where(
+            WorkflowModel.organization_id.in_(organisations), WorkflowModel.id.in_(workflow_ids)
+        )
+        async with self.async_session() as session:
+            return {i: n for i, n in (await session.execute(requete)).all()}
+
+    async def runs_pour_la_qualite_des_organisations(
+        self, organisations: list[int], *, jours: int, par_organisation: int = 1000
+    ) -> list[dict[str, Any]]:
+        """Les runs de la fenêtre de plusieurs organisations, au plus ``par_organisation`` par organisation (les plus récents) : une
+        organisation très active n'efface pas les autres. Une seule requête (fenêtre ``row_number``), mêmes morceaux JSON que
+        ``runs_pour_la_qualite``."""
+        if not organisations:
+            return []
+        depuis = datetime.now(UTC) - timedelta(days=jours)
+        annotations = cast(WorkflowRunModel.annotations, JSONB)
+        morceau = func.jsonb_build_object(
+            literal("boucle"),
+            annotations.op("->")(literal("boucle")),
+            literal("juge"),
+            func.jsonb_build_object(
+                literal("etat"),
+                func.jsonb_extract_path(annotations, "juge", "etat"),
+                literal("verdicts"),
+                func.jsonb_extract_path(annotations, "juge", "verdicts"),
+            ),
+        )
+        rang = func.row_number().over(partition_by=WorkflowModel.organization_id, order_by=WorkflowRunModel.id.desc()).label("rang")
+        sous = (
+            select(
+                WorkflowRunModel.id.label("run_id"),
+                WorkflowRunModel.workflow_id.label("workflow_id"),
+                WorkflowModel.organization_id.label("organization_id"),
+                WorkflowModel.name.label("nom"),
+                WorkflowRunModel.created_at.label("cree_le"),
+                WorkflowDefinitionModel.version_number.label("version"),
+                morceau.label("extrait"),
+                rang,
+            )
+            .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+            .outerjoin(WorkflowDefinitionModel, WorkflowDefinitionModel.id == WorkflowRunModel.definition_id)
+            .where(and_(WorkflowModel.organization_id.in_(organisations), WorkflowRunModel.created_at >= depuis))
+            .subquery()
+        )
+        requete = select(sous).where(sous.c.rang <= par_organisation).order_by(sous.c.run_id.desc())
+        async with self.async_session() as session:
+            lignes = (await session.execute(requete)).all()
+        return [
+            {
+                "run_id": ligne.run_id,
+                "workflow_id": ligne.workflow_id,
+                "organization_id": ligne.organization_id,
+                "workflow_nom": ligne.nom,
+                "cree_le": ligne.cree_le,
+                "version": ligne.version,
+                "annotations": ligne.extrait or {},
+            }
+            for ligne in lignes
+        ]
+
     async def lire_une_amelioration_par_cle(self, organization_id: int, workflow_id: int, cle: str) -> dict[str, Any] | None:
         async with self.async_session() as session:
             ligne = (
