@@ -21,6 +21,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => m.chemin, useRouter: () =
 vi.mock("@/lib/auth", () => ({ useAuth: () => m.session }));
 vi.mock("@/components/mark/studio/nom-espace", () => ({ useNomEspace: (_e: string, org: string | null) => (org === "7" ? "Nuances de Feu" : "Labo") }));
 vi.mock("@/client", () => ({
+    // SA-N1b : l'onglet « Journal » de la page Chat lit le journal du builder
+    lireLeJournalDuBuilderApiV1BuilderJournalGet: vi.fn(async () => ({ data: { lignes: [], total: 0 } })),
     getWorkflowsSummaryApiV1WorkflowSummaryGet: vi.fn(async () => ({ data: [] })),
     lireLesSourcesApiV1BuilderSourcesGet: vi.fn(async () => ({ data: { sources: { builder: "cle_api" } } })),
     lireLeCerveauApiV1BuilderCerveauGet: vi.fn(async () => ({ data: { modele: "un-modele", plafond_depense: 3 } })),
