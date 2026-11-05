@@ -96,6 +96,14 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     rappel = ecoute_securite.contexte_avec_le_rappel(moteur, copie if copie is not None else trame.context)
     if rappel is not None:
         copie = rappel
+    # [.mark] L3e : le garde-fou urgence (mots et tournures, aucun appel de modèle), sur la parole de la personne.
+    from api.services.securite import urgence as garde_urgence
+
+    notice_urgence = await garde_urgence.surveiller(moteur, trame.context)
+    if notice_urgence:
+        avec_la_notice = garde_urgence.contexte_avec_la_notice(copie if copie is not None else trame.context, notice_urgence)
+        if avec_la_notice is not None:
+            copie = avec_la_notice
     if copie is None:
         return trame
     return LLMContextFrame(context=copie, speculation=trame.speculation)
@@ -133,9 +141,10 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         from api.services.workflow.fiche_dans_le_systeme import case_allumee
 
         from api.services.securite.ecoute import ecoute_allumee
+        from api.services.securite.urgence import urgence_allumee
 
         if moteur is None or llm is None or not (
-            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur) or ecoute_allumee(agent)
+            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur) or ecoute_allumee(agent) or urgence_allumee(agent)
         ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"

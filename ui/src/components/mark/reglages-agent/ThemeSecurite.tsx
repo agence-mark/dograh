@@ -49,7 +49,16 @@ export interface SecuriteComplete {
         consigne: string;
     };
     marquer: boolean;
+    garde_urgence: { actif: boolean; numero: string; mots_en_plus: string[] };
 }
+
+/** Les bornes du serveur pour le numéro d'urgence (`GardeUrgence.numero`). */
+export const NUMERO_URGENCE_DEFAUT = "112";
+export const MOTS_EN_PLUS_MAX = 20;
+export const erreurNumero = (numero: string): Texte | null =>
+    /^[0-9+ ]{2,20}$/.test(numero)
+        ? null
+        : { en: "Digits only (2 to 20), with an optional + and spaces.", fr: "Des chiffres seulement (2 à 20), avec un + et des espaces possibles." };
 
 const consigne = (c?: ConsigneDeSecurite): Required<ConsigneDeSecurite> => ({ actif: c?.actif ?? false, phrase: c?.phrase ?? "" });
 
@@ -73,6 +82,11 @@ export const completerSecurite = (lue: SecuriteConversation | null | undefined):
         consigne: lue?.ecoute?.consigne ?? "",
     },
     marquer: lue?.marquer ?? true,
+    garde_urgence: {
+        actif: lue?.garde_urgence?.actif ?? false,
+        numero: lue?.garde_urgence?.numero ?? NUMERO_URGENCE_DEFAUT,
+        mots_en_plus: lue?.garde_urgence?.mots_en_plus ?? [],
+    },
 });
 
 const extraireSecurite = (resolue: WorkflowConfigurations) => completerSecurite(resolue.securite_conversation);
@@ -93,16 +107,29 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extraireSecurite);
     const modifie = differe(brouillon, enregistre);
     const errMots = brouillon.jamais.recitation ? erreurMots(brouillon.jamais.mots) : null;
-    const erreurs = errMots
-        ? [
-              {
-                  cle: "securite_conversation.jamais.mots",
-                  libelle: t({ en: "Passage recited from", fr: "Passage récité à partir de" }),
-                  message: t(errMots),
-                  afficher: () => document.getElementById("securite-mots")?.focus(),
-              },
-          ]
-        : [];
+    const errNumero = brouillon.garde_urgence.actif ? erreurNumero(brouillon.garde_urgence.numero) : null;
+    const erreurs = [
+        ...(errMots
+            ? [
+                  {
+                      cle: "securite_conversation.jamais.mots",
+                      libelle: t({ en: "Passage recited from", fr: "Passage récité à partir de" }),
+                      message: t(errMots),
+                      afficher: () => document.getElementById("securite-mots")?.focus(),
+                  },
+              ]
+            : []),
+        ...(errNumero
+            ? [
+                  {
+                      cle: "securite_conversation.garde_urgence.numero",
+                      libelle: t({ en: "Emergency number", fr: "Numéro d'urgence" }),
+                      message: t(errNumero),
+                      afficher: () => document.getElementById("securite-garde-urgence-numero")?.focus(),
+                  },
+              ]
+            : []),
+    ];
     useEtatTheme(ID_THEME_SECURITE, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -171,6 +198,7 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
                     ? t({ en: "No safety instruction on", fr: "Aucune consigne allumée" })
                     : `${allumees} ${t({ en: "instruction(s) on", fr: "consigne(s) allumée(s)" })}`,
                 brouillon.ecoute.actif && t({ en: "Caller classifier on", fr: "Classifieur allumé" }),
+                brouillon.garde_urgence.actif && t({ en: "Emergency safeguard on", fr: "Garde-fou urgence allumé" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -252,6 +280,76 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
                             onCheckedChange={(v) => poser("urgence", { transfert: v })}
                         />
                     </ChampReglage>,
+                )}
+            </Intertitre>
+
+            <Intertitre
+                id="securite-garde-urgence-bloc"
+                titre={{ en: "Emergency safeguard", fr: "Garde-fou urgence" }}
+                description={{
+                    en: "Recognises distress or a medical emergency in the caller's words and says the emergency sentence (once per call). The code reads words only: no model is called and nothing is spent. The sentence is in the Phrases theme.",
+                    fr: "Reconnaît une détresse ou une urgence médicale dans les mots de l'appelant et dit la phrase d'urgence (une fois par appel). Le code ne lit que des mots : aucun modèle n'est appelé, rien ne se dépense. La phrase se règle dans le thème Phrases.",
+                }}
+            >
+                <ChampReglage
+                    cle="securite_garde_urgence"
+                    idControle="securite-garde-urgence"
+                    libelle={{ en: "Emergency safeguard", fr: "Garde-fou urgence" }}
+                    aides={[
+                        {
+                            en: "Off by default. When it triggers, the call is marked and goes to « To improve ».",
+                            fr: "Éteint par défaut. Quand il se déclenche, l'appel est marqué et entre dans « À améliorer ».",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="securite-garde-urgence" checked={brouillon.garde_urgence.actif} onCheckedChange={(v) => poser("garde_urgence", { actif: v })} />
+                </ChampReglage>
+                {brouillon.garde_urgence.actif && (
+                    <>
+                        <ChampReglage
+                            cle="securite_garde_urgence_numero"
+                            idControle="securite-garde-urgence-numero"
+                            libelle={{ en: "Emergency number", fr: "Numéro d'urgence" }}
+                            aides={[{ en: "Said in the sentence. 112 is the European emergency number.", fr: "Dit dans la phrase. Le 112 est le numéro d'urgence européen." }]}
+                            erreur={errNumero}
+                            disposition="ligne"
+                        >
+                            <Input
+                                id="securite-garde-urgence-numero"
+                                className="w-32"
+                                maxLength={20}
+                                aria-invalid={errNumero !== null}
+                                value={brouillon.garde_urgence.numero}
+                                onChange={(e) => poser("garde_urgence", { numero: e.target.value })}
+                            />
+                        </ChampReglage>
+                        <ChampReglage
+                            cle="securite_garde_urgence_mots"
+                            idControle="securite-garde-urgence-mots"
+                            libelle={{ en: "Your own words", fr: "Vos propres mots" }}
+                            aides={[
+                                {
+                                    en: `Words or phrases that also trigger it, separated by commas (${MOTS_EN_PLUS_MAX} at most). Accents and capitals do not matter.`,
+                                    fr: `Mots ou tournures qui le déclenchent aussi, séparés par des virgules (${MOTS_EN_PLUS_MAX} au plus). Les accents et les majuscules n'ont pas d'importance.`,
+                                },
+                            ]}
+                        >
+                            <Input
+                                id="securite-garde-urgence-mots"
+                                value={brouillon.garde_urgence.mots_en_plus.join(", ")}
+                                onChange={(e) =>
+                                    poser("garde_urgence", {
+                                        mots_en_plus: e.target.value
+                                            .split(",")
+                                            .map((m) => m.trim())
+                                            .filter((m) => m.length >= 2)
+                                            .slice(0, MOTS_EN_PLUS_MAX),
+                                    })
+                                }
+                            />
+                        </ChampReglage>
+                    </>
                 )}
             </Intertitre>
 

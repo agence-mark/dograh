@@ -125,7 +125,8 @@ def _garde_fous(configurations: dict[str, Any]) -> list[str]:
     ]
     sortie = securite.get("jamais") if isinstance(securite.get("jamais"), dict) else {}
     ecoute = securite.get("ecoute") if isinstance(securite.get("ecoute"), dict) else {}
-    if any(actives) or sortie.get("outils") or sortie.get("recitation") or ecoute.get("actif"):
+    urgence = securite.get("garde_urgence") if isinstance(securite.get("garde_urgence"), dict) else {}
+    if any(actives) or sortie.get("outils") or sortie.get("recitation") or ecoute.get("actif") or urgence.get("actif"):
         return []
     return ["No safety layer of the conversation is on."]
 

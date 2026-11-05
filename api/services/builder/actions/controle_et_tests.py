@@ -39,7 +39,7 @@ class _TestACreer(BaseModel):
             "Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, "
             "mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, "
             "rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values), "
-            "outils_dans_l_ordre (tools called in this order, 'noms'), outil_une_seule_fois (a tool called exactly once, 'nom')."
+            "outils_dans_l_ordre (tools called in this order, 'noms'), outil_une_seule_fois (a tool called exactly once, 'nom'), urgence_declenchee / urgence_silencieuse (the emergency safeguard did / did not trigger)."
         ),
     )
     obligatoire: bool = Field(default=False, description="A required test blocks the publication when it fails.")

@@ -403,6 +403,8 @@ export interface SecuriteConversation {
         consigne?: string;
     };
     marquer?: boolean;
+    /** [.mark] L3e: the emergency safeguard of the code (words and phrases, no model call), off by default. */
+    garde_urgence?: { actif?: boolean; numero?: string; mots_en_plus?: string[] };
 }
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
