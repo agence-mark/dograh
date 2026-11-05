@@ -363,8 +363,9 @@ export function ActionsAgent({
 
             {!editeur?.versionPassee && aUnBrouillon && (
                 <>
+                    {/* SA-V : en dessous de 1536 px, la raison reste lue (lecteur d’écran, survol de Publier) mais n’écrase plus les onglets de la barre. */}
                     {raisonEnClair && (
-                        <span role="status" data-raison-publier className="max-w-64 text-xs text-muted-foreground">
+                        <span role="status" data-raison-publier className="sr-only max-w-64 text-xs text-muted-foreground 2xl:not-sr-only">
                             {raisonEnClair}
                         </span>
                     )}
