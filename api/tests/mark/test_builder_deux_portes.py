@@ -113,6 +113,13 @@ ARGUMENTS = {
     "branche_travailler": {"workflow_id": AGENT, "branche_id": 1},
     "outils_versions_lire": {"workflow_id": AGENT},
     "outil_passer_a_la_version": {"workflow_id": AGENT, "outil": "noter", "version": 2},
+    # L5b : le builder lit, crée et règle un groupe d'agents.
+    "groupes_lister": {},
+    "groupe_lire": {"workflow_id": AGENT},
+    "groupe_creer": {"nom": "Groupe d'essai"},
+    "groupe_specialise_creer": {"workflow_id": AGENT, "nom": "Specialiste"},
+    "groupe_regler": {"workflow_id": AGENT, "plafond_passations": 3},
+    "groupe_completer": {"workflow_id": AGENT},
 }
 
 

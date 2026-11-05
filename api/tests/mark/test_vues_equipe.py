@@ -148,7 +148,8 @@ def test_chaque_route_des_vues_a_une_decision_de_permission():
     from api.app import app
 
     chemins = [r.path for r in app.routes if getattr(r, "path", "").startswith("/api/v1/vues-equipe")]
-    assert len(chemins) == len(VUES)
+    # Les cinq vues, plus la page de pilotage d'un client (L5b, routes/pilotage_client.py) : la même règle du registre.
+    assert len(chemins) == len(VUES) + 1
     for chemin in chemins:
         decision, _ = registre.decision_de("GET", chemin.removeprefix("/api/v1"))
         assert isinstance(decision, registre.Permission) and decision.cle == "conversations.voir"

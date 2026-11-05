@@ -123,11 +123,16 @@ def _verifier(configurations: dict[str, Any]) -> None:
         raise ErreurReglage(f"Setting refused ({lieu}): {premier.get('msg', 'invalid')}.") from None
 
 
-async def regler(organization_id: int, workflow_id: int, valeurs: dict[str, Any]) -> dict[str, Any]:
-    """Écrit ces réglages dans le BROUILLON de l'agent. Rend les clés écrites."""
+async def regler(
+    organization_id: int, workflow_id: int, valeurs: dict[str, Any], *, cles_en_plus: frozenset[str] = frozenset()
+) -> dict[str, Any]:
+    """Écrit ces réglages dans le BROUILLON de l'agent. Rend les clés écrites.
+
+    ``cles_en_plus`` : des clés du réglage d'un GROUPE d'agents (passations, cerveau propre), qui ne sont pas des champs du modèle de
+    réglages ; seule l'action ``groupe_regler`` les passe, après avoir contrôlé que l'agent est le principal d'un groupe."""
     if not valeurs:
         raise ErreurReglage("Give at least one setting.")
-    autorisees = cles_reglables()
+    autorisees = cles_reglables() | cles_en_plus
     for nom in valeurs:
         if nom not in autorisees:
             raise ErreurReglage(f"Unknown or forbidden setting: {nom}.")

@@ -34,6 +34,9 @@ MODIFIENT_L_AGENT: frozenset[str] = frozenset(
         "objets_agent_ecrire",
         "publication_corriger_la_liste_vocale",
         "outil_passer_a_la_version",
+        "groupe_regler",
+        "groupe_completer",
+        "groupe_specialise_creer",
     }
 )
 ETATS_QUI_LAISSENT_PASSER = frozenset({"faite", "refusee", "cree_ici"})

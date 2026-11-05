@@ -190,6 +190,16 @@ class BoucleClient(BaseDBClient):
         async with self.async_session() as session:
             return {etat: n for etat, n in (await session.execute(requete)).all()}
 
+    async def compter_les_ameliorations_graves(self, organization_id: int) -> int:
+        """Partie 3, L5b : les problèmes À TRIER de gravité haute (3) de l'organisation (la page de pilotage d'un client)."""
+        requete = select(func.count()).where(
+            MarkAmeliorationModel.organization_id == organization_id,
+            MarkAmeliorationModel.etat == "a_trier",
+            MarkAmeliorationModel.gravite >= 3,
+        )
+        async with self.async_session() as session:
+            return int((await session.execute(requete)).scalar_one())
+
     async def lire_une_amelioration(self, organization_id: int, amelioration_id: int) -> dict[str, Any] | None:
         async with self.async_session() as session:
             ligne = (

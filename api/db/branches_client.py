@@ -646,3 +646,39 @@ class BranchesClient(BaseDBClient):
                 .group_by(WorkflowBranchModel.workflow_id)
             )
             return dict(lignes.all())
+
+    async def agents_et_branches_pour_le_pilotage(self, organization_id: int) -> list[dict[str, Any]]:
+        """Partie 3, L5b (page de pilotage d'un client) : les agents actifs de l'organisation avec leurs branches actives, la version
+        en ligne de chacune et sa part de trafic. DEUX requêtes pour tous les agents (jamais une par agent), toutes deux filtrées par
+        l'organisation. Un agent jamais publié a ``version_publiee = None`` ; la principale sert sa version épinglée, sinon la publiée."""
+        async with self.async_session() as session:
+            agents = (
+                await session.execute(
+                    select(WorkflowModel.id, WorkflowModel.name, WorkflowDefinitionModel.version_number)
+                    .outerjoin(WorkflowDefinitionModel, WorkflowDefinitionModel.id == WorkflowModel.released_definition_id)
+                    .where(WorkflowModel.organization_id == organization_id, WorkflowModel.status == "active")
+                    .order_by(WorkflowModel.name, WorkflowModel.id)
+                )
+            ).all()
+            branches = (
+                await session.execute(
+                    select(
+                        WorkflowBranchModel.workflow_id,
+                        WorkflowBranchModel.nom,
+                        WorkflowBranchModel.est_principale,
+                        WorkflowBranchModel.part_trafic,
+                        WorkflowDefinitionModel.version_number,
+                    )
+                    .outerjoin(WorkflowDefinitionModel, WorkflowDefinitionModel.id == WorkflowBranchModel.head_definition_id)
+                    .where(WorkflowBranchModel.organization_id == organization_id, WorkflowBranchModel.statut == "active")
+                    .order_by(WorkflowBranchModel.est_principale.desc(), WorkflowBranchModel.id)
+                )
+            ).all()
+        par_agent: dict[int, list[dict[str, Any]]] = {}
+        for wf, nom, principale, part, version in branches:
+            par_agent.setdefault(wf, []).append({"nom": nom, "principale": bool(principale), "part": int(part or 0), "version": version})
+        resultat = []
+        for wf, nom, publiee in agents:
+            lignes = par_agent.get(wf, [])
+            resultat.append({"id": wf, "nom": nom, "version_publiee": publiee, "branches": lignes})
+        return resultat
