@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from api.db import appels_liste
 from api.services import resume_appel
+from api.services.analyse_run import latence_par_phase
 from api.db.base_client import BaseDBClient
 from api.db.filters import (
     apply_workflow_run_filters,
@@ -337,6 +338,8 @@ class OrganizationUsageClient(BaseDBClient):
                     "canal": _canal_du_run(run.mode, run.annotations),
                     # [.mark] N3b : le résumé (synthèse de l'après-appel réduite, sinon résumé du modèle), lu des annotations déjà chargées.
                     **resume_appel.champs(run.annotations),
+                    # [.mark] N3a : la latence moyenne et le pire cas de l'appel, rangés à sa fin (« non mesuré » = ``None``).
+                    **latence_par_phase.champs(run.annotations),
                 }
 
                 # Add USD cost if available in cost_info

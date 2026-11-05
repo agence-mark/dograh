@@ -77,6 +77,19 @@ export type Chronometre = Bloc & {
     m2_count?: number;
 };
 
+/** N3a : la latence par phase d'un appel (transcription, modèle, outils, voix), lue du journal du run ; « non mesuré » = `not_captured`. */
+export type PhaseDeLatence = "transcription" | "modele" | "outils" | "voix";
+export type StatsDeLatence = { moyenne_ms: number; pire_ms: number };
+export type BlocDeLatence = {
+    tours: number;
+    total: StatsDeLatence;
+    phases: Partial<Record<PhaseDeLatence, StatsDeLatence & { tours: number }>>;
+};
+export type LatenceParPhase = Bloc & {
+    resume?: (BlocDeLatence & { par_etape: Record<string, BlocDeLatence> }) | null;
+    tours?: { tour: number | null; etape: string; phases: Partial<Record<PhaseDeLatence, number>>; total_ms: number }[];
+};
+
 export type ConnexionDeBrique = {
     connected: number;
     disconnected: number;
@@ -242,6 +255,8 @@ export type AnalyseDuRun = {
     incidents: Incidents;
     /** fiabilite-orchestration, lot 9: absent from an older server (the screen then says "not captured"). */
     chrono?: Chronometre;
+    /** N3a: absent from an older server (the screen then says "not measured"). */
+    latence_par_phase?: LatenceParPhase;
     network?: ReseauEtConnexions;
     /** Only on a call of the simulated caller (lot 3): the scenario played and the judge's verdict. */
     simulation?: Simulation;

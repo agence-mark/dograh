@@ -859,7 +859,11 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 onDoubleClick={() => setOpen(true)}
                 onMouseEnter={entrerSurvol}
                 onMouseLeave={sortirSurvol}
-                statistique={data.stats_part == null ? undefined : `${data.stats_part} %`}
+                statistique={
+                    data.stats_part == null
+                        ? undefined
+                        : `${data.stats_part} %${data.stats_latence ? ` · ${data.stats_latence.moyenne_ms} ms (${data.stats_latence.pire_ms})` : ""}`
+                }
             >
                 {spec && (
                     <CanvasPreview

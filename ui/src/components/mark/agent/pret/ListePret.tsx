@@ -118,7 +118,11 @@ function Rangee({
     if (!textes) return null;
     const reste = estAFaire(ligne);
     const requis = ligne.niveau === "requis";
-    const noms = ligne.noms ?? [];
+    const tousLesNoms = ligne.noms ?? [];
+    // N2 (05 § 17) : une liste longue se replie sur trois noms ; « Voir la liste » montre tout, « Réduire » la replie.
+    const [deplie, setDeplie] = useState(false);
+    const longue = reste && tousLesNoms.length > 3 && (Boolean(constat) || ligne.id === "outils_a_jour");
+    const noms = longue && !deplie ? tousLesNoms.slice(0, 3) : tousLesNoms;
     const manque = !reste
         ? ligne.etat === "herite"
             ? t({ en: "inherited from the main agent", fr: "hérité du principal" })
@@ -146,7 +150,23 @@ function Rangee({
                     {!requis && <span className="text-[11px] font-normal text-muted-foreground">{t({ en: "advised", fr: "conseillé" })}</span>}
                     <Info>{t(textes.source)}</Info>
                 </button>
-                {manque && <p className="text-xs text-muted-foreground">{manque}</p>}
+                {manque && (
+                    <p className="text-xs text-muted-foreground">
+                        {manque}
+                        {longue && !deplie ? " …" : ""}
+                    </p>
+                )}
+                {longue && (
+                    <button
+                        type="button"
+                        data-voir-la-liste={ligne.id}
+                        aria-expanded={deplie}
+                        onClick={() => setDeplie((v) => !v)}
+                        className="cursor-pointer text-xs text-muted-foreground hover:font-medium"
+                    >
+                        {deplie ? t({ en: "Show less", fr: "Réduire" }) : `${t({ en: "See the list", fr: "Voir la liste" })} (${tousLesNoms.length})`}
+                    </button>
+                )}
                 {/* Lots 8 et 22 : chaque étiquette en erreur, son prompt et sa correction en un clic. */}
                 {reste && (ligne.id === "etiquettes" || ligne.id === "blocs_a_jour") && <CorrectionsEtiquettes bloquants={ligne.id === "etiquettes"} />}
                 {reste && corrections.length > 0 && corriger && (

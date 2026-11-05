@@ -479,6 +479,15 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                             ))}
                         </div>
                     )}
+                    {/* N2 (03 § 3) : le niveau Moteur n'est pas montré dans l'espace d'un client, et la page le dit au lieu de le taire. */}
+                    {resolue && espaceClient && (
+                        <p role="note" data-niveau-moteur-cache className="text-xs text-muted-foreground">
+                            {t({
+                                en: "The Engine level (the settings of our code: interventions during the call) is kept by the .mark team and is not shown here. Ask the team to change one.",
+                                fr: "Le niveau Moteur (les réglages de notre code : interventions pendant l'appel) est tenu par l'équipe .mark et n'est pas montré ici. Demandez à l'équipe d'en changer un.",
+                            })}
+                        </p>
+                    )}
 
                 </div>
             </ContexteCartes.Provider>

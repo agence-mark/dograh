@@ -42,29 +42,28 @@ ROUTE_VERS_ACTION = {
     ("POST", "/equipe-mark/invitations"): "equipe_inviter",
     ("POST", "/campaign/create"): "campagne_creer",
     ("PATCH", "/campaign/{campaign_id}"): "campagne_modifier",
+    ("POST", "/organizations/etablissements/controle-horaires"): "horaires_controler",
+    ("POST", "/organizations/etablissements/copier"): "etablissement_copier",
+    ("POST", "/organizations/etablissements/reprise"): "etablissements_reprise_ecrire",  # l'essai (écrire: faux) est « etablissements_reprise_essayer »
+    ("POST", "/organizations/etablissements/{identifiant}/appliquer-a-tous"): "etablissement_appliquer_a_tous",
+    ("POST", "/organizations/etablissements/agent"): "etablissements_de_l_agent_lire",
+    ("POST", "/organizations/lexique/budget"): "lexique_budget_lire",
+    ("POST", "/organizations/lexique/import"): "lexique_importer",
+    ("DELETE", "/equipe-mark/invitations/{invitation_id}"): "equipe_annuler_invitation",
+    ("POST", "/campaign/{campaign_id}/redial"): "campagne_rappeler",
     ("POST", "/campaign/{campaign_id}/pause"): "campagne_pause",
     ("POST", "/campaign/{campaign_id}/start"): "campagne_demarrer",
     ("POST", "/campaign/{campaign_id}/resume"): "campagne_reprendre",
     ("POST", "/telephony/initiate-call"): "appel_de_test_lancer",
 }
 
-# Ce qui reste à faire, écrit (pour SA-N2-N3a : inventaire scripté, ce qui manque se construit) : une écriture de l'écran sans action du
-# builder, avec la raison. Les secrets ne se saisissent jamais par le builder (garde des secrets).
+# Ce qui reste sans action du builder (N2 a construit le reste), avec la raison. Les secrets ne se saisissent jamais par le builder (garde des secrets).
 RESTE_A_FAIRE = {
-    ("POST", "/organizations/etablissements/controle-horaires"): "contrôle seulement (lecture) : à exposer comme lecture",
-    ("POST", "/organizations/etablissements/copier"): "copie d'une fiche : à construire",
-    ("POST", "/organizations/etablissements/reprise"): "reprise des fiches : à construire",
-    ("POST", "/organizations/etablissements/{identifiant}/appliquer-a-tous"): "recopier un réglage dans tous les établissements : à construire",
-    ("POST", "/organizations/etablissements/agent"): "lecture des établissements d'un agent (POST de lecture) : à exposer comme lecture",
-    ("POST", "/organizations/lexique/budget"): "calcul seulement (lecture)",
-    ("POST", "/organizations/lexique/import"): "import de vocabulaire : à construire",
     ("PUT", "/equipe-mark/roles/{role_id}"): "rôles de l'équipe : décision d'Evan (droits)",
     ("POST", "/equipe-mark/roles"): "rôles de l'équipe : décision d'Evan (droits)",
     ("DELETE", "/equipe-mark/roles/{role_id}"): "rôles de l'équipe : décision d'Evan (droits)",
     ("PUT", "/equipe-mark/membres/{user_id}/role"): "changer le rôle d'un membre : décision d'Evan (droits)",
     ("DELETE", "/equipe-mark/membres/{user_id}"): "retirer un membre : décision d'Evan (droits)",
-    ("DELETE", "/equipe-mark/invitations/{invitation_id}"): "annuler une invitation : à construire",
-    ("POST", "/campaign/{campaign_id}/redial"): "rappeler les appels échoués (appels réels) : à construire",
     ("PATCH", "/equipe-mark/moi"): "profil de la personne : son geste à elle, jamais celui du builder",
     ("POST", "/equipe-mark/moi/mot-de-passe"): "mot de passe de la personne : jamais le builder (garde des secrets)",
     ("POST", "/telephony/inbound/{workflow_id}"): "rappel d'un fournisseur (exempté, jamais une écriture de l'écran)",
@@ -113,6 +112,17 @@ def test_les_actions_de_l_entreprise_ont_leur_famille_et_la_permission_de_l_ecra
         "campagne_reprendre": ("appels_reels", "agents.publier"),
         "appel_de_test_lancer": ("appels_reels", "tests.jouer"),  # comme /telephony/initiate-call
         "telephonie_lister": ("lecture", None),
+        # N2 : les restes de N1b
+        "etablissement_copier": ("entreprise", "agents.modifier"),
+        "etablissements_reprise_ecrire": ("entreprise", "agents.modifier"),
+        "etablissements_reprise_essayer": ("lecture", None),
+        "etablissement_appliquer_a_tous": ("entreprise", "agents.modifier"),
+        "horaires_controler": ("lecture", None),
+        "etablissements_de_l_agent_lire": ("lecture", None),
+        "lexique_budget_lire": ("lecture", None),
+        "lexique_importer": ("entreprise", "agents.modifier"),
+        "equipe_annuler_invitation": ("entreprise", "equipe.gerer"),
+        "campagne_rappeler": ("appels_reels", "agents.publier"),  # comme /campaign/{id}/redial
     }
     for nom, (famille, permission) in attendu.items():
         assert FAMILLE_DES_ACTIONS[nom] == famille, nom
@@ -132,6 +142,16 @@ ARGUMENTS = {
     "campagne_modifier": {"campagne_id": 1, "modifications": {"name": "x"}}, "campagne_pause": {"campagne_id": 1},
     "campagne_demarrer": {"campagne_id": 1}, "campagne_reprendre": {"campagne_id": 1},
     "telephonie_lister": {}, "appel_de_test_lancer": {"workflow_id": AGENT},
+    "etablissement_copier": {"source": "e1", "id": "e2", "nom": "Copie"},
+    "etablissements_reprise_essayer": {}, "etablissements_reprise_ecrire": {},
+    "etablissement_appliquer_a_tous": {"identifiant": "e1", "reglage": "fiche", "cle": "horaires_ouverture"},
+    "horaires_controler": {"texte": "Mo-Fr 09:00-18:00"}, "etablissements_de_l_agent_lire": {"workflow_id": AGENT},
+    "lexique_budget_lire": {"vocabulaire": {}}, "lexique_importer": {"modele": {}},
+    "equipe_annuler_invitation": {"invitation_id": 1}, "campagne_rappeler": {"campagne_id": 1},
+    # N2 : les réglages de l'organisation (lire, régler) et ceux d'un outil existant
+    **{f"{b}_lire": {} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
+    **{f"{b}_regler": {"valeurs": {}} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
+    "outil_modifier": {"outil": "u1", "reglages": {"url": "https://x.test"}},
 }
 
 
@@ -158,7 +178,7 @@ async def test_chaque_action_passe_en_tout_permettre_et_n_est_pas_a_claude_code(
 
 
 @pytest.mark.parametrize("mode", ["demander", "agent", "plan"])
-@pytest.mark.parametrize("nom", ["campagne_demarrer", "campagne_reprendre", "appel_de_test_lancer"])
+@pytest.mark.parametrize("nom", ["campagne_demarrer", "campagne_reprendre", "campagne_rappeler", "appel_de_test_lancer"])
 async def test_appeler_de_vraies_personnes_demande_une_carte_sauf_en_tout_permettre(nom, mode, monde, monkeypatch):
     appels = []
 
@@ -230,3 +250,36 @@ async def test_l_annonce_d_ouverture_se_defait_d_un_clic_avec_l_etat_d_avant(db_
         assert (await c.post(f"{B}/journal/{ligne}/annuler", headers=entetes(jeton, org))).status_code == 200
     retour = {k: v for k, v in (await registre.executer("annonce_lire", {}, contexte)).items() if k != "ok"}
     assert retour == {k: v for k, v in avant.items() if k != "ok"}
+
+
+# --- N2 : les restes de l'écran, jouées pour de vrai (sans doublure de la route) ----------------------------------------------------------
+
+
+async def test_le_controle_des_horaires_dit_valide_ou_la_raison_comme_l_ecran(monde):
+    contexte = Contexte(user=utilisateur(1), conversation={"mode": "plan", "messages": []})  # une lecture passe même en « Plan »
+    bon = await registre.executer("horaires_controler", {"texte": "\n".join(f"{j} : 10:00-18:00" for j in ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi")) + "\ndimanche : fermé"}, contexte)
+    assert bon["ok"] is True and bon["valide"] is True, bon
+    mauvais = await registre.executer("horaires_controler", {"texte": "lundi : n'importe quoi"}, contexte)
+    assert mauvais["ok"] is True and mauvais["valide"] is False and mauvais["raison"]
+
+
+async def test_un_vocabulaire_invalide_est_refuse_en_une_phrase_jamais_une_pile(monde):
+    contexte = Contexte(user=utilisateur(1), conversation={"mode": "tout", "messages": []})
+    resultat = await registre.executer("lexique_budget_lire", {"vocabulaire": {"termes": "pas une liste"}}, contexte)
+    assert resultat["ok"] is False and resultat["code"] == "refus_ecran" and "Traceback" not in str(resultat)
+
+
+async def test_annuler_une_invitation_dit_sa_raison_de_ne_pas_se_defaire(monde, monkeypatch):
+    async def annuler(invitation_id, user):
+        return None
+
+    monkeypatch.setattr("api.routes.equipe_mark.annuler_une_invitation", annuler)
+    contexte = Contexte(user=utilisateur(1), conversation={"mode": "tout", "messages": []})
+    resultat = await registre.executer("equipe_annuler_invitation", {"invitation_id": 4}, contexte)
+    assert resultat == {"ok": True, "annulee": 4}
+    assert contexte.journal["annulable"] is False and contexte.journal["raison"]
+
+
+async def test_importer_du_vocabulaire_se_defait_avec_l_etat_d_avant(monde):
+    assert registre.REGISTRE["lexique_importer"].extras.get("avant") and registre.REGISTRE["lexique_importer"].extras.get("defaire")
+    assert not registre.REGISTRE["etablissement_appliquer_a_tous"].extras  # écrit dans plusieurs fiches, parfois une base du client : dit pourquoi

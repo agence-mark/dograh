@@ -527,6 +527,18 @@ def register_event_handlers(
                 logger.debug(
                     f"Saved {len(feedback_events)} feedback events to workflow run logs"
                 )
+                # [.mark] N3a : la latence par phase, rangée UNE fois à la fin de l'appel, lue du journal que le moteur trace déjà
+                # (``mark-latency-breakdown``). Rien n'est mesuré de plus ; une erreur ici ne touche jamais la fin de l'appel.
+                try:
+                    from api.services.analyse_run.latence_par_phase import resume_de_latence
+
+                    latence = resume_de_latence(feedback_events)
+                    if latence is not None:
+                        await db_client.update_workflow_run(
+                            run_id=workflow_run_id, annotations={"latence": latence}
+                        )
+                except Exception as e:
+                    logger.error(f"Error saving the latency by phase: {e}", exc_info=True)
             except Exception as e:
                 logger.error(f"Error saving realtime feedback logs: {e}", exc_info=True)
         else:

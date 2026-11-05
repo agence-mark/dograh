@@ -7,15 +7,13 @@
  *  - Action d'un logiciel : Général · Comportement · Essai · Activité ;
  *  - Outil MCP : Général · Comportement · Essai · Activité ;
  *  - Calculatrice : Général · Essai · Activité ;
- *  - les autres types (fin d'appel, transferts, rappel) : Général · Activité.
+ *  - Fin d'appel : Général · Fin d'appel · Activité ; transferts : Général · Destination · Activité ;
+  - les autres types (rappel) : Général · Activité.
  *
- * Les champs propres à un type que cette fenêtre ne dessine pas (corps de la requête, valeurs préréglées, règles
- * d'une action de logiciel, destination d'un transfert…) restent dans l'éditeur du type (lien « Éditeur complet »),
- * qui les garde tous : rien n'est retiré. Un enregistrement envoie la définition complète, la configuration
- * fusionnée avec les modifications.
+ * N2 : tous les réglages d'un type sont ici (l'ancienne page d'un outil est retirée) : corps et valeurs fixes d'une
+ * requête (onglet Paramètres), serveur MCP, action d'un logiciel et ses règles, fin d'appel, transferts
+ * (``OngletsDeType.tsx``). Un enregistrement envoie la définition complète, la configuration fusionnée avec les modifications.
  */
-import { ExternalLink } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -40,15 +38,19 @@ import { OngletActivite } from "./OngletActivite";
 import { OngletComportement } from "./OngletComportement";
 import { OngletEssai } from "./OngletEssai";
 import { OngletParametres, OngletReponse, OngletRequete } from "./OngletsHttp";
+import { BlocCorpsEtValeursFixes, OngletActionLogiciel, OngletFinAppel, OngletServeurMcp, OngletTransfertAgent, OngletTransfertAppel, validerConfig } from "./OngletsDeType";
 import { OngletVersions } from "./versions/OngletVersions";
 import { notifier } from "@/components/mark/notifications";
 
-type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "comportement" | "essai" | "versions" | "activite";
+type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "action" | "serveur" | "fin" | "destination" | "comportement" | "essai" | "versions" | "activite";
 const ONGLETS: Record<string, IdOnglet[]> = {
     http_api: ["general", "requete", "parametres", "reponse", "comportement", "essai", "versions", "activite"],
-    integration: ["general", "comportement", "essai", "versions", "activite"],
-    mcp: ["general", "comportement", "essai", "versions", "activite"],
+    integration: ["general", "action", "comportement", "essai", "versions", "activite"],
+    mcp: ["general", "serveur", "comportement", "essai", "versions", "activite"],
     calculator: ["general", "essai", "versions", "activite"],
+    end_call: ["general", "fin", "versions", "activite"],
+    transfer_agent: ["general", "destination", "versions", "activite"],
+    transfer_call: ["general", "destination", "versions", "activite"],
 };
 const PAR_DEFAUT: IdOnglet[] = ["general", "versions", "activite"];
 
@@ -72,6 +74,7 @@ export function FenetreOutil({
     const [modifs, setModifs] = useState<Config>({});
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
+    const [regleLogicielValide, setRegleLogicielValide] = useState(true);
 
     const ids = ONGLETS[courant.category] ?? PAR_DEFAUT;
     const libelles: Record<IdOnglet, string> = {
@@ -79,6 +82,10 @@ export function FenetreOutil({
         requete: t({ en: "Request", fr: "Requête" }),
         parametres: t({ en: "Parameters", fr: "Paramètres" }),
         reponse: t({ en: "Response", fr: "Réponse" }),
+        action: t({ en: "Action", fr: "Action" }),
+        serveur: t({ en: "Server", fr: "Serveur" }),
+        fin: t({ en: "End of call", fr: "Fin d'appel" }),
+        destination: t({ en: "Destination", fr: "Destination" }),
         comportement: t({ en: "Behaviour", fr: "Comportement" }),
         essai: t({ en: "Trial", fr: "Essai" }),
         versions: t({ en: "Versions", fr: "Versions" }),
@@ -99,6 +106,11 @@ export function FenetreOutil({
 
     const enregistrer = async () => {
         if (!nom.trim()) return setErreur(t({ en: "Give the tool a name.", fr: "Donnez un nom à l'outil." }));
+        const refus = validerConfig(courant.category, config, t);
+        if (refus) return setErreur(refus);
+        if (courant.category === "integration" && !regleLogicielValide) {
+            return setErreur(t({ en: "The client's rules are not valid JSON.", fr: "Les règles du client ne sont pas du JSON valide." }));
+        }
         setEnCours(true);
         const corps: UpdateToolRequest = {
             name: nom.trim(),
@@ -192,17 +204,6 @@ export function FenetreOutil({
                             <span className="text-sm tabular-nums">{resume.nb_agents}</span>
                         </LigneChamp>
                     )}
-                    <LigneChamp
-                        libelle={t({ en: "Full editor", fr: "Éditeur complet" })}
-                        info={t({
-                            en: "Every field of this type (request body, preset values, rules, destination…) in the type's own editor.",
-                            fr: "Tous les champs de ce type (corps de la requête, valeurs préréglées, règles, destination…) dans l'éditeur du type.",
-                        })}
-                    >
-                        <Link href={`/tools/${courant.tool_uuid}`} className="inline-flex cursor-pointer items-center gap-1.5 text-sm hover:font-medium">
-                            {t({ en: "Open", fr: "Ouvrir" })} <ExternalLink className="size-3.5" />
-                        </Link>
-                    </LigneChamp>
                     <LigneChamp libelle={courant.status === "archived" ? t({ en: "Restore", fr: "Restaurer" }) : t({ en: "Archive", fr: "Archiver" })}>
                         <Button variant="outline" size="sm" onClick={() => void archiver()}>
                             {courant.status === "archived" ? t({ en: "Restore the tool", fr: "Restaurer l'outil" }) : t({ en: "Archive the tool", fr: "Archiver l'outil" })}
@@ -211,7 +212,18 @@ export function FenetreOutil({
                 </Champs>
             )}
             {onglet === "requete" && <OngletRequete config={config} pose={pose} />}
-            {onglet === "parametres" && <OngletParametres config={config} pose={pose} />}
+            {onglet === "parametres" && (
+                <>
+                    <OngletParametres config={config} pose={pose} />
+                    <Champs>
+                        <BlocCorpsEtValeursFixes config={config} pose={pose} />
+                    </Champs>
+                </>
+            )}
+            {onglet === "action" && <OngletActionLogiciel config={config} pose={pose} connecteurs={connecteurs} valide={setRegleLogicielValide} />}
+            {onglet === "serveur" && <OngletServeurMcp config={config} pose={pose} />}
+            {onglet === "fin" && <OngletFinAppel config={config} pose={pose} />}
+            {onglet === "destination" && (courant.category === "transfer_agent" ? <OngletTransfertAgent config={config} pose={pose} /> : <OngletTransfertAppel config={config} pose={pose} />)}
             {onglet === "reponse" && <OngletReponse config={config} pose={pose} />}
             {onglet === "comportement" && <OngletComportement categorie={courant.category} config={config} pose={pose} />}
             {onglet === "essai" && <OngletEssai outil={courant} config={config} ecrit={ecrit} modifie={modifie} apres={() => void relireApresEssai()} />}

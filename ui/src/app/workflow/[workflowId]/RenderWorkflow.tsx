@@ -28,7 +28,7 @@ import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
 import { BarreOutilsGraphe } from "@/components/mark/graphe/BarreOutilsGraphe";
 import { usePreferenceLocale, useStatistiquesDesEtapes } from "@/components/mark/graphe/hooks-graphe";
 import { fermeUnCycle, liensEnBoucle } from "@/components/mark/graphe/sans-boucle";
-import { partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
+import { latenceDeLEtape, partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
 import { useDecalagePanneau } from "@/components/mark/studio/panneau-droit";
 import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
@@ -569,8 +569,10 @@ function RenderWorkflow({
         () =>
             statistiques
                 ? noeudsDeBase.map((n) => {
-                      const part = partDesAppels(statistiques, String((n.data as { name?: string }).name ?? ""));
-                      return part === null ? n : { ...n, data: { ...n.data, stats_part: part } };
+                      const nom = String((n.data as { name?: string }).name ?? "");
+                      const part = partDesAppels(statistiques, nom);
+                      const latence = latenceDeLEtape(statistiques, nom);
+                      return part === null ? n : { ...n, data: { ...n.data, stats_part: part, ...(latence ? { stats_latence: latence } : {}) } };
                   })
                 : noeudsDeBase,
         [noeudsDeBase, statistiques],

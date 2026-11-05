@@ -20,6 +20,8 @@ export type FlowNodeData = {
     runtime_active?: boolean;
     /** [.mark] Sous-lot 20 : part des appels lus qui ont traversé l'étape (posée à l'affichage, jamais enregistrée). */
     stats_part?: number;
+    /** N3a : la latence de l'étape sur les appels lus (moyenne pondérée et pire tour, en ms), quand elle a été mesurée. */
+    stats_latence?: { moyenne_ms: number; pire_ms: number };
     allow_interrupt?: boolean;
     extraction_enabled?: boolean;
     extraction_prompt?: string;

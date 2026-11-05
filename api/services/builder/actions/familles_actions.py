@@ -63,6 +63,11 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         # N1 (sous-lot 5) : lire l'entreprise (établissements, phrases, annonce, vocabulaire, listes, équipe, campagnes, téléphonie par leur nom)
         "etablissements_lire", "phrases_organisation_lire", "annonce_lire", "lexique_lire", "listes_valeurs_lire", "equipe_lister",
         "campagnes_lister", "campagne_lire", "telephonie_lister",
+        # N2 : lectures de l'écran qui passent par un POST
+        "etablissements_reprise_essayer", "horaires_controler", "etablissements_de_l_agent_lire", "lexique_budget_lire",
+        # N2 : lire les réglages de l'organisation (panne, après l'appel, vérification, planificateur, fenêtre du run, conservation)
+        "panne_organisation_lire", "apres_appel_organisation_lire", "verification_appelant_lire", "planificateur_lire",
+        "fenetre_du_run_lire", "conservation_appels_lire",
         # les cartes du dialogue : elles ne font rien d'autre que demander ou montrer (une personne clique ensuite)
         "plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer",
         "agent_proposer_archivage", "tests_supprimer", "deleguer",
@@ -75,7 +80,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
     ),
     "reglages": (
         "reglages_regler", "phrases_regler", "lexique_remplir_depuis_fiche", "modeles_reglages_appliquer", "etiquettes_agent",
-        "create_tool", "outil_essayer", "outil_passer_a_la_version", "tests_creer", "tests_modifier", "tests_depuis_la_bibliotheque",
+        "create_tool", "outil_modifier", "outil_essayer", "outil_passer_a_la_version", "tests_creer", "tests_modifier", "tests_depuis_la_bibliotheque",
         "attaques_creer_des_tests", "attaques_envoyer_a_ameliorer", "juge_ecrire",
     ),
     "publication": (
@@ -88,6 +93,10 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         # N1 (sous-lot 5) : écrire l'entreprise
         "etablissements_remplacer", "etablissement_modifier", "etablissement_fermer_ou_rouvrir", "phrases_organisation_ecrire",
         "annonce_regler", "lexique_ecrire", "listes_valeurs_cocher", "equipe_inviter", "campagne_creer", "campagne_modifier", "campagne_pause",
+        # N2 : les restes de l'écran
+        "etablissement_copier", "etablissements_reprise_ecrire", "etablissement_appliquer_a_tous", "lexique_importer", "equipe_annuler_invitation",
+        "panne_organisation_regler", "apres_appel_organisation_regler", "verification_appelant_regler", "planificateur_regler",
+        "fenetre_du_run_regler", "conservation_appels_regler",
     ),
     "autre_agent": (
         "groupe_creer", "groupe_specialise_creer", "groupe_regler", "groupe_completer",
@@ -95,7 +104,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
     "depense": (
         "tests_rejouer", "attaques_lancer", "attaques_rejouer", "test_demarrer", "test_tour", "test_finir",
     ),
-    "appels_reels": ("campagne_demarrer", "campagne_reprendre", "appel_de_test_lancer"),
+    "appels_reels": ("campagne_demarrer", "campagne_reprendre", "campagne_rappeler", "appel_de_test_lancer"),
     "irreversible": (
         "agent_archiver", "outil_supprimer",
     ),
@@ -115,6 +124,10 @@ PERMISSION_DE_L_ACTION: dict[str, str] = {
     # L'équipe .mark se gère avec « equipe.gerer » (jamais une clé d'API), comme ``/equipe-mark/*`` ; un appel de test est un test (« tests.jouer »).
     "equipe_lister": "equipe.gerer",
     "equipe_inviter": "equipe.gerer",
+    "equipe_annuler_invitation": "equipe.gerer",
+    # N2 : la fenêtre du run et la conservation des appels sont des réglages de l'atelier (``/organizations/(conservation-appels|fenetre-du-run)``).
+    "fenetre_du_run_regler": "atelier.regler",
+    "conservation_appels_regler": "atelier.regler",
     "appel_de_test_lancer": "tests.jouer",
 }
 

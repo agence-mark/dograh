@@ -1484,6 +1484,8 @@ describe("[.mark] the agent page: cards, windows and search", () => {
             await waitFor(() => expect(document.querySelector('[data-niveau="essentiel"]')).not.toBeNull());
             await waitFor(() => expect(document.querySelector('[data-niveau="moteur"]')).toBeNull());
             expect(cartes()).not.toContain("interventions");
+            // N2 : la page DIT que le niveau Moteur existe et qui le tient, au lieu de le taire
+            expect(document.querySelector("[data-niveau-moteur-cache]")?.textContent).toMatch(/Engine level.*\.mark team/);
             fireEvent.change(screen.getByLabelText("Search all settings"), { target: { value: "laisser_la_parole" } });
             await waitFor(() => expect(document.querySelector('[data-recherche="aucun"]')).not.toBeNull());
         } finally {
@@ -1496,6 +1498,7 @@ describe("[.mark] the agent page: cards, windows and search", () => {
         try {
             await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
             expect(document.querySelector('[data-niveau="moteur"] [data-theme="interventions"]')).not.toBeNull();
+            expect(document.querySelector("[data-niveau-moteur-cache]")).toBeNull();
         } finally {
             window.history.pushState({}, "", "/");
         }

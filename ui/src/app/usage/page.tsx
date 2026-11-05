@@ -620,6 +620,7 @@ export default function UsagePage() {
                             { titre: t({ en: 'Channel', fr: 'Canal' }) },
                             { titre: t({ en: 'Outcome', fr: 'Issue' }) },
                             { titre: enteteDuree, droite: true },
+                            { titre: t({ en: 'Latency', fr: 'Latence' }), droite: true },
                             { titre: enteteTriable('judge_note', t({ en: 'Grade', fr: 'Note' })), droite: true },
                             { titre: t({ en: 'Judged by', fr: 'Jugé par' }) },
                             ...(avecCout ? [{ titre: t({ en: 'Cost (USD)', fr: 'Coût (USD)' }), droite: true }] : []),
@@ -651,6 +652,21 @@ export default function UsagePage() {
                                 </Cellule>
                                 <Cellule>{run.disposition || '-'}</Cellule>
                                 <Cellule droite>{formatDuration(run.call_duration_seconds)}</Cellule>
+                                <Cellule droite>
+                                    {/* N3a : la latence moyenne d'un tour et le pire tour, rangées à la fin de l'appel ; un appel sans mesure le dit. */}
+                                    {(() => {
+                                        const l = run.latence as { moyenne_ms?: number; pire_ms?: number } | null | undefined;
+                                        return l && typeof l.moyenne_ms === 'number' ? (
+                                            <span data-latence="mesuree" title={`${t({ en: 'worst turn', fr: 'pire tour' })} ${((l.pire_ms ?? l.moyenne_ms) / 1000).toFixed(1)} s`} className="tabular-nums">
+                                                {(l.moyenne_ms / 1000).toFixed(1)} s
+                                            </span>
+                                        ) : (
+                                            <span data-latence="non-mesuree" className="text-muted-foreground">
+                                                {t({ en: 'not measured', fr: 'non mesuré' })}
+                                            </span>
+                                        );
+                                    })()}
+                                </Cellule>
                                 <Cellule droite><NoteJuge note={run.note_juge ?? null} /></Cellule>
                                 <Cellule>{run.juge_par || '-'}</Cellule>
                                 {avecCout && (

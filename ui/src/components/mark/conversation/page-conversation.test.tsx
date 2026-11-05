@@ -140,7 +140,7 @@ describe("les sept onglets", () => {
         // V1b : le résumé, la conversation, la fiche de l'appel et l'après-appel vivent dans la vue de la Transcription
         // (un seul montage, colonne de droite), les autres blocs restent dans leur onglet.
         expect([...dits].sort()).toEqual(
-            ["simulation", "latence", "chrono", "reseau", "fournisseurs", "modules", "fiche", "parcours", "incidents"].sort(),
+            ["simulation", "latence", "latence-par-phase", "chrono", "reseau", "fournisseurs", "modules", "fiche", "parcours", "incidents"].sort(),
         );
         expect(m.vues.length).toBeGreaterThanOrEqual(1);
     });
@@ -152,7 +152,7 @@ describe("les sept onglets", () => {
         const blocs = (id: string) => [...volet(id).querySelectorAll("[data-fenetre-blocs]")].map((e) => e.getAttribute("data-fenetre-blocs"));
         expect(blocs("transcription")).toEqual([]);
         expect(volet("transcription").querySelector("[data-vue-transcription]")).toBeTruthy();
-        expect(blocs("journal")).toEqual(["incidents,latence,chrono,reseau"]);
+        expect(blocs("journal")).toEqual(["incidents,latence,latence-par-phase,chrono,reseau"]);
         expect(blocs("agents")).toEqual(["parcours,modules,fiche"]);
         expect(blocs("couts")).toEqual(["fournisseurs"]);
         expect(within(volet("transcription")).getByTestId("creer-un-test")).toBeTruthy();

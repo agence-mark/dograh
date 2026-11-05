@@ -45,6 +45,8 @@ import type {
     Resume,
     Simulation,
     TourDeLatence,
+    LatenceParPhase,
+    PhaseDeLatence,
 } from "./types";
 
 /** « 2026-10-01 » → « 01/10 ». */
@@ -111,6 +113,14 @@ function EtatDuBloc({ bloc }: { bloc: Bloc }) {
                     en: "Unavailable: the server could not compute this block for this run.",
                     fr: "Indisponible : le serveur n'a pas pu calculer ce bloc pour ce run.",
                 })}
+            </p>
+        );
+    }
+    if (bloc.reason === "no_measured_turn") {
+        // N3a : un appel sans tour mesuré (ancien appel, appel écrit) le dit, jamais « 0 ms ».
+        return (
+            <p className="text-sm text-muted-foreground" data-testid="non-mesure">
+                {t({ en: "Not measured for this run.", fr: "Non mesuré pour ce run." })}
             </p>
         );
     }
@@ -405,6 +415,70 @@ function BlocChronometre({ chrono }: { chrono: Chronometre }) {
                     </tbody>
                 </table>
             </div>
+        </div>
+    );
+}
+
+const PHASES_DE_LATENCE: { cle: PhaseDeLatence; titre: Texte }[] = [
+    { cle: "transcription", titre: { en: "Transcription", fr: "Transcription" } },
+    { cle: "modele", titre: { en: "Model", fr: "Modèle" } },
+    { cle: "outils", titre: { en: "Tools", fr: "Outils" } },
+    { cle: "voix", titre: { en: "Voice", fr: "Voix" } },
+];
+
+const duree = (ms: number | null | undefined) => (typeof ms === "number" ? `${Math.round(ms)} ms` : "–");
+
+/** N3a : par appel et par étape, la moyenne et le pire cas de chaque phase d'un tour, puis chaque tour. Une phase sans mesure est « – », jamais 0. */
+function BlocLatenceParPhase({ latence }: { latence: LatenceParPhase }) {
+    const { t } = useLangue();
+    const resume = latence.resume;
+    if (!resume) return null;
+    const lignes: { nom: string; bloc: typeof resume }[] = [
+        { nom: t({ en: "Whole call", fr: "Tout l'appel" }), bloc: resume },
+        ...Object.entries(resume.par_etape).map(([nom, bloc]) => ({ nom, bloc: bloc as typeof resume })),
+    ];
+    return (
+        <div className="space-y-4 text-sm" data-testid="latence-par-phase">
+            <p className="text-xs text-muted-foreground">
+                {t({
+                    en: "Per turn, how long each part took: transcription, model, tools, voice. Average and worst turn, for the whole call and for each step.",
+                    fr: "Par tour, le temps de chaque partie : transcription, modèle, outils, voix. Moyenne et pire tour, pour tout l'appel et pour chaque étape.",
+                })}
+            </p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="py-1 pr-3 font-medium">{t({ en: "Step", fr: "Étape" })}</th>
+                            {PHASES_DE_LATENCE.map((p) => (
+                                <th key={p.cle} className="py-1 pr-3 font-medium">
+                                    {t(p.titre)}
+                                </th>
+                            ))}
+                            <th className="py-1 pr-3 font-medium">{t({ en: "Total", fr: "Total" })}</th>
+                            <th className="py-1 font-medium">{t({ en: "Turns", fr: "Tours" })}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {lignes.map(({ nom, bloc }) => (
+                            <tr key={nom} data-testid="latence-etape" className="border-b border-border last:border-0">
+                                <td className="py-1 pr-3">{nom}</td>
+                                {PHASES_DE_LATENCE.map((p) => {
+                                    const x = bloc.phases[p.cle];
+                                    return (
+                                        <td key={p.cle} className="py-1 pr-3 tabular-nums" title={x ? `${t({ en: "worst", fr: "pire" })} ${duree(x.pire_ms)}` : undefined}>
+                                            {x ? `${duree(x.moyenne_ms)} · ${duree(x.pire_ms)}` : "–"}
+                                        </td>
+                                    );
+                                })}
+                                <td className="py-1 pr-3 font-medium tabular-nums">{`${duree(bloc.total.moyenne_ms)} · ${duree(bloc.total.pire_ms)}`}</td>
+                                <td className="py-1 tabular-nums">{bloc.tours}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <p className="text-xs text-muted-foreground">{t({ en: "Each cell: average · worst turn.", fr: "Chaque case : moyenne · pire tour." })}</p>
         </div>
     );
 }
@@ -1049,6 +1123,7 @@ export type BlocDuRun =
     | "resume"
     | "apres-appel"
     | "latence"
+    | "latence-par-phase"
     | "chrono"
     | "reseau"
     | "fournisseurs"
@@ -1170,6 +1245,20 @@ export function FenetreDuRun({
                     }
                 >
                     <BlocLatence latence={analyse.latency} />
+                </Section>
+            )}
+            {voir("latence-par-phase") && (
+                <Section
+                    titre={{ en: "Latency by phase", fr: "Latence par phase" }}
+                    bloc={analyse.latence_par_phase ?? { status: "not_captured" }}
+                    testId="bloc-latence-par-phase"
+                    resume={
+                        analyse.latence_par_phase?.resume
+                            ? `${t({ en: "average", fr: "moyenne" })} ${duree(analyse.latence_par_phase.resume.total.moyenne_ms)}`
+                            : null
+                    }
+                >
+                    {analyse.latence_par_phase && <BlocLatenceParPhase latence={analyse.latence_par_phase} />}
                 </Section>
             )}
             {voir("chrono") && (

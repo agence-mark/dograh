@@ -93,6 +93,19 @@ describe("la liste dessinée", () => {
         expect(screen.getByRole("button", { name: "Retirer les règles" })).toBeTruthy();
     });
 
+    it("N2 : « Voir la liste » déplie une liste longue de noms, « Réduire » la replie ; une liste courte n'a pas le lien", () => {
+        monter([ligne("outils_a_jour", "a_faire", { niveau: "conseille", noms: ["Alpha", "Bravo", "Charlie", "Delta", "Echo"] })]);
+        expect(screen.getByText(/Alpha, Bravo, Charlie …/)).toBeTruthy();
+        expect(screen.queryByText(/Delta/)).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Voir la liste (5)" }));
+        expect(screen.getByText(/Alpha, Bravo, Charlie, Delta, Echo/)).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Réduire" }));
+        expect(screen.queryByText(/Delta/)).toBeNull();
+        cleanup();
+        monter([ligne("outils_a_jour", "a_faire", { niveau: "conseille", noms: ["Alpha", "Bravo"] })]);
+        expect(screen.queryByRole("button", { name: /Voir la liste/ })).toBeNull();
+    });
+
     it("n'offre aucune correction sans la fonction qui la joue", () => {
         monter([ligne("impasse_sans_issue", "bloquant", { constat: "impasse_sans_issue", corrections: [{ id: "eteindre_la_sortie_d_impasse" }] })]);
         expect(document.querySelector("[data-correction]")).toBeNull();

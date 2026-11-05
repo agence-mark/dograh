@@ -20,6 +20,7 @@ export function Liste({
     className = "",
     taille = "sm",
     placeholder,
+    libelle,
 }: {
     valeur?: string;
     changer?: (v: string) => void;
@@ -29,6 +30,8 @@ export function Liste({
     className?: string;
     taille?: "sm" | "default";
     placeholder?: string;
+    /** Le libellé lu par les lecteurs d'écran et retrouvé par les tests. */
+    libelle?: string;
 }) {
     const premiere = options[0];
     const [interne, setInterne] = useState(defaut ?? (typeof premiere === "string" ? premiere : premiere?.valeur) ?? "");
@@ -40,7 +43,7 @@ export function Liste({
     };
     return (
         <Select value={v === "" ? VALEUR_VIDE : v} onValueChange={poser}>
-            <SelectTrigger size={taille} className={`bg-background ${className}`}>
+            <SelectTrigger size={taille} aria-label={libelle} className={`bg-background ${className}`}>
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>

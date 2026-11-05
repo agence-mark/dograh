@@ -16,7 +16,6 @@ import { Copy, Link2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
-import { BuiltinToolConfig } from "@/app/tools/[toolUuid]/components";
 import type { ConnecteurVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -556,21 +555,3 @@ export function ChampsCreationIntegration({ onChange, avecCompte = false }: { on
 }
 
 /** The name and description card of the tool page, its texts in two languages. */
-export function EnteteOutilIntegration(props: {
-    name: string;
-    onNameChange: (v: string) => void;
-    description: string;
-    onDescriptionChange: (v: string) => void;
-}) {
-    const { t } = useLangue();
-    return (
-        <BuiltinToolConfig
-            {...props}
-            title={t({ en: "Integration Configuration", fr: "Configuration de l'intégration" })}
-            subtitle={t({
-                en: "An action in the client's software, done during the call. Empty description: the action's own.",
-                fr: "Une action dans le logiciel du client, faite pendant l'appel. Description vide : celle de l'action.",
-            })}
-        />
-    );
-}

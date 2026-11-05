@@ -179,6 +179,10 @@ class WorkflowRunUsageResponse(BaseModel):
         default=None, description="One or two sentences on the call: the after-call summary, else the model's short summary; null when none."
     )
     resume_source: Optional[str] = Field(default=None, description="Where the summary comes from: synthese or modele.")
+    # [.mark] N3a : la latence par tour de l'appel (moyenne et pire cas, en millisecondes), rangée à sa fin ; null = « non mesuré ».
+    latence: Optional[Dict[str, Any]] = Field(
+        default=None, description="Latency per turn of the call: {moyenne_ms, pire_ms, tours}; null when it was not measured."
+    )
 
 
 class UsageHistoryResponse(BaseModel):
