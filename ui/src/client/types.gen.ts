@@ -10827,6 +10827,84 @@ export type LigneDeTri = {
 };
 
 /**
+ * LigneDuJournal
+ */
+export type LigneDuJournal = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Quand
+     */
+    quand: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number | null;
+    /**
+     * Fil Id
+     */
+    fil_id: number | null;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Porte
+     */
+    porte: string;
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Famille
+     */
+    famille: string;
+    /**
+     * Mode
+     */
+    mode: string | null;
+    /**
+     * Autorisation
+     */
+    autorisation: string;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Arguments
+     */
+    arguments?: unknown;
+    /**
+     * Avant
+     */
+    avant?: unknown;
+    /**
+     * Apres
+     */
+    apres?: unknown;
+    /**
+     * Annulable
+     */
+    annulable: boolean;
+    /**
+     * Non Annulable
+     */
+    non_annulable: string | null;
+    /**
+     * Annule Le
+     */
+    annule_le: string | null;
+    /**
+     * Annule Par
+     */
+    annule_par: string | null;
+};
+
+/**
  * LigneObjet
  *
  * A line of a list: its cells, by column label. ``id`` absent: a new line.
@@ -13848,6 +13926,28 @@ export type PageDeTri = {
      * Recherche Tronquee
      */
     recherche_tronquee?: boolean;
+};
+
+/**
+ * PageDuJournal
+ */
+export type PageDuJournal = {
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDuJournal>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
 };
 
 /**
@@ -29111,6 +29211,116 @@ export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdP
 export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostError = RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostErrors[keyof RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostErrors];
 
 export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLeJournalDuBuilderApiV1BuilderJournalGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Workflow Id
+         */
+        workflow_id?: number | null;
+        /**
+         * Fil Id
+         */
+        fil_id?: number | null;
+        /**
+         * Famille
+         */
+        famille?: string | null;
+    };
+    url: '/api/v1/builder/journal';
+};
+
+export type LireLeJournalDuBuilderApiV1BuilderJournalGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeJournalDuBuilderApiV1BuilderJournalGetError = LireLeJournalDuBuilderApiV1BuilderJournalGetErrors[keyof LireLeJournalDuBuilderApiV1BuilderJournalGetErrors];
+
+export type LireLeJournalDuBuilderApiV1BuilderJournalGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageDuJournal;
+};
+
+export type LireLeJournalDuBuilderApiV1BuilderJournalGetResponse = LireLeJournalDuBuilderApiV1BuilderJournalGetResponses[keyof LireLeJournalDuBuilderApiV1BuilderJournalGetResponses];
+
+export type AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Ligne Id
+         */
+        ligne_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/journal/{ligne_id}/annuler';
+};
+
+export type AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostError = AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostErrors[keyof AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostErrors];
+
+export type AnnulerUneActionDuBuilderApiV1BuilderJournalLigneIdAnnulerPostResponses = {
     /**
      * Successful Response
      */
