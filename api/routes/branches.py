@@ -17,13 +17,33 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.db import db_client
 from api.db.branches_client import ErreurDeBranche
 from api.db.models import UserModel
-from api.schemas.branches import BranchesVue, EpinglerLaPrincipale, NouvelleBranche, ProtectionDemandee, RepartitionDemandee
+from api.schemas.branches import (
+    ApercuDeFusion,
+    ApercuDeMiseAJour,
+    BranchesVue,
+    EpinglerLaPrincipale,
+    FusionDemandee,
+    MiseAJourDemandee,
+    NouvelleBranche,
+    ProtectionDemandee,
+    RepartitionDemandee,
+)
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.branches import service
+from api.services.branches import fusion, service
 
 router = APIRouter(tags=["builder-branches"])
 
-CODES_HTTP = {"introuvable": 404, "nom_pris": 409, "sans_brouillon": 409, "principale": 409}
+CODES_HTTP = {
+    "introuvable": 404,
+    "nom_pris": 409,
+    "sans_brouillon": 409,
+    "principale": 409,
+    "perime": 409,
+    "brouillon_en_attente": 409,
+    "sans_version": 409,
+    "a_jour": 409,
+    "depassee": 409,
+}
 
 
 async def _agent_ou_404(user: UserModel, workflow_id: int):
@@ -129,4 +149,99 @@ async def proteger_la_principale(
     except ErreurDeBranche as erreur:
         raise _http(erreur) from None
     await journaliser(user, "agents.principale_protegee", user.selected_organization_id, {"agent": workflow_id, **resultat})
+    return {"ok": True, **resultat}
+
+
+# --- fusion et mise à jour (SA-L3c) ---------------------------------------------------------------------------------------------------
+
+
+@router.get("/builder/branches/{workflow_id}/{branch_id}/fusion", response_model=ApercuDeFusion)
+async def apercu_de_la_fusion(workflow_id: int, branch_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Ce que la fusion de la branche dans la principale changerait, champ par champ. Aucune écriture."""
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        apercu = await fusion.apercu_de_la_fusion(user.selected_organization_id, agent, branch_id)
+        apercu["defaisable"] = await fusion.derniere_fusion_defaisable(user.selected_organization_id, agent, branch_id)
+        return apercu
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
+
+
+@router.post("/builder/branches/{workflow_id}/{branch_id}/fusion")
+async def fusionner_une_branche(
+    workflow_id: int, branch_id: int, corps: FusionDemandee, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Fusionne la branche dans la principale (une version publiée, la part de trafic reprise, la branche archivée)."""
+    from api.services.equipe_mark.acces import journaliser
+
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        resultat = await fusion.fusionner(
+            user.selected_organization_id,
+            agent,
+            branch_id,
+            choix=corps.choix,
+            relue=corps.relue,
+            version_branche=corps.version_branche,
+            version_cible=corps.version_cible,
+            user=user,
+        )
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
+    await journaliser(
+        user,
+        "agents.branche_fusionnee",
+        user.selected_organization_id,
+        {"agent": workflow_id, "branche": branch_id, "version": resultat["version"], "relue": corps.relue, "choix": len(corps.choix)},
+    )
+    return {"ok": True, **resultat}
+
+
+@router.post("/builder/branches/{workflow_id}/{branch_id}/fusion/defaire")
+async def defaire_la_fusion(workflow_id: int, branch_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Défait la dernière fusion de cette branche, tant que l'agent n'a pas été publié depuis."""
+    from api.services.equipe_mark.acces import journaliser
+
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        resultat = await fusion.defaire_la_fusion(user.selected_organization_id, agent, branch_id)
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
+    await journaliser(user, "agents.fusion_defaite", user.selected_organization_id, {"agent": workflow_id, "branche": branch_id, **resultat})
+    return {"ok": True, **resultat}
+
+
+@router.get("/builder/branches/{workflow_id}/{branch_id}/mise-a-jour", response_model=ApercuDeMiseAJour)
+async def apercu_de_la_mise_a_jour(workflow_id: int, branch_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Ce que la mise à jour depuis la principale ramènerait dans la branche, champ par champ. Aucune écriture."""
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        return await fusion.apercu_de_la_mise_a_jour(user.selected_organization_id, agent, branch_id, user.id)
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
+
+
+@router.post("/builder/branches/{workflow_id}/{branch_id}/mise-a-jour")
+async def mettre_a_jour_une_branche(
+    workflow_id: int, branch_id: int, corps: MiseAJourDemandee, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Ramène les nouveautés de la principale dans le brouillon de la personne sur la branche ; « Revenir avant » la défait."""
+    from api.services.equipe_mark.acces import journaliser
+
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        resultat = await fusion.mettre_a_jour(
+            user.selected_organization_id,
+            agent,
+            branch_id,
+            user,
+            choix=corps.choix,
+            base_attendue=corps.base_attendue,
+            version_principale=corps.version_principale,
+        )
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
+    await journaliser(
+        user, "agents.branche_mise_a_jour", user.selected_organization_id, {"agent": workflow_id, "branche": branch_id, "choix": len(corps.choix)}
+    )
     return {"ok": True, **resultat}

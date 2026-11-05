@@ -64,3 +64,68 @@ class BrancheVue(BaseModel):
 class BranchesVue(BaseModel):
     repartition_active: bool
     branches: list[BrancheVue]
+
+
+# --- fusion et mise à jour (SA-L3c) ---------------------------------------------------------------------------------------------------
+
+
+class ChampDeFusion(BaseModel):
+    cle: str
+    famille: str
+    libelle: str
+    statut: str = Field(description="reprise (source seule), gardee (cible seule) ou conflit (les deux, à choisir).")
+    avant: str | None = None
+    source: str | None = None
+    cible: str | None = None
+
+
+class ProblemeDeFusion(BaseModel):
+    code: str
+    cle: str | None = None
+    message: str | None = None
+
+
+class ResumeDeFusion(BaseModel):
+    reprise: int
+    gardee: int
+    conflit: int
+
+
+class ApercuDeFusion(BaseModel):
+    branche: dict
+    cible: dict
+    depart: dict
+    champs: list[ChampDeFusion]
+    resume: ResumeDeFusion
+    problemes: list[ProblemeDeFusion]
+    protegee: bool
+    relue_obligatoire: bool
+    trafic: dict
+    defaisable: bool = False
+
+
+class FusionDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    choix: dict[str, str] = Field(default_factory=dict, description="Field key -> 'source' or 'cible'; one per conflict.")
+    relue: bool = Field(default=False, description="The merge was reviewed: required when the main branch is protected.")
+    version_branche: int = Field(description="The branch version id the preview was read on.")
+    version_cible: int = Field(description="The main branch version id the preview was read on.")
+
+
+class ApercuDeMiseAJour(BaseModel):
+    branche: dict
+    principale: dict
+    depart: dict
+    a_jour: bool
+    champs: list[ChampDeFusion]
+    resume: ResumeDeFusion
+    problemes: list[ProblemeDeFusion]
+
+
+class MiseAJourDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    choix: dict[str, str] = Field(default_factory=dict)
+    version_principale: int = Field(description="The main branch version id the preview was read on.")
+    base_attendue: int | None = Field(default=None, description="The branch start version id the preview was read on.")

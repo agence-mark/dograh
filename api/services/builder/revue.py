@@ -123,6 +123,9 @@ async def _branche_ouverte(workflow_id: int) -> int | None:
     return (await db_client.branche_ouverte_de(workflow_id)).branch_id
 
 
+_OUVERTE = object()  # « la branche que la requête a ouverte » (le défaut) ; ``None`` : la principale ; un entier : cette branche
+
+
 async def _ranger(
     organization_id: int,
     workflow_id: int,
@@ -135,11 +138,13 @@ async def _ranger(
     fil_id: int | None,
     operations: list[dict[str, Any]],
     complement: dict[str, Any] | None = None,
+    branche: Any = _OUVERTE,
 ) -> int:
     # V4 : seulement les clés (le numéro est le dernier morceau de la clé), jamais les graphes des instantanés déjà rangés.
     existants = await stock.cles(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
     numero = int(existants[-1].rsplit(":", 1)[1]) + 1 if existants else 1
-    branche = await _branche_ouverte(workflow_id)
+    if branche is _OUVERTE:
+        branche = await _branche_ouverte(workflow_id)
     if complement is not None:
         complement = {**complement, "branche": branche}
     await stock.ecrire(
