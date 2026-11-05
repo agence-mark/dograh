@@ -156,6 +156,8 @@ export const T = {
         "agents.publier": { en: "published an agent", fr: "a publié un agent" },
         "agents.supprimer": { en: "deleted or archived an agent", fr: "a supprimé ou archivé un agent" },
         "agents.branche_creee": { en: "created a branch", fr: "a créé une branche" },
+        "agents.groupe_cree": { en: "created a group of agents", fr: "a créé un groupe d'agents" },
+        "agents.specialise_cree": { en: "added a specialist to a group", fr: "a ajouté un spécialisé à un groupe" },
         "agents.branche_publiee": { en: "published a branch", fr: "a publié une branche" },
         "agents.branche_fusionnee": { en: "merged a branch", fr: "a fusionné une branche" },
         "agents.branche_mise_a_jour": { en: "updated a branch from the main one", fr: "a mis une branche à jour depuis la principale" },

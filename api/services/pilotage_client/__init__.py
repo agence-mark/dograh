@@ -45,6 +45,8 @@ ACTIONS_D_ACTIVITE = (
     "agents.publier",
     "agents.supprimer",
     "agents.branche_creee",
+    "agents.groupe_cree",
+    "agents.specialise_cree",
     "agents.branche_fusionnee",
     "agents.branche_publiee",
     "agents.repartition_du_trafic",
