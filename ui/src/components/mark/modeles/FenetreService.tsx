@@ -100,7 +100,7 @@ export function FenetreService(props: FenetreServiceProps) {
     };
 
     return (
-        <FenetreOnglets
+        <FenetreOnglets centree
             fermer={fermer}
             etroite
             modifie={modifie}

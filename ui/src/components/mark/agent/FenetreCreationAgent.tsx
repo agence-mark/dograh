@@ -259,7 +259,7 @@ export function FenetreCreationAgent({
     };
 
     return (
-        <Dialog open={ouvert} onOpenChange={(o) => !o && !enCours && fermer()}>
+        <Dialog centree open={ouvert} onOpenChange={(o) => !o && !enCours && fermer()}>
             <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-2xl" data-modale="creation-d-agent">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">

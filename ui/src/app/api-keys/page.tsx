@@ -329,7 +329,7 @@ export default function APIKeysPage() {
             </div>
 
             {/* Create API Key Dialog */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog centree open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create New API Key</DialogTitle>
@@ -360,7 +360,7 @@ export default function APIKeysPage() {
             </Dialog>
 
             {/* Show Created Key Dialog */}
-            <Dialog open={showCreatedKeyDialog} onOpenChange={setShowCreatedKeyDialog}>
+            <Dialog centree open={showCreatedKeyDialog} onOpenChange={setShowCreatedKeyDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>API Key Created Successfully</DialogTitle>

@@ -318,7 +318,7 @@ export function FenetreDePublication({
 
     return (
         <>
-            <FenetreOnglets
+            <FenetreOnglets centree
                 fermer={fermer}
                 titre={titre}
                 sous={sous}
@@ -545,7 +545,7 @@ export function FenetreDePublication({
                 )}
             </FenetreOnglets>
             {forcer && vue && (
-                <FenetreOnglets
+                <FenetreOnglets centree
                     fermer={() => setForcer(false)}
                     titre={t({ en: "Force the publication", fr: "Forcer la publication" })}
                     sous={t({

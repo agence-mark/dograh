@@ -11,11 +11,14 @@ const mocks = vi.hoisted(() => ({
     push: vi.fn(),
     versions: vi.fn(),
     save: vi.fn(),
+    onConnect: vi.fn(),
+    rf: {} as Record<string, unknown>,
     state: {
         rfInstance: { current: null },
         nodes: [], edges: [], workflowValidationErrors: [],
         workflowName: 'Agent', isDirty: false, templateContextVariables: {},
         setNodes: vi.fn(), setEdges: vi.fn(), setIsDirty: vi.fn(),
+        undo: vi.fn(), redo: vi.fn(), canUndo: true, canRedo: false,
     },
 }));
 vi.mock('@xyflow/react/dist/style.css', () => ({}));
@@ -30,7 +33,7 @@ vi.mock('@/client', () => ({
     listToolsApiV1ToolsGet: async () => ({ data: [] }),
     listRecordingsApiV1WorkflowRecordingsGet: async () => ({ data: { recordings: [] } }),
 }));
-vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save }) }));
+vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save, onConnect: mocks.onConnect }) }));
 vi.mock('@/components/flow/renderer', () => ({ useNodeSpecs: () => ({ specs: [] }) }));
 vi.mock('@/context/OnboardingContext', () => ({ useOnboarding: () => ({ hasCompletedAction: () => true }) }));
 vi.mock('@/components/mark/graphe/GroupeSurCanevas', () => ({ GroupeSurCanevas: () => null, FilGroupe: () => null }));
@@ -46,7 +49,11 @@ vi.mock('@xyflow/react', () => ({
     MarkerType: { ArrowClosed: 'arrowclosed' },
     SelectionMode: { Partial: 'partial', Full: 'full' },
     Panel: ({ children }: { children: ReactNode }) => children,
-    ReactFlow: ({ nodesDraggable, panOnDrag, selectionOnDrag, children }: { nodesDraggable: boolean; panOnDrag: number[]; selectionOnDrag: boolean; children: ReactNode }) => <div data-testid="canvas" data-editable={nodesDraggable} data-pan={JSON.stringify(panOnDrag)} data-select={String(selectionOnDrag)}>{children}</div>,
+    MiniMap: () => <div data-testid="minimap" />,
+    ReactFlow: (props: { nodesDraggable: boolean; panOnDrag: number[]; selectionOnDrag: boolean; snapToGrid?: boolean; children: ReactNode }) => {
+        mocks.rf = props as unknown as Record<string, unknown>;
+        return <div data-testid="canvas" data-editable={props.nodesDraggable} data-pan={JSON.stringify(props.panOnDrag)} data-select={String(props.selectionOnDrag)} data-snap={String(props.snapToGrid)}>{props.children}</div>;
+    },
 }));
 vi.mock('./components/WorkflowEditorHeader', () => ({
     WorkflowEditorHeader: ({ versionNumber, onBackToDraft, saveWorkflow }: {
@@ -121,4 +128,54 @@ it('wires the gestures of the graph (T4): the middle button pans, the left butto
     unmount();
     render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} initialSelectedVersion={version(3, 'archived')} />);
     expect(screen.getByTestId('canvas').getAttribute('data-select')).toBe('false');
+});
+
+it('draws the toolbar of the graph (undo, tidy, snap, mini map, statistics, search) and the mini map', () => {
+    window.localStorage.clear();
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    expect(screen.getByLabelText('Undo')).toBeTruthy();
+    expect(screen.getByLabelText('Tidy up the steps')).toBeTruthy();
+    expect(screen.getByLabelText('Statistics of the real calls')).toBeTruthy();
+    expect(screen.getByLabelText('Search a step')).toBeTruthy();
+    expect(screen.getByTestId('minimap')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Mini map'));
+    expect(screen.queryByTestId('minimap')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Undo'));
+    expect(mocks.state.undo).toHaveBeenCalledTimes(1);
+});
+
+it('the snap button drives the grid of the canvas', () => {
+    window.localStorage.clear();
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    expect(screen.getByTestId('canvas').getAttribute('data-snap')).toBe('false');
+    fireEvent.click(screen.getByLabelText('Snap to the grid'));
+    expect(screen.getByTestId('canvas').getAttribute('data-snap')).toBe('true');
+});
+
+it('forbidding loops refuses a link that closes a cycle and lets the others through', async () => {
+    window.localStorage.clear();
+    const { useWorkflowStore } = await import('./stores/workflowStore');
+    useWorkflowStore.setState({ edges: [{ id: 'a-b', source: 'a', target: 'b' }] as never });
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    const connecter = mocks.rf.onConnect as (c: { source: string; target: string }) => void;
+    connecter({ source: 'b', target: 'a' });
+    expect(mocks.onConnect).toHaveBeenCalledTimes(1); // loops allowed by default
+    fireEvent.click(screen.getByLabelText('Forbid loops between steps'));
+    (mocks.rf.onConnect as (c: { source: string; target: string }) => void)({ source: 'b', target: 'a' });
+    expect(mocks.onConnect).toHaveBeenCalledTimes(1);
+    (mocks.rf.onConnect as (c: { source: string; target: string }) => void)({ source: 'b', target: 'c' });
+    expect(mocks.onConnect).toHaveBeenCalledTimes(2);
+});
+
+it('deleting steps from the keyboard asks first; refusing keeps them', async () => {
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    const avant = mocks.rf.onBeforeDelete as (x: { nodes: { id: string; data: { name: string } }[]; edges: unknown[] }) => Promise<boolean>;
+    expect(await avant({ nodes: [], edges: [{}] })).toBe(true); // a link alone is deleted without asking
+    const reponse = avant({ nodes: [{ id: '1', data: { name: 'Motif' } }], edges: [] });
+    const annuler = await screen.findByText('Cancel');
+    fireEvent.click(annuler);
+    expect(await reponse).toBe(false);
+    const reponse2 = avant({ nodes: [{ id: '1', data: { name: 'Motif' } }], edges: [] });
+    fireEvent.click(await screen.findByText('Delete'));
+    expect(await reponse2).toBe(true);
 });

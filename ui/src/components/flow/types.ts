@@ -18,6 +18,8 @@ export type FlowNodeData = {
     selected_through_edge?: boolean;
     hovered_through_edge?: boolean;
     runtime_active?: boolean;
+    /** [.mark] Sous-lot 20 : part des appels lus qui ont traversé l'étape (posée à l'affichage, jamais enregistrée). */
+    stats_part?: number;
     allow_interrupt?: boolean;
     extraction_enabled?: boolean;
     extraction_prompt?: string;

@@ -102,7 +102,7 @@ export function BoutonAppliquerATous({
             >
                 {t(APPLIQUER_A_TOUS)}
             </Button>
-            <Dialog open={ouverte} onOpenChange={(o) => (o || enCours ? null : setOuverte(false))}>
+            <Dialog centree open={ouverte} onOpenChange={(o) => (o || enCours ? null : setOuverte(false))}>
                 <DialogContent className="sm:max-w-md" data-testid="modale-appliquer-a-tous">
                     <DialogHeader>
                         <DialogTitle>{t(APPLIQUER_A_TOUS)}</DialogTitle>

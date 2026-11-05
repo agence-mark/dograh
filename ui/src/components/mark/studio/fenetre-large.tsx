@@ -19,6 +19,7 @@ export function FenetreLarge({
     large = true,
     liste = false,
     testid,
+    centree = false,
 }: {
     ouverte?: boolean;
     fermer: () => void;
@@ -30,9 +31,11 @@ export function FenetreLarge({
     /** Une liste en lignes séparées par un trait, sans conteneur, sur fond blanc. */
     liste?: boolean;
     testid?: string;
+    /** Une confirmation, une création, un configurateur : reste au milieu de l'écran (liste des centrées de `07-fenetres-panneau-ou-centrees.md`). */
+    centree?: boolean;
 }) {
     return (
-        <Dialog open={ouverte} onOpenChange={(o) => !o && fermer()}>
+        <Dialog centree={centree} open={ouverte} onOpenChange={(o) => !o && fermer()}>
             <DialogContent
                 data-testid={testid}
                 onOpenAutoFocus={(e) => e.preventDefault()}

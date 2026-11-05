@@ -618,7 +618,7 @@ function AvisInterne({ t }: { t: Dire }) {
                 </>
             )}
             <AjoutTemoignage ouvert={ajout} fermer={() => setAjout(false)} clients={(donnees ?? []).map((c) => ({ id: c.organization_id, nom: c.client }))} fait={recharger} />
-            <Dialog open={asupprimer !== null} onOpenChange={(o) => !o && setAsupprimer(null)}>
+            <Dialog centree open={asupprimer !== null} onOpenChange={(o) => !o && setAsupprimer(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t({ en: "Delete this testimonial?", fr: "Supprimer ce témoignage ?" })}</DialogTitle>
@@ -651,7 +651,7 @@ function AjoutTemoignage({ ouvert, fermer, clients, fait }: { ouvert: boolean; f
         fait();
     };
     return (
-        <Dialog open={ouvert} onOpenChange={(o) => !o && fermer()}>
+        <Dialog centree open={ouvert} onOpenChange={(o) => !o && fermer()}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{t({ en: "Add a testimonial", fr: "Ajouter un témoignage" })}</DialogTitle>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWorkflow, useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import { useLangue } from "@/components/mark/langue/langue";
+import { STYLE_TRANSITION, typeDeTransition } from "@/components/mark/graphe/type-de-transition";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,7 @@ const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave, onDelete }: EdgeD
     const enregistrementDepart = enregistrements.find((r) => r.recording_id === data?.transition_speech_recording_id);
 
     return (
-        <FenetreChamps
+        <FenetreChamps centree={false}
             ouverte={open}
             fermer={() => onOpenChange(false)}
             titre={t({ en: "Transition condition", fr: "Condition de passage" })}
@@ -260,6 +261,10 @@ export default function CustomEdge(props: CustomEdgeProps) {
         await saveWorkflow();
     }, [id, updateEdge, saveWorkflow]);
 
+    // [.mark] Partie 3, sous-lot 20 : une couleur par type de transition (le modèle décide, étape de la fiche complète, champ de la fiche).
+    const typeTransition = typeDeTransition(data);
+    const style_ = STYLE_TRANSITION[typeTransition];
+
     const handleDeleteEdge = useCallback(() => {
         deleteEdge(id);
     }, [id, deleteEdge]);
@@ -273,7 +278,7 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     markerEnd={markerEnd}
                     style={{
                         ...style,
-                        stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? 'var(--liaison-survol)' : 'var(--liaison)',
+                        stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? 'var(--liaison-survol)' : style_.trait,
                         strokeWidth: 1.5,
                         transition: 'stroke 0.2s ease',
                     }}
@@ -297,11 +302,11 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
+                        data-type-transition={typeTransition}
+                        title={t(style_.nom)}
                         className={cn(
-                            'max-w-[220px] cursor-pointer truncate rounded-md border px-2 py-0.5 text-[11px] hover:border-black/30 hover:text-foreground',
-                            data?.invalid
-                                ? 'border-destructive bg-background text-destructive'
-                                : 'border-black/10 bg-background text-muted-foreground',
+                            'max-w-[220px] cursor-pointer truncate rounded-md border px-2 py-0.5 text-[11px] hover:font-semibold hover:text-foreground',
+                            data?.invalid ? 'border-destructive bg-background text-destructive' : style_.pastille,
                         )}
                     >
                         {data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })}

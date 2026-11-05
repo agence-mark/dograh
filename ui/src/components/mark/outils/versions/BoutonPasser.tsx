@@ -62,7 +62,7 @@ export function BoutonPasser({ cible, variante = "outline" }: { cible: CiblePass
             <Button variant={variante} size="sm" className="h-7 shrink-0 cursor-pointer" onClick={() => setOuvert(true)} data-passer-version={cible.toolUuid}>
                 {t(T.passerA(cible.vers))}
             </Button>
-            <Dialog open={ouvert} onOpenChange={(o) => !o && !enCours && setOuvert(false)}>
+            <Dialog centree open={ouvert} onOpenChange={(o) => !o && !enCours && setOuvert(false)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">

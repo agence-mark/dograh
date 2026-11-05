@@ -21,6 +21,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 import { entreeActive, espaceDe, menuDe } from "./navigation-studio";
 import { useNomEspace } from "./nom-espace";
+import { ContextePanneau, DecalagePanneau, PanneauDroit, useAdaptationPanneau, useEtatPanneau } from "./panneau-droit";
 import { type CompteurMenu, SidebarStudio } from "./sidebar-studio";
 
 export type Miette = { libelle: string; href?: string };
@@ -128,6 +129,11 @@ export function ShellStudio({
         setChoix(lireBarre());
     }, []);
 
+    // Sous-lot 19 : le panneau de droite. Si la page n'a plus sa largeur utile, le menu se replie d'abord, puis le
+    // panneau passe par-dessus la page (sans voile).
+    const panneau = useEtatPanneau();
+    const adaptation = useAdaptationPanneau(panneau, (forcee ?? choix));
+
     // Entrer dans une page qui replie la barre la replie ; en sortir rend le choix de la personne.
     useEffect(() => {
         setForcee(replie ? false : null);
@@ -147,7 +153,7 @@ export function ShellStudio({
 
     return (
         <SidebarProvider
-            open={forcee ?? choix}
+            open={forcee ?? (adaptation.replierMenu ? false : choix)}
             onOpenChange={(ouverte) => {
                 if (forcee !== null) setForcee(ouverte);
                 else {
@@ -157,48 +163,54 @@ export function ShellStudio({
             }}
             className="bg-sidebar"
         >
+            <ContextePanneau.Provider value={panneau}>
+            <DecalagePanneau.Provider value={panneau.onglets.length > 0 && !adaptation.dessus ? adaptation.largeurAffichee + 16 : 0}>
             <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee, poserMiettes: setMiettesDeLaPage }}>
             <SidebarStudio compteurs={compteurs} />
             <div className="h-svh w-full overflow-hidden lg:py-2 lg:pr-2">
-                <div id="cadre-studio" className="relative flex h-full w-full overflow-hidden bg-background lg:rounded-xl lg:border">
-                    <div className="flex min-w-0 flex-1 flex-col">
-                        {!sansEntete && (
-                            <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
-                                <SidebarTrigger className="-ml-1" />
-                                <div ref={setElNom} className="contents" />
-                                <nav
-                                    aria-label={t({ en: "Breadcrumb", fr: "Fil d'Ariane" })}
-                                    hidden={personnalisee}
-                                    className={`flex min-w-0 items-center gap-1.5 text-sm ${milieu ? "shrink" : "flex-1"}`}
-                                >
-                                    {fil.map((m, i) => (
-                                        <span key={i} className="flex min-w-0 items-center gap-1.5">
-                                            {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
-                                            {m.href && i < fil.length - 1 ? (
-                                                <Link href={m.href} className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
-                                                    {m.libelle}
-                                                </Link>
-                                            ) : (
-                                                <span className="truncate font-medium">{m.libelle}</span>
-                                            )}
-                                        </span>
-                                    ))}
-                                </nav>
-                                <div className={`min-w-0 items-center self-stretch ${milieu || personnalisee ? "flex flex-1" : "hidden"}`}>
-                                    {milieu}
-                                    <div ref={setElMilieu} className="contents" />
-                                </div>
-                                <div data-barre-actions="" className="flex items-center gap-2">
-                                    {actions}
-                                    <div ref={setElActions} className="contents" />
-                                </div>
-                            </header>
-                        )}
-                        <main className="flex-1 overflow-auto">{children}</main>
+                <div id="cadre-studio" className="relative flex h-full w-full flex-col overflow-hidden bg-background lg:rounded-xl lg:border">
+                    {!sansEntete && (
+                        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
+                            <SidebarTrigger className="-ml-1" />
+                            <div ref={setElNom} className="contents" />
+                            <nav
+                                aria-label={t({ en: "Breadcrumb", fr: "Fil d'Ariane" })}
+                                hidden={personnalisee}
+                                className={`flex min-w-0 items-center gap-1.5 text-sm ${milieu ? "shrink" : "flex-1"}`}
+                            >
+                                {fil.map((m, i) => (
+                                    <span key={i} className="flex min-w-0 items-center gap-1.5">
+                                        {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+                                        {m.href && i < fil.length - 1 ? (
+                                            <Link href={m.href} className="truncate text-muted-foreground hover:font-medium hover:text-foreground">
+                                                {m.libelle}
+                                            </Link>
+                                        ) : (
+                                            <span className="truncate font-medium">{m.libelle}</span>
+                                        )}
+                                    </span>
+                                ))}
+                            </nav>
+                            <div className={`min-w-0 items-center self-stretch ${milieu || personnalisee ? "flex flex-1" : "hidden"}`}>
+                                {milieu}
+                                <div ref={setElMilieu} className="contents" />
+                            </div>
+                            <div data-barre-actions="" className="flex items-center gap-2">
+                                {actions}
+                                <div ref={setElActions} className="contents" />
+                            </div>
+                        </header>
+                    )}
+                    {/* Sous la barre du haut (qui garde toute sa largeur) : la page, et le panneau de droite qui la pousse. */}
+                    <div className="relative flex min-h-0 flex-1">
+                        <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+                        <PanneauDroit etat={panneau} dessus={adaptation.dessus} largeurAffichee={adaptation.largeurAffichee} />
                     </div>
                 </div>
             </div>
             </EnteteContexte.Provider>
+            </DecalagePanneau.Provider>
+            </ContextePanneau.Provider>
         </SidebarProvider>
     );
 }

@@ -6,6 +6,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
+import { Defileur } from "./defileur";
 import { Info } from "./marques";
 
 /**
@@ -32,6 +33,7 @@ export function FenetreOnglets({
     desactiver,
     etroite,
     modifie = false,
+    centree = false,
 }: {
     fermer: () => void;
     titre: React.ReactNode;
@@ -53,6 +55,8 @@ export function FenetreOnglets({
     etroite?: boolean;
     /** R3 M4 : la fenêtre porte une saisie non enregistrée ; Échap, clic dehors et « Annuler » demandent avant de la jeter. */
     modifie?: boolean;
+    /** Une publication, un configurateur : reste au milieu de l'écran (liste des centrées de `07-fenetres-panneau-ou-centrees.md`). */
+    centree?: boolean;
 }) {
     const { t } = useLangue();
     const libelle = valider === undefined ? t({ en: "Save", fr: "Enregistrer" }) : valider;
@@ -62,7 +66,7 @@ export function FenetreOnglets({
         else fermer();
     };
     return (
-        <Dialog open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
+        <Dialog centree={centree} open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
             <DialogContent
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 className={`${etroite ? "sm:max-w-2xl h-[78vh]" : TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}
@@ -80,7 +84,8 @@ export function FenetreOnglets({
                         {droite}
                     </div>
                     {onglets && (
-                        <div role="tablist" className="-mb-px flex items-center gap-1">
+                        <Defileur interieur="-mb-px">
+                        <div role="tablist" className="flex items-center gap-1">
                             {onglets.map((o) => (
                                 <button
                                     key={o}
@@ -98,6 +103,7 @@ export function FenetreOnglets({
                                 </button>
                             ))}
                         </div>
+                        </Defileur>
                     )}
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto bg-background px-6 py-5">{children}</div>

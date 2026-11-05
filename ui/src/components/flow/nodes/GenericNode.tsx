@@ -1,6 +1,6 @@
-import { NodeProps, NodeToolbar, Position } from "@xyflow/react";
+import { NodeProps } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
-import { Check, Circle, Copy, Edit, Flag, type LucideIcon, Play, Square, Trash2Icon } from "lucide-react";
+import { Check, Circle, Copy, Flag, type LucideIcon, Play, Square } from "lucide-react";
 import Link from "next/link";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
@@ -16,7 +16,9 @@ import { FlowNodeData } from "@/components/flow/types";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useLangue } from "@/components/mark/langue/langue";
 import { useOuvertureNoeud } from "@/components/mark/agent/ouverture-noeud";
+import { BarreAuSurvol, useSurvolDeLEtape } from "@/components/mark/graphe/BarreAuSurvol";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
+import { copieDeLEtape } from "@/components/mark/graphe/dupliquer-etape";
 import {
     DeclenchementDeLAction,
     positionEcrite,
@@ -513,13 +515,20 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         if (demandeOuverture?.id === id) setOpen(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [demandeOuverture?.cle]);
-    const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif } =
+    const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif, readOnly: lectureSeule } =
         useWorkflow();
+    // [.mark] Partie 3, sous-lot 20 : la barre au survol et ses gestes.
+    const { survol, entrer: entrerSurvol, sortir: sortirSurvol } = useSurvolDeLEtape();
+    const ajouterUneEtape = useWorkflowStore((s) => s.addNode);
     // fiabilite-de-la-conversation: the start step shows « Truth of actions » as soon as the agent acts anywhere.
     const agentAgit = useWorkflowStore((s) => agentQuiAgit(s.nodes, travailActif === true));
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
+    const dupliquerLEtape = useCallback(() => {
+        const copie = copieDeLEtape(useWorkflowStore.getState().nodes, id, "(copie)", bySpecName.get(type)?.graph_constraints?.max_instances);
+        if (copie) ajouterUneEtape(copie);
+    }, [id, type, bySpecName, ajouterUneEtape]);
     const webhookBaseUrl = resolveWebhookBaseUrl(appConfig?.tunnelUrl);
 
     // ── Form state ─────────────────────────────────────────────────────
@@ -848,6 +857,9 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 hasSourceHandle={handles.source}
                 hasTargetHandle={handles.target}
                 onDoubleClick={() => setOpen(true)}
+                onMouseEnter={entrerSurvol}
+                onMouseLeave={sortirSurvol}
+                statistique={data.stats_part == null ? undefined : `${data.stats_part} %`}
             >
                 {spec && (
                     <CanvasPreview
@@ -861,23 +873,25 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 )}
             </NodeContent>
 
-            <NodeToolbar isVisible={selected} position={Position.Right}>
-                <div className="flex flex-col gap-1">
-                    <Button onClick={() => setOpen(true)} variant="outline" size="icon">
-                        <Edit />
-                    </Button>
-                    {/* Start nodes can't be deleted (workflow always needs one). */}
-                    {type !== "startCall" && (
-                        <Button
-                            onClick={handleDeleteNode}
-                            variant="outline"
-                            size="icon"
-                        >
-                            <Trash2Icon />
-                        </Button>
-                    )}
-                </div>
-            </NodeToolbar>
+            {/* [.mark] Partie 3, sous-lot 20 : la barre au survol (modifier, dupliquer, relier, supprimer confirmé). */}
+            <BarreAuSurvol
+                visible={selected || survol}
+                nom={String(data.name || fallbackTitle)}
+                peutDupliquer={type !== "startCall" && spec?.graph_constraints?.max_instances == null}
+                peutSupprimer={type !== "startCall"}
+                lectureSeule={lectureSeule}
+                onModifier={() => setOpen(true)}
+                onDupliquer={dupliquerLEtape}
+                onRelier={() =>
+                    notifier.information({
+                        fr: "Tirez depuis le point sous l'étape jusqu'à une autre étape.",
+                        en: "Drag from the dot under the step to another step.",
+                    })
+                }
+                onSupprimer={handleDeleteNode}
+                onEntrer={entrerSurvol}
+                onSortir={sortirSurvol}
+            />
 
             <NodeEditDialog
                 open={open}

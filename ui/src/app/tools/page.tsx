@@ -539,7 +539,7 @@ export default function ToolsPage() {
             </div>
 
             {/* Create Tool Dialog */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+            <Dialog centree open={isCreateDialogOpen} onOpenChange={(open) => {
                 setIsCreateDialogOpen(open);
                 if (open) {
                     setCreateError(null);

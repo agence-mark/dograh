@@ -171,6 +171,11 @@ export function FenetreChamps(props: {
     /** [.mark] K4b : une fenêtre à contrôles branchés (`corps`) garde la largeur d'une fenêtre à champs. */
     etroite?: boolean;
     /**
+     * Reste au milieu de l'écran. Par défaut : une confirmation (`danger`) ou une saisie de deux champs au plus sans corps
+     * libre ; au-delà, la fenêtre s'ouvre dans le panneau de droite.
+     */
+    centree?: boolean;
+    /**
      * Vérification à la validation : rend, par identifiant de champ, la phrase à lire sous le champ. Tant qu'elle rend
      * une faute, la fenêtre reste ouverte et `onValider` n'est pas appelé (une erreur de saisie n'est pas une notification).
      */
@@ -180,7 +185,7 @@ export function FenetreChamps(props: {
     return props.ouverte ? <FenetreOuverte {...props} /> : null;
 }
 
-function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier, etroite, lecture = false }: Parameters<typeof FenetreChamps>[0]) {
+function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, danger, pied, corps, verifier, etroite, lecture = false, centree }: Parameters<typeof FenetreChamps>[0]) {
     const { t } = useLangue();
     const [initiales] = useState<Valeurs>(() => depart(sections));
     const [valeurs, setValeurs] = useState<Valeurs>(initiales);
@@ -227,7 +232,7 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps && !etroite ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     return (
-        <Dialog open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
+        <Dialog centree={centree ?? (!!danger || (!corps && sections.reduce((n, s) => n + s.champs.length, 0) <= 2))} open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${taille} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">

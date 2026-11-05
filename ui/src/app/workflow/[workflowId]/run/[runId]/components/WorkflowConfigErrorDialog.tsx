@@ -15,7 +15,7 @@ export const WorkflowConfigErrorDialog = ({
     onNavigateToWorkflow
 }: WorkflowConfigErrorProps) => {
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog centree open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Workflow Error</DialogTitle>

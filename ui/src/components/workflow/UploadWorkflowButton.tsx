@@ -93,7 +93,7 @@ export function UploadWorkflowButton() {
                 Import an agent (JSON)
             </Button>
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog centree open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Import an agent</DialogTitle>

@@ -252,7 +252,7 @@ export const BriqueAgent = ({
                 </li>
             </ul>
 
-            <Dialog open={ouverte} onOpenChange={setOuverte}>
+            <Dialog centree open={ouverte} onOpenChange={setOuverte}>
                 <DialogContent className="sm:max-w-lg" data-modale="choisir-un-agent">
                     <DialogHeader>
                         <DialogTitle>{t(TEXTES.modaleTitre)}</DialogTitle>

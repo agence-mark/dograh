@@ -16,6 +16,7 @@ export function FenetreLibre({
     corps,
     pied,
     actions,
+    centree = false,
 }: {
     ouverte: boolean;
     fermer: () => void;
@@ -26,9 +27,11 @@ export function FenetreLibre({
     pied?: React.ReactNode;
     /** À droite du pied : Annuler et le geste principal. */
     actions: React.ReactNode;
+    /** Reste au milieu de l'écran (liste des centrées de `07-fenetres-panneau-ou-centrees.md`). */
+    centree?: boolean;
 }) {
     return (
-        <Dialog open={ouverte} onOpenChange={(o) => !o && fermer()}>
+        <Dialog centree={centree} open={ouverte} onOpenChange={(o) => !o && fermer()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="flex max-h-[86vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">
