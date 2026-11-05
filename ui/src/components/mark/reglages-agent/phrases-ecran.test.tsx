@@ -510,6 +510,18 @@ describe("[.mark] Rythme renvoie vers la règle « l'appelant se tait » (décis
         expect(versTheme).toHaveBeenCalledWith("phrases");
     });
 
+    it("[lot R] lets the prompt delay go down to 0 (never prompt) and says what 0 means", () => {
+        monterRythme({ max_user_idle_timeout: 0 });
+        const champ = document.getElementById("max_user_idle_timeout") as HTMLInputElement;
+        expect(champ.min).toBe("0");
+        expect(champ.value).toBe("0");
+        fireEvent.change(champ, { target: { value: "12" } });
+        expect(champ.value).toBe("12");
+        fireEvent.change(champ, { target: { value: "0" } });
+        expect(champ.value).toBe("0");
+        expect(document.body.textContent).toContain("0 means never prompt");
+    });
+
     it("says the settings still apply while the rule does not set its own", () => {
         monterRythme({});
         const notes = document.querySelectorAll('[data-note="rythme-lien-silence"]');
