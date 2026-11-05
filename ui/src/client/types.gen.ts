@@ -1728,6 +1728,76 @@ export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
 };
 
 /**
+ * BrancheVue
+ */
+export type BrancheVue = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Principale
+     */
+    principale: boolean;
+    /**
+     * Protegee
+     */
+    protegee: boolean;
+    /**
+     * Part
+     */
+    part: number;
+    /**
+     * Version En Ligne
+     */
+    version_en_ligne: number | null;
+    /**
+     * Versions
+     */
+    versions: Array<VersionDeBranche>;
+    /**
+     * Brouillons
+     */
+    brouillons: Array<BrouillonDeBranche>;
+};
+
+/**
+ * BranchesVue
+ */
+export type BranchesVue = {
+    /**
+     * Repartition Active
+     */
+    repartition_active: boolean;
+    /**
+     * Branches
+     */
+    branches: Array<BrancheVue>;
+};
+
+/**
+ * BrouillonDeBranche
+ */
+export type BrouillonDeBranche = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Numero
+     */
+    numero: number | null;
+    /**
+     * A Moi
+     */
+    a_moi: boolean;
+};
+
+/**
  * BudgetLexique
  *
  * [.mark] What the transcription would receive from this vocabulary (plan « le lexique », Q2).
@@ -4926,12 +4996,6 @@ export type DemandeDePublication = {
      */
     raison?: string | null;
     /**
-     * Pourcentage
-     *
-     * Progressive deployment only: the share of calls the new version takes (the rest stays on the previous one).
-     */
-    pourcentage?: number | null;
-    /**
      * Note
      *
      * What changes, for the journal.
@@ -6509,6 +6573,18 @@ export type EntreeVerifiee = {
      * Motif
      */
     motif: string | null;
+};
+
+/**
+ * EpinglerLaPrincipale
+ */
+export type EpinglerLaPrincipale = {
+    /**
+     * Version
+     *
+     * Version number to serve; none: follow the agent's live version.
+     */
+    version?: number | null;
 };
 
 /**
@@ -10993,6 +11069,30 @@ export type NouvelElement = {
 };
 
 /**
+ * NouvelleBranche
+ */
+export type NouvelleBranche = {
+    /**
+     * Nom
+     *
+     * The branch name, unique for the agent.
+     */
+    nom: string;
+    /**
+     * Depuis Version
+     *
+     * The version number to start from (default: the agent's live version).
+     */
+    depuis_version?: number | null;
+    /**
+     * Protegee
+     *
+     * A protected branch is entered only by a reviewed merge.
+     */
+    protegee?: boolean;
+};
+
+/**
  * NouvelleCle
  */
 export type NouvelleCle = {
@@ -14349,6 +14449,22 @@ export type RemplacerFichierRequestSchema = {
 };
 
 /**
+ * RepartitionDemandee
+ *
+ * Les parts de TOUTES les branches actives (total 100) ; la clé est l'identifiant de la branche.
+ */
+export type RepartitionDemandee = {
+    /**
+     * Parts
+     *
+     * Branch id -> share of the calls, whole numbers adding up to 100.
+     */
+    parts: {
+        [key: string]: number;
+    };
+};
+
+/**
  * ReponseSimulee
  *
  * [.mark] U3 sexies (E74) : une réponse enregistrée, servie à l'essai et au banc seulement, jamais en appel réel.
@@ -14824,18 +14940,6 @@ export type RetryConfigResponse = {
      * Retry On Voicemail
      */
     retry_on_voicemail: boolean;
-};
-
-/**
- * Revenir
- */
-export type Revenir = {
-    /**
-     * Version
-     *
-     * The version number to go back to (an earlier published or archived version).
-     */
-    version: number;
 };
 
 /**
@@ -18298,6 +18402,24 @@ export type Version = {
     contenu: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VersionDeBranche
+ */
+export type VersionDeBranche = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Numero
+     */
+    numero: number | null;
+    /**
+     * Publiee Le
+     */
+    publiee_le?: string | null;
 };
 
 /**
@@ -27908,6 +28030,242 @@ export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
 
 export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
 
+export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}';
+};
+
+export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetError = LireLesBranchesApiV1BuilderBranchesWorkflowIdGetErrors[keyof LireLesBranchesApiV1BuilderBranchesWorkflowIdGetErrors];
+
+export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: BranchesVue;
+};
+
+export type LireLesBranchesApiV1BuilderBranchesWorkflowIdGetResponse = LireLesBranchesApiV1BuilderBranchesWorkflowIdGetResponses[keyof LireLesBranchesApiV1BuilderBranchesWorkflowIdGetResponses];
+
+export type CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostData = {
+    body: NouvelleBranche;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}';
+};
+
+export type CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostError = CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostErrors[keyof CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostErrors];
+
+export type CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Branch Id
+         */
+        branch_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/{branch_id}/publier';
+};
+
+export type PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostError = PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostErrors[keyof PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostErrors];
+
+export type PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutData = {
+    body: RepartitionDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/repartition';
+};
+
+export type ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutError = ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutErrors[keyof ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutErrors];
+
+export type ReglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutData = {
+    body: EpinglerLaPrincipale;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/branches/{workflow_id}/principale/version';
+};
+
+export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutError = EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutErrors[keyof EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutErrors];
+
+export type EpinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetData = {
     body?: never;
     headers?: {
@@ -28132,144 +28490,6 @@ export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglageP
 export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostError = CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors[keyof CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors];
 
 export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetData = {
-    body?: never;
-    headers?: {
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-        /**
-         * X-Api-Key
-         */
-        'X-API-Key'?: string | null;
-        /**
-         * X-Mark-Auteur
-         */
-        'X-Mark-Auteur'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Id
-         */
-        workflow_id: number;
-    };
-    query?: never;
-    url: '/api/v1/builder/publication/{workflow_id}/deploiement';
-};
-
-export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetError = DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors[keyof DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetErrors];
-
-export type DeploiementEnCoursApiV1BuilderPublicationWorkflowIdDeploiementGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostData = {
-    body?: never;
-    headers?: {
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-        /**
-         * X-Api-Key
-         */
-        'X-API-Key'?: string | null;
-        /**
-         * X-Mark-Auteur
-         */
-        'X-Mark-Auteur'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Id
-         */
-        workflow_id: number;
-    };
-    query?: never;
-    url: '/api/v1/builder/publication/{workflow_id}/deploiement/passer-a-100';
-};
-
-export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostError = PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors[keyof PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostErrors];
-
-export type PasserA100ApiV1BuilderPublicationWorkflowIdDeploiementPasserA100PostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostData = {
-    body: Revenir;
-    headers?: {
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-        /**
-         * X-Api-Key
-         */
-        'X-API-Key'?: string | null;
-        /**
-         * X-Mark-Auteur
-         */
-        'X-Mark-Auteur'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Id
-         */
-        workflow_id: number;
-    };
-    query?: never;
-    url: '/api/v1/builder/publication/{workflow_id}/deploiement/revenir';
-};
-
-export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostError = RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors[keyof RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostErrors];
-
-export type RevenirAUneVersionApiV1BuilderPublicationWorkflowIdDeploiementRevenirPostResponses = {
     /**
      * Successful Response
      */
