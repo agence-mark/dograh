@@ -48,7 +48,7 @@ export function critereDeLaLigne(ligne: LigneDeCritere): Record<string, unknown>
     const v = ligne.valeurs;
     const c: Record<string, unknown> = { type: ligne.type };
     if (v.texte !== undefined) c.texte = String(v.texte).trim();
-    if (ligne.type === "outil") {
+    if (ligne.type === "outil" || ligne.type === "outil_une_seule_fois") {
         c.nom = String(v.nom ?? "").trim();
         if (v.ne_doit_pas_etre_appele) c.appele = false;
     }

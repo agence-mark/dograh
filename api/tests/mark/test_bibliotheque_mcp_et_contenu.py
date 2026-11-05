@@ -133,12 +133,19 @@ async def test_chaque_personnage_cite_par_un_scenario_existe(verse):
 # --- scénarios types ----------------------------------------------------------------------------------------------
 
 
+ECRITS_PAR_MARK = {"nombres-en-francais", "outil-en-panne"}
+
+
 async def test_les_scenarios_gardent_leur_origine_leur_licence_et_ont_des_criteres_valides(verse):
     scenarios = [k for k in await tous() if k[0] == "scenarios-test"]
     assert len(scenarios) >= 12
     for famille, slug in scenarios:
         element = await service.lire_element(famille, slug)
         origine = element.courante.origine
+        if slug in ECRITS_PAR_MARK:  # partie 3, sous-lot 5 : écrits par .mark, sans source externe à citer
+            assert origine is None
+            verdict.valider_criteres(element.courante.contenu["criteres"])
+            continue
         assert origine is not None and origine.licence == "MIT" and ("tau2-bench" in origine.source or "abcd" in origine.source), slug
         verdict.valider_criteres(element.courante.contenu["criteres"])
     abcd = (await service.lire_element("scenarios-test", "rdv-cas-normal")).courante.origine

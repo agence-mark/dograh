@@ -36,6 +36,8 @@ class ScenarioType(_Forme):
     tours_max: int | None = Field(default=None, ge=1, le=60)
     criteres: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
     questions_juge: list[str] = Field(default_factory=list, max_length=5)
+    # Sous-lot 5 : ce que le scénario fixe autour de la conversation (voir ``tests_rejouables.environnement``), copié dans le test.
+    environnement: dict[str, Any] | None = None
 
 
 class CritereType(_Forme):

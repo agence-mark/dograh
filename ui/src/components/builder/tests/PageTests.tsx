@@ -272,6 +272,9 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                         <DropdownMenuItem asChild>
                             <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a reply of a call", fr: "Depuis une réplique d'un appel" })}</Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a whole conversation", fr: "Depuis une conversation entière" })}</Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => setFenetre("bibliotheque")}>{t({ en: "From the library", fr: "Depuis la bibliothèque" })}</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

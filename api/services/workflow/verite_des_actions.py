@@ -66,6 +66,14 @@ _JOURS_AVANT = re.compile(
 Date = tuple[int, int]
 
 
+
+def _horloge(fuseau):
+    """[.mark] sous-lot 5 : l'instant courant, ou l'instant simulé par l'environnement d'un test."""
+    from api.utils.template_renderer import maintenant
+
+    return maintenant(fuseau)
+
+
 def _valide(mois: int, jour: int) -> bool:
     return 1 <= mois <= 12 and 1 <= jour <= 31
 
@@ -134,7 +142,7 @@ def dates_relatives_dites(texte: Any, maintenant: datetime | None = None) -> set
             return set()
         from datetime import timedelta
 
-        maintenant = maintenant or datetime.now(FUSEAU)
+        maintenant = maintenant or _horloge(FUSEAU)
         trouvees: set[Date] = set()
         bas = texte.casefold()
         for mot, ecart in _RELATIFS.items():
@@ -159,7 +167,7 @@ def jours_faux(texte: Any, maintenant: datetime | None = None) -> list[tuple[str
     try:
         if not isinstance(texte, str):
             return []
-        maintenant = maintenant or datetime.now(FUSEAU)
+        maintenant = maintenant or _horloge(FUSEAU)
         faux: list[tuple[str, str]] = []
         for m in _JOUR_ET_DATE.finditer(texte):
             date = (MOIS[m.group(3).casefold()], int(m.group(2)))
@@ -712,7 +720,7 @@ def dates_connues(moteur: Any, messages: Any) -> set[Date]:
     pas une réplique de l'agent (parole de la personne, résultat d'outil ou de travail, consigne), de la fiche, et
     celle d'aujourd'hui."""
     connues: set[Date] = set()
-    maintenant = datetime.now(FUSEAU)
+    maintenant = _horloge(FUSEAU)
     connues.add((maintenant.month, maintenant.day))
     for vue in journal_de(moteur):
         connues |= set(vue.dates)

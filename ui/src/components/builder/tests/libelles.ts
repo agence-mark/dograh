@@ -26,6 +26,9 @@ export const CRITERES: Record<string, { libelle: Texte; champs: ChampDeCritere[]
     // Kept to READ the tests written before: the server reads it as `texte_en_tete` with « merci ». Never offered in a list.
     merci_en_tete: { libelle: { en: "Replies starting with « Merci »", fr: "Répliques qui commencent par « Merci »" }, champs: ["max"], ancien: true },
     coordonnees_prises: { libelle: { en: "The sheet holds the fields", fr: "La fiche contient les champs" }, champs: ["champs"] },
+    // Partie 3, sous-lot 5 : l'ordre des outils appelés, et un outil appelé une seule fois.
+    outils_dans_l_ordre: { libelle: { en: "The tools are called in this order", fr: "Les outils sont appelés dans cet ordre" }, champs: ["noms"] },
+    outil_une_seule_fois: { libelle: { en: "A tool is called exactly once", fr: "Un outil est appelé une seule fois" }, champs: ["nom"] },
     sans_redite: { libelle: { en: "No repetition", fr: "Aucune redite" }, champs: [] },
     sans_rigidite: { libelle: { en: "No rigid re-asking", fr: "Aucune redemande rigide" }, champs: [] },
 };

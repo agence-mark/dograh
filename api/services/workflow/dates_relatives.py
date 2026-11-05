@@ -100,7 +100,9 @@ def _simple(texte: str) -> str:
 
 def aujourd_hui() -> datetime:
     """Le jour de l'appel, à l'heure française, sans fuseau (`dateparser`)."""
-    return datetime.now(FUSEAU).replace(tzinfo=None)
+    from api.utils.template_renderer import maintenant  # [.mark] sous-lot 5 : l'horloge simulée d'un test
+
+    return maintenant(FUSEAU).replace(tzinfo=None)
 
 
 @dataclass(frozen=True)

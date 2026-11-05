@@ -50,8 +50,12 @@ def _manques(criteres: list[dict[str, Any]], a: dict[str, set[str]]) -> list[dic
         genre = c.get("type")
         if genre == "etape" and normaliser(c.get("attendue")) not in a["etapes"]:
             noter(i, genre, str(c.get("attendue")), "etape")
-        elif genre == "outil" and normaliser(c.get("nom")) not in a["outils"]:
+        elif genre in ("outil", "outil_une_seule_fois") and normaliser(c.get("nom")) not in a["outils"]:
             noter(i, genre, str(c.get("nom")), "outil")
+        elif genre == "outils_dans_l_ordre":
+            for nom in c.get("noms") or []:
+                if normaliser(nom) not in a["outils"]:
+                    noter(i, genre, str(nom), "outil")
         elif genre == "issue" and normaliser(c.get("attendue")) not in a["issues"]:
             noter(i, genre, str(c.get("attendue")), "issue")
         elif genre == "coordonnees_prises":
@@ -110,6 +114,7 @@ async def copier(
             ouverture=contenu.get("ouverture") or None,
             tours_max=contenu.get("tours_max"),
             questions_juge=list(contenu.get("questions_juge") or []),
+            environnement=contenu.get("environnement") or None,
         )
     except (stockage.ErreurTest, ErreurTestRejouable) as erreur:
         raise ErreurBibliotheque(str(erreur)) from None

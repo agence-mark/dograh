@@ -75,6 +75,18 @@ class ChangerUnTest(BaseModel):
     questions_juge: list[str] | None = None
     corrige: dict[str, Any] | None = None
     comportements: list[str] | None = None
+    environnement: dict[str, Any] | None = None
+
+
+class DepuisUneConversation(BaseModel):
+    """« Ajouter un test > Depuis une conversation entière » (sous-lot 5)."""
+
+    run_id: int = Field(ge=1)
+    nom: str = Field(min_length=1, max_length=200)
+    criteres: list[dict[str, Any]] = Field(default_factory=list)
+    obligatoire: bool = False
+    dossier: str = Field(default="", max_length=80)
+    environnement: dict[str, Any] | None = None
 
 
 class NoteDuJuge(BaseModel):
@@ -134,6 +146,33 @@ async def creer_un_test(workflow_id: int, corps: CreerUnTest, user: UserModel = 
     await _agent_ou_404(user, workflow_id)
     arguments = corps.model_dump(exclude={"workflow_id"})
     return _ou_http(await executer("tests_creer", {**arguments, "workflow_id": workflow_id}, Contexte(user=user, workflow_id=workflow_id)))
+
+
+@router.post("/{workflow_id}/depuis-une-conversation")
+async def creer_depuis_une_conversation(
+    workflow_id: int, corps: DepuisUneConversation, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """Un test de conversation tiré d'un appel entier. Le run est lu avec l'organisation de la personne (404 sinon)."""
+    from api.services.tests_rejouables.modele import ErreurTestRejouable
+
+    await _agent_ou_404(user, workflow_id)
+    try:
+        test = await creation.creer_depuis_une_conversation(
+            user.selected_organization_id,
+            workflow_id,
+            corps.run_id,
+            nom=corps.nom,
+            criteres=corps.criteres,
+            obligatoire=corps.obligatoire,
+            dossier=corps.dossier,
+            auteur=getattr(user, "email", None),
+            environnement=corps.environnement,
+        )
+    except ErreurTestRejouable as erreur:
+        raise HTTPException(status_code=404 if "introuvable" in str(erreur) else 422, detail=str(erreur)) from None
+    except stockage.ErreurTest as erreur:
+        raise HTTPException(status_code=422, detail=str(erreur)) from None
+    return {"test": creation.en_resume(test)}
 
 
 @router.post("/{workflow_id}/rejouer")

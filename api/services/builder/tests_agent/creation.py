@@ -18,6 +18,7 @@ from typing import Any
 from api.services.builder.donnees_fictives import CLES_TECHNIQUES, est_fictive, rendre_fictif
 from api.services.builder.tests_agent import corrige as etat_final
 from api.services.builder.tests_agent import stockage, verdict
+from api.services.tests_rejouables.environnement import valider as valider_l_environnement
 from api.services.tests_rejouables.modele import ErreurTestRejouable
 
 LONGUEUR_NOM_MAX = 200
@@ -45,6 +46,9 @@ async def creer(
     questions_juge: list[str] | None = None,
     corrige: dict[str, Any] | None = None,
     comportements: list[str] | None = None,
+    environnement: dict[str, Any] | None = None,
+    source: dict[str, Any] | None = None,
+    fiche_a_masquer: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Crée et range un test. ``stockage.ErreurTest`` ou ``ErreurTestRejouable`` avec la raison."""
     nom = " ".join(nom.split())[:LONGUEUR_NOM_MAX]
@@ -69,6 +73,10 @@ async def creer(
         "cree_le": stockage.maintenant(),
         "cree_par": auteur,
     }
+    # Sous-lot 5 : l'environnement du test (date et heure, numéro de l'appelant, variables, réponses d'outils simulées).
+    propre = valider_l_environnement(environnement)
+    if propre:
+        test["environnement"] = propre
     if run_id is not None:
         if rang is None:
             raise stockage.ErreurTest("Say which reply of the call (rang, from 1).")
@@ -90,7 +98,15 @@ async def creer(
         }
     else:
         raise stockage.ErreurTest("Give a reply (replique or run_id + rang) or a scenario.")
+    if source and test.get("scenario"):
+        test["source"] = source
+    # Une conversation entière tirée d'un appel : la fiche de l'appel ne sert qu'à REPÉRER les valeurs de personne (nom, adresse...)
+    # à remplacer partout dans les paroles ; elle n'est jamais gardée dans le test.
+    if fiche_a_masquer and test.get("scenario"):
+        test["fiche"] = fiche_a_masquer
     test = rendre_fictif(test)
+    if fiche_a_masquer and test.get("scenario"):
+        test.pop("fiche", None)
     if not _contenu_fictif(test):
         raise stockage.ErreurTest("The test still holds data that looks real: nothing was kept.")
     test["slug"] = await _slug_libre(organisation_id, workflow_id, nom)
@@ -117,6 +133,7 @@ async def modifier(
     tours_max: int | None = None,
     corrige: dict[str, Any] | None = None,
     comportements: list[str] | None = None,
+    environnement: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """U3 (E47) : modification COMPLÈTE d'un test existant, même validation qu'à la création.
 
@@ -134,6 +151,13 @@ async def modifier(
         test["description"] = description
     if comportements is not None:
         test["comportements"] = etat_final.comportements_valides(comportements)
+    if environnement is not None:
+        # Sous-lot 5 : un environnement vide le retire ; sinon il remplace l'ancien en entier.
+        propre = valider_l_environnement(environnement)
+        if propre:
+            test["environnement"] = propre
+        else:
+            test.pop("environnement", None)
     if corrige is not None:
         # un corrigé vide le retire ; sinon il remplace l'ancien et ses critères compilés sont recalculés
         nouveau = etat_final.valider(corrige) if corrige else None
@@ -216,8 +240,77 @@ def en_resume(test: dict[str, Any]) -> dict[str, Any]:
         "criteres": len(test.get("criteres") or []),
         "corrige": test.get("corrige"),
         "comportements": list(test.get("comportements") or []),
+        "avec_environnement": bool(test.get("environnement")),
         "construction": etat_final.construction(test),
         "source": test.get("source") or {},
         "cree_le": test.get("cree_le"),
         "modifie_le": test.get("modifie_le") or test.get("cree_le"),
     }
+
+
+# --- sous-lot 5 : un test depuis une CONVERSATION ENTIÈRE d'un appel ------------------------------------------------------
+
+
+def scenario_d_une_conversation(lignes: list[tuple[str, str]]) -> str:
+    """Le scénario de l'appelant simulé : ce que la personne a dit dans l'appel, dans l'ordre, qu'il rejoue à sa façon face à
+    l'agent. Rien n'est inventé : ce sont les paroles de l'appel (rendues fictives ensuite). 4 000 caractères au plus."""
+    paroles = [t for r, t in lignes if r == "moi"]
+    entete = "Tu rejoues un appel déjà eu. Voici, dans l'ordre, ce que la personne a dit ; tu le redis à ta façon, au rythme de l'agent, sans rien ajouter :"
+    corps = "\n".join(f"{i}. {p}" for i, p in enumerate(paroles, 1))
+    return (entete + "\n" + corps)[:4000]
+
+
+def criteres_d_une_conversation(outils: list[str], issue: str | None) -> list[dict[str, Any]]:
+    """Ce que l'appel d'origine a produit, devenu critères jugés par le code : la fin d'appel notée, et les outils dans leur ordre."""
+    criteres: list[dict[str, Any]] = []
+    if issue:
+        criteres.append({"type": "issue", "attendue": str(issue)})
+    de_suite = [n for i, n in enumerate(outils) if i == 0 or n != outils[i - 1]]
+    if len(de_suite) >= 2:
+        criteres.append({"type": "outils_dans_l_ordre", "noms": de_suite[:10]})
+    return criteres
+
+
+async def creer_depuis_une_conversation(
+    organisation_id: int,
+    workflow_id: int,
+    run_id: int,
+    *,
+    nom: str,
+    criteres: list[dict[str, Any]] | None = None,
+    obligatoire: bool = False,
+    dossier: str = "",
+    auteur: str | None = None,
+    environnement: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """« Ajouter un test › Depuis une conversation entière » : l'appel entier devient une conversation simulée.
+
+    L'organisation du run est vérifiée (introuvable sinon) et le run doit être celui de CET agent. Sans critères donnés, ils viennent
+    de l'appel d'origine (fin d'appel, outils dans l'ordre) ; sans rien à juger, le test est refusé."""
+    from api.services.tests_rejouables.creation import lire_la_conversation
+
+    lue = await lire_la_conversation(run_id, organisation_id)
+    if lue["agent_id"] != workflow_id:
+        raise stockage.ErreurTest("This call belongs to another agent: a test is made from a call of the agent it tests.")
+    criteres = criteres or criteres_d_une_conversation(lue["outils"], lue["issue"])
+    if not criteres:
+        raise stockage.ErreurTest("Nothing to check in this call (no outcome, no tool): add a criterion.")
+    premiere = next(t for r, t in lue["lignes"] if r == "moi")
+    nombre = sum(1 for r, _ in lue["lignes"] if r == "moi")
+    return await creer(
+        organisation_id,
+        workflow_id,
+        nom=nom,
+        criteres=criteres,
+        origine="client",
+        obligatoire=obligatoire,
+        dossier=dossier,
+        description=f"Tiré de la conversation entière de l'appel {run_id}.",
+        auteur=auteur,
+        scenario=scenario_d_une_conversation(lue["lignes"]),
+        ouverture=premiere[:500],
+        tours_max=max(2, min(nombre + 2, 40)),
+        environnement=environnement,
+        source={"run_id": run_id, "conversation_entiere": True},
+        fiche_a_masquer=lue["fiche"],
+    )
