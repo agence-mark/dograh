@@ -160,11 +160,13 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     if isinstance(decision, Exemption):
         return
     if isinstance(decision, Permission):
+        journal_cle = decision.cle  # RV2 (M-3) : pour une clé, la permission réellement requise (``pour_cle``), pas celle de la session
         if par_cle_api:
             # Une clé d'API est un accès de machine à UNE organisation (le portail, les scripts) : comme avant U2 ter, elle
             # n'a pas de rôle d'équipe. Mais jamais les gestes de l'équipe elle-même : une clé fuitée ne crée ni invitation,
             # ni rôle, ni client, et ne règle pas l'atelier. Liste fermée (17a) : toute permission hors de la liste est refusée.
             requise = decision.pour_cle or decision.cle
+            journal_cle = requise
             if requise not in PERMISSIONS_DE_CLE:
                 raise HTTPException(status_code=403, detail=f"Permission required: {requise} (not available to an API key)")
         elif acces is None or not (
@@ -177,7 +179,7 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES):
             await journaliser(
                 user,
-                decision.cle,
+                journal_cle if isinstance(decision, Permission) else decision.cle,
                 user.selected_organization_id,
                 {"route": f"{methode} {chemin}"},
             )

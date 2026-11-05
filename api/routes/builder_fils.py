@@ -117,6 +117,13 @@ def _vue(fil) -> VueFil:
     )
 
 
+def _chat_de_l_auteur(fil, user: UserModel) -> None:
+    """RV (point 6) : le mode d'un chat et ses cartes (autorisations, accord de dépense) sont à celui qui l'a ouvert. Un chat sans auteur
+    (anciens fils) reste ouvert à l'organisation, comme avant."""
+    if fil.user_id is not None and fil.user_id != user.id:
+        raise HTTPException(status_code=403, detail="This conversation belongs to someone else.")
+
+
 def _pas_un_sous_agent(fil) -> None:
     """C2 (E96) : un sous-agent est lu, arrêté, jamais écrit à ni relancé par une personne."""
     if fil.genre == "sous_agent":
@@ -264,6 +271,7 @@ class MessageDuFil(BaseModel):
 async def envoyer_un_message(fil_id: int, demande: MessageDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
     cerveau, reglages = await _cerveau_de(user)
     depasser = await _depassement_permis(user, demande.depasser_le_plafond)
     try:
@@ -290,6 +298,7 @@ async def reprendre_un_fil(
 ):
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
     cerveau, reglages = await _cerveau_de(user)
     depasser = await _depassement_permis(user, depasser_le_plafond)
     try:
@@ -305,6 +314,7 @@ async def modifier_le_dernier_message(
 ):
     fil = await _fil_ou_404(user, fil_id)
     _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
     cerveau, reglages = await _cerveau_de(user)
     depasser = await _depassement_permis(user, demande.depasser_le_plafond)
     try:

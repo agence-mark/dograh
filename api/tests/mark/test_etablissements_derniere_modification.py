@@ -37,7 +37,10 @@ async def test_le_portail_est_nomme_la_derniere_ecriture_gagne(base_v4, smtp, db
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
+            # RV2 : le remplissage en bloc passe par une session d'équipe ; ce sont ces écritures du portail (clé) qui nomment la dernière modification.
+            for ident, nom in (("nord", "Nord"), ("sud", "Sud")):
+                assert (await client.patch(f"{RACINE}/etablissements/{ident}", json={"nom": nom + " (portail)"}, headers=entetes)).status_code == 200
             lues = {m["id"]: m for m in (await client.get(f"{RACINE}/etablissements/dernieres-modifications", headers=entetes)).json()}
             assert lues["nord"]["origine"] == "portail" and lues["nord"]["auteur"] == "Camille Dupont"
             assert set(lues["nord"]) == {"id", "origine", "auteur", "le"}

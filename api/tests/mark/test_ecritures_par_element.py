@@ -16,6 +16,7 @@ envoi incomplet.
 
 from __future__ import annotations
 
+import uuid
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -59,14 +60,24 @@ async def _journal(base, table):
         await c.close()
 
 
-async def _garnir(client, entetes):
+async def _session_de(db_session, org):
+    """RV2 : phrases, établissements en bloc, planificateur et listes de valeurs ne sont plus ouverts à une clé (ils ne sont pas au contrat
+    du portail) : l'installation de ces données passe par une SESSION d'équipe de l'organisation."""
+    from api.tests.mark.equipe_commun import creer_compte, entetes as entetes_session
+
+    _admin, jeton = await creer_compte(db_session, f"rv2-session-{org}-{uuid.uuid4().hex[:8]}@example.test", role="Administrateur", organisations=[org])
+    return entetes_session(jeton, org)
+
+
+async def _garnir(client, entetes, db_session, org):
+    session = await _session_de(db_session, org)
     r = await client.put(
         f"{RACINE}/phrases",
         json={"phrases": [
             {"variable": "mot_du_lieu", "contenu": "Bienvenue", "niveau": "etablissement"},
             {"variable": "mot_commun", "contenu": "Bonjour", "niveau": "organisation"},
         ]},
-        headers=entetes,
+        headers=session,
     )
     assert r.status_code == 200, r.text
     r = await client.put(
@@ -80,7 +91,7 @@ async def _garnir(client, entetes):
             },
             {"id": "sud", "nom": "Sud"},
         ]},
-        headers=entetes,
+        headers=session,
     )
     assert r.status_code == 200, r.text
     r = await client.put(
@@ -110,7 +121,7 @@ async def test_un_envoi_d_un_seul_champ_d_une_fiche_ne_touche_que_lui(
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
             avant = (await client.get(f"{RACINE}/etablissements", headers=entetes)).json()
             r = await client.patch(f"{RACINE}/etablissements/nord", json={"nom": "Nord bis"}, headers=entetes)
             assert r.status_code == 200, r.text
@@ -150,7 +161,7 @@ async def test_fermer_puis_rouvrir_une_fiche_sans_rien_toucher_d_autre(
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
             r = await client.post(
                 f"{RACINE}/etablissements/nord/etat", json={"etat_force": "FERME"}, headers=entetes
             )
@@ -175,7 +186,7 @@ async def test_un_envoi_d_un_champ_d_une_personne_ne_touche_ni_l_equipe_ni_les_s
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
             r = await client.patch(f"{RACINE}/equipe/personnes/alice", json={"role": "Cheffe"}, headers=entetes)
             assert r.status_code == 200, r.text
             alice = r.json()
@@ -204,7 +215,8 @@ async def test_le_planificateur_change_un_reglage_a_un_niveau_sans_toucher_au_re
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
+            session = await _session_de(db_session, _org)
             r = await client.put(
                 f"{RACINE}/planificateur",
                 json={
@@ -212,13 +224,13 @@ async def test_le_planificateur_change_un_reglage_a_un_niveau_sans_toucher_au_re
                     "par_etablissement": {"nord": {"horizon_jours": 7}},
                     "types": [{"code": "visite", "libelle": "Visite", "duree_min": 60}],
                 },
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
             r = await client.patch(
                 f"{RACINE}/planificateur",
                 json={"reglages": {"pas_min": 20}},
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
             p = r.json()
@@ -228,7 +240,7 @@ async def test_le_planificateur_change_un_reglage_a_un_niveau_sans_toucher_au_re
             r = await client.patch(
                 f"{RACINE}/planificateur",
                 json={"etablissement": "nord", "reglages": {"nombre_creneaux": 2}},
-                headers=entetes,
+                headers=session,
             )
             p = r.json()
             assert p["par_etablissement"]["nord"] == {**p["par_etablissement"]["nord"], "nombre_creneaux": 2, "horizon_jours": 7}
@@ -237,11 +249,11 @@ async def test_le_planificateur_change_un_reglage_a_un_niveau_sans_toucher_au_re
             r = await client.patch(
                 f"{RACINE}/planificateur",
                 json={"types": [{"code": "devis", "libelle": "Devis", "duree_min": 30}]},
-                headers=entetes,
+                headers=session,
             )
             assert sorted(t["code"] for t in r.json()["types"]) == ["devis", "visite"]
             r = await client.patch(
-                f"{RACINE}/planificateur", json={"types_retires": [{"code": "visite"}]}, headers=entetes
+                f"{RACINE}/planificateur", json={"types_retires": [{"code": "visite"}]}, headers=session
             )
             assert [t["code"] for t in r.json()["types"]] == ["devis"]
             # Établissement inconnu, plages illisibles, réglage inconnu : refusés.
@@ -250,8 +262,9 @@ async def test_le_planificateur_change_un_reglage_a_un_niveau_sans_toucher_au_re
                 {"reglages": {"plages": "lundi : n'importe quoi"}},
                 {"reglages": {"inconnu": 1}},
             ):
-                assert (await client.patch(f"{RACINE}/planificateur", json=corps, headers=entetes)).status_code == 422
-    assert any(a.startswith("portail : Camille Dupont") for _l, a in await _journal(base_v4, "reglage_planificateur"))
+                assert (await client.patch(f"{RACINE}/planificateur", json=corps, headers=session)).status_code == 422
+    # RV2 : le planificateur n'est plus ouvert à une clé ; son écriture est celle d'une session d'équipe (pas d'auteur « portail »).
+    assert await _journal(base_v4, "reglage_planificateur")
 
 
 async def test_les_ecritures_par_element_refusent_sans_cle_et_avec_la_cle_d_une_autre_organisation(
@@ -264,17 +277,19 @@ async def test_les_ecritures_par_element_refusent_sans_cle_et_avec_la_cle_d_une_
         ("patch", f"{RACINE}/etablissements/nord", {"nom": "Piraté"}),
         ("post", f"{RACINE}/etablissements/nord/etat", {"etat_force": "FERME"}),
         ("patch", f"{RACINE}/equipe/personnes/alice", {"role": "Piraté"}),
-        ("patch", f"{RACINE}/planificateur", {"reglages": {"pas_min": 5}}),
     ]
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
             for methode, chemin, corps in appels:
                 for en_tetes in ({}, {"X-API-Key": "dgr_fausse_cle_0123456789"}):
                     assert (await getattr(client, methode)(chemin, json=corps, headers=en_tetes)).status_code == 401
                 # L'autre organisation : ni fiche, ni personne chez elle (pas de base : 404 ou 409), jamais 200.
                 reponse = await getattr(client, methode)(chemin, json=corps, headers={"X-API-Key": cle_b})
                 assert reponse.status_code in (404, 409), (chemin, reponse.status_code, reponse.text)
+            # RV2 : le planificateur n'est plus ouvert à une clé (hors contrat du portail) : refus 403 pour toute clé.
+            fermee = await client.patch(f"{RACINE}/planificateur", json={"reglages": {"pas_min": 5}}, headers=entetes)
+            assert fermee.status_code == 403
             assert (await client.get(f"{RACINE}/etablissements", headers=entetes)).json()["etablissements"][0]["nom"] == "Nord"
 
 
@@ -299,6 +314,7 @@ async def test_les_cases_des_listes_se_cochent_avec_l_auteur_reel_et_refusent_l_
     chemin = f"{RACINE}/listes-valeurs"
     with _rediriger():
         async with _client() as client:
+            session = await _session_de(db_session, _org)
             vue = (await client.get(chemin, headers=entetes)).json()
             par_liste = {l["liste"]: l for l in vue["listes"]}
             assert {k: v["cases"] for k, v in par_liste.items()} == {
@@ -313,7 +329,7 @@ async def test_les_cases_des_listes_se_cochent_avec_l_auteur_reel_et_refusent_l_
                     {"liste": "motif_appel", "code": "devis", "opportunite": True},
                     {"liste": "issue_appel", "code": "autre", "regle_seul": True},
                 ]},
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
             etat = {(l["liste"], v["code"]): v for l in r.json()["listes"] for v in l["valeurs"]}
@@ -328,12 +344,12 @@ async def test_les_cases_des_listes_se_cochent_avec_l_auteur_reel_et_refusent_l_
                     {"liste": "degre_urgence", "code": "haute", "urgent": False},
                     {"liste": "degre_urgence", "code": "inconnue", "urgent": True},
                 ]},
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 422
             vue = (await client.get(chemin, headers=entetes)).json()
             assert {v["code"]: v["urgent"] for l in vue["listes"] if l["liste"] == "degre_urgence" for v in l["valeurs"]}["haute"] is True
-            assert (await client.put(chemin, json={"valeurs": [{"liste": "issue_appel", "code": "autre", "inconnue": 1}]}, headers=entetes)).status_code == 422
+            assert (await client.put(chemin, json={"valeurs": [{"liste": "issue_appel", "code": "autre", "inconnue": 1}]}, headers=session)).status_code == 422
             assert (await client.put(chemin, json={"valeurs": []}, headers={})).status_code == 401
     # L'auteur réel (constat 27) et non le compte technique de la connexion.
     c = await schema.connecter(base_v4)
@@ -341,7 +357,8 @@ async def test_les_cases_des_listes_se_cochent_avec_l_auteur_reel_et_refusent_l_
         auteurs = [r["auteur"] for r in await c.fetch("SELECT auteur FROM mark.journal_modif WHERE table_nom = 'liste_valeur' AND champ = 'update'")]
     finally:
         await c.close()
-    assert len(auteurs) == 3 and all(a.startswith("portail : Camille Dupont (dograh:") for a in auteurs)
+    # RV2 : les listes de valeurs ne sont plus ouvertes à une clé : l'écriture est celle d'une session d'équipe (compte réel, pas de « portail »).
+    assert len(auteurs) == 3 and all(a and "portail" not in a for a in auteurs)
 
 
 async def test_les_cases_d_une_autre_organisation_sont_hors_d_atteinte(
@@ -356,7 +373,7 @@ async def test_les_cases_d_une_autre_organisation_sont_hors_d_atteinte(
             await client.get(f"{RACINE}/listes-valeurs", headers={"X-API-Key": cle_b}),
             await client.put(f"{RACINE}/listes-valeurs", json={"valeurs": [{"liste": "issue_appel", "code": "autre", "regle_seul": True}]}, headers={"X-API-Key": cle_b}),
         ):
-            assert reponse.status_code == 409, reponse.text
+            assert reponse.status_code in (403, 409), reponse.text  # RV2 : la lecture est 409 (pas de base), l'écriture 403 (fermée aux clés)
     c = await schema.connecter(base_v4)
     try:
         assert not await c.fetchval("SELECT bool_or(regle_seul) FROM mark.liste_valeur")

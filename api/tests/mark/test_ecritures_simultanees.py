@@ -70,7 +70,7 @@ async def test_deux_modifications_simultanees_d_une_meme_fiche_gardent_les_deux_
     _user, org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, org)
             reponses = await asyncio.gather(
                 client.patch(f"{RACINE}/etablissements/nord", json={"nom": "Nord bis"}, headers=entetes),
                 client.patch(f"{RACINE}/etablissements/nord", json={"annonce_pause": "Pause longue"}, headers=entetes),
@@ -95,7 +95,7 @@ async def test_deux_modifications_simultanees_d_une_meme_personne_gardent_les_de
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
             reponses = await asyncio.gather(
                 client.patch(f"{RACINE}/equipe/personnes/alice", json={"role": "Cheffe"}, headers=entetes),
                 client.patch(f"{RACINE}/equipe/personnes/alice", json={"description": "Direction"}, headers=entetes),
@@ -113,7 +113,7 @@ async def test_deux_modifications_simultanees_de_deux_fiches_gardent_les_deux_da
     _user, org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, org)
             reponses = await asyncio.gather(
                 client.patch(f"{RACINE}/etablissements/nord", json={"nom": "Nord bis"}, headers=entetes),
                 client.patch(f"{RACINE}/etablissements/sud", json={"nom": "Sud bis"}, headers=entetes),
@@ -134,12 +134,15 @@ async def test_sans_base_du_client_l_ecriture_d_une_fiche_passe_par_le_verrou_de
 
     user, principal, _specialise = await _groupe_avec_capacites(db_session, async_session)
     entetes = {"X-API-Key": await _cle(db_session, principal.organization_id, user.id)}
+    from api.tests.mark.test_ecritures_par_element import _session_de
+
+    session = await _session_de(db_session, principal.organization_id)  # RV2 : l'écriture en bloc n'est plus ouverte à une clé
     with _rediriger():
         async with _client() as client:
             r = await client.put(
                 f"{RACINE}/etablissements",
                 json={"etablissements": [{"id": "nord", "nom": "Nord"}, {"id": "sud", "nom": "Sud"}]},
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
             r = await client.patch(f"{RACINE}/etablissements/nord", json={"nom": "Nord bis"}, headers=entetes)

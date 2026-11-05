@@ -624,28 +624,35 @@ async def test_l_auteur_reel_du_portail_est_au_journal_pour_une_cle_jamais_pour_
             await c.close()
 
     with patch.object(module_copie, "_redis", AsyncMock(return_value=_RedisFactice())):
-        async with _client() as client:
+        # RV2 : l'écriture en bloc n'est plus ouverte à une clé : la fiche est posée par une session, puis la clé du portail la modifie (PATCH).
+        async with test_client_factory(user) as client:
             r = await client.put(
                 "/api/v1/organizations/etablissements",
                 json={"etablissements": [{"id": "fiche-a", "nom": "Fiche A"}]},
+            )
+            assert r.status_code == 200, r.text
+        async with _client() as client:
+            r = await client.patch(
+                "/api/v1/organizations/etablissements/fiche-a",
+                json={"nom": "Fiche A bis"},
                 headers={"X-API-Key": cle, "X-Mark-Auteur": "Camille Dupont"},
             )
             assert r.status_code == 200, r.text
-            r = await client.put(
-                "/api/v1/organizations/etablissements",
-                json={"etablissements": [{"id": "fiche-a", "nom": "Fiche A bis"}]},
+            r = await client.patch(
+                "/api/v1/organizations/etablissements/fiche-a",
+                json={"nom": "Fiche A ter"},
                 headers={"X-API-Key": cle},
             )
             assert r.status_code == 200, r.text
         # Une session de l'écran (pas de clé) : l'en-tête est ignoré.
         async with test_client_factory(user) as client:
-            r = await client.put(
-                "/api/v1/organizations/etablissements",
-                json={"etablissements": [{"id": "fiche-a", "nom": "Fiche A ter"}]},
+            r = await client.patch(
+                "/api/v1/organizations/etablissements/fiche-a",
+                json={"nom": "Fiche A quater"},
                 headers={"X-Mark-Auteur": "Usurpateur"},
             )
             assert r.status_code == 200, r.text
-    ecrits = await auteurs()
+    ecrits = (await auteurs())[-3:]
     # Revue du 16/10 : le nom donné par le portail, suivi du compte de la clé qui a écrit.
     assert ecrits[0].startswith("portail : Camille Dupont (dograh:") and ecrits[0].endswith(")")
     assert (
@@ -655,13 +662,14 @@ async def test_l_auteur_reel_du_portail_est_au_journal_pour_une_cle_jamais_pour_
 
 
 async def test_le_point_d_entree_de_controle_des_horaires_dit_valide_ou_la_raison(
-    db_session, async_session
+    db_session, async_session, test_client_factory
 ):
     user, principal, _specialise = await _groupe_avec_capacites(
         db_session, async_session
     )
     cle = await _cle(db_session, principal.organization_id, user.id)
-    async with _client() as client:
+    # RV2 : le contrôle des horaires n'est plus ouvert à une clé (hors contrat du portail) : il se joue en session d'équipe.
+    async with test_client_factory(user) as client:
         chemin = "/api/v1/organizations/etablissements/controle-horaires"
         semaine = "\n".join(
             f"{jour} : 10:00-18:30"
@@ -677,7 +685,7 @@ async def test_le_point_d_entree_de_controle_des_horaires_dit_valide_ou_la_raiso
         )
         bon = (
             await client.post(
-                chemin, json={"texte": semaine}, headers={"X-API-Key": cle}
+                chemin, json={"texte": semaine}
             )
         ).json()
         assert bon == {"valide": True, "raison": None}
@@ -685,7 +693,6 @@ async def test_le_point_d_entree_de_controle_des_horaires_dit_valide_ou_la_raiso
             await client.post(
                 chemin,
                 json={"texte": "lundi : n'importe quoi"},
-                headers={"X-API-Key": cle},
             )
         ).json()
         assert mauvais["valide"] is False and mauvais["raison"]
@@ -862,6 +869,12 @@ async def test_la_cle_d_une_organisation_ne_lit_ni_n_ecrit_chez_une_autre(
     autre = await _organisation(async_session, db_session)
     cle_a = await _cle(db_session, principal.organization_id, user_a.id)
     cle_b = await _cle(db_session, autre.organisation.id, autre.utilisateur.id)
+    # RV2 : l'écriture en bloc, la copie et le rattachement d'agent ne sont plus ouverts à une clé (hors contrat du portail) :
+    # le cloisonnement de ces gestes se prouve avec une SESSION d'équipe de chaque organisation.
+    from api.tests.mark.test_ecritures_par_element import _session_de
+
+    session_a = await _session_de(db_session, principal.organization_id)
+    session_b = await _session_de(db_session, autre.organisation.id)
     await db_session.upsert_configuration(
         principal.organization_id,
         OrganizationConfigurationKey.BASE_CLIENT.value,
@@ -872,7 +885,7 @@ async def test_la_cle_d_une_organisation_ne_lit_ni_n_ecrit_chez_une_autre(
             ecrit = await client.put(
                 "/api/v1/organizations/etablissements",
                 json={"etablissements": [{"id": "fiche-a", "nom": "Fiche A"}]},
-                headers={"X-API-Key": cle_a},
+                headers=session_a,
             )
             assert ecrit.status_code == 200, ecrit.text
             # A relit sa fiche ; la clé de B ne la voit pas, et son enregistrement ne touche pas celle de A.
@@ -892,7 +905,7 @@ async def test_la_cle_d_une_organisation_ne_lit_ni_n_ecrit_chez_une_autre(
             ecrit_b = await client.put(
                 "/api/v1/organizations/etablissements",
                 json={"etablissements": [{"id": "fiche-b", "nom": "Fiche B"}]},
-                headers={"X-API-Key": cle_b},
+                headers=session_b,
             )
             assert ecrit_b.status_code == 200, ecrit_b.text
             apres = (
@@ -905,14 +918,14 @@ async def test_la_cle_d_une_organisation_ne_lit_ni_n_ecrit_chez_une_autre(
             copie = await client.post(
                 "/api/v1/organizations/etablissements/copier",
                 json={"source": "fiche-a", "id": "copie-b", "nom": "Copie"},
-                headers={"X-API-Key": cle_b},
+                headers=session_b,
             )
             assert copie.status_code in (404, 422), copie.text
             # Les agents d'une autre organisation : pas lus, pas rattachés (404).
             lecture = await client.post(
                 "/api/v1/organizations/etablissements/agent",
                 json={"workflow_id": principal.id},
-                headers={"X-API-Key": cle_b},
+                headers=session_b,
             )
             assert lecture.status_code == 404
 

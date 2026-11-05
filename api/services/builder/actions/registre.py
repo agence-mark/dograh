@@ -49,6 +49,9 @@ class Contexte:
     autorisation: str | None = None
     # N1 (sous-lot 4) : la ligne du journal de la dernière action écrite (``{id, annulable, raison}``), lue par le moteur pour la montrer à l'écran.
     journal: dict[str, Any] | None = None
+    # RV2 (M-1, M-2) : les accords que ``modes.decider`` vient de consommer pour CETTE action (accord de dépense, autorisation « une fois »),
+    # rendus par ``executer`` si l'action est refusée avant d'être jouée (sauvegarde, étiquettes, journal).
+    accords_pris: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def organisation_id(self) -> int:
@@ -153,6 +156,7 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         return refus
     # N1 : la permission décide (rôle, mode du chat, carte d'autorisation), côté serveur, avant toute écriture.
     contexte.autorisation = None
+    contexte.accords_pris = []
     if (decision := await modes.decider(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)) is not None:
         return decision
     # Les garde-fous qui refusent SANS rien écrire passent avant le journal : un refus n'a ni ligne ni instantané.
@@ -167,12 +171,14 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         await garde_etiquettes.garde(nom, arguments, contexte)
     except ErreurAction as erreur:
         contexte.accord_donne = False
+        modes.rendre_les_accords(contexte)
         return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
     # N1 (sous-lot 4) : toute écriture a sa ligne de journal AVANT d'être jouée ; sans ligne, rien n'est fait (même en « Tout permettre »).
     try:
         entree = await journal.ouvrir(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)
     except journal.ErreurJournal:
         contexte.accord_donne = False
+        modes.rendre_les_accords(contexte)
         return {"ok": False, "code": "journal", "erreur": "Nothing was done: the journal of the builder cannot be written. Tell the person."}
     ok = False
     try:

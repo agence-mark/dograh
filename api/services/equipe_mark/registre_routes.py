@@ -218,10 +218,17 @@ REGLES: tuple[Regle, ...] = (
     # Revue serveur M1 : les réglages .mark d'un agent de site (plafonds de coût, durée, sessions par adresse, domaines,
     # expiration) sont ceux de .mark, jamais d'une clé d'API ; l'apparence et l'emplacement restent ouverts au portail.
     _r({"PUT"}, r"^/organizations/agents-site/\{workflow_id\}/reglages$", P("atelier.regler")),
-    # RV (point 3) : toutes les autres écritures /organizations/* sont celles du portail (apparence, emplacement, établissements, fiches en bloc,
-    # phrases, objets, listes, planificateur, équipe, lexique, relance d'une action : plan du portail et ``contrat_portail_fork.json``). Une clé
-    # y entre avec ``portail.ecrire`` et rien d'autre ; une session garde ``agents.modifier``. Les routes plus sensibles ont leur règle plus haut.
-    _r(ECRITURE, r"^/organizations/.*$", PORTAIL, par_defaut=True),
+    # RV2 (I-1, décision de Pierre) : la clé du portail n'ouvre QUE les écritures ``/organizations/*`` du contrat du portail
+    # (``contrat_portail_fork.json``), posées une à une ci-dessous avec ``PORTAIL`` ; toute autre écriture tombe sur la règle de repli,
+    # fermée aux clés (``agents.modifier``). Une session d'équipe garde ``agents.modifier`` partout.
+    _r({"PUT"}, r"^/organizations/agents-site/[^/]+/(apparence|emplacement)$", PORTAIL),
+    _r({"PATCH"}, r"^/organizations/etablissements/[^/]+$", PORTAIL),
+    _r({"POST"}, r"^/organizations/etablissements/[^/]+/(etat|appliquer-a-tous)$", PORTAIL),
+    _r({"PUT"}, r"^/organizations/equipe$", PORTAIL),
+    _r({"PATCH"}, r"^/organizations/equipe/personnes/[^/]+$", PORTAIL),
+    _r({"PUT"}, r"^/organizations/lexique$", PORTAIL),
+    _r({"POST"}, r"^/organizations/apres-appel/actions/[^/]+/relancer$", PORTAIL),
+    _r(ECRITURE, r"^/organizations/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/organizations/.*$", MEMBRE, par_defaut=True),
     # U3 bis : le catalogue des variables d'un agent (lecture seule, tout membre de l'organisation).
     _r(LECTURE, r"^/mark/variables(/.*)?$", MEMBRE),

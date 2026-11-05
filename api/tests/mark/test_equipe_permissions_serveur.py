@@ -164,5 +164,5 @@ async def test_une_cle_d_api_ecrit_sans_role_mais_jamais_les_gestes_de_l_equipe(
     assert ecrit.status_code == 200
     assert invite.status_code == 403 and espace.status_code == 403 and nouveau.status_code == 403
     lignes, _ = await db_session.lister_journal(limit=25, offset=0, organization_id=org)
-    assert [ligne["action"] for ligne in lignes] == ["agents.modifier"]
+    assert [ligne["action"] for ligne in lignes] == ["portail.ecrire"]  # RV2 (M-3) : la permission réellement requise de la clé
     assert lignes[0]["auteur"] == "portail : Lea"
