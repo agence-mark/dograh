@@ -4515,7 +4515,7 @@ export type CreerUnTest = {
     /**
      * Criteres
      *
-     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values), outils_dans_l_ordre (tools called in this order, 'noms'), outil_une_seule_fois (a tool called exactly once, 'nom').
+     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values), outils_dans_l_ordre (tools called in this order, 'noms'), outil_une_seule_fois (a tool called exactly once, 'nom'), urgence_declenchee / urgence_silencieuse (the emergency safeguard did / did not trigger).
      */
     criteres?: Array<{
         [key: string]: unknown;
@@ -7713,6 +7713,34 @@ export type FusionDemandee = {
      * The main branch version id the preview was read on.
      */
     version_cible: number;
+};
+
+/**
+ * GardeUrgence
+ *
+ * L3e : le garde-fou URGENCE du code (mots et tournures, AUCUN appel de modèle). Éteint par défaut. Quand il reconnaît une détresse ou
+ * une urgence médicale dans les mots de l'appelant, il dit la phrase du catalogue (motif ``urgence_vitale``, une fois par appel) avec le
+ * numéro d'urgence ci-dessous, note le déclenchement et rappelle au modèle de ne pas la redire.
+ */
+export type GardeUrgence = {
+    /**
+     * Actif
+     *
+     * Recognise distress or a medical emergency in the caller's words (no model call) and say the emergency sentence.
+     */
+    actif?: boolean;
+    /**
+     * Numero
+     *
+     * The emergency number said in the sentence (112 in Europe).
+     */
+    numero?: string;
+    /**
+     * Mots En Plus
+     *
+     * Words or phrases of your own that also trigger it.
+     */
+    mots_en_plus?: Array<string>;
 };
 
 /**
@@ -15851,6 +15879,7 @@ export type SecuriteConversation = {
     urgence?: ConsigneUrgence;
     jamais?: CeQueLAgentNeDitJamais;
     ecoute?: EcouteDeLAppelant;
+    garde_urgence?: GardeUrgence;
     /**
      * Marquer
      *
