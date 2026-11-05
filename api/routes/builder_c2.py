@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
+from api.routes.builder_fils import _chat_de_l_auteur
 from api.services.builder import fil as service_fil
 from api.services.builder import journal, modes, revue, sous_agents
 
@@ -73,6 +74,7 @@ class Rangs(BaseModel):
 
 async def _decider(fil_id: int, demande: Rangs, user: UserModel, accepter: bool) -> dict[str, Any]:
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="A sub-agent never writes.")
     workflow = await _agent_du_fil(user, fil)
@@ -203,13 +205,6 @@ class ModeDemande(BaseModel):
 class ReponseAutorisation(BaseModel):
     decision: Literal["une_fois", "pour_ce_chat", "refuser"]
     raison: str | None = Field(default=None, max_length=500, description="Why it is refused (optional): the builder reads it.")
-
-
-def _chat_de_l_auteur(fil, user: UserModel) -> None:
-    """RV (point 6) : le mode d'un chat et ses cartes (autorisations, accord de dépense) sont à celui qui l'a ouvert. Un chat sans auteur
-    (anciens fils) reste ouvert à l'organisation, comme avant."""
-    if fil.user_id is not None and fil.user_id != user.id:
-        raise HTTPException(status_code=403, detail="This conversation belongs to someone else.")
 
 
 def _chat_modifiable(fil) -> None:
@@ -422,6 +417,7 @@ async def regler_l_interrupteur(
 ):
     """« Sous-agents dans ce chat » : éteint, le builder ne délègue plus (ceux qui travaillent finissent). Gardé avec la conversation."""
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="Only the main conversation has this switch.")
     await db_client.modifier_fil(user.selected_organization_id, fil.id, sous_agents_actifs=demande.actif)
@@ -431,6 +427,7 @@ async def regler_l_interrupteur(
 @router.post("/fils/{fil_id}/sous-agents/arreter", response_model=VueSousAgents)
 async def arreter_tous_les_sous_agents(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     org = user.selected_organization_id
     for enfant in await db_client.lister_les_enfants(org, fil.id):
         if service_fil.en_cours(enfant.id):

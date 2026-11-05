@@ -167,18 +167,21 @@ async def _passe_par_le_mode(mode: str, famille: str, arguments: dict[str, Any],
     return mode == "agent" and await _dans_le_groupe_de_l_agent_ouvert(contexte, cible)
 
 
-def _depense_accordee(conversation: dict[str, Any]) -> bool:
-    """Une dépense annoncée (``depense_annoncer``) et accordée, pas encore utilisée : elle vaut autorisation pour la famille « dépense ».
-    ``decider`` la CONSOMME (``_consommer_la_depense``) : un accord ne vaut qu'une fois, aucune action ne peut l'oublier."""
-    return any(d.get("statut") == "accordee" and not d.get("utilisee") for d in (conversation.get("depenses") or {}).values())
-
-
-def _consommer_la_depense(conversation: dict[str, Any]) -> None:
-    """Marque utilisé le premier accord de dépense encore libre (un seul point, ici)."""
+def _prendre_la_depense(conversation: dict[str, Any]) -> dict[str, Any] | None:
+    """Une dépense annoncée (``depense_annoncer``) et accordée, pas encore utilisée, vaut autorisation pour la famille « dépense » : un accord ne
+    vaut qu'une fois, et seulement si ni le mode ni une autorisation existante ne couvre déjà l'action. Marque utilisé le premier accord de dépense encore libre (un seul point, ici) et le rend (pour pouvoir le restituer)."""
     for d in (conversation.get("depenses") or {}).values():
         if d.get("statut") == "accordee" and not d.get("utilisee"):
             d["utilisee"] = True
-            return
+            return d
+    return None
+
+
+def rendre_les_accords(contexte) -> None:
+    """RV2 (M-2) : l'action est refusée APRÈS ``decider`` (sauvegarde, étiquettes, journal) : les accords pris pour elle ne sont pas perdus."""
+    for accord in contexte.accords_pris:
+        accord["utilisee"] = False
+    contexte.accords_pris = []
 
 
 def _autorisation_existante(conversation: dict[str, Any], nom: str, arguments: dict[str, Any], contexte) -> str | None:
@@ -194,6 +197,7 @@ def _autorisation_existante(conversation: dict[str, Any], nom: str, arguments: d
             return "pour_ce_chat"
         if d.get("statut") == "une_fois" and not d.get("utilisee") and d.get("empreinte") == trace:
             d["utilisee"] = True
+            contexte.accords_pris.append(d)  # RV2 (M-2) : rendue si l'action est refusée avant d'être jouée
             return "une_fois"
     return None
 
@@ -249,6 +253,7 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
 
     famille = action.famille or "irreversible"
     contexte.autorisation = None
+    contexte.accords_pris = []
     if contexte.porte == PORTE_MCP:
         if famille in HORS_PORTE_MCP or action.nom in DEPENSES_HORS_PORTE_MCP:
             return {
@@ -279,15 +284,16 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
             "code": "mode_plan",
             "erreur": "Plan mode: nothing is changed. Write the plan with plan_mettre_a_jour and wait for the person's agreement.",
         }
-    if famille == "depense" and _depense_accordee(conversation):
-        _consommer_la_depense(conversation)
-        contexte.autorisation = "depense"
-        contexte.accord_donne = True  # l'accord est déjà consommé : ``consommer_un_accord`` n'en prend pas un second
-        return None
+    # RV2 (M-1) : le mode ou une autorisation existante couvre l'action ? Alors l'accord de dépense n'est PAS consommé.
     autorisation = "mode" if await _passe_par_le_mode(mode, famille, arguments, contexte, action.nom) else _autorisation_existante(conversation, action.nom, arguments, contexte)
     if autorisation:
         contexte.autorisation = autorisation  # N1 (sous-lot 4) : le journal dit comment la permission a été donnée
         if famille == "depense":
             contexte.accord_donne = True  # l'accord de dépense est donné par le mode ou la carte (``consommer_un_accord``)
+        return None
+    if famille == "depense" and (accord := _prendre_la_depense(conversation)) is not None:
+        contexte.accords_pris.append(accord)
+        contexte.autorisation = "depense"
+        contexte.accord_donne = True  # l'accord est déjà consommé : ``consommer_un_accord`` n'en prend pas un second
         return None
     return _demander(conversation, action, famille, arguments, contexte)
