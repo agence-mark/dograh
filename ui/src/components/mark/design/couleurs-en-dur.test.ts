@@ -86,7 +86,6 @@ const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     // 27/09: grey for new tools, and the existing ones set to grey in the database).
     "app/tools/config.tsx",
     "app/tools/page.tsx",
-    "app/tools/[toolUuid]/page.tsx",
     "components/mark/outils/FenetreNouvelOutil.tsx",
     "components/flow/ToolSelector.tsx",
 ]);

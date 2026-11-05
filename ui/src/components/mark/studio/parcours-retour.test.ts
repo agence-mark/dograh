@@ -62,7 +62,6 @@ const PAGES_AVEC_RETOUR: Record<string, { ecran: string; preuve: keyof typeof PR
 /** Les pages à identifiant ou de création qui n'ont pas de flèche à elles, avec la raison écrite. */
 const EXEMPTEES: Record<string, string> = {
     "app/campaigns/new/page.tsx": "fenêtre centrée posée sur la liste ; la croix la ferme et ramène à la liste de l'espace",
-    "app/tools/[toolUuid]/page.tsx": "redirigée vers la fenêtre d'un outil de la page Outils (lib/redirections.ts) : l'écran n'est plus atteint",
     "app/handler/[...stack]/page.tsx": "pile d'authentification de l'amont, hors parcours du studio",
     "app/workflow/[workflowId]/page.tsx": "redirigée vers /agents/<id> (lib/redirections.ts)",
     "app/workflow/[workflowId]/runs/page.tsx": "redirigée vers l'onglet Appels de l'agent",
@@ -104,7 +103,6 @@ describe("T6 : le parcours a ses flèches retour", () => {
             "components/builder/chat/FilDuBuilder.tsx", // « Principale » : sortir d'une conversation relue, pas une page
             "components/mark/variables/EditeurDeTableau.tsx", // déplacer une colonne
             "app/handler/[...stack]/BackButton.tsx", // authentification de l'amont
-            "app/tools/[toolUuid]/page.tsx", // redirigée (voir EXEMPTEES)
             "app/workflow/[workflowId]/settings/page.tsx", // ancienne page de l'amont, remplacée par PageReglagesAgent
         ]);
         const fautifs = parcourir(SRC)

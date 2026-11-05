@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +29,11 @@ export function LignesEditables<T>({
     rendu: (ligne: T, maj: (p: Partial<T>) => void, index: number) => React.ReactNode[];
 }) {
     const { t } = useLangue();
+    // Une identité par ligne : retirer une ligne plus haut garde les autres (et le focus) où ils sont.
+    const identites = useRef<number[]>([]);
+    const suivante = useRef(0);
+    while (identites.current.length < lignes.length) identites.current.push(suivante.current++);
+    if (identites.current.length > lignes.length) identites.current.length = lignes.length;
     return (
         <div>
             {lignes.length > 0 ? (
@@ -46,7 +52,7 @@ export function LignesEditables<T>({
                         {lignes.map((l, i) => {
                             const maj = (p: Partial<T>) => changer(lignes.map((x, j) => (j === i ? { ...x, ...p } : x)));
                             return (
-                                <tr key={i}>
+                                <tr key={identites.current[i]}>
                                     {rendu(l, maj, i).map((cellule, k) => (
                                         <td key={k} className={`py-2 ${k ? "pl-3" : ""}`}>
                                             {cellule}
@@ -55,7 +61,10 @@ export function LignesEditables<T>({
                                     <td className="pl-2 text-right">
                                         <button
                                             type="button"
-                                            onClick={() => changer(lignes.filter((_, j) => j !== i))}
+                                            onClick={() => {
+                                                identites.current.splice(i, 1);
+                                                changer(lignes.filter((_, j) => j !== i));
+                                            }}
                                             className="cursor-pointer text-muted-foreground hover:text-foreground"
                                             aria-label={t({ en: "Remove", fr: "Retirer" })}
                                         >

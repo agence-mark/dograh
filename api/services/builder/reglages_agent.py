@@ -36,6 +36,20 @@ INTERDITS_DANS_UNE_CLE = ("api_key", "token", "secret", "password", "credential"
 CLE_MASQUEE = "[key-hidden]"
 
 
+# [.mark] N2 (audit 11 § 4, « écriture trop large ») : ces blocs se règlent SOUS-RÉGLAGE par sous-réglage. Envoyer ``{"panne": {"sonnerie_s": 30}}``
+# ne remplace plus tout le bloc (l'écran le réécrit entier, le builder ne doit pas effacer ce qu'il n'a pas dit). Une liste est remplacée.
+BLOCS_PAR_SOUS_REGLAGE = frozenset({"panne", "apres_appel"})
+
+
+def _fusion_en_profondeur(en_place: Any, envoye: Any) -> Any:
+    if not (isinstance(en_place, Mapping) and isinstance(envoye, Mapping)):
+        return envoye
+    sortie = dict(en_place)
+    for cle, valeur in envoye.items():
+        sortie[cle] = _fusion_en_profondeur(en_place.get(cle), valeur) if cle in en_place else valeur
+    return sortie
+
+
 class ErreurReglage(Exception):
     pass
 
@@ -137,7 +151,10 @@ async def regler(
         if nom not in autorisees:
             raise ErreurReglage(f"Unknown or forbidden setting: {nom}.")
     existant = await _configurations(organization_id, workflow_id)
-    nouveau = {**existant, **{nom: _reporter_les_cles(v, existant.get(nom)) for nom, v in valeurs.items()}}
+    ecrits = {nom: _reporter_les_cles(v, existant.get(nom)) for nom, v in valeurs.items()}
+    for nom in BLOCS_PAR_SOUS_REGLAGE & ecrits.keys():
+        ecrits[nom] = _fusion_en_profondeur(existant.get(nom), ecrits[nom])
+    nouveau = {**existant, **ecrits}
     _verifier(nouveau)
     await db_client.update_workflow(
         workflow_id=workflow_id,

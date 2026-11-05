@@ -23,6 +23,7 @@ import { chargeEssais, type EssaisOutil, lireEssais } from "./essais-outil";
 import { EssaisOutilHttp } from "./EssaisOutilHttp";
 import { LignesEditables } from "./LignesEditables";
 import { type Config, liste, nombre, texte } from "./modele";
+import { BlocEntetesAnciens } from "./OngletsDeType";
 
 type Pose = (modifs: Config) => void;
 
@@ -141,6 +142,7 @@ export function OngletRequete({ config, pose }: { config: Config; pose: Pose }) 
                 />
             </LigneChamp>
             <BlocEntetes config={config} pose={pose} />
+            <BlocEntetesAnciens config={config} pose={pose} />
             {/* SE-22 : les essais, l'attente et « sans risque de doublon » d'une requête, repris de l'ancienne page d'un outil. */}
             <EssaisOutilHttp
                 valeur={lireEssais(config)}
