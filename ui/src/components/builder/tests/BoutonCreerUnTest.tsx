@@ -11,6 +11,7 @@ import { useState } from "react";
 import { creerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPost } from "@/client";
 import { useLangue } from "@/components/mark/langue/langue";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function BoutonCreerUnTest({ workflowId, runId, evenements, rangInitial }
         });
         setEnvoi(false);
         if (r.error) {
-            setErreurEntiere(echecAffiche(r.error));
+            setErreurEntiere(echecAffiche(r.error, ECHECS.testDepuisConversation));
             return;
         }
         notifier.succes({ en: "Test created from the whole conversation. Personal data was replaced.", fr: "Test créé depuis la conversation entière. Les données personnelles ont été remplacées." });

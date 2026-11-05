@@ -28,6 +28,7 @@ import type { ResumeOutil, ToolResponse, UpdateToolRequest } from "@/client/type
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { comptesDuLogiciel } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -106,7 +107,7 @@ export function FenetreOutil({
         };
         const r = await updateToolApiV1ToolsToolUuidPut({ path: { tool_uuid: courant.tool_uuid }, body: corps });
         setEnCours(false);
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.outilEnregistrer));
         setErreur(null);
         setCourant(r.data);
         setModifs({});
@@ -119,7 +120,7 @@ export function FenetreOutil({
         const r = archive
             ? await unarchiveToolApiV1ToolsToolUuidUnarchivePost({ path: { tool_uuid: courant.tool_uuid } })
             : await deleteToolApiV1ToolsToolUuidDelete({ path: { tool_uuid: courant.tool_uuid } });
-        if (r.error) return setErreur(echecAffiche(r.error));
+        if (r.error) return setErreur(echecAffiche(r.error, ECHECS.outilArchiver));
         apresEcriture();
         fermer();
         if (archive) notifier.succes({ fr: "Outil restauré.", en: "Tool restored." });

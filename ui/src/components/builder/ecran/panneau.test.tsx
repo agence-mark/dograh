@@ -10,6 +10,8 @@
  *     « Changes » card hold Accept and Refuse until the draft is saved? Are « Builder AI » and « Tests » in the top bar,
  *     and « Publish » greyed with its reason?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -202,7 +204,7 @@ describe("les réglages du builder", () => {
         fireEvent.click(screen.getByRole("button", { name: "Save" }));
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.builderCerveau));
             expect(affiche).not.toContain("Reserved to the .mark team");
         }
         expect(m.prefsEcrire).not.toHaveBeenCalled();

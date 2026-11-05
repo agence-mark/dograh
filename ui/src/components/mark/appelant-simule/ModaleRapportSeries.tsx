@@ -15,6 +15,7 @@ import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Resultat = {
@@ -216,7 +217,7 @@ export function ModaleRapportSeries({
             const reponse = await getSeriesSimuleesApiV1AppelSimuleSeriesGet({ query: { workflow_id: workflowId } });
             if (annule) return;
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.seriesSimuleesListe));
                 return;
             }
             const liste = (reponse.data as SerieSimulee[]) ?? [];
@@ -237,7 +238,7 @@ export function ModaleRapportSeries({
                 const reponse = await getRapportSerieApiV1AppelSimuleSeriesSerieIdGet({ path: { serie_id: id } });
                 if (annule) return;
                 if (reponse.error) {
-                    setErreur(echecAffiche(reponse.error));
+                    setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeRapport));
                     return;
                 }
                 setRapports((avant) => ({ ...avant, [id]: reponse.data as RapportSerie }));

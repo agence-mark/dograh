@@ -34,6 +34,12 @@ interface BoutonDupliquerAgentProps {
     onDuplique: () => void;
 }
 
+/** What the button says of itself: where the copy goes, and that a main agent copies its whole group. */
+export const TEXTE_DUPLIQUER = {
+    en: "Copies the agent with its settings, at the root of the list. A main agent copies its whole group of specialised agents.",
+    fr: "Copie l'agent avec ses réglages, à la racine de la liste. Un agent principal copie tout son groupe d'agents spécialisés.",
+};
+
 export const BoutonDupliquerAgent = ({
     workflowId,
     onDuplique,
@@ -82,6 +88,7 @@ export const BoutonDupliquerAgent = ({
             size="sm"
             onClick={dupliquer}
             disabled={enCours}
+            title={t(TEXTE_DUPLIQUER)}
             className="flex items-center gap-2"
         >
             {enCours ? (

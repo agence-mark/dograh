@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 import { identifiantPour } from "./ModaleEtablissements";
 
@@ -58,7 +59,7 @@ export function ModaleCopieFiche({
         });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.etablissementCopier));
             return;
         }
         notifier.succes({ fr: "Fiche copiée.", en: "Sheet copied." });

@@ -1,5 +1,6 @@
 import { Loader2, Mic, Pause, Play, Square, Trash2Icon, Upload, X } from "lucide-react";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -332,7 +333,7 @@ export const RecordingsDialog = ({
             if (fileInputRef.current) fileInputRef.current.value = "";
             await fetchRecordings();
         } catch (err) {
-            setError(echecAffiche(err));
+            setError(echecAffiche(err, ECHECS.enregistrementCreer));
         } finally {
             setUploading(false);
         }

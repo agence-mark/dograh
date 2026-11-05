@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
 import { Liste } from "../studio/liste";
@@ -123,7 +124,7 @@ export function useCles(fournisseur?: Fournisseur, actif = true) {
         if (!actif) return;
         const reponse = await listerLesClesApiV1ClesGet({ query: fournisseur ? { fournisseur } : undefined });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.clesListe));
             return;
         }
         setErreur(null);
@@ -145,7 +146,7 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
         setErreur(null);
         const reponse = await usagesDUneCleApiV1ClesUuidUsagesGet({ path: { uuid: cle.uuid } });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.cleUsages));
             return;
         }
         setUsages((reponse.data as Usage[] | undefined) ?? []);
@@ -156,7 +157,7 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.cleSupprimer));
             return;
         }
         onSupprimee();
@@ -268,7 +269,7 @@ export function FormulaireAjoutCle({
         });
         setEnCours(false);
         if (reponse.error) {
-            setFaute(echecAffiche(reponse.error));
+            setFaute(echecAffiche(reponse.error, ECHECS.cleAjouter));
             return;
         }
         const ajoutee = reponse.data as Cle;

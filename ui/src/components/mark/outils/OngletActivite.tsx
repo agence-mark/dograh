@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { statistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGet } from "@/client/sdk.gen";
 import type { StatistiquesOutil } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 import { Section } from "../studio/fenetre-onglets";
 import { Info } from "../studio/marques";
@@ -26,7 +27,7 @@ export function OngletActivite({ toolUuid }: { toolUuid: string }) {
         let actif = true;
         void statistiquesDUnOutilApiV1ToolsToolUuidStatistiquesGet({ path: { tool_uuid: toolUuid }, query: { page } }).then((r) => {
             if (!actif) return;
-            if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+            if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.outilStatistiques));
             setErreur(null);
             setStats(r.data);
         });

@@ -20,6 +20,12 @@ import { useEnregistrementTheme } from "./enregistrement";
 import { MOTIF_SILENCE } from "./phrases/modele";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
 
+/** The limit of a call: the default, the ceiling the server holds, and what happens at the limit. */
+export const AIDE_DUREE_MAXIMALE = {
+    en: "Default: 600 s (10 minutes). The ceiling is 1,200 s (20 minutes): the server refuses more. At the limit the call is ended, even in the middle of a sentence.",
+    fr: "Défaut : 600 s (10 minutes). Le plafond est de 1 200 s (20 minutes) : le serveur refuse plus. À la limite, l'appel est terminé, même au milieu d'une phrase.",
+};
+
 export const ID_THEME_RYTHME = "rythme";
 export const TITRE_RYTHME = { en: "Call pacing", fr: "Rythme de l'appel" };
 
@@ -146,7 +152,7 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                     cle="max_call_duration"
                     idControle="max_call_duration"
                     libelle={{ en: "Max Call Duration (seconds)", fr: "Durée maximale de l'appel (secondes)" }}
-                    aides={[{ en: "Default: 600 (10 minutes)", fr: "Défaut : 600 (10 minutes)." }]}
+                    aides={[AIDE_DUREE_MAXIMALE]}
                     bornes={texteBornes("max_call_duration")}
                     erreur={erreurDuree}
                 >

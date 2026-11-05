@@ -26,6 +26,12 @@ import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEta
 export const ID_THEME_INTERVENTIONS = "interventions";
 export const TITRE_INTERVENTIONS = { en: "Engine interventions", fr: "Interventions du moteur" };
 
+/** What the theme says of itself: ten of the twelve switches are on by default, two are off (the two moved in). */
+export const DESCRIPTION_INTERVENTIONS = {
+    en: "What our code does in the conversation, switch by switch. Ten are on by default; « Let the caller take their time » and « Reply after a tool that ends early » are off by default.",
+    fr: "Ce que notre code fait dans la conversation, interrupteur par interrupteur. Dix sont allumés par défaut ; « Laisser la parole » et « Répondre après un outil qui finit trop tôt » sont éteints par défaut.",
+};
+
 /** The new switches (on by default) and the two settings moved in, in screen order. */
 export const CLES_INTERVENTIONS_MARK = [
     "moteur_sorties_de_l_etape",
@@ -65,7 +71,8 @@ export const ThemeInterventions = ({ resolue, workflowName, onSave, ouvert, onBa
     const reglage = (cle: (typeof CLES_INTERVENTIONS_MARK)[number]) => (
         <Reglage cle={cle} valeur={brouillon[cle]} onChange={maj(cle)} />
     );
-    const eteintes = CLES_INTERVENTIONS_MARK.filter((cle) => cle.startsWith("moteur_") && brouillon[cle] === false).length;
+    // The ten « moteur_ » switches are on unless set to false; the two moved in are off unless set to true.
+    const allumees = CLES_INTERVENTIONS_MARK.filter((cle) => (cle.startsWith("moteur_") ? brouillon[cle] !== false : brouillon[cle] === true)).length;
 
     const lien = (theme: string, titre: { en: string; fr: string }) =>
         versTheme ? (
@@ -81,14 +88,9 @@ export const ThemeInterventions = ({ resolue, workflowName, onSave, ouvert, onBa
             id={ID_THEME_INTERVENTIONS}
             icone={Cog}
             titre={TITRE_INTERVENTIONS}
-            description={{
-                en: "What our code does in the conversation, switch by switch. All on by default: nothing changes until you switch one off.",
-                fr: "Ce que notre code fait dans la conversation, interrupteur par interrupteur. Tout est allumé par défaut : rien ne change tant que vous n'en éteignez pas un.",
-            }}
+            description={DESCRIPTION_INTERVENTIONS}
             resume={[
-                eteintes === 0
-                    ? t({ en: "All interventions on", fr: "Toutes les interventions allumées" })
-                    : `${eteintes} ${t({ en: "switched off", fr: "éteinte(s)" })}`,
+                `${allumees} ${t({ en: "on out of", fr: "allumées sur" })} ${CLES_INTERVENTIONS_MARK.length}`,
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}

@@ -22,6 +22,7 @@ import {
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export const useApresAppel = () => {
     const relire = useCallback(async () => {
         const reponse = await getApresAppelApiV1OrganizationsApresAppelGet();
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.apresAppelLire));
             return;
         }
         setErreur(null);

@@ -15,6 +15,7 @@ import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { AgentDeRecette } from "./types";
 
 const ETATS: Record<string, Texte> = {
@@ -42,7 +43,7 @@ export function AgentsDeLaRecette({ famille, slug }: { famille: string; slug: st
 
     useEffect(() => {
         void agentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGet({ path: { famille, slug } }).then((r) => {
-            if (r.error) setErreur(echecAffiche(r.error));
+            if (r.error) setErreur(echecAffiche(r.error, ECHECS.recetteAgents));
             else {
                 const d = r.data as { version: number; agents: AgentDeRecette[] };
                 setVersion(d.version);
@@ -56,7 +57,7 @@ export function AgentsDeLaRecette({ famille, slug }: { famille: string; slug: st
         const r = await preparerLesMisesAJourApiV1BuilderTestsRecetteFamilleSlugPreparerPost({ path: { famille, slug }, body: { rejouer_la_suite: true } });
         setEnCours(false);
         if (r.error) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.recettePreparer));
             return;
         }
         setLignes((r.data as { agents: LigneDePreparation[] }).agents);

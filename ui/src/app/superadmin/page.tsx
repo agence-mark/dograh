@@ -1,6 +1,7 @@
 "use client";
 
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ArrowRight, List, Loader2 } from 'lucide-react';
 import Link from "next/link";
 import { useState } from "react";
@@ -60,7 +61,7 @@ export default function SuperadminPage() {
         } catch (err) {
             setError({
                 target,
-                message: echecAffiche(err),
+                message: echecAffiche(err, ECHECS.superadminConnexion),
             });
             console.error("Impersonation error:", err);
         } finally {

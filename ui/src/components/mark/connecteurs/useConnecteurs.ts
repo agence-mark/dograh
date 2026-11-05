@@ -14,6 +14,7 @@ import {
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, EtatConnexions, IntegrationToolConfig } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 export type ConfigIntegration = IntegrationToolConfig;
@@ -59,12 +60,12 @@ export const useConnecteurs = () => {
             return;
         }
         if (c.error || !c.data) {
-            setErreur(echecAffiche(c.error));
+            setErreur(echecAffiche(c.error, ECHECS.catalogueLogiciels));
             return;
         }
         setErreur(null);
         setCatalogue(c.data);
-        setEtat(e.data ?? { nango_configure: false, connexions: [], erreur: echecAffiche(e.error) });
+        setEtat(e.data ?? { nango_configure: false, connexions: [], erreur: echecAffiche(e.error, ECHECS.connexionsLogiciels) });
     }, []);
 
     useEffect(() => {
@@ -75,7 +76,7 @@ export const useConnecteurs = () => {
 
     const demanderLien = useCallback(async (connecteurs: string[], compte?: string) => {
         const r = await postLienApiV1ConnecteursLienPost({ body: { connecteurs, compte } });
-        if (r.error || !r.data) throw new Error(echecAffiche(r.error));
+        if (r.error || !r.data) throw new Error(echecAffiche(r.error, ECHECS.logicielBrancher));
         return r.data;
     }, []);
 

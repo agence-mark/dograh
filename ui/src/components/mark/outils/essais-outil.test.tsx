@@ -7,7 +7,7 @@
  * | délai total | l'aperçu calcule comme `delai_total_s` du serveur (délai × (1 + essais) + attentes) |
  * | bornes | 0 à 2 essais et 30 s d'attente, comme `api/schemas/tool.py` |
  * | écran | le bloc montre les quatre cas du tableau 5.1 et l'aperçu délai × essais |
- * | aller-retour | la vraie page de l'outil : ouverte sur un outil à 2 essais, elle ne perd aucune clé à l'enregistrement et envoie les essais choisis |
+ * | aller-retour | la vraie fenêtre de l'outil (onglet Requête, SE-22) : ouverte sur un outil à 2 essais, elle ne perd aucune clé à l'enregistrement et envoie les essais choisis |
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,7 +17,9 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ATTENTE_MAX_S,casRelances, chargeEssais, delaiTotalS, ESSAIS_MAX, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "./essais-outil";
+import { FournisseurLangue } from "../langue/langue";
 import { EssaisOutilHttp } from "./EssaisOutilHttp";
+import { FenetreOutil } from "./FenetreOutil";
 
 vi.mock("@/components/ui/select", () => import("../reglages-agent/references/select-natif"));
 
@@ -131,35 +133,44 @@ const OUTIL = {
     },
 };
 
-describe("[.mark] essais d'un outil : la vraie page", () => {
+describe("[.mark] essais d'un outil : la vraie fenêtre", () => {
     it("opens a tool with its tries, keeps them on save, and sends the ones chosen", async () => {
-        m.outil = OUTIL;
-        const { default: PageOutil } = await import("@/app/tools/[toolUuid]/page");
-        render(<PageOutil />);
+        const apres = vi.fn();
+        render(
+            <FournisseurLangue>
+                <FenetreOutil outil={OUTIL as never} fermer={vi.fn()} apresEcriture={apres} />
+            </FournisseurLangue>,
+        );
+        fireEvent.click(await screen.findByRole("tab", { name: "Requête" }));
         await waitFor(() => expect(document.getElementById("outil_essais")).not.toBeNull());
         const selecteur = document.getElementById("outil_essais") as HTMLSelectElement;
         expect(selecteur.value).toBe("2");
         expect((document.getElementById("outil_attente_entre_essais") as HTMLInputElement).value).toBe("2.5");
         expect(document.getElementById("outil_sans_risque_de_doublon")?.getAttribute("aria-checked")).toBe("true");
         // 7 s × 3 + 2,5 s × 2 = 26 s au plus.
-        expect(document.querySelector('[data-ligne="delai-total"]')?.textContent).toContain("= 26 s at most");
+        expect(document.querySelector('[data-ligne="delai-total"]')?.textContent).toContain("= 26 s au plus");
+
+        // Changer le délai de l'outil recalcule l'aperçu (le champ « Délai » est celui de la même fenêtre).
+        fireEvent.change(screen.getByLabelText("Délai"), { target: { value: "1000" } });
+        expect(document.querySelector('[data-ligne="delai-total"]')?.textContent).toContain("= 8 s au plus");
+        fireEvent.change(screen.getByLabelText("Délai"), { target: { value: "7000" } });
 
         // Enregistrer sans toucher aux essais : les trois clés repartent telles quelles.
-        fireEvent.click(await screen.findByRole("button", { name: /save/i }));
+        fireEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
         await waitFor(() => expect(m.update).toHaveBeenCalledTimes(1));
         const config = m.update.mock.calls[0][0].body.definition.config;
         expect(config).toMatchObject({ timeout_ms: 7000, essais: 2, attente_entre_essais_s: 2.5, sans_risque_de_doublon: true });
 
         // Les essais choisis partent ; un essai à 0 n'écrit plus rien (le défaut est le comportement d'avant).
         m.update.mockClear();
-        fireEvent.change(selecteur, { target: { value: "0" } });
+        fireEvent.change(document.getElementById("outil_essais") as HTMLSelectElement, { target: { value: "0" } });
         fireEvent.click(document.getElementById("outil_sans_risque_de_doublon") as HTMLElement);
-        fireEvent.click(await screen.findByRole("button", { name: /save/i }));
+        fireEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
         await waitFor(() => expect(m.update).toHaveBeenCalledTimes(1));
-        const apres = m.update.mock.calls[0][0].body.definition.config;
-        expect(apres.essais).toBeUndefined();
-        expect(apres.attente_entre_essais_s).toBeUndefined();
-        expect(apres.sans_risque_de_doublon).toBeUndefined();
-        expect(apres.timeout_ms).toBe(7000);
+        const fin = m.update.mock.calls[0][0].body.definition.config;
+        expect(fin.essais).toBeUndefined();
+        expect(fin.attente_entre_essais_s).toBeUndefined();
+        expect(fin.sans_risque_de_doublon).toBeUndefined();
+        expect(fin.timeout_ms).toBe(7000);
     }, 30000);
 });

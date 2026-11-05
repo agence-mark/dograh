@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
@@ -123,7 +124,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
             ]);
             setLogiciels(l?.data ?? []);
             if (!r || r.error || !r.data) {
-                setErreur(echecAffiche(r?.error));
+                setErreur(echecAffiche(r?.error, ECHECS.verificationLogiciels));
                 return;
             }
             setEnregistre(r.data);
@@ -161,7 +162,7 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
         const r = await putVerificationAppelantApiV1OrganizationsVerificationAppelantPut({ body: charge_utile_verification(brouillon) });
         setEnCours(false);
         if (r.error || !r.data) {
-            setErreur(echecAffiche(r.error));
+            setErreur(echecAffiche(r.error, ECHECS.verificationEnregistrer));
             return;
         }
         setEnregistre(r.data);

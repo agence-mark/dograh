@@ -18,6 +18,7 @@ import type { Element as ElementBibliotheque } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { dateCourte, type StatutDeLaBibliotheque,STATUTS } from "./libelles";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
 
@@ -42,7 +43,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
 
     const apres = (reponse: { data?: ElementBibliotheque; error?: unknown }, secours: string) => {
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeChanger));
             return false;
         }
         setErreur(null);

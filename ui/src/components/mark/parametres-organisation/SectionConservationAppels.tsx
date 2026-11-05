@@ -21,6 +21,7 @@ import {
 import type { ReglagesConservationAppels, VueConservationAppels } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -57,7 +58,7 @@ export const useConservationAppels = () => {
     const lire = useCallback(async () => {
         const reponse = await getConservationDesAppelsApiV1OrganizationsConservationAppelsGet();
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.conservationLire));
             return;
         }
         if (!reponse.data) return;
@@ -82,7 +83,7 @@ export const useConservationAppels = () => {
         try {
             const reponse = await putConservationDesAppelsApiV1OrganizationsConservationAppelsPut({ body: brouillon });
             if (reponse.error || !reponse.data) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.conservationEnregistrer));
                 return false;
             }
             setVue(reponse.data);

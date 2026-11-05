@@ -8,6 +8,8 @@ import { useState } from "react";
 
 import { noterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPost } from "@/client";
 import { useLangue } from "@/components/mark/langue/langue";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 
 import { CRITERES, dateCourte, ORIGINES_DE_TEST, STATUTS_DE_TEST } from "./libelles";
@@ -58,10 +60,14 @@ export function DetailDunTest({ workflowId, test, resultats, onObligatoire, onSu
 
     const noter = async (i: number, ok: boolean) => {
         if (!execution) return;
-        await noterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPost({
+        const r = await noterLeJugeApiV1BuilderTestsWorkflowIdJugeNotesPost({
             path: { workflow_id: workflowId },
             body: { identifiant: `${test.slug}:${execution.le}:${i}`, ok },
         });
+        if (r.error) {
+            setNote(echecAffiche(r.error, ECHECS.jugeNoter));
+            return;
+        }
         setNote(t({ en: "Noted: it calibrates the judge.", fr: "Noté : cela calibre le juge." }));
     };
 

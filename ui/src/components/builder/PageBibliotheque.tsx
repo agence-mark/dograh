@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ColonneDesFamilles } from "./ColonneDesFamilles";
 import { FenetreElement } from "./FenetreElement";
 import { FenetreNouvelElement } from "./FenetreNouvelElement";
@@ -86,7 +87,7 @@ export function PageBibliotheque() {
     const chargerLesFamilles = useCallback(async () => {
         const reponse = await listerLesFamillesApiV1BuilderBibliothequeFamillesGet();
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeFamilles));
             return;
         }
         setFamilles(reponse.data);
@@ -147,7 +148,7 @@ export function PageBibliotheque() {
             },
         });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeParcourir));
             return;
         }
         setErreur(null);
@@ -166,7 +167,7 @@ export function PageBibliotheque() {
             lireLUtilisationApiV1BuilderBibliothequeFamilleSlugUtilisationGet({ path: { famille: f, slug } }),
         ]);
         if (element.error || !element.data) {
-            setErreur(echecAffiche(element.error));
+            setErreur(echecAffiche(element.error, ECHECS.bibliothequeUtilisation));
             return;
         }
         setDetail(element.data);

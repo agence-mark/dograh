@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -161,7 +162,7 @@ export const CreateurVariable = ({
                 ? await putObjetApiV1OrganizationsObjetsObjetIdPut({ path: { objet_id: objet.id }, body: envoye })
                 : await postObjetApiV1OrganizationsObjetsPost({ body: envoye });
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.objetCreer));
                 return;
             }
             notifier.succes({ fr: "Variable enregistrée.", en: "Variable saved." });
@@ -179,7 +180,7 @@ export const CreateurVariable = ({
         try {
             const reponse = await deleteObjetApiV1OrganizationsObjetsObjetIdDelete({ path: { objet_id: objet.id } });
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.objetSupprimer));
                 return;
             }
             notifier.succes({ fr: "Variable supprimée.", en: "Variable deleted." });

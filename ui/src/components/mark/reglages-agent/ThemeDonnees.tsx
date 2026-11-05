@@ -874,6 +874,12 @@ export const ThemeDonnees = ({
                     cle="transcript_configuration.include_end_timestamps"
                     idControle="transcript-end-timestamps-enabled"
                     libelle={{ en: "Enhanced Timestamped Transcript", fr: "Transcription horodatée enrichie" }}
+                    aides={[
+                        {
+                            en: "On: each line of the transcript carries its start and end time. Off: the start time only. Applies to the transcript kept with the call.",
+                            fr: "Allumé : chaque réplique porte son heure de début et son heure de fin. Éteint : l'heure de début seulement. Vaut pour la transcription gardée avec l'appel.",
+                        },
+                    ]}
                     disposition="ligne"
                 >
                     <Switch id="transcript-end-timestamps-enabled" checked={horodatee} onCheckedChange={setHorodatee} />
@@ -912,7 +918,16 @@ export const ThemeDonnees = ({
                         fr: "Recopie, si besoin, les valeurs recueillies dans les champs du standard avant un transfert ou un raccrochage.",
                     }}
                 >
-                    <ChampReglage cle="external_pbx_field_mappings" libelle={{ en: "Field Mappings", fr: "Correspondance des champs" }}>
+                    <ChampReglage
+                        cle="external_pbx_field_mappings"
+                        libelle={{ en: "Field Mappings", fr: "Correspondance des champs" }}
+                        aides={[
+                            {
+                                en: "Which value gathered during the call goes into which field of the external PBX, copied just before a transfer or a hang-up.",
+                                fr: "Quelle valeur recueillie pendant l'appel va dans quel champ du standard externe, recopiée juste avant un transfert ou un raccrochage.",
+                            },
+                        ]}
+                    >
                         <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
                             <span>
                                 {correspondances.length} {t({ en: "mappings", fr: "correspondances" })}

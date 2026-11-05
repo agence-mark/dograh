@@ -21,6 +21,7 @@ import type { CasesDUneValeur, ListesValeurs, ValeurDeListe } from "@/client/typ
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { Intertitre } from "../ecran/Intertitre";
@@ -61,7 +62,7 @@ export const useListesValeurs = (actif: boolean) => {
         void (async () => {
             const reponse = await getListesValeursApiV1OrganizationsListesValeursGet();
             if (reponse.error) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.listesValeursLire));
                 return;
             }
             if (reponse.data) poser(reponse.data);
@@ -92,7 +93,7 @@ export const useListesValeurs = (actif: boolean) => {
         try {
             const reponse = await putListesValeursApiV1OrganizationsListesValeursPut({ body: { valeurs } });
             if (reponse.error || !reponse.data) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.listesValeursEnregistrer));
                 return;
             }
             poser(reponse.data);

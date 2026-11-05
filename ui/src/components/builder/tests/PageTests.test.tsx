@@ -9,6 +9,8 @@
  *     from a call)? Does the call page's button list the caller's replies? Does the history offer the way back? Does the
  *     « To triage » line assign, set the origin and show where it leads? Does a recipe list its agents and prepare drafts?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -167,7 +169,7 @@ describe("le formulaire d'un nouveau test", () => {
         fireEvent.click(bouton);
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.testCreer));
             expect(affiche).not.toContain("looks real");
         }
     });

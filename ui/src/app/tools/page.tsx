@@ -16,6 +16,7 @@ import { CredentialSelector } from "@/components/http";
 import { ChampsCreationIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import type { ConfigIntegration } from "@/components/mark/connecteurs/useConnecteurs";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -217,7 +218,7 @@ export default function ToolsPage() {
             });
 
             if (response.error) {
-                setCreateError(echecAffiche(response.error));
+                setCreateError(echecAffiche(response.error, ECHECS.outilCreer));
                 return;
             }
 
@@ -234,7 +235,7 @@ export default function ToolsPage() {
                 router.push(`/tools/${response.data.tool_uuid}`);
             }
         } catch (err: unknown) {
-            setCreateError(echecAffiche(err));
+            setCreateError(echecAffiche(err, ECHECS.outilCreer));
             console.error("Error creating tool:", err);
         } finally {
             setIsCreating(false);

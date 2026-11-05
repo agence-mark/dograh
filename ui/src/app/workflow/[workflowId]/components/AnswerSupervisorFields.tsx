@@ -4,6 +4,7 @@ import { listRecordingsApiV1WorkflowRecordingsGet } from "@/client/sdk.gen";
 import type { RecordingResponseSchema } from "@/client/types.gen";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,7 +78,7 @@ export function AnswerSupervisorFields({ value, onChange }: {
         listRecordingsApiV1WorkflowRecordingsGet({ query: {} }).then(response => {
             if (cancelled) return;
             if (response.error || !response.data) {
-                setError(echecAffiche(response.error));
+                setError(echecAffiche(response.error, ECHECS.enregistrementsListe));
                 return;
             }
             setRecordings(response.data.recordings);

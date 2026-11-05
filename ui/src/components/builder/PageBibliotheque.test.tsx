@@ -9,6 +9,8 @@
  *     refusal of the server shown as it comes? Do proposals need a reason to be refused? Does an import send its
  *     origin and show what changed? Is the page in the side menu?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -171,7 +173,7 @@ describe("[.mark] the Library page: the list", () => {
         render(<PageBibliotheque />);
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.bibliothequeParcourir));
             expect(affiche).not.toContain("not configured");
         }
     });
@@ -282,7 +284,7 @@ describe("[.mark] the Library page: families, sheets, labels, filing and drops",
         fireEvent.click(within(depot).getByRole("button", { name: "Drop as a Candidate" }));
         {
             const affiche = (await within(depot).findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.bibliothequeDeposerDocument));
             expect(affiche).not.toContain("Format not supported");
         }
     });
@@ -368,7 +370,7 @@ describe("[.mark] the Library page: one element", () => {
         fireEvent.click(within(detail).getByRole("button", { name: "Promote to Recipe" }));
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.bibliothequeChanger));
             expect(affiche).not.toContain("Only members of the .mark organization");
         }
     });

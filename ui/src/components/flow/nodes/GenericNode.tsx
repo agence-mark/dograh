@@ -34,6 +34,7 @@ import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
 import {
     PROPRIETE_DU_NOM,
     proprietesDeLaSection,
+    proprietesMasquees,
     type SectionNoeud,
     sectionsAMontrer,
 } from "@/components/mark/graphe/sections-noeud";
@@ -691,8 +692,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     // Chaque onglet n'existe que si le type de nœud porte des champs ou des blocs de ce sujet.
     const fenetre = (() => {
         if (!open || !spec) return null;
-        const masque =
-            type === "endCall" && estPrincipal && Array.isArray(values.fins) && values.fins.length > 0 ? ["prompt"] : [];
+        const masque = proprietesMasquees(type, { estPrincipal, fins: values.fins });
         const contexte = {
             tools: tools ?? [],
             documents: documents ?? [],

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
 import type { LigneDeTaux } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 
 const PERIODES = [7, 30] as const;
@@ -35,7 +36,7 @@ export function TauxDeSortieDImpasse({ agentChoisi, onChoisir, onAgents }: {
         const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours: demandee } });
         if (demandee !== periodeCourante.current) return;
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.triTaux));
             return;
         }
         setErreur(null);

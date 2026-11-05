@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 
@@ -63,7 +64,7 @@ interface SectionHorairesOuvertureProps {
 
 // FastAPI prefixes a validator's message; the line number is what matters.
 const messageLisible = (erreur: unknown): string => {
-    const brut = phraseEchec(erreur);
+    const brut = phraseEchec(erreur, ECHECS.horairesEnregistrer);
     // Several refusals come joined by line breaks: strip the prefix on each.
     return brut.replace(/^Value error,\s*/gm, "");
 };

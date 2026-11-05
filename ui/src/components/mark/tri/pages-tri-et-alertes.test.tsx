@@ -9,6 +9,8 @@
  *     Does an alert tell whether it was mailed, not mailed (kept here) or already notified?
  *     Do the pages of the menu carry their title, and the sidebar its two entries?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -111,7 +113,7 @@ describe("[.mark] the « To triage » page", () => {
         fireEvent.change(screen.getAllByLabelText("Statut")[0], { target: { value: "fusionné" } });
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.triStatut));
             expect(affiche).not.toContain("Flag not found");
         }
         expect((screen.getAllByLabelText("Statut")[0] as HTMLSelectElement).value).toBe("ouvert");

@@ -12,6 +12,7 @@ import type { Texte } from "@/components/mark/langue/langue";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useBuilderEcran } from "../store";
 import { Carte } from "./Carte";
 
@@ -52,7 +53,7 @@ export function CarteBase({ workflowId }: { workflowId: number }) {
         const reponse = valider
             ? await validerUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdValiderPost({ path: { workflow_id: workflowId, document_id: id } })
             : await rejeterUnDocumentDeBaseApiV1BuilderBaseWorkflowIdDocumentIdRejeterPost({ path: { workflow_id: workflowId, document_id: id }, body: {} });
-        if (reponse.error) setErreur(echecAffiche(reponse.error));
+        if (reponse.error) setErreur(echecAffiche(reponse.error, ECHECS.builderDecisionDocument));
         await rafraichir(workflowId);
     };
 

@@ -31,6 +31,7 @@ import {
 import { ConfigOutilIntegration, EnteteOutilIntegration } from "@/components/mark/connecteurs/ConfigOutilIntegration";
 import { type ConfigIntegration, useConnecteurs } from "@/components/mark/connecteurs/useConnecteurs";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { chargeEssais, ESSAIS_PAR_DEFAUT, type EssaisOutil, lireEssais } from "@/components/mark/outils/essais-outil";
 import { EssaisOutilHttp } from "@/components/mark/outils/EssaisOutilHttp";
 import { Button } from "@/components/ui/button";
@@ -840,7 +841,7 @@ export default function ToolDetailPage() {
             });
 
             if (response.error) {
-                setError(echecAffiche(response.error));
+                setError(echecAffiche(response.error, ECHECS.outilEnregistrer));
                 return;
             }
 

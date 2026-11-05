@@ -19,6 +19,7 @@ import type { ResultatReprise } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 const SUJETS: Record<"fiche" | "rendez_vous" | "agent", Texte> = {
@@ -40,7 +41,7 @@ export function ModaleReprise({ ouverte, onFermer }: { ouverte: boolean; onFerme
         const reponse = await repriseDesFichesApiV1OrganizationsEtablissementsReprisePost({ body: { ecrire } });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.fichesReprise));
             return;
         }
         setEssai(reponse.data);

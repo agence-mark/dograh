@@ -16,6 +16,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { dateCourte, TYPES_DE_PROPOSITION } from "./libelles";
 
 const CHAMP = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
@@ -30,7 +31,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
     const charger = useCallback(async () => {
         const reponse = await listerLesPropositionsApiV1BuilderBibliothequePropositionsGet({ query: { etat: "en_attente" } });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.propositionsListe));
             return;
         }
         setErreur(null);
@@ -48,7 +49,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: description ? { banc: { description } } : {},
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.propositionAccepter));
             return;
         }
         await charger();
@@ -61,7 +62,7 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: { motif: (motif[p.id] ?? "").trim() },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.propositionRefuser));
             return;
         }
         await charger();

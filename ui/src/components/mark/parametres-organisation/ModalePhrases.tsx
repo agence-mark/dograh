@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const PHRASES_ENREGISTREES: Texte = { en: "Sentences saved", fr: "Phrases enregistrées" };
@@ -153,7 +154,7 @@ export function ModalePhrases({
         void (async () => {
             const reponse = await getPhrasesApiV1OrganizationsPhrasesGet();
             if (reponse.error || !reponse.data) {
-                setErreur(echecAffiche(reponse.error));
+                setErreur(echecAffiche(reponse.error, ECHECS.phrasesLire));
                 return;
             }
             setListe(reponse.data.phrases ?? []);
@@ -181,7 +182,7 @@ export function ModalePhrases({
         const reponse = await savePhrasesApiV1OrganizationsPhrasesPut({ body: charge_utile_phrases(liste) });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.phrasesEnregistrer));
             return;
         }
         notifier.succes({ fr: "Phrases enregistrées.", en: "Phrases saved." });

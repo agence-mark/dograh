@@ -22,6 +22,7 @@ import { createToolApiV1ToolsPost, getWorkflowsSummaryApiV1WorkflowSummaryGet } 
 import type { CreateToolRequest, ToolResponse } from "@/client/types.gen";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ChampsCreationIntegration } from "../connecteurs/ConfigOutilIntegration";
 import type { ConfigIntegration } from "../connecteurs/useConnecteurs";
 import { useLangue } from "../langue/langue";
@@ -95,7 +96,7 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
         setEnCours(true);
         const r = await createToolApiV1ToolsPost({ body: corps });
         setEnCours(false);
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error));
+        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.outilCreer));
         cree(r.data);
         notifier.succes({ fr: "Outil créé.", en: "Tool created." });
     };

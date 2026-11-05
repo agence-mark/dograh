@@ -10,6 +10,7 @@ import {
 } from "@/client";
 import type { RecordingUploadResponseSchema } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -269,7 +270,7 @@ export const RecordingsUploadDialog = ({
             onUploadComplete?.();
             onOpenChange(false);
         } catch (err) {
-            setError(echecAffiche(err));
+            setError(echecAffiche(err, ECHECS.enregistrementCreer));
         } finally {
             setUploading(false);
         }

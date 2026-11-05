@@ -10,6 +10,7 @@
  *     Les fonctions d'avant (bandeau de publication, raison sur la réplique fautive, diagnostic, avis du juge, retour arrière,
  *     export) sont-elles toutes gardées ?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -185,7 +186,7 @@ describe("la liste de l'onglet", () => {
     it("montre l'erreur du serveur telle qu'elle vient", async () => {
         m.liste.mockResolvedValue({ error: { detail: "Workflow not found" } });
         render(<PageTests workflowId={42} />);
-        expect((await screen.findByRole("alert")).textContent).toBe("That did not work. Try again.");
+        expect((await screen.findByRole("alert")).textContent).toBe(ECHECS.testsListe.en);
     });
 });
 

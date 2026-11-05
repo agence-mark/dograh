@@ -27,6 +27,7 @@ import type { RapportSerie, ReglagesAppelantSimule, ScenarioSimule, SerieSimulee
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 import { DirectAppelSimule } from "./DirectAppelSimule";
 import { ETATS_SERIE, ModaleRapportSeries } from "./ModaleRapportSeries";
@@ -71,7 +72,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         ]);
         const faute = s.error ?? r.error ?? l.error;
         if (faute) {
-            setErreur(echecAffiche(faute));
+            setErreur(echecAffiche(faute, ECHECS.appelSimuleCharger));
             return;
         }
         setScenarios((s.data as ScenarioSimule[]) ?? []);
@@ -122,7 +123,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeLancer));
             return;
         }
         suivie.current = (reponse.data as SerieSimulee).id;
@@ -135,7 +136,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         const reponse = await arreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPost({
             path: { serie_id: rapport.serie.id },
         });
-        if (reponse.error) setErreur(echecAffiche(reponse.error));
+        if (reponse.error) setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeArreter));
         else await lireRapport();
     };
 

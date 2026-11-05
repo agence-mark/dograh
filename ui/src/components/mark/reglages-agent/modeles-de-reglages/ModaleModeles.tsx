@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../../langue/langue";
 import { Info } from "../../studio/marques";
 import { CadreModale } from "../phrases/cadre";
@@ -225,7 +226,7 @@ export const ModaleModeles = ({
             mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet({ path: { workflow_id: workflowId } }),
         ]);
         if (modeles.error || !modeles.data) {
-            setErreur(echecAffiche(modeles.error));
+            setErreur(echecAffiche(modeles.error, ECHECS.modelesListe));
             return;
         }
         setErreur(null);
@@ -410,7 +411,7 @@ export const ModaleModeles = ({
                             <Info>
                                 {t({
                                     en: "The templates are the library's, shared by every space. Their status (candidate, proven, rejected) is set from the library.",
-                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, recette, rejeté) se règle depuis la bibliothèque.",
+                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, éprouvé, rejeté) se règle depuis la bibliothèque.",
                                 })}
                             </Info>
                         </h3>
@@ -575,7 +576,7 @@ const VueApplication = ({
                 body: { workflow_id: workflowId, sections: cochees, a_blanc: true },
             });
             if (annule) return;
-            if (reponse.error || !reponse.data) setRefus(echecAffiche(reponse.error));
+            if (reponse.error || !reponse.data) setRefus(echecAffiche(reponse.error, ECHECS.modeleAppliquer));
             else setApercu(reponse.data);
         })();
         return () => {

@@ -19,6 +19,7 @@ import { ORIGINES_DE_TRI } from "@/components/builder/tests/libelles";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 import { CATEGORIES, motifLisible, STATUTS, TYPES_DE_SIGNALEMENT } from "./libelles";
 import { TauxDeSortieDImpasse } from "./TauxDeSortieDImpasse";
@@ -59,7 +60,7 @@ export function PageATrier() {
     const charger = useCallback(async () => {
         const reponse = await lireLaFileDeTriApiV1TriGet({ query: { page, workflow_id: agent === "" ? undefined : agent, origine: origine === "" ? undefined : origine } });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.triLire));
             return;
         }
         const donnees = reponse.data;
@@ -86,7 +87,7 @@ export function PageATrier() {
             body: { identifiant: ligne.id, ...changement },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.triStatut));
             return;
         }
         setLignes((avant) => (avant ?? []).map((l) => (l.run_id === ligne.run_id && l.id === ligne.id ? { ...l, ...changement } : l)));
@@ -98,7 +99,7 @@ export function PageATrier() {
             body: { identifiant: ligne.id, statut },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.triStatut));
             return;
         }
         setLignes((avant) => (avant ?? []).map((l) => (l.run_id === ligne.run_id && l.id === ligne.id ? { ...l, statut } : l)));

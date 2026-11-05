@@ -20,6 +20,8 @@
  * last tests render the pages themselves.
  */
 
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -239,7 +241,7 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             error: { detail: "The trade vocabulary saved for this organization cannot be read." },
         });
         render(<SectionLexiqueMetier />);
-        await screen.findByText(/That did not work/);
+        await screen.findByText(phraseAttendue(ECHECS.lexiqueLire));
         expect(document.body.textContent).toMatch(/Saving is disabled/i);
         // Ni ouvrir la modale, ni importer : les deux mènent à un remplacement.
         expect(

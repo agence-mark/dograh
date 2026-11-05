@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createCredentialApiV1CredentialsPost } from "@/client";
 import { CredentialResponse, WebhookCredentialType } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -110,7 +111,7 @@ export function CreateCredentialDialog({
             }
         } catch (err) {
             console.error("Failed to create credential:", err);
-            setError(echecAffiche(err));
+            setError(echecAffiche(err, ECHECS.identifiantCreer));
         } finally {
             setIsCreating(false);
         }

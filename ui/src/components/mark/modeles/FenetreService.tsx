@@ -23,6 +23,7 @@ import { validateUserConfigurationsApiV1UserConfigurationsUserValidateGet } from
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm, type ServiceSegment } from "@/components/ServiceConfigurationForm";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { notifier } from "@/components/mark/notifications/notifier";
 import type { ModelOverrides } from "@/types/workflow-configurations";
 
@@ -84,7 +85,7 @@ export function FenetreService(props: FenetreServiceProps) {
                 query: { validity_ttl_seconds: 0 },
             });
             if (reponse.error) {
-                setEssai({ etat: "echec", message: echecAffiche(reponse.error) });
+                setEssai({ etat: "echec", message: echecAffiche(reponse.error, ECHECS.modelesValider) });
                 return;
             }
             // Le fork rend une ligne par service dont la clé ou le modèle est refusé ; une liste vide = tout est bon.
@@ -95,7 +96,7 @@ export function FenetreService(props: FenetreServiceProps) {
                 setEssai({ etat: "echec", message: t(T.refus) });
             } else setEssai({ etat: "ok" });
         } catch (e) {
-            setEssai({ etat: "echec", message: echecAffiche(e) });
+            setEssai({ etat: "echec", message: echecAffiche(e, ECHECS.modelesValider) });
         }
     };
 

@@ -51,7 +51,7 @@ const FR: Record<string, Fr> = {
             "Un petit modèle à part, interrogé quand l'appelant finit de parler, qui dit quelle sortie (s'il y en a une) ses mots appellent. La réponse de l'agent l'attend (de façon bornée) ; quand il est sûr, l'étape suivante répond aussitôt. Vide : éteint, sauf sur une étape Choix ou Libre.",
     },
     seuil_de_l_arbitre: { libelle: "Seuil de confiance de l'arbitre", explication: "La confiance minimale à laquelle le choix de l'arbitre est pris (de 0 à 1). 0,8 par défaut." },
-    allow_interrupt: { libelle: "L'appelant peut couper la parole", explication: "Allumé, l'appelant peut interrompre l'agent en pleine phrase. Éteint pour les mentions qui doivent être dites en entier." },
+    allow_interrupt: { libelle: "L'appelant peut couper la parole", explication: "Allumé, l'appelant peut interrompre l'agent en pleine phrase. Éteint pour les mentions qui doivent être dites en entier. L'agent peut l'annuler : une protection allumée dans ses réglages (« Pendant la phrase d'accueil », « Pendant qu'un outil tourne »…) l'emporte." },
     add_global_prompt: { libelle: "Ajouter le prompt général", explication: "Allumé et s'il existe un nœud Global, son texte est placé avant le prompt de cette étape à l'appel." },
     extraction_enabled: { libelle: "Extraire des variables à la fin de l'étape", explication: "Allumé, un passage du modèle extrait des variables de la conversation pour cette étape." },
     extraction_prompt: { libelle: "Consigne d'extraction", explication: "Les consignes générales qui guident l'extraction des variables." },
@@ -68,7 +68,7 @@ const FR: Record<string, Fr> = {
     },
     greeting: { libelle: "Texte de l'accueil", explication: "Dit par la voix au début de l'appel. Accepte les variables {{…}}. Vide : pas d'accueil." },
     greeting_recording_id: { libelle: "Enregistrement de l'accueil", explication: "Le fichier audio joué au début de l'appel." },
-    delayed_start: { libelle: "Démarrage différé", explication: "Règle la fenêtre d'écoute initiale pour les appels sortants (messagerie, filtrage). Un court bonjour humain peut la raccourcir." },
+    delayed_start: { libelle: "Démarrage différé", explication: "Règle la fenêtre d'écoute initiale pour les appels sortants (messagerie, filtrage). Un court bonjour humain peut la raccourcir. Sans effet tant que la messagerie vocale n'est pas allumée sur l'agent (thème Établissement)." },
     delayed_start_duration: { libelle: "Durée du délai (secondes)", explication: "Secondes d'écoute d'un décrochage silencieux avant de parler, de 0,1 à 10. Remplace la fenêtre de 1,2 s par défaut." },
     pre_call_fetch_mode: {
         libelle: "Données avant l'appel",

@@ -10,6 +10,8 @@
  * | refus | le refus de la base (type, ligne vide, plafond) est montré, la modale reste ouverte |
  * | cadenas | une colonne posée par .mark porte le cadenas, celle du client non |
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -155,7 +157,7 @@ describe("The variable creator", () => {
         fireEvent.click(screen.getByTestId("enregistrer-objet"));
         {
             const affiche = (await screen.findByTestId("erreur-objet")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.objetCreer));
             expect(affiche).not.toContain("oui_non");
         }
         expect(fermer).not.toHaveBeenCalled();

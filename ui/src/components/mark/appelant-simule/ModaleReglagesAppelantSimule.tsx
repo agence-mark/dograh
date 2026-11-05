@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { SelecteurCle } from "../cles/FenetreCles";
 import { type Texte, useLangue } from "../langue/langue";
 import { Info } from "../studio/marques";
@@ -263,7 +264,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
             if (annule) return;
             if (!suivi.error && suivi.data) setDepense(suivi.data);
             if (reglages.error) {
-                setErreur(echecAffiche(reglages.error));
+                setErreur(echecAffiche(reglages.error, ECHECS.appelSimuleDepense));
                 return;
             }
             setBrouillon(completer(reglages.data as ReglagesAppelantSimule));
@@ -284,7 +285,7 @@ export function ModaleReglagesAppelantSimule({ ouverte, onFermer }: { ouverte: b
         const reponse = await saveReglagesAppelantSimuleApiV1AppelSimuleReglagesPut({ body: brouillon });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.appelantSimuleEnregistrer));
             return;
         }
         notifier.succes({ fr: "Réglages de l'appelant simulé enregistrés.", en: "Simulated caller settings saved." });

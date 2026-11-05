@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 import {
     DEFAULT_VOICEMAIL_DETECTION_CONFIGURATION,
@@ -254,7 +255,7 @@ export const ThemeEtablissement = ({
             await onSave({ ...resolue, adresse_etablissement: null }, workflowName);
             notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
-            const message = phraseEchec(e);
+            const message = phraseEchec(e, ECHECS.adresseEnregistrer);
             setErreurAdresse(message);
             notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` }, { erreur: e });
         } finally {

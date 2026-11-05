@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { OptionsDeConstruction } from "./OptionsDeConstruction";
 
 const T = {
@@ -97,7 +98,7 @@ export function ReglagesDuBuilder({ ouvert, onOuvertChange }: { ouvert: boolean;
         });
         if (reponse.error) {
             setOccupe(false);
-            setErreur(echecAffiche(reponse.error));
+            setErreur(echecAffiche(reponse.error, ECHECS.builderCerveau));
             return;
         }
         await ecrireLesPreferencesApiV1BuilderPreferencesPut({ body: { texte: preferences } });

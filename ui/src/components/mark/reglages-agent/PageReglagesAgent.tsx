@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
 import { useBrouillonLocal } from "@/components/mark/agent/brouillon-local";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { fetchModelConfigurationPricing } from "@/lib/modelConfigurationPricing";
 import { resolveWorkflowConfigurations, type WorkflowConfigurations } from "@/types/workflow-configurations";
 
@@ -281,12 +282,12 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                 fetchModelConfigurationPricing(),
             ]);
             if (defaultsResult.error) {
-                setModelConfigurationError(echecAffiche(defaultsResult.error));
+                setModelConfigurationError(echecAffiche(defaultsResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }
             if (configurationResult.error) {
-                setModelConfigurationError(echecAffiche(configurationResult.error));
+                setModelConfigurationError(echecAffiche(configurationResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }

@@ -10,6 +10,7 @@ import {
 import type { DocumentResponseSchema } from '@/client/types.gen';
 import { notifier } from "@/components/mark/notifications";
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,7 +51,7 @@ export default function DocumentList({ refreshTrigger }: DocumentListProps) {
 
       setDocuments(response.data.documents);
     } catch (err) {
-      setError(echecAffiche(err));
+      setError(echecAffiche(err, ECHECS.documentsListe));
       logger.error('Error fetching documents:', err);
     } finally {
       setIsLoading(false);

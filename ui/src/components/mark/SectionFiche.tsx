@@ -488,7 +488,7 @@ export const EditeurChampsFiche = ({
                                         </Select>
                                     </div>
                                     <div className="space-y-1 md:col-span-2">
-                                        <Label className="text-xs">{t({ en: "Origin", fr: "Origine" })}</Label>
+                                        <Label className="text-xs">{t({ en: "Filled in by", fr: "Rempli par" })}</Label>
                                         <Select
                                             value={champ.origine}
                                             onValueChange={(v: ChampFiche["origine"]) => modifier(i, { origine: v })}

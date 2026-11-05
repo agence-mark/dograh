@@ -21,6 +21,7 @@ import type {
     TelephonyConfigurationListItem,
 } from '@/client/types.gen';
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -158,7 +159,7 @@ export const PhoneCallDialog = ({
             } catch (err) {
                 if (cancelled) return;
                 applyPreferences({});
-                setCallError(echecAffiche(err));
+                setCallError(echecAffiche(err, ECHECS.appelPreferences));
             }
         };
 
@@ -298,13 +299,13 @@ export const PhoneCallDialog = ({
             });
 
             if (response.error) {
-                setCallError(echecAffiche(response.error));
+                setCallError(echecAffiche(response.error, ECHECS.appelLancer));
             } else {
                 const msg = response.data && (response.data as unknown as { message: string }).message || "Call initiated successfully!";
                 setCallSuccessMsg(typeof msg === "string" ? msg : JSON.stringify(msg));
             }
         } catch (err: unknown) {
-            setCallError(echecAffiche(err));
+            setCallError(echecAffiche(err, ECHECS.appelLancer));
         } finally {
             setCallLoading(false);
         }

@@ -9,6 +9,8 @@
  *     result card of an action « not available yet » say so instead of showing it as done, and show the items of a
  *     result of any shape? Does the design document wait for approval?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -135,7 +137,7 @@ describe("la carte « Fiche client »", () => {
         fireEvent.click(screen.getByRole("button", { name: "Validate the sheet" }));
         {
             const affiche = (await screen.findByRole("alert")).textContent ?? "";
-            expect(affiche).toMatch(/That did not work|Cela n'a pas abouti/);
+            expect(affiche).toMatch(phraseAttendue(ECHECS.builderValiderFiche));
             expect(affiche).not.toContain("2 gap(s) are still open");
         }
     });
@@ -333,7 +335,7 @@ describe("la carte « Essai à valider » (revue R5)", () => {
         m.essai.mockResolvedValue({ error: { detail: "The test data looks real" } });
         render(<CarteResultat nomDeLAction="outil_essayer" resultat={ESSAI} workflowId={7} />);
         fireEvent.click(screen.getByRole("button", { name: "Run the trial" }));
-        await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/That did not work|Cela n'a pas abouti/));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(phraseAttendue(ECHECS.builderEssaiOutil)));
         await waitFor(() => expect(screen.getByRole("alert").textContent).not.toContain("looks real"));
         expect(screen.getByRole("button", { name: "Run the trial" })).toBeTruthy();
     });

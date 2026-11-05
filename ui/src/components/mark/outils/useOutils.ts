@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listToolsApiV1ToolsGet, statistiquesDesOutilsApiV1ToolsStatistiquesGet } from "@/client/sdk.gen";
 import type { ResumeOutil, ToolResponse } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 export function useOutils() {
@@ -24,7 +25,7 @@ export function useOutils() {
             statistiquesDesOutilsApiV1ToolsStatistiquesGet(),
         ]);
         if (liste.error || !liste.data) {
-            setErreur(echecAffiche(liste.error));
+            setErreur(echecAffiche(liste.error, ECHECS.outilsStatistiques));
             return;
         }
         setErreur(null);
