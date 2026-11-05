@@ -26,7 +26,7 @@ from api.services.installation_client.executants import identifiant as identifia
 router = APIRouter(prefix="/installations-client", tags=["installations-client"])
 
 
-class Phrase(BaseModel):
+class PhraseInstallation(BaseModel):
     fr: str
     en: str
 
@@ -34,18 +34,18 @@ class Phrase(BaseModel):
 class EtapeVue(BaseModel):
     numero: int
     cle: str
-    titre: Phrase
+    titre: PhraseInstallation
     passable: bool
     depense: bool
     etat: Literal["a_faire", "en_cours", "faite", "erreur", "passee"]
     le: datetime | None = None
     par: int | None = None
-    erreur: Phrase | None = None
+    erreur: PhraseInstallation | None = None
     code_erreur: str | None = None
     resultat: dict[str, Any] = Field(default_factory=dict)
 
 
-class Estimation(BaseModel):
+class EstimationInstallation(BaseModel):
     scenarios: int
     montant: float | None = None
     plafond: float | None = None
@@ -65,11 +65,11 @@ class InstallationVue(BaseModel):
     cree_le: datetime
     etapes: list[EtapeVue]
     prochaine: int | None = None
-    estimation: Estimation | None = None
+    estimation: EstimationInstallation | None = None
     agents_du_client: list[AgentDuClient] | None = None
 
 
-class Echec(BaseModel):
+class EchecInstallation(BaseModel):
     code: str
     fr: str
     en: str
@@ -78,7 +78,7 @@ class Echec(BaseModel):
 class ResultatEtape(BaseModel):
     installation: InstallationVue
     sautee: bool
-    echec: Echec | None = None
+    echec: EchecInstallation | None = None
     # Rendu une seule fois (étape 7 : la fiche du portail, avec la clé et le mot de passe), jamais rangé.
     montre: dict[str, Any] | None = None
 
