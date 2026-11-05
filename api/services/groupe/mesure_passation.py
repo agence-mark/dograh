@@ -39,6 +39,8 @@ CLE_PREMIER_MOT = "premier_mot_s"
 CLE_DECISION = "decision_s"  # début de la requête qui a décidé la passation -> demande
 CLE_COMMIT = "commit_s"  # demande -> l'agent appelé prend la main
 CLE_REQUETE_COLLEGUE = "requete_collegue_s"  # demande -> départ de la 1re requête du collègue
+# Builder partie 3, lot P : demande -> fin de l'annonce de l'accueil (le silence entendu après elle = premier son - ceci).
+CLE_ANNONCE_FINIE = "annonce_finie_s"
 
 
 class MesureDePassation:
@@ -125,6 +127,16 @@ class MesureDePassation:
             return
         self._decoupe[CLE_PREMIER_MOT] = round(self._horloge() - self._demande, 3)
         self._reporter()
+
+    def annonce_finie(self) -> None:
+        """L'annonce de l'accueil a fini d'être dite (une fois ; après le commit, l'enregistrement est complété)."""
+        try:
+            if self._demande is None or CLE_ANNONCE_FINIE in self._decoupe:
+                return
+            self._decoupe[CLE_ANNONCE_FINIE] = round(self._horloge() - self._demande, 3)
+            self._reporter()
+        except Exception as erreur:  # noqa: BLE001 -- une mesure ne coûte jamais l'appel
+            logger.warning(f"[transfer] fin d'annonce non datée : {erreur!r}")
 
     def commise(self) -> None:
         """L'agent appelé prend la main (``commit_agent``)."""

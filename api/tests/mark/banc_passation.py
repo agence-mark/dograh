@@ -91,6 +91,8 @@ class Delais:
     voix_premier_octet: float = 0.09
     annonce: float = 1.80
     drain: float = 0.05
+    # Le temps que l'annonce passe le pont de l'appel, entière (quelques trames en mémoire).
+    passage_du_pont: float = 0.01
     # La préparation du collègue (``PipecatEngine.build_agent`` et ``prepare_agent``).
     ecrivains_de_fond: float = 0.05
     sessions_mcp: float = 0.30
@@ -139,6 +141,7 @@ class _Parole:
 
     def __init__(self, fin: float) -> None:
         self._fin = fin
+        self.id = "parole-annonce"
 
     @property
     def done(self) -> bool:
@@ -299,9 +302,21 @@ class MoteurDeBanc:
         self.instants_annonce = (round(debut, 3), round(fin, 3))
         return _Parole(fin)
 
-    async def drain_call_pipeline(self, timeout: float = 5.0) -> bool:
+    async def attendre_le_passage_de_la_parole(
+        self, _parole, timeout: float = 2.0
+    ) -> bool:
         await self._geste(
-            "circuit de l'appel vidé", "PipecatEngine.drain_call_pipeline", self.d.drain
+            "annonce entière dans la voix de l'appel (passée par le pont)",
+            "PipecatEngine.attendre_le_passage_de_la_parole",
+            self.d.passage_du_pont,
+        )
+        return True
+
+    async def drain_call_pipeline(self, timeout: float = 5.0) -> bool:
+        # La sonde de vidage suit le son jusqu'à la sortie : elle attend la fin de ce que la voix dit encore.
+        duree = max(0.0, self._voix_libre - self.boucle.time()) + self.d.drain
+        await self._geste(
+            "circuit de l'appel vidé", "PipecatEngine.drain_call_pipeline", duree
         )
         return True
 
@@ -547,7 +562,7 @@ def jouer(
     mcp: bool = True,
     groupe: bool = True,
     annonce: str | None = ANNONCE,
-    mcp_au_decroche: bool = False,
+    mcp_au_decroche: bool = True,
 ) -> Resultat:
     """Un jeu du banc, sur une boucle virtuelle neuve (déterministe)."""
     boucle = BoucleVirtuelle()
