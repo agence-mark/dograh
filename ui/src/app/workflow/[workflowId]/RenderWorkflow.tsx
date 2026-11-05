@@ -21,6 +21,7 @@ import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
+import { BandeauSelection, gestesDuGraphe } from "@/components/mark/graphe/gestes-graphe";
 import { FilGroupe, GroupeSurCanevas } from "@/components/mark/graphe/GroupeSurCanevas";
 import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
@@ -530,6 +531,11 @@ function RenderWorkflow({
         },
         [onNodesChange],
     );
+    // [.mark] T4 : annuler la sélection (Échap) ; lu dans le magasin au moment du geste, jamais pendant un rendu.
+    const annulerLaSelection = useCallback(() => {
+        const courants = useWorkflowStore.getState().nodes;
+        if (courants.some((n) => n.selected)) useWorkflowStore.getState().setNodes(courants.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    }, []);
     const panneauOuvert = builderOuvert || isTesterRailOpen;
     // [.mark] K2b : les panneaux de droite flottent sur tout le cadre du studio, barre d'agent comprise (maquette `superpose`) :
     // ils s'y posent par un portail ; sans cadre (test, autre page), ils restent dans la zone du canevas.
@@ -801,6 +807,7 @@ function RenderWorkflow({
                                 nodesConnectable={!isViewingHistoricalVersion}
                                 edgesReconnectable={!isViewingHistoricalVersion}
                                 zoomOnDoubleClick={false}
+                                {...gestesDuGraphe(isViewingHistoricalVersion)}
                                 deleteKeyCode={isViewingHistoricalVersion ? null : "Backspace"}
                             >
                                 <GroupeSurCanevas agentId={workflowId} />
@@ -814,6 +821,7 @@ function RenderWorkflow({
                             </ReactFlow>
 
                             <FilGroupe agentId={workflowId} />
+                            <BandeauSelection nombre={noeudsAffiches.filter((n) => n.selected).length} onAnnuler={annulerLaSelection} />
                             {/* [.mark] E36 : la barre flottante du canevas (prompt général, nœud, bibliothèque, zoom, ajuster, ranger) */}
                             <BarreCanevas
                                 lectureSeule={isViewingHistoricalVersion}

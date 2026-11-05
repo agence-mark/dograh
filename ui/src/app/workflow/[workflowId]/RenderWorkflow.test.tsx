@@ -44,8 +44,9 @@ vi.mock('@xyflow/react', () => ({
     Background: () => null,
     BackgroundVariant: { Dots: 'dots' },
     MarkerType: { ArrowClosed: 'arrowclosed' },
+    SelectionMode: { Partial: 'partial', Full: 'full' },
     Panel: ({ children }: { children: ReactNode }) => children,
-    ReactFlow: ({ nodesDraggable, children }: { nodesDraggable: boolean; children: ReactNode }) => <div data-testid="canvas" data-editable={nodesDraggable}>{children}</div>,
+    ReactFlow: ({ nodesDraggable, panOnDrag, selectionOnDrag, children }: { nodesDraggable: boolean; panOnDrag: number[]; selectionOnDrag: boolean; children: ReactNode }) => <div data-testid="canvas" data-editable={nodesDraggable} data-pan={JSON.stringify(panOnDrag)} data-select={String(selectionOnDrag)}>{children}</div>,
 }));
 vi.mock('./components/WorkflowEditorHeader', () => ({
     WorkflowEditorHeader: ({ versionNumber, onBackToDraft, saveWorkflow }: {
@@ -111,4 +112,13 @@ it('opens the window of a node on Enter (keyboard), as the double-click does, an
     expect(useOuvertureNoeud.getState().demande).toBeNull();
     fireEvent.keyDown(noeud, { key: 'Enter' });
     expect(useOuvertureNoeud.getState().demande?.id).toBe('7');
+});
+
+it('wires the gestures of the graph (T4): the middle button pans, the left button draws the selection; read-only on a past version', () => {
+    const { unmount } = render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    expect(screen.getByTestId('canvas').getAttribute('data-pan')).toBe('[1]');
+    expect(screen.getByTestId('canvas').getAttribute('data-select')).toBe('true');
+    unmount();
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} initialSelectedVersion={version(3, 'archived')} />);
+    expect(screen.getByTestId('canvas').getAttribute('data-select')).toBe('false');
 });
