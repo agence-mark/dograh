@@ -3509,6 +3509,34 @@ export type CompteurSms = {
 };
 
 /**
+ * CompteursEquipe
+ */
+export type CompteursEquipe = {
+    /**
+     * Clients
+     */
+    clients: Array<LigneCompteurs>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+    /**
+     * Totaux
+     */
+    totaux: {
+        [key: string]: number;
+    };
+};
+
+/**
  * ConnecteurVue
  */
 export type ConnecteurVue = {
@@ -6827,6 +6855,10 @@ export type EntreeCreee = {
      */
     jeton: string;
     /**
+     * Lien
+     */
+    lien: string;
+    /**
      * Expire Le
      */
     expire_le: string;
@@ -6914,6 +6946,10 @@ export type EntreeVerifiee = {
      * Motif
      */
     motif: string | null;
+    /**
+     * Adresse
+     */
+    adresse?: string | null;
 };
 
 /**
@@ -7651,17 +7687,71 @@ export type FichierDeModele = {
 };
 
 /**
+ * FilEquipe
+ */
+export type FilEquipe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number | null;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Cout
+     */
+    cout: number;
+    /**
+     * Changements
+     */
+    changements: number;
+    /**
+     * Auteur
+     */
+    auteur: string | null;
+    /**
+     * Genre
+     */
+    genre: string;
+    /**
+     * Modifie Le
+     */
+    modifie_le: unknown;
+};
+
+/**
  * FilIn
  */
 export type FilIn = {
     /**
      * Sorte
      */
-    sorte?: 'message' | 'demande_logiciel';
+    sorte?: 'message' | 'demande_logiciel' | 'signalement';
     /**
      * Sujet
      */
     sujet: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
     /**
      * Texte
      */
@@ -7728,6 +7818,18 @@ export type FilOut = {
      * Etat Demande
      */
     etat_demande: string | null;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+    /**
+     * Amelioration Id
+     */
+    amelioration_id?: number | null;
+    /**
+     * Ouvert Par
+     */
+    ouvert_par?: string | null;
     /**
      * Cree Le
      */
@@ -7806,6 +7908,14 @@ export type FilPortail = {
      */
     etat_demande: string | null;
     /**
+     * Run Id
+     */
+    run_id?: number | null;
+    /**
+     * Ouvert Par
+     */
+    ouvert_par?: string | null;
+    /**
      * Cree Le
      */
     cree_le: string;
@@ -7860,6 +7970,28 @@ export type FileMetadataResponse = {
     metadata: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * FilsEquipe
+ */
+export type FilsEquipe = {
+    /**
+     * Fils
+     */
+    fils: Array<FilEquipe>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
 };
 
 /**
@@ -7942,6 +8074,32 @@ export type GardeUrgence = {
      * Words or phrases of your own that also trigger it.
      */
     mots_en_plus?: Array<string>;
+};
+
+/**
+ * GesteVu
+ */
+export type GesteVu = {
+    /**
+     * Quand
+     */
+    quand: string;
+    /**
+     * Geste
+     */
+    geste: string;
+    /**
+     * Logiciel
+     */
+    logiciel: string;
+    /**
+     * Compte
+     */
+    compte?: string | null;
+    /**
+     * Auteur
+     */
+    auteur: string;
 };
 
 /**
@@ -8397,6 +8555,28 @@ export type HeritageReglagesResponse = {
     reglages: {
         [key: string]: ReglageHerite;
     };
+};
+
+/**
+ * HistoriqueDesGestes
+ */
+export type HistoriqueDesGestes = {
+    /**
+     * Gestes
+     */
+    gestes: Array<GesteVu>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Limit
+     */
+    limit: number;
 };
 
 /**
@@ -9707,6 +9887,86 @@ export type LigneAJuger = {
 };
 
 /**
+ * LigneAmeliorationEquipe
+ */
+export type LigneAmeliorationEquipe = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Titre
+     */
+    titre: string;
+    /**
+     * Critere
+     */
+    critere?: string | null;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Gravite
+     */
+    gravite: number;
+    /**
+     * Frequence
+     */
+    frequence: {
+        [key: string]: unknown;
+    };
+    /**
+     * Releve Par
+     */
+    releve_par: string;
+    /**
+     * Cause
+     */
+    cause?: string | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Origine
+     */
+    origine?: string | null;
+    /**
+     * Origine Suggeree
+     */
+    origine_suggeree: string;
+    /**
+     * Assigne
+     */
+    assigne?: number | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Derniere Le
+     */
+    derniere_le?: string | null;
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+};
+
+/**
  * LigneCompte
  */
 export type LigneCompte = {
@@ -9726,6 +9986,48 @@ export type LigneCompte = {
      * Code
      */
     code?: string | null;
+};
+
+/**
+ * LigneCompteurs
+ */
+export type LigneCompteurs = {
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+    /**
+     * Espace
+     */
+    espace: 'labo' | 'client';
+    /**
+     * Agents
+     */
+    agents: number;
+    /**
+     * Agents Publies
+     */
+    agents_publies: number;
+    /**
+     * Appels 7J
+     */
+    appels_7j: number;
+    /**
+     * Note
+     */
+    note: number | null;
+    /**
+     * Signalements
+     */
+    signalements: number;
+    /**
+     * Pannes
+     */
+    pannes: number;
 };
 
 /**
@@ -12711,6 +13013,30 @@ export type OutilsDeLAgent = {
 };
 
 /**
+ * PageAmeliorationsEquipe
+ */
+export type PageAmeliorationsEquipe = {
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneAmeliorationEquipe>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * A Une Suite
+     */
+    a_une_suite: boolean;
+    /**
+     * Compteurs
+     */
+    compteurs: {
+        [key: string]: number;
+    };
+};
+
+/**
  * PageDAlertes
  */
 export type PageDAlertes = {
@@ -14008,6 +14334,144 @@ export type PublierGroupeResponse = {
      */
     deja_a_jour?: Array<number>;
     refus?: RefusOutput | null;
+};
+
+/**
+ * QualiteEquipe
+ */
+export type QualiteEquipe = {
+    /**
+     * Jours
+     */
+    jours: number;
+    /**
+     * Mondial
+     */
+    mondial: {
+        [key: string]: unknown;
+    };
+    /**
+     * Motifs
+     */
+    motifs: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Par Client
+     */
+    par_client: Array<QualiteParClient>;
+    /**
+     * Agents
+     */
+    agents: Array<QualiteParAgent>;
+    /**
+     * Total Agents
+     */
+    total_agents: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * QualiteParAgent
+ */
+export type QualiteParAgent = {
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+    /**
+     * Appels
+     */
+    appels: number;
+    /**
+     * Juges
+     */
+    juges: number;
+    /**
+     * Note
+     */
+    note: number | null;
+    /**
+     * Part Issue
+     */
+    part_issue: number | null;
+    /**
+     * Part Transferts
+     */
+    part_transferts: number | null;
+    /**
+     * Part Raccroches
+     */
+    part_raccroches: number | null;
+    /**
+     * Reponse Mediane
+     */
+    reponse_mediane: number | null;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Nom
+     */
+    workflow_nom: string;
+    /**
+     * Version
+     */
+    version: number | null;
+};
+
+/**
+ * QualiteParClient
+ */
+export type QualiteParClient = {
+    /**
+     * Organization Id
+     */
+    organization_id: number;
+    /**
+     * Organization Nom
+     */
+    organization_nom: string;
+    /**
+     * Appels
+     */
+    appels: number;
+    /**
+     * Juges
+     */
+    juges: number;
+    /**
+     * Note
+     */
+    note: number | null;
+    /**
+     * Part Issue
+     */
+    part_issue: number | null;
+    /**
+     * Part Transferts
+     */
+    part_transferts: number | null;
+    /**
+     * Part Raccroches
+     */
+    part_raccroches: number | null;
+    /**
+     * Reponse Mediane
+     */
+    reponse_mediane: number | null;
 };
 
 /**
@@ -37527,6 +37991,292 @@ export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses = {
 
 export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponse = ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses];
 
+export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Etat
+         */
+        etat?: 'a_trier' | 'en_cours' | 'testee' | 'publiee';
+        /**
+         * Organization Id
+         *
+         * Un seul client (sinon tous ceux que le rôle ouvre)
+         */
+        organization_id?: number | null;
+        /**
+         * Page
+         */
+        page?: number;
+    };
+    url: '/api/v1/vues-equipe/ameliorations';
+};
+
+export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetError = AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetErrors[keyof AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetErrors];
+
+export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageAmeliorationsEquipe;
+};
+
+export type AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetResponse = AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetResponses[keyof AmeliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGetResponses];
+
+export type QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Jours
+         */
+        jours?: number;
+        /**
+         * Organization Id
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/vues-equipe/qualite';
+};
+
+export type QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetError = QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetErrors[keyof QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetErrors];
+
+export type QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: QualiteEquipe;
+};
+
+export type QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetResponse = QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetResponses[keyof QualiteDeTousLesClientsApiV1VuesEquipeQualiteGetResponses];
+
+export type CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Organization Id
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/vues-equipe/compteurs';
+};
+
+export type CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetError = CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetErrors[keyof CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetErrors];
+
+export type CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompteursEquipe;
+};
+
+export type CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetResponse = CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetResponses[keyof CompteursDeTousLesClientsApiV1VuesEquipeCompteursGetResponses];
+
+export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Organization Id
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/vues-equipe/conversations';
+};
+
+export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetError = ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetErrors[keyof ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetErrors];
+
+export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConversationsEquipeResponse;
+};
+
+export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetResponse = ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetResponses[keyof ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetResponses];
+
+export type ChatDeTousLesClientsApiV1VuesEquipeChatGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Organization Id
+         */
+        organization_id?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/vues-equipe/chat';
+};
+
+export type ChatDeTousLesClientsApiV1VuesEquipeChatGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChatDeTousLesClientsApiV1VuesEquipeChatGetError = ChatDeTousLesClientsApiV1VuesEquipeChatGetErrors[keyof ChatDeTousLesClientsApiV1VuesEquipeChatGetErrors];
+
+export type ChatDeTousLesClientsApiV1VuesEquipeChatGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FilsEquipe;
+};
+
+export type ChatDeTousLesClientsApiV1VuesEquipeChatGetResponse = ChatDeTousLesClientsApiV1VuesEquipeChatGetResponses[keyof ChatDeTousLesClientsApiV1VuesEquipeChatGetResponses];
+
 export type LireLesEtiquettesApiV1EtiquettesGetData = {
     body?: never;
     headers?: {
@@ -38494,7 +39244,7 @@ export type ListerFilsApiV1RelationFilsGetData = {
         /**
          * Sorte
          */
-        sorte?: 'message' | 'demande_logiciel' | null;
+        sorte?: 'message' | 'demande_logiciel' | 'signalement' | null;
         /**
          * Suivi
          */
@@ -39204,7 +39954,24 @@ export type MesFilsApiV1OrganizationsRelationFilsGetData = {
         'X-Mark-Auteur'?: string | null;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Page
+         *
+         * Page à partir de 0
+         */
+        page?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Miens
+         *
+         * Seulement les fils ouverts par l'auteur de la requête (en-tête X-Mark-Auteur)
+         */
+        miens?: boolean;
+    };
     url: '/api/v1/organizations/relation/fils';
 };
 
@@ -47470,6 +48237,64 @@ export type GetConnexionsApiV1ConnecteursConnexionsGetResponses = {
 };
 
 export type GetConnexionsApiV1ConnecteursConnexionsGetResponse = GetConnexionsApiV1ConnecteursConnexionsGetResponses[keyof GetConnexionsApiV1ConnecteursConnexionsGetResponses];
+
+export type GetHistoriqueApiV1ConnecteursHistoriqueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Logiciel
+         *
+         * Seulement ce logiciel (sa clé d'intégration)
+         */
+        logiciel?: string | null;
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/connecteurs/historique';
+};
+
+export type GetHistoriqueApiV1ConnecteursHistoriqueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetHistoriqueApiV1ConnecteursHistoriqueGetError = GetHistoriqueApiV1ConnecteursHistoriqueGetErrors[keyof GetHistoriqueApiV1ConnecteursHistoriqueGetErrors];
+
+export type GetHistoriqueApiV1ConnecteursHistoriqueGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: HistoriqueDesGestes;
+};
+
+export type GetHistoriqueApiV1ConnecteursHistoriqueGetResponse = GetHistoriqueApiV1ConnecteursHistoriqueGetResponses[keyof GetHistoriqueApiV1ConnecteursHistoriqueGetResponses];
 
 export type DeleteConnexionApiV1ConnecteursConnexionsIntegrationDeleteData = {
     body?: never;
