@@ -13,6 +13,7 @@ import { useState } from "react";
 import { createCredentialApiV1CredentialsPost } from "@/client/sdk.gen";
 import { CredentialSelector } from "@/components/http";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
@@ -253,6 +254,45 @@ export function OngletReponse({ config, pose }: { config: Config; pose: Pose }) 
                     onChange={(e) => pose({ chemins_gardes: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })}
                     aria-label={t({ en: "Kept paths", fr: "Chemins gardés" })}
                 />
+            </Section>
+            <Section
+                titre={t({ en: "Short answer for the voice", fr: "Réponse courte pour la voix" })}
+                info={t({
+                    en: "Off by default. On: the model only gets the first items of a list, long texts are cut and heavy fields removed. The call record keeps the whole answer.",
+                    fr: "Éteint par défaut. Allumé : le modèle ne reçoit que les premiers éléments d'une liste, les textes longs sont coupés et les champs lourds retirés. La fiche de l'appel garde la réponse entière.",
+                })}
+            >
+                <LigneChamp libelle={t({ en: "Shorten what the model reads", fr: "Raccourcir ce que le modèle lit" })}>
+                    <Switch checked={config.resume_pour_la_voix === true} onCheckedChange={(v) => pose({ resume_pour_la_voix: v })} aria-label={t({ en: "Short answer for the voice", fr: "Réponse courte pour la voix" })} />
+                </LigneChamp>
+                {config.resume_pour_la_voix === true && (
+                    <>
+                        <LigneChamp libelle={t({ en: "Items kept from a list", fr: "Éléments gardés d'une liste" })}>
+                            <Input
+                                className="h-8 w-24 text-right"
+                                value={String(nombre(config, "resume_max_elements", 3))}
+                                onChange={(e) => pose({ resume_max_elements: Math.min(50, Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1)) })}
+                                aria-label={t({ en: "Items kept", fr: "Éléments gardés" })}
+                            />
+                        </LigneChamp>
+                        <LigneChamp libelle={t({ en: "Characters kept from a text", fr: "Caractères gardés d'un texte" })}>
+                            <Input
+                                className="h-8 w-24 text-right"
+                                value={String(nombre(config, "resume_max_caracteres", 1200))}
+                                onChange={(e) => pose({ resume_max_caracteres: Math.min(20000, Math.max(50, Number(e.target.value.replace(/\D/g, "")) || 50)) })}
+                                aria-label={t({ en: "Characters kept", fr: "Caractères gardés" })}
+                            />
+                        </LigneChamp>
+                        <BlocChamp libelle={t({ en: "Heavy fields removed", fr: "Champs lourds retirés" })} info={t({ en: "Field names, one per line.", fr: "Noms de champs, un par ligne." })}>
+                            <Textarea
+                                rows={2}
+                                value={liste<string>(config, "resume_champs_retires").join("\n")}
+                                onChange={(e) => pose({ resume_champs_retires: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })}
+                                aria-label={t({ en: "Heavy fields removed", fr: "Champs lourds retirés" })}
+                            />
+                        </BlocChamp>
+                    </>
+                )}
             </Section>
             <Section
                 titre={t({ en: "Copied into the call record", fr: "Copié dans la fiche de l'appel" })}

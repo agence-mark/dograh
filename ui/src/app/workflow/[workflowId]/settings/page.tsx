@@ -841,11 +841,11 @@ function GeneralSection({
                             <Input
                                 id="max_user_idle_timeout"
                                 type="number"
-                                min="1"
+                                min="0"
                                 value={maxUserIdleTimeout}
                                 onChange={(e) => {
                                     const value = parseInt(e.target.value);
-                                    if (!isNaN(value) && value > 0) setMaxUserIdleTimeout(value);
+                                    if (!isNaN(value) && value >= 0) setMaxUserIdleTimeout(value);
                                 }}
                             />
                             <p className="text-xs text-muted-foreground">Default: 10 seconds</p>

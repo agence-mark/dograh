@@ -16,6 +16,8 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.outils_mark import pour_la_voix
+
 SEUIL_AUTO_S = 0.8  # « Auto » : la phrase n'est dite que si l'outil n'a pas fini à ce seuil
 MODES_PHRASE = ("auto", "toujours", "jamais")
 
@@ -113,6 +115,66 @@ async def executer_avec_comportement(
       dépasse ``SEUIL_AUTO_S``), ``jamais``.
     * patience : phrase d'attente et son, au seuil réglé.
     * repli : si l'outil échoue, la phrase de repli est dite et signalée au modèle (``said_to_caller``)."""
+    # [.mark] lot R (partie 3, C11) : un verrou par appel. Réglage éteint par défaut : « un seul appel à la fois » pour
+    # cet outil (ou pour tous ceux qui portent le même ``verrou_commun``, par exemple deux recherches).
+    verrou = _prendre_le_verrou(moteur, config, nom)
+    if verrou is False:
+        return pour_la_voix.echec_pour_la_voix(
+            {
+                "status": "deja_en_cours",
+                "error": "already running",
+                "a_dire_au_client": (
+                    "La recherche précédente tourne encore. Dis au client que tu cherches, qu'il faut un instant, et "
+                    "attends son résultat avant de relancer."
+                ),
+            },
+            config,
+        )
+    try:
+        return await _executer(moteur, config, nom, appel, fiche, verrou)
+    finally:
+        if verrou and config.get("mode_execution") != "arriere_plan":
+            _rendre_le_verrou(moteur, verrou)
+
+
+# [.mark] lot R (C11) : les verrous d'un appel vivent sur son moteur.
+_ATTRIBUT_VERROUS = "_mark_verrous_d_outils"
+
+
+def _prendre_le_verrou(moteur: Any, config: dict[str, Any], nom: str):
+    """``None`` : pas de verrou demandé ; ``False`` : déjà pris (l'appel est refusé) ; sinon la clé prise."""
+    if config.get("un_seul_appel_a_la_fois") is not True:
+        return None
+    cle = str(config.get("verrou_commun") or nom)
+    try:
+        pris = getattr(moteur, _ATTRIBUT_VERROUS, None)
+        if pris is None:
+            pris = set()
+            setattr(moteur, _ATTRIBUT_VERROUS, pris)
+        if cle in pris:
+            return False
+        pris.add(cle)
+        return cle
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[outils] verrou non posé : {erreur!r}")
+        return None
+
+
+def _rendre_le_verrou(moteur: Any, cle: str) -> None:
+    try:
+        getattr(moteur, _ATTRIBUT_VERROUS).discard(cle)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+async def _executer(
+    moteur: Any,
+    config: dict[str, Any],
+    nom: str,
+    appel: Callable[[], Awaitable[Any]],
+    fiche: dict[str, Any] | None,
+    verrou: str | None,
+) -> Any:
     mode = mode_de_la_phrase(config)
     apres = config.get("mode_execution") == "apres_la_phrase"
 
@@ -127,6 +189,8 @@ async def executer_avec_comportement(
                 resultat = {"status": "error", "error": type(erreur).__name__}
             if isinstance(fiche, dict):
                 fiche[f"resultat_{nom}"] = resultat
+            if verrou:
+                _rendre_le_verrou(moteur, verrou)
 
         tache = asyncio.get_running_loop().create_task(en_fond())
         _TACHES.add(tache)
@@ -157,7 +221,8 @@ async def executer_avec_comportement(
             resultat = {**resultat, "said_to_caller": repli}
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[outils] phrase de repli non dite : {erreur!r}")
-    return resultat
+    # [.mark] lot R (C4) : tout échec dit au modèle quoi répondre au client, en mots de voix.
+    return pour_la_voix.echec_pour_la_voix(resultat, config)
 
 
 # Les travaux en arrière-plan restent référencés jusqu'à leur fin (sinon le ramasse-miettes peut les couper).

@@ -70,7 +70,9 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
 
     const entierPositif = (cle: "max_user_idle_timeout" | "max_call_duration") => (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value);
-        if (!isNaN(value) && value > 0) maj(cle)(value);
+        // [.mark] lot R (partie 3, C11) : 0 est permis pour la relance du silence (= jamais de relance : l'appelant réfléchit).
+        const plancher = cle === "max_user_idle_timeout" ? 0 : 1;
+        if (!isNaN(value) && value >= plancher) maj(cle)(value);
     };
 
     // [.mark] correctifs-apres-banc-v4, lot 5 (décision 1): the number of prompts and the goodbye are read from the rule
@@ -106,7 +108,9 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
             titre={TITRE_RYTHME}
             description={{ en: "Caller silences, idle prompts, hang-up and duration.", fr: "Silences de l'appelant, relances, raccrochage et durée." }}
             resume={[
-                `${t({ en: "Prompt after", fr: "Relance après" })} ${brouillon.max_user_idle_timeout} s`,
+                brouillon.max_user_idle_timeout === 0
+                    ? t({ en: "No prompt", fr: "Aucune relance" })
+                    : `${t({ en: "Prompt after", fr: "Relance après" })} ${brouillon.max_user_idle_timeout} s`,
                 `${brouillon.user_idle_max_prompts} ${t({ en: "prompt(s)", fr: "relance(s)" })}`,
                 `${t({ en: "Max duration", fr: "Durée max" })} ${Math.round(brouillon.max_call_duration / 60)} min`,
             ]}
@@ -128,13 +132,19 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                     cle="max_user_idle_timeout"
                     idControle="max_user_idle_timeout"
                     libelle={{ en: "Max User Idle Timeout (seconds)", fr: "Silence avant de relancer (secondes)" }}
-                    aides={[{ en: "Default: 10 seconds", fr: "Défaut : 10 secondes." }]}
-                    bornes={bornesDe(1)}
+                    aides={[
+                        { en: "Default: 10 seconds", fr: "Défaut : 10 secondes." },
+                        {
+                            en: "0 means never prompt: for a caller who needs time to think (an order, a rental).",
+                            fr: "0 : ne jamais relancer, pour un appelant qui a besoin de réfléchir (commande, location).",
+                        },
+                    ]}
+                    bornes={bornesDe(0)}
                 >
                     <Input
                         id="max_user_idle_timeout"
                         type="number"
-                        min="1"
+                        min="0"
                         value={brouillon.max_user_idle_timeout}
                         onChange={entierPositif("max_user_idle_timeout")}
                     />

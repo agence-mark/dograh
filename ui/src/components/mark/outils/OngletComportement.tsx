@@ -146,6 +146,60 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
             >
                 <Input value={texte(config, "phrase_repli")} onChange={(e) => pose({ phrase_repli: e.target.value || null })} aria-label={t({ en: "Fallback sentence", fr: "Phrase de repli" })} />
             </BlocChamp>
+            {/* [.mark] lot R (partie 3) : ce que l'outil dit au modèle, pour la voix. */}
+            <BlocChamp
+                libelle={t({ en: "What to tell the caller if it fails", fr: "Quoi dire au client en cas d'échec" })}
+                info={t({
+                    en: "A spoken instruction handed to the model when the tool fails. Empty: a default sentence, in everyday words.",
+                    fr: "Une consigne de parole donnée au modèle quand l'outil échoue. Vide : une phrase par défaut, en mots simples.",
+                })}
+            >
+                <Input value={texte(config, "consigne_en_cas_d_echec")} onChange={(e) => pose({ consigne_en_cas_d_echec: e.target.value || null })} aria-label={t({ en: "Instruction on failure", fr: "Consigne en cas d'échec" })} />
+            </BlocChamp>
+            <BlocChamp
+                libelle={t({ en: "What to say after a success", fr: "Quoi dire après un succès" })}
+                info={t({
+                    en: "A spoken instruction added to a successful result (for example: announce the number of results, then the first one). Empty: nothing is added.",
+                    fr: "Une consigne de parole ajoutée à un résultat réussi (par exemple : annonce le nombre de résultats puis le premier). Vide : rien n'est ajouté.",
+                })}
+            >
+                <Input value={texte(config, "consigne_de_parole")} onChange={(e) => pose({ consigne_de_parole: e.target.value || null })} aria-label={t({ en: "Spoken instruction on success", fr: "Consigne de parole après un succès" })} />
+            </BlocChamp>
+            {!integration && (
+                <>
+                    <LigneChamp
+                        libelle={t({ en: "Use the software's own instruction", fr: "Reprendre la consigne du logiciel" })}
+                        info={t({ en: "If the software returns a consigne_de_parole field, the model gets it as the spoken instruction.", fr: "Si le logiciel renvoie un champ consigne_de_parole, le modèle le reçoit comme consigne de parole." })}
+                    >
+                        <Switch checked={config.consigne_de_parole_du_service === true} onCheckedChange={(v) => pose({ consigne_de_parole_du_service: v })} aria-label={t({ en: "Use the software's instruction", fr: "Reprendre la consigne du logiciel" })} />
+                    </LigneChamp>
+                    <LigneChamp
+                        libelle={t({ en: "One call at a time", fr: "Un seul appel à la fois" })}
+                        info={t({ en: "While this tool runs, a second call is refused (two searches never start together).", fr: "Pendant que l'outil travaille, un second appel est refusé (deux recherches ne partent jamais ensemble)." })}
+                    >
+                        <Switch checked={config.un_seul_appel_a_la_fois === true} onCheckedChange={(v) => pose({ un_seul_appel_a_la_fois: v })} aria-label={t({ en: "One call at a time", fr: "Un seul appel à la fois" })} />
+                    </LigneChamp>
+                    {config.un_seul_appel_a_la_fois === true && (
+                        <BlocChamp
+                            libelle={t({ en: "Shared lock", fr: "Verrou commun" })}
+                            info={t({ en: "Tools with the same lock name share it. Empty: this tool only.", fr: "Les outils qui portent le même nom de verrou le partagent. Vide : cet outil seulement." })}
+                        >
+                            <Input value={texte(config, "verrou_commun")} onChange={(e) => pose({ verrou_commun: e.target.value || null })} aria-label={t({ en: "Shared lock", fr: "Verrou commun" })} />
+                        </BlocChamp>
+                    )}
+                </>
+            )}
+            {(integration || ecritHttp(config) || config.champs_appliques === false) && (
+                <LigneChamp
+                    libelle={t({ en: "Say which fields were applied", fr: "Dire quels champs sont appliqués" })}
+                    info={t({
+                        en: "After a write, the model learns which fields were applied and which were ignored, so it only confirms what is done.",
+                        fr: "Après une écriture, le modèle sait quels champs sont appliqués et lesquels sont ignorés : il ne confirme que ce qui est fait.",
+                    })}
+                >
+                    <Switch checked={config.champs_appliques !== false} onCheckedChange={(v) => pose({ champs_appliques: v })} aria-label={t({ en: "Applied fields", fr: "Champs appliqués" })} />
+                </LigneChamp>
+            )}
         </Champs>
     );
 }
