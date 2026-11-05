@@ -129,7 +129,14 @@ def _condition_ecrite(liaison: Mapping[str, Any]) -> bool:
     condition = _donnees(liaison).get("condition_sur_la_fiche")
     if not isinstance(condition, Mapping):
         return False
-    return bool(condition.get("etape_complete")) or bool(str(condition.get("champ") or "").strip())
+    # Sous-lot 21 : les règles, « sinon » et « toujours » ne jouent, eux aussi, que si le code lit les portes.
+    return (
+        bool(condition.get("etape_complete"))
+        or bool(str(condition.get("champ") or "").strip())
+        or bool(condition.get("regles"))
+        or condition.get("sinon") is True
+        or condition.get("toujours") is True
+    )
 
 
 def fiche_active(configurations: Mapping[str, Any] | None) -> bool:

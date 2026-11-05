@@ -797,16 +797,15 @@ class PipecatEngine:
             from api.services.workflow import passage_sur_la_fiche as passage
 
             noeud = (agent or self.active_agent).current_node
-            for arete, lecture in passage.portes_a_condition(noeud):
-                if lecture.get("implicite") or arete.get_function_name() != nom:
+            # [.mark] Sous-lot 21 : la même lecture pour toutes les conditions (règles, « toujours », « sinon »), dans
+            # ``passage_sur_la_fiche.porte_fermee`` ; la forme d'avant se lit comme avant.
+            for arete in getattr(noeud, "out_edges", None) or ():
+                if arete.get_function_name() != nom:
                     continue
                 if cible is not None and arete.target != cible:
                     continue
-                if lecture["type"] == "etape_complete":
-                    vraie = passage.etape_complete(self, noeud)
-                else:
-                    vraie = passage._champ_vaut(self, lecture["champ"], lecture.get("vaut"))
-                if vraie:
+                lecture = passage.porte_fermee(self, noeud, arete)
+                if lecture is None:
                     return None
                 passage.tracer(
                     self,

@@ -23,7 +23,8 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
 3. **l'arbitre** (``decideur_de_fin_de_tour.arbitre_avant_la_requete``, décision d'Evan du 29/10) : sur une étape où il
    est allumé, la requête attend sa décision sur la parole de la personne (au plus le délai de l'étape) ; sûre et ≠
    « rester » : même passage que l'option 2, l'étape d'arrivée répond directement. Au-delà du délai, la requête part
-   sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ;
+   sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ; puis, sous-lot 21, **la porte
+   « sinon »** (``passage_sur_la_fiche.sinon_avant_la_requete``) quand rien n'a passé sur cette parole ;
 4. **l'état de la fiche dans l'instruction système** (``fiche_dans_le_systeme``, D4 du figeage v12, case de l'agent,
    éteinte par défaut) : rangé en dernier dans l'instruction système du service, recalculé à chaque requête, après les
    passages ci-dessus ;
@@ -64,10 +65,13 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     try:
         if passage._derniere_parole_de_la_personne(trame.context):
             passage.oublier_la_porte_prise_avant(moteur)
-        if not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart) and not (
-            await passage.fiche_deja_vraie_avant_la_requete(moteur, llm, trame.context, depart=depart)
+        if (
+            not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart)
+            and not await passage.fiche_deja_vraie_avant_la_requete(moteur, llm, trame.context, depart=depart)
+            and not await decideur.arbitre_avant_la_requete(moteur, llm, trame.context, depart=depart)
         ):
-            await decideur.arbitre_avant_la_requete(moteur, llm, trame.context, depart=depart)
+            # Sous-lot 21 : rien n'a passé sur cette parole, la porte « sinon » de l'étape (s'il y en a une).
+            await passage.sinon_avant_la_requete(moteur, llm, trame.context, depart=depart)
     except asyncio.CancelledError:
         raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour

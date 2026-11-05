@@ -381,6 +381,28 @@ class _PassageNodeDataMixin(BaseModel):
         raise ValueError(f"moment_du_passage must be one of {MOMENTS_DU_PASSAGE}")
 
 
+class RegleDePorteDTO(BaseModel):
+    """[.mark] Partie 3, sous-lot 21 : une règle de la condition d'une porte (source, champ, comparaison, valeur). Les
+    listes fermées vivent dans ``services/workflow/conditions_de_porte.py``."""
+
+    source: str
+    champ: Optional[str] = Field(default=None, max_length=200)
+    comparaison: str
+    valeur: Optional[str] = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _connue(self):
+        from api.services.workflow.conditions_de_porte import COMPARAISONS_PAR_SOURCE, ETAPE
+
+        if self.source not in COMPARAISONS_PAR_SOURCE:
+            raise ValueError(f"source must be one of {tuple(COMPARAISONS_PAR_SOURCE)}")
+        if self.comparaison not in COMPARAISONS_PAR_SOURCE[self.source]:
+            raise ValueError(f"comparaison must be one of {COMPARAISONS_PAR_SOURCE[self.source]} for {self.source}")
+        if self.source != ETAPE and not (self.champ or "").strip():
+            raise ValueError("a rule needs a field (champ)")
+        return self
+
+
 class ConditionDePorteDTO(BaseModel):
     """[.mark] passages-fiables (lot A) : la condition d'une porte sur la fiche. Soit « étape complète » (tous les
     champs de l'étape obtenus, plus rien à confirmer), soit un champ de la fiche qui vaut une valeur (« refusé »
@@ -389,6 +411,27 @@ class ConditionDePorteDTO(BaseModel):
     etape_complete: bool = Field(default=False)
     champ: Optional[str] = Field(default=None, max_length=200)
     vaut: Optional[str] = Field(default=None, max_length=500)
+    # [.mark] Partie 3, sous-lot 21 : la même condition, étendue (``services/workflow/conditions_de_porte.py``). Tout est
+    # vide par défaut, donc absent du JSON d'un agent qui ne s'en sert pas : la lecture d'avant, au bit près.
+    regles: Optional[List[RegleDePorteDTO]] = Field(default=None, max_length=20)
+    combien: Optional[str] = Field(default=None)
+    sinon: Optional[bool] = Field(default=None)
+    toujours: Optional[bool] = Field(default=None)
+
+    @field_validator("combien")
+    @classmethod
+    def _combien_connu(cls, valeur: Optional[str]) -> Optional[str]:
+        from api.services.workflow.conditions_de_porte import COMBIEN
+
+        if valeur in (None, "") or valeur in COMBIEN:
+            return valeur or None
+        raise ValueError(f"combien must be one of {COMBIEN}")
+
+    @model_validator(mode="after")
+    def _un_seul_genre(self):
+        if self.sinon and self.toujours:
+            raise ValueError("a gate condition is either « sinon » or « toujours », not both")
+        return self
 
 
 class _ConditionsDeChampsNodeDataMixin(BaseModel):
@@ -1604,10 +1647,21 @@ def _sanitize_edge(edge):
         return edge
     allowed = EdgeDataDTO.model_fields.keys()
     data = {k: v for k, v in raw_data.items() if k in allowed}
-    # [.mark] passages-fiables : une condition vide (ni étape complète, ni champ) n'est pas écrite.
+    # [.mark] passages-fiables : une condition vide (ni étape complète, ni champ) n'est pas écrite. Sous-lot 21 : ni
+    # règles, ni « sinon », ni « toujours » non plus ; les clés nouvelles vides ne sont pas écrites.
     condition = data.get("condition_sur_la_fiche")
     if not isinstance(condition, dict) or not (
-        condition.get("etape_complete") or str(condition.get("champ") or "").strip()
+        condition.get("etape_complete")
+        or str(condition.get("champ") or "").strip()
+        or condition.get("regles")
+        or condition.get("sinon") is True
+        or condition.get("toujours") is True
     ):
         data.pop("condition_sur_la_fiche", None)
+    else:
+        propre = dict(condition)
+        for cle in ("regles", "combien", "sinon", "toujours"):
+            if propre.get(cle) in (None, "", [], False):
+                propre.pop(cle, None)
+        data["condition_sur_la_fiche"] = propre
     return {**edge, "data": data}
