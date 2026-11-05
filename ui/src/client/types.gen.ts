@@ -2561,7 +2561,7 @@ export type ChangementDAmelioration = {
     /**
      * Origine
      */
-    origine?: 'client' | 'recette' | 'code' | null;
+    origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
 };
 
 /**
@@ -2663,6 +2663,12 @@ export type ChangerUnTest = {
      * Comportements
      */
     comportements?: Array<string> | null;
+    /**
+     * Environnement
+     */
+    environnement?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -4182,7 +4188,7 @@ export type CreerUnTest = {
     /**
      * Criteres
      *
-     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values).
+     * Criteria judged by the code: etape, outil, texte_present, texte_absent, issue, appel_clos_par_l_agent, mecanique_dite, texte_en_tete (words in parameter), coordonnees_prises, sans_redite, sans_rigidite, rien_d_autre (no tool outside 'permis'), champs_justes (fields and their expected values), outils_dans_l_ordre (tools called in this order, 'noms'), outil_une_seule_fois (a tool called exactly once, 'nom').
      */
     criteres?: Array<{
         [key: string]: unknown;
@@ -4267,6 +4273,14 @@ export type CreerUnTest = {
      * One or two caller behaviours the test plays (never more).
      */
     comportements?: Array<string>;
+    /**
+     * Environnement
+     *
+     * What the test fixes around the conversation (nothing is really called): {date YYYY-MM-DD, heure HH:MM, numero, masque, variables: {name: value}, simulations: [{outil, appels: [{sorte: reponse|erreur|delai|refus, corps}]}]}.
+     */
+    environnement?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -5230,6 +5244,42 @@ export type DeploiementProgressif = {
      * Allow a new version to take only a share of the calls. Off: a publication is for all calls.
      */
     actif?: boolean;
+};
+
+/**
+ * DepuisUneConversation
+ *
+ * « Ajouter un test > Depuis une conversation entière » (sous-lot 5).
+ */
+export type DepuisUneConversation = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Criteres
+     */
+    criteres?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Obligatoire
+     */
+    obligatoire?: boolean;
+    /**
+     * Dossier
+     */
+    dossier?: string;
+    /**
+     * Environnement
+     */
+    environnement?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -9114,11 +9164,11 @@ export type LigneDeTri = {
     /**
      * Origine
      */
-    origine?: 'client' | 'recette' | 'code' | null;
+    origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
     /**
      * Origine Suggeree
      */
-    origine_suggeree?: 'client' | 'recette' | 'code' | null;
+    origine_suggeree?: 'client' | 'recette' | 'code' | 'deploiement' | null;
 };
 
 /**
@@ -13277,6 +13327,38 @@ export type RefusOutput = {
 };
 
 /**
+ * ReglageDUnType
+ */
+export type ReglageDUnType = {
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+    /**
+     * Seuils
+     */
+    seuils?: {
+        [key: string]: number;
+    } | null;
+};
+
+/**
+ * ReglageDesAlertes
+ */
+export type ReglageDesAlertes = {
+    /**
+     * Mail
+     */
+    mail?: boolean | null;
+    /**
+     * Types
+     */
+    types?: {
+        [key: string]: ReglageDUnType;
+    } | null;
+};
+
+/**
  * ReglageDuMiroir
  */
 export type ReglageDuMiroir = {
@@ -13284,6 +13366,32 @@ export type ReglageDuMiroir = {
      * Actif
      */
     actif: boolean;
+};
+
+/**
+ * ReglageDuRejeu
+ */
+export type ReglageDuRejeu = {
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+    /**
+     * Frequence
+     */
+    frequence?: 'quotidien' | 'hebdomadaire' | null;
+    /**
+     * Jour
+     */
+    jour?: number | null;
+    /**
+     * Heure
+     */
+    heure?: number | null;
+    /**
+     * Repetitions
+     */
+    repetitions?: number | null;
 };
 
 /**
@@ -14189,6 +14297,18 @@ export type ReponseSimulee = {
      * The body of the answer.
      */
     donnees?: unknown;
+};
+
+/**
+ * Restauration
+ *
+ * Les familles à remettre ; absent ou ``null`` = toutes celles que la version a gardées.
+ */
+export type Restauration = {
+    /**
+     * Familles
+     */
+    familles?: Array<string> | null;
 };
 
 /**
@@ -15824,7 +15944,7 @@ export type StatutEcrit = {
     /**
      * Origine
      */
-    origine?: 'client' | 'recette' | 'code' | null;
+    origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
 };
 
 /**
@@ -19223,6 +19343,10 @@ export type VueVersion = {
     operations: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * Familles
+     */
+    familles?: Array<string>;
 };
 
 /**
@@ -20875,7 +20999,7 @@ export type ApiRoutesTriChangementDeStatut = {
     /**
      * Origine
      */
-    origine?: 'client' | 'recette' | 'code' | null;
+    origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
 };
 
 /**
@@ -26019,7 +26143,10 @@ export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses = 
 export type ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponse = ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses[keyof ListerLesVersionsApiV1BuilderAgentsWorkflowIdVersionsGetResponses];
 
 export type RestaurerUneVersionApiV1BuilderAgentsWorkflowIdVersionsNumeroRestaurerPostData = {
-    body?: never;
+    /**
+     * Corps
+     */
+    body?: Restauration | null;
     headers?: {
         /**
          * Authorization
@@ -28289,6 +28416,236 @@ export type RejouerLesAttaquesApiV1BuilderAttaquesWorkflowIdRejouerPostResponses
     200: unknown;
 };
 
+export type LireLesAlertesApiV1BuilderAlertesWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/alertes/{workflow_id}';
+};
+
+export type LireLesAlertesApiV1BuilderAlertesWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesAlertesApiV1BuilderAlertesWorkflowIdGetError = LireLesAlertesApiV1BuilderAlertesWorkflowIdGetErrors[keyof LireLesAlertesApiV1BuilderAlertesWorkflowIdGetErrors];
+
+export type LireLesAlertesApiV1BuilderAlertesWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutData = {
+    body: ReglageDesAlertes;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/alertes/{workflow_id}';
+};
+
+export type ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutError = ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutErrors[keyof ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutErrors];
+
+export type ReglerLesAlertesApiV1BuilderAlertesWorkflowIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/alertes/{workflow_id}/evaluer';
+};
+
+export type EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostError = EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostErrors[keyof EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostErrors];
+
+export type EvaluerLesAlertesApiV1BuilderAlertesWorkflowIdEvaluerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/planification/{workflow_id}';
+};
+
+export type LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetError = LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetErrors[keyof LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetErrors];
+
+export type LireLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutData = {
+    body: ReglageDuRejeu;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/planification/{workflow_id}';
+};
+
+export type ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutError = ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutErrors[keyof ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutErrors];
+
+export type ReglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type AgentsDUneRecetteApiV1BuilderTestsRecetteFamilleSlugAgentsGetData = {
     body?: never;
     headers?: {
@@ -28475,6 +28832,52 @@ export type CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors = {
 export type CreerUnTestApiV1BuilderTestsWorkflowIdPostError = CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors[keyof CreerUnTestApiV1BuilderTestsWorkflowIdPostErrors];
 
 export type CreerUnTestApiV1BuilderTestsWorkflowIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostData = {
+    body: DepuisUneConversation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/tests/{workflow_id}/depuis-une-conversation';
+};
+
+export type CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostError = CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostErrors[keyof CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostErrors];
+
+export type CreerDepuisUneConversationApiV1BuilderTestsWorkflowIdDepuisUneConversationPostResponses = {
     /**
      * Successful Response
      */
@@ -30400,7 +30803,7 @@ export type LireLaFileDeTriApiV1TriGetData = {
         /**
          * Origine
          */
-        origine?: 'client' | 'recette' | 'code' | null;
+        origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
     };
     url: '/api/v1/tri';
 };
