@@ -12289,6 +12289,32 @@ export type OrigineDuModele = {
 };
 
 /**
+ * OutilDeLAgent
+ */
+export type OutilDeLAgent = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Epinglee
+     */
+    epinglee: number;
+    /**
+     * Courante
+     */
+    courante: number;
+    /**
+     * Figee
+     */
+    figee: boolean;
+};
+
+/**
  * OutilDecouvert
  */
 export type OutilDecouvert = {
@@ -12344,6 +12370,20 @@ export type OutilVu = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * OutilsDeLAgent
+ */
+export type OutilsDeLAgent = {
+    /**
+     * Source
+     */
+    source?: string | null;
+    /**
+     * Outils
+     */
+    outils: Array<OutilDeLAgent>;
 };
 
 /**
@@ -12498,6 +12538,36 @@ export type ParametreVue = {
      * Liste Du Contexte
      */
     liste_du_contexte?: string | null;
+};
+
+/**
+ * PassageDeVersion
+ */
+export type PassageDeVersion = {
+    /**
+     * Tool Uuid
+     *
+     * The tool to move to another version.
+     */
+    tool_uuid: string;
+    /**
+     * Version
+     *
+     * The version number the agent's draft should play.
+     */
+    version: number;
+    /**
+     * Suivre L En Tete
+     *
+     * True: write into the draft of the branch the request opened (the agent's own editor). False: into the branch named by branche_id (the tool's own window, which has no branch open).
+     */
+    suivre_l_en_tete?: boolean;
+    /**
+     * Branche Id
+     *
+     * The branch to write into; none: the main branch.
+     */
+    branche_id?: number | null;
 };
 
 /**
@@ -18394,6 +18464,44 @@ export type Usage = {
 };
 
 /**
+ * UsageDOutil
+ */
+export type UsageDOutil = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Branche
+     */
+    branche: string;
+    /**
+     * Branche Id
+     */
+    branche_id?: number | null;
+    /**
+     * Version Agent
+     */
+    version_agent?: number | null;
+    /**
+     * Version Outil
+     */
+    version_outil?: number | null;
+    /**
+     * En Ligne
+     */
+    en_ligne: boolean;
+    /**
+     * Brouillon
+     */
+    brouillon: boolean;
+};
+
+/**
  * UsageHistoryResponse
  */
 export type UsageHistoryResponse = {
@@ -18837,6 +18945,28 @@ export type Version = {
 };
 
 /**
+ * VersionDOutil
+ */
+export type VersionDOutil = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Cree Le
+     */
+    cree_le?: string | null;
+    /**
+     * Courante
+     */
+    courante: boolean;
+};
+
+/**
  * VersionDeBranche
  */
 export type VersionDeBranche = {
@@ -18852,6 +18982,36 @@ export type VersionDeBranche = {
      * Publiee Le
      */
     publiee_le?: string | null;
+};
+
+/**
+ * VersionsDUnOutil
+ */
+export type VersionsDUnOutil = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Courante
+     */
+    courante: number;
+    /**
+     * Versions
+     */
+    versions: Array<VersionDOutil>;
+    /**
+     * Usage
+     */
+    usage: Array<UsageDOutil>;
+    /**
+     * Agents En Retard
+     */
+    agents_en_retard: number;
 };
 
 /**
@@ -28461,6 +28621,148 @@ export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponses = {
 };
 
 export type EcrireLesPreferencesApiV1BuilderPreferencesPutResponse = EcrireLesPreferencesApiV1BuilderPreferencesPutResponses[keyof EcrireLesPreferencesApiV1BuilderPreferencesPutResponses];
+
+export type LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/outils/agent/{workflow_id}';
+};
+
+export type LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetError = LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetErrors[keyof LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetErrors];
+
+export type LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: OutilsDeLAgent;
+};
+
+export type LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetResponse = LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetResponses[keyof LireLesOutilsDeLAgentApiV1BuilderOutilsAgentWorkflowIdGetResponses];
+
+export type PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutData = {
+    body: PassageDeVersion;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/outils/agent/{workflow_id}/version';
+};
+
+export type PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutError = PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutErrors[keyof PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutErrors];
+
+export type PasserAUneVersionApiV1BuilderOutilsAgentWorkflowIdVersionPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Tool Uuid
+         */
+        tool_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/outils/{tool_uuid}/versions';
+};
+
+export type LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetError = LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetErrors[keyof LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetErrors];
+
+export type LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VersionsDUnOutil;
+};
+
+export type LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetResponse = LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetResponses[keyof LireLesVersionsDUnOutilApiV1BuilderOutilsToolUuidVersionsGetResponses];
 
 export type ComparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGetData = {
     body?: never;
