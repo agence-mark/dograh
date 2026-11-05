@@ -186,3 +186,25 @@ describe("[.mark] la fiche : la colonne « Origine » est « Rempli par » (05 �
         expect(fiche).not.toMatch(/en: "Origin", fr: "Origine"/);
     });
 });
+
+describe("[.mark] la coupure de parole à l'accueil, regroupée en un bloc (05 § 15)", () => {
+    it("le bloc « Couper l'agent à l'accueil » porte les quatre réglages dans l'ordre, et la liste des protections ne les répète pas", () => {
+        const source = lire("components/mark/reglages-agent/ThemeTourDeParole.tsx");
+        const debut = source.indexOf('<Intertitre id="tour-accueil"');
+        expect(debut).toBeGreaterThan(-1);
+        const bloc = source.slice(debut, source.indexOf("</Intertitre>", debut));
+        const ordre = ["mute_until_first_bot_complete", "accueil_interruptible", "accueil_mots_minimum", "mute_first_speech"].map((c) => bloc.indexOf(`"${c}"`));
+        expect(ordre.every((i) => i > -1)).toBe(true);
+        expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
+        expect(source).toMatch(/CLES_MUETTES\.filter\(\(cle\) => !CLES_ACCUEIL\.includes\(cle\)\)/);
+    });
+
+    it("quand un réglage annule « L'appelant peut couper l'accueil », le bloc le dit", async () => {
+        const { noteAccueil, TITRE_COUPER_A_L_ACCUEIL } = await import("./ThemeTourDeParole");
+        expect(TITRE_COUPER_A_L_ACCUEIL.fr).toBe("Couper l'agent à l'accueil");
+        expect(noteAccueil({ accueil_interruptible: false, mute_always: true })).toBeNull();
+        expect(noteAccueil({ accueil_interruptible: true })).toBeNull();
+        expect(noteAccueil({ accueil_interruptible: true, mute_always: true })?.fr).toMatch(/Sans effet/);
+        expect(noteAccueil({ accueil_interruptible: true, mute_first_speech: true })?.fr).toMatch(/toute première réplique/);
+    });
+});
