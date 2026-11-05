@@ -73,6 +73,10 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     # base du client, actions d'après-appel
     ("POST", f"{P}/organizations/base-client/connexion-portail"),
     ("POST", f"{P}/organizations/apres-appel/actions/{{action_id}}/relancer"),
+    # contacts (SA-17c) : fusionner, « ce n'est pas la même personne », « ne pas mémoriser »
+    ("POST", f"{P}/organizations/contacts/{{contact_id}}/fusionner"),
+    ("POST", f"{P}/organizations/contacts/{{contact_id}}/separer"),
+    ("PUT", f"{P}/organizations/contacts/{{contact_id}}/memoriser"),
 ]
 
 

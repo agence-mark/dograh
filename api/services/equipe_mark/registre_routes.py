@@ -193,6 +193,8 @@ REGLES: tuple[Regle, ...] = (
     # Le portail ouvre sa connexion à la base du client avec la clé d'API de l'organisation (lot F6) :
     # une permission qu'une clé peut porter, celle des accès techniques, jamais ``atelier.regler``.
     _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("base_client.connexion_portail")),
+    # Partie 3, SA-17c : les trois gestes des contacts du portail (la clé du client les porte, l'organisation est celle de la clé).
+    _r({"POST", "PUT"}, r"^/organizations/contacts/\{contact_id\}/(fusionner|separer|memoriser)$", P("contacts.traiter")),
     _r(ECRITURE, r"^/organizations/modeles-de-reglages(/.*)?$", P("atelier.regler")),  # RA-A (R2) : outil de l'équipe, au Labo
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),

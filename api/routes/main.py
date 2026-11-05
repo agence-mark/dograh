@@ -37,6 +37,7 @@ from api.services.panne.routes import routeur_twilio as panne_twilio_router
 from api.routes.base_client import router as base_client_router
 from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
+from api.routes.contacts import router as contacts_router
 from api.routes.listes_valeurs import router as listes_valeurs_router
 from api.routes.objets_agent import router as objets_agent_router
 from api.routes.variables_agent import router as variables_agent_router
@@ -135,6 +136,7 @@ router.include_router(panne_twilio_router)
 router.include_router(equipe_router)
 router.include_router(planificateur_router)
 router.include_router(listes_valeurs_router)
+router.include_router(contacts_router)
 router.include_router(objets_agent_router)
 # [.mark] cloture-code, F8: the agent's modules (portal and agent page).
 router.include_router(modules_router)

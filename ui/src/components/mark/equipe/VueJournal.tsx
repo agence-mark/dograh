@@ -40,6 +40,7 @@ const GESTES: Record<string, Texte> = {
     "connecteurs.autoriser": { en: "Connected or cut a software account", fr: "A branché ou coupé un compte de logiciel" },
     "connecteurs.geste": { en: "Software account gesture", fr: "Geste sur un compte de logiciel" },
     "base_client.connexion_portail": { en: "Opened the portal's access to the client's database", fr: "A ouvert l'accès du portail à la base du client" },
+    "contacts.traiter": { en: "Handled a contact (merge, separate, do not memorise)", fr: "A traité un contact (fusion, séparation, ne pas mémoriser)" },
     // P-6 : les écritures du Hub (permission « relation.ecrire »).
     "relation.message": { en: "Replied to a client", fr: "A répondu à un client" },
     "relation.fil_modifie": { en: "Changed the follow-up of a thread", fr: "A changé le suivi d'un échange" },

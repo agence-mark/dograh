@@ -28,6 +28,8 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     # Partie 3, sous-lot 17a : les deux gestes que le portail fait avec la clé du client, chacun avec sa permission (liste fermée des clés).
     "connecteurs.autoriser": ("Clés", "Autoriser, reconnecter et couper les comptes d'un client"),
     "base_client.connexion_portail": ("Clés", "Ouvrir l'accès du portail à la base du client"),
+    # Partie 3, SA-17c : fusionner deux contacts, « ce n'est pas la même personne », « ne pas mémoriser » (ouverte à la clé du client).
+    "contacts.traiter": ("Clients", "Traiter les contacts d'un client (fusionner, séparer, ne pas mémoriser)"),
 }
 
 # Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
@@ -39,6 +41,7 @@ PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
         "agents.modifier",  # apparence, sites, établissements, équipe, lexique, connaissances, relance d'une action (routes /organizations)
         "connecteurs.autoriser",
         "base_client.connexion_portail",
+        "contacts.traiter",
     }
 )
 
