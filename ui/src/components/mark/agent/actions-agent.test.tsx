@@ -29,6 +29,17 @@ vi.mock("@/client/sdk.gen", () => ({
     ciblesApiV1ExportAgentWorkflowIdCiblesGet: vi.fn(async () => ({ data: { sens: "exporter", cibles: [{ id: 7, nom: "Nuances de Feu", deja_copie: null }] } })),
     releveApiV1ExportAgentWorkflowIdReleveGet: vi.fn(),
     copierApiV1ExportAgentWorkflowIdCopierPost: vi.fn(),
+    lireLesBranchesApiV1BuilderBranchesWorkflowIdGet: vi.fn(async () => ({
+        data: {
+            repartition_active: true,
+            branches: [
+                { id: 1, nom: "Principale", principale: true, protegee: false, part: 90, version_en_ligne: 3, versions: [{ id: 30, numero: 3, publiee_le: null }], brouillons: [] },
+                { id: 2, nom: "Accueil court", principale: false, protegee: false, part: 10, version_en_ligne: 1, versions: [], brouillons: [] },
+            ],
+        },
+    })),
+    creerUneBrancheApiV1BuilderBranchesWorkflowIdPost: vi.fn(),
+    reglerLaRepartitionApiV1BuilderBranchesWorkflowIdRepartitionPut: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
 vi.mock("../site/useAgentDeSite", () => ({ useAgentDeSite: () => false }));
@@ -173,6 +184,41 @@ describe("les actions de la barre avec l'éditeur", () => {
         expect(document.querySelector("[data-non-enregistre]")).toBeTruthy();
         const menu = await ouvrir(document.querySelector("[data-menu-version]") as HTMLElement);
         expect(within(menu).getByText("Working draft").closest("a")?.getAttribute("href")).toBe("/agents/5/versions");
+    });
+
+    it("branche et version forment un seul repère : le sélecteur est collé à la version, « Toutes les versions » est en bas de son menu, aucun bouton « Versions » à part", async () => {
+        render(<ActionsAgent {...base} editeur={editeur()} />);
+        const selecteur = await screen.findByRole("button", { name: "Branch : Principale · Live 90 %" });
+        expect((selecteur as HTMLButtonElement).disabled).toBe(false);
+        expect(selecteur.parentElement).toBe(document.querySelector("[data-menu-version]")?.parentElement);
+        expect(screen.queryByRole("button", { name: "Versions" })).toBeNull();
+        const menu = await ouvrir(document.querySelector("[data-menu-version]") as HTMLElement);
+        const dernier = within(menu).getAllByRole("menuitem").at(-1) as HTMLElement;
+        expect(dernier.textContent?.trim()).toBe("All versions");
+        fireEvent.click(dernier);
+        expect(await screen.findByText(/Versions of/)).toBeTruthy();
+    });
+
+    it("sur une branche ouverte, sa version en ligne (rangée « archived ») porte le point plein d'une version publiée", async () => {
+        window.sessionStorage.setItem("mark:branche:5", "2");
+        try {
+            render(<ActionsAgent {...base} versionStatut="archived" aUnBrouillon={false} editeur={editeur()} />);
+            await screen.findByRole("button", { name: "Branch : Accueil court · Live 10 %" });
+            expect(document.querySelector("[data-menu-version] [data-etat]")?.getAttribute("data-etat")).toBe("publie");
+        } finally {
+            window.sessionStorage.clear();
+        }
+        cleanup();
+        render(<ActionsAgent {...base} versionStatut="archived" aUnBrouillon={false} editeur={editeur()} />);
+        expect(document.querySelector("[data-menu-version] [data-etat]")?.getAttribute("data-etat")).toBe("brouillon");
+    });
+
+    it("⋯ › Répartition du trafic ouvre la fenêtre de la répartition entre branches", async () => {
+        render(<ActionsAgent {...base} editeur={editeur()} />);
+        await screen.findByRole("button", { name: /Branch :/ });
+        const menu = await ouvrir(screen.getByRole("button", { name: "Agent menu" }));
+        fireEvent.click(within(menu).getByText("Traffic split"));
+        expect(await screen.findByLabelText("Accueil court")).toBeTruthy();
     });
 
     it("sur une version passée : lecture seule et retour au brouillon, ni Publier ni Enregistrer ni Renommer", async () => {

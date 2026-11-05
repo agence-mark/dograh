@@ -1,5 +1,6 @@
 import type { Client } from '@/client/client';
 import type { CreateClientConfig } from '@/client/client.gen';
+import { entetesDeBranche } from '@/lib/brancheOuverte';
 import { ENTETE_ORGANISATION, entetesDeRequete, sansOrganisation } from '@/lib/espaceCourant';
 import { fetchPartage } from '@/lib/fetch-partage';
 
@@ -70,6 +71,10 @@ export function setupAuthInterceptor(apiClient: Client, getAccessToken: () => Pr
             // Page du Labo sans identifiant connu (ou client illisible dans l'adresse) : la requête est refusée ici, elle ne part pas.
             const entetes = await entetesDeRequete(window.location.pathname);
             for (const [nom, valeur] of Object.entries(entetes)) request.headers.set(nom, valeur);
+        }
+        // [.mark] Partie 3, SA-L3b : la branche d'agent ouverte dans cet onglet (le serveur l'applique à son agent seulement).
+        if (typeof window !== 'undefined') {
+            for (const [nom, valeur] of Object.entries(entetesDeBranche(window.location.pathname))) request.headers.set(nom, valeur);
         }
         if (request.headers.get('Authorization')) {
             return request;

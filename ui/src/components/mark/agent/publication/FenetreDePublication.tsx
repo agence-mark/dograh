@@ -26,9 +26,9 @@ import { ListePret } from "@/components/mark/agent/pret/ListePret";
 import { useRecalculDuPret } from "@/components/mark/agent/pret/recalcul";
 import { useCorrectionEnUnClic } from "@/components/mark/agent/pret/useCorrection";
 import { usePublierLeGroupe } from "@/components/mark/groupe/PublierLeGroupe";
-import { TEXTES_ETAPES } from "@/components/mark/reglages-agent/PreparationAgent";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { TEXTES_ETAPES } from "@/components/mark/reglages-agent/PreparationAgent";
 import { DateRelative } from "@/components/mark/studio/date-relative";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Champs, FenetreOnglets, LigneChamp, Section, Segmente } from "@/components/mark/studio/fenetre-onglets";
@@ -42,7 +42,6 @@ import { CarteRelecture, DEMANDE_DE_RELECTURE } from "./CarteRelecture";
 import type { CleControle, GenreDeChangement, PositionControle, StatutControle, VueDePublication, VueDesChangements } from "./types";
 
 const POSITIONS: PositionControle[] = ["eteint", "previent", "bloque"];
-const PARTS = [10, 25, 50];
 const POINT: Record<StatutControle, "publie" | "attente" | "panne" | "fini"> = { ok: "publie", alerte: "attente", echec: "panne", eteint: "fini" };
 const GENRES: Record<GenreDeChangement, { en: string; fr: string }> = {
     node_added: { en: "Step added", fr: "Étape ajoutée" },
@@ -57,11 +56,14 @@ const GENRES: Record<GenreDeChangement, { en: string; fr: string }> = {
 export function FenetreDePublication({
     agentId,
     version,
+    branche = null,
     fermer,
     onPublie,
 }: {
     agentId: number;
     version: number | null;
+    /** Le nom de la branche ouverte (non principale) : la publication est celle de cette branche. */
+    branche?: string | null;
     fermer: () => void;
     onPublie: () => void;
 }) {
@@ -70,7 +72,6 @@ export function FenetreDePublication({
     const [erreur, setErreur] = useState(false);
     const [onglet, setOnglet] = useState("controles");
     const [corrections, setCorrections] = useState<string[]>([]);
-    const [part, setPart] = useState<number | null>(null);
     const [forcer, setForcer] = useState(false);
     const [raison, setRaison] = useState("");
     const [enCours, setEnCours] = useState(false);
@@ -275,7 +276,7 @@ export function FenetreDePublication({
         setEnCours(true);
         const r = await publishWorkflowApiV1WorkflowWorkflowIdPublishPost({
             path: { workflow_id: agentId },
-            body: { forcer: avecForce, raison: avecForce ? raison.trim() : null, pourcentage: part },
+            body: { forcer: avecForce, raison: avecForce ? raison.trim() : null },
         });
         setEnCours(false);
         if (r.error) {
@@ -287,7 +288,9 @@ export function FenetreDePublication({
             return;
         }
         notifier.succes(
-            part === null ? { fr: "Agent publié.", en: "Agent published." } : { fr: `Agent publié sur ${part} % des appels.`, en: `Agent published on ${part}% of the calls.` },
+            branche === null
+                ? { fr: "Agent publié.", en: "Agent published." }
+                : { fr: `Version publiée sur la branche « ${branche} ».`, en: `Version published on the branch "${branche}".` },
             { groupe: "publication-agent" },
         );
         // Les spécialistes cochés partent après le principal (ses contrôles, sa raison de forcer, sa part d'appels sont passés) ;
@@ -298,7 +301,7 @@ export function FenetreDePublication({
     };
 
     const bloque = vue?.bloque ?? false;
-    const titre = `${t({ en: "Publish", fr: "Publier" })}${version != null ? ` v${version}` : ""}`;
+    const titre = `${t({ en: "Publish", fr: "Publier" })}${version != null ? ` v${version}` : ""}${branche ? ` · ${branche}` : ""}`;
     const sous = !vue
         ? undefined
         : bloque
@@ -314,10 +317,9 @@ export function FenetreDePublication({
                 onglets={[T.controles, T.changements]}
                 onglet={onglet === "controles" ? T.controles : T.changements}
                 changerOnglet={(o) => setOnglet(o === T.controles ? "controles" : "changements")}
-                valider={bloque ? null : part !== null ? `${t({ en: "Publish on", fr: "Publier sur" })} ${part} %` : t({ en: "Publish", fr: "Publier" })}
+                valider={bloque ? null : t({ en: "Publish", fr: "Publier" })}
                 onValider={() => void publier(false)}
                 desactiver={!vue || enCours || groupe.enCours}
-                modifie={part !== null}
                 pied={
                     <>
                         <Button variant="outline" onClick={() => void charger()}>
@@ -430,30 +432,6 @@ export function FenetreDePublication({
                                             )}
                                         </div>
                                     ))}
-                                </Champs>
-                            </Section>
-                        )}
-                        {vue.deploiement_actif && (
-                            <Section titre={t({ en: "Deployment", fr: "Déploiement" })}>
-                                <Champs>
-                                    <LigneChamp
-                                        libelle={t({ en: "Deployment", fr: "Déploiement" })}
-                                        info={t({
-                                            en: "A call gets its version when it starts, from the caller's number: the same caller always lands on the same version. The previous version keeps the rest of the calls. The checks above play the same way. Nothing switches by itself.",
-                                            fr: "L'appel reçoit sa version à son début, d'après le numéro de l'appelant : un même appelant tombe toujours sur la même version. L'ancienne version garde le reste des appels. Les contrôles ci-dessus jouent de la même façon. Rien ne bascule seul.",
-                                        })}
-                                    >
-                                        <Segmente
-                                            valeur={part === null ? t({ en: "All calls", fr: "Pour tous les appels" }) : t({ en: "A share of the calls", fr: "Sur une part des appels" })}
-                                            options={[t({ en: "All calls", fr: "Pour tous les appels" }), t({ en: "A share of the calls", fr: "Sur une part des appels" })]}
-                                            changer={(v) => setPart(v === t({ en: "All calls", fr: "Pour tous les appels" }) ? null : (part ?? PARTS[0]))}
-                                        />
-                                    </LigneChamp>
-                                    {part !== null && (
-                                        <LigneChamp libelle={t({ en: "Share of the calls", fr: "Part des appels" })}>
-                                            <Segmente valeur={`${part} %`} options={PARTS.map((p) => `${p} %`)} changer={(v) => setPart(parseInt(v, 10))} />
-                                        </LigneChamp>
-                                    )}
                                 </Champs>
                             </Section>
                         )}

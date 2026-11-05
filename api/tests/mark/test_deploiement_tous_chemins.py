@@ -28,7 +28,11 @@ from api.services.publication import deploiement
 
 ANCIENNE, NOUVELLE = 11, 12
 ACTIF = {"publication": {"deploiement": {"actif": True}}}
-LIGNE = {"nouvelle": NOUVELLE, "precedente": ANCIENNE, "pourcentage": 50}
+# [.mark] SA-L3b : la répartition entre branches (une branche à 50 % sur la nouvelle version, la principale épinglée sur l'ancienne).
+LIGNE = [
+    {"branche": 2, "principale": False, "part": 50, "definition": NOUVELLE},
+    {"branche": 1, "principale": True, "part": 50, "definition": ANCIENNE},
+]
 WF = 33
 
 
@@ -66,8 +70,12 @@ def _lire_definitions(workflow):
 
 
 @pytest.fixture(autouse=True)
-def _ligne_du_deploiement():
-    """Un déploiement à 50 % est en cours pour l'agent : la lecture de la ligne est la seule chose remplacée."""
+def _ligne_du_deploiement(request):
+    """Une répartition à 50 % est en cours pour l'agent : la lecture des branches est la seule chose remplacée (sauf pour le widget du
+    site, qui joue de vraies branches en base)."""
+    if request.node.name.startswith("test_widget_du_site"):
+        yield
+        return
     with patch.object(deploiement, "lire", new=AsyncMock(return_value=LIGNE)):
         yield
 
@@ -313,14 +321,19 @@ async def test_widget_du_site(cote, db_session, async_session):
     ancienne = workflow.released_definition_id
     await db_session.save_workflow_draft(workflow.id, workflow_definition={"nodes": [], "edges": []}, workflow_configurations=ACTIF)
     nouvelle = (await db_session.publish_workflow_draft(workflow.id)).id
-    ligne = {"nouvelle": nouvelle, "precedente": ancienne, "pourcentage": 50}
+    # [.mark] SA-L3b : de VRAIES branches en base (aucune doublure de la lecture) : la principale reste épinglée sur l'ancienne
+    # version, une branche à 50 % sert la nouvelle.
+    await db_session.epingler_la_principale(organisation_id, workflow.id, ancienne)
+    branche, _ = await db_session.creer_une_branche(organisation_id, workflow.id, "Essai", depuis_definition_id=nouvelle, user_id=None)
+    toutes = await db_session.lister_les_branches(organisation_id, workflow.id)
+    await db_session.regler_la_repartition(organisation_id, workflow.id, {b.id: (50 if b.id == branche.id else 50) for b in toutes})
+    parts = await deploiement.lire(organisation_id, workflow.id)
     visiteur = next(
         a
         for a in (f"203.0.113.{n}" for n in range(250))
-        if deploiement.version_attribuee(ligne, workflow.id, None, deploiement.cle_site(jeton.id, a)) == (nouvelle if cote == NOUVELLE else ancienne)
+        if deploiement.version_attribuee(parts, workflow.id, None, deploiement.cle_site(jeton.id, a)) == (nouvelle if cote == NOUVELLE else ancienne)
     )
     with (
-        patch.object(deploiement, "lire", new=AsyncMock(return_value=ligne)),
         patch("api.routes.public_embed.adresse_du_visiteur", return_value=visiteur),
         limiteur_en_memoire(),
     ):

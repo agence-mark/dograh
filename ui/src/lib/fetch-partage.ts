@@ -7,6 +7,7 @@
  * Jamais partagés : les écritures et les flux (SSE, `/live`). Chaque appelant reste annulable seul : l'annulation de
  * l'un ne coupe pas la lecture des autres.
  */
+import { ENTETE_BRANCHE } from "@/lib/brancheOuverte";
 import { ENTETE_ORGANISATION } from "@/lib/espaceCourant";
 
 const enVol = new Map<string, Promise<Response>>();
@@ -19,7 +20,7 @@ const annulee = () => new DOMException("The operation was aborted.", "AbortError
 export function fetchPartage(entree: Request | string | URL, init?: RequestInit): Promise<Response> {
     const requete = entree instanceof Request && !init ? entree : new Request(entree, init);
     if (requete.method !== "GET" || estUnFlux(requete)) return fetch(requete);
-    const cle = [requete.url, requete.headers.get("Authorization"), requete.headers.get(ENTETE_ORGANISATION), requete.headers.get("Accept")].join("|");
+    const cle = [requete.url, requete.headers.get("Authorization"), requete.headers.get(ENTETE_ORGANISATION), requete.headers.get(ENTETE_BRANCHE), requete.headers.get("Accept")].join("|");
     let partagee = enVol.get(cle);
     if (!partagee) {
         // La requête partagée n'écoute pas le signal du premier appelant : sinon son annulation coupe celle des autres.

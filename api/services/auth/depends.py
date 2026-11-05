@@ -67,6 +67,11 @@ async def get_user(
             await ensure_organization_bootstrapped(
                 user.selected_organization_id, created_by=user.provider_id
             )
+        # [.mark] Partie 3, SA-L3b : la branche d'agent ouverte (en-tête ``X-Mark-Branche``), pour que le builder et l'éditeur
+        # écrivent dans le brouillon de la personne sur cette branche. Absent ou illisible : la principale, comme avant.
+        from api.db import branche_ouverte
+
+        branche_ouverte.depuis_l_entete(connexion, user)
     return user
 
 

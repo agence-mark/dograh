@@ -145,11 +145,20 @@ async def test_corriger_la_liste_vocale_ecrit_le_brouillon_puis_rejoue_le_contro
     assert relu["silence_appelant"] == "ok" and relu["filtre_de_sortie"] == "ok"
 
 
-# --- le déploiement progressif ------------------------------------------------------------------------------------------------
+# --- la répartition du trafic entre branches ----------------------------------------------------------------------------------
+
+
+def _parts(part_branche, nouvelle=12, ancienne=11):
+    """La répartition entre branches (SA-L3b) : une branche sur la nouvelle version, la principale épinglée sur l'ancienne."""
+    return [
+        {"branche": 2, "principale": False, "part": part_branche, "definition": nouvelle},
+        {"branche": 1, "principale": True, "part": 100 - part_branche, "definition": ancienne},
+    ]
+
 
 
 def test_un_appelant_garde_toujours_la_meme_version_et_les_formes_du_numero_se_valent():
-    ligne = {"nouvelle": 12, "precedente": 11, "pourcentage": 30}
+    ligne = _parts(30)
     vues = {deploiement.version_attribuee(ligne, 5, "+33 6 12 34 56 78") for _ in range(10)}
     assert len(vues) == 1
     assert deploiement.part_de(5, "+33612345678") == deploiement.part_de(5, "06 12 34 56 78")
@@ -161,9 +170,9 @@ def test_un_appelant_garde_toujours_la_meme_version_et_les_formes_du_numero_se_v
 
 
 def test_a_zero_pour_cent_tout_le_monde_reste_et_un_appelant_masque_garde_la_version_d_avant():
-    assert {deploiement.version_attribuee({"nouvelle": 12, "precedente": 11, "pourcentage": 0}, 5, f"0612{n:06d}") for n in range(30)} == {11}
-    assert deploiement.version_attribuee({"nouvelle": 12, "precedente": 11, "pourcentage": 99}, 5, "") == 11
-    assert deploiement.version_attribuee(None, 5, "0612345678") is None
+    assert {deploiement.version_attribuee(_parts(0), 5, f"0612{n:06d}") for n in range(30)} == {11}
+    assert deploiement.version_attribuee(_parts(99), 5, "") == 11
+    assert deploiement.version_attribuee(None, 5, "0612345678") is None and deploiement.version_attribuee([], 5, "0612345678") is None
 
 
 async def test_eteint_le_deploiement_ne_lit_rien_et_toute_publication_vaut_pour_tous(banc, monkeypatch):  # noqa: F811
@@ -178,34 +187,26 @@ async def test_eteint_le_deploiement_ne_lit_rien_et_toute_publication_vaut_pour_
     lire.assert_not_called()
 
 
-async def test_allume_les_appels_se_repartissent_puis_passer_a_100_et_revenir_sont_des_gestes(banc, monkeypatch):  # noqa: F811
+async def test_allume_les_appels_se_repartissent_entre_branches_puis_la_principale_epinglee_ou_libre(banc, monkeypatch):  # noqa: F811
     wf = banc.workflows[AGENT]
+    wf.organization_id = ORG_CLIENT
     wf.released_definition = SimpleNamespace(id=12, version_number=2, status="published", workflow_configurations={"publication": {"deploiement": {"actif": True}}})
     anciennes = SimpleNamespace(id=11, version_number=1, status="archived")
     client = SimpleNamespace(get_workflow_definition=AsyncMock(side_effect=lambda w, d, o: {11: anciennes, 12: wf.released_definition}.get(d)))
     from api.services.workflow.run_creation import definition_to_run
 
-    await deploiement.demarrer(ORG_CLIENT, AGENT, 12, 11, 40, "1")
-    banc.workflows[AGENT].organization_id = ORG_CLIENT
+    etat = {"parts": _parts(40)}
+    monkeypatch.setattr(deploiement, "lire", AsyncMock(side_effect=lambda *_a: etat["parts"]))
     ids = {(await definition_to_run(client, wf, appelant=f"0611{n:06d}")).id for n in range(60)}
-    assert ids == {11, 12}  # une part sur la nouvelle, le reste sur l'ancienne
+    assert ids == {11, 12}  # une part sur la branche, le reste sur la principale
     stable = [(await definition_to_run(client, wf, appelant="0611000042")).id for _ in range(5)]
     assert len(set(stable)) == 1
-    # revenir à la v1 : tous les appels repartent sur l'ancienne (un geste humain, jamais automatique)
-    monkeypatch.setattr(banc, "workflows", banc.workflows)
-    await deploiement.revenir(ORG_CLIENT, AGENT, 11, 1, "1")
+    # la branche à 0 % : tous les appels restent sur la principale épinglée (un retour en arrière, geste humain)
+    etat["parts"] = _parts(0)
     assert {(await definition_to_run(client, wf, appelant=f"0611{n:06d}")).id for n in range(30)} == {11}
-    # passer à 100 % : la ligne disparaît, la version publiée prend tout
-    await deploiement.passer_a_100(ORG_CLIENT, AGENT)
+    # la principale libre (tête vide) suit la version publiée
+    etat["parts"] = [{"branche": 1, "principale": True, "part": 100, "definition": None}]
     assert {(await definition_to_run(client, wf, appelant=f"0611{n:06d}")).id for n in range(30)} == {12}
-
-
-async def test_demarrer_refuse_une_part_hors_limites_et_sans_version_precedente(banc):  # noqa: F811
-    for part in (0, 100):
-        with pytest.raises(deploiement.ErreurDeploiement):
-            await deploiement.demarrer(ORG_CLIENT, AGENT, 12, 11, part, "1")
-    with pytest.raises(deploiement.ErreurDeploiement):
-        await deploiement.demarrer(ORG_CLIENT, AGENT, 12, None, 10, "1")
 
 
 async def test_une_version_partielle_passe_les_memes_controles_qu_une_complete(banc):  # noqa: F811
@@ -233,10 +234,17 @@ def route(banc, monkeypatch):  # noqa: F811
         publiees.append(workflow_id)
         return SimpleNamespace(id=13, version_number=3, status="published", workflow_configurations={}, published_at=None)
 
+    epingles = []
+
+    async def epingler(organization_id, workflow_id, definition_id):
+        epingles.append((organization_id, workflow_id, definition_id))
+
     db = SimpleNamespace(
         get_workflow=banc.get_workflow,
         get_draft_version=banc.get_draft_version,
         publish_workflow_draft=publier,
+        epingler_la_principale=epingler,
+        branche_ouverte_de=AsyncMock(return_value=SimpleNamespace(branch_id=None, user_id=None)),
     )
     banc.workflows[AGENT].released_definition_id = 12
     banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret(getattr(banc.brouillons[AGENT], 'workflow_configurations', None))
@@ -250,7 +258,7 @@ def route(banc, monkeypatch):  # noqa: F811
         journal.append((action, user.id, detail))
 
     monkeypatch.setattr("api.services.equipe_mark.acces.journaliser", journaliser)
-    return SimpleNamespace(module=route_workflow, journal=journal, publiees=publiees, banc=banc)
+    return SimpleNamespace(module=route_workflow, journal=journal, publiees=publiees, banc=banc, epingles=epingles)
 
 
 async def test_forcer_la_publication_exige_une_raison_et_l_ecrit_au_journal_avec_la_personne(route):
@@ -274,22 +282,19 @@ async def test_forcer_la_publication_exige_une_raison_et_l_ecrit_au_journal_avec
     assert action == "agents.publier_force" and personne == 3 and "casque" in detail["raison"] and detail["ce_qui_bloquait"]
 
 
-async def test_une_part_des_appels_n_est_permise_que_deploiement_allume_et_ecrit_la_ligne(route):
-    from fastapi import HTTPException
+async def test_la_publication_ne_prend_plus_de_part_des_appels_et_remet_la_principale_sur_la_version_publiee(route):
+    from pydantic import ValidationError
 
     from api.schemas.publication import DemandeDePublication
 
+    with pytest.raises(ValidationError):  # un seul mécanisme de part du trafic : les branches (extra interdit)
+        DemandeDePublication(pourcentage=20)
     user = utilisateur(3)
     user.id = 3
-    with pytest.raises(HTTPException) as e:  # éteint : refus net, rien n'est publié
-        await route.module.publier_un_agent(AGENT, user, DemandeDePublication(pourcentage=20))
-    assert e.value.status_code == 422 and route.publiees == []
     route.banc.brouillons[AGENT].workflow_configurations = sans_les_lignes_de_pret({"publication": {"deploiement": {"actif": True}}})
-    await route.module.publier_un_agent(AGENT, user, DemandeDePublication(pourcentage=20))
+    await route.module.publier_un_agent(AGENT, user)
     assert route.publiees == [AGENT]
-    assert await deploiement.lire(ORG_CLIENT, AGENT) == {"nouvelle": 13, "precedente": 12, "pourcentage": 20, "par": "3"}
-    await route.module.publier_un_agent(AGENT, user)  # une publication ordinaire : tous les appels, la part est close
-    assert await deploiement.lire(ORG_CLIENT, AGENT) is None
+    assert route.epingles == [(ORG_CLIENT, AGENT, None)]  # une nouvelle version en ligne : la principale la suit
 
 
 # --- « Attaquer l'agent » -------------------------------------------------------------------------------------------------------

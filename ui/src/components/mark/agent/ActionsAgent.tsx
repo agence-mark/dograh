@@ -8,7 +8,7 @@
  * `?builder=1`), sans rien dupliquer.
  */
 import type { ReactFlowInstance } from "@xyflow/react";
-import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, Keyboard, MoreHorizontal, Pencil, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
+import { ChevronDown, Clipboard, Copy, Download, FlaskConical, Globe, History, Keyboard, MoreHorizontal, Pencil, Percent, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -34,9 +34,15 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
+import { ouvrirBranche } from "@/lib/brancheOuverte";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { espaceRetenu } from "@/lib/espaceCourant";
 
+import { FenetreNouvelleBranche } from "./branches/FenetreNouvelleBranche";
+import { FenetreRepartition } from "./branches/FenetreRepartition";
+import { FenetreVersions } from "./branches/FenetreVersions";
+import { SelecteurBranche } from "./branches/SelecteurBranche";
+import { useBranches } from "./branches/useBranches";
 import { FenetreCopieAgent } from "./copie/FenetreCopieAgent";
 import { definitionSansSecrets } from "./definition-sans-secrets";
 import { FenetreEtiquettes } from "./etiquettes/FenetreEtiquettes";
@@ -63,6 +69,8 @@ export type EditeurAgent = {
 
 const T = {
     versions: { en: "Versions", fr: "Versions" },
+    toutesLesVersions: { en: "All versions", fr: "Toutes les versions" },
+    repartition: { en: "Traffic split", fr: "Répartition du trafic" },
     brouillonDeTravail: { en: "Working draft", fr: "Brouillon de travail" },
     brouillon: { en: "draft", fr: "brouillon" },
     publiee: { en: "published", fr: "publiée" },
@@ -103,7 +111,10 @@ const T = {
     titreRenommer: { en: "Rename the agent", fr: "Renommer l'agent" },
 } satisfies Record<string, Texte>;
 
-const POINT = (statut: string): "publie" | "brouillon" => (statut === "published" ? "publie" : "brouillon");
+// [.mark] SA-L3b : la version en ligne d'une BRANCHE est rangée au statut « archived » (jamais « published », réservé à la principale) ;
+// sur une branche ouverte, elle porte le point plein d'une version publiée.
+const POINT = (statut: string, surUneBranche = false): "publie" | "brouillon" =>
+    statut === "published" || (surUneBranche && statut === "archived") ? "publie" : "brouillon";
 
 export function ActionsAgent({
     agentId,
@@ -128,7 +139,13 @@ export function ActionsAgent({
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
     const [enregistrement, setEnregistrement] = useState(false);
     const [duplication, setDuplication] = useState(false);
-    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | null>(null);
+    const [fenetre, setFenetre] = useState<"etiquettes" | "dupliquer" | "renommer" | "publier" | "exporter" | "ramener" | "branche" | "versions" | "repartition" | null>(null);
+    // [.mark] Partie 3, SA-L3b : la branche ouverte dans cet onglet ; en changer relit tout l'écran avec son brouillon.
+    const branches = useBranches(agentId);
+    const ouvrirEtRelire = (brancheId: number | null) => {
+        ouvrirBranche(agentId, brancheId);
+        window.location.reload();
+    };
     // Espace inconnu (onglet neuf, sans mémoire) : ni les gestes du Labo ni ceux du client ne sont montrés.
     const [espace, setEspace] = useState<"labo" | "client" | null>(null);
     useEffect(() => {
@@ -250,10 +267,13 @@ export function ActionsAgent({
                 </>
             )}
 
+            {/* Branche et version : un seul repère `⑂● · v12 ▾` (Evan, 04/11) ; « Toutes les versions » en bas du menu de la version. */}
+            <span className="flex items-center">
+            <SelecteurBranche vue={branches.vue} ouverte={branches.ouverte} choisir={ouvrirEtRelire} nouvelle={() => setFenetre("branche")} />
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <button data-menu-version className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted">
-                        <PointEtat etat={POINT(versionStatut ?? "draft")}>{libelleVersion}</PointEtat>
+                        <PointEtat etat={POINT(versionStatut ?? "draft", branches.ouverte !== null)}>{libelleVersion}</PointEtat>
                         <ChevronDown className="size-3.5 text-muted-foreground" />
                     </button>
                 </DropdownMenuTrigger>
@@ -276,8 +296,13 @@ export function ActionsAgent({
                                 </Link>
                             </DropdownMenuItem>
                         ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setFenetre("versions")} disabled={!branches.vue} className="cursor-pointer gap-2">
+                        <History className="size-4" /> {t(T.toutesLesVersions)}
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            </span>
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -354,6 +379,9 @@ export function ActionsAgent({
                             <Undo2 className="mr-2 size-4" /> {t(T.ramener)}
                         </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => setFenetre("repartition")} disabled={!branches.vue}>
+                        <Percent className="mr-2 size-4" /> {t(T.repartition)}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setFenetre("etiquettes")}>
                         <Tag className="mr-2 size-4" /> {t(T.etiquettes)}
                     </DropdownMenuItem>
@@ -378,8 +406,35 @@ export function ActionsAgent({
                 <FenetreDePublication
                     agentId={agentId}
                     version={versionNumero}
+                    branche={branches.courante && !branches.courante.principale ? branches.courante.nom : null}
                     fermer={() => setFenetre(null)}
                     onPublie={() => void apresPublication()}
+                />
+            )}
+            <FenetreNouvelleBranche
+                agentId={agentId}
+                ouverte={fenetre === "branche"}
+                fermer={() => setFenetre(null)}
+                vue={branches.vue}
+                cree={(brancheId) => ouvrirEtRelire(brancheId)}
+            />
+            {fenetre === "versions" && branches.vue && (
+                <FenetreVersions
+                    ouverte
+                    fermer={() => setFenetre(null)}
+                    vue={branches.vue}
+                    ouverteId={branches.ouverte}
+                    ouvrir={ouvrirEtRelire}
+                    repartition={() => setFenetre("repartition")}
+                />
+            )}
+            {fenetre === "repartition" && branches.vue && (
+                <FenetreRepartition
+                    agentId={agentId}
+                    ouverte
+                    fermer={() => setFenetre(null)}
+                    vue={branches.vue}
+                    apres={() => void branches.recharger()}
                 />
             )}
             {(fenetre === "exporter" || fenetre === "ramener") && (

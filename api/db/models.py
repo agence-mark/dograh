@@ -467,6 +467,13 @@ class WorkflowDefinitionModel(Base):
         JSON, nullable=False, default=dict, server_default=text("'{}'::json")
     )
 
+    # [.mark] Partie 3, SA-L3b (branches d'agent) : la branche de cette version ou de ce brouillon. NULL = la branche
+    # principale (toutes les versions d'avant, jamais réécrites). La clé étrangère vers ``workflow_branches`` est posée par la
+    # migration ``c7a2e9d4b1f6`` (pas déclarée ici : ``models_builder`` porte la table). ``draft_owner_id`` : à qui est le
+    # brouillon d'une branche (un brouillon par personne et par branche) ; NULL = brouillon partagé de la principale.
+    branch_id = Column(Integer, nullable=True, index=True)
+    draft_owner_id = Column(Integer, nullable=True)
+
     # Table constraints and indexes — unique hash constraint removed (no more dedup)
     __table_args__ = (
         Index("ix_workflow_definitions_workflow_status", "workflow_id", "status"),

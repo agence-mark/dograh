@@ -24,6 +24,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Text,
     func,
+    text,
 )
 
 from api.db.models import Base
@@ -123,3 +124,38 @@ class MarkDepenseRoleModel(Base):
     modifie_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
 
     __table_args__ = (UniqueConstraint("organization_id", "role", "mois", name="uq_mark_depense_roles_org_role_mois"),)
+
+
+class WorkflowBranchModel(Base):
+    """[.mark] Partie 3, SA-L3b (05 § 12) : une branche d'agent, ligne de versions d'un agent.
+
+    « Principale » existe toujours (une seule par agent, ``est_principale``), ne se supprime pas. Une version est immuable : elle
+    reste dans ``workflow_definitions`` (``branch_id`` NULL = principale ; sinon cette branche, statut ``archived`` : la version en
+    ligne d'une branche est ``head_definition_id``, jamais le pointeur ``released_definition_id`` de la principale).
+
+    ``part_trafic`` : la part des appels (0 à 99) que reçoit une branche NON principale ; la principale reçoit le reste (le total
+    fait toujours 100). ``head_definition_id`` d'une non-principale : la version qu'elle sert ; de la principale : NULL = la version
+    publiée de l'agent (suit les publications), sinon une version épinglée (déploiement migré, ou retour en arrière).
+    """
+
+    __tablename__ = "workflow_branches"
+    __table_args__ = (
+        UniqueConstraint("workflow_id", "nom", name="uq_workflow_branches_agent_nom"),
+        Index("ix_workflow_branches_org_agent", "organization_id", "workflow_id"),
+        Index("uq_workflow_branches_principale", "workflow_id", unique=True, postgresql_where=text("est_principale")),
+    )
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    nom = Column(String(60), nullable=False)
+    est_principale = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # active | archivee (une fusion archive sa source, voir SA-L3c)
+    statut = Column(String(12), nullable=False, default="active", server_default="active")
+    part_trafic = Column(Integer, nullable=False, default=0, server_default="0")
+    head_definition_id = Column(Integer, ForeignKey("workflow_definitions.id", use_alter=True, name="fk_workflow_branches_head"), nullable=True)
+    base_definition_id = Column(Integer, nullable=True)
+    protegee = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    cree_par = Column(Integer, nullable=True)
+    cree_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
+    archivee_le = Column(DateTime(timezone=True), nullable=True)
