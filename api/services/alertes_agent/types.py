@@ -11,6 +11,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 VERSION_MOINS_BIEN = "version_moins_bien"
+# Partie 3, L3e : les alertes sur les vrais appels, une période contre la précédente (``appels.py``). Mêmes réglages, même rangement,
+# même notification : des entrées de ce registre, jamais un second mécanisme.
+HAUSSE_RATES = "hausse_rates"
+HAUSSE_TRANSFERTS = "hausse_transferts"
+HAUSSE_GARDE_FOUS = "hausse_garde_fous"
+HAUSSE_PANNES = "hausse_pannes"
+HAUSSE_LATENCE = "hausse_latence"
+TYPES_DES_APPELS = (HAUSSE_RATES, HAUSSE_TRANSFERTS, HAUSSE_GARDE_FOUS, HAUSSE_PANNES, HAUSSE_LATENCE)
 
 
 @dataclass(frozen=True)
@@ -49,6 +57,78 @@ TYPES: dict[str, TypeDAlerte] = {
         },
     )
 }
+
+
+def _seuils_des_appels(hausse: float) -> dict[str, Seuil]:
+    """Les trois seuils de tout signal des vrais appels : hausse relative (%), appels au minimum de chaque période, durée d'une période
+    (en jours : 1, 7 ou 30 à l'écran). ``cas_min`` : le nombre d'appels concernés sans lequel une hausse n'est que du bruit."""
+    return {
+        "hausse": Seuil(hausse, 1, 1000),
+        "appels_min": Seuil(10, 1, 1000, entier=True),
+        "jours": Seuil(7, 1, 30, entier=True),
+        "cas_min": Seuil(3, 1, 1000, entier=True),
+    }
+
+
+def _un_signal(code: str, fr: str, en: str, explication_fr: str, explication_en: str, hausse: float) -> TypeDAlerte:
+    return TypeDAlerte(
+        code=code,
+        titre={"fr": fr, "en": en},
+        explication={"fr": explication_fr, "en": explication_en},
+        seuils=_seuils_des_appels(hausse),
+    )
+
+
+_PAS_DE_MODELE_FR = " Calculée après l'appel sur ce qui est déjà rangé : aucun appel à un modèle, aucune dépense."
+_PAS_DE_MODELE_EN = " Computed after the call from what is already stored: no model call, no spend."
+
+TYPES.update(
+    {
+        t.code: t
+        for t in (
+            _un_signal(
+                HAUSSE_RATES,
+                "Le juge relève plus d'appels ratés",
+                "The judge flags more failed calls",
+                "Part des appels jugés avec au moins un critère raté, comparée à la période de même durée qui précède." + _PAS_DE_MODELE_FR,
+                "Share of judged calls with at least one failed criterion, compared with the period of the same length before it." + _PAS_DE_MODELE_EN,
+                50,
+            ),
+            _un_signal(
+                HAUSSE_TRANSFERTS,
+                "Plus d'appels transférés",
+                "More calls are transferred",
+                "Part des appels terminés par un transfert, comparée à la période précédente." + _PAS_DE_MODELE_FR,
+                "Share of calls that ended in a transfer, compared with the previous period." + _PAS_DE_MODELE_EN,
+                50,
+            ),
+            _un_signal(
+                HAUSSE_GARDE_FOUS,
+                "Plus de garde-fous déclenchés",
+                "More safeguards triggered",
+                "Part des appels où un garde-fou de sécurité s'est déclenché, comparée à la période précédente." + _PAS_DE_MODELE_FR,
+                "Share of calls where a safety safeguard triggered, compared with the previous period." + _PAS_DE_MODELE_EN,
+                50,
+            ),
+            _un_signal(
+                HAUSSE_PANNES,
+                "Plus d'appels touchés par une panne",
+                "More calls hit by an outage",
+                "Part des appels où l'agent a basculé en repli de panne, comparée à la période précédente." + _PAS_DE_MODELE_FR,
+                "Share of calls where the agent fell back to the outage plan, compared with the previous period." + _PAS_DE_MODELE_EN,
+                50,
+            ),
+            _un_signal(
+                HAUSSE_LATENCE,
+                "L'agent répond plus lentement",
+                "The agent answers more slowly",
+                "Latence médiane des tours de parole, quand elle est mesurée, comparée à la période précédente." + _PAS_DE_MODELE_FR,
+                "Median turn latency, when it is measured, compared with the previous period." + _PAS_DE_MODELE_EN,
+                30,
+            ),
+        )
+    }
+)
 
 
 def seuils_par_defaut(code: str) -> dict[str, float]:

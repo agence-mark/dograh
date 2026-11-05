@@ -21,13 +21,15 @@ from typing import Any
 from loguru import logger
 
 from api.db import db_client
-from api.services.alertes_agent import regression, reglages, types
+from api.services.alertes_agent import appels, regression, reglages, types
 
 ORIGINE = "deploiement"
 PREFIXE_CRITERE = f"{ORIGINE}:"
 
 
-async def _comparer_les_versions(organisation_id: int, workflow_id: int, seuils: dict[str, float]) -> dict[str, Any] | None:
+async def _comparer_les_versions(
+    organisation_id: int, workflow_id: int, seuils: dict[str, float], _lecture: appels.LectureDesAppels | None = None
+) -> dict[str, Any] | None:
     from api.services.boucle import qualite
 
     donnees = await qualite.calculer(organisation_id, jours=int(seuils["jours"]), workflow_id=workflow_id)
@@ -39,13 +41,16 @@ async def _comparer_les_versions(organisation_id: int, workflow_id: int, seuils:
 
 
 # Un type = une fonction qui rend ``{"version", "contre", "mesures", ...}`` ou ``None``. Les types à venir s'ajoutent ici.
-CALCULS: dict[str, Callable[[int, int, dict[str, float]], Awaitable[dict[str, Any] | None]]] = {
+CALCULS: dict[str, Callable[..., Awaitable[dict[str, Any] | None]]] = {
     types.VERSION_MOINS_BIEN: _comparer_les_versions,
+    # L3e : les signaux des vrais appels, une période contre la précédente (``appels.py``).
+    **{code: appels.un_calcul(code) for code in types.TYPES_DES_APPELS},
 }
 
 
-def identifiant(code: str, workflow_id: int, version: int) -> str:
-    return f"{code}:{workflow_id}:v{version}"
+def identifiant(code: str, workflow_id: int, version: int | str) -> str:
+    """Une version : ``code:agent:v7`` ; un signal des appels : ``code:agent:p2890`` (le bloc de jours, ``appels.cle_de_la_periode``)."""
+    return f"{code}:{workflow_id}:{version if isinstance(version, str) else f'v{version}'}"
 
 
 async def ranger_dans_a_ameliorer(organisation_id: int, workflow_id: int, alerte: dict[str, Any]) -> bool:
@@ -81,11 +86,16 @@ async def dire_par_mail(organisation_id: int, workflow_id: int, alerte: dict[str
     try:
         from api.services.apres_appel.notification import notifier
 
+        if alerte["type"] in types.TYPES_DES_APPELS:
+            sujet = f"Alerte : l'agent « {alerte['workflow_nom']} » : {types.TYPES[alerte['type']].titre['fr'].lower()}"
+            fin = "Ouvrez la page Alertes de l'agent, puis « Voir les appels », pour lire les appels concernés. "
+        else:
+            sujet = f"Alerte : l'agent « {alerte['workflow_nom']} » fait moins bien depuis sa version {alerte['version']}"
+            fin = "Ouvrez « À améliorer » (origine Déploiement) pour voir le détail. "
         envoyees = await notifier(
             organisation_id,
-            f"Alerte : l'agent « {alerte['workflow_nom']} » fait moins bien depuis sa version {alerte['version']}",
-            f"{alerte['resume']}\n\nOuvrez « À améliorer » (origine Déploiement) pour voir le détail. "
-            "Rien n'a été retiré ni changé : c'est à une personne de décider.",
+            sujet,
+            f"{alerte['resume']}\n\n{fin}Rien n'a été retiré ni changé : c'est à une personne de décider.",
         )
         return bool(envoyees)
     except Exception as erreur:  # noqa: BLE001
@@ -97,29 +107,37 @@ async def evaluer_un_agent(organisation_id: int, workflow_id: int) -> dict[str, 
     """Évalue tous les types actifs de l'agent. Rend ``{"alertes": [{statut: levee|deja_levee, alerte}], "eteints": [...]}``."""
     sortie: dict[str, Any] = {"alertes": [], "eteints": []}
     courant = await reglages.lire(organisation_id, workflow_id)
+    lecture = appels.LectureDesAppels(organisation_id, workflow_id)
     for code, calcul in CALCULS.items():
         regle = courant["types"][code]
         if not regle["actif"]:
             sortie["eteints"].append(code)
             continue
-        comparaison = await calcul(organisation_id, workflow_id, regle["seuils"])
+        try:
+            comparaison = await calcul(organisation_id, workflow_id, regle["seuils"], lecture)
+        except Exception as erreur:  # noqa: BLE001 -- un signal illisible ne coupe ni les autres ni la tâche de nuit
+            logger.warning(f"[alertes-agent] {code} non calculé : {type(erreur).__name__}")
+            continue
         if comparaison is None:
             continue
+        cle = comparaison.get("cle") or comparaison["version"]
         alerte = {
-            "id": identifiant(code, workflow_id, comparaison["version"]),
+            "id": identifiant(code, workflow_id, cle),
             "type": code,
             "workflow_id": workflow_id,
             "workflow_nom": comparaison.get("workflow_nom", ""),
             "version": comparaison["version"],
             "contre": comparaison["contre"],
             "mesures": comparaison["mesures"],
-            "resume": regression.resume(comparaison),
+            "resume": comparaison.get("resume") or regression.resume(comparaison),
             "levee_le": datetime.now(UTC).isoformat(),
             "notifiee": False,
+            **({"appels": comparaison["appels"], "appels_concernes": comparaison["appels_concernes"], "periode_jours": comparaison["periode_jours"]} if code in types.TYPES_DES_APPELS else {}),
         }
         alerte, nouvelle = await reglages.lever(organisation_id, workflow_id, alerte)
         if nouvelle:
-            await ranger_dans_a_ameliorer(organisation_id, workflow_id, alerte)
+            if code not in types.TYPES_DES_APPELS:
+                await ranger_dans_a_ameliorer(organisation_id, workflow_id, alerte)
             if courant["mail"] and await dire_par_mail(organisation_id, workflow_id, alerte):
                 await reglages.marquer_notifiee(organisation_id, workflow_id, alerte["id"])
                 alerte["notifiee"] = True

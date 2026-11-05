@@ -26,7 +26,7 @@ export function BandeauDAlertes({ agentId, version }: { agentId: number; version
         void lireLesAlertesApiV1BuilderAlertesWorkflowIdGet({ path: { workflow_id: agentId } })
             .then((r) => {
                 if (!vivant || r.error || !r.data) return;
-                const levees = ((r.data as unknown as { levees?: AlerteLevee[] }).levees ?? []).filter((a) => version === undefined || a.version >= version);
+                const levees = ((r.data as unknown as { levees?: AlerteLevee[] }).levees ?? []).filter((a) => a.type === "version_moins_bien" && (version === undefined || a.version >= version));
                 setAlerte(levees[0] ?? null);
             })
             .catch(() => undefined);

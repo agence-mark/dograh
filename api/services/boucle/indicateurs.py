@@ -11,6 +11,7 @@ page Qualité les agrège sans relire un journal.
 * ``redemandes`` : l'agent a redemandé ce qu'il avait déjà (relevé commun des redites) ;
 * ``impasses`` : les impasses notées par le code ; ``coupures`` : l'appelant parle pendant que l'agent parle ;
 * ``latence_mediane`` / ``latence_max`` : par tour de parole, outils compris (``rtf-latency-measured``) ;
+* ``garde_fous`` : les garde-fous de sécurité déclenchés dans l'appel ; ``panne`` : l'appel est passé en repli de panne (L3e) ;
 * ``tours``, ``duree``, ``cout`` ; ``motif`` : le motif d'appel classé, lu dans la fiche (liste fermée par agent).
 
 ⛔ Ne lève jamais : un journal illisible rend des indicateurs vides, jamais une panne de l'après-appel. Zéro vocabulaire métier.
@@ -90,6 +91,7 @@ def _calculer(journal: list[dict[str, Any]], contexte: dict[str, Any], duree: fl
     disposition = str(contexte.get("call_disposition") or "")
     transfert = disposition in DISPOSITIONS_TRANSFERT
     issue_obtenue = (outils - echecs) > 0 or transfert
+    declenchements = contexte.get("securite_declenchements")
     impasse = contexte.get("impasse")
     impasses = impasse.get("impasses") if isinstance(impasse, dict) else 0
     return {
@@ -103,6 +105,8 @@ def _calculer(journal: list[dict[str, Any]], contexte: dict[str, Any], duree: fl
         "coupures": coupures,
         "latence_mediane": round(median(latences), 2) if latences else None,
         "latence_max": round(max(latences), 2) if latences else None,
+        "garde_fous": len(declenchements) if isinstance(declenchements, list) else 0,
+        "panne": bool(contexte.get("panne")) or disposition == "panne_technique",
         "tours": len(tours),
         "duree": round(duree, 1) if isinstance(duree, (int, float)) else None,
         "cout": round(cout, 4) if isinstance(cout, (int, float)) else None,

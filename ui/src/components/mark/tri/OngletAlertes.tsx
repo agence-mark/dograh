@@ -8,6 +8,7 @@
 import { useLangue } from "@/components/mark/langue/langue";
 import { Info } from "@/components/mark/studio/marques";
 import { TitreTableau } from "@/components/mark/studio/tableau";
+import { AlertesDesAppels } from "@/components/mark/qualite/AlertesDesAppels";
 import { PageAlertes } from "@/components/mark/tri/PageAlertes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
@@ -19,7 +20,8 @@ export function OngletAlertes() {
     if (loading || !user) return <Skeleton className="h-64 w-full max-w-3xl" />;
 
     return (
-        <div data-testid="page-alertes-menu" className="space-y-4">
+        <div data-testid="page-alertes-menu" className="space-y-8">
+            <AlertesDesAppels />
             <TitreTableau
                 titre={t({ en: "Alerts", fr: "Alertes" })}
                 info={
