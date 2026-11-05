@@ -201,8 +201,9 @@ class OutilsVersionsClient(BaseDBClient):
             epingles = pins.copie(ligne.outils_epingles) or {}
             epingles[tool_uuid] = version
             ligne.outils_epingles = epingles
+            identifiant = ligne.id  # lu AVANT le commit : la session de production expire les objets au commit
             await session.commit()
-            return {"tool_uuid": tool_uuid, "version": version, "courante": courante, "brouillon": ligne.id}
+            return {"tool_uuid": tool_uuid, "version": version, "courante": courante, "brouillon": identifiant}
 
     async def remplacer_les_epingles_du_brouillon(self, organization_id: int, workflow_id: int, epingles: dict[str, int]) -> None:
         """« Revenir avant » : les épingles du BROUILLON de l'agent ouvert redeviennent celles de l'instantané (celles qui citent un outil
