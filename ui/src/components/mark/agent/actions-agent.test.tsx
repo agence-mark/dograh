@@ -92,6 +92,16 @@ describe("les actions de la barre avec l'éditeur", () => {
         const publier = screen.getByRole("button", { name: /Publish/ }) as HTMLButtonElement;
         expect(publier.disabled).toBe(true);
         expect(publier.title).toBe("Review the builder's changes first.");
+        // N2 : la raison est aussi écrite à côté du bouton, pas seulement au survol
+        expect(document.querySelector("[data-raison-publier]")?.textContent).toBe("Review the builder's changes first.");
+    });
+
+    it("N2 : un changement non enregistré dit sa raison en clair, et sans blocage aucune raison n'est écrite", () => {
+        render(<ActionsAgent {...base} editeur={editeur({ estModifie: true })} />);
+        expect(document.querySelector("[data-raison-publier]")?.textContent).toBe("Save the changes before publishing.");
+        cleanup();
+        render(<ActionsAgent {...base} editeur={editeur()} />);
+        expect(document.querySelector("[data-raison-publier]")).toBeNull();
     });
 
     it("sans brouillon, pas de « Publier »", () => {

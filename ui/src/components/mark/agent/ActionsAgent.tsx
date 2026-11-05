@@ -177,6 +177,13 @@ export function ActionsAgent({
     const surLeParcours = (suite: string) => `${adresseOnglet(agentId, "parcours")}${suite}`;
     const raison = editeur?.builder.raisonDeBlocage ?? null;
     const bloque = Boolean(editeur && (editeur.estModifie || editeur.erreursDuParcours > 0 || raison));
+    // N2 (03 § 3) : la raison d'un « Publier » grisé est écrite à côté du bouton, plus seulement au survol.
+    const raisonEnClair: string | null = !bloque
+        ? null
+        : (raison ??
+          (editeur?.estModifie
+              ? t({ en: "Save the changes before publishing.", fr: "Enregistrez les changements avant de publier." })
+              : t({ en: "Fix the errors of the flow before publishing.", fr: "Corrigez les erreurs du parcours avant de publier." })));
 
     // [.mark] U11 : « Publier » ouvre TOUJOURS la fenêtre « Publier vX » (contrôles, forcer, part des appels).
     const apresPublication = async () => {
@@ -355,9 +362,16 @@ export function ActionsAgent({
                 ))}
 
             {!editeur?.versionPassee && aUnBrouillon && (
-                <Button size="sm" onClick={() => setFenetre("publier")} disabled={bloque} title={raison ?? undefined} className="gap-1.5">
-                    {t(T.publier)}
-                </Button>
+                <>
+                    {raisonEnClair && (
+                        <span role="status" data-raison-publier className="max-w-64 text-xs text-muted-foreground">
+                            {raisonEnClair}
+                        </span>
+                    )}
+                    <Button size="sm" onClick={() => setFenetre("publier")} disabled={bloque} title={raisonEnClair ?? undefined} className="gap-1.5">
+                        {t(T.publier)}
+                    </Button>
+                </>
             )}
             {editeur && !editeur.versionPassee && editeur.estModifie && (
                 <Button size="sm" variant="outline" onClick={enregistrer} disabled={enregistrement}>
