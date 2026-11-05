@@ -73,7 +73,7 @@ interface PropsFenetre {
 export function ConfirmerSuppression({ ouvert, titre, description, onConfirmer, onFermer, enCours }: PropsFenetre) {
     const { t } = useLangue();
     return (
-        <Dialog open={ouvert} onOpenChange={(o) => !o && onFermer()}>
+        <Dialog centree open={ouvert} onOpenChange={(o) => !o && onFermer()}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{titre}</DialogTitle>

@@ -264,7 +264,7 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog centree open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
                     <DialogHeader className="border-b px-6 py-4">
                         <DialogTitle>Select Voice</DialogTitle>

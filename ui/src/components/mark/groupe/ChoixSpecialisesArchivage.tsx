@@ -64,7 +64,7 @@ export const ChoixSpecialisesArchivage = ({
     };
 
     return (
-        <Dialog open={principal !== null} onOpenChange={(ouvert) => !ouvert && onFerme()}>
+        <Dialog centree open={principal !== null} onOpenChange={(ouvert) => !ouvert && onFerme()}>
             <DialogContent className="sm:max-w-md" data-modale="archiver-principal">
                 <DialogHeader>
                     <DialogTitle>

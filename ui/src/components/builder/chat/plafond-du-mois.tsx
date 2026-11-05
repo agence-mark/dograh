@@ -47,7 +47,7 @@ export function FenetrePlafondDuMois({
 }) {
     const { t } = useLangue();
     return (
-        <Dialog open={ouverte} onOpenChange={(o) => !o && !enCours && annuler()}>
+        <Dialog centree open={ouverte} onOpenChange={(o) => !o && !enCours && annuler()}>
             <DialogContent className="sm:max-w-md" data-fenetre-plafond-du-mois>
                 <DialogHeader>
                     <DialogTitle>{t(TEXTES_PLAFOND.titre)}</DialogTitle>

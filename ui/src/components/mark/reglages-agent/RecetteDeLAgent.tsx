@@ -112,7 +112,7 @@ export function RecetteDeLAgent({ workflowId }: { workflowId: number }) {
                     {t(T.aRejouer)}
                 </span>
             )}
-            <Dialog open={demandee !== null} onOpenChange={(o) => !o && !enCours && setDemandee(null)}>
+            <Dialog centree open={demandee !== null} onOpenChange={(o) => !o && !enCours && setDemandee(null)}>
                 <DialogContent className="sm:max-w-md" data-fenetre-recette-publiee>
                     <DialogHeader>
                         <DialogTitle>{t(T.avertissementTitre)}</DialogTitle>

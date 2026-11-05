@@ -663,7 +663,7 @@ export function FenetreNouveauClient({
 
     return (
         <>
-            <Dialog open={ouvert && !creationAgent} onOpenChange={(o) => (o ? onOuvert(true) : fermer())}>
+            <Dialog centree open={ouvert && !creationAgent} onOpenChange={(o) => (o ? onOuvert(true) : fermer())}>
                 <DialogContent className="flex max-h-[85vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl" data-modale="nouveau-client">
                     <DialogHeader className="border-b px-6 pt-6 pb-4 text-left">
                         <DialogTitle className="text-xl">{t(T.titre)}</DialogTitle>

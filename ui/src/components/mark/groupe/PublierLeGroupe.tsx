@@ -109,7 +109,7 @@ export const ProposerLaPublicationDuGroupe = ({
     const { t } = useLangue();
     const { enCours, publier } = usePublierLeGroupe();
     return (
-        <Dialog open={ouvert} onOpenChange={onOuvertChange}>
+        <Dialog centree open={ouvert} onOpenChange={onOuvertChange}>
             <DialogContent className="sm:max-w-md" data-modale="publier-le-groupe">
                 <DialogHeader>
                     <DialogTitle>{t(TEXTES.titreProposition)}</DialogTitle>

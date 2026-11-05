@@ -372,7 +372,7 @@ export function EditeurWidget({ workflowId, onFermer }: { workflowId: number; on
 
     return (
         <>
-            <Dialog open onOpenChange={(o) => !o && tenterFermer()}>
+            <Dialog centree open onOpenChange={(o) => !o && tenterFermer()}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     className="flex h-[92vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"

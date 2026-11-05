@@ -346,7 +346,7 @@ function FormulaireNouvelleCampagne() {
         <>
             {/* La liste reste derrière, comme la maquette : la création est une fenêtre centrée posée dessus. */}
             <CampaignsPage />
-            <FenetreLibre
+            <FenetreLibre centree
                 ouverte
                 fermer={handleBack}
                 titre={t({ en: 'New campaign', fr: 'Nouvelle campagne' })}

@@ -737,7 +737,7 @@ export default function CampaignDetailPage() {
                 <CampaignRuns campaignId={campaignId} workflowId={campaign.workflow_id} searchParams={searchParams} />
             </section>
 
-            <Dialog open={aConfirmer !== null} onOpenChange={(ouvert) => !ouvert && setAConfirmer(null)}>
+            <Dialog centree open={aConfirmer !== null} onOpenChange={(ouvert) => !ouvert && setAConfirmer(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -763,7 +763,7 @@ export default function CampaignDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isRedialDialogOpen} onOpenChange={setIsRedialDialogOpen}>
+            <Dialog centree open={isRedialDialogOpen} onOpenChange={setIsRedialDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{t({ en: 'Redial the campaign', fr: 'Relancer la campagne' })}</DialogTitle>

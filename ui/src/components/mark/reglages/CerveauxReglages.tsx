@@ -496,7 +496,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                     </Carte>
                     <CartePrompt lu={vue?.builder ?? null} />
                     {fenetreCerveau && (
-                        <FenetreChamps
+                        <FenetreChamps centree
                             ouverte
                             fermer={() => setFenetreCerveau(false)}
                             titre={t(T.modeleEtCle)}

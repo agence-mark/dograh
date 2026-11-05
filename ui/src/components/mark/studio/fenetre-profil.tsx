@@ -58,7 +58,7 @@ export function FenetreProfil({
     };
 
     return (
-        <FenetreChamps
+        <FenetreChamps centree
             ouverte={ouverte}
             fermer={fermer}
             titre={t({ en: "My profile", fr: "Mon profil" })}

@@ -17,3 +17,10 @@ export const tailleDe = (classes?: string) =>
         .split(/\s+/)
         .filter((c) => TAILLE.test(c))
         .join(" ");
+
+/** Les classes d'une fenêtre sans sa taille : dans le panneau, la taille est celle du panneau. */
+export const sansTaille = (classes?: string) =>
+    (classes ?? "")
+        .split(/\s+/)
+        .filter((c) => c && !TAILLE.test(c))
+        .join(" ");

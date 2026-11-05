@@ -277,7 +277,7 @@ function FenetreCatalogue({
     const liste = catalogue.filter((c) => dansLeFiltre(c) && (categorie === "" || c.categorie === categorie));
     const ouvertConnecteur = catalogue.find((c) => c.nom === ouvert);
     return (
-        <Dialog open onOpenChange={(o) => !o && fermer()}>
+        <Dialog centree open onOpenChange={(o) => !o && fermer()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="flex shrink-0 items-center gap-4 border-b px-6 pt-5 pr-12 pb-4">
                     <div className="flex-1">
@@ -794,7 +794,7 @@ function FenetreBrancher({
     };
 
     return (
-        <FenetreOnglets
+        <FenetreOnglets centree
             fermer={fermer}
             visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
             titre={labo ? t({ en: `Connect ${connecteur.libelle}`, fr: `Brancher ${connecteur.libelle}` }) : t({ en: `Propose ${connecteur.libelle} to the client`, fr: `Proposer ${connecteur.libelle} au client` })}

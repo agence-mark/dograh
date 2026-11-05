@@ -137,7 +137,7 @@ export function FenetreRestauration({
     const familles = apercu?.familles ?? (apercu ? SCHEMA_SEUL : []);
     const bascule = (famille: string, v: boolean) => setCochees((c) => (v ? [...(c ?? []), famille] : (c ?? []).filter((x) => x !== famille)));
     return (
-        <Dialog open onOpenChange={(ouvert) => !ouvert && fermer()}>
+        <Dialog centree open onOpenChange={(ouvert) => !ouvert && fermer()}>
             <DialogContent className="sm:max-w-2xl" data-modale="revenir-a-une-version">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">

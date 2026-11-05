@@ -228,7 +228,7 @@ export function ListeDesFils({ limite, workflowId, variante = "page" }: { limite
                     )}
                 </ul>
             )}
-            <Dialog open={aSupprimer !== null} onOpenChange={(ouverte) => !ouverte && setASupprimer(null)}>
+            <Dialog centree open={aSupprimer !== null} onOpenChange={(ouverte) => !ouverte && setASupprimer(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t(T.titreSuppression)}</DialogTitle>
