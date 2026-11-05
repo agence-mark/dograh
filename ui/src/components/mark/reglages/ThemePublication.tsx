@@ -57,6 +57,37 @@ export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte }>
         libelle: { en: "Safeguards", fr: "Garde-fous" },
         aide: { en: "At least one safety layer of the conversation is on. Off by default.", fr: "Au moins une couche de sécurité de la conversation est allumée. Éteints par défaut." },
     },
+    // [.mark] Partie 3 (SA-L3a) : les lignes de « Prêt à publier » se règlent comme les autres contrôles.
+    {
+        cle: "variables",
+        libelle: { en: "Prompt variables", fr: "Variables des prompts" },
+        aide: { en: "Every {{variable}} the prompts read has a value. Blocks by default.", fr: "Chaque {{variable}} lue par les prompts a une valeur. Bloquantes par défaut." },
+    },
+    {
+        cle: "briques",
+        libelle: { en: "Models configured", fr: "Modèles configurés" },
+        aide: { en: "Brain, transcription and voice are set. Blocks by default.", fr: "Cerveau, transcription et voix sont réglés. Bloquants par défaut." },
+    },
+    {
+        cle: "outils",
+        libelle: { en: "Tools connected", fr: "Outils branchés" },
+        aide: { en: "Every tool a step carries exists and is active. Blocks by default.", fr: "Chaque outil porté par une étape existe et est actif. Bloquants par défaut." },
+    },
+    {
+        cle: "sortie_d_impasse",
+        libelle: { en: "Dead-end exit", fr: "Sortie d'impasse" },
+        aide: { en: "The dead-end exit is on: its « Then » must lead somewhere. Blocks by default.", fr: "La sortie d'impasse est allumée : son « Ensuite » doit mener quelque part. Bloquante par défaut." },
+    },
+    {
+        cle: "sans_effet",
+        libelle: { en: "Settings with no effect", fr: "Réglages sans effet" },
+        aide: { en: "A setting that is on and changes nothing in the call. Warns by default.", fr: "Un réglage allumé qui ne change rien à l'appel. Préviennent par défaut." },
+    },
+    {
+        cle: "deux_webhooks",
+        libelle: { en: "Two webhooks", fr: "Deux webhooks" },
+        aide: { en: "Dograh's webhook and the .mark module both send after the call. Warns by default.", fr: "Le webhook de Dograh et le module .mark envoient tous deux après l'appel. Préviennent par défaut." },
+    },
 ];
 
 export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre, titre }: ProprietesThemeOrganisation) => {

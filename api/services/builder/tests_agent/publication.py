@@ -109,9 +109,14 @@ async def verifier_avant_publication(
     else:
         controle = {"ok": True, "elements": [], "bloquants": []}
     autres = []
-    if "bloque" in (positions.liste_vocale, positions.attaques, positions.garde_fous):
+    # [.mark] Partie 3 (SA-L3a) : les lignes obligatoires de « Prêt à publier » (variables, briques, outils), la sortie d'impasse sans
+    # issue, les réglages sans effet et les deux webhooks bloquent par le même réglage que les autres contrôles.
+    cles_de_la_fenetre = (
+        "liste_vocale", "attaques", "garde_fous", "variables", "briques", "outils", "sans_effet", "sortie_d_impasse", "deux_webhooks",
+    )
+    if any(getattr(positions, cle) == "bloque" for cle in cles_de_la_fenetre):
         vue = await fenetre.evaluer(workflow, brouillon, organization_id)
-        autres = [c for c in vue["controles"] if c["statut"] == fenetre.ECHEC and c["cle"] in ("liste_vocale", "attaques", "garde_fous")]
+        autres = [c for c in vue["controles"] if c["statut"] == fenetre.ECHEC and c["cle"] in cles_de_la_fenetre]
     # [.mark] U3 bis (E62) : une clé citée que le catalogue ne connaît pas bloque la publication.
     from api.services.variables_agent.garde import cles_inconnues_du_brouillon
 

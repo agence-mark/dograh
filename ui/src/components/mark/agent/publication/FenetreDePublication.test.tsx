@@ -23,6 +23,7 @@ const m = vi.hoisted(() => ({
     groupe: vi.fn(),
     ouvrirFil: vi.fn(),
     publierGroupe: vi.fn(),
+    corrigerReglage: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/labo/agents/5" }));
 vi.mock("@/components/builder/chat/adresses", () => ({ useAdressesDuBuilder: () => ({ fil: (id: number) => `/labo/builder/${id}` }) }));
@@ -45,6 +46,8 @@ vi.mock("@/client/sdk.gen", () => ({
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet: (o: unknown) => m.groupe(o),
     ouvrirUnFilApiV1BuilderFilsPost: (o: unknown) => m.ouvrirFil(o),
     publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost: (o: unknown) => m.publierGroupe(o),
+    corrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePost: (o: unknown) => m.corrigerReglage(o),
+    lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet: () => Promise.resolve({ data: { etapes: [] } }),
 }));
 
 const vue = (surcharge: Partial<VueDePublication> = {}): VueDePublication => ({
@@ -82,6 +85,7 @@ beforeEach(() => {
     m.changements.mockReset().mockResolvedValue({ data: CHANGEMENTS });
     m.groupe.mockReset().mockResolvedValue({ data: { principal: null, specialises: [] } });
     m.ouvrirFil.mockReset().mockResolvedValue({ data: { id: 77 } });
+    m.corrigerReglage.mockReset().mockResolvedValue({ data: { ok: true } });
     m.publierGroupe.mockReset().mockResolvedValue({ data: { publies: [{ id: 8, name: "Urgences" }], deja_a_jour: [], refus: null } });
 });
 afterEach(cleanup);
@@ -102,6 +106,39 @@ describe("la fenêtre « Publier »", () => {
         await waitFor(() => expect(m.publier).toHaveBeenCalled());
         expect(m.publier.mock.calls[0][0].body).toEqual({ forcer: false, raison: null, pourcentage: null });
         await waitFor(() => expect(onPublie).toHaveBeenCalled());
+    });
+
+    it("« Prêt à publier » : la même liste que les Réglages, avec la correction en un clic d'une impasse sans issue (Partie 3, SA-L3a)", async () => {
+        m.lire.mockResolvedValue({
+            data: vue({
+                bloque: true,
+                lignes: [
+                    {
+                        id: "impasse_sans_issue",
+                        niveau: "requis",
+                        etat: "bloquant",
+                        theme: "agent",
+                        source: "impasse_sans_issue",
+                        manquants: [],
+                        constat: "impasse_sans_issue",
+                        controle: "sortie_d_impasse",
+                        noms: [],
+                        corrections: [
+                            { id: "renvoyer_a_l_accueil", noeud_id: "1", nom: "Accueil" },
+                            { id: "eteindre_la_sortie_d_impasse" },
+                        ],
+                    },
+                ],
+            }),
+        });
+        rendre();
+        expect(await screen.findByText("A dead end with no way out")).toBeTruthy();
+        expect(screen.getByText(/leads nowhere/)).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Send to « Accueil »" }));
+        await waitFor(() => expect(m.corrigerReglage).toHaveBeenCalled());
+        expect(m.corrigerReglage.mock.calls[0][0]).toMatchObject({ path: { workflow_id: 5 }, body: { correction: "renvoyer_a_l_accueil", noeud_id: "1" } });
+        // la fenêtre relit les contrôles après la correction
+        await waitFor(() => expect(m.lire.mock.calls.length).toBeGreaterThanOrEqual(2));
     });
 
     it("changer la position d'un contrôle l'écrit, avec les autres positions inchangées", async () => {

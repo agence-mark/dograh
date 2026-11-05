@@ -373,6 +373,18 @@ function RenderWorkflow({
         else if (essaiDemande === 'audio' || essaiDemande === 'text' || essaiDemande === 'simulated') handleOpenTester(essaiDemande);
     }, [essaiDemande, handleOpenTester]);
 
+    // [.mark] Partie 3 (SA-L3a) : « Régler » dans « Prêt à publier » mène à l'étape exacte (`?etape=<identifiant>`) : elle est
+    // sélectionnée et centrée dans le graphe, une seule fois.
+    const etapeDemandee = searchParams.get('etape');
+    const etapeMontree = useRef(false);
+    useEffect(() => {
+        if (etapeMontree.current || !etapeDemandee || !nodes.some((n) => n.id === etapeDemandee)) return;
+        etapeMontree.current = true;
+        setNodes(nodes.map((n) => ({ ...n, selected: n.id === etapeDemandee })));
+        // Pas de nettoyage : la sélection change `nodes` et relancerait l'effet avant que le centrage ait eu lieu.
+        setTimeout(() => rfInstance.current?.fitView({ nodes: [{ id: etapeDemandee }], padding: 0.6, duration: 300, maxZoom: 1 }), 120);
+    }, [etapeDemandee, nodes, setNodes, rfInstance]);
+
     useEffect(() => {
         const syncViewport = () => {
             setIsDesktopViewport(window.innerWidth >= 1280);

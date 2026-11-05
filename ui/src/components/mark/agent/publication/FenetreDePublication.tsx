@@ -8,6 +8,7 @@
  * Forme de la maquette (`components/studio/avant-publier.tsx`) ; les données viennent du serveur, jamais d'un exemple.
  */
 import { AlertTriangle, Play, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -20,7 +21,12 @@ import {
     reglerLaPublicationApiV1BuilderPublicationWorkflowIdReglagesPut,
 } from "@/client/sdk.gen";
 import { STATUT_PLAFOND, statutDe, TEXTES_PLAFOND } from "@/components/builder/chat/plafond-du-mois";
+import { endroitDeLaLigne } from "@/components/mark/agent/pret/endroit";
+import { ListePret } from "@/components/mark/agent/pret/ListePret";
+import { useRecalculDuPret } from "@/components/mark/agent/pret/recalcul";
+import { useCorrectionEnUnClic } from "@/components/mark/agent/pret/useCorrection";
 import { usePublierLeGroupe } from "@/components/mark/groupe/PublierLeGroupe";
+import { TEXTES_ETAPES } from "@/components/mark/reglages-agent/PreparationAgent";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { DateRelative } from "@/components/mark/studio/date-relative";
@@ -76,6 +82,7 @@ export function FenetreDePublication({
     const [avecLeGroupe, setAvecLeGroupe] = useState(false);
     const [choisis, setChoisis] = useState<number[]>([]);
     const groupe = usePublierLeGroupe();
+    const router = useRouter();
 
     const T = {
         controles: t({ en: "Checks", fr: "Contrôles" }),
@@ -122,6 +129,54 @@ export function FenetreDePublication({
                 en: "The last « Attack the agent » run on this draft. « Not tested » never counts as held.",
             },
         },
+        variables: {
+            fr: "Variables des prompts",
+            en: "Prompt variables",
+            info: {
+                fr: "Chaque {{variable}} lue par les prompts a une valeur (modèle de l'agent ou extraction d'une étape). Bloque par défaut.",
+                en: "Every {{variable}} the prompts read has a value (the agent's template or a step's extraction). Blocks by default.",
+            },
+        },
+        briques: {
+            fr: "Modèles configurés",
+            en: "Models configured",
+            info: {
+                fr: "Cerveau, transcription et voix sont réglés (aucun fournisseur n'est appelé). Bloque par défaut.",
+                en: "Brain, transcription and voice are set (no provider is called). Blocks by default.",
+            },
+        },
+        outils: {
+            fr: "Outils branchés",
+            en: "Tools connected",
+            info: {
+                fr: "Chaque outil porté par une étape existe et est actif. Bloque par défaut.",
+                en: "Every tool a step carries exists and is active. Blocks by default.",
+            },
+        },
+        sans_effet: {
+            fr: "Réglages sans effet",
+            en: "Settings with no effect",
+            info: {
+                fr: "Un réglage allumé qui ne change rien à l'appel (règles sur une étape où le modèle décide, fiche éteinte, temps réel…). Prévient par défaut : une bonne pratique n'est pas un blocage.",
+                en: "A setting that is on and changes nothing in the call (rules on a step where the model decides, record off, realtime…). Warns by default: a good practice is not a block.",
+            },
+        },
+        sortie_d_impasse: {
+            fr: "Sortie d'impasse",
+            en: "Dead-end exit",
+            info: {
+                fr: "La sortie d'impasse est allumée : son « Ensuite » doit mener quelque part. Bloque par défaut.",
+                en: "The dead-end exit is on: its « Then » must lead somewhere. Blocks by default.",
+            },
+        },
+        deux_webhooks: {
+            fr: "Deux webhooks",
+            en: "Two webhooks",
+            info: {
+                fr: "Le webhook de Dograh et le module webhook .mark envoient tous deux après l'appel. Prévient par défaut.",
+                en: "Dograh's webhook and the .mark webhook module both send after the call. Warns by default.",
+            },
+        },
         garde_fous: {
             fr: "Garde-fous",
             en: "Safeguards",
@@ -138,9 +193,11 @@ export function FenetreDePublication({
         setErreur(false);
         setVue(r.data as VueDePublication);
     }, [agentId]);
+    const recalcul = useRecalculDuPret((x) => x.n);
     useEffect(() => {
         void charger();
-    }, [charger]);
+    }, [charger, recalcul]);
+    const { corriger: corrigerUnReglage, enCours: corrigerEnCours } = useCorrectionEnUnClic(agentId, charger);
 
     // Les spécialistes ne se proposent que dans la fenêtre du PRINCIPAL de leur groupe (un agent seul ou un spécialiste : rien).
     useEffect(() => {
@@ -280,6 +337,19 @@ export function FenetreDePublication({
                     <EtatVide cas="chargement" lignes={5} />
                 ) : onglet === "controles" ? (
                     <>
+                        <Section titre={t({ en: "Ready to publish", fr: "Prêt à publier" })}>
+                            <ListePret
+                                lignes={vue.lignes ?? []}
+                                textesDesEtapes={TEXTES_ETAPES}
+                                enCours={corrigerEnCours}
+                                corriger={(_, c) => void corrigerUnReglage(c)}
+                                regler={(ligne) => {
+                                    // La fenêtre se ferme avant d'aller à l'endroit exact (étape, onglet ou thème des Réglages).
+                                    fermer();
+                                    router.push(endroitDeLaLigne(ligne, agentId).adresse);
+                                }}
+                            />
+                        </Section>
                         <table className="w-full text-sm">
                             <thead className="border-b text-xs text-muted-foreground">
                                 <tr>

@@ -466,7 +466,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                     )}
 
                     <RecetteDeLAgent workflowId={workflowId} />
-                    <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} />
+                    <PreparationAgent workflowId={workflowId} versTheme={themes.choisir} recalcul={workflowConfigurations} />
 
                     {resolue && (
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

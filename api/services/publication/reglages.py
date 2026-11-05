@@ -10,7 +10,19 @@ from typing import Any
 from api.schemas.publication import Position, Publication
 
 CLE = "publication"
-CONTROLES = ("tests_obligatoires", "bilan_du_prompt", "liste_vocale", "attaques", "garde_fous")
+CONTROLES = (
+    "tests_obligatoires",
+    "bilan_du_prompt",
+    "liste_vocale",
+    "attaques",
+    "garde_fous",
+    "variables",
+    "briques",
+    "outils",
+    "sans_effet",
+    "sortie_d_impasse",
+    "deux_webhooks",
+)
 
 
 def lire(configurations: dict[str, Any] | None) -> Publication:

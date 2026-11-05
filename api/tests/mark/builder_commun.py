@@ -216,3 +216,20 @@ def monde(monkeypatch):
     db.membres.add((1, ORG_MARK))  # l'utilisateur 1 est de l'équipe .mark ; l'utilisateur 2 ne l'est pas
     db.ajouter_agent()
     return db
+
+
+# [.mark] Partie 3, SA-L3a : « Prêt à publier » ajoute six contrôles à la fenêtre Publier (variables, briques, outils bloquent par
+# défaut ; la sortie d'impasse sans issue aussi). Les tests des AUTRES contrôles les éteignent pour rester sur ce qu'ils prouvent.
+LIGNES_DE_PRET = ("variables", "briques", "outils", "sans_effet", "sortie_d_impasse", "deux_webhooks")
+
+
+def sans_les_lignes_de_pret(configurations=None):
+    """Les réglages donnés, avec les six nouveaux contrôles éteints (sauf ceux que le test pose lui-même)."""
+    configurations = dict(configurations or {})
+    publication = dict(configurations.get("publication") or {})
+    controles = dict(publication.get("controles") or {})
+    for cle in LIGNES_DE_PRET:
+        controles.setdefault(cle, "eteint")
+    publication["controles"] = controles
+    configurations["publication"] = publication
+    return configurations

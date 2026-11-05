@@ -15,6 +15,8 @@ import { ContexteHeritage, type ReglageHerite } from "../ecran/heritage";
 import { FournisseurLangue } from "../langue/langue";
 import { PreparationAgent } from "./PreparationAgent";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
+
 const m = vi.hoisted(() => ({
     reponse: { data: undefined, error: undefined } as { data?: unknown; error?: unknown },
 }));
@@ -54,8 +56,11 @@ describe("liste de préparation", () => {
         monter(<PreparationAgent workflowId={1} versTheme={versTheme} />);
         await waitFor(() => expect(document.querySelector("[data-preparation='liste']")).not.toBeNull());
         expect(document.querySelector("[data-etape='variables'] [data-cercle='requis']")).not.toBeNull();
-        expect(document.querySelector("[data-etape='briques'] [data-cercle='fait']")).not.toBeNull();
         expect(document.querySelector("[data-etape='panne'] [data-cercle='conseille']")).not.toBeNull();
+        // Les lignes faites sont repliées sous « 1 faite » (Partie 3, SA-L3a) ; on les déplie pour les voir.
+        expect(document.querySelector("[data-etape='briques']")).toBeNull();
+        fireEvent.click(document.querySelector("[data-preparation='faites']")!);
+        expect(document.querySelector("[data-etape='briques'] [data-cercle='fait']")).not.toBeNull();
         // Sans objet : pas de ligne.
         expect(document.querySelector("[data-etape='outils']")).toBeNull();
         expect(screen.getByText("ville")).toBeTruthy();

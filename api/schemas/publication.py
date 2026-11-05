@@ -20,6 +20,15 @@ class ControlesDePublication(BaseModel):
     liste_vocale: Position = "eteint"
     attaques: Position = "eteint"
     garde_fous: Position = "eteint"
+    # [.mark] Partie 3, SA-L3a (05 § 11, § 2, § 15) : les lignes de « Prêt à publier ». Variables, briques et outils bloquent par
+    # défaut (une ligne obligatoire non faite bloque Publier par le même réglage) ; la sortie d'impasse sans issue bloque aussi ;
+    # les réglages sans effet et les deux webhooks préviennent (une bonne pratique n'est jamais un blocage codé).
+    variables: Position = "bloque"
+    briques: Position = "bloque"
+    outils: Position = "bloque"
+    sans_effet: Position = "previent"
+    sortie_d_impasse: Position = "bloque"
+    deux_webhooks: Position = "previent"
 
 
 class DeploiementProgressif(BaseModel):
