@@ -4,6 +4,7 @@ import {
     Background,
     BackgroundVariant,
     MarkerType,
+    MiniMap,
     type NodeChange,
     ReactFlow,
 } from "@xyflow/react";
@@ -24,6 +25,12 @@ import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
 import { BandeauSelection, gestesDuGraphe } from "@/components/mark/graphe/gestes-graphe";
 import { FilGroupe, GroupeSurCanevas } from "@/components/mark/graphe/GroupeSurCanevas";
 import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
+import { BarreOutilsGraphe } from "@/components/mark/graphe/BarreOutilsGraphe";
+import { usePreferenceLocale, useStatistiquesDesEtapes } from "@/components/mark/graphe/hooks-graphe";
+import { fermeUnCycle, liensEnBoucle } from "@/components/mark/graphe/sans-boucle";
+import { partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
+import { useDecalagePanneau } from "@/components/mark/studio/panneau-droit";
+import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
 import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
@@ -146,6 +153,10 @@ function RenderWorkflow({
         onEdgesChange,
         onNodesChange,
         onDelete,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
     } = useWorkflowState({
         initialWorkflowName,
         workflowId,
@@ -543,8 +554,77 @@ function RenderWorkflow({
     useEffect(() => {
         setCadreStudio(document.getElementById('cadre-studio'));
     }, []);
-    const noeudsAffiches = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
+    const noeudsDeBase = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
     const liaisonsAffichees = affichageDuBuilder ? affichageDuBuilder.edges : edges;
+
+    // [.mark] Partie 3, sous-lot 20 : l'éditeur du graphe façon ElevenLabs (annuler, aimant, carte, recherche, statistiques, boucles).
+    const [aimant, basculerAimant] = usePreferenceLocale("mark.graphe.aimant", false);
+    const [carte, basculerCarte] = usePreferenceLocale("mark.graphe.carte", true);
+    const [boucles, basculerBoucles] = usePreferenceLocale(`mark.graphe.sans-boucle.${workflowId}`, false);
+    const [statsAllumees, setStatsAllumees] = useState(false);
+    const statistiques = useStatistiquesDesEtapes(workflowId, statsAllumees);
+    // Les statistiques se posent à l'affichage seulement (jamais dans les étapes enregistrées).
+    const noeudsAffiches = useMemo(
+        () =>
+            statistiques
+                ? noeudsDeBase.map((n) => {
+                      const part = partDesAppels(statistiques, String((n.data as { name?: string }).name ?? ""));
+                      return part === null ? n : { ...n, data: { ...n.data, stats_part: part } };
+                  })
+                : noeudsDeBase,
+        [noeudsDeBase, statistiques],
+    );
+    const nombreEnBoucle = useMemo(() => (boucles ? liensEnBoucle(edges).length : 0), [boucles, edges]);
+    const onConnectGardee = useCallback(
+        (connexion: Parameters<typeof onConnect>[0]) => {
+            const { source, target } = connexion;
+            if (boucles && source && target && fermeUnCycle(useWorkflowStore.getState().edges, source, target)) {
+                notifier.avertissement({
+                    fr: "Cette liaison fermerait une boucle. Éteignez « Empêcher les boucles » pour la poser.",
+                    en: "This link would close a loop. Turn off \"Forbid loops\" to add it.",
+                });
+                return;
+            }
+            onConnect(connexion);
+        },
+        [boucles, onConnect],
+    );
+    const reorganiser = useCallback(() => {
+        const rangees = layoutNodes(nodes, edges, 'TB', rfInstance);
+        // Comme un glissement terminé : le geste entre dans l'historique, « Annuler » remet les places d'avant.
+        useWorkflowStore.getState().setNodes(
+            rangees,
+            rangees.map((n) => ({ type: 'position', id: n.id, position: n.position, dragging: false }) as NodeChange<FlowNode>),
+        );
+        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.8 }), 60);
+    }, [nodes, edges, rfInstance]);
+    const montrerUneEtape = useCallback(
+        (id: string) => {
+            useWorkflowStore.getState().setNodes(useWorkflowStore.getState().nodes.map((n) => ({ ...n, selected: n.id === id })));
+            setTimeout(() => rfInstance.current?.fitView({ nodes: [{ id }], padding: 0.6, duration: 300, maxZoom: 1 }), 60);
+        },
+        [rfInstance],
+    );
+    const etapesCherchables = useMemo(
+        () => nodes.map((n) => ({ id: n.id, nom: String((n.data as { name?: string }).name ?? n.id), type: n.type })),
+        [nodes],
+    );
+    // Supprimer au clavier demande aussi confirmation (la barre au survol a la sienne).
+    const [suppressionDemandee, setSuppressionDemandee] = useState<{ nombre: number; nom: string; reponse: (ok: boolean) => void } | null>(null);
+    const avantSuppression = useCallback(
+        ({ nodes: aSupprimer }: { nodes: FlowNode[]; edges: FlowEdge[] }) =>
+            aSupprimer.length === 0
+                ? Promise.resolve(true)
+                : new Promise<boolean>((reponse) =>
+                      setSuppressionDemandee({
+                          nombre: aSupprimer.length,
+                          nom: String((aSupprimer[0].data as { name?: string }).name ?? aSupprimer[0].id),
+                          reponse,
+                      }),
+                  ),
+        [],
+    );
+    const decalagePanneau = useDecalagePanneau();
 
     // The nodes appear one by one: keep the whole graph in view while the operations arrive.
     useEffect(() => {
@@ -700,7 +780,7 @@ function RenderWorkflow({
     ]);
 
     const panneauFlottant = (
-        <div className="absolute bottom-2 right-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
+        <div style={{ right: 8 + decalagePanneau }} className="absolute bottom-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
             {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
             {isTesterRailOpen && (
                 <aside className="hidden h-full w-[420px] shrink-0 xl:block">
@@ -791,7 +871,10 @@ function RenderWorkflow({
                                 onDelete={onDelete}
                                 nodeTypes={nodeTypes}
                                 edgeTypes={edgeTypes}
-                                onConnect={isViewingHistoricalVersion ? undefined : onConnect}
+                                onConnect={isViewingHistoricalVersion ? undefined : onConnectGardee}
+                                onBeforeDelete={avantSuppression}
+                                snapToGrid={aimant}
+                                snapGrid={[20, 20]}
                                 minZoom={0.2}
                                 onMove={(_, vue) => setZoomPourCent(Math.round(vue.zoom * 100))}
                                 onInit={(instance) => {
@@ -810,6 +893,17 @@ function RenderWorkflow({
                                 {...gestesDuGraphe(isViewingHistoricalVersion)}
                                 deleteKeyCode={isViewingHistoricalVersion ? null : "Backspace"}
                             >
+                                {carte && (
+                                    <MiniMap
+                                        pannable
+                                        zoomable
+                                        ariaLabel={tBuilder({ en: "Mini map", fr: "Carte miniature" })}
+                                        className="rounded-lg! border! bg-card! shadow-sm!"
+                                        maskColor="var(--canevas-point)"
+                                        nodeColor="var(--liaison)"
+                                        nodeStrokeColor="var(--liaison-survol)"
+                                    />
+                                )}
                                 <GroupeSurCanevas agentId={workflowId} />
                                 <Background
                                     variant={BackgroundVariant.Dots}
@@ -821,6 +915,26 @@ function RenderWorkflow({
                             </ReactFlow>
 
                             <FilGroupe agentId={workflowId} />
+                            <BarreOutilsGraphe
+                                lectureSeule={isViewingHistoricalVersion}
+                                peutAnnuler={canUndo}
+                                peutRetablir={canRedo}
+                                onAnnuler={undo}
+                                onRetablir={redo}
+                                onReorganiser={reorganiser}
+                                aimant={aimant}
+                                onAimant={basculerAimant}
+                                carte={carte}
+                                onCarte={basculerCarte}
+                                stats={statsAllumees}
+                                onStats={() => setStatsAllumees((v) => !v)}
+                                appelsLus={statistiques ? statistiques.appels : null}
+                                boucles={boucles}
+                                onBoucles={basculerBoucles}
+                                enBoucle={nombreEnBoucle}
+                                etapes={etapesCherchables}
+                                onChoisirEtape={montrerUneEtape}
+                            />
                             <BandeauSelection nombre={noeudsAffiches.filter((n) => n.selected).length} onAnnuler={annulerLaSelection} />
                             {/* [.mark] E36 : la barre flottante du canevas (prompt général, nœud, bibliothèque, zoom, ajuster, ranger) */}
                             <BarreCanevas
@@ -863,6 +977,27 @@ function RenderWorkflow({
                 </div>
 
                 <MenuDuNoeud menu={menuDuNoeud} onFermer={() => setMenuDuNoeud(null)} />
+
+                <ConfirmerSuppression
+                    ouvert={suppressionDemandee !== null}
+                    titre={
+                        suppressionDemandee && suppressionDemandee.nombre > 1
+                            ? tBuilder({ en: `Delete ${suppressionDemandee.nombre} steps?`, fr: `Supprimer ${suppressionDemandee.nombre} étapes ?` })
+                            : tBuilder({ en: `Delete "${suppressionDemandee?.nom ?? ''}"?`, fr: `Supprimer « ${suppressionDemandee?.nom ?? ''} » ?` })
+                    }
+                    description={tBuilder({
+                        en: 'The steps and their transitions leave the draft. "Undo" in the toolbar puts them back.',
+                        fr: "Les étapes et leurs transitions sortent du brouillon. « Annuler » dans la barre d'outils les remet.",
+                    })}
+                    onFermer={() => {
+                        suppressionDemandee?.reponse(false);
+                        setSuppressionDemandee(null);
+                    }}
+                    onConfirmer={() => {
+                        suppressionDemandee?.reponse(true);
+                        setSuppressionDemandee(null);
+                    }}
+                />
 
                 <PhoneCallDialog
                     open={isPhoneCallDialogOpen}
