@@ -410,22 +410,18 @@ async def creer_principal(
         if parent is None:
             raise GroupeError(f"Folder with id {dossier_parent_id} not found", status_code=404)
     dossier = await _creer_sous_dossier(nom, organization_id, dossier_parent_id)
+    # [.mark] Partie 3, sous-lot 9 : la configuration du groupe part AVEC la création (première version), et non dans un
+    # brouillon écrit juste après : chez un client, la principale d'un agent qui a une version est protégée (SA-L3c) et ce
+    # second geste était refusé (409), si bien qu'aucun groupe ne se créait dans l'espace d'un client.
     workflow = await db_client.create_workflow(
-        nom, graphe_minimal_du_principal(), user_id, organization_id
+        nom,
+        graphe_minimal_du_principal(),
+        user_id,
+        organization_id,
+        workflow_configurations={CLE_AGENTS_SPECIALISES: [], CLE_PLAFOND: PLAFOND_DEFAUT},
     )
     await db_client.move_workflow_to_folder(
         workflow_id=workflow.id, folder_id=dossier.id, organization_id=organization_id
-    )
-    await db_client.update_workflow(
-        workflow_id=workflow.id,
-        name=None,
-        workflow_definition=None,
-        template_context_variables=None,
-        workflow_configurations={
-            CLE_AGENTS_SPECIALISES: [],
-            CLE_PLAFOND: PLAFOND_DEFAUT,
-        },
-        organization_id=organization_id,
     )
     return workflow.id, dossier.id
 

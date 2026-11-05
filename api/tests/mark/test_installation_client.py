@@ -532,3 +532,17 @@ async def test_une_faute_de_saisie_d_une_route_est_rendue_sous_le_champ_jamais_u
     resultat = await moteur.executer(user, org.organisation.id, 3, {"etablissements": [{"nom": "Atelier"}]})
     assert resultat["echec"]["code"] == "base_injoignable" and resultat["echec"]["precisions"] == []
     assert "SELECT" not in str(resultat)
+
+
+async def test_un_groupe_se_cree_dans_l_espace_d_un_client_dont_la_principale_est_protegee(org, autre_org, db_session, test_client_factory, monkeypatch):
+    """Constaté à l'écran (05/11, étape 6) : « Créer le groupe » répondait 409 chez un client, la configuration du groupe étant
+    écrite dans un brouillon juste après la première version (principale protégée, SA-L3c). Elle part désormais avec la création."""
+    from api.services.groupe.groupe import CLE_AGENTS_SPECIALISES, CLE_PLAFOND
+
+    monkeypatch.setattr("api.services.builder.constantes.organisation_bibliotheque", lambda: autre_org.organisation.id)
+    async with test_client_factory(_client(org)) as client:
+        reponse = await client.post("/api/v1/workflow/groupe", json={"name": "Accueil du client"})
+    assert reponse.status_code == 200, reponse.text
+    agent = await db_session.get_workflow(reponse.json()["workflow_id"], organization_id=org.organisation.id)
+    assert agent.workflow_configurations[CLE_AGENTS_SPECIALISES] == [] and CLE_PLAFOND in agent.workflow_configurations
+    assert agent.folder_id == reponse.json()["folder_id"]
