@@ -3864,6 +3864,112 @@ export type ConsigneUrgence = {
 };
 
 /**
+ * ContactFusionne
+ *
+ * The kept contact, plus what was merged into it. ``deja_fait``: the merge had already been done (a replay).
+ */
+export type ContactFusionne = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Mail Declare
+     */
+    mail_declare: boolean;
+    /**
+     * Nature
+     */
+    nature: string;
+    /**
+     * Telephones
+     */
+    telephones: Array<string>;
+    doublon?: DoubleAvec | null;
+    /**
+     * Ne Pas Memoriser
+     */
+    ne_pas_memoriser: boolean;
+    /**
+     * Nb Appels
+     */
+    nb_appels: number;
+    /**
+     * Nb Commentaires
+     */
+    nb_commentaires: number;
+    /**
+     * Fusionne Depuis
+     */
+    fusionne_depuis: number;
+    /**
+     * Deja Fait
+     */
+    deja_fait: boolean;
+};
+
+/**
+ * ContactTraite
+ *
+ * The contact as it stands after the gesture.
+ */
+export type ContactTraite = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Mail
+     */
+    mail?: string | null;
+    /**
+     * Mail Declare
+     */
+    mail_declare: boolean;
+    /**
+     * Nature
+     */
+    nature: string;
+    /**
+     * Telephones
+     */
+    telephones: Array<string>;
+    doublon?: DoubleAvec | null;
+    /**
+     * Ne Pas Memoriser
+     */
+    ne_pas_memoriser: boolean;
+    /**
+     * Nb Appels
+     */
+    nb_appels: number;
+    /**
+     * Nb Commentaires
+     */
+    nb_commentaires: number;
+};
+
+/**
  * ContactVisiteur
  */
 export type ContactVisiteur = {
@@ -6371,6 +6477,22 @@ export type DossierPropose = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * DoubleAvec
+ */
+export type DoubleAvec = {
+    /**
+     * Avec
+     *
+     * The contact this one may double.
+     */
+    avec: number;
+    /**
+     * Raison
+     */
+    raison?: string | null;
 };
 
 /**
@@ -11078,6 +11200,18 @@ export type MembresResponse = {
      * Offset
      */
     offset: number;
+};
+
+/**
+ * MemoriserContact
+ */
+export type MemoriserContact = {
+    /**
+     * Memoriser
+     *
+     * False: the agent reads no history of this person any more. True: it reads it again.
+     */
+    memoriser: boolean;
 };
 
 /**
@@ -37643,6 +37777,150 @@ export type PutListesValeursApiV1OrganizationsListesValeursPutResponses = {
 };
 
 export type PutListesValeursApiV1OrganizationsListesValeursPutResponse = PutListesValeursApiV1OrganizationsListesValeursPutResponses[keyof PutListesValeursApiV1OrganizationsListesValeursPutResponses];
+
+export type PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Contact Id
+         */
+        contact_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/contacts/{contact_id}/fusionner';
+};
+
+export type PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostError = PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostErrors[keyof PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostErrors];
+
+export type PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContactFusionne;
+};
+
+export type PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostResponse = PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostResponses[keyof PostFusionnerApiV1OrganizationsContactsContactIdFusionnerPostResponses];
+
+export type PostSeparerApiV1OrganizationsContactsContactIdSeparerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Contact Id
+         */
+        contact_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/contacts/{contact_id}/separer';
+};
+
+export type PostSeparerApiV1OrganizationsContactsContactIdSeparerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostSeparerApiV1OrganizationsContactsContactIdSeparerPostError = PostSeparerApiV1OrganizationsContactsContactIdSeparerPostErrors[keyof PostSeparerApiV1OrganizationsContactsContactIdSeparerPostErrors];
+
+export type PostSeparerApiV1OrganizationsContactsContactIdSeparerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContactTraite;
+};
+
+export type PostSeparerApiV1OrganizationsContactsContactIdSeparerPostResponse = PostSeparerApiV1OrganizationsContactsContactIdSeparerPostResponses[keyof PostSeparerApiV1OrganizationsContactsContactIdSeparerPostResponses];
+
+export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutData = {
+    body: MemoriserContact;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Contact Id
+         */
+        contact_id: number;
+    };
+    query?: never;
+    url: '/api/v1/organizations/contacts/{contact_id}/memoriser';
+};
+
+export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutError = PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutErrors[keyof PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutErrors];
+
+export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContactTraite;
+};
+
+export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponse = PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses[keyof PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses];
 
 export type GetObjetsApiV1OrganizationsObjetsGetData = {
     body?: never;
