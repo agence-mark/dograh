@@ -25,7 +25,7 @@ from starlette.requests import HTTPConnection
 
 from api.db import db_client
 from api.db.equipe_client import AccesCompte, detacher_de_sa_session
-from api.services.equipe_mark.permissions import PERMISSIONS, PERMISSIONS_DE_CLE
+from api.services.equipe_mark.permissions import PERMISSIONS, PERMISSIONS_DE_CLE, PERMISSIONS_IMPLIQUEES
 from api.services.equipe_mark.registre_routes import (
     ECRITURE,
     Exemption,
@@ -165,7 +165,9 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
             # ni rôle, ni client, et ne règle pas l'atelier. Liste fermée (17a) : toute permission hors de la liste est refusée.
             if decision.cle not in PERMISSIONS_DE_CLE:
                 raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle} (not available to an API key)")
-        elif acces is None or decision.cle not in acces.permissions:
+        elif acces is None or not (
+            decision.cle in acces.permissions or PERMISSIONS_IMPLIQUEES.get(decision.cle) in acces.permissions
+        ):
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
         if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES):

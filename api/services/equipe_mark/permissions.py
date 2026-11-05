@@ -48,6 +48,10 @@ PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
     }
 )
 
+# N3b : un rôle qui joue déjà les tests (``tests.jouer``) peut aussi les lancer depuis une automatisation : aucune migration de rôles,
+# la permission est tenue pour accordée à ceux qui ont l'autre (un rôle peut aussi la recevoir seule, depuis l'écran des rôles).
+PERMISSIONS_IMPLIQUEES: dict[str, str] = {"tests.automatiser": "tests.jouer"}
+
 NOM_ADMINISTRATEUR = "Administrateur"
 NOM_MEMBRE = "Membre"
 

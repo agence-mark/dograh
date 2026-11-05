@@ -66,12 +66,12 @@ const SORTES: Array<{ id: SorteDeTest; fr: string; en: string; info: { fr: strin
 ];
 
 /** The address an automation (n8n) calls to play the agent's tests, with the organization's API key in `X-API-Key`. */
-export const adresseDesTestsParAutomatisation = (workflowId: number, base: string = resolveBrowserBackendUrl()) =>
-    `${base.replace(/\/$/, "")}/api/v1/automatisation/agents/${workflowId}/tests/lancer`;
+export const adresseDesTestsParAutomatisation = (workflowId: number, slug?: string, base: string = resolveBrowserBackendUrl()) =>
+    `${base.replace(/\/$/, "")}/api/v1/automatisation/agents/${workflowId}/tests/lancer${slug ? `?test=${encodeURIComponent(slug)}` : ""}`;
 
 const TEXTE_AUTOMATISATION = {
-    en: "Copies the address to call from an automation (n8n): a POST with the organization's API key in the X-API-Key header plays the whole suite of this agent and answers with ok, a status and the failures. It spends within the monthly budgets of the judge and the caller.",
-    fr: "Copie l'adresse à appeler depuis une automatisation (n8n) : un POST avec la clé d'API de l'organisation dans l'en-tête X-API-Key joue toute la suite de cet agent et répond par ok, un statut et les échecs. Dans la limite des budgets du mois du juge et de l'appelant.",
+    en: "Copies the address that plays this test from an automation (n8n), for example when a client's software changes. Protected by the organization's API key (X-API-Key header); the answer says ok or failed with the detail. It spends within the monthly budgets of the judge and the caller.",
+    fr: "Copie l'adresse qui lance ce test depuis une automatisation (n8n), par exemple quand le logiciel d'un client change. Protégée par la clé de l'organisation (en-tête X-API-Key) ; la réponse dit « réussi » ou « échoué » avec le détail. Dans la limite des budgets du mois du juge et de l'appelant.",
 };
 
 const Champ = ({ titre, info, children }: { titre: string; info?: string; children: React.ReactNode }) => (
@@ -125,7 +125,7 @@ export function FenetreDeTest({
     const [obligatoire, setObligatoire] = useState(test?.obligatoire ?? false);
     const copierLAdresseDeLAutomatisation = async () => {
         try {
-            await navigator.clipboard.writeText(adresseDesTestsParAutomatisation(workflowId));
+            await navigator.clipboard.writeText(adresseDesTestsParAutomatisation(workflowId, test?.slug));
             notifier.succes({
                 fr: "Adresse copiée. Appelez-la en POST avec la clé d'API de l'organisation (en-tête X-API-Key).",
                 en: "Address copied. Call it with a POST and the organization's API key (X-API-Key header).",
@@ -478,15 +478,17 @@ export function FenetreDeTest({
                     </label>
                     {test && (
                         // N3b (décision 20) : pas d'écran dédié, une ligne qui copie l'adresse de l'API que n8n appelle avec la clé de l'organisation.
-                        <button
-                            type="button"
-                            data-testid="lancer-depuis-une-automatisation"
-                            onClick={copierLAdresseDeLAutomatisation}
-                            title={t(TEXTE_AUTOMATISATION)}
-                            className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:font-medium hover:text-foreground"
-                        >
-                            <Webhook className="size-4" /> {t({ en: "Launch from an automation", fr: "Lancer depuis une automatisation" })}
-                        </button>
+                        <span className="flex items-center gap-1.5 text-sm">
+                            <button
+                                type="button"
+                                data-testid="lancer-depuis-une-automatisation"
+                                onClick={copierLAdresseDeLAutomatisation}
+                                className="flex cursor-pointer items-center gap-1.5 hover:font-medium"
+                            >
+                                <Webhook className="size-4" /> {t({ en: "Launch from an automation", fr: "Lancer depuis une automatisation" })}
+                            </button>
+                            <Info>{t(TEXTE_AUTOMATISATION)}</Info>
+                        </span>
                     )}
                     <span className="flex-1" />
                     <Button variant="outline" onClick={onFermer}>

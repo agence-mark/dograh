@@ -8,19 +8,16 @@
 | statuts | ok, échec, incomplet, plafond (budget atteint) et sans test se disent en un mot ; rien de la pile ni du fournisseur n'en sort |
 | garde-fous | un second rejeu du même agent pendant le premier = 409 ; au-delà du délai = 504 ; un agent sans test ne joue rien |
 | relecture | ``dernier`` relit les exécutions rangées sans rien jouer |
-| migration | la montée accorde la permission aux rôles qui ont ``tests.jouer`` et à eux seuls, deux fois sans doublon ; la descente la retire |
+| rôles | un rôle qui a ``tests.jouer`` lance aussi par l'API, un rôle sans l'une ni l'autre non, un rôle qui n'a que la nouvelle oui (aucune migration) |
 """
 
 from __future__ import annotations
 
 import asyncio
-import importlib.util
-from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-import sqlalchemy as sa
 
 from api.services import verrou
 from api.services.builder.tests_agent import automatisation, execution, stockage
@@ -30,13 +27,13 @@ from api.tests.mark.equipe_commun import (
     client_http,
     creer_compte,
     creer_organisation,
+    entetes,
     sans_preparation_des_organisations,  # noqa: F401
 )
 
 pytestmark = pytest.mark.usefixtures("sans_preparation_des_organisations")
 
 GRAPHE = {"nodes": [{"id": "1", "type": "startCall", "data": {"name": "Start", "prompt": "Hello"}}], "edges": []}
-MIGRATION = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "d2f7a4c9e1b3_mark_depense_role_resume.py"
 
 
 @pytest.fixture(autouse=True)
@@ -125,6 +122,15 @@ async def test_sans_corps_une_repetition_et_toute_la_suite(db_session, monkeypat
         r = await c.post(f"/api/v1/automatisation/agents/{cas.agent.id}/tests/lancer", headers=cas.cle_a)
     assert r.status_code == 200
     assert jouer.await_args.kwargs == {"noms": None, "repetitions": 1}
+
+
+async def test_l_adresse_d_un_test_ne_joue_que_ce_test(db_session, monkeypatch):
+    cas = await _monde(db_session, "un")
+    jouer = AsyncMock(return_value=RENDU_OK)
+    monkeypatch.setattr(execution, "rejouer_la_suite", jouer)
+    async with client_http() as c:
+        r = await c.post(f"/api/v1/automatisation/agents/{cas.agent.id}/tests/lancer?test=urgence-gaz&test=b", headers=cas.cle_a)
+    assert r.status_code == 200 and jouer.await_args.kwargs["noms"] == ["urgence-gaz", "b"]
 
 
 async def test_la_cle_du_client_b_ne_touche_pas_l_agent_du_client_a(db_session, monkeypatch):
@@ -257,43 +263,19 @@ async def test_dernier_dit_incomplet_tant_qu_un_test_n_a_jamais_ete_joue(monkeyp
     assert lu["statut"] == "incomplet" and lu["ok"] is False and lu["tests_total"] == 2
 
 
-# --------------------------------------------------------------------------- la migration
+# --------------------------------------------------------------------------- les rôles de l'équipe (aucune migration)
 
 
-async def test_la_migration_accorde_la_permission_aux_roles_qui_jouent_les_tests_et_se_defait(db_session):
-    avec = await db_session.creer_role(nom="N3b-avec", labo_ouvert=False, tous_les_clients=True, permissions=["tests.jouer"], organisations=[])
-    sans = await db_session.creer_role(nom="N3b-sans", labo_ouvert=False, tous_les_clients=True, permissions=["conversations.voir"], organisations=[])
-    spec = importlib.util.spec_from_file_location("migration_n3b", MIGRATION)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-
-    async def permissions(role: int) -> set[str]:
-        async with db_session.async_session() as session:
-            lignes = await session.execute(sa.text("SELECT permission FROM mark_role_permissions WHERE role_id = :r"), {"r": role})
-            return {p for (p,) in lignes}
-
-    async def jouer(instructions):
-        async with db_session.async_session() as session:
-            for instruction in instructions:
-                await session.execute(sa.text(instruction))
-            await session.commit()
-
-    class _Op:
-        def __init__(self):
-            self.instructions: list[str] = []
-
-        def execute(self, texte):
-            self.instructions.append(texte)
-
-    for _ in range(2):  # deux montées de suite : aucun doublon
-        op = _Op()
-        with patch.object(migration, "op", op):
-            migration._accorder()
-        await jouer(op.instructions)
-    assert await permissions(avec) == {"tests.jouer", "tests.automatiser"}
-    assert await permissions(sans) == {"conversations.voir"}
-    op = _Op()
-    with patch.object(migration, "op", op):
-        migration._retirer()
-    await jouer(op.instructions)
-    assert await permissions(avec) == {"tests.jouer"}
+async def test_un_role_qui_joue_les_tests_peut_aussi_les_lancer_par_l_api_et_les_autres_non(db_session, monkeypatch):
+    cas = await _monde(db_session, "roles")
+    monkeypatch.setattr(execution, "rejouer_la_suite", AsyncMock(return_value=RENDU_OK))
+    await db_session.creer_role(nom="N3b-joue", labo_ouvert=False, tous_les_clients=True, permissions=["tests.jouer"], organisations=[])
+    await db_session.creer_role(nom="N3b-voit", labo_ouvert=False, tous_les_clients=True, permissions=["conversations.voir"], organisations=[])
+    await db_session.creer_role(nom="N3b-seule", labo_ouvert=False, tous_les_clients=True, permissions=["tests.automatiser"], organisations=[])
+    adresse = f"/api/v1/automatisation/agents/{cas.agent.id}/tests/lancer"
+    attendu = {"N3b-joue": 200, "N3b-voit": 403, "N3b-seule": 200}
+    async with client_http() as c:
+        for nom, statut in attendu.items():
+            _, jeton = await creer_compte(db_session, f"{nom}@example.com", role=nom, organisations=[cas.a])
+            r = await c.post(adresse, headers=entetes(jeton, cas.a))
+            assert r.status_code == statut, (nom, r.status_code, r.text[:200])

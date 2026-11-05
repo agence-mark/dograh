@@ -15,12 +15,16 @@ from datetime import date
 from typing import Any
 
 from api.db import db_client
+from api.services.builder import stock
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.depense import debut_du_mois
 
 ROLES = ("appelant", "juge", "resume")
 NOM_DU_ROLE = {"appelant": "simulated caller", "juge": "judge", "resume": "call summary"}
 CODE_BUDGET = "budget_mois"
+# N3b : le résumé d'appel range sa dépense dans la configuration de l'organisation (une ligne par mois) : la table ``mark_depense_roles`` n'accepte
+# que « appelant » et « juge » (contrainte de la base) et ce lot ne pose aucune migration. Mêmes fonctions, même mois, même budget.
+ROLES_EN_CONFIGURATION = ("resume",)
 
 
 class BudgetDuRole(ErreurCerveau):
@@ -35,9 +39,16 @@ def mois_courant() -> date:
     return debut_du_mois().date()
 
 
+def _cle_en_configuration(role: str) -> str:
+    return f"MARK_DEPENSE_ROLE:{role}:{mois_courant().strftime('%Y-%m')}"
+
+
 async def depense_du_mois(organisation: int) -> dict[str, dict[str, Any]]:
     """Par rôle, ce qui a été dépensé ce mois-ci par CETTE organisation (zéros pour un rôle jamais joué)."""
     lue = await db_client.lire_depense_roles(organisation, mois_courant())
+    for role in ROLES_EN_CONFIGURATION:
+        ligne = await stock.lire(organisation, _cle_en_configuration(role)) or {}
+        lue[role] = {"appels": int(ligne.get("appels", 0)), "jetons": int(ligne.get("jetons", 0)), "cout": float(ligne.get("cout", 0.0))}
     return {r: lue.get(r, {"appels": 0, "jetons": 0, "cout": 0.0}) for r in ROLES}
 
 
@@ -66,9 +77,20 @@ async def verifier(organisation: int, role: str, budget: float, *, prix_connus: 
 async def enregistrer(organisation: int, role: str, *, entree: int, sortie: int, prix_entree: float, prix_sortie: float) -> float:
     """Range un tour dans la dépense du mois ; rend son coût."""
     cout = round((entree * prix_entree + sortie * prix_sortie) / 1_000_000, 6)
-    await db_client.ajouter_depense_role(
-        organisation, role, mois_courant(), appels=1, jetons=max(entree, 0) + max(sortie, 0), cout=cout
-    )
+    jetons = max(entree, 0) + max(sortie, 0)
+    if role in ROLES_EN_CONFIGURATION:
+        # Écriture atomique (comparer puis écrire, rejouée si la ligne a bougé) : deux résumés simultanés ne se perdent pas.
+        await stock.modifier(
+            organisation,
+            _cle_en_configuration(role),
+            lambda ligne: {
+                "appels": int((ligne or {}).get("appels", 0)) + 1,
+                "jetons": int((ligne or {}).get("jetons", 0)) + jetons,
+                "cout": round(float((ligne or {}).get("cout", 0.0)) + cout, 6),
+            },
+        )
+        return cout
+    await db_client.ajouter_depense_role(organisation, role, mois_courant(), appels=1, jetons=jetons, cout=cout)
     return cout
 
 

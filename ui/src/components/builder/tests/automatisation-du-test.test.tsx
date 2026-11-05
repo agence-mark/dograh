@@ -36,8 +36,8 @@ afterEach(() => {
 
 describe("Lancer depuis une automatisation", () => {
     it("l'adresse est celle de la route des tests par la clé, avec l'agent, sans double barre", () => {
-        expect(adresseDesTestsParAutomatisation(42, "https://api.exemple.test/")).toBe("https://api.exemple.test/api/v1/automatisation/agents/42/tests/lancer");
-        expect(adresseDesTestsParAutomatisation(7, "https://api.exemple.test")).toBe("https://api.exemple.test/api/v1/automatisation/agents/7/tests/lancer");
+        expect(adresseDesTestsParAutomatisation(42, undefined, "https://api.exemple.test/")).toBe("https://api.exemple.test/api/v1/automatisation/agents/42/tests/lancer");
+        expect(adresseDesTestsParAutomatisation(7, "mon test", "https://api.exemple.test")).toBe("https://api.exemple.test/api/v1/automatisation/agents/7/tests/lancer?test=mon%20test");
     });
 
     it("un test existant offre la ligne ; un clic copie l'adresse et le dit", async () => {
@@ -46,7 +46,7 @@ describe("Lancer depuis une automatisation", () => {
         fenetre(TEST);
         fireEvent.click(await screen.findByTestId("lancer-depuis-une-automatisation"));
         await waitFor(() => expect(ecrire).toHaveBeenCalledTimes(1));
-        expect(ecrire.mock.calls[0][0]).toMatch(/\/api\/v1\/automatisation\/agents\/42\/tests\/lancer$/);
+        expect(ecrire.mock.calls[0][0]).toMatch(/\/api\/v1\/automatisation\/agents\/42\/tests\/lancer\?test=t$/); // l'adresse de CE test
         expect(m.succes).toHaveBeenCalledTimes(1);
         expect(m.succes.mock.calls[0][0].en).toContain("X-API-Key");
     });

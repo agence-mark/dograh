@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.db import db_client
@@ -76,13 +76,17 @@ async def _agent_ou_404(user: UserModel, workflow_id: int):
 
 @router.post("/agents/{workflow_id}/tests/lancer", response_model=ResultatDesTests)
 async def lancer_les_tests(
-    workflow_id: int, corps: LancerLesTests | None = None, user: UserModel = Depends(get_user_with_selected_organization)
+    workflow_id: int,
+    corps: LancerLesTests | None = None,
+    test: list[str] | None = Query(None, max_length=100, description="A test to play (repeatable): the address « Launch from an automation » of a test."),
+    user: UserModel = Depends(get_user_with_selected_organization),
 ):
     """Plays the agent's tests and answers in one JSON an automation can branch on (``ok``, ``statut``)."""
     corps = corps or LancerLesTests()
+    nommes = [*(corps.tests or []), *(test or [])] or None
     workflow = await _agent_ou_404(user, workflow_id)
     try:
-        return await automatisation.lancer(user, workflow, tests=corps.tests, repetitions=corps.repetitions)
+        return await automatisation.lancer(user, workflow, tests=nommes, repetitions=corps.repetitions)
     except automatisation.DejaEnCours:
         raise HTTPException(status_code=409, detail="A replay of this agent's tests is already running.") from None
     except automatisation.TropLong:
