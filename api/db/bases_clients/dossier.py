@@ -39,10 +39,13 @@ async def contact_par_reference(connexion: asyncpg.Connection, reference: str | 
 
 async def lire_dossier(connexion: asyncpg.Connection, contact_id: int) -> dict | None:
     contact = await connexion.fetchrow(
-        "SELECT id, nom, prenom, mail FROM mark.contact WHERE id = $1", contact_id
+        "SELECT id, nom, prenom, mail, ne_pas_memoriser FROM mark.contact WHERE id = $1", contact_id
     )
     if contact is None:
         return None
+    # [.mark] SA-17c (D209) : « ne pas mémoriser » -- à la demande de la personne, l'agent ne lit plus aucun historique
+    # d'elle. Son identité reste (de quoi la reconnaître), ni ses demandes, ni ses rendez-vous, ni leurs références.
+    oubli = bool(contact["ne_pas_memoriser"])
     telephones = [
         r["numero"]
         for r in await connexion.fetch(
@@ -53,7 +56,7 @@ async def lire_dossier(connexion: asyncpg.Connection, contact_id: int) -> dict |
         "SELECT code_postal, commune FROM mark.adresse WHERE contact_id = $1 ORDER BY id DESC LIMIT 1",
         contact_id,
     )
-    demandes = await connexion.fetch(
+    demandes = [] if oubli else await connexion.fetch(
         """
         SELECT d.id, coalesce(t.libelle, d.type) AS type, coalesce(s.libelle, d.statut) AS statut,
                d.creee_le, d.resume
@@ -65,7 +68,7 @@ async def lire_dossier(connexion: asyncpg.Connection, contact_id: int) -> dict |
         """,
         contact_id,
     )
-    rendez_vous = await connexion.fetch(
+    rendez_vous = [] if oubli else await connexion.fetch(
         """
         SELECT r.debut, r.fin, coalesce(tr.libelle, td.libelle, d.type) AS libelle,
                coalesce(s.libelle, r.statut) AS statut

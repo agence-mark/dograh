@@ -4373,6 +4373,334 @@
    }
   }
  },
+ "POST /api/v1/organizations/contacts/{contact_id}/fusionner": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "contact_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "contacts.traiter",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "deja_fait": {
+       "type": "boolean"
+      },
+      "doublon": {
+       "anyOf": [
+        {
+         "properties": {
+          "avec": {
+           "type": "integer"
+          },
+          "raison": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "avec"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "fusionne_depuis": {
+       "type": "integer"
+      },
+      "id": {
+       "type": "integer"
+      },
+      "mail": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "mail_declare": {
+       "type": "boolean"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "nb_appels": {
+       "type": "integer"
+      },
+      "nb_commentaires": {
+       "type": "integer"
+      },
+      "ne_pas_memoriser": {
+       "type": "boolean"
+      },
+      "nom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "telephones": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "deja_fait",
+      "fusionne_depuis",
+      "id",
+      "mail_declare",
+      "nature",
+      "nb_appels",
+      "nb_commentaires",
+      "ne_pas_memoriser",
+      "telephones"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/contacts/{contact_id}/separer": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "contact_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "contacts.traiter",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "doublon": {
+       "anyOf": [
+        {
+         "properties": {
+          "avec": {
+           "type": "integer"
+          },
+          "raison": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "avec"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "integer"
+      },
+      "mail": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "mail_declare": {
+       "type": "boolean"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "nb_appels": {
+       "type": "integer"
+      },
+      "nb_commentaires": {
+       "type": "integer"
+      },
+      "ne_pas_memoriser": {
+       "type": "boolean"
+      },
+      "nom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "telephones": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "mail_declare",
+      "nature",
+      "nb_appels",
+      "nb_commentaires",
+      "ne_pas_memoriser",
+      "telephones"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/organizations/etablissements/{identifiant}/appliquer-a-tous": {
   "corps": {
    "application/json": {
@@ -6331,6 +6659,178 @@
      "required": [
       "canal",
       "workflow_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/organizations/contacts/{contact_id}/memoriser": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "memoriser": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "memoriser"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "contact_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "contacts.traiter",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "doublon": {
+       "anyOf": [
+        {
+         "properties": {
+          "avec": {
+           "type": "integer"
+          },
+          "raison": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "avec"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "integer"
+      },
+      "mail": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "mail_declare": {
+       "type": "boolean"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "nb_appels": {
+       "type": "integer"
+      },
+      "nb_commentaires": {
+       "type": "integer"
+      },
+      "ne_pas_memoriser": {
+       "type": "boolean"
+      },
+      "nom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "telephones": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "mail_declare",
+      "nature",
+      "nb_appels",
+      "nb_commentaires",
+      "ne_pas_memoriser",
+      "telephones"
      ],
      "type": "object"
     }
