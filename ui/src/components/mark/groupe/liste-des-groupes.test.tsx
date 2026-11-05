@@ -61,7 +61,6 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
 });
 
 const { AgentFolderView } = await import("@/components/workflow/folders/AgentFolderView");
-const { ModaleCreationAgent } = await import("./ModaleCreationAgent");
 
 const agent = (id: number, name: string, folder_id: number | null): WorkflowListResponse => ({
     id,
@@ -283,66 +282,4 @@ describe("[.mark] actions d'un sous-dossier", () => {
     });
 });
 
-describe("[.mark] la modale de création d'un agent", () => {
-    const ouvrir = (extra: Partial<Parameters<typeof ModaleCreationAgent>[0]> = {}) => {
-        const props = {
-            ouvert: true,
-            onOuvertChange: vi.fn(),
-            onToileVierge: vi.fn(),
-            ...extra,
-        };
-        render(<ModaleCreationAgent {...props} />);
-        return props;
-    };
-
-    it("montre deux cartes : les deux chemins d'aujourd'hui, et le graphe avec agents spécialisés", () => {
-        ouvrir();
-        const modale = screen.getByRole("dialog");
-        expect(modale.getAttribute("data-modale")).toBe("creation-d-agent");
-        expect(modale.querySelectorAll("[data-carte]")).toHaveLength(2);
-        const noeuds = modale.querySelector('[data-carte="graphe-de-noeuds"]') as HTMLElement;
-        expect(within(noeuds).getByText("Node graph")).toBeTruthy();
-        expect(within(noeuds).queryByText("Use the agent builder")).toBeNull(); // remplacé par le Builder IA (lot 4)
-        expect(within(noeuds).getByText("Blank canvas")).toBeTruthy();
-        expect((screen.getByLabelText(/Start with the Builder AI/) as HTMLInputElement).checked).toBe(true);
-        const groupe = modale.querySelector('[data-carte="graphe-avec-agents-specialises"]') as HTMLElement;
-        expect(within(groupe).getByText("Graph with specialised agents")).toBeTruthy();
-    });
-
-    it("la page blanche dit si le Builder IA démarre avec elle (case cochée par défaut)", () => {
-        const props = ouvrir();
-        fireEvent.click(screen.getByText("Blank canvas"));
-        expect(props.onToileVierge).toHaveBeenLastCalledWith({ avecLeBuilder: true });
-        fireEvent.click(screen.getByLabelText(/Start with the Builder AI/));
-        fireEvent.click(screen.getByText("Blank canvas"));
-        expect(props.onToileVierge).toHaveBeenLastCalledWith({ avecLeBuilder: false });
-    });
-
-    it("l'ancien assistant de création n'apparaît que si l'appelant le fournit encore", () => {
-        const onConstructeur = vi.fn();
-        ouvrir({ onConstructeur });
-        fireEvent.click(screen.getByText("Use the agent builder"));
-        expect(onConstructeur).toHaveBeenCalledTimes(1);
-    });
-
-    it("la carte « Graphe avec agents spécialisés » crée le groupe et l'ouvre dans la liste", async () => {
-        const props = ouvrir();
-        const bouton = screen.getByRole("button", { name: "Create the group" }) as HTMLButtonElement;
-        expect(bouton.disabled).toBe(true);
-        fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Accueil du client" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create the group" }));
-        await waitFor(() => expect(m.appels.map((a) => a.nom)).toContain("creerUnGroupe"));
-        expect((m.appels.find((a) => a.nom === "creerUnGroupe")!.options as { body: unknown }).body).toEqual({ name: "Accueil du client", folder_id: null });
-        // Case « Démarrer avec le Builder IA » cochée par défaut : on ouvre l'agent principal, panneau ouvert.
-        await waitFor(() => expect(m.push).toHaveBeenCalledWith(expect.stringMatching(/^\/workflow\/\d+\?builder=1$/)));
-        expect(props.onOuvertChange).toHaveBeenCalledWith(false);
-    });
-
-    it("sans le Builder IA, le groupe s'ouvre dans la liste comme avant", async () => {
-        ouvrir();
-        fireEvent.click(screen.getByLabelText(/Start with the Builder AI/));
-        fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Autre groupe" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create the group" }));
-        await waitFor(() => expect(m.push).toHaveBeenCalledWith("/workflow?dossier=8"));
-    });
-});
+// La fenêtre de création d'un agent (groupe compris) est testée par chemin dans `agent/FenetreCreationAgent.test.tsx` (sous-lot 9).

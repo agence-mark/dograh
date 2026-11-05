@@ -16,6 +16,7 @@ from api.routes.builder_outils_versions import router as outils_versions_router
 from api.routes.builder_publication import router as builder_publication_router
 from api.routes.builder_alertes import router as builder_alertes_router
 from api.routes.builder_tests import router as builder_tests_router
+from api.routes.installation_client import router as installation_client_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
 from api.routes.equipe_mark import router as equipe_mark_router
@@ -92,6 +93,7 @@ router.include_router(reglages_agent_router)
 router.include_router(builder_router)
 router.include_router(outils_versions_router)  # [.mark] partie 3, SA-L3d : versions des outils
 router.include_router(branches_router)  # [.mark] partie 3, SA-L3b : branches d'agent et répartition du trafic
+router.include_router(installation_client_router)  # [.mark] partie 3, sous-lot 9 : « Nouveau client » qui installe vraiment
 router.include_router(builder_publication_router)  # [.mark] U11 : fenetre Publier, attaques
 router.include_router(builder_alertes_router)  # [.mark] partie 3, sous-lot 6 : alertes d'agent et rejeu planifié
 router.include_router(builder_tests_router)  # [.mark] builder lot 6 : tests et boucle d'amelioration

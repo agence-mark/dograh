@@ -39,7 +39,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
     });
 });
 
-const { ModaleNouvelAgent } = await import("./ModaleNouvelAgent");
+const { FenetreCreationAgent } = await import("./FenetreCreationAgent");
 const { RecetteDeLAgent } = await import("../reglages-agent/RecetteDeLAgent");
 const { OptionsDeConstruction } = await import("../../builder/ecran/OptionsDeConstruction");
 
@@ -51,7 +51,7 @@ afterEach(() => {
 
 describe("fenêtre de création : choix de la recette", () => {
     it("liste les recettes de la bibliothèque, marque le défaut et le non prouvé, et envoie le choix", async () => {
-        render(<ModaleNouvelAgent ouvert fermer={vi.fn()} />);
+        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
         const a = await screen.findByText("Recette A");
         expect(a.textContent).toContain("default");
         expect(a.textContent).toContain("not proven");
@@ -65,7 +65,7 @@ describe("fenêtre de création : choix de la recette", () => {
     });
 
     it("décrit chaque recette dans la langue de l'écran, et garde le français quand l'anglais manque", async () => {
-        render(<ModaleNouvelAgent ouvert fermer={vi.fn()} />);
+        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
         await screen.findByText("Recette A");
         // L'écran de test est en anglais : B a sa phrase anglaise, A (sans) garde la sienne.
         expect(screen.getByText("When B.")).toBeTruthy();
@@ -74,7 +74,7 @@ describe("fenêtre de création : choix de la recette", () => {
     });
 
     it("par défaut, le choix est le défaut lu ; le groupe l'envoie aussi", async () => {
-        render(<ModaleNouvelAgent ouvert fermer={vi.fn()} />);
+        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
         await screen.findByText("Recette A");
         fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Groupe" } });
         fireEvent.click(screen.getByText("Start the builder"));
@@ -83,7 +83,7 @@ describe("fenêtre de création : choix de la recette", () => {
     });
 
     it("ne montre aucun nom de recette écrit dans le code (« Tala » n'est plus dans le texte du groupe)", async () => {
-        render(<ModaleNouvelAgent ouvert fermer={vi.fn()} />);
+        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
         await screen.findByText("Recette A");
         expect(document.body.textContent).not.toMatch(/Tala|PolyAI/);
     });

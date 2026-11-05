@@ -26,10 +26,13 @@ const sdk = vi.hoisted(() => ({
     supprimer: vi.fn(),
     equipe: vi.fn(),
     entrees: vi.fn(),
+    installations: vi.fn(),
 }));
 const ok = <T,>(data: T) => Promise.resolve({ data, error: undefined });
 vi.mock("@/client/sdk.gen", () => ({
     maFileApiV1RelationFileGet: sdk.file,
+    // Sous-lot 9 : la liste des clients lit aussi les installations en cours.
+    installationsOuvertesApiV1InstallationsClientOuvertesGet: sdk.installations,
     listerClientsApiV1RelationClientsGet: sdk.clients,
     listerFilsApiV1RelationFilsGet: sdk.fils,
     lireFilApiV1RelationClientsOrganizationIdFilsFilIdGet: sdk.lireFil,
@@ -75,6 +78,7 @@ beforeEach(() => {
     oublierLectureClients();
     Object.values(sdk).forEach((f) => f.mockReset());
     sdk.clients.mockImplementation(() => ok([{ id: 7, nom: "Nuances de Feu", ouverts: 1, non_lus: 1, demandes_nouvelles: 0 }]));
+    sdk.installations.mockImplementation(() => ok([]));
 });
 afterEach(cleanup);
 
@@ -114,6 +118,22 @@ describe("Accueil : tout ce qui attend, avec ses chiffres (V3, E94)", () => {
         avec(<AccueilRelation />);
         expect(await screen.findByText("1 chose attend l'équipe chez 1 client.")).toBeTruthy();
         expect(screen.queryByText(/signalement/)).toBeNull();
+    });
+});
+
+describe("Clients : une installation interrompue se reprend (sous-lot 9)", () => {
+    it("« Reprendre l'installation » n'apparaît que sur le client dont l'installation est ouverte", async () => {
+        sdk.clients.mockImplementation(() =>
+            ok([
+                { id: 7, nom: "Nuances de Feu", ouverts: 0, non_lus: 0, demandes_nouvelles: 0, etat: "installation" },
+                { id: 8, nom: "Garnier", ouverts: 0, non_lus: 0, demandes_nouvelles: 0, etat: "actif" },
+            ]),
+        );
+        sdk.installations.mockImplementation(() => ok([{ id: 1, organization_id: 7, nom: "Nuances de Feu", cree_le: maintenant, prochaine: 3, faites: 2, erreur: false }]));
+        avec(<EcranClients />);
+        const bouton = await screen.findByRole("button", { name: "Reprendre l'installation" });
+        expect(bouton.getAttribute("data-reprendre-installation")).toBe("7");
+        expect(screen.getAllByRole("button", { name: "Reprendre l'installation" })).toHaveLength(1);
     });
 });
 

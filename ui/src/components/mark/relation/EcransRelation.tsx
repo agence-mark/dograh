@@ -9,6 +9,7 @@ import {
     ajouterNoteApiV1RelationClientsOrganizationIdNotesPost,
     ajouterTemoignageApiV1RelationClientsOrganizationIdTemoignagesPost,
     avisEtTemoignagesApiV1RelationAvisGet,
+    installationsOuvertesApiV1InstallationsClientOuvertesGet,
     listerEntreesApiV1RelationEntreesGet,
     listerNotesApiV1RelationClientsOrganizationIdNotesGet,
     maFileApiV1RelationFileGet,
@@ -228,7 +229,11 @@ const FILTRES_CLIENTS: FiltreClients[] = ["tous", "actif", "installation"];
 
 function ClientsInterne({ t }: { t: Dire }) {
     const { donnees, etat, recharger } = useCharge(() => lireClientsRelation());
+    // Sous-lot 9 : les installations interrompues, lues en même temps que la liste (« Reprendre l'installation »).
+    const installations = useCharge(() => installationsOuvertesApiV1InstallationsClientOuvertesGet());
     const [nouveau, setNouveau] = useState(false);
+    const [reprendre, setReprendre] = useState<number | null>(null);
+    const enInstallation = new Set((installations.donnees ?? []).map((i) => i.organization_id));
     const [filtre, setFiltre] = useState<FiltreClients>("tous");
     const [q, setQ] = useState("");
     const tous = donnees ?? [];
@@ -283,6 +288,20 @@ function ClientsInterne({ t }: { t: Dire }) {
                                             {(c.signalements ?? 0) > 0 && <span title={t({ en: "Reports", fr: "Signalements" })} className="inline-flex items-center gap-1" style={{ color: "var(--pastille-urgente)" }}><Flag className="size-3.5" />{c.signalements}</span>}
                                             {(c.pannes ?? 0) > 0 && <span title={t({ en: "Outages", fr: "Pannes" })} className="inline-flex items-center gap-1" style={{ color: "var(--pastille-urgente)" }}><AlertTriangle className="size-3.5" />{c.pannes}</span>}
                                         </div>
+                                        {enInstallation.has(c.id) && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="cursor-pointer"
+                                                data-reprendre-installation={c.id}
+                                                onClick={() => {
+                                                    setReprendre(c.id);
+                                                    setNouveau(true);
+                                                }}
+                                            >
+                                                {t({ en: "Resume the installation", fr: "Reprendre l'installation" })}
+                                            </Button>
+                                        )}
                                         <Button variant="outline" size="sm" className="cursor-pointer" asChild>
                                             <Link href={`/relation/clients/${c.id}`}>{t({ en: "Open the file", fr: "Ouvrir la fiche" })}</Link>
                                         </Button>
@@ -293,7 +312,18 @@ function ClientsInterne({ t }: { t: Dire }) {
                     )}
                 </>
             )}
-            <NouveauClient ouvert={nouveau} onOuvert={setNouveau} />
+            <NouveauClient
+                ouvert={nouveau}
+                organisationAReprendre={reprendre}
+                onOuvert={(o) => {
+                    setNouveau(o);
+                    if (!o) {
+                        setReprendre(null);
+                        recharger();
+                        installations.recharger();
+                    }
+                }}
+            />
         </div>
     );
 }
