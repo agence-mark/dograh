@@ -11,7 +11,8 @@
 * ``{"type": "erreur", "code", "message"}`` puis ``{"type": "fin", "raison"}``.
 
 Tenu ici : l'historique par agent et son compactage (B45), le plafond de jetons et de dépense par conversation,
-un seul tour de conversation à la fois par agent, et le refus des actions interdites (``registre``). Le cerveau
+un seul tour de conversation à la fois par agent, et l'arrêt sur une carte d'autorisation (N1 : la permission est décidée par
+``registre.executer`` et ``modes.py``). Le cerveau
 est injecté : les tests passent un cerveau factice, rien n'est dépensé.
 """
 
@@ -24,7 +25,7 @@ from typing import Any
 from loguru import logger
 
 from api.db import branche_ouverte
-from api.services.builder import actions, contexte, methode, suites  # noqa: F401 -- ``actions`` inscrit le registre
+from api.services.builder import actions, contexte, methode, modes, suites  # noqa: F401 -- ``actions`` inscrit le registre
 from api.services.builder.actions.registre import Contexte, executer, outils_du_moteur
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
 from api.services.builder.cerveau.reglages import ReglagesCerveau
@@ -144,6 +145,8 @@ async def _tours(
         _ajouter_usage(depense, usage_du_resume["entree"], usage_du_resume["sortie"], reglages)
     etat = await contexte.etat_du_disque(org, agent) if agent is not None else ETAT_SANS_AGENT
     bloc = (f"[Résumé de la conversation avant ce point]\n{conv['resume']}\n\n" if conv["resume"] else "") + etat
+    # N1 : le mode du chat, relu à chaque tour (il vaut pour CE chat ; la porte des modes le vérifie de toute façon côté serveur).
+    bloc += "\n\n" + modes.consigne(conv)
 
     message_du_jour = {"role": "user", "content": message}
     conv["messages"].append(message_du_jour)
@@ -187,6 +190,7 @@ async def _tours(
         if not appels:
             yield {"type": "fin", "raison": "fin"}
             return
+        demande_posee = False
         for appel in appels:
             if appel.get("illisible"):
                 resultat = {"ok": False, "erreur": "The arguments were not valid JSON: send them again."}
@@ -198,6 +202,7 @@ async def _tours(
                     if isinstance(nouveau, int):
                         agent = ctx.workflow_id = nouveau
                         conv["workflow_id"] = nouveau
+            demande_posee = demande_posee or resultat.get("code") == modes.CODE_DEMANDE
             for operation in (resultat.get("operations") if isinstance(resultat.get("operations"), list) else []):
                 yield {"type": "operation", "operation": operation}
             if resultat.get("carte"):
@@ -218,5 +223,9 @@ async def _tours(
                 }
             )
         await (enregistrer or contexte.enregistrer)(org, agent, conv)
+        if demande_posee:
+            # N1 : une carte d'autorisation attend la personne ; rien ne continue avant son clic (la réponse relance le builder).
+            yield {"type": "fin", "raison": "attente"}
+            return
     logger.info(f"[builder] agent {agent}: tours d'actions épuisés")
     yield {"type": "fin", "raison": "tours"}

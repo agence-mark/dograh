@@ -7,7 +7,7 @@
 * ``attaques_creer_des_tests`` / ``attaques_envoyer_a_ameliorer`` : ce qu'on fait des attaques qui ont cédé ; ``attaques_importer_le_jeu_public``
   / ``attaques_jeu_public`` : le jeu public fourni par une personne (SE-10).
 
-⛔ Le builder ne publie jamais (``INTERDITES``). Un contrat d'attaque non confirmé ne joue rien. Aucun appel réel : chemin texte des
+Publier est ``agent_publier`` (``gestes.py``, N1 : la permission décide). Un contrat d'attaque non confirmé ne joue rien. Aucun appel réel : chemin texte des
 tests, outils sortants simulés ; le juge est celui des Réglages du Labo.
 """
 

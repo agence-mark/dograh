@@ -8,7 +8,7 @@
 | cerveau propre | un spécialisé du groupe garde son cerveau (jamais écrasé), puis se rattache et reprend celui du principal |
 | refus | un agent seul, un agent qui n'est pas du groupe, un spécialisé d'un autre principal, un réglage hors bornes, aucun réglage donné, ``specialise_id`` sans ``cerveau_propre`` : refusés, rien n'est écrit |
 | cloisonnement | l'agent d'une autre organisation est introuvable pour chaque action ; ``groupes_lister`` ne rend que les groupes de l'organisation |
-| interdits | publier un groupe, retirer ou archiver n'existent pas pour le builder (refus explicite, aucune action de ce nom) |
+| gestes de personne | publier un groupe et archiver existent (N1) et demandent une carte en « Demander » |
 | sauvegarde | avec l'option « sauvegarde avant modification » allumée, régler un groupe existant exige la sauvegarde (comme tout réglage) |
 """
 
@@ -18,6 +18,7 @@ import pytest
 
 from api.services.builder.actions import registre
 from api.services.builder.actions.registre import Contexte
+from api.services.equipe_mark.permissions import PERMISSIONS
 from api.services.groupe import groupe as service
 from api.services.groupe.passations import CLE_AGENT_PRINCIPAL, CLE_AGENTS_SPECIALISES
 from api.services.groupe.reglages import CLE_CERVEAU_PROPRE
@@ -26,7 +27,8 @@ from api.tests.mark.test_sous_dossiers_et_groupe import _agent, _oublier, _regla
 
 
 def _ctx(org, workflow_id=None) -> Contexte:
-    return Contexte(user=org.utilisateur, workflow_id=workflow_id, conversation={})
+    # N1 : le chat « Tout permettre », par une personne qui a les droits (ce que ce fichier prouve est le groupe, pas la permission).
+    return Contexte(user=org.utilisateur, workflow_id=workflow_id, conversation={"mode": "tout"}, permissions=frozenset(PERMISSIONS))
 
 
 async def _groupe(org, nom="Standard", specialises=("Devis", "Urgence")):
@@ -186,12 +188,15 @@ async def test_groupe_completer_pose_les_fins_et_laisse_les_prompts_a_rediger(or
     assert encore["ok"] and all(not ajouts for ajouts in encore["ajouts"].values())
 
 
-async def test_publier_un_groupe_et_retirer_ou_archiver_n_existent_pas_pour_le_builder(org):
-    for nom in ("groupe_publier", "publier_groupe", "groupe_retirer", "groupe_archiver", "publier"):
-        r = await registre.executer(nom, {}, _ctx(org))
-        assert r["ok"] is False, nom
-    assert not {n for n in registre.REGISTRE if n.startswith("groupe") and "publi" in n}
-    assert not {n for n in registre.REGISTRE if n.startswith("groupe") and ("retir" in n or "archiv" in n or "supprim" in n)}
+async def test_publier_un_groupe_et_archiver_sont_des_gestes_qui_demandent_une_carte_en_mode_demander(org):
+    """N1 : ``groupe_publier`` (publication) et ``agent_archiver`` (irréversible) existent ; en « Demander », rien n'est fait sans clic."""
+    principal, _ = await _groupe(org, specialises=())
+    demander = Contexte(user=org.utilisateur, workflow_id=principal, conversation={"mode": "demander"}, permissions=frozenset(PERMISSIONS))
+    for nom, famille in (("groupe_publier", "publication"), ("agent_archiver", "irreversible")):
+        r = await registre.executer(nom, {"workflow_id": principal}, demander)
+        assert r["ok"] is False and r["code"] == "autorisation_requise" and registre.REGISTRE[nom].famille == famille, nom
+    for ancien in ("publier_groupe", "groupe_retirer", "groupe_archiver", "publier"):
+        assert ancien not in registre.REGISTRE
 
 
 async def test_regler_un_groupe_existant_exige_la_sauvegarde_quand_l_option_est_allumee(org, monkeypatch):

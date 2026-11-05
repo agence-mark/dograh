@@ -197,10 +197,43 @@ EXISTANTS = {
 # U5 (E26) : les cartes du chat (plan, question) n'ont de sens qu'à l'écran, jamais dans Claude Code.
 ECRAN_SEULEMENT = {"plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer", "agent_proposer_archivage", "deleguer"}
 
+# Partie 3, N1 : les gestes de personne entrés au registre (``gestes.py``), écran seulement tant que Claude Code n'a pas de mode de chat.
+# Des arguments valides pour chacun (le test échoue si un geste n'a pas sa ligne).
+GESTES_ECRAN = {
+    "agent_publier": {"workflow_id": AGENT},
+    "groupe_publier": {"workflow_id": AGENT, "avec_le_principal": True},
+    "branche_publier": {"workflow_id": AGENT, "branche_id": 1},
+    "branche_fusionner": {"workflow_id": AGENT, "branche_id": 1, "choix": {}},
+    "repartition_regler": {"workflow_id": AGENT, "parts": {1: 60, 2: 40}},
+    "agent_archiver": {"workflow_id": AGENT},
+    "outil_supprimer": {"outil": "uuid-outil"},
+    "bibliotheque_marquer": {"famille": "moules-etape", "slug": "a", "version": 1, "statut": "rejete", "raison": "r"},
+    "bibliotheque_accepter_proposition": {"identifiant": "p1"},
+    "bibliotheque_refuser_proposition": {"identifiant": "p1", "motif": "m"},
+    "bibliotheque_retour_arriere": {"famille": "moules-etape", "slug": "a", "version": 1},
+}
+
 
 def test_les_outils_deja_exposes_sont_dans_le_registre_et_pas_inscrits_deux_fois():
     existants = {n for n, a in registre.REGISTRE.items() if not a.mcp}
-    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT
+    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT | set(GESTES_ECRAN)
+
+
+@pytest.mark.parametrize("nom", sorted(GESTES_ECRAN))
+async def test_chaque_geste_entre_au_registre_a_ses_arguments_d_essai_et_n_est_pas_a_la_porte_mcp(nom, monde, monkeypatch):
+    appels = []
+
+    async def espion(contexte, parametres):
+        appels.append(parametres)
+        return {"ok": True, "vu": nom}
+
+    monkeypatch.setitem(registre.REGISTRE, nom, dataclasses.replace(registre.REGISTRE[nom], fonction=espion))
+    # Chat en « Tout permettre » : la porte des modes laisse passer ; la validation des arguments est celle de l'action.
+    contexte = Contexte(user=utilisateur(1), workflow_id=AGENT, conversation={"mode": "tout", "messages": []})
+    assert await registre.executer(nom, GESTES_ECRAN[nom], contexte) == {"ok": True, "vu": nom}
+    assert len(appels) == 1
+    async with Client(mcp) as client:
+        assert nom not in {o.name for o in await client.list_tools()}
 
 
 @pytest.mark.parametrize("nom", sorted(EXISTANTS))

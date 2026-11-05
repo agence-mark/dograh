@@ -37,7 +37,7 @@ AUTRE = utilisateur(2, 8)
 
 
 def ctx(**extras) -> Contexte:
-    return Contexte(user=EQUIPE, workflow_id=AGENT, conversation={}, **extras)
+    return Contexte(user=EQUIPE, workflow_id=AGENT, **{"conversation": {}, **extras})
 
 
 def client_pour(user) -> TestClient:
@@ -156,7 +156,8 @@ async def test_sauvegarde_allumee_refuse_la_premiere_modification_puis_laisse_pa
     await allumer_la_sauvegarde()
     refus = await executer("brouillon_enregistrer", {}, ctx())
     assert refus["ok"] is False and refus["code"] == "sauvegarde_requise" and "NOTHING WAS CHANGED" in refus["erreur"]
-    refus_reglage = await executer("reglages_regler", {"valeurs": {"relecture_des_numeros": True}}, ctx())
+    # N1 : en « Demander », un réglage pose d'abord une carte ; sur « Tout permettre sur cet agent », c'est la sauvegarde qui refuse.
+    refus_reglage = await executer("reglages_regler", {"valeurs": {"relecture_des_numeros": True}}, ctx(conversation={"mode": "agent"}))
     assert refus_reglage["code"] == "sauvegarde_requise"
     pris = await executer("sauvegarde_prendre", {}, ctx())
     assert pris["ok"] and pris["instantane"] == 1

@@ -94,6 +94,16 @@ class FauxDb:
             key=lambda paire: paire[0],
         )
 
+    # -- rôle d'équipe (N1 : le builder ne donne jamais plus de droits que la personne) --
+    async def acces_du_compte(self, user_id):
+        """Toutes les permissions par défaut (un administrateur) ; ``permissions_des_comptes[user_id]`` en pose d'autres, ``None`` = aucun rôle."""
+        from api.services.equipe_mark.permissions import PERMISSIONS
+
+        propres = getattr(self, "permissions_des_comptes", {})
+        if user_id in propres:
+            return None if propres[user_id] is None else SimpleNamespace(permissions=list(propres[user_id]))
+        return SimpleNamespace(permissions=list(PERMISSIONS))
+
     # -- membres --
     async def is_user_member_of_organization(self, user_id, organization_id):
         return (user_id, organization_id) in self.membres
@@ -212,6 +222,7 @@ MODULES_AVEC_DB = (
     "api.mcp_server.tools.workflows",
     "api.routes.builder_m",
     "api.services.builder.recettes",
+    "api.services.builder.modes",
 )
 
 

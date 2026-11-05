@@ -11,9 +11,9 @@ Les actions déjà exposées par le serveur MCP de l'amont (lire un agent, crée
 gardent leur fonction d'origine : l'adaptateur de ``construction.py`` appelle CETTE fonction (``mcp=False`` :
 pas de seconde inscription).
 
-⛔ Interdits codés (B10, B35) : publier, supprimer, écrire dans la bibliothèque au-delà d'un candidat,
-passer en Recette, accepter une proposition. Ils ne sont PAS dans le registre ; un cerveau qui les demande
-reçoit un refus explicite (``INTERDITES``), un nom inconnu reçoit une erreur. Ce sont des clics humains.
+Partie 3, N1 (05, « Le builder peut tout faire ») : plus d'interdit codé. Chaque action déclare sa FAMILLE
+(``familles_actions.py``) et la permission décide à chaque appel (``modes.decider`` : rôle de la personne, mode du chat,
+carte d'autorisation dans le fil). Publier, archiver, les clics de la bibliothèque sont des actions (``gestes.py``).
 """
 
 from __future__ import annotations
@@ -26,26 +26,6 @@ from loguru import logger
 from pydantic import BaseModel, ValidationError
 
 from api.db.protection_principale import PrincipaleProtegee
-
-# Ce que le builder ne fait jamais. Le nom sert au refus explicite ; aucune de ces actions n'existe.
-INTERDITES: frozenset[str] = frozenset(
-    {
-        "publish_workflow",
-        "publier",
-        "publier_agent",
-        "delete_workflow",
-        "supprimer",
-        "supprimer_agent",
-        "supprimer_outil",
-        "bibliotheque_ecrire",
-        "bibliotheque_supprimer",
-        "bibliotheque_marquer_recette",
-        "bibliotheque_rejeter",
-        "bibliotheque_accepter_proposition",
-        "bibliotheque_refuser_proposition",
-        "bibliotheque_retour_arriere",
-    }
-)
 
 PORTE_ECRAN = "ecran"
 PORTE_MCP = "mcp"
@@ -61,6 +41,10 @@ class Contexte:
     porte: str = PORTE_ECRAN
     # C2 (E96) : un sous-agent du builder n'a que ces actions (liste fermée côté serveur) ; ``None`` = toutes celles de la porte.
     actions_permises: frozenset[str] | None = None
+    # N1 : les permissions de rôle de la personne, lues une fois par travail (``modes.permissions_de``) ; ``None`` = pas encore lues.
+    permissions: frozenset[str] | None = None
+    # N1 : une action de la famille « dépense » vient d'être permise par le mode ou une carte (vaut l'accord de ``consommer_un_accord``).
+    accord_donne: bool = False
 
     @property
     def organisation_id(self) -> int:
@@ -93,6 +77,8 @@ class Action:
     mcp: bool = True
     # Famille de l'action, pour l'écran (cartes) et la documentation.
     groupe: str = "general"
+    # N1 : la famille de permission (``familles_actions.FAMILLES``), posée à l'inscription d'après la table ; ``None`` = la plus fermée.
+    famille: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
     def schema(self) -> dict[str, Any]:
@@ -107,8 +93,10 @@ REGISTRE: dict[str, Action] = {}
 def enregistrer(action: Action) -> Action:
     if action.nom in REGISTRE:
         raise ValueError(f"Action already registered: {action.nom}")
-    if action.nom in INTERDITES:
-        raise ValueError(f"A forbidden action cannot be registered: {action.nom}")
+    if action.famille is None:
+        from api.services.builder.actions.familles_actions import famille_de
+
+        action.famille = famille_de(action.nom)
     REGISTRE[action.nom] = action
     return action
 
@@ -128,8 +116,6 @@ def pas_encore_disponible(nom: str, lot: str) -> dict[str, Any]:
 
 async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> dict[str, Any]:
     """L'unique chemin d'exécution d'une action, pour les deux portes. Ne lève jamais : un refus est un résultat."""
-    if nom in INTERDITES:
-        return {"ok": False, "interdit": True, "erreur": f"« {nom} » is forbidden to the builder: only a person does it."}
     action = REGISTRE.get(nom)
     if action is None:
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
@@ -155,6 +141,11 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         premier = erreur.errors()[0]
         lieu = ".".join(str(p) for p in premier.get("loc", ()))
         return {"ok": False, "erreur": f"Invalid arguments ({lieu}): {premier.get('msg', 'invalid')}."}
+    # N1 : la permission décide (rôle, mode du chat, carte d'autorisation), côté serveur, avant toute écriture.
+    from api.services.builder import modes
+
+    if (decision := await modes.decider(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)) is not None:
+        return decision
     try:
         # [.mark] lot M : sauvegarde avant la première modification d'un agent existant (éteinte par défaut, ``sauvegarde.py``).
         from api.services.builder import sauvegarde
@@ -175,6 +166,8 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
     except Exception as erreur:  # noqa: BLE001 -- une action qui échoue ne fait pas tomber la conversation
         logger.warning(f"[builder] action {nom} en échec : {type(erreur).__name__}")
         return {"ok": False, "erreur": f"The action failed ({type(erreur).__name__}): {str(erreur)[:200]}"}
+    finally:
+        contexte.accord_donne = False  # N1 : l'accord donné par la permission vaut pour CETTE action seulement
     resultat = resultat if isinstance(resultat, dict) else {"ok": True, "resultat": resultat}
     if action.ecriture and resultat.get("ok", True) is not False:
         await _publier_la_modification(action, arguments or {}, contexte, resultat)
