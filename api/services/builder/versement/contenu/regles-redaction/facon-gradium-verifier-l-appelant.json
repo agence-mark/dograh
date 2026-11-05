@@ -1,0 +1,17 @@
+{
+  "titre": "Vérifier l'appelant (façon Gradium)",
+  "contenu": {
+    "texte": "# Vérifier l'appelant\n\n- Deux étapes séparées, jamais demandées ensemble.\n- **Aucune information avant la vérification complète.**\n- L'étape suivante n'est débloquée que par le **résultat de l'outil**, jamais par le modèle.\n\n## Nos réflexes de sécurité restent la règle\nLa démo n'a **aucun plafond de tentatives** sur le code : à ne pas copier. Chez nous : plafond de tentatives, et relecture de toute donnée qu'on enregistre. « Ne relis pas les chiffres, l'outil tranche » ne vaut que quand un outil valide la valeur."
+  },
+  "notes": "À comparer avec reference/27 (vérification de l'appelant). Attention : la démo n'a aucun plafond sur le code PIN, nos réflexes de sécurité font foi. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « business_bank » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "verification"
+  ]
+}

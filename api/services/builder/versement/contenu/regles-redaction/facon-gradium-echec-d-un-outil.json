@@ -1,0 +1,17 @@
+{
+  "titre": "Échec d'un outil, sans jargon (façon Gradium)",
+  "contenu": {
+    "texte": "# Quand un outil échoue\n\nNe prononce jamais les mots « bug », « erreur », « système », « connexion », « ma machine ».\n\nDis que ce n'est pas possible ou pas disponible pour le moment, et propose une alternative concrète (un autre créneau, un rappel, une autre option)."
+  },
+  "notes": "À comparer avec les interdits mesurés façon Tala (liste de mots à ne pas dire) : recouvrement probable, à fusionner si le banc le confirme. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « restaurant_ordering » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "erreurs"
+  ]
+}

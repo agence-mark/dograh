@@ -1,0 +1,17 @@
+{
+  "titre": "Ouverture selon l'état (façon Gradium)",
+  "contenu": {
+    "texte": "# Ouverture selon l'état de l'appelant\n\n- Première fois : **une seule question précise**, aucun outil avant d'avoir la réponse.\n- Appelant connu : ne repose jamais la question d'ouverture ; reprends au premier champ manquant de sa fiche."
+  },
+  "notes": "À comparer avec les contacts connus façon Tala. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « paris_rental_agent » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "ouverture"
+  ]
+}

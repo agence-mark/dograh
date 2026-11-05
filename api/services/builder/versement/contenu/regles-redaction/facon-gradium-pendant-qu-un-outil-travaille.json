@@ -1,0 +1,17 @@
+{
+  "titre": "Pendant qu'un outil travaille (façon Gradium)",
+  "contenu": {
+    "texte": "# Pendant l'attente d'un résultat\n\nNe pose aucune question tant qu'un outil travaille : l'appelant n'a pas le temps de répondre avant que le résultat arrive.\n\nDonne plutôt une information utile et courte (un horaire, une précision sur le service). Garde les questions pour après le résultat."
+  },
+  "notes": "Aucun doublon connu. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « hotel » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "attente"
+  ]
+}

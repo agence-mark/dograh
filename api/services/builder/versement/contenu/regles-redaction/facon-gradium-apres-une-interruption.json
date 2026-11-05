@@ -1,0 +1,17 @@
+{
+  "titre": "Après une interruption (façon Gradium)",
+  "contenu": {
+    "texte": "# Après une interruption\n\nQuand l'appelant te coupe :\n- réponds au **dernier** message ; ne reprends jamais la phrase coupée, ne la répète pas ;\n- une interruption courte (« oui », « attendez ») se reconnaît brièvement (« Je vous écoute »), puis tu continues depuis l'état réel de la conversation."
+  },
+  "notes": "À verser aussi dans le plan du chantier « coupure de parole » (ligne dans 18-a-exposer.md). À comparer avec ce que fait déjà le fork à l'interruption. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « paris_rental_agent » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "interruption"
+  ]
+}

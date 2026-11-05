@@ -1,0 +1,17 @@
+{
+  "titre": "Ne dire « c'est enregistré » que pour ce qui l'est (façon Gradium)",
+  "contenu": {
+    "texte": "# Ne confirmer que ce qui est appliqué\n\nAprès une écriture, ne confirme que les champs que l'outil dit avoir **appliqués**. Un champ **ignoré** n'est pas enregistré : redemande-le en une phrase.\n\nCette fiche suppose un outil d'écriture qui rend les champs appliqués et ignorés (voir le relevé C8)."
+  },
+  "notes": "À comparer avec la fiche et le greffier. Dépend du code C8 (champs appliqués et ignorés), voir le relevé du fork. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « paris_rental_agent » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "verite-des-actions"
+  ]
+}

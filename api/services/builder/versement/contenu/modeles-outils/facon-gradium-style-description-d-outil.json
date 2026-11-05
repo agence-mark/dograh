@@ -1,0 +1,17 @@
+{
+  "titre": "Style des descriptions d'outils (façon Gradium)",
+  "contenu": {
+    "texte": "# Style d'une description d'outil\n\nChaque description dit :\n- **quoi faire** : à quel moment et pour quoi l'appeler ;\n- **quoi ne pas faire** : un interdit précis écrit à côté (« ne mets jamais X dans Y ») ;\n- les valeurs permises en **liste fermée**, jamais en texte libre ;\n- l'identifiant exact : il est **récupéré par un outil de lecture avant toute écriture**, jamais deviné ni retapé de mémoire.\n\nUne description courte et nette vaut mieux qu'un paragraphe : le modèle s'en sert à chaque tour."
+  },
+  "notes": "À comparer avec le gabarit d'outil façon Tala (même objectif, forme différente). Les outils sont cités par étiquette, jamais par nom technique. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « restaurant_ordering » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "outils"
+  ]
+}
