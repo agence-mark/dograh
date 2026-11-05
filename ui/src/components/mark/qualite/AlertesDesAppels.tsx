@@ -191,7 +191,7 @@ export function AlertesDesAppels() {
                                         <Cellule>
                                             <span className="inline-flex items-center gap-2">
                                                 <BellRing className="size-3.5" aria-label={t({ en: "Notification", fr: "Notification" })} />
-                                                {vue.mail && <Mail className="size-3.5" aria-label="Mail" />}
+                                                {vue.mail && <Mail className="size-3.5" aria-label={t({ en: "E-mail", fr: "E-mail" })} />}
                                             </span>
                                         </Cellule>
                                         <Cellule>
