@@ -104,6 +104,9 @@ REGLES: tuple[Regle, ...] = (
     # Partie 3, sous-lot 6 : le rejeu planifié DÉPENSE (comme un rejeu à la main) ; les alertes d'agent sont un réglage de l'agent.
     _r(ECRITURE, r"^/builder/planification/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/alertes/.*$", P("agents.modifier")),
+    # [.mark] Partie 3 : le miroir de Claude Code (U12) envoie la conversation d'un agent avec la clé de son organisation ;
+    # depuis la liste fermée des clés (17a), `builder.lancer` lui était refusé. La conversation se range avec son agent.
+    _r(ECRITURE, r"^/builder/miroir$", P("agents.modifier")),
     _r(ECRITURE, r"^/builder/.*$", P("builder.lancer"), par_defaut=True),
     _r(LECTURE, r"^/builder/.*$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ appelant simulé

@@ -99,7 +99,13 @@ async def test_la_vue_dit_la_protection_et_la_route_la_pose(org, autre_org, db_s
         assert vue["branches"][0]["protegee"] is False and vue["branches"][0]["protegee_par_defaut"] is False
         r = await client.put(f"/api/v1/builder/branches/{agent.id}/principale/protection", json={"protegee": True})
         assert r.status_code == 200 and r.json()["protegee"] is True and r.json()["protegee_par_defaut"] is False, r.text
-        # un client en ligne reste protégé par la règle, drapeau levé ou non
+        # un client en ligne reste protégé par la règle, drapeau levé ou non ; « en ligne » = publié par une personne
+        # après la création (2bc67d71), d'où une version de la principale de plus
+        from api.db.models import WorkflowDefinitionModel
+
+        async with db_session.async_session() as s:
+            s.add(WorkflowDefinitionModel(workflow_id=agent.id, workflow_json={}, status="archived", is_current=False))
+            await s.commit()
         monkeypatch.setattr("api.services.builder.constantes.organisation_bibliotheque", lambda: autre_org.organisation.id)
         r = await client.put(f"/api/v1/builder/branches/{agent.id}/principale/protection", json={"protegee": False})
         assert r.json() == {"ok": True, "protegee": True, "protegee_par_defaut": True}

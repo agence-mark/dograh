@@ -70,7 +70,7 @@ def banc():
     sauve = AsyncMock(return_value=SimpleNamespace(version_number=2, status="draft"))
     draft = SimpleNamespace(workflow_json=stocke, version_number=1, workflow_configurations={})
     with (
-        patch("api.mcp_server.tools.save_workflow.authenticate_mcp_request", AsyncMock(return_value=user)),
+        patch("api.mcp_server.tools.save_workflow.authenticate_mcp_write", AsyncMock(return_value=user)),
         patch("api.mcp_server.tools.get_workflow_code.authenticate_mcp_request", AsyncMock(return_value=user)),
         patch("api.mcp_server.tools.save_workflow.db_client.get_workflow", AsyncMock(return_value=wf)),
         patch("api.mcp_server.tools.get_workflow_code.db_client.get_workflow", AsyncMock(return_value=wf)),

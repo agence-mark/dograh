@@ -132,7 +132,7 @@ async def test_la_route_lit_sans_rien_ecrire_et_cloisonne(db_session):
     # SA-L3a : la même liste « Prêt à publier » que la fenêtre Publier : les huit lignes, plus les contrôles qui s'y branchent
     # (bilan du prompt) et les réglages sans effet (cet agent n'a pas d'étape de retour : sa sortie d'impasse ne mène nulle part).
     assert {"variables", "briques", "outils", "tests", "etablissement", "fiche", "panne", "phrases"} <= set(etapes)
-    assert set(etapes) - {"variables", "briques", "outils", "tests", "etablissement", "fiche", "panne", "phrases"} == {"bilan_du_prompt", "impasse_sans_issue"}
+    assert set(etapes) - {"variables", "briques", "outils", "tests", "etablissement", "fiche", "panne", "phrases"} == {"bilan_du_prompt", "impasse_sans_issue", "annonce_ia"}  # SA-L3e : la ligne de l'annonce IA, toujours là
     assert etapes["variables"]["etat"] == "bloquant" and etapes["variables"]["controle"] == "variables"
     assert etapes["impasse_sans_issue"]["etat"] == "bloquant" and etapes["impasse_sans_issue"]["constat"] == "impasse_sans_issue"
     assert etapes["variables"]["manquants"] == ["prenom", "ville"]

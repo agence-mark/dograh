@@ -530,7 +530,7 @@ async def test_traversant_l_outil_mcp_ecrit_aussi_le_parcours(db_session, async_
         workflow.id, workflow_definition=_definition(), workflow_configurations={"generer_schema_parcours": True}
     )
     with patch(
-        "api.mcp_server.tools.save_workflow.authenticate_mcp_request", AsyncMock(return_value=user)
+        "api.mcp_server.tools.save_workflow.authenticate_mcp_write", AsyncMock(return_value=user)
     ):
         resultat = await save_workflow(workflow_id=workflow.id, code=CODE_MCP)
     assert resultat["saved"] is True, resultat
