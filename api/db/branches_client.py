@@ -587,6 +587,23 @@ class BranchesClient(BaseDBClient):
             await session.refresh(brouillon)
             return brouillon
 
+    async def contenus_de_definitions(self, organization_id: int, workflow_id: int, ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Le contenu (graphe, réglages, variables) de ces versions, en UNE requête bornée à l'organisation. Pour comparer."""
+        async with self.async_session() as session:
+            lignes = (
+                await session.scalars(
+                    select(WorkflowDefinitionModel)
+                    .join(WorkflowModel, WorkflowModel.id == WorkflowDefinitionModel.workflow_id)
+                    .where(
+                        WorkflowModel.organization_id == organization_id,
+                        WorkflowDefinitionModel.workflow_id == workflow_id,
+                        WorkflowDefinitionModel.id.in_(ids),
+                        WorkflowDefinitionModel.status.in_(("published", "archived")),
+                    )
+                )
+            ).all()
+            return {d.id: self._contenu(d) for d in lignes}
+
     async def protection_de_la_principale(self, organization_id: int, workflow_id: int) -> tuple[bool, bool]:
         """(protégée en fait, protégée par la règle seule). La règle : agent client en ligne (voir ``protection_principale``). Le
         drapeau ne lève que ce que la règle n'impose pas."""

@@ -12,7 +12,7 @@ une clé d'API pour les gestes de publication (mêmes règles que ``/builder/pub
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.db import db_client
 from api.db.branches_client import ErreurDeBranche
@@ -21,6 +21,7 @@ from api.schemas.branches import (
     ApercuDeFusion,
     ApercuDeMiseAJour,
     BranchesVue,
+    ComparaisonVue,
     EpinglerLaPrincipale,
     FusionDemandee,
     MiseAJourDemandee,
@@ -29,7 +30,7 @@ from api.schemas.branches import (
     RepartitionDemandee,
 )
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.branches import fusion, service
+from api.services.branches import comparaison, fusion, service
 
 router = APIRouter(tags=["builder-branches"])
 
@@ -43,6 +44,7 @@ CODES_HTTP = {
     "sans_version": 409,
     "a_jour": 409,
     "depassee": 409,
+    "cote": 422,
 }
 
 
@@ -55,6 +57,23 @@ async def _agent_ou_404(user: UserModel, workflow_id: int):
 
 def _http(erreur: ErreurDeBranche) -> HTTPException:
     return HTTPException(status_code=CODES_HTTP.get(erreur.code, 422), detail=str(erreur))
+
+
+@router.get("/builder/branches/{workflow_id}/comparer", response_model=ComparaisonVue)
+async def comparer_en_duel(
+    workflow_id: int,
+    gauche: str = Query(description="'branche:<id>' or 'version:<number>'"),
+    droite: str = Query(description="'branche:<id>' or 'version:<number>'"),
+    jours: int = Query(default=7, ge=1, le=90),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Deux branches ou deux versions face à face : part, appels, résolution, transferts, note du juge, coût, latence, et la
+    différence de configuration. Lecture seule, chiffres des vrais appels."""
+    agent = await _agent_ou_404(user, workflow_id)
+    try:
+        return await comparaison.comparer(user.selected_organization_id, agent, gauche, droite, jours)
+    except ErreurDeBranche as erreur:
+        raise _http(erreur) from None
 
 
 @router.get("/builder/branches/{workflow_id}", response_model=BranchesVue)

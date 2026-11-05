@@ -129,3 +129,46 @@ class MiseAJourDemandee(BaseModel):
     choix: dict[str, str] = Field(default_factory=dict)
     version_principale: int = Field(description="The main branch version id the preview was read on.")
     base_attendue: int | None = Field(default=None, description="The branch start version id the preview was read on.")
+
+
+# --- comparer en duel (SA-L3c) --------------------------------------------------------------------------------------------------------
+
+
+class CoteDeComparaison(BaseModel):
+    type: str = Field(description="branche or version")
+    id: int
+    nom: str
+    version: int | None = None
+    part: int | None = None
+
+
+class MesureDeComparaison(BaseModel):
+    cle: str
+    gauche: float | None = None
+    droite: float | None = None
+    ecart: float | None = None
+    meilleur: str | None = Field(default=None, description="gauche or droite when the line has a better side")
+
+
+class VerdictDeComparaison(BaseModel):
+    gagnant: str = Field(description="gauche, droite, egalite or insuffisant (too few calls on a side)")
+    pour_gauche: list[str]
+    pour_droite: list[str]
+
+
+class LigneDeConfiguration(BaseModel):
+    cle: str
+    famille: str
+    libelle: str
+    avant: str | None = None
+    apres: str | None = None
+
+
+class ComparaisonVue(BaseModel):
+    jours: int
+    appels_min: int
+    gauche: CoteDeComparaison
+    droite: CoteDeComparaison
+    mesures: list[MesureDeComparaison]
+    verdict: VerdictDeComparaison
+    configuration: list[LigneDeConfiguration]
