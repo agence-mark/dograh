@@ -43,6 +43,54 @@ function optionsDuChamp(champ: ChampDeCritere, type: string, r: RessourcesDeTest
     return null;
 }
 
+/** « Dans cet ordre » : les outils attendus, un par ligne, numérotés (d'autres outils peuvent s'intercaler entre eux). */
+function OrdreDesOutils({ noms, outils, changer }: { noms: string[]; outils: string[]; changer: (noms: string[]) => void }) {
+    const { t } = useLangue();
+    const lignes = noms.length >= 2 ? noms : [...noms, ...Array(2 - noms.length).fill("")];
+    return (
+        <ol className="space-y-1.5" data-testid="ordre-des-outils" aria-label={t({ en: "Tools, in order", fr: "Outils, dans l'ordre" })}>
+            {lignes.map((nom, k) => (
+                <li key={k} className="flex items-center gap-2">
+                    <span className="w-5 text-xs text-muted-foreground">{k + 1}.</span>
+                    {outils.length > 0 ? (
+                        <Liste
+                            className="flex-1"
+                            valeur={nom}
+                            placeholder={t({ en: "Tool name", fr: "Nom de l'outil" })}
+                            changer={(v) => changer(lignes.map((x, j) => (j === k ? v : x)))}
+                            options={nom && !outils.includes(nom) ? [nom, ...outils] : outils}
+                        />
+                    ) : (
+                        <Input
+                            className="h-8"
+                            aria-label={`${t({ en: "Tool", fr: "Outil" })} ${k + 1}`}
+                            value={nom}
+                            onChange={(e) => changer(lignes.map((x, j) => (j === k ? e.target.value : x)))}
+                        />
+                    )}
+                    {lignes.length > 2 && (
+                        <button
+                            type="button"
+                            aria-label={t({ en: "Remove this tool", fr: "Retirer cet outil" })}
+                            onClick={() => changer(lignes.filter((_, j) => j !== k))}
+                            className="cursor-pointer text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="size-3.5" />
+                        </button>
+                    )}
+                </li>
+            ))}
+            {lignes.length < 10 && (
+                <li>
+                    <Button variant="ghost" size="sm" className="-ml-2" onClick={() => changer([...lignes, ""])}>
+                        <Plus className="size-3.5" /> {t({ en: "Next tool", fr: "Outil suivant" })}
+                    </Button>
+                </li>
+            )}
+        </ol>
+    );
+}
+
 export function EditeurDeCriteres({
     lignes,
     changer,
@@ -88,6 +136,15 @@ export function EditeurDeCriteres({
                                         />
                                         {t(CHAMPS[ch])}
                                     </label>
+                                );
+                            if (ch === "noms" && c.type === "outils_dans_l_ordre")
+                                return (
+                                    <OrdreDesOutils
+                                        key={ch}
+                                        noms={String(c.valeurs[ch] ?? "") === "" ? [] : String(c.valeurs[ch]).split(",").map((x) => x.trim())}
+                                        outils={ressources?.outils ?? []}
+                                        changer={(noms) => maj(i, { ...c, valeurs: { ...c.valeurs, [ch]: noms.join(", ") } })}
+                                    />
                                 );
                             const valeur = String(c.valeurs[ch] ?? "");
                             if (options && options.length > 0)

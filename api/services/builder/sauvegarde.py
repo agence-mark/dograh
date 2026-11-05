@@ -6,7 +6,7 @@ sauvegarde n'a pas été prise (``sauvegarde_prendre``) ou refusée explicitemen
 
 * rien n'est retenu sur ce qui est lu, ni sur un agent que cette conversation vient de créer (``create_workflow``) ;
 * la sauvegarde est un instantané du graphe du brouillon, rangé comme ceux de la revue : « Revenir avant » le restaure.
-  Elle ne couvre PAS les réglages de l'agent (phrases, lexique, objets) : seulement son graphe ;
+  Partie 3 (SE-15) : elle garde aussi phrases, réglages, vocabulaire et objets (``instantane.py``) ;
 * la ligne ``MARK_BUILDER:<agent>:sauvegarde`` garde l'état : ``faite``, ``refusee`` ou ``cree_ici``.
 """
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from api.services.builder import options, revue, stock
+from api.services.builder import instantane, options, revue, stock
 from api.services.builder.actions.registre import Contexte, ErreurAction
 from api.services.builder.constantes import cle_builder
 
@@ -93,6 +93,7 @@ async def prendre(contexte: Contexte, workflow: Any) -> dict[str, Any]:
         version_apres=version,
         fil_id=(contexte.conversation or {}).get("fil_id"),
         operations=[],
+        complement=await instantane.capturer(contexte.organisation_id, workflow, user=contexte.user),
     )
     await stock.ecrire(
         contexte.organisation_id, _cle(workflow.id), {"etat": "faite", "instantane": numero, "date": datetime.now(UTC).isoformat()}

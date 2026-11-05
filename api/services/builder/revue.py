@@ -10,6 +10,9 @@ champ, de façon déterministe (le même brouillon donne toujours les mêmes ran
 * ``refuser``  : retire des changements en attente, sans rien écrire dans l'agent ;
 * ``restaurer``: remet le graphe d'avant d'un instantané comme nouveau brouillon (la restauration a elle-même son instantané).
 
+Partie 3, sous-lot 7 (SE-15) : un instantané garde aussi un **complément** (phrases, réglages, vocabulaire, objets : voir
+``instantane.py``), pris à chaque acceptation, sauvegarde, restauration et **publication** ; ``restaurer`` rend les familles choisies.
+
 Jamais une publication.
 """
 
@@ -20,7 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from api.db import db_client
-from api.services.builder import brouillon, stock
+from api.services.builder import brouillon, instantane, stock
 from api.services.builder.constantes import cle_builder
 
 INSTANTANES_GARDES = 50
@@ -125,6 +128,7 @@ async def _ranger(
     version_apres: int | None,
     fil_id: int | None,
     operations: list[dict[str, Any]],
+    complement: dict[str, Any] | None = None,
 ) -> int:
     # V4 : seulement les clés (le numéro est le dernier morceau de la clé), jamais les graphes des instantanés déjà rangés.
     existants = await stock.cles(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
@@ -142,6 +146,9 @@ async def _ranger(
             "operations": operations,
             "avant": avant,
             "apres": apres,
+            # Sous-lot 7 : l'état des autres familles ; ``familles`` (légère) dit lesquelles, pour la liste sans charger le complément.
+            "complement": complement,
+            "familles": instantane.familles_d_un_instantane({"avant": avant, "complement": complement}),
         },
     )
     for cle in existants[: max(0, len(existants) + 1 - INSTANTANES_GARDES)]:
@@ -153,7 +160,11 @@ async def instantanes(organization_id: int, workflow_id: int, fil_id: int | None
     """Les versions restaurables, de la plus récente à la plus ancienne (sans les graphes, lourds, sauf ``complets``)."""
     # V4 : sans ``complets``, la base retire les deux graphes de chaque instantané (50 x 2 graphes lus pour rien avant).
     prefixe = cle_builder(workflow_id, f"{PARTIE}:")
-    lignes = await stock.lister(organization_id, prefixe) if complets else await stock.lister_sans(organization_id, prefixe, ["avant", "apres"])
+    lignes = (
+        await stock.lister(organization_id, prefixe)
+        if complets
+        else await stock.lister_sans(organization_id, prefixe, ["avant", "apres", "complement"])
+    )
     sortie = []
     for _cle_ligne, v in reversed(lignes):
         if fil_id is not None and v.get("fil_id") != fil_id:
@@ -161,7 +172,12 @@ async def instantanes(organization_id: int, workflow_id: int, fil_id: int | None
         if complets:
             sortie.append(v)
         else:
-            sortie.append({k: v.get(k) for k in ("numero", "cause", "date", "fil_id", "version_avant", "version_apres", "operations")})
+            sortie.append(
+                {
+                    **{k: v.get(k) for k in ("numero", "cause", "date", "fil_id", "version_avant", "version_apres", "operations")},
+                    "familles": v.get("familles") if isinstance(v.get("familles"), list) else ["schema"],
+                }
+            )
     return sortie
 
 
@@ -215,6 +231,7 @@ async def accepter(organization_id: int, workflow: Any, rangs: list[int] | None 
         version_apres=enregistre.version_number,
         fil_id=fil_id,
         operations=acceptees,
+        complement=await instantane.capturer(organization_id, workflow),
     )
     await brouillon.ecrire_en_attente(organization_id, workflow.id, {"operations": gardees, "base_version": enregistre.version_number})
     return {"acceptes": len(acceptees), "restants": len(gardees), "version": enregistre.version_number, "instantane": numero}
@@ -232,22 +249,73 @@ async def refuser(organization_id: int, workflow: Any, rangs: list[int] | None =
     return {"refuses": len(choisis), "restants": len(restants)}
 
 
-async def restaurer(organization_id: int, workflow: Any, numero: int, fil_id: int | None = None) -> dict[str, Any]:
+async def restaurer(
+    organization_id: int, workflow: Any, numero: int, fil_id: int | None = None, *, familles: list[str] | None = None, user: Any = None
+) -> dict[str, Any]:
+    """Remet un instantané dans le BROUILLON, pour les ``familles`` choisies (toutes celles qu'il a si rien n'est dit).
+
+    Tout est validé avant la première écriture ; le vocabulaire et les objets (partagés par l'organisation) s'écrivent après le
+    brouillon. La restauration range elle-même un instantané complet : elle se défait. Jamais une publication."""
     ligne = await stock.lire(organization_id, _cle(workflow.id, numero))
     if ligne is None or not ligne.get("avant"):
         raise ErreurRevue(f"Unknown version: {numero}.")
-    graphe, version = await brouillon.source_courante(workflow)
-    enregistre = await db_client.save_workflow_draft(workflow_id=workflow.id, workflow_definition=ligne["avant"])
+    try:
+        choisies = instantane.choisir(ligne, familles)
+        graphe, version = await brouillon.source_courante(workflow)
+        actuelles = await brouillon.configurations_courantes(workflow)
+        nouvelles = await instantane.verifier_avant_d_ecrire(ligne, actuelles, choisies)
+        avant_la_restauration = await instantane.capturer(organization_id, workflow, user=user, configurations=actuelles)
+        if "schema" in choisies or nouvelles is not None:
+            # Un brouillon qui n'existe pas encore se crée avec le graphe d'aujourd'hui, jamais vide.
+            enregistre = await db_client.save_workflow_draft(
+                workflow_id=workflow.id,
+                workflow_definition=ligne["avant"] if "schema" in choisies else graphe,
+                workflow_configurations=nouvelles if nouvelles is not None else actuelles,
+            )
+            numero_du_brouillon = enregistre.version_number
+        else:
+            numero_du_brouillon = version  # seules des familles partagées : le brouillon ne bouge pas
+        partagees = await instantane.restaurer_les_partagees(organization_id, workflow, ligne, choisies, user)
+    except instantane.ErreurInstantane as erreur:
+        raise ErreurRevue(str(erreur)) from None
     nouveau = await _ranger(
         organization_id,
         workflow.id,
         cause=f"restauration de {numero}",
         avant=graphe,
-        apres=ligne["avant"],
+        apres=ligne["avant"] if "schema" in choisies else graphe,
         version_avant=version,
-        version_apres=enregistre.version_number,
+        version_apres=numero_du_brouillon,
         fil_id=fil_id,
         operations=[],
+        complement=avant_la_restauration,
     )
-    await brouillon.ecrire_en_attente(organization_id, workflow.id, {"operations": [], "base_version": enregistre.version_number})
-    return {"version": enregistre.version_number, "instantane": nouveau}
+    await brouillon.ecrire_en_attente(organization_id, workflow.id, {"operations": [], "base_version": numero_du_brouillon})
+    return {"version": numero_du_brouillon, "instantane": nouveau, "familles": choisies, **partagees}
+
+
+async def apres_une_publication(organization_id: int, workflow: Any, publiee: Any, user: Any = None) -> int | None:
+    """Un instantané de l'état PUBLIÉ (graphe, phrases, réglages, vocabulaire, objets). Ne lève jamais : une publication faite ne rate pas
+    parce que son instantané n'a pas pu être pris."""
+    try:
+        graphe = copy.deepcopy(getattr(publiee, "workflow_json", None) or {})
+        complement = await instantane.capturer(
+            organization_id, workflow, user=user, configurations=dict(getattr(publiee, "workflow_configurations", None) or {})
+        )
+        return await _ranger(
+            organization_id,
+            workflow.id,
+            cause="publication",
+            avant=graphe,
+            apres=graphe,
+            version_avant=getattr(publiee, "version_number", None),
+            version_apres=getattr(publiee, "version_number", None),
+            fil_id=None,
+            operations=[],
+            complement=complement,
+        )
+    except Exception as erreur:  # noqa: BLE001
+        from loguru import logger
+
+        logger.warning(f"[revue] instantané de publication non pris : {type(erreur).__name__}")
+        return None

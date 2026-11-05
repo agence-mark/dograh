@@ -7,8 +7,8 @@
  * create and play). Creating and changing go through the same server function as the builder's actions. Every list (steps,
  * tools, outcomes, characters, folders) is read from the agent and the library; nothing is written in the screen.
  *
- * The « Environment » part of the mockup (simulated date, caller number, tool answers in series) is U11 and not built: it is not
- * drawn (`14-ecarts-maquette.md`).
+ * The « Environment » part of the mockup (simulated date, caller number, variables, tool answers in series) is built since the
+ * partie 3, sub-lot 5 (`EnvironnementDuTest.tsx`): a switch « Definition / Environment » over the left column, as in the mockup.
  */
 import { Bot, FolderPlus, Play, Plus, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
@@ -29,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { EditeurDeCriteres, ligneDuCritere, ligneVide } from "./EditeurDeCriteres";
+import { EnvironnementDuTest, environnementEdite, environnementPourLeServeur, type EnvironnementEdite } from "./EnvironnementDuTest";
 import { critereDeLaLigne, type LigneDeCritere } from "./NouveauTest";
 import { type RessourcesDeTest, type SorteDeTest, sorteDuTest, type TestComplet } from "./types";
 
@@ -115,6 +116,8 @@ export function FenetreDeTest({
     const [ouverture, setOuverture] = useState(test?.scenario?.ouverture ?? "");
     const [tours, setTours] = useState(test?.scenario?.tours_max ? String(test.scenario.tours_max) : "");
     const [questions, setQuestions] = useState<string[]>((test as { questions_juge?: string[] } | undefined)?.questions_juge ?? []);
+    const [partie, setPartie] = useState<"definition" | "environnement">("definition");
+    const [environnement, setEnvironnement] = useState<EnvironnementEdite>(() => environnementEdite(test?.environnement));
     const [erreur, setErreur] = useState<string | null>(null);
     const [envoi, setEnvoi] = useState(false);
     const [aSupprimer, setASupprimer] = useState(false);
@@ -142,6 +145,8 @@ export function FenetreDeTest({
             obligatoire,
             dossier: dossier.trim(),
             questions_juge: questions.map((q) => q.trim()).filter(Boolean),
+            // Vide : à la modification il retire l'environnement, à la création il n'y en a pas.
+            environnement: environnementPourLeServeur(environnement),
         };
         const propre =
             sorte === "conversation"
@@ -200,6 +205,37 @@ export function FenetreDeTest({
                                 </button>
                             ))}
                         </div>
+                        <div className="shrink-0 px-5 pt-4">
+                            <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm" role="group" aria-label={t({ en: "Part of the test", fr: "Partie du test" })}>
+                                {(
+                                    [
+                                        ["definition", { en: "Definition", fr: "Définition" }],
+                                        ["environnement", { en: "Environment", fr: "Environnement" }],
+                                    ] as const
+                                ).map(([id, libelle]) => (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        aria-pressed={partie === id}
+                                        onClick={() => setPartie(id)}
+                                        className={`cursor-pointer rounded-md px-3 py-1 hover:font-medium ${partie === id ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}
+                                    >
+                                        {t(libelle)}
+                                        {id === "environnement" && Object.keys(environnementPourLeServeur(environnement)).length > 0 && <span aria-hidden className="ml-1.5 inline-block size-1.5 rounded-full bg-foreground align-middle" />}
+                                    </button>
+                                ))}
+                            </span>
+                        </div>
+                        {partie === "environnement" ? (
+                            <div className="min-h-0 flex-1 overflow-auto p-5" data-testid="partie-environnement">
+                                <EnvironnementDuTest valeur={environnement} changer={setEnvironnement} outils={ressources?.outils ?? []} />
+                                {erreur && (
+                                    <p role="alert" className="mt-4 text-sm text-destructive">
+                                        {erreur}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
                         <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5" data-testid="reglages-du-test">
                             <Champ titre={t({ en: "Test name", fr: "Nom du test" })}>
                                 <Input value={nom} onChange={(e) => setNom(e.target.value)} aria-label={t({ en: "Test name", fr: "Nom du test" })} />
@@ -283,6 +319,7 @@ export function FenetreDeTest({
                                 </p>
                             )}
                         </div>
+                        )}
                     </div>
 
                     <div className="flex min-h-0 flex-col" data-testid="conversation-du-test-fenetre">

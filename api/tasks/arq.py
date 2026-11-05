@@ -65,6 +65,7 @@ from api.services.apres_appel.taches import recapitulatif as recapitulatif_apres
 from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
 from api.services.base_client.synchro import tic_de_synchro
 from api.services.conservation_appels.purge import conservation_de_nuit
+from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
 from api.tasks.appel_simule import jouer_serie_simulee
 from api.tasks.campaign_tasks import (
     process_campaign_batch,
@@ -123,6 +124,10 @@ class WorkerSettings:
         # [.mark] cloture-code, lot 6: the copies of the calls older than the organization's duration are
         # emptied (dry run until unticked). A minute of its own, away from the night task at 03:17.
         cron(conservation_de_nuit, hour={3}, minute={43}, second=0, timeout=3600),
+        # [.mark] Part 3, sub-lot 6: the agent alerts (a version does worse than the previous one), read-only, at night; and the
+        # scheduled replays that are DUE (off by default: they spend), hourly, at most five per pass.
+        cron(evaluer_les_alertes, hour={4}, minute={7}, second=0, timeout=1800),
+        cron(rejouer_les_suites_planifiees, minute={50}, second=20, timeout=3 * 3600),
         # [.mark] L7 (PN5): the calls lost while the server was down, rebuilt from Twilio.
         cron(rattrapage_panne, minute={25}, second=10, timeout=900),
         cron(

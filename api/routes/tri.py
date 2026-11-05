@@ -42,8 +42,8 @@ class LigneDeTri(BaseModel):
     statut: StatutDeTri
     # [.mark] builder lot 6 : la personne chargée, l'origine posée (client, recette, code) et celle qu'on suggère.
     assigne: Optional[int] = None
-    origine: Optional[Literal["client", "recette", "code"]] = None
-    origine_suggeree: Optional[Literal["client", "recette", "code"]] = None
+    origine: Optional[Literal["client", "recette", "code", "deploiement"]] = None
+    origine_suggeree: Optional[Literal["client", "recette", "code", "deploiement"]] = None
 
 
 class PageDeTri(BaseModel):
@@ -61,7 +61,7 @@ class ChangementDeStatut(BaseModel):
     # [.mark] builder lot 6 : le statut, l'assigné (``null`` le retire) et l'origine sont chacun facultatifs ; un champ non envoyé ne bouge pas.
     statut: Optional[StatutDeTri] = None
     assigne: Optional[int] = None
-    origine: Optional[Literal["client", "recette", "code"]] = None
+    origine: Optional[Literal["client", "recette", "code", "deploiement"]] = None
 
 
 class StatutEcrit(BaseModel):
@@ -69,7 +69,7 @@ class StatutEcrit(BaseModel):
     identifiant: str
     statut: StatutDeTri
     assigne: Optional[int] = None
-    origine: Optional[Literal["client", "recette", "code"]] = None
+    origine: Optional[Literal["client", "recette", "code", "deploiement"]] = None
 
 
 class LigneDAlerte(BaseModel):
@@ -104,7 +104,7 @@ async def lire_la_file_de_tri(
     page: int = Query(0, ge=0),
     workflow_id: Optional[int] = Query(None),
     statut: Optional[StatutDeTri] = Query(None),
-    origine: Optional[Literal["client", "recette", "code"]] = Query(None),
+    origine: Optional[Literal["client", "recette", "code", "deploiement"]] = Query(None),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> PageDeTri:
     if statut is None and origine is None:

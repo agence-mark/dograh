@@ -26,6 +26,9 @@ export const CRITERES: Record<string, { libelle: Texte; champs: ChampDeCritere[]
     // Kept to READ the tests written before: the server reads it as `texte_en_tete` with « merci ». Never offered in a list.
     merci_en_tete: { libelle: { en: "Replies starting with « Merci »", fr: "Répliques qui commencent par « Merci »" }, champs: ["max"], ancien: true },
     coordonnees_prises: { libelle: { en: "The sheet holds the fields", fr: "La fiche contient les champs" }, champs: ["champs"] },
+    // Partie 3, sous-lot 5 : l'ordre des outils appelés, et un outil appelé une seule fois.
+    outils_dans_l_ordre: { libelle: { en: "The tools are called in this order", fr: "Les outils sont appelés dans cet ordre" }, champs: ["noms"] },
+    outil_une_seule_fois: { libelle: { en: "A tool is called exactly once", fr: "Un outil est appelé une seule fois" }, champs: ["nom"] },
     sans_redite: { libelle: { en: "No repetition", fr: "Aucune redite" }, champs: [] },
     sans_rigidite: { libelle: { en: "No rigid re-asking", fr: "Aucune redemande rigide" }, champs: [] },
 };
@@ -56,7 +59,7 @@ export const CAUSES: Record<string, Texte> = {
 };
 
 /** What each triage origin leads to (07-boucle-et-coherence § 2). */
-export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code", { libelle: Texte; suite: Texte }> = {
+export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code" | "deploiement", { libelle: Texte; suite: Texte }> = {
     client: {
         libelle: { en: "Client", fr: "Client" },
         suite: { en: "Fix the client sheet, then regenerate the step: this agent only.", fr: "Corriger la fiche du client, puis régénérer l'étape : cet agent seulement." },
@@ -64,6 +67,13 @@ export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code", { libelle: T
     recette: {
         libelle: { en: "Recipe", fr: "Recette" },
         suite: { en: "Propose a change to the library and prove it: every following agent benefits.", fr: "Proposer un changement à la bibliothèque et le prouver : tous les agents suivants en profitent." },
+    },
+    deploiement: {
+        libelle: { en: "Deployment", fr: "Déploiement" },
+        suite: {
+            en: "A published version does worse than the previous one: compare the two, then decide yourself (nothing is rolled back automatically).",
+            fr: "Une version publiée fait moins bien que la précédente : comparer les deux, puis décider soi-même (rien n'est retiré automatiquement).",
+        },
     },
     code: {
         libelle: { en: "Code", fr: "Code" },

@@ -102,6 +102,14 @@ class VueVersion(BaseModel):
     version_avant: int | None
     version_apres: int | None
     operations: list[dict[str, Any]]
+    # Sous-lot 7 : les familles que cette version sait restaurer (schema, phrases, reglages, vocabulaire, objets).
+    familles: list[str] = Field(default_factory=lambda: ["schema"])
+
+
+class Restauration(BaseModel):
+    """Les familles à remettre ; absent ou ``null`` = toutes celles que la version a gardées."""
+
+    familles: list[str] | None = Field(default=None, max_length=5)
 
 
 @router.get("/agents/{workflow_id}/versions", response_model=list[VueVersion])
@@ -113,12 +121,24 @@ async def lister_les_versions(
 
 
 @router.post("/agents/{workflow_id}/versions/{numero}/restaurer")
-async def restaurer_une_version(workflow_id: int, numero: int, user: UserModel = Depends(get_user_with_selected_organization)):
+async def restaurer_une_version(
+    workflow_id: int,
+    numero: int,
+    corps: Restauration | None = None,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
     workflow = await _agent_ou_404(user, workflow_id)
+    familles = corps.familles if corps is not None else None
     try:
-        return await revue.restaurer(user.selected_organization_id, workflow, numero)
+        rendu = await revue.restaurer(user.selected_organization_id, workflow, numero, familles=familles, user=user)
     except revue.ErreurRevue as erreur:
-        raise HTTPException(status_code=404, detail=str(erreur)) from None
+        inconnue = str(erreur).startswith("Unknown version")
+        raise HTTPException(status_code=404 if inconnue else 422, detail=str(erreur)) from None
+    # Une action sensible est journalisée : qui, quoi (l'agent, la version, les familles), quand, où.
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(user, "agents.revenir_avant", user.selected_organization_id, {"agent": workflow_id, "instantane": numero, "familles": rendu["familles"]})
+    return rendu
 
 
 # --- l'accord de dépense ---------------------------------------------------------------------------------------------------

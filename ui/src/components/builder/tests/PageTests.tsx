@@ -47,9 +47,11 @@ import {
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { DepuisLaBibliotheque } from "./DepuisLaBibliotheque";
 import { DetailDunTest } from "./DetailDunTest";
+import { BandeauDAlertes } from "./BandeauDAlertes";
 import { FenetreAttaques } from "./FenetreAttaques";
 import { FenetreDeTest } from "./FenetreDeTest";
 import { CAUSES, dateCourte, ORIGINES_DE_TEST, STATUTS_DE_TEST } from "./libelles";
+import { PlanifierLaSuite } from "./PlanifierLaSuite";
 import type {
     Correction,
     EtatDePublication,
@@ -88,6 +90,8 @@ export function PageTests({ workflowId }: { workflowId: number }) {
     const [execution, setExecution] = useState<{ test: TestComplet; resultats: Execution[] } | null>(null);
     const [enCours, setEnCours] = useState(false);
     const [attaque, setAttaque] = useState(false);
+    const [planifier, setPlanifier] = useState(false);
+    const [alertesVues, setAlertesVues] = useState(0);
     const [message, setMessage] = useState<string | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
 
@@ -200,6 +204,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                 </p>
             )}
             {publication?.brouillon && <BandeauDePublication etat={publication} />}
+            <BandeauDAlertes key={alertesVues} agentId={workflowId} />
             {/* [.mark] K3 : la barre de la maquette (`OngletTests`) : titre, Planifier, Attaquer, Jouer ⌄, Ajouter un test ⌄. */}
             <div className="flex flex-wrap items-center gap-2">
                 <p className="flex flex-1 items-center gap-2 text-lg font-semibold">
@@ -211,8 +216,8 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                         })}
                     </Info>
                 </p>
-                {/* Planifier : la maquette le montre, le serveur ne l'a pas (U11 point 4) : posé, éteint. Attaquer l'agent : U11, construit. */}
-                <Button variant="ghost" disabled title={t({ en: "Not built yet: the scheduled replay", fr: "Pas encore construit : le rejeu planifié" })}>
+                {/* Planifier : le rejeu planifié et l'alerte « une version fait moins bien » (partie 3, sous-lot 6). Attaquer l'agent : U11. */}
+                <Button variant="ghost" onClick={() => setPlanifier(true)}>
                     <CalendarClock className="size-4" /> {t({ en: "Schedule", fr: "Planifier" })}
                 </Button>
                 <Button variant="ghost" onClick={() => setAttaque(true)}>
@@ -271,6 +276,9 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                             <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a reply of a call", fr: "Depuis une réplique d'un appel" })}</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={adresseOnglet(workflowId, "appels")}>{t({ en: "From a whole conversation", fr: "Depuis une conversation entière" })}</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => setFenetre("bibliotheque")}>{t({ en: "From the library", fr: "Depuis la bibliothèque" })}</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -414,6 +422,7 @@ export function PageTests({ workflowId }: { workflowId: number }) {
             )}
             <HistoriqueDesCorrections corrections={corrections} onRevenir={(id) => void revenir(id)} />
             {attaque && <FenetreAttaques agentId={workflowId} fermer={() => setAttaque(false)} />}
+            {planifier && <PlanifierLaSuite agentId={workflowId} fermer={() => setPlanifier(false)} onChange={() => setAlertesVues((n) => n + 1)} />}
             {fenetre === "nouveau" && (
                 <FenetreDeTest
                     workflowId={workflowId}

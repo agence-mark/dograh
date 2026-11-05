@@ -40,6 +40,8 @@ TYPES_DE_CONVERSATION = (
     "sans_rigidite",
     "rien_d_autre",
     "champs_justes",
+    "outils_dans_l_ordre",
+    "outil_une_seule_fois",
 )
 TYPES = TYPES_DE_BASE + TYPES_DE_CONVERSATION
 # U3 (E47) : l'ancien critère ``merci_en_tete`` (le mot « merci » écrit dans le code) est LU comme ``texte_en_tete`` avec ses mots en
@@ -128,6 +130,17 @@ def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
             if not (isinstance(champs, dict) and champs):
                 raise ErreurTestRejouable("criterion « champs_justes » : « champs » (field -> expected value) is empty")
             c = {"type": "champs_justes", "champs": {str(k)[:80]: str(v)[:200] for k, v in list(champs.items())[:20]}}
+        if genre == "outils_dans_l_ordre":
+            # Sous-lot 5 (C-3) : les outils appelés « dans cet ordre » (d'autres outils peuvent s'intercaler, jamais l'inverse).
+            noms = [str(n).strip() for n in c.get("noms") or [] if str(n).strip()]
+            if len(noms) < 2:
+                raise ErreurTestRejouable("criterion « outils_dans_l_ordre » : « noms » needs at least two tools")
+            c = {"type": "outils_dans_l_ordre", "noms": noms[:10]}
+        if genre == "outil_une_seule_fois":
+            nom = str(c.get("nom") or "").strip()
+            if not nom:
+                raise ErreurTestRejouable("criterion « outil_une_seule_fois » : « nom » is empty")
+            c = {"type": "outil_une_seule_fois", "nom": nom[:120]}
         if genre == "coordonnees_prises" and not (isinstance(c.get("champs"), list) and c["champs"]):
             raise ErreurTestRejouable("criterion « coordonnees_prises » : « champs » is empty")
         propres.append(c)
@@ -248,6 +261,35 @@ def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> Resulta
                     critere, False, f"outil non prévu : {o.get('nom')}", o.get("rang"), f"Tool « {o.get('nom')} » was called but the expected end state does not include it."
                 )
         return ResultatCritere(critere, True, "aucune action non prévue")
+    if genre == "outils_dans_l_ordre":
+        appeles = [normaliser(str(o.get("nom") or "")) for o in obs.outils]
+        position = 0
+        for nom in critere["noms"]:
+            try:
+                position = appeles.index(normaliser(nom), position) + 1
+            except ValueError:
+                rang = next((o.get("rang") for o in obs.outils if normaliser(str(o.get("nom") or "")) == normaliser(nom)), derniere)
+                return ResultatCritere(
+                    critere,
+                    False,
+                    f"ordre non tenu : « {nom} » {'jamais appelé' if normaliser(nom) not in appeles else 'appelé trop tôt'} (appelés : {', '.join(appeles) or 'aucun'})",
+                    rang if rang is not None else derniere,
+                    f"Tool « {nom} » was {'never called' if normaliser(nom) not in appeles else 'called before the tool it must follow'}: expected order {' > '.join(critere['noms'])}.",
+                )
+        return ResultatCritere(critere, True, "outils appelés dans l'ordre : " + " > ".join(critere["noms"]))
+    if genre == "outil_une_seule_fois":
+        voulu = normaliser(critere["nom"])
+        appels = [o for o in obs.outils if normaliser(str(o.get("nom") or "")) == voulu]
+        if len(appels) == 1:
+            return ResultatCritere(critere, True, f"« {critere['nom']} » appelé une seule fois")
+        rang = appels[1].get("rang") if len(appels) > 1 else derniere
+        return ResultatCritere(
+            critere,
+            False,
+            f"« {critere['nom']} » appelé {len(appels)} fois",
+            rang if rang is not None else derniere,
+            f"Tool « {critere['nom']} » was called {len(appels)} times: it must be called exactly once.",
+        )
     if genre == "champs_justes":
         faux = [(c, v) for c, v in critere["champs"].items() if normaliser(str(obs.fiche.get(c) if obs.fiche.get(c) is not None else "")) != normaliser(v)]
         return _fin(

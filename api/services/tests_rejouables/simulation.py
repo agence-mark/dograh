@@ -129,7 +129,11 @@ def simuler_si_rejeu(
         async def simule(params: Any) -> None:
             _noter(moteur, nom, categorie, getattr(params, "arguments", None))
             logger.info(f"[rejeu] {nom} simulé : rien n'est parti")
-            await params.result_callback(dict(RESULTAT_NEUTRE))
+            # [.mark] sous-lot 5 : la réponse écrite dans l'environnement du test (dans l'ordre des appels), sinon la neutre.
+            from api.services.tests_rejouables.environnement import reponse_simulee
+
+            ecrite = reponse_simulee(moteur, nom)
+            await params.result_callback(ecrite[0] if ecrite is not None else dict(RESULTAT_NEUTRE))
 
         return simule
     except Exception as erreur:  # noqa: BLE001

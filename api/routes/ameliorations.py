@@ -33,7 +33,7 @@ from api.services.juge import file as file_du_juge
 router = APIRouter(tags=["ameliorations"])
 
 EtatAMain = Literal["a_trier", "en_cours", "ignoree"]
-Origine = Literal["client", "recette", "code"]
+Origine = Literal["client", "recette", "code", "deploiement"]  # « deploiement » : partie 3, sous-lot 6
 
 
 class VueDeLigne(BaseModel):

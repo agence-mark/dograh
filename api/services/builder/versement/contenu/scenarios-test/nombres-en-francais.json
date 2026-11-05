@@ -1,0 +1,21 @@
+{
+  "titre": "Nombres : dits comme en français",
+  "contenu": {
+    "but": "Donner son numéro de téléphone, son code postal et une date comme on les dit en France : « zéro six, soixante-dix-sept, quatre-vingt-quatorze… », « quatre-vingt-dix-huit », « le vingt et un ». Ne jamais écrire en chiffres.",
+    "personnage": "numero-en-desordre",
+    "criteres": [
+      {
+        "type": "sans_redite"
+      },
+      {
+        "type": "sans_rigidite"
+      }
+    ],
+    "questions_juge": [
+      "Le numéro, le code postal et la date ont-ils été notés tels que dits (soixante-dix, quatre-vingts, quatre-vingt-dix compris) ?",
+      "L'agent a-t-il relu les nombres à voix haute en toutes lettres plutôt qu'en chiffres ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark (partie 3, sous-lot 5) : une politique écrite, une action attendue. Aucune origine externe.",
+  "dossier": "service"
+}

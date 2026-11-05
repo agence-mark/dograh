@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.services.builder import brouillon, revue, stock
+from api.services.builder import brouillon, instantane, revue, stock
 
 LISTE_MAX = 40
 
@@ -75,15 +75,18 @@ def comparer(actuel: dict[str, Any] | None, cible: dict[str, Any] | None) -> dic
     }
 
 
-async def apercu_de_la_restauration(organisation: int, workflow: Any, numero: int) -> dict[str, Any]:
+async def apercu_de_la_restauration(organisation: int, workflow: Any, numero: int, user: Any = None) -> dict[str, Any]:
     ligne = await stock.lire(organisation, revue._cle(workflow.id, numero))  # noqa: SLF001
     if ligne is None or not ligne.get("avant"):
         raise revue.ErreurRevue(f"Unknown version: {numero}.")
     actuel, version = await brouillon.source_courante(workflow)
+    # Sous-lot 7 : famille par famille, ce qui est gardé et ce qui changerait (des noms et des comptes, jamais une valeur).
+    maintenant = await instantane.capturer(organisation, workflow, user=user)
     return {
         "numero": numero,
         "cause": ligne.get("cause"),
         "date": ligne.get("date"),
         "version_actuelle": version,
+        "familles": instantane.comparer_les_familles(ligne, maintenant),
         **comparer(actuel, ligne["avant"]),
     }

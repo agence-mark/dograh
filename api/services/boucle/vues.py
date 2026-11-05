@@ -3,7 +3,7 @@
 * la fréquence « N appels sur M » : les cas des 30 derniers jours sur les appels jugés (problème du juge) ou tous les appels (trace du
   code) de l'agent ; pour un test, les essais réussis sur les essais ;
 * la gravité EFFECTIVE : celle du cas la plus haute, relevée d'un cran quand le problème touche un appel sur cinq ou plus ;
-* l'origine suggérée (client, recette, code), que la personne confirme ou change (C14 : pour « recette », les recettes que cet agent
+* l'origine suggérée (client, recette, code, déploiement), que la personne confirme ou change (C14 : pour « recette », les recettes que cet agent
   utilise sont proposées, lues dans les lignes d'usage de la bibliothèque).
 ⛔ Zéro vocabulaire métier.
 """
@@ -37,6 +37,8 @@ def origine_suggeree(probleme: dict[str, Any]) -> str:
     if par == ingestion.RELEVE_PAR_CODE:
         from api.services.builder.tests_agent.boucle import ORIGINE_SUGGEREE_PAR_CATEGORIE
 
+        if critere.startswith("deploiement:"):  # partie 3, sous-lot 6 : une version qui fait moins bien que la précédente
+            return "deploiement"
         if critere.startswith("agent:"):
             return ORIGINE_SUGGEREE_PAR_CATEGORIE.get(critere.partition(":")[2], "recette")
         return "code"

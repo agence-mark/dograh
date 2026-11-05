@@ -186,6 +186,7 @@ def moteur_texte() -> Moteur:
     """Le chemin clavier du fork (``text_chat_session_service``), outils sortants simulés (``CLE_REJEU``)."""
     from api.db import db_client
     from api.enums import WorkflowRunMode, WorkflowRunState
+    from api.services.tests_rejouables.environnement import contexte_initial, fiche_du_rejeu, horloge
     from api.services.tests_rejouables.simulation import CLE_REJEU
     from api.services.workflow.run_creation import definition_to_run, prepare_workflow_run_inputs
     from api.services.workflow.text_chat_logs import build_text_chat_realtime_feedback_events
@@ -203,8 +204,14 @@ def moteur_texte() -> Moteur:
         return (message or "").strip(), session_data.get("status") == "completed"
 
     async def ouvrir(workflow: Any, test: dict[str, Any]) -> tuple[Session, TourAgent]:
+        # [.mark] sous-lot 5 : l'environnement du test (variables, numéro de l'appelant, outils simulés, date et heure).
+        env = test.get("environnement") or None
         entrees = await prepare_workflow_run_inputs(
-            db_client, workflow, initial_context=dict((test.get("scenario") or {}).get("contexte") or {}), use_draft=True, include_template_context=True
+            db_client,
+            workflow,
+            initial_context={**dict((test.get("scenario") or {}).get("contexte") or {}), **contexte_initial(env)},
+            use_draft=True,
+            include_template_context=True,
         )
         run = await db_client.create_workflow_run(
             name=f"TEST-{test.get('slug', 'test')}"[:120],
@@ -212,7 +219,7 @@ def moteur_texte() -> Moteur:
             mode=WorkflowRunMode.TEXTCHAT.value,
             user_id=workflow.user_id,
             initial_context=entrees.initial_context,
-            gathered_context={CLE_REJEU: True},
+            gathered_context={CLE_REJEU: True, **fiche_du_rejeu(env)},
             organization_id=workflow.organization_id,
             definition_id=entrees.definition_id,
             use_draft=entrees.use_draft,
@@ -224,19 +231,23 @@ def moteur_texte() -> Moteur:
             for n in ((getattr(definition, "workflow_json", None) or {}).get("nodes") or [])
             if isinstance(n, dict) and n.get("type") == "endCall"
         }
-        texte_session = await db_client.ensure_workflow_run_text_session(
-            run.id, session_data=default_text_chat_session_data(), checkpoint=default_text_chat_checkpoint()
-        )
+        # Le moteur lit la fiche dans le POINT DE REPRISE de la session, pas dans celle du run : sans elle, le drapeau de rejeu
+        # (``CLE_REJEU``) n'y serait pas et les outils sortants de la copie partiraient pour de bon (constaté au sous-lot 5).
+        point = default_text_chat_checkpoint()
+        point["gathered_context"] = {CLE_REJEU: True, **fiche_du_rejeu(env)}
+        texte_session = await db_client.ensure_workflow_run_text_session(run.id, session_data=default_text_chat_session_data(), checkpoint=point)
         texte_session = await initialize_text_chat_session(run_id=run.id, text_session=texte_session)
-        texte_session = await execute_pending_text_chat_turn(workflow_id=workflow.id, run_id=run.id, text_session=texte_session)
-        session = Session(run.id, fins, etat={"texte": texte_session, "workflow": workflow})
+        with horloge(env):
+            texte_session = await execute_pending_text_chat_turn(workflow_id=workflow.id, run_id=run.id, text_session=texte_session)
+        session = Session(run.id, fins, etat={"texte": texte_session, "workflow": workflow, "environnement": env})
         texte, termine = dit(texte_session.session_data)
         return session, TourAgent(texte, termine)
 
     async def tour(session: Session, texte: str) -> TourAgent:
         s = session.etat["texte"]
         s = await append_text_chat_user_message(run_id=session.run_id, text_session=s, user_text=texte, expected_revision=s.revision)
-        s = await execute_pending_text_chat_turn(workflow_id=session.etat["workflow"].id, run_id=session.run_id, text_session=s)
+        with horloge(session.etat.get("environnement")):
+            s = await execute_pending_text_chat_turn(workflow_id=session.etat["workflow"].id, run_id=session.run_id, text_session=s)
         session.etat["texte"] = s
         message, termine = dit(s.session_data)
         return TourAgent(message, termine)

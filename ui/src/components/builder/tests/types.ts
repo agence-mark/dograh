@@ -12,6 +12,7 @@ export interface ResumeDeTest {
     dossier: string;
     origine: string | null;
     genre: "conversation" | "replique";
+    avec_environnement?: boolean;
     description?: string;
     modifie_le?: string | null;
     criteres: number;
@@ -66,7 +67,21 @@ export interface TestComplet {
     historique?: Array<{ role: string; texte: string }>;
     scenario?: { but: string; personnage?: string | null; ouverture?: string; tours_max?: number | null };
     source?: Record<string, unknown>;
+    /** What the test fixes around the conversation (sub-lot 5), as the server keeps it. */
+    environnement?: EnvironnementServeur;
 }
+
+/** The environment of a test as the server keeps it (`tests_rejouables/environnement.py`). */
+export interface EnvironnementServeur {
+    date?: string;
+    heure?: string;
+    numero?: string;
+    masque?: boolean;
+    variables?: Record<string, string>;
+    simulations?: Array<{ outil: string; appels: Array<{ sorte: SorteDeReponse; corps: unknown }> }>;
+}
+
+export type SorteDeReponse = "reponse" | "erreur" | "delai" | "refus";
 
 export interface Diagnostic {
     cause: "agent" | "test" | "execution";
