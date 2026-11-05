@@ -10,6 +10,7 @@
 import { type ReactNode, useState } from "react";
 
 import { useLangue } from "@/components/mark/langue/langue";
+import { Defileur } from "@/components/mark/studio/defileur";
 
 import { type SectionNoeud, TITRES_DES_SECTIONS } from "./sections-noeud";
 
@@ -27,7 +28,8 @@ export function OngletsNoeud({
         <div className="flex min-h-0 flex-1 flex-col" data-onglets-noeud>
             {entete}
             {sections.length > 1 && (
-                <div role="tablist" className="flex shrink-0 gap-1 overflow-x-auto border-b px-6">
+                <Defileur className="shrink-0 border-b px-6">
+                <div role="tablist" className="flex gap-1">
                     {sections.map((s) => (
                         <button
                             key={s.id}
@@ -46,6 +48,7 @@ export function OngletsNoeud({
                         </button>
                     ))}
                 </div>
+                </Defileur>
             )}
             <div className="min-h-0 max-h-[60vh] overflow-y-auto px-6 py-5">
                 {sections.map((s) => (
