@@ -37,6 +37,9 @@ import {
     type WorkflowConfigurations,
 } from "@/types/workflow-configurations";
 
+// [.mark] V : un enregistrement du graphe dit son résultat (règle de l'écran « retour d'action »).
+const PHRASE_BROUILLON_NON_ENREGISTRE = { fr: "Brouillon non enregistré. Réessayez.", en: "Draft not saved. Try again." };
+
 // Pull a WorkflowError[] out of any validate-shaped payload — works whether
 // the body is the raw `{ is_valid, errors }` (validate success-with-errors)
 // or wrapped as `{ detail: { is_valid, errors } }` (HTTPException body for
@@ -421,6 +424,7 @@ export const useWorkflowState = ({
                     applyWorkflowErrors(workflowErrors);
                 }
                 logger.error(`Error saving workflow: ${JSON.stringify(response.error)}`);
+                notifier.echec(PHRASE_BROUILLON_NON_ENREGISTRE, { erreur: response.error, groupe: "enregistrer-graphe" });
             } else {
                 setIsDirty(false);
                 if (response.data) {
@@ -449,10 +453,12 @@ export const useWorkflowState = ({
                         versionStatus: response.data.version_status ?? undefined,
                     };
                     saveSucceeded = true;
+                    notifier.succes({ fr: "Brouillon enregistré.", en: "Draft saved." }, { publier: workflowId, groupe: "enregistrer-graphe" });
                 }
             }
         } catch (error) {
             logger.error(`Error saving workflow: ${error}`);
+            notifier.echec(PHRASE_BROUILLON_NON_ENREGISTRE, { erreur: error, groupe: "enregistrer-graphe" });
         }
 
         // Only run validate after a successful save — when save failed we've
