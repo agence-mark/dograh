@@ -12720,6 +12720,10 @@ export type NouveauFil = {
      * Continue although the monthly ceiling is reached, for this request only (.mark team).
      */
     depasser_le_plafond?: boolean;
+    /**
+     * Mode
+     */
+    mode?: 'demander' | 'agent' | 'tout' | 'plan' | null;
 };
 
 /**
