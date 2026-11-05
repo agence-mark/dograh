@@ -489,3 +489,36 @@ async def test_la_migration_pose_la_version_un_et_epingle_les_agents_existants_e
         await async_session.execute(text("SELECT outils_epingles FROM workflow_definitions WHERE workflow_id = :w"), {"w": agent.id})
     ).scalars().all()
     assert epingles == [{outil.tool_uuid: 7}]
+
+
+async def test_la_fenetre_de_l_outil_ecrit_dans_la_branche_nommee_et_jamais_dans_la_principale(org, db_session, async_session, test_client_factory):
+    outil = await _outil(db_session, org)
+    agent = await _agent(db_session, org, outil.tool_uuid)
+    await db_session.update_tool(outil.tool_uuid, org.organisation.id, description="v2", user_id=org.utilisateur.id)
+    branche, _ = await db_session.creer_une_branche(
+        org.organisation.id, agent.id, "Essai", depuis_definition_id=None, user_id=org.utilisateur.id
+    )
+    await _oublier(async_session)
+    async with test_client_factory(org.utilisateur) as client:
+        ecrit = await client.put(
+            f"/api/v1/builder/outils/agent/{agent.id}/version", json={"tool_uuid": outil.tool_uuid, "version": 2, "branche_id": branche.id}
+        )
+        assert ecrit.status_code == 200, ecrit.text
+        usage = (await client.get(f"/api/v1/builder/outils/{outil.tool_uuid}/versions")).json()["usage"]
+    lignes = sorted((u["branche"], u["branche_id"], u["version_outil"], u["en_ligne"], u["brouillon"]) for u in usage)
+    assert lignes == [
+        ("Essai", branche.id, 2, False, True),  # le brouillon de la branche est passé à la v2 (sa version de départ est la publiée)
+        ("Principale", None, 1, True, False),
+    ]
+    branche_ouverte.ouvrir(None, None)  # le contexte de la requête de test est partagé : on relit la principale
+    assert await db_session.get_draft_version(agent.id) is None  # la principale n'a reçu aucun brouillon
+    # une branche d'un autre agent n'ouvre rien : on retombe sur la principale du MÊME agent
+    autre = await _agent(db_session, org, outil.tool_uuid, nom="Autre agent")
+    await _oublier(async_session)
+    async with test_client_factory(org.utilisateur) as client:
+        ecrit = await client.put(
+            f"/api/v1/builder/outils/agent/{autre.id}/version", json={"tool_uuid": outil.tool_uuid, "version": 2, "branche_id": branche.id}
+        )
+        assert ecrit.status_code == 200, ecrit.text
+    branche_ouverte.ouvrir(None, None)
+    assert (await db_session.get_draft_version(autre.id)).outils_epingles == {outil.tool_uuid: 2}

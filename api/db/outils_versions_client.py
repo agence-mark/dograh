@@ -46,9 +46,10 @@ class OutilsVersionsClient(BaseDBClient):
             )
             return outil, list(lignes.all())
 
-    async def usage_d_un_outil(self, organization_id: int, tool_uuid: str) -> list[dict[str, Any]]:
+    async def usage_d_un_outil(self, organization_id: int, tool_uuid: str, user_id: int | None = None) -> list[dict[str, Any]]:
         """Qui utilise quelle version : les versions d'agent EN LIGNE (publiée de la principale, tête d'une branche) et les
-        brouillons qui citent l'outil, en UNE requête. ``en_ligne`` : jouée par de vrais appels ; sinon un brouillon."""
+        brouillons qui citent l'outil, en UNE requête. ``en_ligne`` : jouée par de vrais appels ; sinon un brouillon (celui de la
+        principale, ou celui de ``user_id`` sur une branche : le brouillon d'une autre personne ne se montre pas)."""
         async with self.async_session() as session:
             await self._outil(session, organization_id, tool_uuid)
             lignes = (
@@ -60,6 +61,7 @@ class OutilsVersionsClient(BaseDBClient):
                         WorkflowDefinitionModel.status,
                         WorkflowDefinitionModel.version_number,
                         WorkflowDefinitionModel.outils_epingles,
+                        WorkflowDefinitionModel.draft_owner_id,
                         WorkflowModel.name,
                         WorkflowBranchModel.nom,
                     )
@@ -85,8 +87,10 @@ class OutilsVersionsClient(BaseDBClient):
                 ).all()
             )
             sortie = []
-            for identifiant, workflow_id, branch_id, statut, numero, epingles, nom_agent, nom_branche in lignes:
+            for identifiant, workflow_id, branch_id, statut, numero, epingles, proprietaire, nom_agent, nom_branche in lignes:
                 brouillon = statut == "draft"
+                if brouillon and branch_id is not None and proprietaire != user_id:
+                    continue
                 en_ligne = statut == "published" or identifiant in en_tete
                 if not (brouillon or en_ligne):
                     continue
@@ -95,6 +99,7 @@ class OutilsVersionsClient(BaseDBClient):
                         "workflow_id": workflow_id,
                         "agent": nom_agent,
                         "branche": nom_branche or "Principale",
+                        "branche_id": branch_id,
                         "version_agent": numero,
                         "version_outil": epingles.get(tool_uuid),
                         "en_ligne": en_ligne,

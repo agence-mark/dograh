@@ -39,16 +39,17 @@ import { OngletActivite } from "./OngletActivite";
 import { OngletComportement } from "./OngletComportement";
 import { OngletEssai } from "./OngletEssai";
 import { OngletParametres, OngletReponse, OngletRequete } from "./OngletsHttp";
+import { OngletVersions } from "./versions/OngletVersions";
 import { notifier } from "@/components/mark/notifications";
 
-type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "comportement" | "essai" | "activite";
+type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "comportement" | "essai" | "versions" | "activite";
 const ONGLETS: Record<string, IdOnglet[]> = {
-    http_api: ["general", "requete", "parametres", "reponse", "comportement", "essai", "activite"],
-    integration: ["general", "comportement", "essai", "activite"],
-    mcp: ["general", "comportement", "essai", "activite"],
-    calculator: ["general", "essai", "activite"],
+    http_api: ["general", "requete", "parametres", "reponse", "comportement", "essai", "versions", "activite"],
+    integration: ["general", "comportement", "essai", "versions", "activite"],
+    mcp: ["general", "comportement", "essai", "versions", "activite"],
+    calculator: ["general", "essai", "versions", "activite"],
 };
-const PAR_DEFAUT: IdOnglet[] = ["general", "activite"];
+const PAR_DEFAUT: IdOnglet[] = ["general", "versions", "activite"];
 
 export function FenetreOutil({
     outil,
@@ -79,6 +80,7 @@ export function FenetreOutil({
         reponse: t({ en: "Response", fr: "Réponse" }),
         comportement: t({ en: "Behaviour", fr: "Comportement" }),
         essai: t({ en: "Trial", fr: "Essai" }),
+        versions: t({ en: "Versions", fr: "Versions" }),
         activite: t({ en: "Activity", fr: "Activité" }),
     };
     const config: Config = { ...configDe(courant), ...modifs };
@@ -212,6 +214,7 @@ export function FenetreOutil({
             {onglet === "reponse" && <OngletReponse config={config} pose={pose} />}
             {onglet === "comportement" && <OngletComportement categorie={courant.category} config={config} pose={pose} />}
             {onglet === "essai" && <OngletEssai outil={courant} config={config} ecrit={ecrit} modifie={modifie} apres={() => void relireApresEssai()} />}
+            {onglet === "versions" && <OngletVersions toolUuid={courant.tool_uuid} nom={courant.name} />}
             {onglet === "activite" && <OngletActivite toolUuid={courant.tool_uuid} />}
         </FenetreOnglets>
     );

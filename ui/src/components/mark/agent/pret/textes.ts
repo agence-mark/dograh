@@ -4,6 +4,7 @@
  * en français et en anglais.
  */
 import type { Texte } from "../../langue/langue";
+import { T as TEXTES_VERSIONS } from "../../outils/versions/textes";
 
 export interface CorrectionDeLigne {
     id: string;
@@ -15,6 +16,8 @@ export interface CorrectionDeLigne {
 const guillemets = (nom: string | undefined) => (nom ? `« ${nom} »` : "");
 
 export const TITRES_DES_LIGNES: Record<string, { titre: Texte; source: Texte }> = {
+    // SA-L3d (décision 21) : ligne conseillée, présente seulement s'il reste un outil en retard.
+    outils_a_jour: { titre: TEXTES_VERSIONS.outilsAJourTitre, source: TEXTES_VERSIONS.outilsAJourSource },
     bilan_du_prompt: {
         titre: { en: "The prompt health check is clean", fr: "Le bilan de santé du prompt est propre" },
         source: {

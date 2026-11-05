@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from api.db import db_client
+from api.db import branche_ouverte, db_client
 from api.db.models import UserModel
 from api.db.outils_versions_client import ErreurOutilVersion
 from api.schemas.outils_versions import (
@@ -48,6 +48,10 @@ async def passer_a_une_version(
     agent = await db_client.get_workflow(workflow_id, organization_id=user.selected_organization_id)
     if agent is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    if not corps.suivre_l_en_tete:
+        # La fenêtre d'un outil n'a aucune branche ouverte : la branche visée est dite dans le corps (contrôlée à l'écriture :
+        # une branche d'un autre agent ou archivée est ignorée, on retombe sur la principale du MÊME agent, jamais ailleurs).
+        branche_ouverte.ouvrir(corps.branche_id, user.id)
     try:
         fait = await db_client.passer_un_outil_a_la_version(
             user.selected_organization_id, workflow_id, corps.tool_uuid, corps.version
@@ -58,7 +62,7 @@ async def passer_a_une_version(
         user,
         "agents.outil_version_changee",
         user.selected_organization_id,
-        {"agent": workflow_id, "outil": corps.tool_uuid, "version": corps.version},
+        {"agent": workflow_id, "outil": corps.tool_uuid, "version": corps.version, "branche": corps.branche_id},
     )
     return {"ok": True, **fait}
 
@@ -68,7 +72,7 @@ async def lire_les_versions_d_un_outil(tool_uuid: str, user: UserModel = Depends
     organisation = user.selected_organization_id
     try:
         outil, versions = await db_client.versions_d_un_outil(organisation, tool_uuid)
-        usage = await db_client.usage_d_un_outil(organisation, tool_uuid)
+        usage = await db_client.usage_d_un_outil(organisation, tool_uuid, user.id)
     except ErreurOutilVersion as erreur:
         raise _http(erreur) from None
     courante = outil.version_courante or 1
