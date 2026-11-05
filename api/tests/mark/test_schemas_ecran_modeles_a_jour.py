@@ -27,6 +27,7 @@ FOURNISSEURS = [
     ("llm", ServiceType.LLM, "openai"),
     ("tts", ServiceType.TTS, "elevenlabs"),
     ("tts", ServiceType.TTS, "soniox"),
+    ("tts", ServiceType.TTS, "gradium"),
     ("stt", ServiceType.STT, "deepgram"),
     ("stt", ServiceType.STT, "soniox"),
 ]

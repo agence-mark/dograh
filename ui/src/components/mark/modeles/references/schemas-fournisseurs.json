@@ -1128,6 +1128,312 @@
       ],
       "title": "Soniox",
       "type": "object"
+    },
+    "gradium": {
+      "description": "Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; a session lasts at most 300 seconds, so the product reopens the connection between two turns.",
+      "mark_aide": {
+        "en": "Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; a session lasts at most 300 seconds, so the product reopens the connection between two turns.",
+        "fr": "Voix en continu de Gradium (voix françaises Romane et Gaspard). Facturation à l'usage. Résidence UE des données dès la formule XS, activée par le support de Gradium ; zéro conservation dès la formule S ; une session dure au plus 300 secondes, le produit rouvre donc la connexion entre deux tours."
+      },
+      "properties": {
+        "provider": {
+          "const": "gradium",
+          "default": "gradium",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "default",
+          "description": "Gradium text-to-speech model (the provider's current one is 'default').",
+          "examples": [
+            "default"
+          ],
+          "mark_aide": {
+            "en": "Gradium text-to-speech model (the provider's current one is 'default').",
+            "fr": "Modèle de synthèse vocale de Gradium. « default » est le modèle courant du fournisseur."
+          },
+          "title": "Model",
+          "type": "string"
+        },
+        "voice": {
+          "allow_custom_input": true,
+          "default": "jBULVCDhf05tOJN5",
+          "description": "Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.",
+          "examples": [
+            "jBULVCDhf05tOJN5",
+            "iEu63s1rhn_kegTr"
+          ],
+          "mark_aide": {
+            "en": "Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.",
+            "fr": "Identifiant d'une voix de la bibliothèque Gradium. Le menu liste les voix françaises connues du produit (Romane, Gaspard) ; toute autre voix, ou une voix clonée de votre compte, se saisit par son identifiant."
+          },
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Voice",
+            "fr": "Voix"
+          },
+          "mark_valeurs": {
+            "iEu63s1rhn_kegTr": {
+              "en": "Gaspard (male voice)",
+              "fr": "Gaspard (voix masculine)"
+            },
+            "jBULVCDhf05tOJN5": {
+              "en": "Romane (female voice)",
+              "fr": "Romane (voix féminine)"
+            }
+          },
+          "title": "Voice",
+          "type": "string"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": 0.5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
+          "mark_aide": {
+            "en": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
+            "fr": "Vitesse en facteur : × 1,2 parle plus vite, × 0,8 plus lentement. Gradium ne connaît pas la vitesse : elle est convertie en « padding_bonus » (−4 × (vitesse − 1), borné à ±4, négatif = plus rapide). Vide : le défaut de Gradium (× 1,0)."
+          },
+          "mark_facteur": true,
+          "mark_groupe": "debit",
+          "mark_libelle": {
+            "en": "Speed (factor)",
+            "fr": "Vitesse (facteur)"
+          },
+          "title": "Speed"
+        },
+        "temp": {
+          "default": 0.7,
+          "description": "Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. Gradium's default is 0.7.",
+          "mark_aide": {
+            "en": "Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. Gradium's default is 0.7.",
+            "fr": "Température de la voix, de 0 à 1,4. 0 est déterministe, plus haut varie davantage. Défaut de Gradium : 0,7."
+          },
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Temperature",
+            "fr": "Température"
+          },
+          "maximum": 1.4,
+          "minimum": 0.0,
+          "title": "Temp",
+          "type": "number"
+        },
+        "rewrite_rules": {
+          "default": "fr",
+          "description": "Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; 'none' turns them off. The product's default is 'fr'.",
+          "enum": [
+            "fr",
+            "fr-be",
+            "fr-ch",
+            "en",
+            "de",
+            "es",
+            "pt",
+            "none"
+          ],
+          "examples": [
+            "fr",
+            "fr-be",
+            "fr-ch",
+            "en",
+            "de",
+            "es",
+            "pt",
+            "none"
+          ],
+          "mark_aide": {
+            "en": "Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; 'none' turns them off. The product's default is 'fr'.",
+            "fr": "Réécriture du texte avant la synthèse (nombres, dates, sigles). Une langue active toutes ses règles ; « none » les coupe. Défaut du produit : « fr »."
+          },
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Text rewriting",
+            "fr": "Réécriture du texte"
+          },
+          "mark_valeurs": {
+            "de": {
+              "en": "German",
+              "fr": "Allemand"
+            },
+            "en": {
+              "en": "English",
+              "fr": "Anglais"
+            },
+            "es": {
+              "en": "Spanish",
+              "fr": "Espagnol"
+            },
+            "fr": {
+              "en": "French",
+              "fr": "Français"
+            },
+            "fr-be": {
+              "en": "French (Belgium)",
+              "fr": "Français (Belgique)"
+            },
+            "fr-ch": {
+              "en": "French (Switzerland)",
+              "fr": "Français (Suisse)"
+            },
+            "none": {
+              "en": "None (no rewriting)",
+              "fr": "Aucune (pas de réécriture)"
+            },
+            "pt": {
+              "en": "Portuguese",
+              "fr": "Portugais"
+            }
+          },
+          "title": "Rewrite Rules",
+          "type": "string"
+        },
+        "pronunciation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
+          "mark_aide": {
+            "en": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
+            "fr": "Identifiant d'un dictionnaire de prononciation créé dans votre compte Gradium (Studio ou API). Il s'applique à toute la session. Vide : aucun dictionnaire."
+          },
+          "mark_groupe": "vocabulaire",
+          "mark_libelle": {
+            "en": "Pronunciation dictionary",
+            "fr": "Dictionnaire de prononciation"
+          },
+          "title": "Pronunciation Id"
+        },
+        "output_format": {
+          "default": "auto",
+          "description": "Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, 'ulaw_8000' or 'pcm_8000' avoid resampling.",
+          "enum": [
+            "auto",
+            "pcm_8000",
+            "ulaw_8000"
+          ],
+          "examples": [
+            "auto",
+            "pcm_8000",
+            "ulaw_8000"
+          ],
+          "mark_aide": {
+            "en": "Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, 'ulaw_8000' or 'pcm_8000' avoid resampling.",
+            "fr": "Format du son demandé à Gradium. « Automatique » : PCM à la fréquence de la ligne. Au téléphone, « ulaw_8000 » ou « pcm_8000 » évitent de rééchantillonner."
+          },
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Audio format",
+            "fr": "Format du son"
+          },
+          "mark_valeurs": {
+            "auto": {
+              "en": "Automatic",
+              "fr": "Automatique"
+            },
+            "pcm_8000": {
+              "en": "PCM 8 kHz",
+              "fr": "PCM 8 kHz"
+            },
+            "ulaw_8000": {
+              "en": "μ-law 8 kHz",
+              "fr": "μ-law 8 kHz"
+            }
+          },
+          "title": "Output Format",
+          "type": "string"
+        },
+        "base_url": {
+          "allow_custom_input": true,
+          "default": "wss://eu.api.gradium.ai/api/speech/tts",
+          "description": "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.",
+          "examples": [
+            "wss://eu.api.gradium.ai/api/speech/tts",
+            "wss://api.gradium.ai/api/speech/tts",
+            "wss://us.api.gradium.ai/api/speech/tts"
+          ],
+          "mark_adresse": true,
+          "mark_aide": {
+            "en": "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.",
+            "fr": "Adresse Gradium à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut. La garantie de résidence UE ne vaut que pour une organisation inscrite par le support Gradium."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
+          "title": "Base Url",
+          "type": "string"
+        },
+        "region": {
+          "default": "eu",
+          "description": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_aide": {
+            "en": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+            "fr": "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et elle suit."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Region",
+            "fr": "Région"
+          },
+          "readonly": true,
+          "title": "Region",
+          "type": "string"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
+        }
+      },
+      "provider_docs_url": "https://docs.gradium.ai/guides/text-to-speech",
+      "required": [
+        "api_key"
+      ],
+      "title": "Gradium",
+      "type": "object"
     }
   },
   "stt": {

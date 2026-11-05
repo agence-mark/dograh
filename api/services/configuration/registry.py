@@ -127,6 +127,8 @@ class ServiceProviders(str, Enum):
     MISTRAL = "mistral"
     SPEECHIFY = "speechify"
     SONIOX = "soniox"
+    # [.mark] Lot GT (builder partie 3) : la voix Gradium (voix seulement).
+    GRADIUM = "gradium"
 
 
 # [.mark] Lot 0 bis (D17) : ce qui est une ADRESSE de service, par son nom
@@ -176,6 +178,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.MISTRAL,
         ServiceProviders.SPEECHIFY,
         ServiceProviders.SONIOX,
+        ServiceProviders.GRADIUM,
     ]
     api_key: str | list[str]
     # [.mark] Chantier voix-soniox, lot 0 bis (D17) : la case « saisie libre »
@@ -638,6 +641,117 @@ ECRAN_SONIOX_TTS: EcranMark = {
     "base_url": ("hebergement", "Base URL", "Adresse du service"),
     "region": ("hebergement", "Region", "Région"),
 }
+# [.mark] Lot GT (builder partie 3) : la voix Gradium, avec tous ses reglages a l'ecran. Les valeurs et les bornes
+# sont celles que publie la documentation de Gradium (voir ``options/gradium.py``) ; l'ecran en rend le francais.
+from api.services.configuration.options.gradium import (  # noqa: E402
+    GRADIUM_FORMATS_DE_SORTIE,
+    GRADIUM_REWRITE_RULES,
+    GRADIUM_TEMP_MAX,
+    GRADIUM_TEMP_MIN,
+    GRADIUM_TEMP_PAR_DEFAUT,
+    GRADIUM_TTS_ADRESSE_ETATS_UNIS,
+    GRADIUM_TTS_ADRESSE_EUROPE,
+    GRADIUM_TTS_ADRESSE_MONDIALE,
+    GRADIUM_TTS_MODELS,
+    GRADIUM_TTS_VOIX,
+    GRADIUM_TTS_VOIX_IDS,
+    GRADIUM_TTS_VOIX_PAR_DEFAUT,
+    GRADIUM_VITESSE_MAX,
+    GRADIUM_VITESSE_MIN,
+)
+
+AIDES_FR_GRADIUM_TTS: dict[str, str] = {
+    "model": "Modèle de synthèse vocale de Gradium. « default » est le modèle courant du fournisseur.",
+    "voice": (
+        "Identifiant d'une voix de la bibliothèque Gradium. Le menu liste les voix françaises connues du produit "
+        "(Romane, Gaspard) ; toute autre voix, ou une voix clonée de votre compte, se saisit par son identifiant."
+    ),
+    "speed": (
+        "Vitesse en facteur : × 1,2 parle plus vite, × 0,8 plus lentement. Gradium ne connaît pas la vitesse : "
+        "elle est convertie en « padding_bonus » (−4 × (vitesse − 1), borné à ±4, négatif = plus rapide). "
+        "Vide : le défaut de Gradium (× 1,0)."
+    ),
+    "temp": (
+        "Température de la voix, de 0 à 1,4. 0 est déterministe, plus haut varie davantage. "
+        "Défaut de Gradium : 0,7."
+    ),
+    "rewrite_rules": (
+        "Réécriture du texte avant la synthèse (nombres, dates, sigles). Une langue active toutes ses règles ; "
+        "« none » les coupe. Défaut du produit : « fr »."
+    ),
+    "pronunciation_id": (
+        "Identifiant d'un dictionnaire de prononciation créé dans votre compte Gradium (Studio ou API). "
+        "Il s'applique à toute la session. Vide : aucun dictionnaire."
+    ),
+    "output_format": (
+        "Format du son demandé à Gradium. « Automatique » : PCM à la fréquence de la ligne. Au téléphone, "
+        "« ulaw_8000 » ou « pcm_8000 » évitent de rééchantillonner."
+    ),
+    "base_url": (
+        "Adresse Gradium à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut. "
+        "La garantie de résidence UE ne vaut que pour une organisation inscrite par le support Gradium."
+    ),
+    "region": (
+        "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et "
+        "elle suit."
+    ),
+}
+VALEURS_GRADIUM_TTS: dict[str, dict[str, tuple[str, str]]] = {
+    "voice": {
+        voix["id"]: (
+            f"{voix['nom']} ({'female' if voix['genre'].startswith('f') else 'male'} voice)",
+            f"{voix['nom']} ({'voix féminine' if voix['genre'].startswith('f') else 'voix masculine'})",
+        )
+        for voix in GRADIUM_TTS_VOIX
+    },
+    "output_format": {
+        "auto": ("Automatic", "Automatique"),
+        "pcm_8000": ("PCM 8 kHz", "PCM 8 kHz"),
+        "ulaw_8000": ("μ-law 8 kHz", "μ-law 8 kHz"),
+    },
+    "rewrite_rules": {
+        "fr": ("French", "Français"),
+        "fr-be": ("French (Belgium)", "Français (Belgique)"),
+        "fr-ch": ("French (Switzerland)", "Français (Suisse)"),
+        "en": ("English", "Anglais"),
+        "de": ("German", "Allemand"),
+        "es": ("Spanish", "Espagnol"),
+        "pt": ("Portuguese", "Portugais"),
+        "none": ("None (no rewriting)", "Aucune (pas de réécriture)"),
+    },
+}
+ECRAN_GRADIUM_TTS: EcranMark = {
+    "voice": ("voix", "Voice", "Voix"),
+    "temp": ("generation", "Temperature", "Température"),
+    "speed": ("debit", "Speed (factor)", "Vitesse (facteur)"),
+    "rewrite_rules": ("mise_en_forme", "Text rewriting", "Réécriture du texte"),
+    "pronunciation_id": ("vocabulaire", "Pronunciation dictionary", "Dictionnaire de prononciation"),
+    "output_format": ("technique", "Audio format", "Format du son"),
+    "base_url": ("hebergement", "Base URL", "Adresse du service"),
+    "region": ("hebergement", "Region", "Région"),
+}
+# Ce que le choix du fournisseur dit de ses conditions (bulle sous le choix). Les memes mots que la note d'Evan
+# du 05/11/2026 (gradium.ai/pricing) : a refaire lire au fournisseur avant tout engagement.
+_GRADIUM_CONDITIONS_EN = (
+    "Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data "
+    "residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; "
+    "a session lasts at most 300 seconds, so the product reopens the connection between two turns."
+)
+GRADIUM_TTS_PROVIDER_MODEL_CONFIG = ConfigDict(
+    title="Gradium",
+    json_schema_extra={
+        "description": _GRADIUM_CONDITIONS_EN,
+        "mark_aide": {
+            "en": _GRADIUM_CONDITIONS_EN,
+            "fr": (
+                "Voix en continu de Gradium (voix françaises Romane et Gaspard). Facturation à l'usage. Résidence UE "
+                "des données dès la formule XS, activée par le support de Gradium ; zéro conservation dès la formule "
+                "S ; une session dure au plus 300 secondes, le produit rouvre donc la connexion entre deux tours."
+            ),
+        },
+        "provider_docs_url": "https://docs.gradium.ai/guides/text-to-speech",
+    },
+)
 CARTESIA_PROVIDER_MODEL_CONFIG = provider_model_config("Cartesia")
 SONIOX_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Soniox", provider_docs_url="https://soniox.com/docs/stt/rt/real-time-transcription"
@@ -2504,6 +2618,136 @@ class SonioxTTSConfiguration(BaseTTSConfiguration):
         return self
 
 
+# [.mark] Lot GT (builder partie 3). Gradium as a VOICE, next to the others: it is nobody's default, and
+# choosing it for a client stays a decision of Evan (banc au casque, BYOK). The key comes from the key
+# library like every other. Everything is bounded here and checked on save; the factory reads the settings
+# through ``_reglages_gradium_voix`` only, so the screen, the stamp and the request cannot disagree.
+def region_gradium_voix(base_url: str | None) -> str:
+    """[.mark] ``eu``, ``us``, ``global``, or the host of a custom address (empty = Europe)."""
+    adresse = (base_url or "").strip() or GRADIUM_TTS_ADRESSE_EUROPE
+    hote = adresse.split("://", 1)[-1].split("/", 1)[0].strip()
+    if hote == "eu.api.gradium.ai":
+        return "eu"
+    if hote == "us.api.gradium.ai":
+        return "us"
+    if hote == "api.gradium.ai":
+        return "global"
+    return hote or "eu"
+
+
+@register_tts
+class GradiumTTSConfiguration(BaseTTSConfiguration):
+    model_config = ecran_mark(GRADIUM_TTS_PROVIDER_MODEL_CONFIG, ECRAN_GRADIUM_TTS, AIDES_FR_GRADIUM_TTS, VALEURS_GRADIUM_TTS)  # [.mark] écran Modèles
+    provider: Literal[ServiceProviders.GRADIUM] = ServiceProviders.GRADIUM
+    model: str = Field(
+        default=GRADIUM_TTS_MODELS[0],
+        description="Gradium text-to-speech model (the provider's current one is 'default').",
+        json_schema_extra={"examples": list(GRADIUM_TTS_MODELS), "allow_custom_input": True},
+    )
+    voice: str = Field(
+        default=GRADIUM_TTS_VOIX_PAR_DEFAUT,
+        description=(
+            "Identifier of a voice of the Gradium library. The menu lists the French voices the product "
+            "knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed."
+        ),
+        json_schema_extra={
+            "examples": list(GRADIUM_TTS_VOIX_IDS),
+            "allow_custom_input": True,
+        },
+    )
+    speed: float | None = Field(
+        default=None,
+        ge=GRADIUM_VITESSE_MIN,
+        le=GRADIUM_VITESSE_MAX,
+        description=(
+            "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is "
+            "converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, "
+            "Gradium's own default applies (x 1.0)."
+        ),
+        json_schema_extra={"mark_facteur": True},
+    )
+    temp: float = Field(
+        default=GRADIUM_TEMP_PAR_DEFAUT,
+        ge=GRADIUM_TEMP_MIN,
+        le=GRADIUM_TEMP_MAX,
+        description=(
+            "Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. "
+            "Gradium's default is 0.7."
+        ),
+    )
+    rewrite_rules: Literal["fr", "fr-be", "fr-ch", "en", "de", "es", "pt", "none"] = Field(
+        default="fr",
+        description=(
+            "Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; "
+            "'none' turns them off. The product's default is 'fr'."
+        ),
+        json_schema_extra={"examples": list(GRADIUM_REWRITE_RULES)},
+    )
+    pronunciation_id: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_-]{1,64}$",
+        description=(
+            "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). "
+            "It applies to the whole session. Left empty, no dictionary."
+        ),
+    )
+    output_format: Literal["auto", "pcm_8000", "ulaw_8000"] = Field(
+        default="auto",
+        description=(
+            "Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, "
+            "'ulaw_8000' or 'pcm_8000' avoid resampling."
+        ),
+        json_schema_extra={"examples": list(GRADIUM_FORMATS_DE_SORTIE)},
+    )
+    base_url: str = Field(
+        default=GRADIUM_TTS_ADRESSE_EUROPE,
+        json_schema_extra={
+            "examples": [GRADIUM_TTS_ADRESSE_EUROPE, GRADIUM_TTS_ADRESSE_MONDIALE, GRADIUM_TTS_ADRESSE_ETATS_UNIS],
+            "allow_custom_input": True,
+        },
+        description=(
+            "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. "
+            "Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium "
+            "support; leaving it empty also sends the text to Europe."
+        ),
+    )
+    region: str = Field(
+        default="eu",
+        json_schema_extra={"readonly": True},
+        description=(
+            "Where the spoken text is processed. Derived from the endpoint above rather than chosen: "
+            "change the endpoint and this follows."
+        ),
+    )
+
+    @field_validator("base_url")
+    @classmethod
+    def _une_adresse_de_websocket(cls, valeur: str, info: ValidationInfo) -> str:
+        """[.mark] Refused at the door rather than mid-call: the connector dials whatever it is given.
+        Empty stays allowed (Europe). Free entry ticked: the scheme is not checked, the generic rule of the
+        base class still refuses an address with no host."""
+        if info.data.get("adresse_libre"):
+            return valeur
+        adresse = (valeur or "").strip()
+        if not adresse:
+            return valeur
+        schema, _, reste = adresse.partition("://")
+        if schema not in ("ws", "wss") or not reste.split("/", 1)[0].strip():
+            raise ValueError(
+                "The Gradium address must be a ws:// or wss:// URL, for example "
+                f"{GRADIUM_TTS_ADRESSE_EUROPE}"
+            )
+        return valeur
+
+    @model_validator(mode="after")
+    def _la_region_suit_ladresse(self):
+        """A mirror, realigned rather than refused (same as Soniox)."""
+        region_attendue = region_gradium_voix(self.base_url)
+        if self.region != region_attendue:
+            object.__setattr__(self, "region", region_attendue)
+        return self
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -2525,6 +2769,7 @@ TTSConfig = Annotated[
         LmntTTSConfiguration,
         SpeechifyTTSConfiguration,
         SonioxTTSConfiguration,
+        GradiumTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]

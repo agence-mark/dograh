@@ -127,10 +127,12 @@ async def _variables_de_l_agent(organisation_id: int, workflow: Any, graphe: dic
 def genre_de_la_voix(configurations: dict[str, Any]) -> str | None:
     """Le genre de la voix choisie, SEULEMENT s'il est relevé dans le catalogue (jamais deviné)."""
     try:
+        from api.services.configuration.options.gradium import GRADIUM_TTS_VOIX
         from api.services.configuration.options.soniox import SONIOX_TTS_VOIX
 
         voix = ((configurations.get("model_overrides") or {}).get("tts") or {}).get("voice")
-        for v in SONIOX_TTS_VOIX:
+        # [.mark] Lot GT : les voix françaises Gradium relevées (Romane, Gaspard) comptent comme celles de Soniox.
+        for v in (*SONIOX_TTS_VOIX, *GRADIUM_TTS_VOIX):
             if v["id"] == voix and v.get("genre"):
                 g = str(v["genre"]).lower()
                 return "f" if g.startswith("f") else "m" if g.startswith("m") else None
