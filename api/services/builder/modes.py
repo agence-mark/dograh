@@ -159,9 +159,17 @@ async def _passe_par_le_mode(mode: str, famille: str, arguments: dict[str, Any],
 
 
 def _depense_accordee(conversation: dict[str, Any]) -> bool:
-    """Une dépense annoncée (``depense_annoncer``) et accordée, pas encore utilisée : elle vaut autorisation pour la famille « dépense »
-    (``consommer_un_accord`` la consomme ensuite). Les deux chemins mènent au même accord, jamais à deux cartes."""
+    """Une dépense annoncée (``depense_annoncer``) et accordée, pas encore utilisée : elle vaut autorisation pour la famille « dépense ».
+    ``decider`` la CONSOMME (``_consommer_la_depense``) : un accord ne vaut qu'une fois, aucune action ne peut l'oublier."""
     return any(d.get("statut") == "accordee" and not d.get("utilisee") for d in (conversation.get("depenses") or {}).values())
+
+
+def _consommer_la_depense(conversation: dict[str, Any]) -> None:
+    """Marque utilisé le premier accord de dépense encore libre (un seul point, ici)."""
+    for d in (conversation.get("depenses") or {}).values():
+        if d.get("statut") == "accordee" and not d.get("utilisee"):
+            d["utilisee"] = True
+            return
 
 
 def _autorisation_existante(conversation: dict[str, Any], nom: str, arguments: dict[str, Any], contexte) -> str | None:
@@ -263,7 +271,9 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
             "erreur": "Plan mode: nothing is changed. Write the plan with plan_mettre_a_jour and wait for the person's agreement.",
         }
     if famille == "depense" and _depense_accordee(conversation):
+        _consommer_la_depense(conversation)
         contexte.autorisation = "depense"
+        contexte.accord_donne = True  # l'accord est déjà consommé : ``consommer_un_accord`` n'en prend pas un second
         return None
     autorisation = "mode" if await _passe_par_le_mode(mode, famille, arguments, contexte) else _autorisation_existante(conversation, action.nom, arguments, contexte)
     if autorisation:
