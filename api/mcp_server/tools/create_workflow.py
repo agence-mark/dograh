@@ -28,7 +28,7 @@ from pydantic import ValidationError as PydanticValidationError
 from api.db import db_client
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.enums import PostHogEvent
-from api.mcp_server.auth import authenticate_mcp_request
+from api.mcp_server.auth import authenticate_mcp_write
 from api.mcp_server.tracing import traced_tool
 from api.mcp_server.ts_bridge import TsBridgeError, parse_code
 from api.services.posthog_client import capture_event
@@ -96,7 +96,7 @@ async def create_workflow(code: str) -> dict[str, Any]:
       another workflow in this organization; rename it and resubmit.
     - `bridge_error` — internal/transient; retry once, then surface it.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     # 1. Parse + spec-validate via the Node TS validator.
     try:

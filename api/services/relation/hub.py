@@ -89,7 +89,23 @@ async def creer_lien(user, organization_id: int, motif: str | None) -> dict:
     entree = await db_client.creer_entree_relation(
         organization_id, user.id, auteur, motif, empreinte(jeton), expire_le
     )
-    return {"entree_id": entree["id"], "jeton": jeton, "expire_le": expire_le, "valable_secondes": DUREE_LIEN_S}
+    # Partie 3, 17b : le lien que le portail reçoit (``/api/auth/entree-mark?lien=``) porte l'identifiant du client avant le jeton
+    # (« <client>.<jeton> ») : le portail y lit quelle clé présenter. Le jeton n'a que des lettres, chiffres, « - » et « _ » : le point sépare sans ambiguïté.
+    return {
+        "entree_id": entree["id"],
+        "jeton": jeton,
+        "lien": f"{organization_id}.{jeton}",
+        "expire_le": expire_le,
+        "valable_secondes": DUREE_LIEN_S,
+    }
+
+
+def jeton_du_lien(organization_id: int, lien: str) -> str | None:
+    """Le jeton d'un lien « <client>.<jeton> » (ou d'un jeton seul, ancienne forme) ; ``None`` si le lien vise un AUTRE client."""
+    client, point, jeton = lien.partition(".")
+    if not point:
+        return lien
+    return jeton if client.isdigit() and int(client) == organization_id else None
 
 
 async def consommer_lien(organization_id: int, jeton: str) -> dict | None:

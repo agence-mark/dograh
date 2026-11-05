@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { compterLesAmeliorationsApiV1AmeliorationsCompteurGet, compterLesFilsApiV1BuilderFilsCompteurGet } from "@/client";
+import {
+    compterLesAmeliorationsApiV1AmeliorationsCompteurGet,
+    compterLesFilsApiV1BuilderFilsCompteurGet,
+    compteursDeTousLesClientsApiV1VuesEquipeCompteursGet,
+} from "@/client";
 import { lireClientsRelation } from "@/components/mark/relation/lecture-clients";
 import { useAuth } from "@/lib/auth";
 
@@ -41,10 +45,22 @@ export function useCompteursBarre(espace: Espace, cle: string): Record<string, C
     useEffect(() => {
         if (espace === "relation" || loading || !user) return;
         let actif = true;
-        Promise.all([compterLesFilsApiV1BuilderFilsCompteurGet(), compterLesAmeliorationsApiV1AmeliorationsCompteurGet()])
-            .then(([chat, amelioration]) => {
+        // Sous-lot 10 (SE-3) : dans le Labo, les pastilles comptent tous les clients que le rôle ouvre (une route, lecture seule) ;
+        // refusée, elles retombent sur les routes de l'espace (le Labo seul).
+        const deLEspace = () =>
+            Promise.all([compterLesFilsApiV1BuilderFilsCompteurGet(), compterLesAmeliorationsApiV1AmeliorationsCompteurGet()]).then(
+                ([chat, amelioration]) => ({ chat: chat.data?.en_attente ?? 0, aAmeliorer: amelioration.data?.total ?? 0 }),
+            );
+        const lecture =
+            espace === "labo"
+                ? compteursDeTousLesClientsApiV1VuesEquipeCompteursGet({ query: { limit: 1 } }).then((r) =>
+                      r.data ? { chat: r.data.totaux.chat_en_attente ?? 0, aAmeliorer: r.data.totaux.a_trier ?? 0 } : deLEspace(),
+                  )
+                : deLEspace();
+        lecture
+            .then((valeurs) => {
                 if (!actif) return;
-                setBoucle({ chat: chat.data?.en_attente ?? 0, aAmeliorer: amelioration.data?.total ?? 0 });
+                setBoucle(valeurs);
             })
             .catch(() => undefined);
         return () => {

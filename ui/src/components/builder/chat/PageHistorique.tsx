@@ -3,7 +3,9 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
+import { ChatTousClients, useDansLeLabo } from "@/components/mark/equipe/VuesTousClients";
 import { useLangue } from "@/components/mark/langue/langue";
+import { OngletsPage } from "@/components/mark/studio/onglets-page";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +16,7 @@ import { ListeDesFils } from "./ListeDesFils";
 export default function PageHistorique() {
     const { t } = useLangue();
     const adresses = useAdressesDuBuilder();
+    const dansLeLabo = useDansLeLabo();
     return (
         <PageStudio>
             <TitrePage
@@ -30,9 +33,20 @@ export default function PageHistorique() {
                     </Button>
                 }
             />
-            <div>
-                <ListeDesFils />
-            </div>
+            {dansLeLabo ? (
+                // Sous-lot 10 (E-3) : dans le Labo, les conversations du builder de tous les clients ouverts, en lecture seule.
+                <OngletsPage
+                    defaut="clients"
+                    onglets={[
+                        { id: "clients", titre: t({ en: "All clients", fr: "Tous les clients" }), contenu: <ChatTousClients /> },
+                        { id: "labo", titre: "Labo", contenu: <ListeDesFils /> },
+                    ]}
+                />
+            ) : (
+                <div>
+                    <ListeDesFils />
+                </div>
+            )}
         </PageStudio>
     );
 }

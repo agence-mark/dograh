@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
-from api.mcp_server.auth import authenticate_mcp_request
+from api.mcp_server.auth import authenticate_mcp_write
 from api.mcp_server.tracing import traced_tool
 from api.schemas.tool import CreateToolRequest
 from api.services.tool_management import ToolManagementError, create_tool_for_user
@@ -50,7 +50,7 @@ async def create_tool(request: CreateToolRequest) -> dict[str, Any]:
     - `create_failed` — unexpected persistence or backend failure; retry once,
       then surface the error.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     try:
         parsed_request = CreateToolRequest.model_validate(request)

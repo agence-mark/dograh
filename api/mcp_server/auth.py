@@ -62,3 +62,18 @@ async def authenticate_mcp_request() -> UserModel:
         span.set_attribute("langfuse.user.id", str(user.id))
 
     return user
+
+
+async def authenticate_mcp_write() -> UserModel:
+    """Comme ``authenticate_mcp_request`` pour un outil qui ÉCRIT (partie 3, 17a : liste fermée des clés).
+
+    Une clé d'API d'un client n'écrit jamais par la porte MCP : le portail et les scripts d'un client lisent. Seule la clé du Labo, créée
+    par un membre de l'équipe (Claude Code de .mark), écrit. Le moteur du builder (appel direct, sans clé) n'est pas concerné."""
+    user = await authenticate_mcp_request()
+    if getattr(user, "par_porte_mcp", False):
+        from api.services.builder.bibliotheque import droits
+        from api.services.builder.constantes import organisation_bibliotheque
+
+        if not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque()):
+            raise HTTPException(status_code=403, detail="This API key cannot write through MCP: only the Labo key of the .mark team does")
+    return user

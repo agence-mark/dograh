@@ -12,11 +12,13 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+    ameliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGet,
     lireLaFileAJugerApiV1AmeliorationsAJugerGet,
     lireLesAlertesApiV1AlertesGet,
     lireLesAmeliorationsApiV1AmeliorationsGet,
 } from "@/client";
 import type { LigneAJuger, LigneDAlerte, PageDAmeliorations } from "@/client/types.gen";
+import { useDansLeLabo } from "@/components/mark/equipe/VuesTousClients";
 import { useLangue } from "@/components/mark/langue/langue";
 import { useSources } from "@/components/mark/sources/useSources";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
@@ -32,7 +34,7 @@ import { DateRelative } from "@/components/mark/studio/date-relative";
 import { DetailProbleme } from "./DetailProbleme";
 import { AUTEUR, CAUSES, ETATS, type EtatDeLEcran, RELEVE_PAR, texteDeFrequence, titreLisible } from "./libelles";
 
-type Vue = PageDAmeliorations["lignes"][number];
+type Vue = PageDAmeliorations["lignes"][number] & { organization_id?: number; organization_nom?: string };
 type Charge<T> = { etat: "chargement" } | { etat: "erreur" } | { etat: "acces" } | { etat: "pret"; donnees: T };
 
 /** Une lecture refusée (403 : pas le droit de voir les conversations) montre « accès », pas une erreur à réessayer. */
@@ -88,6 +90,13 @@ export function PageAAmeliorer() {
     const [aJuger, setAJuger] = useState<Charge<LigneAJuger[]>>({ etat: "chargement" });
     const [ouvert, setOuvert] = useState<number | null>(null);
     const { sources } = useSources();
+    // Sous-lot 10 (SE-3) : dans le Labo, les problèmes de tous les clients que le rôle ouvre ; une ligne mène chez le client, où l'on agit.
+    const tousClients = useDansLeLabo();
+    useEffect(() => {
+        // Lien d'une ligne du Labo : `/clients/<org>/a-ameliorer?probleme=<id>` ouvre le détail directement.
+        const id = Number(new URLSearchParams(window.location.search).get("probleme"));
+        if (Number.isInteger(id) && id > 0) setOuvert(id);
+    }, []);
 
     const chargerLesPannes = useCallback(async () => {
         setPannes({ etat: "chargement" });
@@ -103,9 +112,11 @@ export function PageAAmeliorer() {
 
     const chargerLaListe = useCallback(async (etat: EtatDeLEcran) => {
         setListe({ etat: "chargement" });
-        const r = await lireLesAmeliorationsApiV1AmeliorationsGet({ query: { etat } });
-        setListe(refus(r) ?? (!r.data ? { etat: "erreur" } : { etat: "pret", donnees: r.data }));
-    }, []);
+        const r = tousClients
+            ? await ameliorationsDeTousLesClientsApiV1VuesEquipeAmeliorationsGet({ query: { etat } })
+            : await lireLesAmeliorationsApiV1AmeliorationsGet({ query: { etat } });
+        setListe(refus(r) ?? (!r.data ? { etat: "erreur" } : { etat: "pret", donnees: r.data as PageDAmeliorations }));
+    }, [tousClients]);
 
     useEffect(() => {
         if (loading || !user) return;
@@ -163,7 +174,7 @@ export function PageAAmeliorer() {
                     <TableDesPannes charge={pannes} t={t} langue={langue} reessayer={() => void chargerLesPannes()} />
                 </>
             ) : (
-                <TableDesProblemes charge={liste} t={t} ouvrir={setOuvert} reessayer={() => etatCourant && void chargerLaListe(etatCourant)} />
+                <TableDesProblemes charge={liste} t={t} ouvrir={setOuvert} tousClients={tousClients} reessayer={() => etatCourant && void chargerLaListe(etatCourant)} />
             )}
             {ouvert !== null && (
                 <DetailProbleme
@@ -176,20 +187,23 @@ export function PageAAmeliorer() {
     );
 }
 
-function TableDesProblemes({ charge, t, ouvrir, reessayer }: { charge: Charge<PageDAmeliorations>; t: ReturnType<typeof useLangue>["t"]; ouvrir: (id: number) => void; reessayer: () => void }) {
+function TableDesProblemes({ charge, t, ouvrir, reessayer, tousClients }: { charge: Charge<PageDAmeliorations>; t: ReturnType<typeof useLangue>["t"]; ouvrir: (id: number) => void; reessayer: () => void; tousClients: boolean }) {
     if (charge.etat === "chargement") return <EtatVide cas="chargement" />;
     if (charge.etat === "acces") return <EtatVide cas="acces" />;
     if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={reessayer} />;
-    const lignes = charge.donnees.lignes;
+    const lignes = charge.donnees.lignes as Vue[];
     if (lignes.length === 0) return <EtatVide cas="fait" titre={t(T.rien)} />;
     return (
         <Tableau colonnes={[{ titre: t(T.gravite) }, { titre: t(T.probleme) }, { titre: t(T.frequence) }, { titre: t(T.releve) }, { titre: t(T.cause) }]}>
             {lignes.map((p) => (
-                <Ligne key={p.id} onClick={() => ouvrir(p.id)}>
+                <Ligne
+                    key={`${p.organization_id ?? 0}-${p.id}`}
+                    {...(tousClients && p.organization_id ? { href: `/clients/${p.organization_id}/a-ameliorer?probleme=${p.id}` } : { onClick: () => ouvrir(p.id) })}
+                >
                     <td className="w-28 py-3">
                         <Gravite n={p.gravite as 1 | 2 | 3} />
                     </td>
-                    <Cellule className="!text-foreground" sous={`${p.workflow_nom}${p.version ? ` · v${p.version}` : ""}`}>
+                    <Cellule className="!text-foreground" sous={`${tousClients && p.organization_nom ? `${p.organization_nom} · ` : ""}${p.workflow_nom}${p.version ? ` · v${p.version}` : ""}`}>
                         <span className="inline-flex items-center gap-1.5 font-medium">
                             {(() => {
                                 const titre = titreLisible(p);

@@ -9,12 +9,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ clients: vi.fn(), chat: vi.fn(), amelio: vi.fn(), auth: { user: { id: 1 } as { id: number } | null, loading: false } }));
+const m = vi.hoisted(() => ({ clients: vi.fn(), chat: vi.fn(), amelio: vi.fn(), tous: vi.fn(), auth: { user: { id: 1 } as { id: number } | null, loading: false } }));
 vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
         listerClientsApiV1RelationClientsGet: m.clients,
         compterLesFilsApiV1BuilderFilsCompteurGet: m.chat,
         compterLesAmeliorationsApiV1AmeliorationsCompteurGet: m.amelio,
+        compteursDeTousLesClientsApiV1VuesEquipeCompteursGet: m.tous,
     }),
 );
 vi.mock("@/lib/auth", () => ({ useAuth: () => m.auth }));
@@ -26,6 +27,7 @@ afterEach(() => {
     m.clients.mockReset();
     m.chat.mockReset();
     m.amelio.mockReset();
+    m.tous.mockReset();
     m.auth.user = { id: 1 };
     m.auth.loading = false;
     oublierLectureClients();
@@ -51,7 +53,16 @@ describe("[.mark] J : compteurs de la barre", () => {
         expect(refus.result.current).toEqual({});
     });
 
-    it("Chat et À améliorer : rouges dans le Labo, partent ensemble", async () => {
+    it("Labo : les pastilles comptent tous les clients ouverts (une seule route d'équipe)", async () => {
+        m.tous.mockResolvedValue({ data: { totaux: { chat_en_attente: 5, a_trier: 7 } } });
+        const { result } = renderHook(() => useCompteursBarre("labo", "/labo/qualite"));
+        await waitFor(() => expect(result.current).toEqual({ chat: { n: 5, urgent: true }, "a-ameliorer": { n: 7, urgent: true } }));
+        expect(m.chat).not.toHaveBeenCalled();
+        expect(m.amelio).not.toHaveBeenCalled();
+    });
+
+    it("Chat et À améliorer : rouges dans le Labo, partent ensemble (route d'équipe refusée : le Labo seul)", async () => {
+        m.tous.mockResolvedValue({ error: { detail: "x" } });
         m.chat.mockResolvedValue({ data: { en_attente: 2 } });
         m.amelio.mockResolvedValue({ data: { a_trier: 3, a_juger: 1, total: 4 } });
         const { result } = renderHook(() => useCompteursBarre("labo", "/labo/builder"));

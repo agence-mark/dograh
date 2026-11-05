@@ -405,7 +405,7 @@ function BoutonPortail({ organisation }: { organisation: number }) {
         const res = await ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost({ path: { organization_id: organisation }, body: {} });
         setEnvoi(false);
         if (!res.data) return notifier.echec({ fr: "Lien non créé. Réessayez.", en: "Link not created. Try again." }, { erreur: res.error });
-        window.open(lienDEntree(res.data.jeton), "_blank", "noopener");
+        window.open(lienDEntree(res.data.lien), "_blank", "noopener");
     };
     return (
         <span className="inline-flex items-center gap-1">

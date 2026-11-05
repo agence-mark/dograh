@@ -145,6 +145,11 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/s3/(signed-url|file-metadata)$", P("conversations.voir")),
     _r({"POST"}, r"^/s3/presigned-upload-url$", P("agents.modifier")),
     # ------------------------------------------------------------------ clés et comptes techniques
+    # Partie 3, 17a : le client autorise, reconnecte et coupe ses propres comptes (sa clé le peut) ; proposer, relancer et retirer une
+    # proposition, comme tout le reste des connecteurs, restent à .mark (``cles.gerer``, fermée aux clés).
+    _r({"POST"}, r"^/connecteurs/lien$", P("connecteurs.autoriser")),
+    _r({"POST"}, r"^/connecteurs/propositions/[^/]+/lien$", P("connecteurs.autoriser")),
+    _r({"DELETE"}, r"^/connecteurs/connexions/[^/]+$", P("connecteurs.autoriser")),
     _r(ECRITURE, r"^/(cles|credentials|connecteurs)(/.*)?$", P("cles.gerer")),
     _r(LECTURE, r"^/(cles|credentials|connecteurs)(/.*)?$", MEMBRE, par_defaut=True),
     _r({"PUT"}, r"^/user/onboarding-state$", MEMBRE),
@@ -162,6 +167,8 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/espaces$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
+    # Partie 3, sous-lot 10 : les vues tous clients (lecture seule ; la route refuse en plus toute cle et tout compte sans role d'equipe).
+    _r({"GET"}, r"^/vues-equipe(/.*)?$", P("conversations.voir"), par_defaut=True),
     # ------------------------------------------------------------------ Hub « Relation clients » (U3 septies, E78)
     # Le Hub exige une SESSION d'équipe (la route refuse une clé d'API) ; le lien d'entrée dans un portail exige en plus la permission.
     _r({"POST"}, r"^/relation/clients/\{organization_id\}/entree$", P("clients.ouvrir_portail")),
@@ -182,7 +189,7 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/organizations/(model-configurations|langfuse-credentials|usage)(/.*)?$", P("cles.gerer")),
     # Le portail ouvre sa connexion à la base du client avec la clé d'API de l'organisation (lot F6) :
     # une permission qu'une clé peut porter, celle des accès techniques, jamais ``atelier.regler``.
-    _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("cles.gerer")),
+    _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("base_client.connexion_portail")),
     _r(ECRITURE, r"^/organizations/modeles-de-reglages(/.*)?$", P("atelier.regler")),  # RA-A (R2) : outil de l'équipe, au Labo
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),

@@ -120,10 +120,17 @@ class EquipeClient(BaseDBClient):
         offset: int,
         organization_id: int | None = None,
         user_id: int | None = None,
+        actions: list[str] | None = None,
+        logiciel: str | None = None,
     ) -> tuple[list[dict], int]:
-        """Une page du journal, du plus récent au plus ancien, et le total. Filtres posés DANS la requête (espace, membre)."""
+        """Une page du journal, du plus récent au plus ancien, et le total. Filtres posés DANS la requête (espace, membre, actions,
+        logiciel d'un geste de connecteur)."""
         async with self.async_session() as session:
             filtre = []
+            if actions:
+                filtre.append(MarkJournalModel.action.in_(actions))
+            if logiciel:
+                filtre.append(MarkJournalModel.detail["logiciel"].as_string() == logiciel)
             if organization_id is not None:
                 filtre.append(MarkJournalModel.organization_id == organization_id)
             if user_id is not None:

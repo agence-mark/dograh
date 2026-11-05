@@ -1,0 +1,6968 @@
+{
+ "DELETE /api/v1/connecteurs/connexions/{integration}": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "integration",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "compte",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "connecteurs.autoriser",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "integration": {
+       "type": "string"
+      },
+      "supprimee": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "integration"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "DELETE /api/v1/knowledge-base/documents/{document_uuid}": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "document_uuid",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {}
+   }
+  }
+ },
+ "GET /api/v1/connecteurs/connexions": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "connexions": {
+       "items": {
+        "properties": {
+         "autorise_par": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "compte": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "connecteur": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "connection_id": {
+          "type": "string"
+         },
+         "creee_le": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "dernier_usage_le": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "derniere_erreur_le": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "erreurs": {
+          "type": "integer"
+         },
+         "integration": {
+          "type": "string"
+         },
+         "mis_a_jour_le": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "mode_acces": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "types_erreurs": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "utilise_par": {
+          "items": {
+           "properties": {
+            "nom": {
+             "type": "string"
+            },
+            "tool_uuid": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "nom",
+            "tool_uuid"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "connection_id",
+         "integration"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "erreur": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "nango_configure": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "nango_configure"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/connecteurs/historique": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "limit",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "logiciel",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "page",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "gestes": {
+       "items": {
+        "properties": {
+         "auteur": {
+          "type": "string"
+         },
+         "compte": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "geste": {
+          "type": "string"
+         },
+         "logiciel": {
+          "type": "string"
+         },
+         "quand": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "auteur",
+         "geste",
+         "logiciel",
+         "quand"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "limit": {
+       "type": "integer"
+      },
+      "page": {
+       "type": "integer"
+      },
+      "total": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "gestes",
+      "limit",
+      "page",
+      "total"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/connecteurs/propositions": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "items": {
+      "properties": {
+       "autorise_par": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "compte": {
+        "type": "string"
+       },
+       "connecteur": {
+        "type": "string"
+       },
+       "etat": {
+        "enum": [
+         "a_autoriser",
+         "autorisee"
+        ],
+        "type": "string"
+       },
+       "identifiant": {
+        "type": "string"
+       },
+       "message": {
+        "type": "string"
+       },
+       "propose_le": {
+        "type": "string"
+       },
+       "propose_par": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "relance_le": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "relances": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "compte",
+       "connecteur",
+       "identifiant",
+       "propose_le"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   }
+  }
+ },
+ "GET /api/v1/knowledge-base/documents": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "limit",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "offset",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "status",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "documents": {
+       "items": {
+        "properties": {
+         "created_at": {
+          "format": "date-time",
+          "type": "string"
+         },
+         "created_by": {
+          "type": "integer"
+         },
+         "custom_metadata": {
+          "type": "object"
+         },
+         "docling_metadata": {
+          "type": "object"
+         },
+         "document_uuid": {
+          "type": "string"
+         },
+         "file_hash": {
+          "type": "string"
+         },
+         "file_size_bytes": {
+          "type": "integer"
+         },
+         "filename": {
+          "type": "string"
+         },
+         "has_live_content": {
+          "type": "boolean"
+         },
+         "id": {
+          "type": "integer"
+         },
+         "is_active": {
+          "type": "boolean"
+         },
+         "mime_type": {
+          "type": "string"
+         },
+         "organization_id": {
+          "type": "integer"
+         },
+         "processing_error": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "processing_status": {
+          "type": "string"
+         },
+         "retrieval_mode": {
+          "type": "string"
+         },
+         "source_url": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "total_chunks": {
+          "type": "integer"
+         },
+         "updated_at": {
+          "format": "date-time",
+          "type": "string"
+         }
+        },
+        "required": [
+         "created_at",
+         "created_by",
+         "custom_metadata",
+         "docling_metadata",
+         "document_uuid",
+         "file_hash",
+         "file_size_bytes",
+         "filename",
+         "id",
+         "is_active",
+         "mime_type",
+         "organization_id",
+         "processing_status",
+         "total_chunks",
+         "updated_at"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "limit": {
+       "type": "integer"
+      },
+      "offset": {
+       "type": "integer"
+      },
+      "total": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "documents",
+      "limit",
+      "offset",
+      "total"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/knowledge-base/documents/{document_uuid}/utilisation": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "document_uuid",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "agents": {
+       "items": {
+        "properties": {
+         "nom": {
+          "type": "string"
+         },
+         "workflow_id": {
+          "type": "integer"
+         }
+        },
+        "required": [
+         "nom",
+         "workflow_id"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "nombre": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "nombre"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/agents-servis": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "agents": {
+       "items": {
+        "properties": {
+         "agent_principal_id": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "agents_specialises": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "appele_par": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "appelle": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "canal": {
+          "enum": [
+           "telephone",
+           "site"
+          ],
+          "type": "string"
+         },
+         "capacites": {
+          "properties": {
+           "demande_transmise": {
+            "type": "boolean"
+           },
+           "mail": {
+            "type": "boolean"
+           },
+           "rendez_vous": {
+            "type": "boolean"
+           },
+           "sms": {
+            "type": "boolean"
+           },
+           "transfert": {
+            "type": "boolean"
+           },
+           "verification": {
+            "type": "boolean"
+           }
+          },
+          "required": [],
+          "type": "object"
+         },
+         "emplacement": {
+          "anyOf": [
+           {
+            "properties": {
+             "chemins": {
+              "items": {
+               "type": "string"
+              },
+              "type": "array"
+             },
+             "dernier_chargement": {
+              "anyOf": [
+               {
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "site_cle": {
+              "anyOf": [
+               {
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "site_id": {
+              "anyOf": [
+               {
+                "type": "integer"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "widget_actif": {
+              "type": "boolean"
+             }
+            },
+            "required": [],
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "etablissement_id": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "id": {
+          "type": "integer"
+         },
+         "nom": {
+          "type": "string"
+         },
+         "numeros": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "rattache": {
+          "type": "boolean"
+         },
+         "role": {
+          "enum": [
+           "seul",
+           "principal",
+           "specialise"
+          ],
+          "type": "string"
+         },
+         "version_publiee": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "id",
+         "nom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "groupes": {
+       "items": {
+        "properties": {
+         "capacites": {
+          "properties": {
+           "demande_transmise": {
+            "type": "boolean"
+           },
+           "mail": {
+            "type": "boolean"
+           },
+           "rendez_vous": {
+            "type": "boolean"
+           },
+           "sms": {
+            "type": "boolean"
+           },
+           "transfert": {
+            "type": "boolean"
+           },
+           "verification": {
+            "type": "boolean"
+           }
+          },
+          "required": [],
+          "type": "object"
+         },
+         "passations": {
+          "items": {
+           "properties": {
+            "de": {
+             "type": "integer"
+            },
+            "par": {
+             "enum": [
+              "outil",
+              "retour"
+             ],
+             "type": "string"
+            },
+            "vers": {
+             "type": "integer"
+            }
+           },
+           "required": [
+            "de",
+            "par",
+            "vers"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "principal_id": {
+          "type": "integer"
+         },
+         "rattache": {
+          "type": "boolean"
+         },
+         "specialises": {
+          "items": {
+           "type": "integer"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "principal_id"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/agents-site/{workflow_id}/apparence": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "workflow_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "apparence": {
+       "properties": {
+        "avis": {
+         "type": "boolean"
+        },
+        "couleur_base": {
+         "type": "string"
+        },
+        "couleurs": {
+         "properties": {
+          "boutons": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "boutons_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulle_agent": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulle_agent_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulles_ecrit": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulles_ecrit_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "champ_saisie": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "champ_saisie_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "etoiles": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "fenetre": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "icones": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "orbe": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "raccrocher": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "raccrocher_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "reponses_choisies": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "reponses_choisies_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "rond_accroche": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "rond_accroche_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [],
+         "type": "object"
+        },
+        "declenchement": {
+         "enum": [
+          "clic",
+          "survol",
+          "delai",
+          "toujours",
+          "jamais"
+         ],
+         "type": "string"
+        },
+        "delai_s": {
+         "type": "integer"
+        },
+        "embleme": {
+         "enum": [
+          "orbe",
+          "logo"
+         ],
+         "type": "string"
+        },
+        "fenetre": {
+         "enum": [
+          "centree",
+          "ancree"
+         ],
+         "type": "string"
+        },
+        "fond_fenetre": {
+         "type": "string"
+        },
+        "lien_confidentialite": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "logo_url": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "orbe_animee": {
+         "type": "boolean"
+        },
+        "police": {
+         "enum": [
+          "switzer",
+          "inter",
+          "systeme",
+          "site",
+          "poppins",
+          "montserrat",
+          "lato",
+          "nunito",
+          "dm-sans",
+          "playfair-display"
+         ],
+         "type": "string"
+        },
+        "position": {
+         "enum": [
+          "bas-droite",
+          "bas-gauche"
+         ],
+         "type": "string"
+        },
+        "texte_fenetre": {
+         "type": "string"
+        },
+        "textes": {
+         "properties": {
+          "accroche": {
+           "type": "string"
+          },
+          "annonce_ia": {
+           "type": "string"
+          },
+          "avis_envoyer": {
+           "type": "string"
+          },
+          "avis_passer": {
+           "type": "string"
+          },
+          "avis_question": {
+           "type": "string"
+          },
+          "avis_titre": {
+           "type": "string"
+          },
+          "bouton_demarrer": {
+           "type": "string"
+          },
+          "case_confidentialite": {
+           "type": "string"
+          },
+          "case_micro": {
+           "type": "string"
+          },
+          "case_publication": {
+           "type": "string"
+          },
+          "case_rappel": {
+           "type": "string"
+          },
+          "champ_saisie": {
+           "type": "string"
+          },
+          "ecoute": {
+           "type": "string"
+          },
+          "ecrire": {
+           "type": "string"
+          },
+          "envoyer": {
+           "type": "string"
+          },
+          "erreur_micro": {
+           "type": "string"
+          },
+          "fermer": {
+           "type": "string"
+          },
+          "merci": {
+           "type": "string"
+          },
+          "parle": {
+           "type": "string"
+          },
+          "plafond_bouton": {
+           "type": "string"
+          },
+          "plafond_message": {
+           "type": "string"
+          },
+          "raccrocher": {
+           "type": "string"
+          },
+          "reflexion": {
+           "type": "string"
+          },
+          "titre": {
+           "type": "string"
+          }
+         },
+         "required": [],
+         "type": "object"
+        }
+       },
+       "required": [],
+       "type": "object"
+      },
+      "couleurs": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      }
+     },
+     "required": [
+      "apparence",
+      "couleurs"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/equipe": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "personnes": {
+       "items": {
+        "properties": {
+         "actif": {
+          "type": "boolean"
+         },
+         "agendas": {
+          "anyOf": [
+           {
+            "additionalProperties": {
+             "type": "string"
+            },
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "cle": {
+          "type": "string"
+         },
+         "description": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "destinataire_defaut": {
+          "type": "boolean"
+         },
+         "divulguer_mail": {
+          "type": "boolean"
+         },
+         "divulguer_telephone": {
+          "type": "boolean"
+         },
+         "etablissement": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "etablissements": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "joignable_par_transfert": {
+          "type": "boolean"
+         },
+         "mail": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nom": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prenom": {
+          "type": "string"
+         },
+         "role": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "telephone": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "cle",
+         "prenom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "sujets": {
+       "items": {
+        "properties": {
+         "actif": {
+          "type": "boolean"
+         },
+         "code": {
+          "type": "string"
+         },
+         "destinataires": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "libelle": {
+          "type": "string"
+         },
+         "mots_declencheurs": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "urgent": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "code",
+         "libelle"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/etablissements": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "etablissements": {
+       "items": {
+        "properties": {
+         "adresse": {
+          "anyOf": [
+           {
+            "properties": {
+             "code_insee": {
+              "type": "string"
+             },
+             "code_postal": {
+              "type": "string"
+             },
+             "commune": {
+              "type": "string"
+             },
+             "voie": {
+              "anyOf": [
+               {
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             }
+            },
+            "required": [
+             "code_insee",
+             "code_postal",
+             "commune"
+            ],
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "annonce_fermeture": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "annonce_pause": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "etat_force": {
+          "anyOf": [
+           {
+            "enum": [
+             "OUVERT",
+             "PAUSE",
+             "FERME",
+             "SUR_RENDEZ_VOUS"
+            ],
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "etat_force_jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "horaires_ouverture": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "id": {
+          "type": "string"
+         },
+         "nom": {
+          "type": "string"
+         },
+         "numero_transfert": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "numeros": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "phrases": {
+          "additionalProperties": {
+           "type": "string"
+          },
+          "type": "object"
+         },
+         "second_numero": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "termes_lexique": {
+          "items": {
+           "properties": {
+            "a_ecouter": {
+             "type": "boolean"
+            },
+            "categorie": {
+             "anyOf": [
+              {
+               "type": "string"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "nature": {
+             "anyOf": [
+              {
+               "enum": [
+                "marque",
+                "nom_propre",
+                "mot_du_metier"
+               ],
+               "type": "string"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "prononciation": {
+             "anyOf": [
+              {
+               "type": "string"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "propose": {
+             "type": "boolean"
+            },
+            "terme": {
+             "type": "string"
+            },
+            "type": {
+             "enum": [
+              "nom",
+              "mot"
+             ],
+             "type": "string"
+            },
+            "variantes": {
+             "items": {
+              "type": "string"
+             },
+             "type": "array"
+            }
+           },
+           "required": [
+            "terme"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "id",
+         "nom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "format": {
+       "const": "etablissements-mark",
+       "type": "string"
+      },
+      "version": {
+       "const": 1,
+       "type": "integer"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/lexique": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "format": {
+       "const": "lexique-mark",
+       "type": "string"
+      },
+      "modeles_importes": {
+       "items": {
+        "properties": {
+         "date": {
+          "type": "string"
+         },
+         "nom": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "date",
+         "nom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "seuil_mots_courants": {
+       "type": "integer"
+      },
+      "termes": {
+       "items": {
+        "properties": {
+         "a_ecouter": {
+          "type": "boolean"
+         },
+         "categorie": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nature": {
+          "anyOf": [
+           {
+            "enum": [
+             "marque",
+             "nom_propre",
+             "mot_du_metier"
+            ],
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prononciation": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "propose": {
+          "type": "boolean"
+         },
+         "terme": {
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "nom",
+           "mot"
+          ],
+          "type": "string"
+         },
+         "variantes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "terme"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "version": {
+       "const": 1,
+       "type": "integer"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/relation/fils": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "limit",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "miens",
+    "obligatoire": false,
+    "schema": {
+     "type": "boolean"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "page",
+    "obligatoire": false,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "items": {
+      "properties": {
+       "catalogue": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "cree_le": {
+        "format": "date-time",
+        "type": "string"
+       },
+       "dernier": {
+        "anyOf": [
+         {
+          "properties": {
+           "auteur": {
+            "type": "string"
+           },
+           "cote": {
+            "enum": [
+             "client",
+             "mark"
+            ],
+            "type": "string"
+           },
+           "cree_le": {
+            "format": "date-time",
+            "type": "string"
+           },
+           "id": {
+            "type": "integer"
+           },
+           "texte": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "auteur",
+           "cote",
+           "cree_le",
+           "id",
+           "texte"
+          ],
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "etat": {
+        "type": "string"
+       },
+       "etat_demande": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "id": {
+        "type": "integer"
+       },
+       "logiciel": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "messages": {
+        "anyOf": [
+         {
+          "items": {
+           "properties": {
+            "auteur": {
+             "type": "string"
+            },
+            "cote": {
+             "enum": [
+              "client",
+              "mark"
+             ],
+             "type": "string"
+            },
+            "cree_le": {
+             "format": "date-time",
+             "type": "string"
+            },
+            "id": {
+             "type": "integer"
+            },
+            "texte": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "auteur",
+            "cote",
+            "cree_le",
+            "id",
+            "texte"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "modifie_le": {
+        "format": "date-time",
+        "type": "string"
+       },
+       "ouvert_par": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "run_id": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "sorte": {
+        "type": "string"
+       },
+       "sujet": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "catalogue",
+       "cree_le",
+       "etat",
+       "etat_demande",
+       "id",
+       "logiciel",
+       "modifie_le",
+       "sorte",
+       "sujet"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/relation/fils/{fil_id}": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "fil_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "catalogue": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "cree_le": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "dernier": {
+       "anyOf": [
+        {
+         "properties": {
+          "auteur": {
+           "type": "string"
+          },
+          "cote": {
+           "enum": [
+            "client",
+            "mark"
+           ],
+           "type": "string"
+          },
+          "cree_le": {
+           "format": "date-time",
+           "type": "string"
+          },
+          "id": {
+           "type": "integer"
+          },
+          "texte": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "auteur",
+          "cote",
+          "cree_le",
+          "id",
+          "texte"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat": {
+       "type": "string"
+      },
+      "etat_demande": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "integer"
+      },
+      "logiciel": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "messages": {
+       "anyOf": [
+        {
+         "items": {
+          "properties": {
+           "auteur": {
+            "type": "string"
+           },
+           "cote": {
+            "enum": [
+             "client",
+             "mark"
+            ],
+            "type": "string"
+           },
+           "cree_le": {
+            "format": "date-time",
+            "type": "string"
+           },
+           "id": {
+            "type": "integer"
+           },
+           "texte": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "auteur",
+           "cote",
+           "cree_le",
+           "id",
+           "texte"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "modifie_le": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "ouvert_par": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "run_id": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "sorte": {
+       "type": "string"
+      },
+      "sujet": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "catalogue",
+      "cree_le",
+      "etat",
+      "etat_demande",
+      "id",
+      "logiciel",
+      "modifie_le",
+      "sorte",
+      "sujet"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/organizations/sites": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "items": {
+      "properties": {
+       "allowed_domains": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "cle": {
+        "type": "string"
+       },
+       "dernier_chargement": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "id": {
+        "type": "integer"
+       },
+       "nom": {
+        "type": "string"
+       },
+       "script": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "allowed_domains",
+       "cle",
+       "id",
+       "nom",
+       "script"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   }
+  }
+ },
+ "PATCH /api/v1/organizations/equipe/personnes/{cle}": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "actif": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "agendas": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "destinataire_defaut": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "divulguer_mail": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "divulguer_telephone": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "etablissement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "etablissements": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "joignable_par_transfert": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "mail": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "nom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "prenom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "telephone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "cle",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "actif": {
+       "type": "boolean"
+      },
+      "agendas": {
+       "anyOf": [
+        {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "cle": {
+       "type": "string"
+      },
+      "description": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "destinataire_defaut": {
+       "type": "boolean"
+      },
+      "divulguer_mail": {
+       "type": "boolean"
+      },
+      "divulguer_telephone": {
+       "type": "boolean"
+      },
+      "etablissement": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etablissements": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "joignable_par_transfert": {
+       "type": "boolean"
+      },
+      "mail": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "nom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prenom": {
+       "type": "string"
+      },
+      "role": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "telephone": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "cle",
+      "prenom"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PATCH /api/v1/organizations/etablissements/{identifiant}": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "adresse": {
+      "anyOf": [
+       {
+        "properties": {
+         "code_insee": {
+          "type": "string"
+         },
+         "code_postal": {
+          "type": "string"
+         },
+         "commune": {
+          "type": "string"
+         },
+         "voie": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "code_insee",
+         "code_postal",
+         "commune"
+        ],
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "annonce_fermeture": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "annonce_pause": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "etat_force": {
+      "anyOf": [
+       {
+        "enum": [
+         "OUVERT",
+         "PAUSE",
+         "FERME",
+         "SUR_RENDEZ_VOUS"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "etat_force_jusqu_a": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "horaires_ouverture": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "nom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "numero_transfert": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "numeros": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "phrases": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "second_numero": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "termes_lexique": {
+      "anyOf": [
+       {
+        "items": {
+         "properties": {
+          "a_ecouter": {
+           "type": "boolean"
+          },
+          "categorie": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "nature": {
+           "anyOf": [
+            {
+             "enum": [
+              "marque",
+              "nom_propre",
+              "mot_du_metier"
+             ],
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "prononciation": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "propose": {
+           "type": "boolean"
+          },
+          "terme": {
+           "type": "string"
+          },
+          "type": {
+           "enum": [
+            "nom",
+            "mot"
+           ],
+           "type": "string"
+          },
+          "variantes": {
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "terme"
+         ],
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "identifiant",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "anyOf": [
+        {
+         "properties": {
+          "code_insee": {
+           "type": "string"
+          },
+          "code_postal": {
+           "type": "string"
+          },
+          "commune": {
+           "type": "string"
+          },
+          "voie": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "code_insee",
+          "code_postal",
+          "commune"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "annonce_fermeture": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "annonce_pause": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat_force": {
+       "anyOf": [
+        {
+         "enum": [
+          "OUVERT",
+          "PAUSE",
+          "FERME",
+          "SUR_RENDEZ_VOUS"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat_force_jusqu_a": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "horaires_ouverture": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "string"
+      },
+      "nom": {
+       "type": "string"
+      },
+      "numero_transfert": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numeros": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "phrases": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "second_numero": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "termes_lexique": {
+       "items": {
+        "properties": {
+         "a_ecouter": {
+          "type": "boolean"
+         },
+         "categorie": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nature": {
+          "anyOf": [
+           {
+            "enum": [
+             "marque",
+             "nom_propre",
+             "mot_du_metier"
+            ],
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prononciation": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "propose": {
+          "type": "boolean"
+         },
+         "terme": {
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "nom",
+           "mot"
+          ],
+          "type": "string"
+         },
+         "variantes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "terme"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "nom"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/connecteurs/lien": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "compte": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "connecteurs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "connecteurs"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "connecteurs.autoriser",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "expire_le": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "lien": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "lien"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/connecteurs/propositions/{identifiant}/lien": {
+  "corps": {
+   "application/json": {
+    "anyOf": [
+     {
+      "properties": {
+       "autorise_par": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [],
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "identifiant",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "connecteurs.autoriser",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "expire_le": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "lien": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "lien"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/knowledge-base/documents/{document_uuid}/remplacer": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "s3_key": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "s3_key"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "document_uuid",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "created_at": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "created_by": {
+       "type": "integer"
+      },
+      "custom_metadata": {
+       "type": "object"
+      },
+      "docling_metadata": {
+       "type": "object"
+      },
+      "document_uuid": {
+       "type": "string"
+      },
+      "file_hash": {
+       "type": "string"
+      },
+      "file_size_bytes": {
+       "type": "integer"
+      },
+      "filename": {
+       "type": "string"
+      },
+      "has_live_content": {
+       "type": "boolean"
+      },
+      "id": {
+       "type": "integer"
+      },
+      "is_active": {
+       "type": "boolean"
+      },
+      "mime_type": {
+       "type": "string"
+      },
+      "organization_id": {
+       "type": "integer"
+      },
+      "processing_error": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "processing_status": {
+       "type": "string"
+      },
+      "retrieval_mode": {
+       "type": "string"
+      },
+      "source_url": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "total_chunks": {
+       "type": "integer"
+      },
+      "updated_at": {
+       "format": "date-time",
+       "type": "string"
+      }
+     },
+     "required": [
+      "created_at",
+      "created_by",
+      "custom_metadata",
+      "docling_metadata",
+      "document_uuid",
+      "file_hash",
+      "file_size_bytes",
+      "filename",
+      "id",
+      "is_active",
+      "mime_type",
+      "organization_id",
+      "processing_status",
+      "total_chunks",
+      "updated_at"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/knowledge-base/upload-url": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "custom_metadata": {
+      "anyOf": [
+       {
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "filename": {
+      "type": "string"
+     },
+     "mime_type": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "filename",
+     "mime_type"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "document_uuid": {
+       "type": "string"
+      },
+      "s3_key": {
+       "type": "string"
+      },
+      "upload_url": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "document_uuid",
+      "s3_key",
+      "upload_url"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/apres-appel/actions/{action_id}/relancer": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "action_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "action_id": {
+       "type": "integer"
+      },
+      "etape": {
+       "type": "string"
+      },
+      "statut": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "action_id",
+      "etape",
+      "statut"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/base-client/connexion-portail": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "base_client.connexion_portail",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "base": {
+       "type": "string"
+      },
+      "mot_de_passe": {
+       "type": "string"
+      },
+      "role": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "base",
+      "mot_de_passe",
+      "role"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/etablissements/{identifiant}/appliquer-a-tous": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "cle": {
+      "type": "string"
+     },
+     "reglage": {
+      "enum": [
+       "planificateur",
+       "type",
+       "module",
+       "fiche",
+       "phrase"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "cle",
+     "reglage"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "identifiant",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "cle": {
+       "type": "string"
+      },
+      "etablissements": {
+       "items": {
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "nom": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "id",
+         "nom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "reglage": {
+       "enum": [
+        "planificateur",
+        "type",
+        "module",
+        "fiche",
+        "phrase"
+       ],
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "cle",
+      "reglage",
+      "source"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/etablissements/{identifiant}/etat": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "etat_force": {
+      "anyOf": [
+       {
+        "enum": [
+         "OUVERT",
+         "PAUSE",
+         "FERME",
+         "SUR_RENDEZ_VOUS"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "etat_force_jusqu_a": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "etat_force"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "identifiant",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "anyOf": [
+        {
+         "properties": {
+          "code_insee": {
+           "type": "string"
+          },
+          "code_postal": {
+           "type": "string"
+          },
+          "commune": {
+           "type": "string"
+          },
+          "voie": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "code_insee",
+          "code_postal",
+          "commune"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "annonce_fermeture": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "annonce_pause": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat_force": {
+       "anyOf": [
+        {
+         "enum": [
+          "OUVERT",
+          "PAUSE",
+          "FERME",
+          "SUR_RENDEZ_VOUS"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat_force_jusqu_a": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "horaires_ouverture": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "string"
+      },
+      "nom": {
+       "type": "string"
+      },
+      "numero_transfert": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numeros": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "phrases": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "second_numero": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "termes_lexique": {
+       "items": {
+        "properties": {
+         "a_ecouter": {
+          "type": "boolean"
+         },
+         "categorie": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nature": {
+          "anyOf": [
+           {
+            "enum": [
+             "marque",
+             "nom_propre",
+             "mot_du_metier"
+            ],
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prononciation": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "propose": {
+          "type": "boolean"
+         },
+         "terme": {
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "nom",
+           "mot"
+          ],
+          "type": "string"
+         },
+         "variantes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "terme"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "id",
+      "nom"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/relation/entree/verifier": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "jeton": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "jeton"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "auteur": {
+       "type": "string"
+      },
+      "entree_id": {
+       "type": "integer"
+      },
+      "motif": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "auteur",
+      "entree_id",
+      "motif"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/relation/entree/{entree_id}/fin": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "entree_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "duree_secondes": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "duree_secondes"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/relation/fils": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "catalogue": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "logiciel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "sorte": {
+      "enum": [
+       "message",
+       "demande_logiciel",
+       "signalement"
+      ],
+      "type": "string"
+     },
+     "sujet": {
+      "type": "string"
+     },
+     "texte": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "sujet",
+     "texte"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "201": {
+    "application/json": {
+     "properties": {
+      "catalogue": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "cree_le": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "dernier": {
+       "anyOf": [
+        {
+         "properties": {
+          "auteur": {
+           "type": "string"
+          },
+          "cote": {
+           "enum": [
+            "client",
+            "mark"
+           ],
+           "type": "string"
+          },
+          "cree_le": {
+           "format": "date-time",
+           "type": "string"
+          },
+          "id": {
+           "type": "integer"
+          },
+          "texte": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "auteur",
+          "cote",
+          "cree_le",
+          "id",
+          "texte"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat": {
+       "type": "string"
+      },
+      "etat_demande": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "id": {
+       "type": "integer"
+      },
+      "logiciel": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "messages": {
+       "anyOf": [
+        {
+         "items": {
+          "properties": {
+           "auteur": {
+            "type": "string"
+           },
+           "cote": {
+            "enum": [
+             "client",
+             "mark"
+            ],
+            "type": "string"
+           },
+           "cree_le": {
+            "format": "date-time",
+            "type": "string"
+           },
+           "id": {
+            "type": "integer"
+           },
+           "texte": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "auteur",
+           "cote",
+           "cree_le",
+           "id",
+           "texte"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "modifie_le": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "ouvert_par": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "run_id": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "sorte": {
+       "type": "string"
+      },
+      "sujet": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "catalogue",
+      "cree_le",
+      "etat",
+      "etat_demande",
+      "id",
+      "logiciel",
+      "modifie_le",
+      "sorte",
+      "sujet"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/organizations/relation/fils/{fil_id}/messages": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "texte": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "texte"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "fil_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "membre",
+  "reponses": {
+   "201": {
+    "application/json": {
+     "properties": {
+      "auteur": {
+       "type": "string"
+      },
+      "cote": {
+       "enum": [
+        "client",
+        "mark"
+       ],
+       "type": "string"
+      },
+      "cree_le": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "id": {
+       "type": "integer"
+      },
+      "texte": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "auteur",
+      "cote",
+      "cree_le",
+      "id",
+      "texte"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/organizations/agents-site/{workflow_id}/apparence": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "avis": {
+      "type": "boolean"
+     },
+     "couleur_base": {
+      "type": "string"
+     },
+     "couleurs": {
+      "properties": {
+       "boutons": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "boutons_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "bulle_agent": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "bulle_agent_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "bulles_ecrit": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "bulles_ecrit_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "champ_saisie": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "champ_saisie_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "etoiles": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "fenetre": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "icones": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "orbe": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "raccrocher": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "raccrocher_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "reponses_choisies": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "reponses_choisies_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "rond_accroche": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "rond_accroche_texte": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [],
+      "type": "object"
+     },
+     "declenchement": {
+      "enum": [
+       "clic",
+       "survol",
+       "delai",
+       "toujours",
+       "jamais"
+      ],
+      "type": "string"
+     },
+     "delai_s": {
+      "type": "integer"
+     },
+     "embleme": {
+      "enum": [
+       "orbe",
+       "logo"
+      ],
+      "type": "string"
+     },
+     "fenetre": {
+      "enum": [
+       "centree",
+       "ancree"
+      ],
+      "type": "string"
+     },
+     "fond_fenetre": {
+      "type": "string"
+     },
+     "lien_confidentialite": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "logo_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "orbe_animee": {
+      "type": "boolean"
+     },
+     "police": {
+      "enum": [
+       "switzer",
+       "inter",
+       "systeme",
+       "site",
+       "poppins",
+       "montserrat",
+       "lato",
+       "nunito",
+       "dm-sans",
+       "playfair-display"
+      ],
+      "type": "string"
+     },
+     "position": {
+      "enum": [
+       "bas-droite",
+       "bas-gauche"
+      ],
+      "type": "string"
+     },
+     "texte_fenetre": {
+      "type": "string"
+     },
+     "textes": {
+      "properties": {
+       "accroche": {
+        "type": "string"
+       },
+       "annonce_ia": {
+        "type": "string"
+       },
+       "avis_envoyer": {
+        "type": "string"
+       },
+       "avis_passer": {
+        "type": "string"
+       },
+       "avis_question": {
+        "type": "string"
+       },
+       "avis_titre": {
+        "type": "string"
+       },
+       "bouton_demarrer": {
+        "type": "string"
+       },
+       "case_confidentialite": {
+        "type": "string"
+       },
+       "case_micro": {
+        "type": "string"
+       },
+       "case_publication": {
+        "type": "string"
+       },
+       "case_rappel": {
+        "type": "string"
+       },
+       "champ_saisie": {
+        "type": "string"
+       },
+       "ecoute": {
+        "type": "string"
+       },
+       "ecrire": {
+        "type": "string"
+       },
+       "envoyer": {
+        "type": "string"
+       },
+       "erreur_micro": {
+        "type": "string"
+       },
+       "fermer": {
+        "type": "string"
+       },
+       "merci": {
+        "type": "string"
+       },
+       "parle": {
+        "type": "string"
+       },
+       "plafond_bouton": {
+        "type": "string"
+       },
+       "plafond_message": {
+        "type": "string"
+       },
+       "raccrocher": {
+        "type": "string"
+       },
+       "reflexion": {
+        "type": "string"
+       },
+       "titre": {
+        "type": "string"
+       }
+      },
+      "required": [],
+      "type": "object"
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "workflow_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "apparence": {
+       "properties": {
+        "avis": {
+         "type": "boolean"
+        },
+        "couleur_base": {
+         "type": "string"
+        },
+        "couleurs": {
+         "properties": {
+          "boutons": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "boutons_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulle_agent": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulle_agent_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulles_ecrit": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "bulles_ecrit_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "champ_saisie": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "champ_saisie_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "etoiles": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "fenetre": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "icones": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "orbe": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "raccrocher": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "raccrocher_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "reponses_choisies": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "reponses_choisies_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "rond_accroche": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "rond_accroche_texte": {
+           "anyOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [],
+         "type": "object"
+        },
+        "declenchement": {
+         "enum": [
+          "clic",
+          "survol",
+          "delai",
+          "toujours",
+          "jamais"
+         ],
+         "type": "string"
+        },
+        "delai_s": {
+         "type": "integer"
+        },
+        "embleme": {
+         "enum": [
+          "orbe",
+          "logo"
+         ],
+         "type": "string"
+        },
+        "fenetre": {
+         "enum": [
+          "centree",
+          "ancree"
+         ],
+         "type": "string"
+        },
+        "fond_fenetre": {
+         "type": "string"
+        },
+        "lien_confidentialite": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "logo_url": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "orbe_animee": {
+         "type": "boolean"
+        },
+        "police": {
+         "enum": [
+          "switzer",
+          "inter",
+          "systeme",
+          "site",
+          "poppins",
+          "montserrat",
+          "lato",
+          "nunito",
+          "dm-sans",
+          "playfair-display"
+         ],
+         "type": "string"
+        },
+        "position": {
+         "enum": [
+          "bas-droite",
+          "bas-gauche"
+         ],
+         "type": "string"
+        },
+        "texte_fenetre": {
+         "type": "string"
+        },
+        "textes": {
+         "properties": {
+          "accroche": {
+           "type": "string"
+          },
+          "annonce_ia": {
+           "type": "string"
+          },
+          "avis_envoyer": {
+           "type": "string"
+          },
+          "avis_passer": {
+           "type": "string"
+          },
+          "avis_question": {
+           "type": "string"
+          },
+          "avis_titre": {
+           "type": "string"
+          },
+          "bouton_demarrer": {
+           "type": "string"
+          },
+          "case_confidentialite": {
+           "type": "string"
+          },
+          "case_micro": {
+           "type": "string"
+          },
+          "case_publication": {
+           "type": "string"
+          },
+          "case_rappel": {
+           "type": "string"
+          },
+          "champ_saisie": {
+           "type": "string"
+          },
+          "ecoute": {
+           "type": "string"
+          },
+          "ecrire": {
+           "type": "string"
+          },
+          "envoyer": {
+           "type": "string"
+          },
+          "erreur_micro": {
+           "type": "string"
+          },
+          "fermer": {
+           "type": "string"
+          },
+          "merci": {
+           "type": "string"
+          },
+          "parle": {
+           "type": "string"
+          },
+          "plafond_bouton": {
+           "type": "string"
+          },
+          "plafond_message": {
+           "type": "string"
+          },
+          "raccrocher": {
+           "type": "string"
+          },
+          "reflexion": {
+           "type": "string"
+          },
+          "titre": {
+           "type": "string"
+          }
+         },
+         "required": [],
+         "type": "object"
+        }
+       },
+       "required": [],
+       "type": "object"
+      },
+      "couleurs": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      }
+     },
+     "required": [
+      "apparence",
+      "couleurs"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/organizations/agents-site/{workflow_id}/emplacement": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "chemins": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "site_id": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "site_id"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "workflow_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "agent_nom": {
+       "type": "string"
+      },
+      "canal": {
+       "enum": [
+        "telephone",
+        "site"
+       ],
+       "type": "string"
+      },
+      "chemins": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "dernier_chargement": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "embed_token_id": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etablissement_nom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "site_cle": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "site_id": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "version_publiee": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "widget_actif": {
+       "type": "boolean"
+      },
+      "workflow_id": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "canal",
+      "workflow_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/organizations/equipe": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "personnes": {
+      "items": {
+       "properties": {
+        "actif": {
+         "type": "boolean"
+        },
+        "agendas": {
+         "anyOf": [
+          {
+           "additionalProperties": {
+            "type": "string"
+           },
+           "type": "object"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "cle": {
+         "type": "string"
+        },
+        "description": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "destinataire_defaut": {
+         "type": "boolean"
+        },
+        "divulguer_mail": {
+         "type": "boolean"
+        },
+        "divulguer_telephone": {
+         "type": "boolean"
+        },
+        "etablissement": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "etablissements": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "joignable_par_transfert": {
+         "type": "boolean"
+        },
+        "mail": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "nom": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "prenom": {
+         "type": "string"
+        },
+        "role": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "telephone": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "cle",
+        "prenom"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "sujets": {
+      "items": {
+       "properties": {
+        "actif": {
+         "type": "boolean"
+        },
+        "code": {
+         "type": "string"
+        },
+        "destinataires": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "libelle": {
+         "type": "string"
+        },
+        "mots_declencheurs": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "urgent": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "code",
+        "libelle"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "personnes": {
+       "items": {
+        "properties": {
+         "actif": {
+          "type": "boolean"
+         },
+         "agendas": {
+          "anyOf": [
+           {
+            "additionalProperties": {
+             "type": "string"
+            },
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "cle": {
+          "type": "string"
+         },
+         "description": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "destinataire_defaut": {
+          "type": "boolean"
+         },
+         "divulguer_mail": {
+          "type": "boolean"
+         },
+         "divulguer_telephone": {
+          "type": "boolean"
+         },
+         "etablissement": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "etablissements": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "joignable_par_transfert": {
+          "type": "boolean"
+         },
+         "mail": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nom": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prenom": {
+          "type": "string"
+         },
+         "role": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "telephone": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "cle",
+         "prenom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "sujets": {
+       "items": {
+        "properties": {
+         "actif": {
+          "type": "boolean"
+         },
+         "code": {
+          "type": "string"
+         },
+         "destinataires": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "libelle": {
+          "type": "string"
+         },
+         "mots_declencheurs": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "urgent": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "code",
+         "libelle"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/organizations/lexique": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "format": {
+      "const": "lexique-mark",
+      "type": "string"
+     },
+     "modeles_importes": {
+      "items": {
+       "properties": {
+        "date": {
+         "type": "string"
+        },
+        "nom": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "date",
+        "nom"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "seuil_mots_courants": {
+      "type": "integer"
+     },
+     "termes": {
+      "items": {
+       "properties": {
+        "a_ecouter": {
+         "type": "boolean"
+        },
+        "categorie": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "nature": {
+         "anyOf": [
+          {
+           "enum": [
+            "marque",
+            "nom_propre",
+            "mot_du_metier"
+           ],
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "prononciation": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "propose": {
+         "type": "boolean"
+        },
+        "terme": {
+         "type": "string"
+        },
+        "type": {
+         "enum": [
+          "nom",
+          "mot"
+         ],
+         "type": "string"
+        },
+        "variantes": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "required": [
+        "terme"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "version": {
+      "const": 1,
+      "type": "integer"
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "format": {
+       "const": "lexique-mark",
+       "type": "string"
+      },
+      "modeles_importes": {
+       "items": {
+        "properties": {
+         "date": {
+          "type": "string"
+         },
+         "nom": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "date",
+         "nom"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "seuil_mots_courants": {
+       "type": "integer"
+      },
+      "termes": {
+       "items": {
+        "properties": {
+         "a_ecouter": {
+          "type": "boolean"
+         },
+         "categorie": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "nature": {
+          "anyOf": [
+           {
+            "enum": [
+             "marque",
+             "nom_propre",
+             "mot_du_metier"
+            ],
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "prononciation": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "propose": {
+          "type": "boolean"
+         },
+         "terme": {
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "nom",
+           "mot"
+          ],
+          "type": "string"
+         },
+         "variantes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "terme"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "version": {
+       "const": 1,
+       "type": "integer"
+      }
+     },
+     "required": [],
+     "type": "object"
+    }
+   }
+  }
+ }
+}

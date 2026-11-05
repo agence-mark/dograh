@@ -135,6 +135,14 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
     if contexte.porte == PORTE_ECRAN and not action.moteur:
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
+    if contexte.porte == PORTE_MCP and action.ecriture and getattr(contexte.user, "par_porte_mcp", False):
+        # Partie 3, 17a (liste fermée des clés) : une clé de client ne fait aucune écriture du builder par la porte MCP ; seule la clé du
+        # Labo, créée par un membre de l'équipe, écrit.
+        from api.services.builder.bibliotheque import droits
+        from api.services.builder.constantes import organisation_bibliotheque
+
+        if not await droits._cle_du_labo_par_mcp(contexte.user, organisation_bibliotheque()):
+            return {"ok": False, "code": "cle_sans_ecriture", "erreur": "This API key cannot write through MCP: only the Labo key of the .mark team does."}
     if contexte.actions_permises is not None and nom not in contexte.actions_permises:
         return {"ok": False, "code": "sous_agent", "erreur": f"« {nom} » is not allowed to a sub-agent: it only reads and tests, it never writes."}
     from api.services.builder import portes

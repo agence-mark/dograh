@@ -25,6 +25,7 @@ from starlette.requests import HTTPConnection
 
 from api.db import db_client
 from api.db.equipe_client import AccesCompte, detacher_de_sa_session
+from api.services.equipe_mark.permissions import PERMISSIONS, PERMISSIONS_DE_CLE
 from api.services.equipe_mark.registre_routes import (
     ECRITURE,
     Exemption,
@@ -36,10 +37,13 @@ ENTETE_ORGANISATION = "X-Mark-Organisation"
 # R3 M1 : l'écran dit « je suis dans le Labo » ; sans identifiant, le serveur lit le Labo lui-même, jamais un client.
 ENTETE_ESPACE = "X-Mark-Espace"
 PREFIXE_API = "/api/v1"
-PERMISSIONS_JAMAIS_PAR_CLE = frozenset({"equipe.gerer", "roles.gerer", "clients.creer", "atelier.regler"})
+# Partie 3, 17a : la clé n'a que la liste fermée ``PERMISSIONS_DE_CLE``. Ceci en est le complément (tout ce qui lui est refusé).
+PERMISSIONS_JAMAIS_PAR_CLE = frozenset(PERMISSIONS) - PERMISSIONS_DE_CLE
+# Écritures fermées aux clés même sous une permission qu'elles portent (lancer ou changer une campagne d'appels sortants).
+ROUTES_ECRITURE_FERMEES_AUX_CLES = ("/campaign",)
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client")
 # Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
-ROUTES_FERMEES_AUX_CLES = ("/espaces",)
+ROUTES_FERMEES_AUX_CLES = ("/espaces", "/vues-equipe")
 
 
 def est_par_cle_api(user) -> bool:
@@ -145,6 +149,8 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     methode, chemin = position
     if par_cle_api and any(chemin == r or chemin.startswith(r + "/") for r in ROUTES_FERMEES_AUX_CLES):
         raise HTTPException(status_code=403, detail="Not available to an API key")
+    if par_cle_api and methode in ECRITURE and any(chemin == r or chemin.startswith(r + "/") for r in ROUTES_ECRITURE_FERMEES_AUX_CLES):
+        raise HTTPException(status_code=403, detail="Not available to an API key")
     trouvee = decision_de(methode, chemin)
     if trouvee is None:
         logger.error(f"Route without permission decision: {methode} {chemin}")
@@ -156,8 +162,8 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         if par_cle_api:
             # Une clé d'API est un accès de machine à UNE organisation (le portail, les scripts) : comme avant U2 ter, elle
             # n'a pas de rôle d'équipe. Mais jamais les gestes de l'équipe elle-même : une clé fuitée ne crée ni invitation,
-            # ni rôle, ni client, et ne règle pas l'atelier.
-            if decision.cle in PERMISSIONS_JAMAIS_PAR_CLE:
+            # ni rôle, ni client, et ne règle pas l'atelier. Liste fermée (17a) : toute permission hors de la liste est refusée.
+            if decision.cle not in PERMISSIONS_DE_CLE:
                 raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle} (not available to an API key)")
         elif acces is None or decision.cle not in acces.permissions:
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
