@@ -30,6 +30,15 @@ from api.tests.integrations._run_pipeline_helpers import USER_CONFIGURATION
 from pipecat.tests import MockLLMService
 
 
+@pytest.fixture(autouse=True)
+def _sans_l_annonce_ia():
+    """[.mark] Partie 3, L3e : chaque conversation commence par « vous parlez à une IA » (``securite/annonce_ia``, prouvée
+    dans ``tests/mark/test_l3e_annonce_ia.py``). Ces tests de l'amont vérifient l'accueil lui-même : l'annonce est mise de
+    côté ici."""
+    with patch("api.services.securite.annonce_ia.a_dire", return_value=None):
+        yield
+
+
 def _sans_date_heure_appel(contexte: dict) -> dict:
     """[.mark] Le contexte initial sans les deux cles que notre fork y injecte.
 
