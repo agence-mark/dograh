@@ -336,6 +336,9 @@ export default function WorkflowRunPage() {
         const nomDeLAgent = workflowName ?? `${tp({ en: 'Agent', fr: 'Agent' })} ${workflowId}`;
         const note = workflowRun?.note_juge ?? null;
         const noteDite = note === null ? null : langue === 'fr' ? String(note).replace('.', ',') : String(note);
+        // [.mark] RA-B R6 : qui a jugé, lu dans l'annotation du juge (même règle que la colonne de la liste des appels).
+        const annotationJuge = (workflowRun?.annotations as { juge?: { source?: string; modele?: string } } | null | undefined)?.juge;
+        const jugePar = annotationJuge?.source === 'claude_code' ? 'Claude Code' : (annotationJuge?.modele || null);
         returnValue = (
             <PageStudio>
                 <div data-page-conversation>
@@ -393,6 +396,7 @@ export default function WorkflowRunPage() {
                         {noteDite !== null && (
                             <span className="flex items-center gap-1.5" data-note-du-juge>
                                 <Star className="size-4 fill-current text-(--acc)" /> {tp({ en: 'judge', fr: 'juge' })} {noteDite}/5
+                                {jugePar && <span className="text-muted-foreground" data-juge-par>· {tp({ en: 'Judged by', fr: 'Jugé par' })} {jugePar}</span>}
                             </span>
                         )}
                         <span className="ml-auto flex gap-2">

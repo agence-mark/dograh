@@ -620,6 +620,7 @@ export default function UsagePage() {
                             { titre: t({ en: 'Outcome', fr: 'Issue' }) },
                             { titre: enteteDuree, droite: true },
                             { titre: enteteTriable('judge_note', t({ en: 'Grade', fr: 'Note' })), droite: true },
+                            { titre: t({ en: 'Judged by', fr: 'Jugé par' }) },
                             ...(avecCout ? [{ titre: t({ en: 'Cost (USD)', fr: 'Coût (USD)' }), droite: true }] : []),
                             { titre: t({ en: 'Media', fr: 'Médias' }), droite: true },
                         ]}
@@ -644,6 +645,7 @@ export default function UsagePage() {
                                 <Cellule>{run.disposition || '-'}</Cellule>
                                 <Cellule droite>{formatDuration(run.call_duration_seconds)}</Cellule>
                                 <Cellule droite><NoteJuge note={run.note_juge ?? null} /></Cellule>
+                                <Cellule>{run.juge_par || '-'}</Cellule>
                                 {avecCout && (
                                     <Cellule droite>
                                         {run.charge_usd !== undefined && run.charge_usd !== null ? `$${run.charge_usd.toFixed(2)}` : '-'}

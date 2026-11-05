@@ -132,18 +132,23 @@ function Role({
             <label className="block space-y-1 text-xs text-muted-foreground">
                 <span>
                     {t({ en: "Source", fr: "Source" })}{" "}
-                    {role.source === "claude_code" && (
+                    {/* RA-B R6 : le code ne restreint rien ; une bulle rappelle le bon principe (aucun blocage, aucun avertissement). */}
+                    {juge ? (
                         <Info>
-                            {juge
-                                ? t({
-                                      en: "On Claude Code the judge is the same model as the builder: every verdict says so. Put it back on an API key when you can.",
-                                      fr: "Sur Claude Code, le juge est du même modèle que le builder : chaque verdict le dit. Repassez-le sur une clé d'API dès que possible.",
-                                  })
-                                : t({
-                                      en: "Played by a Claude Code session, with no API call.",
-                                      fr: "Joué par une session Claude Code, sans appel d'API.",
-                                  })}
+                            {t({
+                                en: "Good practice, not a rule: choose a judge model different from the agent's and the builder's, so the judge does not grade its own work. Every verdict says which model judged it.",
+                                fr: "Bonne pratique, pas une règle : choisissez pour le juge un modèle différent de celui de l'agent et du builder, pour qu'il ne note pas son propre travail. Chaque verdict dit quel modèle l'a jugé.",
+                            })}
                         </Info>
+                    ) : (
+                        role.source === "claude_code" && (
+                            <Info>
+                                {t({
+                                    en: "Played by a Claude Code session, with no API call.",
+                                    fr: "Joué par une session Claude Code, sans appel d'API.",
+                                })}
+                            </Info>
+                        )
                     )}
                 </span>
                 <ListeDeroulante
