@@ -8,6 +8,7 @@ from api.db.espaces_client import EspacesClient
 from api.db.site_client import SiteClient
 from api.db.boucle_client import BoucleClient
 from api.db.branches_client import BranchesClient
+from api.db.installation_client_client import InstallationClientClient
 from api.db.outils_versions_client import OutilsVersionsClient
 from api.db.builder_fil_client import BuilderFilClient
 from api.db.depense_roles_client import DepenseRolesClient
@@ -93,6 +94,8 @@ class DBClient(
     CopieAgentClient,
     # [.mark] builder partie 2, U8: the improvement loop ("À améliorer") and the quality page.
     BoucleClient,
+    # [.mark] builder partie 3, sous-lot 9: the installation of a new client, step by step.
+    InstallationClientClient,
 ):
     """
     Unified database client that combines all specialized database operations.

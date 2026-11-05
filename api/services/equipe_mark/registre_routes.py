@@ -174,6 +174,8 @@ REGLES: tuple[Regle, ...] = (
     _r(TOUTES, r"^/export-agent(/.*)?$", P("clients.exporter_ramener"), par_defaut=True),
     # ------------------------------------------------------------------ organisation
     _r({"POST"}, r"^/organizations$", P("clients.creer")),
+    # Partie 3, sous-lot 9 (SE-5) : « Nouveau client » installe un client pas à pas ; réservé à l'équipe, jamais par une clé (clients.creer).
+    _r(TOUTES, r"^/installations-client(/.*)?$", P("clients.creer")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
     _r({"PUT"}, r"^/organizations/selected$", MEMBRE),
     _r(ECRITURE, r"^/organizations/(telephony-configs|telephony-providers)(/.*)?$", P("telephonie.gerer")),

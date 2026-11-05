@@ -37,7 +37,7 @@ ENTETE_ORGANISATION = "X-Mark-Organisation"
 ENTETE_ESPACE = "X-Mark-Espace"
 PREFIXE_API = "/api/v1"
 PERMISSIONS_JAMAIS_PAR_CLE = frozenset({"equipe.gerer", "roles.gerer", "clients.creer", "atelier.regler"})
-ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/")
+ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client")
 # Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
 ROUTES_FERMEES_AUX_CLES = ("/espaces",)
 
