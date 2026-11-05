@@ -14,7 +14,7 @@ vi.mock("@/client", () => ({ lireLaQualiteApiV1QualiteGet: (...a: unknown[]) => 
 // Un objet stable : le vrai `useAuth` ne rend pas un nouvel utilisateur à chaque rendu (l'effet de lecture en dépend).
 const session = vi.hoisted(() => ({ user: { id: 1 }, loading: false }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => session }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/labo/qualite" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/clients/12/qualite" }));  // un client : la route de l espace (le Labo lit la vue tous clients, voir a-ameliorer.test.tsx)
 
 import { OngletIndicateurs } from "./OngletIndicateurs";
 
