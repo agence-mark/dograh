@@ -65,7 +65,7 @@ export function CorrectionsEtiquettes({ bloquants }: { bloquants: boolean }) {
                         <span className="font-medium">{p.etape ?? t({ en: "Settings", fr: "Réglages" })}</span> · {p.message}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                        {p.corrections.map((c, i) => (
+                        {(p.corrections ?? []).map((c, i) => (
                             <Button
                                 key={`${c.type}-${i}`}
                                 size="sm"
