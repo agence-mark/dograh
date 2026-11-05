@@ -13,7 +13,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { OngletCles } from "@/components/mark/cles/OngletCles";
+import { TableauCles } from "@/components/mark/cles/TableauCles";
 
 import { type ServiceConfigurationDefaults, ServiceConfigurationForm } from "../ServiceConfigurationForm";
 
@@ -27,6 +27,7 @@ vi.mock("@/client", () => ({
         data: BIBLIOTHEQUE.filter((c) => !options?.query?.fournisseur || c.fournisseur === options.query.fournisseur),
     }),
     fournisseursDesClesApiV1ClesFournisseursGet: async () => ({ data: ["mistral", "openai_realtime", "elevenlabs"] }),
+    usagesDeToutesLesClesApiV1ClesUsagesGet: async () => ({ data: { "c-openai": [{ ou: "modeles_organisation" }] } }),
     ajouterUneCleApiV1ClesPost: vi.fn(),
     usagesDUneCleApiV1ClesUuidUsagesGet: vi.fn(),
     supprimerUneCleApiV1ClesUuidDelete: vi.fn(),
@@ -131,13 +132,16 @@ describe("[.mark] the key library in Dograh's model form", () => {
     });
 });
 
-describe("[.mark] the « Keys » tab of « Models and keys » (P18, K1b)", () => {
+describe("[.mark] the « Keys » tab of « Models and keys » (P18, K1b ; table and window since V2b, SE-22)", () => {
     it("shows the whole library, every provider, with a key to add", async () => {
-        render(<OngletCles />);
+        render(<TableauCles cles={BIBLIOTHEQUE.map((c) => ({ ...c, cree_le: null })) as never} erreur={null} recharger={async () => {}} />);
         const page = await screen.findByTestId("page-cles");
-        await within(page).findByTestId("cle-c-openai");
-        expect(within(page).getByTestId("cle-c-mistral")).toBeTruthy();
-        const fournisseur = within(page).getByLabelText("Protocol") as HTMLSelectElement;
+        expect(within(page).getByText("OpenAI labo")).toBeTruthy();
+        expect(within(page).getByText("Mistral org 2")).toBeTruthy();
+        // Où elle sert : une seule lecture pour toutes les clés.
+        expect(await within(page).findByText("Models of the organization")).toBeTruthy();
+        fireEvent.click(within(page).getByRole("button", { name: /Add a key/ }));
+        const fournisseur = (await screen.findByLabelText("Protocol")) as HTMLSelectElement;
         await waitFor(() => expect(fournisseur.options.length).toBe(3));
         expect(fournisseur.disabled).toBe(false);
         expect(fournisseur.value).toBe("mistral");
