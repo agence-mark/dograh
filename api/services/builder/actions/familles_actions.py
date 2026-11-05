@@ -63,6 +63,8 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         # N1 (sous-lot 5) : lire l'entreprise (établissements, phrases, annonce, vocabulaire, listes, équipe, campagnes, téléphonie par leur nom)
         "etablissements_lire", "phrases_organisation_lire", "annonce_lire", "lexique_lire", "listes_valeurs_lire", "equipe_lister",
         "campagnes_lister", "campagne_lire", "telephonie_lister",
+        # N2 : lectures de l'écran qui passent par un POST
+        "etablissements_reprise_essayer", "horaires_controler", "etablissements_de_l_agent_lire", "lexique_budget_lire",
         # les cartes du dialogue : elles ne font rien d'autre que demander ou montrer (une personne clique ensuite)
         "plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer",
         "agent_proposer_archivage", "tests_supprimer", "deleguer",
@@ -88,6 +90,8 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         # N1 (sous-lot 5) : écrire l'entreprise
         "etablissements_remplacer", "etablissement_modifier", "etablissement_fermer_ou_rouvrir", "phrases_organisation_ecrire",
         "annonce_regler", "lexique_ecrire", "listes_valeurs_cocher", "equipe_inviter", "campagne_creer", "campagne_modifier", "campagne_pause",
+        # N2 : les restes de l'écran
+        "etablissement_copier", "etablissements_reprise_ecrire", "etablissement_appliquer_a_tous", "lexique_importer", "equipe_annuler_invitation",
     ),
     "autre_agent": (
         "groupe_creer", "groupe_specialise_creer", "groupe_regler", "groupe_completer",
@@ -95,7 +99,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
     "depense": (
         "tests_rejouer", "attaques_lancer", "attaques_rejouer", "test_demarrer", "test_tour", "test_finir",
     ),
-    "appels_reels": ("campagne_demarrer", "campagne_reprendre", "appel_de_test_lancer"),
+    "appels_reels": ("campagne_demarrer", "campagne_reprendre", "campagne_rappeler", "appel_de_test_lancer"),
     "irreversible": (
         "agent_archiver", "outil_supprimer",
     ),
@@ -115,6 +119,7 @@ PERMISSION_DE_L_ACTION: dict[str, str] = {
     # L'équipe .mark se gère avec « equipe.gerer » (jamais une clé d'API), comme ``/equipe-mark/*`` ; un appel de test est un test (« tests.jouer »).
     "equipe_lister": "equipe.gerer",
     "equipe_inviter": "equipe.gerer",
+    "equipe_annuler_invitation": "equipe.gerer",
     "appel_de_test_lancer": "tests.jouer",
 }
 

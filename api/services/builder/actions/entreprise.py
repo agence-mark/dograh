@@ -356,6 +356,136 @@ async def _appel_test(contexte: Contexte, p) -> dict[str, Any]:
     return {"ok": True, "appel": await _ecran(initiate_call(p, contexte.user))}
 
 
+# --- N2 : les restes de l'écran (copier, reprise, recopier, horaires, import, rappel, annuler une invitation) ------------------------------
+
+
+def _copier_params():
+    from api.schemas.etablissements import DemandeCopieEtablissement
+
+    return DemandeCopieEtablissement
+
+
+async def _fiche_copier(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.etablissements import copier_etablissement
+
+    return {"ok": True, **await _ecran(copier_etablissement(p, contexte.user))}
+
+
+async def _reprise_essayer(contexte: Contexte, p: _Rien) -> dict[str, Any]:
+    """L'essai de la reprise : liste ce qui serait écrit, n'écrit rien (``ecrire`` reste faux, comme l'écran)."""
+    from api.routes.etablissements import reprise_des_fiches
+    from api.schemas.etablissements import DemandeReprise
+
+    return {"ok": True, **await _ecran(reprise_des_fiches(DemandeReprise(ecrire=False), contexte.user))}
+
+
+async def _reprise_ecrire(contexte: Contexte, p: _Rien) -> dict[str, Any]:
+    from api.routes.etablissements import reprise_des_fiches
+    from api.schemas.etablissements import DemandeReprise
+
+    return {"ok": True, **await _ecran(reprise_des_fiches(DemandeReprise(ecrire=True), contexte.user))}
+
+
+def _appliquer_a_tous_params():
+    from api.schemas.appliquer_a_tous import DemandeAppliquerATous
+
+    class AppliquerATous(_Fiche, DemandeAppliquerATous):
+        pass
+
+    return AppliquerATous
+
+
+async def _appliquer_a_tous(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.etablissements import appliquer_a_tous_les_etablissements
+    from api.schemas.appliquer_a_tous import DemandeAppliquerATous
+
+    corps = DemandeAppliquerATous(reglage=p.reglage, cle=p.cle)
+    return {"ok": True, **await _ecran(appliquer_a_tous_les_etablissements(p.identifiant, corps, contexte.user))}
+
+
+def _horaires_params():
+    from api.schemas.agents_servis import DemandeControleHoraires
+
+    return DemandeControleHoraires
+
+
+async def _horaires_controler(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.etablissements import controle_des_horaires
+
+    return {"ok": True, **await _ecran(controle_des_horaires(p, contexte.user))}
+
+
+def _etablissements_de_l_agent_params():
+    from api.routes.etablissements import DemandeEtablissementsDeLagent
+
+    return DemandeEtablissementsDeLagent
+
+
+async def _etablissements_de_l_agent(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.etablissements import post_etablissements_de_lagent
+    from api.services.builder.actions._commun import agent_de_l_organisation
+
+    await agent_de_l_organisation(contexte, p.workflow_id)
+    return {"ok": True, **await _ecran(post_etablissements_de_lagent(p, contexte.user))}
+
+
+class _Vocabulaire(BaseModel):
+    vocabulaire: Any = Field(description="The vocabulary to measure (the draft), as lexique_lire gives it.")
+
+
+def _lexique_corps(valeur: Any):
+    from pydantic import ValidationError
+
+    from api.schemas.lexique_metier import LexiqueMetier
+
+    try:
+        return LexiqueMetier.model_validate(valeur)
+    except ValidationError as erreur:
+        raise ErreurAction(f"The vocabulary is not valid: {str(erreur.errors()[0].get('msg'))[:200]}", "refus_ecran") from None
+
+
+async def _lexique_budget(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.organization import budget_lexique
+
+    return {"ok": True, **await _ecran(budget_lexique(_lexique_corps(p.vocabulaire), contexte.user))}
+
+
+class _Modele(BaseModel):
+    modele: Any = Field(description="A template's terms (same shape as the vocabulary): the terms ABSENT are added, a term already there never changes.")
+
+
+async def _lexique_importer(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.organization import import_lexique
+
+    return {"ok": True, **await _ecran(import_lexique(_lexique_corps(p.modele), contexte.user))}
+
+
+class _Invitation(BaseModel):
+    invitation_id: int = Field(ge=1, description="The open invitation (equipe_lister gives the ids).")
+
+
+async def _equipe_annuler_invitation(contexte: Contexte, p: _Invitation) -> dict[str, Any]:
+    from api.routes.equipe_mark import annuler_une_invitation
+
+    await _ecran(annuler_une_invitation(p.invitation_id, contexte.user))
+    return {"ok": True, "annulee": p.invitation_id}
+
+
+def _rappeler_params():
+    from api.routes.campaign import RedialCampaignRequest
+
+    class CampagneRappeler(_Campagne):
+        modalites: RedialCampaignRequest = Field(default_factory=RedialCampaignRequest, description="Which failed calls to redial (voicemail, no answer, busy) and the retry settings.")
+
+    return CampagneRappeler
+
+
+async def _campagne_rappeler(contexte: Contexte, p) -> dict[str, Any]:
+    from api.routes.campaign import redial_campaign
+
+    return {"ok": True, "campagne": await _ecran(redial_campaign(p.campagne_id, p.modalites, contexte.user))}
+
+
 # --- inscription -----------------------------------------------------------------------------------------------------------------------
 
 
@@ -424,6 +554,16 @@ def _inscrire_tout() -> None:
     _inscrire("campagne_pause", "Pause a running campaign (the calls stop).", _Campagne, _campagne_pause, ecriture=True)
     _inscrire("campagne_demarrer", "Start a campaign: REAL PEOPLE ARE CALLED.", _Campagne, _campagne_demarrer, ecriture=True, groupe="appels_reels")
     _inscrire("campagne_reprendre", "Resume a paused campaign: REAL PEOPLE ARE CALLED.", _Campagne, _campagne_reprendre, ecriture=True, groupe="appels_reels")
+    _inscrire("etablissement_copier", "Make a NEW establishment from an existing one (everything that describes the place; never its numbers nor an immediate closure).", _copier_params(), _fiche_copier, ecriture=True)
+    _inscrire("etablissements_reprise_essayer", "Trial run of the takeover of the fiches and agents: lists what would be written, writes nothing.", _Rien, _reprise_essayer, ecriture=False)
+    _inscrire("etablissements_reprise_ecrire", "Run the takeover of the fiches and agents FOR REAL (do the trial run first; values already on a fiche are never replaced).", _Rien, _reprise_ecrire, ecriture=True)
+    _inscrire("etablissement_appliquer_a_tous", "Copy ONE setting of an establishment into ALL the other establishments (all or none).", _appliquer_a_tous_params(), _appliquer_a_tous, ecriture=True)
+    _inscrire("horaires_controler", "Check opening hours written as text: valid, or the reason for the refusal (writes nothing).", _horaires_params(), _horaires_controler, ecriture=False)
+    _inscrire("etablissements_de_l_agent_lire", "Read the establishments one agent serves (a read, with the agent's own hours and address if given).", _etablissements_de_l_agent_params(), _etablissements_de_l_agent, ecriture=False)
+    _inscrire("lexique_budget_lire", "Measure what the transcription would receive from a vocabulary draft against the provider's ceiling (writes nothing).", _Vocabulaire, _lexique_budget, ecriture=False)
+    _inscrire("lexique_importer", "Add a template's trade terms that are absent from the vocabulary; a term already there never changes.", _Modele, _lexique_importer, ecriture=True, avant=_lexique_avant, defaire=_lexique_remettre)
+    _inscrire("equipe_annuler_invitation", "Cancel an open invitation to the .mark team.", _Invitation, _equipe_annuler_invitation, ecriture=True)
+    _inscrire("campagne_rappeler", "Redial the failed calls of a completed campaign (voicemail, no answer, busy): REAL PEOPLE ARE CALLED.", _rappeler_params(), _campagne_rappeler, ecriture=True, groupe="appels_reels")
     _inscrire("telephonie_lister", "List the telephony accounts by NAME (never their credentials: a person types those on the screen).", _Rien, _telephonie_lister, ecriture=False)
     _inscrire("appel_de_test_lancer", "Place a test call of the agent's draft to a phone number: A REAL CALL.", _appel_test_params(), _appel_test, ecriture=True, groupe="appels_reels")
 
