@@ -699,15 +699,15 @@ AIDES_FR_GRADIUM_TTS: dict[str, str] = {
 VALEURS_GRADIUM_TTS: dict[str, dict[str, tuple[str, str]]] = {
     "voice": {
         voix["id"]: (
-            f"{voix['nom']} (French, {'female' if voix['genre'].startswith('f') else 'male'})",
-            f"{voix['nom']} (française, {'voix féminine' if voix['genre'].startswith('f') else 'voix masculine'})",
+            f"{voix['nom']} ({'female' if voix['genre'].startswith('f') else 'male'} voice)",
+            f"{voix['nom']} ({'voix féminine' if voix['genre'].startswith('f') else 'voix masculine'})",
         )
         for voix in GRADIUM_TTS_VOIX
     },
     "output_format": {
-        "auto": ("Automatic (PCM at the line rate)", "Automatique (PCM à la fréquence de la ligne)"),
-        "pcm_8000": ("PCM 8 kHz (telephone)", "PCM 8 kHz (téléphone)"),
-        "ulaw_8000": ("μ-law 8 kHz (telephone)", "μ-law 8 kHz (téléphone)"),
+        "auto": ("Automatic", "Automatique"),
+        "pcm_8000": ("PCM 8 kHz", "PCM 8 kHz"),
+        "ulaw_8000": ("μ-law 8 kHz", "μ-law 8 kHz"),
     },
     "rewrite_rules": {
         "fr": ("French", "Français"),
@@ -2653,7 +2653,6 @@ class GradiumTTSConfiguration(BaseTTSConfiguration):
         json_schema_extra={
             "examples": list(GRADIUM_TTS_VOIX_IDS),
             "allow_custom_input": True,
-            "docs_url": "https://docs.gradium.ai/guides/voices/flagship-voices",
         },
     )
     speed: float | None = Field(
@@ -2665,7 +2664,7 @@ class GradiumTTSConfiguration(BaseTTSConfiguration):
             "converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, "
             "Gradium's own default applies (x 1.0)."
         ),
-        json_schema_extra={"mark_facteur": True, "docs_url": "https://docs.gradium.ai/guides/voice-settings"},
+        json_schema_extra={"mark_facteur": True},
     )
     temp: float = Field(
         default=GRADIUM_TEMP_PAR_DEFAUT,
@@ -2691,7 +2690,6 @@ class GradiumTTSConfiguration(BaseTTSConfiguration):
             "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). "
             "It applies to the whole session. Left empty, no dictionary."
         ),
-        json_schema_extra={"docs_url": "https://docs.gradium.ai/guides/voice-settings"},
     )
     output_format: Literal["auto", "pcm_8000", "ulaw_8000"] = Field(
         default="auto",
@@ -2706,7 +2704,6 @@ class GradiumTTSConfiguration(BaseTTSConfiguration):
         json_schema_extra={
             "examples": [GRADIUM_TTS_ADRESSE_EUROPE, GRADIUM_TTS_ADRESSE_MONDIALE, GRADIUM_TTS_ADRESSE_ETATS_UNIS],
             "allow_custom_input": True,
-            "docs_url": "https://docs.gradium.ai/guides/data-residency",
         },
         description=(
             "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. "

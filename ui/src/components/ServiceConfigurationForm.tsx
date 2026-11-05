@@ -89,12 +89,16 @@ interface SchemaProperty {
     // langues, declares cote serveur. Sans eux, l'aide est la `description` de l'api, en anglais.
     mark_aide?: { en: string; fr: string };
     mark_valeurs?: Record<string, { en: string; fr: string }>;
+    // [.mark] Lot GT (builder partie 3): a number shown as a factor (« × 1,2 »), for the Gradium speed.
+    mark_facteur?: boolean;
 }
 
 export interface ProviderSchema {
     title?: string;
     description?: string;
     provider_docs_url?: string;
+    // [.mark] Lot GT: what the provider choice says of its conditions, in both languages (else `description`).
+    mark_aide?: { en: string; fr: string };
     properties: Record<string, SchemaProperty>;
     required?: string[];
     $defs?: Record<string, SchemaProperty>;
@@ -1012,7 +1016,7 @@ export function ServiceConfigurationForm({
                 </>)}
                 {(providerSchema?.description || providerSchema?.provider_docs_url) && (
                     <p className="text-xs text-muted-foreground">
-                        {providerSchema?.description}{" "}
+                        {providerSchema?.mark_aide ? t(providerSchema.mark_aide) : providerSchema?.description}{" "}
                         {providerSchema?.provider_docs_url && (
                             <a
                                 href={providerSchema.provider_docs_url}
@@ -1398,7 +1402,8 @@ export function ServiceConfigurationForm({
                         <SelectContent>
                             {options.map((value: string) => (
                                 <SelectItem key={value} value={value}>
-                                    {value}
+                                    {/* [.mark] Lot GT: the name of a menu value in both languages, when the schema gives it. */}
+                                    {actualSchema?.mark_valeurs?.[value] ? t(actualSchema.mark_valeurs[value]) : value}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -1470,7 +1475,7 @@ export function ServiceConfigurationForm({
             );
         }
 
-        return (
+        const champNombre = (
             <Input
                 type={numberSchema ? "number" : "text"}
                 {...(numberSchema && {
@@ -1487,6 +1492,16 @@ export function ServiceConfigurationForm({
                 })}
             />
         );
+        // [.mark] Lot GT: a factor is written « × 1,2 » (the sign before the box, the bounds in the hint).
+        if (actualSchema?.mark_facteur && numberSchema) {
+            return (
+                <div className="flex items-center gap-2" data-facteur={`${service}_${field}`}>
+                    <span aria-hidden="true" className="text-sm text-muted-foreground">×</span>
+                    {champNombre}
+                </div>
+            );
+        }
+        return champNombre;
     };
 
     const handleOverrideToggle = (service: string, enabled: boolean) => {

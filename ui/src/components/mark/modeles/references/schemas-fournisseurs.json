@@ -1174,7 +1174,6 @@
           "allow_custom_input": true,
           "default": "jBULVCDhf05tOJN5",
           "description": "Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.",
-          "docs_url": "https://docs.gradium.ai/guides/voices/flagship-voices",
           "examples": [
             "jBULVCDhf05tOJN5",
             "iEu63s1rhn_kegTr"
@@ -1190,12 +1189,12 @@
           },
           "mark_valeurs": {
             "iEu63s1rhn_kegTr": {
-              "en": "Gaspard (French, male)",
-              "fr": "Gaspard (française, voix masculine)"
+              "en": "Gaspard (male voice)",
+              "fr": "Gaspard (voix masculine)"
             },
             "jBULVCDhf05tOJN5": {
-              "en": "Romane (French, female)",
-              "fr": "Romane (française, voix féminine)"
+              "en": "Romane (female voice)",
+              "fr": "Romane (voix féminine)"
             }
           },
           "title": "Voice",
@@ -1214,7 +1213,6 @@
           ],
           "default": null,
           "description": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
-          "docs_url": "https://docs.gradium.ai/guides/voice-settings",
           "mark_aide": {
             "en": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
             "fr": "Vitesse en facteur : × 1,2 parle plus vite, × 0,8 plus lentement. Gradium ne connaît pas la vitesse : elle est convertie en « padding_bonus » (−4 × (vitesse − 1), borné à ±4, négatif = plus rapide). Vide : le défaut de Gradium (× 1,0)."
@@ -1325,7 +1323,6 @@
           ],
           "default": null,
           "description": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
-          "docs_url": "https://docs.gradium.ai/guides/voice-settings",
           "mark_aide": {
             "en": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
             "fr": "Identifiant d'un dictionnaire de prononciation créé dans votre compte Gradium (Studio ou API). Il s'applique à toute la session. Vide : aucun dictionnaire."
@@ -1361,16 +1358,16 @@
           },
           "mark_valeurs": {
             "auto": {
-              "en": "Automatic (PCM at the line rate)",
-              "fr": "Automatique (PCM à la fréquence de la ligne)"
+              "en": "Automatic",
+              "fr": "Automatique"
             },
             "pcm_8000": {
-              "en": "PCM 8 kHz (telephone)",
-              "fr": "PCM 8 kHz (téléphone)"
+              "en": "PCM 8 kHz",
+              "fr": "PCM 8 kHz"
             },
             "ulaw_8000": {
-              "en": "μ-law 8 kHz (telephone)",
-              "fr": "μ-law 8 kHz (téléphone)"
+              "en": "μ-law 8 kHz",
+              "fr": "μ-law 8 kHz"
             }
           },
           "title": "Output Format",
@@ -1380,7 +1377,6 @@
           "allow_custom_input": true,
           "default": "wss://eu.api.gradium.ai/api/speech/tts",
           "description": "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.",
-          "docs_url": "https://docs.gradium.ai/guides/data-residency",
           "examples": [
             "wss://eu.api.gradium.ai/api/speech/tts",
             "wss://api.gradium.ai/api/speech/tts",
