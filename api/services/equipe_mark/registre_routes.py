@@ -96,6 +96,9 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/builder/publication-organisation$", P("agents.publier")),
     _r(ECRITURE, r"^/builder/attaques/.*$", P("tests.jouer")),
     _r(ECRITURE, r"^/builder/tests/.*$", P("tests.jouer")),
+    # Partie 3, sous-lot 6 : le rejeu planifié DÉPENSE (comme un rejeu à la main) ; les alertes d'agent sont un réglage de l'agent.
+    _r(ECRITURE, r"^/builder/planification/.*$", P("tests.jouer")),
+    _r(ECRITURE, r"^/builder/alertes/.*$", P("agents.modifier")),
     _r(ECRITURE, r"^/builder/.*$", P("builder.lancer"), par_defaut=True),
     _r(LECTURE, r"^/builder/.*$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ appelant simulé

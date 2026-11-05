@@ -24,8 +24,8 @@ import { CATEGORIES, motifLisible, STATUTS, TYPES_DE_SIGNALEMENT } from "./libel
 import { TauxDeSortieDImpasse } from "./TauxDeSortieDImpasse";
 
 type Statut = LigneDeTri["statut"];
-type Origine = "client" | "recette" | "code";
-const ORIGINES: Origine[] = ["client", "recette", "code"];
+type Origine = "client" | "recette" | "code" | "deploiement";
+const ORIGINES: Origine[] = ["client", "recette", "code", "deploiement"];
 
 const dateCourte = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");
 

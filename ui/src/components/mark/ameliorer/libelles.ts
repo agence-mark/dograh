@@ -63,6 +63,8 @@ export const ORIGINES: Record<string, Texte> = {
     client: { en: "The client's sheet", fr: "La fiche du client" },
     recette: { en: "A library recipe", fr: "Une recette de la bibliothèque" },
     code: { en: "The code of the fork", fr: "Le code du fork" },
+    // Partie 3, sous-lot 6 : une version qui fait moins bien que la précédente (alerte de déploiement).
+    deploiement: { en: "A deployment (a version does worse)", fr: "Un déploiement (une version fait moins bien)" },
 };
 
 /** Le titre à montrer : une trace du code connue est traduite, tout autre titre est celui du serveur. */

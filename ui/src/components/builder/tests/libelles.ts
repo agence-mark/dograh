@@ -59,7 +59,7 @@ export const CAUSES: Record<string, Texte> = {
 };
 
 /** What each triage origin leads to (07-boucle-et-coherence § 2). */
-export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code", { libelle: Texte; suite: Texte }> = {
+export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code" | "deploiement", { libelle: Texte; suite: Texte }> = {
     client: {
         libelle: { en: "Client", fr: "Client" },
         suite: { en: "Fix the client sheet, then regenerate the step: this agent only.", fr: "Corriger la fiche du client, puis régénérer l'étape : cet agent seulement." },
@@ -67,6 +67,13 @@ export const ORIGINES_DE_TRI: Record<"client" | "recette" | "code", { libelle: T
     recette: {
         libelle: { en: "Recipe", fr: "Recette" },
         suite: { en: "Propose a change to the library and prove it: every following agent benefits.", fr: "Proposer un changement à la bibliothèque et le prouver : tous les agents suivants en profitent." },
+    },
+    deploiement: {
+        libelle: { en: "Deployment", fr: "Déploiement" },
+        suite: {
+            en: "A published version does worse than the previous one: compare the two, then decide yourself (nothing is rolled back automatically).",
+            fr: "Une version publiée fait moins bien que la précédente : comparer les deux, puis décider soi-même (rien n'est retiré automatiquement).",
+        },
     },
     code: {
         libelle: { en: "Code", fr: "Code" },
