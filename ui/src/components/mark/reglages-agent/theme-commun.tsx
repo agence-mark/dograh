@@ -31,7 +31,7 @@ export interface ProprietesThemeAgent {
 /** The themes in error, for the navigation's red dot. */
 export const ContexteErreursThemes = createContext<(id: string, enErreur: boolean) => void>(() => undefined);
 
-/** Registers the theme's orange dot (unsaved) and red dot (value to fix). */
+/** Registers the theme's violet dot (unsaved) and red dot (value to fix). */
 export const useEtatTheme = (id: string, modifie: boolean, enErreur: boolean) => {
     useUnsavedChanges(id, modifie);
     const signaler = useContext(ContexteErreursThemes);

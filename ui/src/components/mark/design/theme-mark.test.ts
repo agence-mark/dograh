@@ -86,7 +86,7 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
     it("the orange call to action is gone: --cta is black in light, off-white in dark (D3)", () => {
         const css = sansCommentaires(theme());
         const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
-        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0f1c2e/);
+        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0f0f10/);
         expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*oklch\(0\.922 0 0\)/);
     });
 

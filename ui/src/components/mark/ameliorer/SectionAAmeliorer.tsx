@@ -48,7 +48,7 @@ export function SectionAAmeliorer({ lien }: { lien: string }) {
         <section>
             <div className="flex items-center gap-2 pb-3">
                 <Inbox className="size-4 text-muted-foreground" aria-hidden />
-                <h2 className="text-base font-semibold">{t(T.titre)}</h2>
+                <h2 className="text-sm font-semibold">{t(T.titre)}</h2>
                 <Info>{t(T.info)}</Info>
                 <Link href={lien} className="ml-auto text-sm text-(--acc) hover:font-semibold">
                     {t(T.toutVoir)}

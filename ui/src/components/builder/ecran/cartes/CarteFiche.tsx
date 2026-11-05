@@ -2,7 +2,7 @@
 
 /**
  * [.mark] builder-agent-vocal (lot 4): the « Client sheet » card (the pivot). Every line with its SOURCE (document,
- * page) and the place of the fact (object, knowledge base, prompt rule: B47); gaps in orange with a suggested
+ * page) and the place of the fact (object, knowledge base, prompt rule: B47); gaps in violet with a suggested
  * answer; correcting a line or answering a gap is a person's gesture; « Validate the sheet » is refused by the
  * server while a gap is open.
  */

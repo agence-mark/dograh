@@ -26,7 +26,7 @@ interface DispositionChartProps {
 const COLORS = [
   '#3b82f6', // blue-500
   '#10b981', // emerald-500
-  '#f59e0b', // amber-500
+  '#06b6d4', // cyan-500 (jamais d'ambre)
   '#8b5cf6', // violet-500
   '#ef4444', // red-500
   '#6b7280', // gray-500 for "Other"

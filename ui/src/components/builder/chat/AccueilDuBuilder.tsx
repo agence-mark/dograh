@@ -5,10 +5,10 @@
  * builder » de la bibliothèque, les 4 plus utilisés hors Rejeté). Un clic remplit la saisie (modifiable) ; la saisie demande ce
  * qui manque (un agent, des fichiers texte) et « Envoyer » reste grisé, raison au survol, tant qu'il manque quelque chose.
  */
-import { ArrowUp, Bot, FileText, FlaskConical, MessageSquare, Paperclip, Settings2, Sparkles, Wrench, X } from "lucide-react";
+import { ArrowUp, AtSign, Bot, FileText, FlaskConical, Paperclip, Settings2, Slash, Sparkles, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     getWorkflowsSummaryApiV1WorkflowSummaryGet,
@@ -33,7 +33,10 @@ import { useAuth } from "@/lib/auth";
 
 import { FenetreFichier } from "../fichier/FenetreFichier";
 import { useAdressesDuBuilder } from "./adresses";
-import { ListeDesFils } from "./ListeDesFils";
+import { useEntreesDeSaisie, useMenuSaisie } from "./menu-saisie";
+import { MiseEnRoute } from "./MiseEnRoute";
+import { type ModeDuChat, SelecteurMode } from "./permissions-du-chat";
+import { ReprendreLesChats } from "./ReprendreLesChats";
 import { FenetrePlafondDuMois, STATUT_PLAFOND, STATUT_REFUSE, statutDe, TEXTES_PLAFOND } from "./plafond-du-mois";
 
 const T = {
@@ -43,8 +46,8 @@ const T = {
     joindreCourt: { en: "Attach", fr: "Joindre" },
     parChat: { en: "per chat", fr: "par chat" },
     gerer: { en: "Manage the starters", fr: "Gérer les démarrages" },
-    chat: { en: "Chat", fr: "Chat" },
-    toutVoir: { en: "See all", fr: "Tout voir" },
+    citer: { en: "Quote an agent or a recipe (@)", fr: "Citer un agent ou une recette (@)" },
+    commandes: { en: "Commands (/)", fr: "Commandes (/)" },
     envoyerRaccourci: { en: "Send (Ctrl + Enter)", fr: "Envoyer (Ctrl + Entrée)" },
     fermeInfo: { en: "Sending is closed: the builder works in Claude Code.", fr: "Envoi fermé : le builder travaille dans Claude Code." },
     ecrire: {
@@ -64,7 +67,6 @@ const T = {
     plafond: { en: "ceiling", fr: "plafond" },
     reglages: { en: "Builder settings", fr: "Réglages du builder" },
     echec: { en: "The conversation could not be opened.", fr: "La conversation n'a pas pu être ouverte." },
-    recentes: { en: "Recent conversations", fr: "Conversations récentes" },
 } satisfies Record<string, Texte>;
 
 const ICONES = { agent: Bot, amelioration: Wrench, test: FlaskConical, fichier: FileText, etincelle: Sparkles } as const;
@@ -86,7 +88,10 @@ export function AccueilDuBuilder() {
     const [fichiers, setFichiers] = useState<{ nom: string; texte: string; fichier: File }[]>([]);
     const [ouvert, setOuvert] = useState<File | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
+    // N4 : le mode du prochain chat, choisi dans la barre de saisie (posé par le serveur à l'ouverture, avant le premier tour).
+    const [mode, setMode] = useState<ModeDuChat>("demander");
     const entree = useRef<HTMLInputElement>(null);
+    const zone = useRef<HTMLTextAreaElement>(null);
     const moi = useMoi();
     const { sources } = useSources();
     // E105 : le builder est sur Claude Code, l'accueil garde sa saisie et ses cartes ; l'envoi est ferme, la carte rouge le dit.
@@ -140,7 +145,7 @@ export function AccueilDuBuilder() {
     const ouvrir = (message: string, depasser: boolean) =>
         // `depasser_le_plafond` : accepté par la route ; le client généré le reçoit au prochain passage du générateur.
         ouvrirUnFilApiV1BuilderFilsPost({
-            body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null, ...(depasser ? { depasser_le_plafond: true } : {}) } as { message: string },
+            body: { message, workflow_id: agentId, demarrage: choisi?.slug ?? null, ...(mode !== "demander" ? { mode } : {}), ...(depasser ? { depasser_le_plafond: true } : {}) } as { message: string },
         });
     const envoyer = async () => {
         if (manque || ferme) return;
@@ -170,24 +175,33 @@ export function AccueilDuBuilder() {
         router.push(adresses.fil(r.data.id));
     };
 
+    // Les menus « @ » et « / » : le « / » s'ouvre SOUS la saisie sur cette page (décision 18).
+    const entreesDeSaisie = useEntreesDeSaisie();
+    const { menu: menuDeSaisie, clavier: clavierDeSaisie } = useMenuSaisie(saisie, setSaisie, entreesDeSaisie, true);
+    const insererSigne = (signe: string) => {
+        setSaisie((avant) => avant + (avant && !avant.endsWith(" ") ? " " : "") + signe);
+        zone.current?.focus();
+    };
+    const premierAgent = useMemo(() => agents[0] ?? null, [agents]);
+    const nomsDesAgents = useMemo(() => Object.fromEntries(agents.map((a) => [a.id, a.name])), [agents]);
+
     const envoiFerme = manque !== null || ferme;
     const raisonEnvoi = ferme ? t(T.fermeInfo) : manque ?? t(T.envoyerRaccourci);
     return (
         <PageStudio>
             <FenetrePlafondDuMois ouverte={plafond !== null} enCours={plafond?.enCours ?? false} continuer={() => void continuerQuandMeme()} annuler={() => setPlafond(null)} />
-            <section className="space-y-6 pt-2">
-                <div className="space-y-2 text-center">
-                    <Sparkles className="mx-auto size-7 text-(--acc)" aria-hidden />
-                    <h1 className="text-3xl font-semibold tracking-tight">
-                        {adresses.client
-                            ? `${t(T.titreClient)} ${adresses.nomDuClient ?? "…"} ?`
-                            : `${moi?.prenom ? `${t(T.bonjour)} ${moi.prenom}` : t(T.bonjour)}, ${t(T.queConstruit)}`}
-                    </h1>
-                </div>
-                <div className="relative mx-auto max-w-3xl rounded-2xl border bg-card shadow-sm">
+            <section className="space-y-6 pt-6">
+                <h1 className="pb-2 text-center text-3xl font-semibold tracking-tight">
+                    {adresses.client
+                        ? `${t(T.titreClient)} ${adresses.nomDuClient ?? "…"} ?`
+                        : `${moi?.prenom ? `${t(T.bonjour)} ${moi.prenom}` : t(T.bonjour)}, ${t(T.queConstruit)}`}
+                </h1>
+                {/* Décision 19 : une grande saisie arrondie à ombre douce ; en bas Joindre, @, /, le mode, le modèle en pastille, Envoyer. */}
+                <div className="relative mx-auto max-w-3xl rounded-3xl border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.07)] dark:shadow-[0_8px_30px_rgb(0_0_0/0.4)]">
+                    {menuDeSaisie}
                     {choisi && (
-                        <div className="flex items-center gap-2 px-4 pt-3 text-xs text-muted-foreground">
-                            <Sparkles className="size-3.5 text-(--acc)" aria-hidden />
+                        <div className="flex items-center gap-2 px-5 pt-4 text-xs text-muted-foreground">
+                            <Sparkles className="size-3.5 text-foreground" aria-hidden />
                             {t(T.demarrage)} « {choisi.titre} »
                             <button type="button" className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted hover:font-semibold" onClick={() => setChoisi(null)}>
                                 <X className="size-3" /> {t(T.retirer)}
@@ -195,17 +209,19 @@ export function AccueilDuBuilder() {
                         </div>
                     )}
                     <textarea
+                        ref={zone}
                         value={saisie}
                         aria-label={t(T.ecrire)}
                         placeholder={t(T.ecrire)}
                         onChange={(e) => setSaisie(e.target.value)}
                         onKeyDown={(e) => {
+                            if (clavierDeSaisie(e)) return;
                             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void envoyer();
                         }}
-                        className="min-h-24 w-full resize-none bg-transparent px-5 pt-3 pb-2 text-[15px] outline-none placeholder:text-muted-foreground"
+                        className="min-h-28 w-full resize-none bg-transparent px-6 pt-5 pb-2 text-[15px] outline-none placeholder:text-muted-foreground"
                     />
                     {(besoinAgent || fichiers.length > 0) && (
-                        <div className="flex flex-wrap items-center gap-2 px-4 pb-2">
+                        <div className="flex flex-wrap items-center gap-2 px-5 pb-2">
                             {besoinAgent && (
                                 <span className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">{t(T.agent)}</span>
@@ -236,24 +252,33 @@ export function AccueilDuBuilder() {
                             ))}
                         </div>
                     )}
-                    <div className="flex items-center gap-2 px-3 pb-3">
+                    <div className="flex items-center gap-1 px-4 pb-4">
                         <input ref={entree} type="file" multiple accept=".txt,.md,.json,.csv,.html,text/*" className="hidden" onChange={(e) => void joindre(e.target.files)} />
                         <Button size="sm" variant="ghost" className="cursor-pointer gap-1.5" onClick={() => entree.current?.click()}>
                             <Paperclip className="size-4" /> {t(T.joindreCourt)}
                         </Button>
-                        {/* V2b : la ligne du modèle n'existe que si un modèle est réglé (jamais « - » ni un plafond sans modèle). */}
+                        <Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={t(T.citer)} title={t(T.citer)} data-signe="@" onClick={() => insererSigne("@")}>
+                            <AtSign className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={t(T.commandes)} title={t(T.commandes)} data-signe="/" onClick={() => insererSigne("/")}>
+                            <Slash className="size-4" />
+                        </Button>
+                        <SelecteurMode mode={mode} choisir={setMode} autorisations={[]} retirer={() => {}} agentOuvert={agentId} />
+                        {/* V2b : la pastille du modèle n'existe que si un modèle est réglé (jamais « - » ni un plafond sans modèle) ; le plafond est dans son infobulle. */}
                         {modele?.modele &&
                             (adresses.reglages ? (
-                                <Link href={adresses.reglages} className="text-xs text-muted-foreground hover:font-semibold">
-                                    {ligneDuModele}
+                                <Link href={adresses.reglages} title={ligneDuModele} className="mr-2 ml-auto inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:font-semibold">
+                                    {modele.modele}
                                 </Link>
                             ) : (
-                                <span className="text-xs text-muted-foreground">{ligneDuModele}</span>
+                                <span title={ligneDuModele} className="mr-2 ml-auto inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground">
+                                    {modele.modele}
+                                </span>
                             ))}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span className="ml-auto">
-                                    <Button size="icon" className="size-8 rounded-full" disabled={envoiFerme} aria-label={t(T.envoyer)} onClick={() => void envoyer()}>
+                                <span className={modele?.modele ? "" : "ml-auto"}>
+                                    <Button size="icon" className="size-9 rounded-full" disabled={envoiFerme} aria-label={t(T.envoyer)} onClick={() => void envoyer()}>
                                         <ArrowUp className="size-4" />
                                     </Button>
                                 </span>
@@ -263,6 +288,7 @@ export function AccueilDuBuilder() {
                     </div>
                     {ouvert && <FenetreFichier nom={ouvert.name} fichier={ouvert} fermer={() => setOuvert(null)} />}
                 </div>
+                {/* Décision 19 : l'avertissement MCP est une ligne douce sous la saisie, plus une carte pleine. */}
                 {ferme && <AvertissementClaudeCode className="mx-auto -mt-2 max-w-3xl" />}
                 {erreur && <p className="mx-auto max-w-3xl text-sm text-destructive">{erreur}</p>}
                 <div className="mx-auto max-w-3xl space-y-2">
@@ -275,15 +301,16 @@ export function AccueilDuBuilder() {
                                     type="button"
                                     data-demarrage={c.slug}
                                     onClick={() => choisirLaCarte(c)}
-                                    className={`cursor-pointer rounded-xl border bg-card p-4 text-left transition-[scale,box-shadow] duration-200 ease-out hover:shadow-md motion-safe:hover:scale-[1.02] ${choisi?.slug === c.slug ? "border-foreground" : ""}`}
+                                    className={`flex cursor-pointer flex-col items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50 ${choisi?.slug === c.slug ? "border-primary" : ""}`}
                                 >
-                                    <Icone
-                                        className="mb-3 size-5"
-                                        data-icone={c.icone}
-                                        style={{ color: `var(--demarrage-${c.icone in ICONES ? c.icone : "agent"})` }}
-                                    />
-                                    <span className="block text-sm font-medium">{c.titre}</span>
-                                    <span className="block text-xs text-muted-foreground">{c.phrase}</span>
+                                    {/* Tuiles monochromes (décision 19) : l'icône dans un petit cadre, à l'encre du texte. */}
+                                    <span className="flex size-8 items-center justify-center rounded-lg border">
+                                        <Icone className="size-4" data-icone={c.icone} aria-hidden />
+                                    </span>
+                                    <span>
+                                        <span className="block text-sm font-medium">{c.titre}</span>
+                                        <span className="block text-xs text-muted-foreground">{c.phrase}</span>
+                                    </span>
                                 </button>
                             );
                         })}
@@ -297,17 +324,12 @@ export function AccueilDuBuilder() {
                     )}
                 </div>
             </section>
-            <SectionAAmeliorer lien={adresses.aAmeliorer} />
-            <section>
-                <div className="flex items-center gap-2 pb-3">
-                    <MessageSquare className="size-4 text-muted-foreground" aria-hidden />
-                    <h2 className="text-base font-semibold">{t(T.chat)}</h2>
-                    <Link href={adresses.liste} className="ml-auto text-sm text-(--acc) hover:font-semibold">
-                        {t(T.toutVoir)}
-                    </Link>
-                </div>
-                <ListeDesFils limite={3} variante="accueil" />
-            </section>
+            {/* Sous la saisie (décision 19) : Reprendre, À améliorer en pastilles pâles, Mise en route avec sa barre vers « Prêt à publier ». */}
+            <div className="mx-auto max-w-3xl space-y-10 pt-6">
+                <ReprendreLesChats agents={nomsDesAgents} />
+                <SectionAAmeliorer lien={adresses.aAmeliorer} />
+                <MiseEnRoute agent={premierAgent} />
+            </div>
         </PageStudio>
     );
 }

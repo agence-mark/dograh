@@ -80,9 +80,9 @@ export function useEntreesDeSaisie(): { mentions: EntreeDeSaisie[]; commandes: E
 
 /**
  * Le menu et la prise en charge du clavier. ``clavier(e)`` rend vrai quand la touche a servi au menu (le composeur n'envoie pas).
- * ``poser`` remplace le texte du message.
+ * ``poser`` remplace le texte du message. ``sous`` : le menu s'ouvre SOUS la saisie (accueil du builder, décision 18), sinon au-dessus (fil).
  */
-export function useMenuSaisie(texte: string, poser: (t: string) => void, entrees: { mentions: EntreeDeSaisie[]; commandes: EntreeDeSaisie[] }) {
+export function useMenuSaisie(texte: string, poser: (t: string) => void, entrees: { mentions: EntreeDeSaisie[]; commandes: EntreeDeSaisie[] }, sous = false) {
     const { t } = useLangue();
     const [actif, setActif] = useState(0);
     const [ferme, setFerme] = useState("");
@@ -124,7 +124,7 @@ export function useMenuSaisie(texte: string, poser: (t: string) => void, entrees
     };
     const menu: ReactNode =
         ouvert && liste.length > 0 ? (
-            <div role="listbox" data-menu-saisie={mot?.signe} className="absolute bottom-full left-0 z-20 mb-2 max-h-80 w-[30rem] max-w-full overflow-auto rounded-xl border bg-popover p-1 shadow-lg">
+            <div role="listbox" data-menu-saisie={mot?.signe} className={`absolute left-0 z-20 max-h-80 w-[30rem] max-w-full overflow-auto rounded-xl border bg-popover p-1 shadow-lg ${sous ? "top-full mt-2" : "bottom-full mb-2"}`}>
                 {liste.map((e, i) => {
                     const I = e.icone;
                     const titre = i === 0 || liste[i - 1].groupe !== e.groupe;

@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * [.mark] Les jetons du nouveau design (U1) : bleu #3d8fe6, encre #0f1c2e, Switzer hébergée dans ui/public,
+ * [.mark] Les jetons du nouveau design (U1) : bleu #3d8fe6, encre #0f0f10, Switzer hébergée dans ui/public,
  * clair par défaut, aucune police ni script chargé d'un site tiers, jetons des marques dans les deux thèmes.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ const bloc = (selecteur: RegExp) => css().match(selecteur)?.[0] ?? "";
 describe("[.mark] jetons du studio", () => {
     it("le bleu et l'encre de la maquette", () => {
         const clair = bloc(/:root\s*\{[^}]*--primary:[^}]*\}/);
-        expect(clair).toMatch(/--primary:\s*#0f1c2e/);
+        expect(clair).toMatch(/--primary:\s*#0f0f10/);
         expect(clair).toMatch(/--acc:\s*#3d8fe6/);
         expect(clair).toMatch(/--radius:\s*0\.625rem/);
     });
