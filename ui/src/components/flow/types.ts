@@ -32,6 +32,7 @@ export type FlowNodeData = {
     pre_call_fetch_mode?: 'disabled' | 'always' | 'inbound' | 'outbound';
     pre_call_fetch_url?: string;
     pre_call_fetch_credential_uuid?: string;
+    pre_call_fetch_remplace?: string;
     // Trigger node specific
     trigger_path?: string;
     // Webhook node specific

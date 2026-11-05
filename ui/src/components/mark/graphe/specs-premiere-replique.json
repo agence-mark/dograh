@@ -1422,6 +1422,35 @@
         "pattern": null,
         "editor": null,
         "renderer_options": null
+      },
+      {
+        "name": "pre_call_fetch_remplace",
+        "type": "string",
+        "display_name": "Objects the lookup may replace",
+        "description": "Names of agent objects (comma-separated) that the pre-call lookup is allowed to replace. Empty = the lookup never replaces an agent object; each replacement is traced in the run.",
+        "llm_hint": "Object names, comma-separated. Leave empty unless the lookup must override an object.",
+        "default": null,
+        "required": false,
+        "placeholder": "brands, opening_hours",
+        "display_options": {
+          "show": {
+            "pre_call_fetch_mode": [
+              "always",
+              "inbound",
+              "outbound"
+            ]
+          },
+          "hide": null
+        },
+        "options": null,
+        "properties": null,
+        "min_value": null,
+        "max_value": null,
+        "min_length": null,
+        "max_length": null,
+        "pattern": null,
+        "editor": null,
+        "renderer_options": null
       }
     ],
     "examples": [

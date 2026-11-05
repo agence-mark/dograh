@@ -188,3 +188,10 @@ class StartCall(TypedNode):
     Optional credential attached to the pre-call request.
     """
 
+    pre_call_fetch_remplace: Optional[str] = None
+    """
+    Names of agent objects (comma-separated) that the pre-call lookup is
+    allowed to replace. Empty = the lookup never replaces an agent object;
+    each replacement is traced in the run.
+    """
+

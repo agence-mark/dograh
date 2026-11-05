@@ -129,6 +129,12 @@ export interface StartCall {
      * LLM hint: Credential UUID from `list_credentials`.
      */
     pre_call_fetch_credential_uuid?: string;
+    /**
+     * Names of agent objects (comma-separated) that the pre-call lookup is allowed to replace. Empty = the lookup never replaces an agent object; each replacement is traced in the run.
+     *
+     * LLM hint: Object names, comma-separated. Leave empty unless the lookup must override an object.
+     */
+    pre_call_fetch_remplace?: string;
 }
 
 /** Factory — sets `type` for you so you don't repeat the discriminator. */
