@@ -57,6 +57,7 @@ from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
 from api.routes.groupe import router as groupe_router
 from api.routes.reglages_agent import router as reglages_agent_router
+from api.routes.automatisation import router as automatisation_router
 from api.routes.knowledge_base import router as knowledge_base_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
@@ -97,6 +98,7 @@ router.include_router(reglages_agent_router)
 router.include_router(builder_router)
 router.include_router(outils_versions_router)  # [.mark] partie 3, SA-L3d : versions des outils
 router.include_router(branches_router)  # [.mark] partie 3, SA-L3b : branches d'agent et répartition du trafic
+router.include_router(automatisation_router)  # [.mark] partie 3, N3b : les tests d'un agent lancés par n8n (clé de l'organisation)
 router.include_router(installation_client_router)  # [.mark] partie 3, sous-lot 9 : « Nouveau client » qui installe vraiment
 router.include_router(builder_publication_router)  # [.mark] U11 : fenetre Publier, attaques
 router.include_router(builder_alertes_router)  # [.mark] partie 3, sous-lot 6 : alertes d'agent et rejeu planifié

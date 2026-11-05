@@ -61,7 +61,7 @@ def test_les_permissions_citees_existent_et_les_16_servent():
         r.decision.cle for r in registre.REGLES if isinstance(r.decision, registre.Permission)
     }
     assert citees <= set(PERMISSIONS), citees - set(PERMISSIONS)
-    assert len(PERMISSIONS) == 19  # lot 15 (P-6) : « relation.ecrire » est la 16e ; 17a : « connecteurs.autoriser » et « base_client.connexion_portail » ; SA-17c : « contacts.traiter »
+    assert len(PERMISSIONS) == 20  # N3b : « tests.automatiser » ; lot 15 (P-6) : « relation.ecrire » est la 16e ; 17a : « connecteurs.autoriser » et « base_client.connexion_portail » ; SA-17c : « contacts.traiter »
     # Aucune permission livrée ne reste sans route qui l'exige, hors celles des écrans à venir (portail, export, équipe).
     orphelines = set(PERMISSIONS) - citees
     attendues_plus_tard = {

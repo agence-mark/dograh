@@ -30,6 +30,8 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     "base_client.connexion_portail": ("Clés", "Ouvrir l'accès du portail à la base du client"),
     # Partie 3, SA-17c : fusionner deux contacts, « ce n'est pas la même personne », « ne pas mémoriser » (ouverte à la clé du client).
     "contacts.traiter": ("Clients", "Traiter les contacts d'un client (fusionner, séparer, ne pas mémoriser)"),
+    # Partie 3, N3b (décision 20) : lancer la suite de tests d'un agent depuis une automatisation (n8n), avec la clé de l'organisation.
+    "tests.automatiser": ("Tests", "Lancer les tests d'un agent depuis une automatisation"),
 }
 
 # Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
@@ -42,6 +44,7 @@ PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
         "connecteurs.autoriser",
         "base_client.connexion_portail",
         "contacts.traiter",
+        "tests.automatiser",  # N3b : seulement les deux routes /automatisation/agents/{id}/tests (jamais tests.jouer, qui ouvre les appels réels)
     }
 )
 

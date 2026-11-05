@@ -195,6 +195,8 @@ REGLES: tuple[Regle, ...] = (
     _r({"POST"}, r"^/organizations/base-client/connexion-portail$", P("base_client.connexion_portail")),
     # Partie 3, SA-17c : les trois gestes des contacts du portail (la clé du client les porte, l'organisation est celle de la clé).
     _r({"POST", "PUT"}, r"^/organizations/contacts/\{contact_id\}/(fusionner|separer|memoriser)$", P("contacts.traiter")),
+    # Partie 3, N3b (décision 20) : les tests d'un agent lancés par n8n avec la clé de l'organisation (lancer, relire le dernier résultat).
+    _r({"POST", "GET"}, r"^/automatisation/agents/\{workflow_id\}/tests/(lancer|dernier)$", P("tests.automatiser")),
     _r(ECRITURE, r"^/organizations/modeles-de-reglages(/.*)?$", P("atelier.regler")),  # RA-A (R2) : outil de l'équipe, au Labo
     _r(ECRITURE, r"^/organizations/(base-client|conservation-appels|fenetre-du-run)(/.*)?$", P("atelier.regler")),
     _r(ECRITURE, r"^/organizations/agents-servis/rattachement$", P("clients.exporter_ramener")),
