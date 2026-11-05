@@ -1,296 +1,225 @@
 "use client";
 
 /**
- * [.mark] U9 : l'accueil d'un client (`/clients/<org>`), repris de la maquette (`app/clients/[org]/page.tsx`) : ses agents, ses
- * branchements (base, après-appel, intégrations, téléphonie, clés) et ce qui reste à améliorer. Chaque ligne vient d'une route
- * réelle de CE client (l'organisation est celle de l'adresse) ; une lecture qui échoue se dit « illisible », jamais un état inventé.
+ * [.mark] Partie 3, L5b (décision 16 de l'audit) : l'accueil d'un client est une PAGE DE PILOTAGE pour l'équipe .mark (le client ne
+ * voit jamais Dograh). Colonne principale : « À faire maintenant », les chiffres de la période (7 jours par défaut), les motifs
+ * d'appel, les agents ; un client pas encore en service montre sa liste d'installation à la place des chiffres. Colonne de droite :
+ * les branchements (repliés si tout va bien), « Relation client » en petit, l'activité récente.
+ *
+ * Aucun chiffre n'est compté ici : une route assemble (`/vues-equipe/pilotage/<client>`, les calculs de Qualité, des alertes, de
+ * « Prêt à publier » et des branches) et la page l'affiche. Les branchements restent lus sur leurs routes d'avant, toutes en
+ * parallèle avec la route de pilotage ; les intégrations à reconnecter viennent de la même lecture des connexions (une seule
+ * lecture par donnée). Une lecture qui échoue se dit « illisible », jamais un état inventé.
  * « Ouvrir son portail » reste affiché désactivé, avec sa raison, tant que le portail n'existe pas.
  */
-import { AudioLines, Check, Circle, Database, ExternalLink, Inbox, KeyRound, Phone, PhoneIncoming, Plug, Star, Workflow, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-    chiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGet,
     getApresAppelApiV1OrganizationsApresAppelGet,
     getBaseClientApiV1OrganizationsBaseClientGet,
     getConnexionsApiV1ConnecteursConnexionsGet,
-    getWorkflowsSummaryApiV1WorkflowSummaryGet,
     listerLesClesApiV1ClesGet,
     listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet,
-    lireLaFileDeTriApiV1TriGet,
+    pilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGet,
 } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
-import { BandeChiffres } from "@/components/mark/qualite/BandeChiffres";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { NouveauClient } from "@/components/mark/studio/selecteur-espace";
 import { useNomEspace } from "@/components/mark/studio/nom-espace";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
-const T = {
-    portail: { en: "Open its portal", fr: "Ouvrir son portail" },
-    portailRaison: {
-        en: "The portal does not exist yet.",
-        fr: "Le portail n'existe pas encore.",
-    },
-    agents: { en: "Agents", fr: "Agents" },
-    tous: { en: "All", fr: "Tous" },
-    aucunAgent: { en: "No agent", fr: "Aucun agent" },
-    branchements: { en: "Connections", fr: "Branchements" },
-    base: { en: "Client database", fr: "Base du client" },
-    apresAppel: { en: "After-call", fr: "Après-appel" },
-    integrations: { en: "Integrations", fr: "Intégrations" },
-    telephonie: { en: "Telephony", fr: "Téléphonie" },
-    cles: { en: "Keys", fr: "Clés" },
-    aAmeliorer: { en: "To improve", fr: "À améliorer" },
-    rienAAmeliorer: { en: "Nothing to improve", fr: "Rien à améliorer" },
-    illisible: { en: "unreadable", fr: "illisible" },
-    pasRattachee: { en: "not attached", fr: "non rattachée" },
-    injoignable: { en: "unreachable", fr: "injoignable" },
-    rattachee: { en: "attached", fr: "rattachée" },
-    nonRegle: { en: "not set", fr: "non réglé" },
-    regle: { en: "set", fr: "réglé" },
-    aucune: { en: "none", fr: "aucune" },
-    aucun: { en: "none", fr: "aucun" },
-    connexions: { en: "connection(s)", fr: "connexion(s)" },
-    configurations: { en: "configuration(s)", fr: "configuration(s)" },
-    cle: { en: "key(s)", fr: "clé(s)" },
-    points: { en: "point(s) waiting", fr: "point(s) en attente" },
-    chargement: { en: "Loading…", fr: "Lecture…" },
-    appels7j: { en: "Calls in 7 days", fr: "Appels sur 7 jours" },
-    tousAgents: { en: "all agents", fr: "tous agents" },
-    noteJuge: { en: "Judge score", fr: "Note du juge" },
-    surCinq: { en: "out of 5", fr: "sur 5" },
-    aucunAppelNote: { en: "no scored call yet", fr: "aucun appel noté" },
-    dontGraves: { en: "of which serious", fr: "dont graves" },
-    aucunPoint: { en: "none", fr: "aucun" },
-} satisfies Record<string, Texte>;
+import { ActiviteRecente, type Branchement, Branchements, RelationCompacte } from "./pilotage/ColonneDroite";
+import { type ConnexionALire, blocsIllisibles, construireAFaire } from "./pilotage/a-faire";
+import { ALaFaire, Agents, ChiffresDeLaPeriode, ListeInstallation, Motifs, SelecteurPeriode } from "./pilotage/Blocs";
+import { T, texte } from "./pilotage/textes";
+import { PERIODE_PAR_DEFAUT, type Periode, type PilotageClient } from "./pilotage/types";
 
-type Etat = { fait: boolean; texte: string } | "illisible" | null;
-type Ligne = {
-    id: string;
-    icone: LucideIcon;
-    titre: Texte;
-    suite: string;
-    etat: Etat;
-};
+type Lecture<D> = { data?: D; error?: unknown };
+const illisible = (l: Lecture<unknown>) => Boolean(l.error) || !l.data;
+
+/** Les cinq branchements, lus sur les routes de CE client : ce qui va bien, ce qu'il faut régler, et où. */
+export function brancher(
+    t: (x: Texte) => string,
+    lus: {
+        base: Lecture<{ nom_base?: string | null; joignable?: boolean | null }>;
+        apres: Lecture<{ base_rattachee: boolean }>;
+        connexions: Lecture<{ connexions?: ConnexionALire[] }>;
+        telephonie: Lecture<{ configurations: unknown[] }>;
+        cles: Lecture<unknown[]>;
+    },
+): Branchement[] {
+    const nb = (n: number, mot: Texte) => (n > 0 ? `${n} ${t(mot)}` : t(T.aucune));
+    const lignes: Branchement[] = [];
+    const { base, apres, connexions, telephonie, cles } = lus;
+    lignes.push({
+        id: "base",
+        titre: T.base,
+        vers: "base",
+        ...(illisible(base)
+            ? { ok: false, etat: t(T.illisible) }
+            : base.data?.nom_base
+              ? { ok: base.data.joignable !== false, etat: `${base.data.nom_base} · ${base.data.joignable === false ? t(T.injoignable) : t(T.rattachee)}` }
+              : { ok: false, etat: t(T.pasRattachee) }),
+    });
+    lignes.push({
+        id: "apres-appel",
+        titre: T.apresAppel,
+        vers: "base",
+        ...(illisible(apres) ? { ok: false, etat: t(T.illisible) } : { ok: Boolean(apres.data?.base_rattachee), etat: apres.data?.base_rattachee ? t(T.regle) : t(T.nonRegle) }),
+    });
+    const liste = connexions.data?.connexions ?? [];
+    const casses = liste.filter((c) => (c.erreurs ?? 0) > 0).length;
+    lignes.push({
+        id: "integrations",
+        titre: T.integrations,
+        vers: "integrations",
+        ...(illisible(connexions)
+            ? { ok: false, etat: t(T.illisible) }
+            : { ok: casses === 0, etat: casses > 0 ? t(texte(T.aReconnecterN, casses)) : nb(liste.length, T.connexions) }),
+    });
+    lignes.push({
+        id: "telephonie",
+        titre: T.telephonie,
+        vers: "telephonie",
+        ...(illisible(telephonie)
+            ? { ok: false, etat: t(T.illisible) }
+            : { ok: (telephonie.data?.configurations.length ?? 0) > 0, etat: nb(telephonie.data?.configurations.length ?? 0, T.configurations) }),
+    });
+    lignes.push({
+        id: "cles",
+        titre: T.cles,
+        vers: "modeles",
+        ...(illisible(cles) ? { ok: false, etat: t(T.illisible) } : { ok: (cles.data?.length ?? 0) > 0, etat: nb(cles.data?.length ?? 0, T.cle) }),
+    });
+    return lignes;
+}
 
 export default function AccueilClient() {
     const { t } = useLangue();
     const { org } = useParams<{ org: string }>();
     const { user, loading: authLoading } = useAuth();
     const nom = useNomEspace("client", org ?? null);
-    const [agents, setAgents] = useState<{ id: number; name: string }[] | null>(null);
-    const [erreurAgents, setErreurAgents] = useState(false);
-    const [lignes, setLignes] = useState<Ligne[]>([]);
-    const [aAmeliorer, setAAmeliorer] = useState<number | "illisible" | null>(null);
-    // O-1 : les chiffres de CE client (appels des 7 jours, note du juge), lus sur le serveur ; jamais un chiffre inventé.
-    const [graves, setGraves] = useState(0);
-    const [chiffres, setChiffres] = useState<{ appels: number; note: number | null; publies: number } | "illisible" | null>(null);
+    const [periode, setPeriode] = useState<Periode>(PERIODE_PAR_DEFAUT);
+    const [pilotage, setPilotage] = useState<PilotageClient | null>(null);
+    const [erreur, setErreur] = useState(false);
+    const [enCours, setEnCours] = useState(false);
+    const [connexions, setConnexions] = useState<ConnexionALire[] | null>(null);
+    const [branchements, setBranchements] = useState<Branchement[] | null>(null);
+    const [installation, setInstallation] = useState(false);
+    const dernier = useRef(0);
+    const dejaLu = useRef(false);
 
+    const lirePilotage = useCallback(
+        async (p: Periode) => {
+            const ce = ++dernier.current;
+            setEnCours(true);
+            const r = await pilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGet({ path: { organization_id: Number(org) }, query: { periode: p } });
+            if (ce !== dernier.current) return; // une période plus récente a été demandée
+            setEnCours(false);
+            if (r.error || !r.data) setErreur(true);
+            else {
+                setErreur(false);
+                setPilotage(r.data);
+            }
+        },
+        [org],
+    );
+
+    // Les branchements et la route de pilotage partent ensemble, une seule fois chacun ; seul un changement de période relit le pilotage.
     useEffect(() => {
-        if (authLoading || !user) return;
-        let vivant = true;
-        // Une seule fois chaque lecture, toutes en parallèle (jamais en chaîne).
+        if (authLoading || !user || dejaLu.current) return;
+        dejaLu.current = true;
         void (async () => {
-            const [ag, base, apres, connexions, telephonie, cles, tri, chiffresLus] = await Promise.all([
-                getWorkflowsSummaryApiV1WorkflowSummaryGet(),
+            const [, base, apres, lesConnexions, telephonie, cles] = await Promise.all([
+                lirePilotage(PERIODE_PAR_DEFAUT),
                 getBaseClientApiV1OrganizationsBaseClientGet(),
                 getApresAppelApiV1OrganizationsApresAppelGet(),
                 getConnexionsApiV1ConnecteursConnexionsGet(),
                 listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet(),
                 listerLesClesApiV1ClesGet(),
-                lireLaFileDeTriApiV1TriGet(),
-                chiffresDUnClientApiV1RelationClientsOrganizationIdChiffresGet({ path: { organization_id: Number(org) } }),
             ]);
-            if (!vivant) return;
-            setChiffres(chiffresLus.error || !chiffresLus.data ? "illisible" : { appels: chiffresLus.data.appels_7j, note: chiffresLus.data.note_juge ?? null, publies: chiffresLus.data.agents_publies });
-            setGraves(tri.data ? tri.data.lignes.filter((l) => (l as { gravite?: number }).gravite === 3).length : 0);
-            if (ag.error || !Array.isArray(ag.data)) setErreurAgents(true);
-            else setAgents(ag.data);
-            setAAmeliorer(tri.error || !tri.data ? "illisible" : tri.data.lignes.length);
-            const nb = (n: number, mot: Texte): Etat => ({
-                fait: n > 0,
-                texte: n > 0 ? `${n} ${t(mot)}` : t(T.aucune),
-            });
-            setLignes([
-                {
-                    id: "base",
-                    icone: Database,
-                    titre: T.base,
-                    suite: "base",
-                    etat:
-                        base.error || !base.data
-                            ? "illisible"
-                            : base.data.nom_base
-                              ? {
-                                    fait: base.data.joignable !== false,
-                                    texte: `${base.data.nom_base} · ${base.data.joignable === false ? t(T.injoignable) : t(T.rattachee)}`,
-                                }
-                              : { fait: false, texte: t(T.pasRattachee) },
-                },
-                {
-                    id: "apres-appel",
-                    icone: Workflow,
-                    titre: T.apresAppel,
-                    suite: "base",
-                    etat:
-                        apres.error || !apres.data
-                            ? "illisible"
-                            : {
-                                  fait: apres.data.base_rattachee,
-                                  texte: apres.data.base_rattachee ? t(T.regle) : t(T.nonRegle),
-                              },
-                },
-                {
-                    id: "integrations",
-                    icone: Plug,
-                    titre: T.integrations,
-                    suite: "integrations",
-                    etat: connexions.error || !connexions.data ? "illisible" : nb(connexions.data.connexions?.length ?? 0, T.connexions),
-                },
-                {
-                    id: "telephonie",
-                    icone: Phone,
-                    titre: T.telephonie,
-                    suite: "telephonie",
-                    etat: telephonie.error || !telephonie.data ? "illisible" : nb(telephonie.data.configurations.length, T.configurations),
-                },
-                {
-                    id: "cles",
-                    icone: KeyRound,
-                    titre: T.cles,
-                    suite: "modeles",
-                    etat: cles.error || !cles.data ? "illisible" : nb(cles.data.length, T.cle),
-                },
-            ]);
+            setConnexions(illisible(lesConnexions) ? [] : (lesConnexions.data?.connexions ?? []));
+            setBranchements(brancher(t, { base, apres, connexions: lesConnexions, telephonie, cles }));
         })();
-        return () => {
-            vivant = false;
-        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authLoading, user]);
 
+    const changerPeriode = (p: Periode) => {
+        setPeriode(p);
+        void lirePilotage(p);
+    };
+
     const base = `/clients/${org}`;
+    const items = useMemo(() => construireAFaire(pilotage, connexions), [pilotage, connexions]);
+    const enService = pilotage?.en_service ?? true;
+
     return (
         <PageStudio>
-            <>
+            <div className="@container space-y-8">
                 <TitrePage
                     titre={nom ?? "…"}
+                    info={pilotage ? t(pilotage.en_service ? T.enService : T.enInstallation) : undefined}
                     action={
-                        <Button variant="outline" size="sm" disabled title={t(T.portailRaison)}>
-                            <ExternalLink className="size-3.5" /> {t(T.portail)}
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {pilotage?.en_service && <SelecteurPeriode valeur={periode} changer={changerPeriode} />}
+                            <Button variant="outline" size="sm" disabled title={t(T.portailRaison)}>
+                                <ExternalLink className="size-3.5" /> {t(T.portail)}
+                            </Button>
+                        </div>
                     }
                 />
 
-                {/* O-1 : la bande de chiffres de la maquette, pour un client en service (au moins un agent publié). */}
-                {chiffres !== null && (chiffres === "illisible" || chiffres.publies > 0) && (
-                    <div data-testid="bande-du-client">
-                        <BandeChiffres
-                            colonnes={3}
-                            chiffres={[
-                                {
-                                    icone: PhoneIncoming,
-                                    libelle: t(T.appels7j),
-                                    valeur: chiffres === "illisible" ? "–" : String(chiffres.appels),
-                                    phrase: chiffres === "illisible" ? t(T.illisible) : t(T.tousAgents),
-                                },
-                                {
-                                    icone: Star,
-                                    libelle: t(T.noteJuge),
-                                    valeur: chiffres === "illisible" || chiffres.note === null ? "–" : t({ en: String(chiffres.note), fr: String(chiffres.note).replace(".", ",") }),
-                                    phrase: chiffres === "illisible" ? t(T.illisible) : chiffres.note === null ? t(T.aucunAppelNote) : t(T.surCinq),
-                                },
-                                {
-                                    icone: Inbox,
-                                    libelle: t(T.aAmeliorer),
-                                    valeur: typeof aAmeliorer === "number" ? String(aAmeliorer) : "–",
-                                    phrase: typeof aAmeliorer !== "number" ? t(T.illisible) : aAmeliorer === 0 ? t(T.aucunPoint) : `${t(T.dontGraves)} : ${graves}`,
-                                },
-                            ]}
-                        />
+                {erreur && pilotage === null ? (
+                    <EtatVide cas="erreur" reessayer={() => void lirePilotage(periode)} />
+                ) : (
+                    <div className="grid gap-x-10 gap-y-10 @4xl:grid-cols-[minmax(0,1fr)_288px]">
+                        <div className={`min-w-0 space-y-10 ${enCours && pilotage ? "opacity-70" : ""}`} aria-busy={enCours}>
+                            <ALaFaire
+                                items={items}
+                                illisibles={blocsIllisibles(pilotage)}
+                                chargement={pilotage === null || connexions === null}
+                                base={base}
+                                reprendre={() => setInstallation(true)}
+                                reessayer={() => void lirePilotage(periode)}
+                            />
+                            {pilotage === null ? (
+                                <EtatVide cas="chargement" lignes={3} />
+                            ) : (
+                                <>
+                                    {enService ? (
+                                        <>
+                                            <ChiffresDeLaPeriode pilotage={pilotage} periode={periode} base={base} />
+                                            <Motifs motifs={pilotage.motifs} jours={pilotage.jours} base={base} />
+                                        </>
+                                    ) : (
+                                        <ListeInstallation pilotage={pilotage} reprendre={() => setInstallation(true)} />
+                                    )}
+                                    <Agents agents={pilotage.agents} base={base} />
+                                </>
+                            )}
+                        </div>
+
+                        <aside className="min-w-0 space-y-8">
+                            <Branchements branchements={branchements} base={base} />
+                            <RelationCompacte pilotage={pilotage} org={org} />
+                            <ActiviteRecente pilotage={pilotage} />
+                        </aside>
                     </div>
                 )}
-
-                <section>
-                    <div className="flex items-center pb-3">
-                        <p className="flex-1 text-base font-semibold">{t(T.agents)}</p>
-                        <Link href={`${base}/agents`} className="text-sm text-(--acc) hover:font-semibold">
-                            {t(T.tous)}
-                        </Link>
-                    </div>
-                    {erreurAgents ? (
-                        <EtatVide cas="erreur" reessayer={() => window.location.reload()} />
-                    ) : agents === null ? (
-                        <EtatVide cas="chargement" lignes={2} />
-                    ) : agents.length === 0 ? (
-                        <EtatVide cas="premier" icone={AudioLines} titre={t(T.aucunAgent)} />
-                    ) : (
-                        <ul className="divide-y">
-                            {agents.map((a) => (
-                                <li key={a.id} className="flex items-center gap-3 py-3 text-sm">
-                                    <AudioLines className="size-4 text-muted-foreground" />
-                                    <Link href={`/agents/${a.id}`} className="flex-1 hover:font-semibold">
-                                        {a.name}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </section>
-
-                <section>
-                    <p className="pb-3 text-base font-semibold">{t(T.branchements)}</p>
-                    <ul className="divide-y">
-                        {lignes.length === 0 && <li className="py-3 text-sm text-muted-foreground">{t(T.chargement)}</li>}
-                        {lignes.map((l) => {
-                            const Icone = l.icone;
-                            const ok = l.etat !== null && l.etat !== "illisible" && l.etat.fait;
-                            return (
-                                <li key={l.id} data-branchement={l.id} className="flex items-center gap-3 py-3 text-sm">
-                                    <Icone className="size-4 text-muted-foreground" />
-                                    <Link href={`${base}/${l.suite}`} className="flex-1 hover:font-semibold">
-                                        {t(l.titre)}
-                                    </Link>
-                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        {l.etat === "illisible" ? t(T.illisible) : l.etat?.texte}
-                                        {ok ? (
-                                            <Check className="size-4 text-(--point-publie)" />
-                                        ) : (
-                                            <Circle className="size-4 text-muted-foreground/40" />
-                                        )}
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </section>
-
-                <section>
-                    <div className="flex items-center pb-3">
-                        <p className="flex-1 text-base font-semibold">{t(T.aAmeliorer)}</p>
-                        <Link href={`${base}/a-ameliorer`} className="text-sm text-(--acc) hover:font-semibold">
-                            {t(T.tous)}
-                        </Link>
-                    </div>
-                    {aAmeliorer === null ? (
-                        <EtatVide cas="chargement" lignes={1} />
-                    ) : aAmeliorer === "illisible" ? (
-                        <EtatVide cas="erreur" reessayer={() => window.location.reload()} />
-                    ) : aAmeliorer === 0 ? (
-                        <EtatVide cas="fait" titre={t(T.rienAAmeliorer)} />
-                    ) : (
-                        <p className="flex items-center gap-3 py-3 text-sm">
-                            <Inbox className="size-4 text-muted-foreground" />
-                            {aAmeliorer} {t(T.points)}
-                        </p>
-                    )}
-                </section>
-            </>
+            </div>
+            <NouveauClient
+                ouvert={installation}
+                onOuvert={(o) => {
+                    setInstallation(o);
+                    if (!o) void lirePilotage(periode);
+                }}
+                organisationAReprendre={Number(org)}
+            />
         </PageStudio>
     );
 }
