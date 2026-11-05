@@ -63,7 +63,9 @@ async def executer(session, appliquer: bool, sauvegarde: Path | None) -> list[di
     if appliquer and touchees:
         if sauvegarde is None:
             raise ValueError("--appliquer exige --sauvegarde")
-        sauvegarde.write_text(json.dumps(touchees, ensure_ascii=False, indent=1), encoding="utf-8")
+        # RV (point 10) : création exclusive, une sauvegarde qui existe déjà n'est jamais écrasée.
+        with sauvegarde.open("x", encoding="utf-8") as sortie:
+            sortie.write(json.dumps(touchees, ensure_ascii=False, indent=1))
         for t in touchees:
             await session.execute(
                 text(f"UPDATE {table_sure(t['table'])} SET workflow_configurations = CAST(:c AS json) WHERE id = :i"),  # noqa: S608
@@ -85,6 +87,8 @@ async def main() -> None:
     args = lecteur.parse_args()
     if args.appliquer and not args.sauvegarde:
         raise SystemExit("--appliquer exige --sauvegarde <fichier.json>")
+    if args.appliquer and Path(args.sauvegarde).exists():
+        raise SystemExit("--sauvegarde: ce fichier existe déjà, choisir un nouveau nom (il garde l'état d'avant d'une autre passe)")
     from api.db import db_client
 
     async with db_client.async_session() as session:

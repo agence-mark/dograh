@@ -306,8 +306,11 @@ def _dict(valeur: Any, fichier: str) -> dict[str, Any]:
     return valeur
 
 
-async def _correspondance_des_outils(organisation: int, outils: list[dict[str, Any]], avertissements: list[dict[str, Any]]) -> dict[str, str | None]:
-    """``uuid de l'export -> uuid de l'outil de CETTE organisation`` : le même identifiant s'il existe ici, sinon l'outil du même nom ; sinon rien."""
+async def _correspondance_des_outils(
+    organisation: int, outils: list[dict[str, Any]], avertissements: list[dict[str, Any]]
+) -> tuple[dict[str, str | None], set[str]]:
+    """``uuid de l'export -> uuid de l'outil de CETTE organisation`` : le même identifiant s'il existe ici, sinon l'outil du même nom ; sinon rien.
+    Rend aussi les uuid des outils de cette organisation : un identifiant d'outil qui n'en fait pas partie n'est jamais gardé (revue RV, point 7)."""
     ici = await db_client.get_tools_for_organization(organisation)
     par_uuid = {t.tool_uuid for t in ici}
     par_nom = {t.name: t.tool_uuid for t in ici}
@@ -319,7 +322,7 @@ async def _correspondance_des_outils(organisation: int, outils: list[dict[str, A
         sortie[o["uuid"]] = cible
         if cible is None:
             avertissements.append({"code": "outil_absent", "nom": o.get("nom")})
-    return sortie
+    return sortie, par_uuid
 
 
 async def construire_le_plan(organisation: int, workflow_id: int, fichiers: dict[str, str]) -> Plan:
@@ -339,11 +342,16 @@ async def construire_le_plan(organisation: int, workflow_id: int, fichiers: dict
         avertissements.append({"code": "secrets_ignores", "nombre": a + b + c})
 
     # Les outils : l'identifiant de l'export devient celui de l'outil de cette organisation (sinon l'étape perd la référence, dite).
-    correspondance = await _correspondance_des_outils(organisation, outils, avertissements)
+    correspondance, outils_d_ici = await _correspondance_des_outils(organisation, outils, avertissements)
     for noeud in _noeuds(graphe):
         donnees = noeud.get("data")
         if isinstance(donnees, dict) and isinstance(donnees.get("tool_uuids"), list):
-            donnees["tool_uuids"] = [correspondance.get(u, u) for u in donnees["tool_uuids"] if correspondance.get(u, u)]
+            gardes = [correspondance.get(u, u) for u in donnees["tool_uuids"]]
+            # RV (point 7) : un identifiant que l'export ne décrit pas (ou d'une autre organisation) n'est gardé que s'il est un outil d'ICI.
+            retires = [u for u in gardes if u and u not in outils_d_ici]
+            donnees["tool_uuids"] = [u for u in gardes if u and u in outils_d_ici]
+            if retires:
+                avertissements.append({"code": "outil_absent", "nom": f"{len(retires)} tool(s) not in this organization"})
     epingles = {
         correspondance[o["uuid"]]: int(o["version"])
         for o in outils

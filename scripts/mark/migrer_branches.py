@@ -118,7 +118,9 @@ async def executer(session, appliquer: bool, sauvegarde: Path | None) -> list[di
             )
         ).mappings().first()
         avant.append({**fait, "principale_avant": dict(principale) if principale else None})
-    sauvegarde.write_text(json.dumps({"faits": faits, "avant": avant}, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    # RV (point 10) : « x » = création exclusive, un fichier de sauvegarde qui existe déjà n'est jamais écrasé (l'état d'avant d'une autre passe).
+    with sauvegarde.open("x", encoding="utf-8") as sortie:
+        sortie.write(json.dumps({"faits": faits, "avant": avant}, ensure_ascii=False, indent=1, default=str))
 
     for fait in faits:
         if fait["genre"] == "principale":
@@ -185,6 +187,8 @@ def main() -> int:
     arguments = analyseur.parse_args()
     if arguments.appliquer and arguments.sauvegarde is None:
         analyseur.error("--appliquer exige --sauvegarde")
+    if arguments.appliquer and arguments.sauvegarde.exists():
+        analyseur.error("--sauvegarde: ce fichier existe déjà, choisir un nouveau nom (il garde l'état d'avant d'une autre passe)")
     return asyncio.run(_principal(arguments.appliquer, arguments.sauvegarde))
 
 

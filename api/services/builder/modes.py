@@ -48,6 +48,13 @@ SANS_DEMANDER: dict[str, frozenset[str]] = {
 SUR_L_AGENT_OUVERT: frozenset[str] = frozenset({"brouillon", "reglages", "publication", "autre_agent"})
 # Fermées à la porte Claude Code tant qu'elle n'a pas de mode de chat (aucune de ses actions d'aujourd'hui n'y est).
 HORS_PORTE_MCP: frozenset[str] = frozenset({"publication", "appels_reels", "irreversible"})
+# RV (point 5) : les rejeux qui dépensent la clé de l'organisation (suite de tests, attaques) se décident à l'écran, avec une carte d'accord ; jamais
+# par Claude Code, où la porte n'a pas de carte. Le reste de la famille « dépense » (``test_demarrer``, ``test_tour``, ``test_finir``) est l'appelant
+# simulé joué PAR Claude Code (instructions du serveur MCP) : il reste à la porte.
+DEPENSES_HORS_PORTE_MCP: frozenset[str] = frozenset({"tests_rejouer", "attaques_lancer", "attaques_rejouer"})
+# RV (point 4) : ces actions portent sur un objet de l'ORGANISATION (un outil, un nouvel agent), jamais sur « l'agent ouvert » : hors de
+# « Tout permettre », elles demandent une carte même si une famille passe sur l'agent ouvert.
+OBJETS_D_ORGANISATION: frozenset[str] = frozenset({"create_workflow", "create_tool", "outil_modifier"})
 
 DEMANDES_MAX = 200
 ARGUMENTS_MONTRES_MAX = 1500
@@ -147,11 +154,13 @@ async def _dans_le_groupe_de_l_agent_ouvert(contexte, cible: int | None) -> bool
     return cible in ids
 
 
-async def _passe_par_le_mode(mode: str, famille: str, arguments: dict[str, Any], contexte) -> bool:
+async def _passe_par_le_mode(mode: str, famille: str, arguments: dict[str, Any], contexte, nom: str = "") -> bool:
     if famille not in SANS_DEMANDER[mode]:
         return False
     if mode == "tout" or famille not in SUR_L_AGENT_OUVERT:
         return True
+    if nom in OBJETS_D_ORGANISATION:
+        return False
     cible = cible_agent(arguments, contexte)
     if cible == contexte.workflow_id:
         return True
@@ -241,7 +250,7 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
     famille = action.famille or "irreversible"
     contexte.autorisation = None
     if contexte.porte == PORTE_MCP:
-        if famille in HORS_PORTE_MCP:
+        if famille in HORS_PORTE_MCP or action.nom in DEPENSES_HORS_PORTE_MCP:
             return {
                 "ok": False,
                 "code": "porte_mcp",
@@ -275,7 +284,7 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
         contexte.autorisation = "depense"
         contexte.accord_donne = True  # l'accord est déjà consommé : ``consommer_un_accord`` n'en prend pas un second
         return None
-    autorisation = "mode" if await _passe_par_le_mode(mode, famille, arguments, contexte) else _autorisation_existante(conversation, action.nom, arguments, contexte)
+    autorisation = "mode" if await _passe_par_le_mode(mode, famille, arguments, contexte, action.nom) else _autorisation_existante(conversation, action.nom, arguments, contexte)
     if autorisation:
         contexte.autorisation = autorisation  # N1 (sous-lot 4) : le journal dit comment la permission a été donnée
         if famille == "depense":

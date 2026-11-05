@@ -198,7 +198,8 @@ class MarkGradiumTTSService(GradiumTTSService):
             except asyncio.CancelledError:
                 raise
             except Exception as erreur:  # noqa: BLE001
-                logger.warning(f"{self}: veille de session Gradium : {erreur!r}")
+                # RV (R1) : une veille qui casse (symbole de Pipecat renommé) ne se tait jamais.
+                logger.error(f"{self}: veille de session Gradium : {erreur!r}")
 
     async def _arreter_la_veille(self):
         if self._tache_de_veille is not None:

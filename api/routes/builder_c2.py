@@ -162,6 +162,7 @@ async def repondre_a_une_depense(
     from api.routes import builder as routes_builder
 
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="A sub-agent receives no message.")
     if service_fil.en_cours(fil.id):
@@ -204,6 +205,13 @@ class ReponseAutorisation(BaseModel):
     raison: str | None = Field(default=None, max_length=500, description="Why it is refused (optional): the builder reads it.")
 
 
+def _chat_de_l_auteur(fil, user: UserModel) -> None:
+    """RV (point 6) : le mode d'un chat et ses cartes (autorisations, accord de dépense) sont à celui qui l'a ouvert. Un chat sans auteur
+    (anciens fils) reste ouvert à l'organisation, comme avant."""
+    if fil.user_id is not None and fil.user_id != user.id:
+        raise HTTPException(status_code=403, detail="This conversation belongs to someone else.")
+
+
 def _chat_modifiable(fil) -> None:
     if fil.genre in ("sous_agent", "claude_code"):
         raise HTTPException(status_code=409, detail="This conversation has no permission mode.")
@@ -216,6 +224,7 @@ async def regler_le_mode(fil_id: int, demande: ModeDemande, user: UserModel = De
     """Le mode vaut pour CE chat (un nouveau chat repart sur « demander »). Il ne donne jamais plus que le rôle de la personne : chaque
     action reste vérifiée côté serveur (``modes.decider``). « Tout permettre » est journalisé (qui, quel chat, quand)."""
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     _chat_modifiable(fil)
     await modes.poser(user, fil, demande.mode)
     return {"ok": True, "mode": demande.mode}
@@ -249,6 +258,7 @@ async def repondre_a_une_autorisation(
     from api.routes import builder as routes_builder
 
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     _chat_modifiable(fil)
     historique = dict(fil.historique or {})
     demande = _demande_ou_erreur(historique, demande_id)
@@ -282,6 +292,7 @@ async def repondre_a_une_autorisation(
 async def retirer_une_autorisation(fil_id: int, demande_id: str, user: UserModel = Depends(get_user_with_selected_organization)):
     """Retire une autorisation « pour ce chat » : la prochaine action de ce type sur cet objet redemande."""
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)
     _chat_modifiable(fil)
     historique = dict(fil.historique or {})
     demande = _demande_ou_erreur(historique, demande_id)

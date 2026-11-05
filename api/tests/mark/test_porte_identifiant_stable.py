@@ -157,6 +157,11 @@ async def test_la_migration_douce_sauvegarde_puis_ecrit_une_seule_fois(tmp_path,
         assert any(t["table"] == "workflow_definitions" for t in a_blanc) and not copie.exists()
         with pytest.raises(ValueError):
             await executer(session, True, None)  # jamais d'écriture sans sauvegarde
+        existante = tmp_path / "deja.json"  # RV (point 10) : une sauvegarde qui existe déjà n'est jamais écrasée, et rien n'est réécrit
+        existante.write_text("ancienne", encoding="utf-8")
+        with pytest.raises(FileExistsError):
+            await executer(session, True, existante)
+        assert existante.read_text(encoding="utf-8") == "ancienne"
         fait = await executer(session, True, copie)
         sauve = json.loads(copie.read_text(encoding="utf-8"))
         assert {(s["table"], s["id"]) for s in sauve} == {(t["table"], t["id"]) for t in fait}

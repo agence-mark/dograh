@@ -48,7 +48,9 @@ async def executer(session, appliquer: bool, sauvegarde: Path | None) -> list[di
     if appliquer and touchees:
         if sauvegarde is None:
             raise ValueError("--appliquer exige --sauvegarde")
-        sauvegarde.write_text(json.dumps([{k: t[k] for k in ("table", "id", "avant")} for t in touchees], ensure_ascii=False), encoding="utf-8")
+        # RV (point 10) : création exclusive, une sauvegarde qui existe déjà n'est jamais écrasée.
+        with sauvegarde.open("x", encoding="utf-8") as sortie:
+            sortie.write(json.dumps([{k: t[k] for k in ("table", "id", "avant")} for t in touchees], ensure_ascii=False))
         for t in touchees:
             colonne = cible_sure(t["table"])  # nom de table et de colonne pris dans CIBLES, jamais d'une donnée
             await session.execute(
@@ -65,6 +67,8 @@ async def main() -> None:
     args = lecteur.parse_args()
     if args.appliquer and not args.sauvegarde:
         raise SystemExit("--appliquer exige --sauvegarde <fichier.json>")
+    if args.appliquer and Path(args.sauvegarde).exists():
+        raise SystemExit("--sauvegarde: ce fichier existe déjà, choisir un nouveau nom (il garde l'état d'avant d'une autre passe)")
     from api.db import db_client
 
     async with db_client.async_session() as session:

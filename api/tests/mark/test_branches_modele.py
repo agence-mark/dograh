@@ -279,6 +279,12 @@ async def test_le_script_pose_les_principales_manquantes_et_reprend_un_deploieme
     assert (await async_session.execute(text("SELECT count(*) FROM workflow_branches WHERE workflow_id = :a"), {"a": agent.id})).scalar() == 0
     with pytest.raises(ValueError):  # rien n'est réécrit sans sauvegarde
         await script.executer(async_session, appliquer=True, sauvegarde=None)
+    existante = tmp_path / "deja.json"  # RV (point 10) : une sauvegarde qui existe déjà n'est jamais écrasée, et rien n'est réécrit
+    existante.write_text("ancienne", encoding="utf-8")
+    with pytest.raises(FileExistsError):
+        await script.executer(async_session, appliquer=True, sauvegarde=existante)
+    assert existante.read_text(encoding="utf-8") == "ancienne"
+    assert (await async_session.execute(text("SELECT count(*) FROM workflow_branches WHERE workflow_id = :a"), {"a": agent.id})).scalar() == 0
 
     await script.executer(async_session, appliquer=True, sauvegarde=sauvegarde)
     sauve = json.loads(sauvegarde.read_text(encoding="utf-8"))
