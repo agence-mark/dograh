@@ -11780,6 +11780,16 @@ export type MistralTtsConfiguration = {
 };
 
 /**
+ * ModeDemande
+ */
+export type ModeDemande = {
+    /**
+     * Mode
+     */
+    mode: 'demander' | 'agent' | 'tout' | 'plan';
+};
+
+/**
  * ModeDesModeles
  */
 export type ModeDesModeles = {
@@ -16473,6 +16483,22 @@ export type RepartitionDemandee = {
     parts: {
         [key: string]: number;
     };
+};
+
+/**
+ * ReponseAutorisation
+ */
+export type ReponseAutorisation = {
+    /**
+     * Decision
+     */
+    decision: 'une_fois' | 'pour_ce_chat' | 'refuser';
+    /**
+     * Raison
+     *
+     * Why it is refused (optional): the builder reads it.
+     */
+    raison?: string | null;
 };
 
 /**
@@ -21404,6 +21430,16 @@ export type VueFil = {
      * Auteur
      */
     auteur?: string | null;
+    /**
+     * Mode
+     */
+    mode?: string;
+    /**
+     * Autorisations Du Chat
+     */
+    autorisations_du_chat?: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -28658,6 +28694,152 @@ export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors 
 export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostError = RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors[keyof RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostErrors];
 
 export type RepondreAUneDepenseApiV1BuilderFilsFilIdDepensesDepenseIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ReglerLeModeApiV1BuilderFilsFilIdModePutData = {
+    body: ModeDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/mode';
+};
+
+export type ReglerLeModeApiV1BuilderFilsFilIdModePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeModeApiV1BuilderFilsFilIdModePutError = ReglerLeModeApiV1BuilderFilsFilIdModePutErrors[keyof ReglerLeModeApiV1BuilderFilsFilIdModePutErrors];
+
+export type ReglerLeModeApiV1BuilderFilsFilIdModePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+        /**
+         * Demande Id
+         */
+        demande_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/autorisations/{demande_id}';
+};
+
+export type RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteError = RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteErrors[keyof RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteErrors];
+
+export type RetirerUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostData = {
+    body: ReponseAutorisation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Fil Id
+         */
+        fil_id: number;
+        /**
+         * Demande Id
+         */
+        demande_id: string;
+    };
+    query?: never;
+    url: '/api/v1/builder/fils/{fil_id}/autorisations/{demande_id}';
+};
+
+export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostError = RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostErrors[keyof RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostErrors];
+
+export type RepondreAUneAutorisationApiV1BuilderFilsFilIdAutorisationsDemandeIdPostResponses = {
     /**
      * Successful Response
      */
