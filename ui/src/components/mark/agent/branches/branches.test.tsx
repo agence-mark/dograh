@@ -212,7 +212,7 @@ describe("la répartition du trafic", () => {
 describe("les versions", () => {
     it("liste les branches, les versions de la branche choisie et les brouillons (« You » pour le sien)", () => {
         const ouvrir = vi.fn();
-        render(<FenetreVersions ouverte fermer={vi.fn()} vue={VUE} ouverteId={null} ouvrir={ouvrir} repartition={vi.fn()} />);
+        render(<FenetreVersions agentId={5} fusionner={vi.fn()} mettreAJour={vi.fn()} apres={vi.fn()} ouverte fermer={vi.fn()} vue={VUE} ouverteId={null} ouvrir={ouvrir} repartition={vi.fn()} />);
         expect(screen.getByText("v3")).toBeTruthy();
         expect(screen.getByText("live")).toBeTruthy();
         expect(screen.getByText("You")).toBeTruthy();
@@ -225,7 +225,7 @@ describe("les versions", () => {
 
     it("la répartition s'ouvre depuis les versions", () => {
         const repartition = vi.fn();
-        render(<FenetreVersions ouverte fermer={vi.fn()} vue={VUE} ouverteId={2} ouvrir={vi.fn()} repartition={repartition} />);
+        render(<FenetreVersions agentId={5} fusionner={vi.fn()} mettreAJour={vi.fn()} apres={vi.fn()} ouverte fermer={vi.fn()} vue={VUE} ouverteId={2} ouvrir={vi.fn()} repartition={repartition} />);
         fireEvent.click(screen.getByRole("button", { name: "Traffic split" }));
         expect(repartition).toHaveBeenCalled();
     });

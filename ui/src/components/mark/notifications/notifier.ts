@@ -62,8 +62,16 @@ function boutonDe(o: OptionsNotif): BoutonNotif | undefined {
     return undefined;
 }
 
+/** SA-L3c : la principale protégée refuse toute écriture ; quelle que soit l'action, la phrase dit pourquoi et quoi faire. */
+const PRINCIPALE_PROTEGEE: Texte = {
+    fr: "La branche principale est protégée. Travaillez sur une branche, puis fusionnez-la après relecture.",
+    en: "The main branch is protected. Work on a branch, then merge it after a review.",
+};
+const estProtegee = (erreur: unknown) => (erreur as { code?: unknown } | null | undefined)?.code === "principale_protegee";
+
 function afficher(sorte: SorteNotif, texte: Texte, o: OptionsNotif = {}, cle?: number): number {
     const detail = motifDe(o.erreur);
+    if (sorte === "echec" && estProtegee(o.erreur)) texte = PRINCIPALE_PROTEGEE;
     const bouton = boutonDe(o);
     // « Publier » demandé mais aucun agent connu : la phrase de rappel reprend le rôle du bouton.
     const sansBouton = o.publier && !bouton ? { fr: texte.fr + RAPPEL.fr, en: texte.en + RAPPEL.en } : texte;

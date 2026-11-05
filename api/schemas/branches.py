@@ -91,16 +91,39 @@ class ResumeDeFusion(BaseModel):
     conflit: int
 
 
+class BrancheDeFusion(BaseModel):
+    id: int
+    nom: str
+    version: int | None = None
+    id_version: int
+
+
+class CibleDeFusion(BaseModel):
+    nom: str
+    version: int | None = None
+    id_version: int
+
+
+class DepartDeFusion(BaseModel):
+    version: int | None = None
+
+
+class TraficDeFusion(BaseModel):
+    part_branche: int
+    part_principale: int
+    part_principale_apres: int
+
+
 class ApercuDeFusion(BaseModel):
-    branche: dict
-    cible: dict
-    depart: dict
+    branche: BrancheDeFusion
+    cible: CibleDeFusion
+    depart: DepartDeFusion
     champs: list[ChampDeFusion]
     resume: ResumeDeFusion
     problemes: list[ProblemeDeFusion]
     protegee: bool
     relue_obligatoire: bool
-    trafic: dict
+    trafic: TraficDeFusion
     defaisable: bool = False
 
 
@@ -113,10 +136,23 @@ class FusionDemandee(BaseModel):
     version_cible: int = Field(description="The main branch version id the preview was read on.")
 
 
+class BrancheDeMiseAJour(BaseModel):
+    id: int
+    nom: str
+    version: int | None = None
+    brouillon: bool
+    id_base: int | None = None
+
+
+class PrincipaleDeMiseAJour(BaseModel):
+    version: int | None = None
+    id_version: int
+
+
 class ApercuDeMiseAJour(BaseModel):
-    branche: dict
-    principale: dict
-    depart: dict
+    branche: BrancheDeMiseAJour
+    principale: PrincipaleDeMiseAJour
+    depart: DepartDeFusion
     a_jour: bool
     champs: list[ChampDeFusion]
     resume: ResumeDeFusion
