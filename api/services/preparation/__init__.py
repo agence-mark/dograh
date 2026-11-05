@@ -123,6 +123,7 @@ def calculer(
     tests: list[dict[str, Any]],
     problemes_tests_obligatoires: list[dict[str, Any]],
     suivies_du_principal: frozenset[str] = frozenset(),
+    outils_en_retard: list[tuple[str, str]] | None = None,
 ) -> list[Etape]:
     """Les étapes, dans l'ordre d'un appel. Pure. ``suivies_du_principal`` : les clés qu'un spécialisé reçoit de son principal
     (une ligne faite sur une de ces clés se dit « hérité du principal »)."""
@@ -153,6 +154,22 @@ def calculer(
             controle="outils",
         )
     )
+
+    # [.mark] Partie 3, SA-L3d (décision 21) : ligne CONSEILLÉE « Les outils sont à jour », présente seulement s'il reste un outil
+    # en retard (une version plus récente existe et l'agent reste sur la sienne) ; jamais bloquante, jamais là sinon.
+    if outils_en_retard:
+        etapes.append(
+            Etape(
+                "outils_a_jour",
+                CONSEILLE,
+                A_FAIRE,
+                "agent",
+                "outils dont une version plus récente existe",
+                [u for u, _ in outils_en_retard],
+                noeud_id=noeud_des_outils(definition, [u for u, _ in outils_en_retard]),
+                noms=[n for _, n in outils_en_retard],
+            )
+        )
 
     if problemes_tests_obligatoires:
         etapes.append(
@@ -245,7 +262,13 @@ async def lire_avec_contexte(organization_id: int, workflow_id: int) -> tuple[li
         effective = None
 
     uuids = outils_du_graphe(definition)
-    actifs = {t.tool_uuid for t in await db_client.get_tools_by_uuids(uuids, organization_id)} if uuids else set()
+    outils_lus = await db_client.get_tools_by_uuids(uuids, organization_id) if uuids else []
+    actifs = {t.tool_uuid for t in outils_lus}
+    # SA-L3d : un outil est « en retard » quand l'agent reste sur une version plus ancienne que la courante (épingle du brouillon).
+    epingles = getattr(definition_modele, "outils_epingles", None) or {}
+    en_retard = [
+        (t.tool_uuid, t.name) for t in outils_lus if isinstance(epingles.get(t.tool_uuid), int) and epingles[t.tool_uuid] < (t.version_courante or 1)
+    ]
 
     fiche = None
     fiche_id = configurations.get("etablissement_id")
@@ -271,6 +294,7 @@ async def lire_avec_contexte(organization_id: int, workflow_id: int) -> tuple[li
         tests=tests,
         problemes_tests_obligatoires=problemes,
         suivies_du_principal=cles_suivies_du_principal(configurations),
+        outils_en_retard=en_retard,
     )
     contexte = Contexte(
         definition=definition,

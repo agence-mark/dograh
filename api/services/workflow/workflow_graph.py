@@ -256,7 +256,12 @@ class WorkflowGraph:
         dto: ReactFlowDTO,
         *,
         skip_instance_constraints_for: Set[str] | None = None,
+        outils_epingles: Dict[str, int] | None = None,
     ):
+        # [.mark] Partie 3, SA-L3d (décision 21) : la version de chaque outil que la version d'agent qui joue a figée
+        # (``{tool_uuid: numéro}``). Les lectures d'outils du moteur la passent à la couche de données : un agent joue
+        # SA version d'un outil, jamais la plus récente. ``None`` : rien d'épinglé (contenu courant, comme avant).
+        self.outils_epingles = dict(outils_epingles) if isinstance(outils_epingles, dict) and outils_epingles else None
         # Build adjacency list from validated DTO nodes. Core node comparisons
         # still use NodeType string enums; integration nodes remain plain
         # strings and resolve constraints through node specs.

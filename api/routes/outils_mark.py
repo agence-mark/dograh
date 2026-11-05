@@ -143,6 +143,7 @@ async def essayer_un_outil(
             tool_uuid=tool_uuid,
             organization_id=organisation,
             definition=essai_mark.noter_le_dernier_essai(outil.definition, verdict),
+            sans_version=True,
         )
     return VerdictEssai(**{k: v for k, v in verdict.items() if k in VerdictEssai.model_fields})
 
@@ -162,7 +163,7 @@ async def valider_le_premier_essai(tool_uuid: str, user: UserModel = Depends(get
         definition = essai_mark.valider_le_premier_essai(outil.definition, str(user.provider_id or user.id))
     except essai_mark.ErreurEssai as e:
         raise HTTPException(status_code=e.statut, detail=e.message) from e
-    await db_client.update_tool(tool_uuid=tool_uuid, organization_id=organisation, definition=definition)
+    await db_client.update_tool(tool_uuid=tool_uuid, organization_id=organisation, definition=definition, sans_version=True)
     return PremierEssai(**definition["config"]["premier_essai"])
 
 
@@ -235,6 +236,7 @@ async def tester_la_connexion_mcp(demande: DemandeTestMcp, user: UserModel = Dep
             tool_uuid=serveur.tool_uuid,
             organization_id=organisation,
             definition=essai_mark.noter_le_test_de_connexion(serveur.definition, bool(resultat.get("ok"))),
+            sans_version=True,
         )
     return ResultatTestMcp(**resultat)
 

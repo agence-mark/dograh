@@ -17,8 +17,9 @@ familles au moment où il est pris. Revenir avant ouvre une fenêtre qui laisse 
   est un brouillon : jamais une publication. Une restauration range elle-même un instantané complet, donc elle se défait.
 * Le vocabulaire et les objets sont partagés par toute l'organisation : la fenêtre le dit. Restaurer les objets réécrit ceux qui
   existaient (même nom) et ne SUPPRIME jamais un objet ajouté depuis.
-* Deux champs sont **prévus**, vides pour l'instant (audit 12 § 2, décision 21) : ``branche`` et ``outils_epingles``. Aucune branche
-  ni version d'outil n'est construite ici ; le format les attend.
+* ``outils_epingles`` (décision 21, SA-L3d) : la version de chaque outil que l'agent joue au moment de l'instantané. Elle voyage avec
+  le **schéma** (le graphe cite les outils) : restaurer le schéma ramène aussi la bonne version de chaque outil, dans le brouillon.
+  ``branche`` : la branche où l'instantané a été pris (rangée par ``revue._ranger``).
 
 ⛔ Aucune valeur de réglage n'est jamais rendue par l'aperçu (une clé pourrait y être) : seulement des noms et des comptes.
 """
@@ -30,6 +31,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.db import db_client
 from api.services.builder import brouillon
 
 FAMILLES = ("schema", "phrases", "vocabulaire", "objets", "reglages")
@@ -78,10 +80,26 @@ def separer_les_reglages(configurations: dict[str, Any]) -> tuple[Any, dict[str,
     return copy.deepcopy(configurations.get(CLE_PHRASES)), reglages
 
 
+async def _epingles(organization_id: int, workflow: Any) -> dict[str, int] | None:
+    """``{outil: version}`` de l'agent ouvert (brouillon sinon version en ligne), une version épinglée ou la courante. ``None`` : illisible."""
+    try:
+        vue = await db_client.outils_epingles_de_l_agent(organization_id, workflow.id)
+        return {o["tool_uuid"]: o["epinglee"] for o in vue["outils"]}
+    except Exception as erreur:  # noqa: BLE001 -- un instantané sans épingles vaut mieux que pas d'instantané
+        logger.info(f"[instantane] versions d'outils non gardées : {type(erreur).__name__}")
+        return None
+
+
 async def capturer(
-    organization_id: int, workflow: Any, *, user: Any = None, configurations: dict[str, Any] | None = None
+    organization_id: int,
+    workflow: Any,
+    *,
+    user: Any = None,
+    configurations: dict[str, Any] | None = None,
+    epingles: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    """Le complément d'un instantané : l'état des familles autres que le graphe. ``user`` permet de garder aussi les objets."""
+    """Le complément d'un instantané : l'état des familles autres que le graphe. ``user`` permet de garder aussi les objets.
+    ``epingles`` : les versions d'outils déjà connues de l'appelant (une version qu'on vient de publier) ; sinon lues."""
     courantes = configurations if configurations is not None else await brouillon.configurations_courantes(workflow)
     phrases, reglages = separer_les_reglages(courantes)
     complement: dict[str, Any] = {
@@ -90,9 +108,9 @@ async def capturer(
         "reglages": reglages,
         "vocabulaire": await _vocabulaire(organization_id),
         "objets": await _objets(user, workflow),
-        # Prévus (audit 12 § 2, décision 21) : la branche et les versions d'outils figées. Rien n'est construit ici.
+        # Décision 21 : les versions d'outils figées (voyagent avec le schéma). ``branche`` est posée par ``revue._ranger``.
         "branche": None,
-        "outils_epingles": None,
+        "outils_epingles": dict(epingles) if epingles else await _epingles(organization_id, workflow),
     }
     complement["familles"] = familles_gardees(complement)
     return complement
@@ -134,6 +152,10 @@ def comparer_les_familles(ligne: dict[str, Any], actuel: dict[str, Any]) -> list
     sortie = []
     for famille in FAMILLES:
         vue: dict[str, Any] = {"famille": famille, "disponible": famille in gardees, "partagee": famille in PARTAGEES, "change": None, "details": []}
+        if famille == "schema" and famille in gardees:
+            avant_o, maintenant_o = complement.get("outils_epingles"), actuel.get("outils_epingles")
+            if isinstance(avant_o, dict) and isinstance(maintenant_o, dict):
+                vue["outils"] = sorted(u for u in set(avant_o) & set(maintenant_o) if avant_o[u] != maintenant_o[u])[:40]
         if famille in gardees and famille != "schema":
             avant, maintenant = complement.get(famille), actuel.get(famille)
             if maintenant is None and famille in PARTAGEES:

@@ -1137,6 +1137,7 @@ async def _run_pipeline_impl(
     workflow_graph = WorkflowGraph(
         ReactFlowDTO.model_validate(run_workflow_json),
         skip_instance_constraints_for={"trigger"},
+        outils_epingles=getattr(run_definition, "outils_epingles", None),
     )
     call_dispositions = WorkflowConfigurationDefaults.model_validate(
         {"call_dispositions": run_configs.get("call_dispositions") or []}

@@ -139,8 +139,8 @@ async def test_un_instantane_garde_les_cinq_familles_et_prevoit_la_branche_et_le
     assert "phrases_regles" not in complement["reglages"]  # une clé, une famille
     assert [t["terme"] for t in complement["vocabulaire"]["termes"]] == ["chaudière", "entretien"]
     assert [o["nom"] for o in complement["objets"]] == ["horaires"]
-    # Prévus pour la suite (audit 12 § 2, décision 21) : rien de construit ici.
-    assert complement["branche"] is None and complement["outils_epingles"] is None
+    # Décision 21 (SA-L3d) : les versions d'outils figées sont gardées (aucun outil sur cet agent), la branche est posée au rangement.
+    assert complement["branche"] is None and complement["outils_epingles"] == {}
     numero = await instantane_de_l_etat_1(banc)
     (ligne,) = [v for v in await revue.instantanes(ORG_CLIENT, AGENT) if v["numero"] == numero]
     assert ligne["familles"] == ["schema", "phrases", "vocabulaire", "objets", "reglages"] and "complement" not in ligne
@@ -375,3 +375,37 @@ async def test_l_instantane_d_une_publication_ne_rend_pas_l_agent_suivi_par_le_b
     # Un instantané du builder (acceptation, sauvegarde), lui, est bien la trace d'un agent suivi.
     await instantane_de_l_etat_1(banc)
     assert await publication.agent_suivi(ORG_CLIENT, AGENT) is True
+
+
+# --- les versions d'outils figées (SA-L3d, décision 21) -----------------------------------------------------------------------------
+
+
+def _outil(nom: str, epinglee: int, courante: int) -> dict:
+    return {"tool_uuid": f"u-{nom}", "nom": nom, "epinglee": epinglee, "courante": courante, "figee": True}
+
+
+async def test_un_instantane_garde_la_version_de_chaque_outil_et_revenir_avant_la_ramene(banc):
+    banc.db.epingles_des_outils = {"u-reserver": _outil("reserver", 2, 3), "u-astreinte": _outil("astreinte", 1, 1)}
+    numero = await instantane_de_l_etat_1(banc)
+    (ligne,) = [v for v in await stock_complet(numero)]
+    assert ligne["complement"]["outils_epingles"] == {"u-reserver": 2, "u-astreinte": 1}
+    # depuis, l'agent est passé à la v3 de « reserver »
+    banc.db.epingles_des_outils["u-reserver"] = _outil("reserver", 3, 3)
+    await passer_a_l_etat_2(banc)
+    vue = await apercu.apercu_de_la_restauration(ORG_CLIENT, banc.workflow, numero, user=EQUIPE)
+    schema = next(f for f in vue["familles"] if f["famille"] == "schema")
+    assert schema["outils"] == ["u-reserver"]
+    await revue.restaurer(ORG_CLIENT, banc.workflow, numero, user=EQUIPE)
+    assert banc.db.epingles_ecrites == {"u-reserver": 2, "u-astreinte": 1}
+
+
+async def test_restaurer_sans_le_schema_ne_touche_pas_aux_versions_d_outils(banc):
+    banc.db.epingles_des_outils = {"u-reserver": _outil("reserver", 2, 3)}
+    numero = await instantane_de_l_etat_1(banc)
+    await passer_a_l_etat_2(banc)
+    await revue.restaurer(ORG_CLIENT, banc.workflow, numero, familles=["reglages"], user=EQUIPE)
+    assert banc.db.epingles_ecrites is None
+
+
+async def stock_complet(numero):
+    return [v for v in await revue.instantanes(ORG_CLIENT, AGENT, complets=True) if v["numero"] == numero]

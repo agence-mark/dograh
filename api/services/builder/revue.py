@@ -291,6 +291,9 @@ async def restaurer(
                 workflow_configurations=nouvelles if nouvelles is not None else actuelles,
             )
             numero_du_brouillon = enregistre.version_number
+            if "schema" in choisies and isinstance((ligne.get("complement") or {}).get("outils_epingles"), dict):
+                # Décision 21 : le schéma ramené cite des outils ; ils reviennent à la version qu'ils avaient alors.
+                await db_client.remplacer_les_epingles_du_brouillon(organization_id, workflow.id, ligne["complement"]["outils_epingles"])
         else:
             numero_du_brouillon = version  # seules des familles partagées : le brouillon ne bouge pas
         partagees = await instantane.restaurer_les_partagees(organization_id, workflow, ligne, choisies, user)
@@ -318,7 +321,11 @@ async def apres_une_publication(organization_id: int, workflow: Any, publiee: An
     try:
         graphe = copy.deepcopy(getattr(publiee, "workflow_json", None) or {})
         complement = await instantane.capturer(
-            organization_id, workflow, user=user, configurations=dict(getattr(publiee, "workflow_configurations", None) or {})
+            organization_id,
+            workflow,
+            user=user,
+            configurations=dict(getattr(publiee, "workflow_configurations", None) or {}),
+            epingles=getattr(publiee, "outils_epingles", None),
         )
         return await _ranger(
             organization_id,

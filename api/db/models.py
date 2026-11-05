@@ -474,6 +474,12 @@ class WorkflowDefinitionModel(Base):
     branch_id = Column(Integer, nullable=True, index=True)
     draft_owner_id = Column(Integer, nullable=True)
 
+    # [.mark] Partie 3, SA-L3d (décision 21) : la version de chaque outil que cette version d'agent (ou ce brouillon) joue,
+    # ``{tool_uuid: numéro}``. Une version PUBLIÉE les porte toutes (écrites à la publication) ; un brouillon peut en omettre
+    # (un outil tout juste ajouté suit alors la version courante jusqu'à la publication). NULL = rien d'épinglé (agent sans
+    # outil, ou version d'avant la migration sans outil). Un agent ne suit JAMAIS seul une nouvelle version d'outil.
+    outils_epingles = Column(JSON, nullable=True)
+
     # Table constraints and indexes — unique hash constraint removed (no more dedup)
     __table_args__ = (
         Index("ix_workflow_definitions_workflow_status", "workflow_id", "status"),
@@ -1299,6 +1305,11 @@ class ToolModel(Base):
     # Structure depends on category:
     # - http_api: {"schema_version": 1, "type": "http_api", "config": {...}}
     definition = Column(JSON, nullable=False, default=dict)
+
+    # [.mark] Partie 3, SA-L3d (décision 21) : le numéro de la version courante de l'outil (le contenu ci-dessus). Chaque
+    # enregistrement qui change ce que l'agent voit (nom, description, définition) range l'ancien contenu et ajoute une version
+    # dans ``tool_versions`` ; les agents restent sur la version figée par leur version publiée.
+    version_courante = Column(Integer, nullable=False, default=1, server_default=text("1"))
 
     # Audit fields
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)

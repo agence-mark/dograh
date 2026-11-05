@@ -717,6 +717,7 @@ async def execute_text_chat_pending_turn(
     workflow_graph = WorkflowGraph(
         ReactFlowDTO.model_validate(run_definition.workflow_json),
         skip_instance_constraints_for={"trigger"},
+        outils_epingles=getattr(run_definition, "outils_epingles", None),
     )
 
     from api.services.managed_model_services import (
@@ -1011,6 +1012,7 @@ async def execute_text_chat_pending_turn(
             graphe = WorkflowGraph(
                 ReactFlowDTO.model_validate(definition.workflow_json),
                 skip_instance_constraints_for={"trigger"},
+                outils_epingles=getattr(definition, "outils_epingles", None),
             )
             agent_llm = create_llm_service(
                 config,

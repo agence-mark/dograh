@@ -20,6 +20,7 @@ from typing import Any
 from api.db import db_client
 from api.db.branches_client import ErreurDeBranche
 from api.services.branches import champs
+from api.services.branches.fusion import _noms_des_outils
 from api.services.boucle import qualite
 
 APPELS_MIN = 5
@@ -113,8 +114,8 @@ def _verdict(gauche: dict[str, Any], droite: dict[str, Any], lignes: list[dict[s
 
 def _configuration(avant: dict[str, Any], apres: dict[str, Any]) -> list[dict[str, Any]]:
     """La différence de configuration à plat : tout champ qui n'est pas identique des deux côtés (``avant`` = la gauche)."""
-    a = champs.Etat(avant["graphe"], avant["reglages"], avant["variables"])
-    b = champs.Etat(apres["graphe"], apres["reglages"], apres["variables"])
+    a = champs.Etat(avant["graphe"], avant["reglages"], avant["variables"], avant.get("outils"))
+    b = champs.Etat(apres["graphe"], apres["reglages"], apres["variables"], apres.get("outils"))
     return [
         {"cle": ligne["cle"], "famille": ligne["famille"], "libelle": ligne["libelle"], "avant": ligne["cible"], "apres": ligne["source"]}
         for ligne in champs.comparer(a, b, a)
@@ -146,5 +147,7 @@ async def comparer(organization_id: int, agent: Any, gauche: str, droite: str, j
         "droite": cache(d),
         "mesures": mesures,
         "verdict": _verdict(chiffres_g, chiffres_d, mesures),
-        "configuration": _configuration(contenus[g["definition"]], contenus[d["definition"]]),
+        "configuration": await _noms_des_outils(
+            organization_id, _configuration(contenus[g["definition"]], contenus[d["definition"]])
+        ),
     }

@@ -40,7 +40,7 @@ def _ligne_de_la_preparation(etape: Etape, positions: Mapping[str, str]) -> dict
         ligne["etat"] = SANS_OBJET  # un contrôle éteint n'est pas joué
     elif etape.etat == A_FAIRE and position == "bloque" and etape.niveau == REQUIS:
         ligne["etat"] = BLOQUANT
-    ligne["onglet"] = "tests" if etape.id == "tests" else None
+    ligne["onglet"] = "tests" if etape.id == "tests" else ("outils" if etape.id == "outils_a_jour" else None)
     return ligne
 
 

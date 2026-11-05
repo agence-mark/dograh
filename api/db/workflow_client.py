@@ -6,7 +6,7 @@ from sqlalchemy import func, update
 from sqlalchemy.future import select
 from sqlalchemy.orm import load_only, selectinload
 
-from api.db import branche_ouverte, protection_principale
+from api.db import branche_ouverte, outils_epingles, protection_principale
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
 
@@ -142,6 +142,9 @@ class WorkflowClient(BaseDBClient):
                     or {},
                 )
                 session.add(definition)
+                if organization_id is not None:
+                    # [.mark] SA-L3d (décision 21) : la première version fige la version de chaque outil qu'elle cite.
+                    await outils_epingles.figer(session, definition, organization_id)
                 await session.flush()
 
                 # Set the released pointer
@@ -225,6 +228,8 @@ class WorkflowClient(BaseDBClient):
                     status="draft",
                     version_number=next_version,
                     is_current=False,
+                    # [.mark] SA-L3d : un brouillon part des épingles de la version dont il est la copie.
+                    outils_epingles=outils_epingles.copie(published.outils_epingles) if published else None,
                 )
                 session.add(draft)
 
@@ -341,6 +346,8 @@ class WorkflowClient(BaseDBClient):
                 select(WorkflowModel).where(WorkflowModel.id == workflow_id)
             )
             workflow = wf_result.scalars().first()
+            # [.mark] SA-L3d (décision 21) : publier fige la version de chaque outil que le graphe cite.
+            await outils_epingles.figer(session, draft, workflow.organization_id)
             workflow.released_definition_id = draft.id
             workflow.workflow_definition = draft.workflow_json
             workflow.workflow_configurations = draft.workflow_configurations
@@ -433,6 +440,7 @@ class WorkflowClient(BaseDBClient):
                 is_current=False,
                 branch_id=cible.branch_id,
                 draft_owner_id=cible.user_id if cible.branch_id else None,
+                outils_epingles=outils_epingles.copie(source.outils_epingles),  # SA-L3d : « revenir » ramène aussi les outils
             )
             session.add(draft)
 

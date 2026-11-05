@@ -94,6 +94,8 @@ REGLES: tuple[Regle, ...] = (
     # Partie 3, SA-L3b : publier une branche, régler la répartition du trafic et épingler la principale sont des gestes de publication ; créer une branche modifie l'agent.
     _r(ECRITURE, r"^/builder/branches/[^/]+/(repartition|principale/version|principale/protection|[^/]+/publier|[^/]+/fusion|[^/]+/fusion/defaire)$", P("agents.publier")),
     _r(ECRITURE, r"^/builder/branches/.*$", P("agents.modifier")),
+    # Partie 3, SA-L3d (décision 21) : passer un outil à une autre version écrit dans le brouillon d'un agent.
+    _r(ECRITURE, r"^/builder/outils/.*$", P("agents.modifier")),
     _r(ECRITURE, r"^/builder/publication/.*$", P("agents.modifier")),
     # Partie 3 (SE-12) : les défauts de publication de l'organisation (thème « Publication » des Réglages) sont un geste de publication.
     _r(ECRITURE, r"^/builder/publication-organisation$", P("agents.publier")),

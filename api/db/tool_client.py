@@ -4,11 +4,12 @@ from datetime import UTC, datetime
 from typing import List, Optional
 
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select, tuple_, update
 from sqlalchemy.orm import selectinload
 
 from api.db.base_client import BaseDBClient
 from api.db.models import ToolModel
+from api.db.models_builder import ToolVersionModel
 from api.enums import ToolCategory, ToolStatus
 
 
@@ -55,6 +56,9 @@ class ToolClient(BaseDBClient):
             )
 
             session.add(tool)
+            await session.flush()
+            # [.mark] SA-L3d (décision 21) : tout outil naît avec sa version 1.
+            session.add(_version_de(tool, 1, user_id))
             await session.commit()
             await session.refresh(tool)
 
@@ -146,6 +150,8 @@ class ToolClient(BaseDBClient):
         icon: Optional[str] = None,
         icon_color: Optional[str] = None,
         status: Optional[str] = None,
+        user_id: Optional[int] = None,
+        sans_version: bool = False,
     ) -> Optional[ToolModel]:
         """Update a tool by UUID.
 
@@ -163,9 +169,14 @@ class ToolClient(BaseDBClient):
             Updated ToolModel if found, None otherwise
         """
         async with self.async_session() as session:
-            # First check if tool exists and belongs to organization
-            tool = await self.get_tool_by_uuid(
-                tool_uuid, organization_id, include_archived=True
+            # [.mark] SA-L3d : la ligne est verrouillée le temps de numéroter la version (deux enregistrements en même temps).
+            tool = await session.scalar(
+                select(ToolModel)
+                .where(
+                    ToolModel.tool_uuid == tool_uuid,
+                    ToolModel.organization_id == organization_id,
+                )
+                .with_for_update()
             )
             if not tool:
                 return None
@@ -184,6 +195,30 @@ class ToolClient(BaseDBClient):
                 update_values["icon_color"] = icon_color
             if status is not None:
                 update_values["status"] = status
+
+            # [.mark] SA-L3d (décision 21) : ce que l'agent voit (nom, description, définition) change = une nouvelle version.
+            nouveau = {
+                "name": update_values.get("name", tool.name),
+                "description": update_values.get("description", tool.description),
+                "definition": update_values.get("definition", tool.definition),
+            }
+            ancien = {"name": tool.name, "description": tool.description, "definition": tool.definition}
+            # ``sans_version`` : une note de tenue (dernier essai, test de connexion) n'est pas un changement de l'outil.
+            if nouveau != ancien and not sans_version:
+                numero = (tool.version_courante or 1) + 1
+                update_values["version_courante"] = numero
+                session.add(
+                    ToolVersionModel(
+                        organization_id=organization_id,
+                        tool_id=tool.id,
+                        version=numero,
+                        name=nouveau["name"],
+                        description=nouveau["description"],
+                        category=tool.category,
+                        definition=nouveau["definition"],
+                        created_by=user_id,
+                    )
+                )
 
             await session.execute(
                 update(ToolModel)
@@ -295,12 +330,16 @@ class ToolClient(BaseDBClient):
         self,
         tool_uuids: List[str],
         organization_id: int,
+        versions: Optional[dict] = None,
     ) -> List[ToolModel]:
         """Get multiple tools by their UUIDs.
 
         Args:
             tool_uuids: List of tool UUIDs to fetch
             organization_id: ID of the organization (for authorization)
+            versions: [.mark] SA-L3d (décision 21) : ``{tool_uuid: numéro}`` épinglé par la version d'agent qui joue. Un outil
+                épinglé sur une version plus ancienne que la courante est rendu avec le CONTENU de cette version (nom,
+                description, définition) ; sans épingle, le contenu courant (comme avant).
 
         Returns:
             List of ToolModel instances (only active tools)
@@ -316,4 +355,44 @@ class ToolClient(BaseDBClient):
             )
 
             result = await session.execute(query)
-            return list(result.scalars().all())
+            outils = list(result.scalars().all())
+            demandes = {
+                o.id: versions[o.tool_uuid]
+                for o in outils
+                if versions
+                and isinstance(versions.get(o.tool_uuid), int)
+                and 0 < versions[o.tool_uuid] < (o.version_courante or 1)
+            }
+            if not demandes:
+                return outils
+            lignes = await session.execute(
+                select(ToolVersionModel).where(
+                    ToolVersionModel.organization_id == organization_id,
+                    tuple_(ToolVersionModel.tool_id, ToolVersionModel.version).in_(list(demandes.items())),
+                )
+            )
+            figees = {v.tool_id: v for v in lignes.scalars().all()}
+            for outil in outils:
+                figee = figees.get(outil.id)
+                if figee is None:
+                    continue
+                # Détaché avant d'être modifié : cette copie de lecture n'est jamais réécrite en base.
+                session.expunge(outil)
+                outil.name = figee.name
+                outil.description = figee.description
+                outil.category = figee.category
+                outil.definition = figee.definition
+            return outils
+
+
+def _version_de(tool: ToolModel, numero: int, user_id: Optional[int]) -> ToolVersionModel:
+    return ToolVersionModel(
+        organization_id=tool.organization_id,
+        tool_id=tool.id,
+        version=numero,
+        name=tool.name,
+        description=tool.description,
+        category=tool.category,
+        definition=tool.definition,
+        created_by=user_id,
+    )

@@ -303,6 +303,7 @@ async def refresh_mcp_tool_for_user(
         tool_uuid=tool_uuid,
         organization_id=user.selected_organization_id,
         definition=new_def,
+        user_id=user.id,
     )
     return McpRefreshResponse(
         tool_uuid=tool_uuid, discovered_tools=discovered, error=None

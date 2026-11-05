@@ -238,7 +238,10 @@ class AgentRuntimeFactory:
         dto = ReactFlowDTO.model_validate(definition.workflow_json)
         if lire_outils is not None:
             await precharge.outils(
-                uuids_des_outils(dto), self._organization_id, lire_outils
+                uuids_des_outils(dto),
+                self._organization_id,
+                lire_outils,
+                getattr(definition, "outils_epingles", None),
             )
         precharge.agents[workflow_id] = ChargeAgent(
             workflow=workflow, definition=definition, user_config=user_config, dto=dto
@@ -297,6 +300,7 @@ class AgentRuntimeFactory:
             if charge is not None
             else ReactFlowDTO.model_validate(definition.workflow_json),
             skip_instance_constraints_for={"trigger"},
+            outils_epingles=getattr(definition, "outils_epingles", None),
         )
 
         # [.mark] The call's first agent builds its model with its own cache key
