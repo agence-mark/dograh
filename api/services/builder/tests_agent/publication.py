@@ -117,6 +117,10 @@ async def verifier_avant_publication(
     if any(getattr(positions, cle) == "bloque" for cle in cles_de_la_fenetre):
         vue = await fenetre.evaluer(workflow, brouillon, organization_id)
         autres = [c for c in vue["controles"] if c["statut"] == fenetre.ECHEC and c["cle"] in cles_de_la_fenetre]
+    # [.mark] L3e : l'annonce « vous parlez à une IA » bloque toujours (position fixe, aucun réglage ne l'éteint) quand son texte est vide.
+    vide = fenetre._annonce_ia(getattr(brouillon, "workflow_configurations", None) or {})
+    if vide:
+        autres.append({"cle": "annonce_ia", "libelle": fenetre.LIBELLES["annonce_ia"], "problemes": vide})
     # [.mark] U3 bis (E62) : une clé citée que le catalogue ne connaît pas bloque la publication.
     from api.services.variables_agent.garde import cles_inconnues_du_brouillon
 

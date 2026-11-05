@@ -39,6 +39,13 @@ export const TITRES_DES_LIGNES: Record<string, { titre: Texte; source: Texte }> 
             fr: "Le dernier passage de « Attaquer l'agent » sur ce brouillon. « Non testé » n'est jamais compté comme tenu.",
         },
     },
+    annonce_ia: {
+        titre: { en: "The « you are talking to an AI » announcement has its text", fr: "L'annonce « vous parlez à une IA » a son texte" },
+        source: {
+            en: "Said at the start of every call and cannot be turned off. Only its text can change (Phrases theme); an empty text blocks publishing.",
+            fr: "Dite en tête de chaque appel, impossible à éteindre. Seul son texte se change (thème Phrases) ; un texte vide bloque la publication.",
+        },
+    },
     garde_fous: {
         titre: { en: "A safety layer of the conversation is on", fr: "Une couche de sécurité de la conversation est allumée" },
         source: {

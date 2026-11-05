@@ -10,6 +10,7 @@
 import {
     AlertTriangle,
     ArrowRight,
+    Lock,
     ChevronRight,
     Clock,
     Hourglass,
@@ -93,13 +94,15 @@ export interface ProprietesCarte {
     derniere: string;
     /** Une règle héritée du principal : lecture, pas d'interrupteur ni d'ouverture. */
     lecture?: boolean;
+    /** L3e : un motif verrouillé (l'annonce « vous parlez à une IA ») : ni interrupteur, ni « éteinte ». */
+    verrouillee?: boolean;
     onOuvrir?: () => void;
     onBasculer?: (active: boolean) => void;
     /** Sous la carte, pour les gestes d'une règle héritée. */
     pied?: ReactNode;
 }
 
-export const CartePhrase = ({ id, regle: brute, motif, origine, contexte: c, etape, supprimee, active, derniere, lecture, onOuvrir, onBasculer, pied }: ProprietesCarte) => {
+export const CartePhrase = ({ id, regle: brute, motif, origine, contexte: c, etape, supprimee, active, derniere, lecture, verrouillee, onOuvrir, onBasculer, pied }: ProprietesCarte) => {
     const { t } = useLangue();
     const regle = normaliserRegle(brute);
     const Icone = iconeDuMotif(motif);
@@ -131,6 +134,11 @@ export const CartePhrase = ({ id, regle: brute, motif, origine, contexte: c, eta
                         <span className="text-xs text-muted-foreground">
                             {t({ en: "for", fr: "pour" })} <code className="text-[11px]">{regle.outils.join(", ")}</code>
                         </span>
+                    )}
+                    {verrouillee && (
+                        <Badge variant="outline" className="gap-1 text-[11px] font-normal" data-verrouillee-badge>
+                            <Lock className="h-3 w-3" aria-hidden /> {t({ en: "Locked", fr: "Verrouillée" })}
+                        </Badge>
                     )}
                     <Badge variant="outline" className="text-[11px] font-normal">
                         {regle.portee === "etape" ? `${t({ en: "Step", fr: "Étape" })} : ${etape ?? ""}` : regle.portee === "groupe" ? t({ en: "The whole group", fr: "Tout le groupe" }) : origine === "defaut" ? t({ en: "Default", fr: "Défaut" }) : t({ en: "This agent", fr: "Cet agent" })}
@@ -179,7 +187,7 @@ export const CartePhrase = ({ id, regle: brute, motif, origine, contexte: c, eta
 
             <div className="flex shrink-0 flex-col items-end justify-between gap-2">
                 {/* L'interrupteur n'ouvre pas la modale. */}
-                {!lecture && onBasculer && (
+                {!lecture && !verrouillee && onBasculer && (
                     <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} className="flex items-center gap-2 text-xs text-muted-foreground">
                         {active ? t({ en: "On", fr: "Activée" }) : t({ en: "Off", fr: "Éteinte" })}
                         <Switch

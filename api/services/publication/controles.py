@@ -35,7 +35,11 @@ LIBELLES = {
     "sans_effet": "Réglages sans effet",
     "sortie_d_impasse": "Sortie d'impasse",
     "deux_webhooks": "Deux webhooks",
+    "annonce_ia": "Annonce « vous parlez à une IA »",
 }
+
+# [.mark] L3e : contrôles dont la position est FIXE (ils ne sont pas dans ``reglages.CONTROLES`` : aucun réglage ne les éteint).
+CONTROLES_FIXES = {"annonce_ia": "bloque"}
 
 
 class RaisonObligatoire(Exception):
@@ -98,6 +102,16 @@ async def _attaques(workflow: Any, brouillon: Any, org: int) -> list[str]:
     if resume.get("non_testees"):  # ⛔ jamais compté comme réussi
         problemes.append(f"{resume['non_testees']} attack(s) not tested: they do not count as held.")
     return problemes
+
+
+def _annonce_ia(configurations: dict[str, Any]) -> list[str]:
+    """L'annonce « vous parlez à une IA » : bloquante si son texte est vide. Le texte par défaut est dit à l'appel quoi qu'il arrive
+    (``phrases/regles.resoudre``) ; ce qui bloque ici, c'est une règle de l'agent qui l'aurait vidée : on ne publie pas un texte vide."""
+    from api.services.phrases.catalogue import ANNONCE_IA
+    from api.services.phrases.regles import regles_de
+
+    vides = [r for r in regles_de(configurations) if r.motif == ANNONCE_IA and not any(v.strip() for v in r.variantes)]
+    return ["The announcement « you are talking to an AI » has an empty text: write it, or remove the rule to get the default text."] if vides else []
 
 
 def _garde_fous(configurations: dict[str, Any]) -> list[str]:
@@ -179,6 +193,9 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
         controles.append(
             {"cle": cle, "libelle": LIBELLES[cle], "position": position, "statut": _statut(position, problemes), "problemes": problemes[:20]}
         )
+    for cle, position in CONTROLES_FIXES.items():
+        problemes = _annonce_ia(configurations) if cle == "annonce_ia" else []
+        controles.append({"cle": cle, "libelle": LIBELLES[cle], "position": position, "statut": _statut(position, problemes), "problemes": problemes})
     from api.services.preparation import liste
 
     return {

@@ -677,10 +677,16 @@ export const ModaleRegle = ({
                             </div>
                         )}
                         <div className="flex items-center gap-4">
+                            {motif?.verrouille ? (
+                                <p className="text-xs text-muted-foreground" data-note="motif-verrouille">
+                                    {t({ en: "Locked: the text can change, this announcement cannot be turned off.", fr: "Verrouillée : le texte peut changer, cette annonce ne peut pas être éteinte." })}
+                                </p>
+                            ) : (
                             <label className="flex items-center gap-2 text-sm">
                                 <Switch id="phrase_active" aria-label={t(TEXTES.activee)} checked={regle.active !== false} onCheckedChange={(active) => setRegle({ ...regle, active })} />
                                 {regle.active !== false ? t(TEXTES.activee) : t(TEXTES.eteinte)}
                             </label>
+                            )}
                             {nouvelle && onRetour && (
                                 <Button variant="ghost" size="sm" onClick={onRetour}>
                                     {t(TEXTES.changerMotif)}

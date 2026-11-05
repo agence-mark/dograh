@@ -114,6 +114,11 @@ export const erreursDesPhrases = (regles: ReglePhrase[], etapes: EtapeGraphe[] =
 };
 
 const TEXTES = {
+    enTeteTitre: { en: "At the start of every call", fr: "En tête de chaque appel" },
+    enTeteAide: {
+        en: "Locked: you can change the wording, never turn the announcement off.",
+        fr: "Verrouillée : on peut changer la formulation, jamais éteindre l'annonce.",
+    },
     description: {
         en: "What the voice says by itself, without the model, when something waits or fails.",
         fr: "Ce que la voix dit d'elle-même, sans le modèle, quand on attend ou quand quelque chose échoue.",
@@ -263,8 +268,10 @@ export const ThemePhrases = ({
     const agentDeLaCarte = carte?.agents.find((a) => a.id === workflowId);
     const heritees = useMemo(() => (specialise ? (agentDeLaCarte?.regles_du_groupe ?? []) : []), [specialise, agentDeLaCarte]);
     const lignes = useMemo(() => lignesDeLaListe(regles, heritees, etapes), [regles, heritees, etapes]);
-    const compte = (m: Moment) => lignes.filter((l) => l.motif.moment === m).length;
-    const visibles = lignes.filter((l) => filtre === "tout" || l.motif.moment === filtre);
+    // L3e : les motifs verrouillés (l'annonce « vous parlez à une IA ») sont en tête, à part des causes : on change leur texte, jamais leur existence.
+    const verrouillees = lignes.filter((l) => l.motif.verrouille && !l.heritee);
+    const compte = (m: Moment) => lignes.filter((l) => !l.motif.verrouille && l.motif.moment === m).length;
+    const visibles = lignes.filter((l) => !l.motif.verrouille && (filtre === "tout" || l.motif.moment === filtre));
     const allumees = lignes.filter((l) => l.active && !l.remplacee).length;
 
     const reprise = (r: ReglePhrase) =>
@@ -380,6 +387,28 @@ export const ThemePhrases = ({
                 ]}
             >
                 <div className="space-y-5">
+                    {filtre === "tout" && verrouillees.length > 0 && (
+                        <div className="space-y-2" data-verrouillees>
+                            <div>
+                                <h3 className="text-sm font-semibold">{t(TEXTES.enTeteTitre)}</h3>
+                                <p className="text-xs text-muted-foreground">{t(TEXTES.enTeteAide)}</p>
+                            </div>
+                            {verrouillees.map((ligne) => (
+                                <CartePhrase
+                                    key={ligne.id + (ligne.index ?? "")}
+                                    id={ligne.id}
+                                    regle={ligne.regle}
+                                    motif={ligne.motif}
+                                    origine={ligne.origine}
+                                    contexte={contexte}
+                                    active
+                                    verrouillee
+                                    derniere={dernierDe(ligne)}
+                                    onOuvrir={() => ouvrirLaLigne(ligne)}
+                                />
+                            ))}
+                        </div>
+                    )}
                     {MOMENTS.filter((m) => visibles.some((l) => l.motif.moment === m)).map((moment) => (
                         <div key={moment} className="space-y-2" data-moment={moment}>
                             <div>

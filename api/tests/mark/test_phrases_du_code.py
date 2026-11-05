@@ -86,7 +86,7 @@ def test_la_copie_du_catalogue_a_l_ecran_est_celle_du_code():
     assert copie["bornes"]["delai_max_s"] == DELAI_MAX_S
     # Les quatorze motifs (les dix du tableau 4.4, les deux du garde-fou d impasse et la phrase douce de « laisser la parole »), chacun avec les cases qu'il permet.
     assert [m["id"] for m in copie["motifs"]] == list(MOTIFS)
-    assert len(copie["motifs"]) == 14
+    assert len(copie["motifs"]) == 16
 
 
 def test_les_niveaux_etape_agent_principal_defaut():

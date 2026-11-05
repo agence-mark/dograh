@@ -178,6 +178,14 @@ export function FenetreDePublication({
                 en: "Dograh's webhook and the .mark webhook module both send after the call. Warns by default.",
             },
         },
+        annonce_ia: {
+            fr: "Annonce « vous parlez à une IA »",
+            en: "Announcement « you are talking to an AI »",
+            info: {
+                fr: "Dite en tête de chaque appel, impossible à éteindre : le texte se change (thème Phrases), jamais l'annonce. Bloque toujours si le texte est vide.",
+                en: "Said at the start of every call and cannot be turned off: the text can change (Phrases theme), the announcement never. Always blocks when the text is empty.",
+            },
+        },
         garde_fous: {
             fr: "Garde-fous",
             en: "Safeguards",

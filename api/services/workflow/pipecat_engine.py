@@ -84,6 +84,7 @@ from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.services.pipecat.audio_playback import play_audio
 from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
 from api.services.pipecat.greeting import GreetingController
+from api.services.securite import annonce_ia
 from api.services.pipecat.speech_playback import (
     PlaybackOutcome,
     SpeechPlayback,
@@ -2611,6 +2612,14 @@ class PipecatEngine:
 
         if previous_node_id != node_id:
             greeting_info = self.get_node_greeting(node_id)
+            # [.mark] L3e : « vous parlez à une IA », en tête de l'appel, une fois, impossible à éteindre (``securite/annonce_ia``).
+            annonce = annonce_ia.a_dire(self, greeting_info)
+            if annonce:
+                reunie = annonce_ia.avec_l_accueil(annonce, greeting_info)
+                if reunie is not None:
+                    greeting_info = reunie
+                else:
+                    await annonce_ia.dire_a_part(self, annonce, mute_user=mute_user)
             if greeting_info:
                 greeting_type, greeting_value = greeting_info
                 if (

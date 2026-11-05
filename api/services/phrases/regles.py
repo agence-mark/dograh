@@ -15,7 +15,7 @@ phrase (la carte l'affiche). Une étape se repère par son identifiant de nœud 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from loguru import logger
@@ -214,6 +214,19 @@ def _meilleure(regles: list[ReglePhrase], outil: str | None) -> ReglePhrase | No
 
 
 def resoudre(
+    motif_id: str,
+    **options: Any,
+) -> PhraseResolue | None:
+    """La phrase en vigueur (voir ``_resoudre``). Un motif VERROUILLÉ (l'annonce « vous parlez à une IA ») sort toujours allumé et avec un
+    texte : éteint ou vidé par une règle, c'est le texte par défaut du catalogue qui est dit."""
+    phrase = _resoudre(motif_id, **options)
+    if phrase is None or not phrase.motif.verrouille:
+        return phrase
+    variantes = tuple(v for v in phrase.variantes if isinstance(v, str) and v.strip()) or phrase.motif.variantes_defaut
+    return replace(phrase, active=True, variantes=variantes)
+
+
+def _resoudre(
     motif_id: str,
     *,
     reglages_agent: Mapping[str, Any] | None = None,
