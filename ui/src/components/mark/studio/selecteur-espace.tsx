@@ -100,6 +100,8 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                     <button
                         type="button"
                         data-espace={espace}
+                        // SA-V : barre latérale repliée, seule la puce reste : le bouton garde un nom lisible.
+                        aria-label={`${t({ en: "Switch space", fr: "Changer d’espace" })} : ${libelle}`}
                         className="flex w-full cursor-pointer items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:bg-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
                         <PuceEspace espace={espace} />

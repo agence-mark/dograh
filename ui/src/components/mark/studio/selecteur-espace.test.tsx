@@ -53,4 +53,11 @@ describe("sélecteur d'espace", () => {
         monter("labo", null);
         expect(screen.getByText("Labo")).toBeTruthy();
     });
+
+    it("SA-V : le bouton a un nom accessible, même quand la barre latérale est repliée (seule la puce reste)", async () => {
+        monter("labo", null);
+        await waitFor(() => expect(screen.getByText("Atelier .mark")).toBeTruthy());
+        const bouton = document.querySelector("[data-espace='labo']") as HTMLElement;
+        expect(bouton.getAttribute("aria-label")).toContain("Atelier .mark");
+    });
 });
