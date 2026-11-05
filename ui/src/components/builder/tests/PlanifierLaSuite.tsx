@@ -292,10 +292,7 @@ export function PlanifierLaSuite({ agentId, fermer, onChange }: { agentId: numbe
                             <ul className="divide-y border-t pt-1 text-sm" data-testid="alertes-levees">
                                 {alertes.levees.map((a) => (
                                     <li key={a.id} className="py-2">
-                                        <span className="font-medium">
-                                            {t({ en: "Version", fr: "Version" })} {a.version}
-                                        </span>{" "}
-                                        <span className="text-muted-foreground">{a.resume}</span>
+                                        <span className="font-medium">{a.resume}</span>
                                     </li>
                                 ))}
                             </ul>

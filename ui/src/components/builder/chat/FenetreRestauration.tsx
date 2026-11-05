@@ -133,7 +133,7 @@ export function FenetreRestauration({
         };
     }, [workflowId, numero]);
 
-    const rien = apercu !== null && apercu.total_perdu === 0 && apercu.total_retrouve === 0;
+    const rien = apercu !== null && apercu.total_perdu === 0 && apercu.total_retrouve === 0 && !(apercu.familles ?? []).some((f) => f.change === true);
     const familles = apercu?.familles ?? (apercu ? SCHEMA_SEUL : []);
     const bascule = (famille: string, v: boolean) => setCochees((c) => (v ? [...(c ?? []), famille] : (c ?? []).filter((x) => x !== famille)));
     return (
