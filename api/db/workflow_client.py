@@ -6,7 +6,7 @@ from sqlalchemy import func, update
 from sqlalchemy.future import select
 from sqlalchemy.orm import load_only, selectinload
 
-from api.db import branche_ouverte
+from api.db import branche_ouverte, protection_principale
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
 
@@ -176,6 +176,8 @@ class WorkflowClient(BaseDBClient):
         """
         async with self.async_session() as session:
             cible = await self._cible(session, workflow_id)
+            if cible.branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
             base_de_la_branche = await self._base_de_la_branche(session, workflow_id, cible) if cible.branch_id else None
             # Check for existing draft
             result = await session.execute(
@@ -267,6 +269,13 @@ class WorkflowClient(BaseDBClient):
         async with self.async_session() as session:
             return await self._cible(session, workflow_id)
 
+    async def exiger_la_principale_modifiable(self, workflow_id: int) -> None:
+        """[.mark] SA-L3c : refuse (``PrincipaleProtegee``) si la requête vise la principale d'un agent dont elle est protégée ;
+        sur une branche ouverte, rien à dire. Pour refuser tôt (mise en attente du builder), avant tout travail."""
+        async with self.async_session() as session:
+            if (await self._cible(session, workflow_id)).branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)
+
     async def _base_de_la_branche(self, session, workflow_id: int, cible) -> WorkflowDefinitionModel | None:
         """[.mark] SA-L3b : la version en ligne de la branche ouverte (pour y fonder un premier brouillon). La branche doit
         appartenir à CET agent, sinon rien (un en-tête forgé ne donne accès à rien)."""
@@ -299,6 +308,7 @@ class WorkflowClient(BaseDBClient):
             cible = await self._cible(session, workflow_id)
             if cible.branch_id is not None:
                 raise ValueError("A branch draft is published from its branch, not as the agent's live version")
+            await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
             # Find the draft
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
@@ -381,6 +391,8 @@ class WorkflowClient(BaseDBClient):
         """
         async with self.async_session() as session:
             cible = await self._cible(session, workflow_id)
+            if cible.branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
             # Ensure no existing draft
             draft_result = await session.execute(
                 select(WorkflowDefinitionModel).where(

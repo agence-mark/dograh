@@ -25,6 +25,8 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 
+from api.db.protection_principale import PrincipaleProtegee
+
 # Ce que le builder ne fait jamais. Le nom sert au refus explicite ; aucune de ces actions n'existe.
 INTERDITES: frozenset[str] = frozenset(
     {
@@ -155,6 +157,9 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
             await sauvegarde.apres_creation(contexte, resultat)
     except ErreurAction as erreur:
         return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
+    except PrincipaleProtegee as erreur:
+        # SA-L3c : la principale d'un agent client en ligne n'a plus de brouillon à écrire ; le cerveau passe par une branche.
+        return {"ok": False, "code": erreur.code, "erreur": f"{erreur} Tell the person: the change goes on a branch, merged after a review."}
     except Exception as erreur:  # noqa: BLE001 -- une action qui échoue ne fait pas tomber la conversation
         logger.warning(f"[builder] action {nom} en échec : {type(erreur).__name__}")
         return {"ok": False, "erreur": f"The action failed ({type(erreur).__name__}): {str(erreur)[:200]}"}

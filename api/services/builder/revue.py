@@ -117,6 +117,12 @@ def _cle(workflow_id: int, numero: int) -> str:
     return cle_builder(workflow_id, f"{PARTIE}:{numero:06d}")
 
 
+async def _branche_ouverte(workflow_id: int) -> int | None:
+    """[.mark] SA-L3c : la branche non principale que la requête a ouverte sur cet agent (``None`` : la principale). Un instantané
+    appartient à la branche où il a été pris ; « Revenir avant » ne voit et ne restaure que ceux de la branche ouverte."""
+    return (await db_client.branche_ouverte_de(workflow_id)).branch_id
+
+
 async def _ranger(
     organization_id: int,
     workflow_id: int,
@@ -133,6 +139,9 @@ async def _ranger(
     # V4 : seulement les clés (le numéro est le dernier morceau de la clé), jamais les graphes des instantanés déjà rangés.
     existants = await stock.cles(organization_id, cle_builder(workflow_id, f"{PARTIE}:"))
     numero = int(existants[-1].rsplit(":", 1)[1]) + 1 if existants else 1
+    branche = await _branche_ouverte(workflow_id)
+    if complement is not None:
+        complement = {**complement, "branche": branche}
     await stock.ecrire(
         organization_id,
         _cle(workflow_id, numero),
@@ -141,6 +150,7 @@ async def _ranger(
             "cause": cause,
             "date": datetime.now(UTC).isoformat(),
             "fil_id": fil_id,
+            "branche": branche,  # SA-L3c : None = la principale (et tout instantané d'avant les branches)
             "version_avant": version_avant,
             "version_apres": version_apres,
             "operations": operations,
@@ -166,9 +176,12 @@ async def instantanes(organization_id: int, workflow_id: int, fil_id: int | None
         else await stock.lister_sans(organization_id, prefixe, ["avant", "apres", "complement"])
     )
     sortie = []
+    ouverte = await _branche_ouverte(workflow_id)
     for _cle_ligne, v in reversed(lignes):
         if fil_id is not None and v.get("fil_id") != fil_id:
             continue
+        if v.get("branche") != ouverte:
+            continue  # SA-L3c : « Revenir avant » est propre à la branche
         if complets:
             sortie.append(v)
         else:
@@ -257,8 +270,8 @@ async def restaurer(
     Tout est validé avant la première écriture ; le vocabulaire et les objets (partagés par l'organisation) s'écrivent après le
     brouillon. La restauration range elle-même un instantané complet : elle se défait. Jamais une publication."""
     ligne = await stock.lire(organization_id, _cle(workflow.id, numero))
-    if ligne is None or not ligne.get("avant"):
-        raise ErreurRevue(f"Unknown version: {numero}.")
+    if ligne is None or not ligne.get("avant") or ligne.get("branche") != await _branche_ouverte(workflow.id):
+        raise ErreurRevue(f"Unknown version: {numero}.")  # SA-L3c : l'instantané d'une autre branche n'existe pas ici
     try:
         choisies = instantane.choisir(ligne, familles)
         graphe, version = await brouillon.source_courante(workflow)

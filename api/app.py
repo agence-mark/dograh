@@ -34,6 +34,7 @@ from loguru import logger
 
 from api.constants import REDIS_URL
 from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
+from api.db.protection_principale import PrincipaleProtegee
 from api.services.builder.stock import ConflitDEcriture
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
@@ -141,6 +142,13 @@ async def handle_conflit_d_ecriture(_request: Request, exc: ConflitDEcriture) ->
     """[.mark] Builder, revue R6 : une ligne qui bouge sans cesse est un conflit (409), jamais une panne (500), sur toute route."""
 
     return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+@app.exception_handler(PrincipaleProtegee)
+async def handle_principale_protegee(_request: Request, exc: PrincipaleProtegee) -> JSONResponse:
+    """[.mark] Partie 3, SA-L3c : la branche principale protégée refuse toute écriture de son brouillon (409, sur toute route)."""
+
+    return JSONResponse(status_code=409, content={"detail": str(exc), "code": exc.code})
 
 
 # Configure CORS.

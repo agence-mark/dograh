@@ -326,6 +326,24 @@ class BranchesClient(BaseDBClient):
             principale.head_definition_id = definition_id
             await session.commit()
 
+    async def protection_de_la_principale(self, organization_id: int, workflow_id: int) -> tuple[bool, bool]:
+        """(protégée en fait, protégée par la règle seule). La règle : agent client en ligne (voir ``protection_principale``). Le
+        drapeau ne lève que ce que la règle n'impose pas."""
+        from api.db import protection_principale
+
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            en_fait = await protection_principale.est_protegee(session, workflow_id)
+            return en_fait, en_fait and not principale.protegee
+
+    async def regler_la_protection_de_la_principale(self, organization_id: int, workflow_id: int, protegee: bool) -> None:
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            principale.protegee = protegee
+            await session.commit()
+
     async def compter_les_branches(self, organization_id: int, workflow_ids: list[int]) -> dict[int, int]:
         if not workflow_ids:
             return {}

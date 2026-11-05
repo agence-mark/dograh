@@ -77,8 +77,8 @@ def comparer(actuel: dict[str, Any] | None, cible: dict[str, Any] | None) -> dic
 
 async def apercu_de_la_restauration(organisation: int, workflow: Any, numero: int, user: Any = None) -> dict[str, Any]:
     ligne = await stock.lire(organisation, revue._cle(workflow.id, numero))  # noqa: SLF001
-    if ligne is None or not ligne.get("avant"):
-        raise revue.ErreurRevue(f"Unknown version: {numero}.")
+    if ligne is None or not ligne.get("avant") or ligne.get("branche") != await revue._branche_ouverte(workflow.id):  # noqa: SLF001
+        raise revue.ErreurRevue(f"Unknown version: {numero}.")  # SA-L3c : l'instantané d'une autre branche
     actuel, version = await brouillon.source_courante(workflow)
     # Sous-lot 7 : famille par famille, ce qui est gardé et ce qui changerait (des noms et des comptes, jamais une valeur).
     maintenant = await instantane.capturer(organisation, workflow, user=user)

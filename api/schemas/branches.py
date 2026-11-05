@@ -31,6 +31,12 @@ class EpinglerLaPrincipale(BaseModel):
     version: int | None = Field(default=None, ge=1, description="Version number to serve; none: follow the agent's live version.")
 
 
+class ProtectionDemandee(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    protegee: bool = Field(description="Protect the main branch (entered only by a reviewed merge) or lift the flag.")
+
+
 class VersionDeBranche(BaseModel):
     id: int
     numero: int | None
@@ -48,6 +54,7 @@ class BrancheVue(BaseModel):
     nom: str
     principale: bool
     protegee: bool
+    protegee_par_defaut: bool = False
     part: int
     version_en_ligne: int | None
     versions: list[VersionDeBranche]
