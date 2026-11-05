@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FournisseurLangue } from "../langue/langue";
 import { OngletIndicateurs } from "../qualite/OngletIndicateurs";
 import { DetailProbleme } from "./DetailProbleme";
-import { demandeAuBuilder, texteDeFrequence, titreLisible } from "./libelles";
+import { demandeAuBuilder, ORIGINES, texteDeFrequence, titreLisible } from "./libelles";
 import { PageAAmeliorer } from "./PageAAmeliorer";
 
 const m = vi.hoisted(() => ({
@@ -373,5 +373,12 @@ describe("La page des deux espaces", () => {
         const client = await import("@/app/clients/[org]/a-ameliorer/page");
         expect(labo.default).toBe(PageAAmeliorer);
         expect(client.default).toBe(PageAAmeliorer);
+    });
+});
+
+describe("Point d'origine « Attaque » (partie 3, sous-lot 4)", () => {
+    it("une attaque qui a cédé a son libellé d'origine, à côté des autres", () => {
+        expect(ORIGINES.attaque).toEqual({ en: "An attack that got through", fr: "Une attaque qui a cédé" });
+        expect(Object.keys(ORIGINES)).toEqual(expect.arrayContaining(["client", "recette", "code", "deploiement", "attaque"]));
     });
 });

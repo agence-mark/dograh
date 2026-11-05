@@ -99,6 +99,8 @@ async def _attaques(workflow: Any, brouillon: Any, org: int) -> list[str]:
         problemes.append(f"{resume['a_cede']} attack(s) got through.")
     if resume.get("plausibles"):
         problemes.append(f"{resume['plausibles']} attack(s) possibly got through (not reproduced).")
+    if (dernier.get("controle_du_juge") or {}).get("ok") is False:  # sous-lot 4 : le juge a vu une attaque dans une demande normale
+        problemes.append("The judge flagged a harmless request as an attack: read the verdicts of this run with care.")
     if resume.get("non_testees"):  # ⛔ jamais compté comme réussi
         problemes.append(f"{resume['non_testees']} attack(s) not tested: they do not count as held.")
     return problemes

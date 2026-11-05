@@ -5,7 +5,9 @@
 - ``POST /builder/publication/{agent}/liste-vocale/corriger``    écrire les corrections ACCEPTÉES ;
 - ``POST /builder/publication/{agent}/corriger-un-reglage``      la correction en un clic d'un réglage sans effet (« Prêt à publier ») ;
 - (la part des appels vit dans ``/builder/branches`` : un seul mécanisme de répartition du trafic) ;
-- ``GET  /builder/attaques/catalogue`` · ``GET|POST /builder/attaques/{agent}[/lancer|/rejouer]``.
+- ``GET  /builder/attaques/catalogue`` · ``GET|POST /builder/attaques/{agent}[/lancer|/rejouer]`` ;
+- ``GET|POST /builder/attaques/jeu-public[/importer]`` le jeu public fourni par une personne ;
+- ``POST /builder/attaques/{agent}/creer-des-tests`` · ``/envoyer-a-ameliorer`` ce qu'on fait des attaques qui ont cédé.
 
 Tout est lu et écrit AVEC l'organisation de l'utilisateur ; un agent d'une autre organisation est un 404.
 """
@@ -36,7 +38,7 @@ async def _agent_ou_404(user: UserModel, workflow_id: int):
 
 def _ou_http(resultat: dict[str, Any]) -> dict[str, Any]:
     if resultat.get("ok") is False and resultat.get("erreur"):
-        code = {"introuvable": 404, "sans_brouillon": 409}.get(resultat.get("code") or "", 422)
+        code = {"introuvable": 404, "sans_brouillon": 409, "rien_a_envoyer": 409}.get(resultat.get("code") or "", 422)
         raise HTTPException(status_code=code, detail=resultat["erreur"])
     return resultat
 
@@ -68,6 +70,21 @@ class Lancer(BaseModel):
     confirme: bool = False
     modifie_l_environnement: bool = False
     corrige: bool = False
+    essais: int | None = Field(default=None, ge=1, le=5)
+    temoin: bool = True
+    jeu: str = Field(default="catalogue", pattern="^(catalogue|public)$")
+
+
+class ChoixDAttaques(BaseModel):
+    """Les attaques du dernier rapport à traiter ; vide = celles qui ont cédé de façon confirmée."""
+
+    model_config = ConfigDict(extra="forbid")
+    ids: list[str] | None = Field(default=None, max_length=50)
+
+
+class JeuPublic(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contenu: str = Field(min_length=1, max_length=12_000_000)
 
 
 # --- publication ----------------------------------------------------------------------------------------------------------
@@ -186,6 +203,16 @@ async def catalogue_des_attaques(user: UserModel = Depends(get_user_with_selecte
     }
 
 
+@router.get("/builder/attaques/jeu-public")
+async def jeu_public(user: UserModel = Depends(get_user_with_selected_organization)):
+    return _ou_http(await executer("attaques_jeu_public", {}, Contexte(user=user, workflow_id=None)))
+
+
+@router.post("/builder/attaques/jeu-public/importer")
+async def importer_le_jeu_public(corps: JeuPublic, user: UserModel = Depends(get_user_with_selected_organization)):
+    return _ou_http(await executer("attaques_importer_le_jeu_public", corps.model_dump(), Contexte(user=user, workflow_id=None)))
+
+
 @router.get("/builder/attaques/{workflow_id}")
 async def dernier_rapport(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     return await _action("attaques_rapport", user, workflow_id)
@@ -199,3 +226,13 @@ async def lancer_les_attaques(workflow_id: int, corps: Lancer, user: UserModel =
 @router.post("/builder/attaques/{workflow_id}/rejouer")
 async def rejouer_les_attaques(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     return await _action("attaques_rejouer", user, workflow_id)
+
+
+@router.post("/builder/attaques/{workflow_id}/creer-des-tests")
+async def creer_des_tests_depuis_les_attaques(workflow_id: int, corps: ChoixDAttaques, user: UserModel = Depends(get_user_with_selected_organization)):
+    return await _action("attaques_creer_des_tests", user, workflow_id, **corps.model_dump())
+
+
+@router.post("/builder/attaques/{workflow_id}/envoyer-a-ameliorer")
+async def envoyer_les_attaques_dans_a_ameliorer(workflow_id: int, corps: ChoixDAttaques, user: UserModel = Depends(get_user_with_selected_organization)):
+    return await _action("attaques_envoyer_a_ameliorer", user, workflow_id, **corps.model_dump())

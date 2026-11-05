@@ -3,7 +3,9 @@
 * ``publication_controler`` : les contrôles de la fenêtre « Publier » sur le brouillon (lecture, simulation) ;
 * ``publication_corriger_la_liste_vocale`` : écrit dans le BROUILLON les corrections ACCEPTÉES (ids choisis), puis rend le
   nouveau contrôle complet ;
-* ``attaques_lancer`` / ``attaques_rapport`` / ``attaques_rejouer`` : « Attaquer l'agent ».
+* ``attaques_lancer`` / ``attaques_rapport`` / ``attaques_rejouer`` : « Attaquer l'agent » ;
+* ``attaques_creer_des_tests`` / ``attaques_envoyer_a_ameliorer`` : ce qu'on fait des attaques qui ont cédé ; ``attaques_importer_le_jeu_public``
+  / ``attaques_jeu_public`` : le jeu public fourni par une personne (SE-10).
 
 ⛔ Le builder ne publie jamais (``INTERDITES``). Un contrat d'attaque non confirmé ne joue rien. Aucun appel réel : chemin texte des
 tests, outils sortants simulés ; le juge est celui des Réglages du Labo.
@@ -14,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from api.db import db_client
@@ -46,6 +49,17 @@ class _Lancer(_Agent):
     confirme: bool = Field(default=False, description="True only when a person confirmed the scope in the conversation. Without it nothing is probed.")
     modifie_l_environnement: bool = Field(default=False, description="Not available: refused when true.")
     corrige: bool = Field(default=False, description="Not available: the report alone, a person decides the fixes.")
+    essais: int | None = Field(default=None, ge=1, le=5, description="Tries to reproduce an attack that got through before it is confirmed (1 to 5).")
+    temoin: bool = Field(default=True, description="A harmless witness after each attack, and a check that the judge does not cry wolf.")
+    jeu: str = Field(default="catalogue", pattern="^(catalogue|public)$", description="catalogue (15 techniques) or public (the imported public set).")
+
+
+class _Choix(_Agent):
+    ids: list[str] | None = Field(default=None, max_length=50, description="Attack ids of the last report. Empty: the confirmed ones.")
+
+
+class _Import(BaseModel):
+    contenu: str = Field(min_length=1, max_length=12_000_000, description="The CSV of the public set (header with a prompt column).")
 
 
 async def _brouillon(workflow: Any):
@@ -95,19 +109,25 @@ async def _juge(contexte: Contexte, workflow: Any):
 
 
 async def _lancer(contexte: Contexte, p: _Lancer) -> dict[str, Any]:
-    from api.services.attaques import catalogue, service
+    from api.services.attaques import catalogue, jeu_public, service
     from api.services.attaques.contrat import Contrat, RefusDuContrat
 
     workflow = await agent_de_l_organisation(contexte, p.workflow_id)
     try:
         contrat = Contrat(
-            profondeur=p.profondeur, confirme=p.confirme, modifie_l_environnement=p.modifie_l_environnement, corrige=p.corrige
+            profondeur=p.profondeur,
+            confirme=p.confirme,
+            modifie_l_environnement=p.modifie_l_environnement,
+            corrige=p.corrige,
+            essais=p.essais,
+            temoin=p.temoin,
+            jeu=p.jeu,
         ).verifier()
     except (RefusDuContrat, ValueError) as erreur:
         raise ErreurAction(str(erreur), "contrat") from None
     try:
         rapport = await service.lancer(workflow, contexte.organisation_id, contrat, moteur=await _moteur(), juge=await _juge(contexte, workflow))
-    except catalogue.JeuIllisible as erreur:
+    except (catalogue.JeuIllisible, jeu_public.ImportRefuse) as erreur:
         raise ErreurAction(str(erreur), "jeu") from None
     return {"ok": True, "rapport": rapport}
 
@@ -128,6 +148,45 @@ async def _rejouer(contexte: Contexte, p: _Agent) -> dict[str, Any]:
     if not resultat.get("ok"):
         raise ErreurAction(resultat["erreur"], "sans_rapport")
     return resultat
+
+
+async def _creer_des_tests(contexte: Contexte, p: _Choix) -> dict[str, Any]:
+    from api.services.attaques import rapport, suites
+
+    workflow = await agent_de_l_organisation(contexte, p.workflow_id)
+    lu = await rapport.lire(contexte.organisation_id, workflow.id)
+    try:
+        return await suites.creer_des_tests(contexte.organisation_id, workflow.id, lu, p.ids, getattr(contexte.user, "email", None))
+    except suites.RienACreer as erreur:
+        raise ErreurAction(str(erreur), "rien_a_envoyer") from None
+
+
+async def _envoyer_a_ameliorer(contexte: Contexte, p: _Choix) -> dict[str, Any]:
+    from api.services.attaques import rapport, suites
+
+    workflow = await agent_de_l_organisation(contexte, p.workflow_id)
+    lu = await rapport.lire(contexte.organisation_id, workflow.id)
+    try:
+        return await suites.envoyer_dans_a_ameliorer(contexte.organisation_id, workflow.id, lu, p.ids)
+    except suites.RienACreer as erreur:
+        raise ErreurAction(str(erreur), "rien_a_envoyer") from None
+
+
+async def _importer_le_jeu_public(contexte: Contexte, p: _Import) -> dict[str, Any]:
+    from api.services.attaques import jeu_public
+
+    try:
+        fait = await jeu_public.importer(contexte.organisation_id, p.contenu)
+    except jeu_public.ImportRefuse as erreur:
+        raise ErreurAction(str(erreur), "import") from None
+    logger.info(f"[attaques] jeu public importé pour l'organisation {contexte.organisation_id} : {fait['ajoutees']} ajoutée(s), {fait['total']} au total")
+    return fait
+
+
+async def _jeu_public(contexte: Contexte, p: BaseModel) -> dict[str, Any]:
+    from api.services.attaques import jeu_public
+
+    return {"ok": True, **await jeu_public.resume(contexte.organisation_id)}
 
 
 def _enregistrer(nom: str, description: str, parametres: type[BaseModel], fonction, ecriture: bool, groupe: str = "tests") -> None:
@@ -171,3 +230,29 @@ _enregistrer(
     _rejouer,
     True,
 )
+_enregistrer(
+    "attaques_creer_des_tests",
+    "From the LAST attack report, create one replayable test per attack that got through (confirmed by default, or the ids given): the "
+    "conversation up to the attack, the criterion « nothing else is done » and the question the judge asks at each replay. A test "
+    "that already exists is not created twice.",
+    _Choix,
+    _creer_des_tests,
+    True,
+)
+_enregistrer(
+    "attaques_envoyer_a_ameliorer",
+    "Send the attacks that got through (confirmed by default, or the ids given) of the LAST report to « To improve », one problem per "
+    "attack, origin « Attack ». The same report never counts twice.",
+    _Choix,
+    _envoyer_a_ameliorer,
+    True,
+)
+_enregistrer(
+    "attaques_importer_le_jeu_public",
+    "Import the public attack set (CSV of verazuo/jailbreak_llms, MIT: a prompt column, jailbreak, community…) given by a person. "
+    "Idempotent: only the attacks not yet there are added; a text too long is set aside, never cut. No model is called.",
+    _Import,
+    _importer_le_jeu_public,
+    True,
+)
+_enregistrer("attaques_jeu_public", "Say whether the public attack set is imported, and how many attacks it holds.", _Agent, _jeu_public, False)

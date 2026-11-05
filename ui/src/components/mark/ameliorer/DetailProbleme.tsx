@@ -110,7 +110,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
         });
     }, [charger]);
 
-    const changer = async (corps: { etat?: "a_trier" | "en_cours" | "ignoree"; assigne?: number | null; origine?: "client" | "recette" | "code" | "deploiement" }) => {
+    const changer = async (corps: { etat?: "a_trier" | "en_cours" | "ignoree"; assigne?: number | null; origine?: "client" | "recette" | "code" | "deploiement" | "attaque" }) => {
         const r = await changerUneAmeliorationApiV1AmeliorationsAmeliorationIdPut({ path: { amelioration_id: id }, body: corps });
         if (r.error || !r.data) {
             notifier.echec(MESSAGES.changeEchec, { erreur: r.error });
@@ -271,7 +271,7 @@ export function DetailProbleme({ id, fermer, apres }: { id: number; fermer: () =
                                             aria-label={t(T.origine)}
                                             className="h-8 cursor-pointer rounded-md border bg-background px-2 text-sm"
                                             value={vue.origine ?? ""}
-                                            onChange={(e) => e.target.value && void changer({ origine: e.target.value as "client" | "recette" | "code" | "deploiement" })}
+                                            onChange={(e) => e.target.value && void changer({ origine: e.target.value as "client" | "recette" | "code" | "deploiement" | "attaque" })}
                                         >
                                             <option value="">
                                                 {t(ORIGINES[vue.origine_suggeree])} ({t(T.suggeree)})
