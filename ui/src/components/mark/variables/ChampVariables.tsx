@@ -203,8 +203,20 @@ export function ChampVariables({
                 setEtiquette(null);
             }
         };
+        // Échap ferme le menu ou la carte, jamais la fenêtre qui porte le champ (elle écoute Échap plus haut, en capture).
+        const echap = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            setMenu(null);
+            setEtiquette(null);
+        };
         document.addEventListener("mousedown", dehors);
-        return () => document.removeEventListener("mousedown", dehors);
+        window.addEventListener("keydown", echap, true);
+        return () => {
+            document.removeEventListener("mousedown", dehors);
+            window.removeEventListener("keydown", echap, true);
+        };
     }, [menu, etiquette]);
 
     const publier = useCallback(() => {
@@ -443,6 +455,11 @@ export function ChampVariables({
                     <Input
                         autoFocus
                         aria-label={
+                            avecObjets
+                                ? t({ en: "Search a variable, a tool, a step…", fr: "Chercher une variable, un outil, une étape…" })
+                                : t({ en: "Search a variable", fr: "Chercher une variable" })
+                        }
+                        placeholder={
                             avecObjets
                                 ? t({ en: "Search a variable, a tool, a step…", fr: "Chercher une variable, un outil, une étape…" })
                                 : t({ en: "Search a variable", fr: "Chercher une variable" })

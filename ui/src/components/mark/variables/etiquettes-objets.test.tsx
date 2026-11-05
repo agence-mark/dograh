@@ -124,12 +124,15 @@ describe("ChampVariables avec des objets", () => {
         expect(screen.queryByTestId("menu-variables")).toBeNull();
     });
 
-    it("se ferme par Échap et par un clic dehors", async () => {
+    it("se ferme par Échap (sans fermer la fenêtre qui le porte) et par un clic dehors", async () => {
+        const fenetre = vi.fn();
+        document.addEventListener("keydown", (e) => e.key === "Escape" && fenetre(), true); // comme une fenêtre Radix
         render(<Champ initial="Texte" />);
         fireEvent.doubleClick(screen.getByTestId("champ-variables"));
         const menu = await screen.findByTestId("menu-variables");
         fireEvent.keyDown(menu, { key: "Escape" });
         expect(screen.queryByTestId("menu-variables")).toBeNull();
+        expect(fenetre).not.toHaveBeenCalled();
         fireEvent.doubleClick(screen.getByTestId("champ-variables"));
         await screen.findByTestId("menu-variables");
         fireEvent.mouseDown(screen.getByText("dehors"));
