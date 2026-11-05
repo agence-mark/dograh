@@ -5985,6 +5985,7 @@ export type DepenseDesRoles = {
     mois: string;
     appelant: DepenseDuRole;
     juge: DepenseDuRole;
+    resume?: DepenseDuRole;
 };
 
 /**
@@ -8128,6 +8129,28 @@ export type FichierDeModele = {
 };
 
 /**
+ * FichiersExportes
+ */
+export type FichiersExportes = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Fichiers
+     *
+     * path -> text, UTF-8
+     */
+    fichiers: {
+        [key: string]: string;
+    };
+    /**
+     * Secrets Retires
+     */
+    secrets_retires?: number;
+};
+
+/**
  * FilEquipe
  */
 export type FilEquipe = {
@@ -9461,6 +9484,26 @@ export type ImpersonateResponse = {
 };
 
 /**
+ * ImportDeFichiers
+ */
+export type ImportDeFichiers = {
+    /**
+     * Fichiers
+     *
+     * The files of an exported agent: path -> text.
+     */
+    fichiers: {
+        [key: string]: string;
+    };
+    /**
+     * Appliquer
+     *
+     * False (default): only the preview of the differences. True: import into the draft.
+     */
+    appliquer?: boolean;
+};
+
+/**
  * Importation
  */
 export type Importation = {
@@ -10163,6 +10206,24 @@ export type Lancer = {
 };
 
 /**
+ * LancerLesTests
+ */
+export type LancerLesTests = {
+    /**
+     * Tests
+     *
+     * Slugs or names of the tests to play; empty = the whole suite.
+     */
+    tests?: Array<string> | null;
+    /**
+     * Repetitions
+     *
+     * Times each test is played.
+     */
+    repetitions?: number;
+};
+
+/**
  * LancerUnEssai
  */
 export type LancerUnEssai = {
@@ -10477,6 +10538,26 @@ export type LigneAmeliorationEquipe = {
      * Organization Nom
      */
     organization_nom: string;
+};
+
+/**
+ * LigneApercu
+ */
+export type LigneApercu = {
+    /**
+     * Fichier
+     */
+    fichier: string;
+    /**
+     * Effet
+     *
+     * ajoute, modifie, inchange or retire (present in the agent, absent from the folder: kept)
+     */
+    effet: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
 };
 
 /**
@@ -15704,6 +15785,10 @@ export type ReglagesAppelantSimule = {
     version?: 1;
     appelant?: RoleSimule;
     juge?: RoleSimule;
+    /**
+     * Third role: the short summary of a call, when the agent has no after-call summary.
+     */
+    resume?: RoleSimule;
     voix?: VoixSimulee;
     /**
      * Simultanes
@@ -16679,6 +16764,72 @@ export type ResultatDepot = {
     comparatif?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * ResultatDesTests
+ *
+ * What an automation reads: ``ok`` and ``statut`` first, then the counters, the tests and the failures.
+ */
+export type ResultatDesTests = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Ok
+     *
+     * True only when the WHOLE suite was played and every test passed.
+     */
+    ok: boolean;
+    /**
+     * Statut
+     */
+    statut: 'ok' | 'echec' | 'incomplet' | 'plafond' | 'sans_test';
+    /**
+     * Tests Total
+     */
+    tests_total: number;
+    /**
+     * Tests Reussis
+     */
+    tests_reussis: number;
+    /**
+     * Suite Complete
+     */
+    suite_complete: boolean;
+    /**
+     * Obligatoire En Echec
+     */
+    obligatoire_en_echec: boolean;
+    /**
+     * Version
+     */
+    version?: number | null;
+    /**
+     * Plafond
+     *
+     * The ceiling that stopped the run (replay ceiling or monthly budget of a role).
+     */
+    plafond?: string | null;
+    /**
+     * Depense
+     */
+    depense?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Tests
+     */
+    tests: Array<UnTest>;
+    /**
+     * Echecs
+     */
+    echecs: Array<UnEchec>;
 };
 
 /**
@@ -19938,6 +20089,74 @@ export type UltravoxRealtimeLlmConfiguration = {
 };
 
 /**
+ * UnEchec
+ */
+export type UnEchec = {
+    /**
+     * Test
+     */
+    test: string;
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Obligatoire
+     */
+    obligatoire?: boolean;
+    /**
+     * Critere
+     */
+    critere?: string | null;
+    /**
+     * Raison
+     */
+    raison?: string | null;
+    /**
+     * Replique
+     */
+    replique?: string | null;
+};
+
+/**
+ * UnTest
+ */
+export type UnTest = {
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Obligatoire
+     */
+    obligatoire?: boolean;
+    /**
+     * Statut
+     */
+    statut?: string | null;
+    /**
+     * Reussis
+     */
+    reussis?: number | null;
+    /**
+     * Total
+     */
+    total?: number | null;
+    /**
+     * Le
+     */
+    le?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
+};
+
+/**
  * UpdateCampaignRequest
  */
 export type UpdateCampaignRequest = {
@@ -22930,6 +23149,14 @@ export type WorkflowRunResponseSchema = {
      * Note Juge
      */
     note_juge?: number | null;
+    /**
+     * Resume
+     */
+    resume?: string | null;
+    /**
+     * Resume Source
+     */
+    resume_source?: string | null;
 };
 
 /**
@@ -23152,6 +23379,18 @@ export type WorkflowRunUsageResponse = {
      * telephony, web, chat, simulated or site.
      */
     canal?: string | null;
+    /**
+     * Resume
+     *
+     * One or two sentences on the call: the after-call summary, else the model's short summary; null when none.
+     */
+    resume?: string | null;
+    /**
+     * Resume Source
+     *
+     * Where the summary comes from: synthese or modele.
+     */
+    resume_source?: string | null;
 };
 
 /**
@@ -23318,6 +23557,38 @@ export type XaittsConfiguration = {
      * BCP-47 language code for synthesis (e.g. 'en', 'fr', 'de'), or 'auto' for automatic language detection.
      */
     language?: string;
+};
+
+/**
+ * ResultatImport
+ */
+export type ApiRoutesAgentFichiersResultatImport = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Applique
+     */
+    applique: boolean;
+    /**
+     * Fichiers
+     */
+    fichiers: Array<LigneApercu>;
+    /**
+     * Tests Ecrits
+     */
+    tests_ecrits?: number;
+    /**
+     * Outils Epingles
+     */
+    outils_epingles?: number;
+    /**
+     * Avertissements
+     */
+    avertissements?: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -31173,6 +31444,219 @@ export type MettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJour
     200: unknown;
 };
 
+export type ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: {
+        /**
+         * Format
+         */
+        format?: string;
+        /**
+         * Contenus
+         *
+         * Comma list: graphe, prompts, reglages, outils, blocs, tests (default: all).
+         */
+        contenus?: string | null;
+    };
+    url: '/api/v1/agent-fichiers/{workflow_id}/export';
+};
+
+export type ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetError = ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetErrors[keyof ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetErrors];
+
+export type ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FichiersExportes;
+};
+
+export type ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetResponse = ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetResponses[keyof ExporterEnFichiersApiV1AgentFichiersWorkflowIdExportGetResponses];
+
+export type ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostData = {
+    body: ImportDeFichiers;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agent-fichiers/{workflow_id}/import';
+};
+
+export type ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostError = ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostErrors[keyof ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostErrors];
+
+export type ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiRoutesAgentFichiersResultatImport;
+};
+
+export type ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostResponse = ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostResponses[keyof ImporterDesFichiersApiV1AgentFichiersWorkflowIdImportPostResponses];
+
+export type LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostData = {
+    /**
+     * Corps
+     */
+    body?: LancerLesTests | null;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: {
+        /**
+         * Test
+         *
+         * A test to play (repeatable): the address « Launch from an automation » of a test.
+         */
+        test?: Array<string> | null;
+    };
+    url: '/api/v1/automatisation/agents/{workflow_id}/tests/lancer';
+};
+
+export type LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostError = LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostErrors[keyof LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostErrors];
+
+export type LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatDesTests;
+};
+
+export type LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostResponse = LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostResponses[keyof LancerLesTestsApiV1AutomatisationAgentsWorkflowIdTestsLancerPostResponses];
+
+export type DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/automatisation/agents/{workflow_id}/tests/dernier';
+};
+
+export type DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetError = DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetErrors[keyof DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetErrors];
+
+export type DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResultatDesTests;
+};
+
+export type DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetResponse = DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetResponses[keyof DernierResultatDesTestsApiV1AutomatisationAgentsWorkflowIdTestsDernierGetResponses];
+
 export type DemarrerUneInstallationApiV1InstallationsClientPostData = {
     body: DemandeDemarrer;
     headers?: {
@@ -35091,6 +35575,12 @@ export type LireLaQualiteApiV1QualiteGetData = {
          * Workflow Id
          */
         workflow_id?: number | null;
+        /**
+         * Motif
+         *
+         * Only this call reason (exact match, case ignored).
+         */
+        motif?: string | null;
     };
     url: '/api/v1/qualite';
 };
@@ -46801,7 +47291,7 @@ export type GetUsageHistoryApiV1OrganizationsUsageRunsGetData = {
          * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, `chat`, `simulated` (the group of run modes for that channel) or `site` (started from the site widget) |
          * | `judgeNote`     | `numberRange` | `{ "min": 3.5, "max": 5 }`                   | the judge's grade out of 5 (unjudged calls never match) |
          * | `agentVersion`  | `number`      | `{ "value": 3 }`                             | calls handled by that version number of their agent  |
-         * | `callReason`    | `text`        | `{ "value": "rdv" }`                         | substring of the call reason in the record           |
+         * | `callReason`    | `text`        | `{ "value": "Rendez-vous" }`                 | the call reason of the record, exact match (case and extra spaces ignored) |
          * | `callClient`    | `text`        | `{ "value": "dupont" }`                      | substring of the caller's name or number             |
          *
          * Unknown attributes and unsupported `type` values are silently ignored.
@@ -46908,7 +47398,7 @@ export type DownloadUsageRunsReportApiV1OrganizationsUsageRunsReportGetData = {
          * | `callChannel`   | `radio`       | `{ "status": "telephony" }`                  | `telephony`, `web`, `chat`, `simulated` (the group of run modes for that channel) or `site` (started from the site widget) |
          * | `judgeNote`     | `numberRange` | `{ "min": 3.5, "max": 5 }`                   | the judge's grade out of 5 (unjudged calls never match) |
          * | `agentVersion`  | `number`      | `{ "value": 3 }`                             | calls handled by that version number of their agent  |
-         * | `callReason`    | `text`        | `{ "value": "rdv" }`                         | substring of the call reason in the record           |
+         * | `callReason`    | `text`        | `{ "value": "Rendez-vous" }`                 | the call reason of the record, exact match (case and extra spaces ignored) |
          * | `callClient`    | `text`        | `{ "value": "dupont" }`                      | substring of the caller's name or number             |
          *
          * Unknown attributes and unsupported `type` values are silently ignored.
