@@ -153,11 +153,15 @@ def etape_complete(moteur: Any, noeud: Any) -> bool:
 
 def _condition_de(arete: Any) -> Any:
     condition = getattr(getattr(arete, "data", None), "condition_sur_la_fiche", None)
-    if condition is None:
-        return None
-    if getattr(condition, "etape_complete", False) or str(getattr(condition, "champ", None) or "").strip():
-        return condition
-    return None
+    return condition if lecture_de_la_porte(arete) is not None else None
+
+
+def lecture_de_la_porte(arete: Any) -> dict | None:
+    """La lecture de la condition écrite sur la porte (sous-lot 21 : ``conditions_de_porte.lecture_de``), ou ``None``.
+    Sans champ nouveau : la lecture d'avant, au bit près. ⛔ Ne lève jamais."""
+    from api.services.workflow.conditions_de_porte import lecture_de
+
+    return lecture_de(getattr(getattr(arete, "data", None), "condition_sur_la_fiche", None))
 
 
 def _champ_vaut(moteur: Any, champ: str, vaut: Any) -> bool:
@@ -173,26 +177,50 @@ def _champ_vaut(moteur: Any, champ: str, vaut: Any) -> bool:
 
 def portes_a_condition(noeud: Any) -> list[tuple[Any, dict]]:
     """Les portes de l'étape qui portent une condition sur la fiche, dans l'ordre de l'écran, avec leur lecture : ``{type:
-    etape_complete}`` ou ``{type: champ, champ, vaut}``. Une étape de collecte donne « étape complète » à la première
-    porte sans condition. Vide pour une étape ``agent``."""
+    etape_complete}`` ou ``{type: champ, champ, vaut}`` ; sous-lot 21 : ``{type: regles, ...}`` ou ``{type: toujours}``.
+    Une étape de collecte donne « étape complète » à la première porte sans condition. La porte « sinon » n'y est pas
+    (``porte_sinon``). Vide pour une étape ``agent``."""
+    from api.services.workflow.conditions_de_porte import T_SINON
+
     r = reglages_du_passage(noeud)
     if not r.le_code_lit_la_fiche:
         return []
     lues: list[tuple[Any, dict]] = []
     implicite_donnee = False
     for arete in getattr(noeud, "out_edges", None) or ():
-        condition = _condition_de(arete)
-        if condition is not None:
-            if getattr(condition, "etape_complete", False):
-                lues.append((arete, {"type": "etape_complete"}))
-            else:
-                lues.append(
-                    (arete, {"type": "champ", "champ": condition.champ.strip(), "vaut": (condition.vaut or "").strip()})
-                )
+        lecture = lecture_de_la_porte(arete)
+        if lecture is not None:
+            if lecture["type"] != T_SINON:
+                lues.append((arete, lecture))
         elif r.qui == COLLECTE and not implicite_donnee:
             implicite_donnee = True
             lues.append((arete, {"type": "etape_complete", "implicite": True}))
     return lues
+
+
+def porte_sinon(noeud: Any) -> Any | None:
+    """Sous-lot 21 : la porte « sinon » de l'étape (la première de l'écran), sur une étape où le code lit les portes ;
+    ``None`` sinon. ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.conditions_de_porte import T_SINON
+
+        if not reglages_du_passage(noeud).le_code_lit_la_fiche:
+            return None
+        for arete in getattr(noeud, "out_edges", None) or ():
+            lecture = lecture_de_la_porte(arete)
+            if lecture is not None and lecture["type"] == T_SINON:
+                return arete
+        return None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] porte « sinon » illisible : {erreur!r}")
+        return None
+
+
+def condition_vraie(moteur: Any, noeud: Any, lecture: dict) -> bool:
+    """La lecture d'une porte (``portes_a_condition``) est-elle vraie sur l'appel d'aujourd'hui ? ⛔ Ne lève jamais."""
+    from api.services.workflow.conditions_de_porte import condition_vraie as vraie
+
+    return vraie(moteur, noeud, lecture)
 
 
 def porte_a_prendre_sur_la_fiche(moteur: Any, noeud: Any) -> tuple[Any, dict] | None:
@@ -200,15 +228,32 @@ def porte_a_prendre_sur_la_fiche(moteur: Any, noeud: Any) -> tuple[Any, dict] | 
     condition lue ; ``None`` sinon. ⛔ Ne lève jamais."""
     try:
         for arete, lecture in portes_a_condition(noeud):
-            if lecture["type"] == "etape_complete":
-                vraie = etape_complete(moteur, noeud)
-            else:
-                vraie = _champ_vaut(moteur, lecture["champ"], lecture.get("vaut"))
-            if vraie:
+            if condition_vraie(moteur, noeud, lecture):
                 return arete, lecture
         return None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[passage] conditions illisibles : {erreur!r}")
+        return None
+
+
+def porte_fermee(moteur: Any, noeud: Any, arete: Any) -> dict | None:
+    """La porte ``arete`` est-elle fermée par sa condition écrite (RA-B, audit 01 A2) ? Rend la lecture qui la ferme, sinon
+    ``None``. Fermée : une condition écrite fausse ; une porte « sinon » quand une autre porte de l'étape passe. Jamais
+    fermée : une porte sans condition écrite, « toujours », une étape ``agent``. Sans trace. ⛔ Ne lève jamais (dans le
+    doute : ouverte)."""
+    try:
+        from api.services.workflow.conditions_de_porte import T_SINON
+
+        if not reglages_du_passage(noeud).le_code_lit_la_fiche:
+            return None
+        lecture = lecture_de_la_porte(arete)
+        if lecture is None:
+            return None
+        if lecture["type"] == T_SINON:
+            return lecture if porte_a_prendre_sur_la_fiche(moteur, noeud) is not None else None
+        return None if condition_vraie(moteur, noeud, lecture) else lecture
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] porte fermée illisible, ouverte : {erreur!r}")
         return None
 
 
@@ -566,4 +611,92 @@ async def fiche_deja_vraie_avant_la_requete(moteur: Any, llm: Any, context: Any,
         return await passer(moteur, arete, raison=RAISON_FICHE, jeton=jeton, lecture=lecture, option=2)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[passage] fiche déjà vraie non jouée avant la requête : {erreur!r}")
+        return False
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Sous-lot 21 : la porte « sinon »
+#
+# Ordre (étude 05 § 6, repris de Retell) : les portes à condition, dans l'ordre de l'écran ; sinon l'arbitre ; sinon la
+# porte « sinon » ; sinon l'agent garde la main. « Sinon » ne se lit qu'APRÈS une parole de l'appelant (jamais à la fin de
+# la réplique d'arrivée : l'étape aurait passé avant qu'on lui réponde). Vers une étape qui se prend sans relance, elle
+# passe avant la requête (comme l'option 2) ; vers une fin, un retour au principal ou un transfert garanti, elle est
+# marquée pour CETTE parole et se prend à la fin de la réplique (option 1).
+# ---------------------------------------------------------------------------------------------------------
+
+RAISON_SINON = "sinon"
+
+
+def _oublier_le_sinon(moteur: Any) -> None:
+    try:
+        moteur._sinon_a_prendre = None
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def sinon_a_prendre_apres_la_reponse(moteur: Any, jeton: tuple) -> bool:
+    """La porte « sinon » a été marquée avant la requête de cette parole (cible qui exige une relance). ⛔ Ne lève jamais."""
+    try:
+        return getattr(moteur, "_sinon_a_prendre", None) == jeton
+    except Exception:  # noqa: BLE001
+        return False
+
+
+async def sinon_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float | None = None) -> bool:
+    """Après l'option 2, la fiche déjà vraie et l'arbitre : aucune porte n'a été prise sur la parole de l'appelant. Si
+    l'étape a une porte « sinon » et qu'aucune porte à condition n'est vraie (après la passe du greffier sur cette parole,
+    dans ce qui reste du délai), la porte « sinon » passe. Rend ``True`` si elle est prise avant la requête. ⛔ Ne lève
+    jamais."""
+    try:
+        _oublier_le_sinon(moteur)
+        agent = moteur.active_agent
+        if getattr(agent, "llm", None) is not llm:
+            return False
+        noeud = agent.current_node
+        if noeud is None or getattr(noeud, "is_end", False) or moteur.is_call_disposed():
+            return False
+        arete = porte_sinon(noeud)
+        if arete is None:
+            return False
+        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+            return False
+        jeton = moteur.jeton_de_visite()
+        if porte_prise_avant_la_requete(moteur, jeton):
+            return False
+        r = reglages_du_passage(noeud)
+        greffier = getattr(moteur, "greffier", None)
+        if greffier is not None and portes_a_condition(noeud):
+            reste = r.delai if depart is None else max(0.0, r.delai - (time.monotonic() - depart))
+            if not await greffier.rattraper(reste):
+                # La fiche n'a pas lu cette parole : « sinon » ne passe pas à l'aveugle.
+                tracer(moteur, etape=getattr(noeud, "name", None), raison=RAISON_SINON, resultat="greffier_sans_reponse")
+                return False
+        if jeton != moteur.jeton_de_visite() or la_personne_parle(moteur):
+            return False
+        if porte_a_prendre_sur_la_fiche(moteur, noeud) is not None:
+            return False  # une porte à condition est vraie : elle se prend par son propre chemin
+        lecture = {"type": "sinon"}
+        if not _cible_sans_relance(moteur, agent, arete):
+            moteur._sinon_a_prendre = jeton
+            return False
+        return await passer(moteur, arete, raison=RAISON_SINON, jeton=jeton, lecture=lecture, option=2)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] « sinon » non joué avant la requête : {erreur!r}")
+        return False
+
+
+async def sinon_a_la_fin_de_la_reponse(moteur: Any, texte: str, jeton: tuple) -> bool:
+    """La porte « sinon » marquée pour cette parole (vers une fin, un retour, un transfert garanti) se prend à la fin de la
+    réplique, avec relance (option 1). ⛔ Ne lève jamais."""
+    try:
+        if not sinon_a_prendre_apres_la_reponse(moteur, jeton):
+            return False
+        _oublier_le_sinon(moteur)
+        noeud = moteur.active_agent.current_node
+        arete = porte_sinon(noeud)
+        if arete is None or porte_a_prendre_sur_la_fiche(moteur, noeud) is not None:
+            return False
+        return await passer(moteur, arete, raison=RAISON_SINON, jeton=jeton, dit=texte, lecture={"type": "sinon"})
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[passage] « sinon » non joué à la fin de la réplique : {erreur!r}")
         return False

@@ -83,6 +83,19 @@ export type EdgeRecordCondition = {
     etape_complete?: boolean;
     champ?: string;
     vaut?: string;
+    /** [.mark] Partie 3, sous-lot 21 : la même condition, étendue (`components/mark/graphe/conditions-de-porte.ts`). */
+    regles?: RegleDePorte[];
+    combien?: 'toutes' | 'au_moins_une';
+    sinon?: boolean;
+    toujours?: boolean;
+};
+
+/** [.mark] Sous-lot 21 : une règle de la condition d'une porte (source, champ, comparaison, valeur). */
+export type RegleDePorte = {
+    source: 'fiche' | 'etape' | 'outil' | 'heure' | 'etablissement' | 'variable';
+    champ?: string;
+    comparaison: string;
+    valeur?: string;
 };
 
 export type FlowEdgeData = {

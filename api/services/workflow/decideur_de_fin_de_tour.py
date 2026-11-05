@@ -226,6 +226,9 @@ async def _la_fiche(moteur: Any, texte: str, jeton: tuple, debut: float | None =
                 ):
                     return passage.RAISON_FICHE
                 return None
+    # Sous-lot 21 : la porte « sinon » marquée avant la requête de cette parole (vers une fin, un retour, un transfert).
+    if await passage.sinon_a_la_fin_de_la_reponse(moteur, texte, jeton):
+        return passage.RAISON_SINON
     return None
 
 
@@ -351,6 +354,12 @@ async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depar
         arete = moteur._porte_de_l_etape(decision.choix)
         if arete is None:
             arbitre_mod.tracer(moteur, **ligne, resultat="porte_inconnue")
+            return False
+        # Sous-lot 21 : l'arbitre ne passe jamais contre une règle fausse (conditions étendues seulement : la forme d'avant
+        # garde son comportement, voir 18-a-exposer).
+        fermee = passage.porte_fermee(moteur, noeud, arete)
+        if fermee is not None and fermee.get("type") in ("regles", "sinon"):
+            arbitre_mod.tracer(moteur, **ligne, resultat="fermee_par_la_condition")
             return False
         # La fiche d'abord (ordre du décideur) : une condition sur la fiche déjà vraie, lue sur CETTE parole dans le
         # même délai, garde la main ; elle se prend à la fin de la réplique, comme avant.
