@@ -25,6 +25,9 @@ const reglerMiroir = vi.fn(async (o: { body: { actif: boolean } }) => {
 
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
 vi.mock("@/client", () => ({
+    // le menu de la saisie (« / ») lit les agents et les recettes au montage
+    getWorkflowsSummaryApiV1WorkflowSummaryGet: async () => ({ data: [] }),
+    listerLesRecettesApiV1BuilderRecettesGet: async () => ({ data: { recettes: [] } }),
     lireLesSourcesApiV1BuilderSourcesGet: async () => ({ data: { sources: etat.sources } }),
     reglerUneSourceApiV1BuilderSourcesBriquePut: (o: never) => regler(o),
     lireLeMiroirApiV1BuilderMiroirReglageGet: async () => ({ data: { actif: etat.miroir } }),
@@ -61,6 +64,10 @@ vi.mock("@/components/builder/chat/useFil", () => ({
         modifierDernier: vi.fn(),
         rafraichir: vi.fn(),
         repondreDepense: vi.fn(),
+        // dépassement du plafond du mois (fenêtre ouverte quand `plafond` n'est pas null) : aucun ici
+        plafond: null,
+        continuerQuandMeme: vi.fn(),
+        annulerLePlafond: vi.fn(),
     }),
 }));
 vi.mock("@/components/builder/chat/SousAgents", () => ({

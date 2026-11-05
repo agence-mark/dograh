@@ -318,6 +318,7 @@ export function FenetreDePublication({
                 onglet={onglet === "controles" ? T.controles : T.changements}
                 changerOnglet={(o) => setOnglet(o === T.controles ? "controles" : "changements")}
                 valider={bloque ? null : t({ en: "Publish", fr: "Publier" })}
+                modifie={false} // rien ne se saisit ici : la raison du forçage a sa propre fenêtre
                 onValider={() => void publier(false)}
                 desactiver={!vue || enCours || groupe.enCours}
                 pied={

@@ -57,37 +57,30 @@ const NOM_CHAMP = /^[a-z][a-z0-9_]{0,63}$/;
 /** `max_length` of `fiche_champs` on the server; a test compares the two. */
 export const NOMBRE_MAX_CHAMPS = 60;
 
-// Mirrors `NOMS_RESERVES` (`api/schemas/fiche_agent.py`): the server refuses
-// them too (422), the screen says so before.
+// Mirrors `NOMS_RESERVES` (`api/schemas/noms_reserves.py`, the single list since RA-A): the server refuses
+// them too (422), the screen says so before. `section-fiche.test.tsx` fails if the two lists differ.
 export const NOMS_RESERVES = [
     "call_disposition",
     "mapped_call_disposition",
     "call_status",
     "call_tags",
     "answer_supervisor",
-    // [.mark] cloture-code, lot 3 (upstream b10e829f): the tools' results, mirrored from the server.
     "tool_results",
     "extracted_variables",
     "nodes_visited",
     "agent_visits",
-    // [.mark] agents-specialises (lots 2, 5, 7): the group's traces (the mirror had not followed).
     "parcours",
     "parcours_etapes",
     "porte_reecrite",
     "passations",
     "transferts_humains",
-    // [.mark] agents-specialises, lot 17: the closed requests of a call with several requests.
     "demandes",
     "demande_au_retour",
     "communes_verifiees",
-    // Lot 1 of postscriptum-et-communes: the towns set aside because they were the name.
     "communes_ecartees",
-    // Plan mode-prise-de-notes: the trace of each postscript and each clerk pass.
     "post_scriptums",
     "greffier_passes",
-    // greffier-conversation, lot A: the transitions written in the reply (Clerk mode).
     "portes_lues",
-    // greffier-conversation, lot E: the transfer launched by the code.
     "transferts_garantis",
     "voies_verifiees",
     "epellations_lues",
@@ -97,10 +90,8 @@ export const NOMS_RESERVES = [
     "fiche_etat",
     "fiche_journal",
     "tour_appelant",
-    // Chantier l-agent-travaille (L5): the connectors' stamps and the writes put aside.
     "connecteurs",
     "connecteurs_differes",
-    // Chantier l-agent-collegue (L2 to L6, R-3): the team, the hub, the planner, the verification.
     "equipe_gestes",
     "equipe_assignation",
     "hub_rendez_vous",
@@ -108,25 +99,49 @@ export const NOMS_RESERVES = [
     "planificateur_rappel",
     "verification_appelant",
     "dossier_lu",
-    // fiabilite-orchestration, lot 1: the background work and the sentences said by the code.
     "travaux",
     "phrases_du_code",
-    // fiabilite-orchestration, lot 9: the model connections and the audio link, noted per call.
     "mark_connexions_modele",
     "mark_reseau",
     "mark_journal_des_actions",
-    // builder partie 2, constat C7 : les noms que le serveur a réservés depuis (passages-fiables, arbitre, alertes,
-    // signalement, rejeu des tests), recopiés ici pour que l'écran refuse ce que le serveur refuse.
-    "alertes",
-    "alertes_mail",
-    "arbitre",
-    "attentes_accordees",
-    "desaccords_arbitre",
+    "retenues_verite",
+    "rejeu_sortants_simules",
     "outils_simules",
     "passages_par_le_code",
-    "rejeu_sortants_simules",
-    "retenues_verite",
+    "arbitre",
+    "desaccords_arbitre",
+    "attentes_accordees",
     "signalements",
+    "alertes",
+    "alertes_mail",
+    "annonce_fermeture",
+    "annonce_pause",
+    "annonce_ouverture",
+    "etat_ouverture",
+    "reouverture",
+    "horaires_ouverture",
+    "date_appel",
+    "heure_appel",
+    "adresse_etablissement",
+    "etablissement",
+    "etablissement_id",
+    "numero_transfert",
+    "lexique_propose",
+    "lexique_a_ecouter",
+    "caller_number",
+    "called_number",
+    "direction",
+    "provider",
+    "call_id",
+    "workflow_run_id",
+    "telephony_configuration_id",
+    "runtime_configuration",
+    "initial_context",
+    "gathered_context",
+    "equipe",
+    "equipe_cles",
+    "etablissement_de_lappel",
+    "mps_correlation_id",
 ];
 
 /** Mirrors `lecteur_par_defaut` on the server. */

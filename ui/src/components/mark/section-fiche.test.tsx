@@ -434,7 +434,8 @@ describe("[.mark] Call Record rules mirror the server", () => {
     });
 
     it("refuses the same reserved names as the server", () => {
-        const bloc = serveur("fiche_agent.py").split("NOMS_RESERVES = frozenset(")[1].split(/\r?\n\)/)[0];
+        // RA-A : une seule liste, dans `noms_reserves.py`, que la fiche importe.
+        const bloc = serveur("noms_reserves.py").split("NOMS_RESERVES: frozenset[str] = frozenset(")[1].split(/\r?\n\)/)[0];
         // Comments carry backticked names too: only the quoted strings count.
         const duServeur = [...bloc.matchAll(/^\s*"([a-z_]+)",/gm)].map((m) => m[1]).sort();
         expect([...NOMS_RESERVES].sort()).toEqual(duServeur);
