@@ -36,6 +36,10 @@ const GESTES: Record<string, Texte> = {
     "cles.gerer": { en: "Changed keys", fr: "A modifié des clés" },
     "telephonie.gerer": { en: "Changed telephony", fr: "A modifié la téléphonie" },
     "atelier.regler": { en: "Changed the workshop settings", fr: "A réglé l'atelier" },
+    // Partie 3, 17a : les gestes que le portail fait avec la clé du client.
+    "connecteurs.autoriser": { en: "Connected or cut a software account", fr: "A branché ou coupé un compte de logiciel" },
+    "connecteurs.geste": { en: "Software account gesture", fr: "Geste sur un compte de logiciel" },
+    "base_client.connexion_portail": { en: "Opened the portal's access to the client's database", fr: "A ouvert l'accès du portail à la base du client" },
     // P-6 : les écritures du Hub (permission « relation.ecrire »).
     "relation.message": { en: "Replied to a client", fr: "A répondu à un client" },
     "relation.fil_modifie": { en: "Changed the follow-up of a thread", fr: "A changé le suivi d'un échange" },

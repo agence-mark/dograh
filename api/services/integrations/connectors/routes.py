@@ -115,7 +115,11 @@ class Lien(BaseModel):
 
 
 def _qui(user: UserModel) -> str:
-    """How the signed-in person is named in « Autorisé par » / « Branché par »."""
+    """How the signed-in person is named in « Autorisé par » / « Branché par ». With the client's API key (the portal) it is the real author
+    sent in ``X-Mark-Auteur`` (« portail : first name name »), never the address of the person who created the key (17a)."""
+    reel = getattr(user, "mark_auteur", None)
+    if reel:
+        return reel
     return user.email or f"utilisateur {user.id}"
 
 
@@ -292,7 +296,9 @@ async def post_lien_proposition(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     """The connection window's link for this proposal, made for the signed-in organization only."""
-    qui = (demande.autorise_par if demande else None) or _qui(user)
+    # Avec une clé d'API l'auteur est celui de l'en-tête ``X-Mark-Auteur`` (lu par le serveur), jamais un nom envoyé dans le corps (17a).
+    nomme = None if getattr(user, "par_cle_api", False) else (demande.autorise_par if demande else None)
+    qui = nomme or _qui(user)
     try:
         return Lien(**await propositions.lien(user.selected_organization_id, identifiant, qui))
     except propositions.PropositionIntrouvable:

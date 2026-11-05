@@ -34,6 +34,7 @@ from loguru import logger
 from api.db.bases_clients import connexion as schema
 from api.enums import OrganizationConfigurationKey, ToolCategory
 from api.services.auth.depends import auteur_du_portail
+from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401  (fixture)
 from api.services.groupe.agents_servis import (
     capacites_de,
     lire_agents_servis,
@@ -448,9 +449,9 @@ async def test_les_routes_refusent_sans_cle_et_avec_la_cle_d_une_autre_organisat
                 json={"workflow_ids": [principal.id]},
                 headers={"X-API-Key": cle_b},
             )
-            assert refus.status_code in (404, 409), (
+            assert refus.status_code in (403, 404, 409), (
                 refus.text
-            )  # 404 : agent inconnu ; 409 : pas de base chez B
+            )  # 403 : geste d'équipe, fermé aux clés (17a) ; 404 : agent inconnu ; 409 : pas de base chez B
             # Une base chez B, pour que le refus ne soit pas « pas de base » : toujours 404.
             await db_session.upsert_configuration(
                 autre.organisation.id,
@@ -462,7 +463,7 @@ async def test_les_routes_refusent_sans_cle_et_avec_la_cle_d_une_autre_organisat
                 json={"workflow_ids": [principal.id, autre.agent.id]},
                 headers={"X-API-Key": cle_b},
             )
-            assert refus.status_code == 404
+            assert refus.status_code in (403, 404)  # 403 : geste d'équipe fermé aux clés (17a)
             await db_session.upsert_configuration(
                 autre.organisation.id,
                 OrganizationConfigurationKey.BASE_CLIENT.value,
@@ -485,6 +486,7 @@ async def test_les_routes_refusent_sans_cle_et_avec_la_cle_d_une_autre_organisat
         assert cle not in json.dumps(reponses)
 
 
+@pytest.mark.usefixtures("sans_preparation_des_organisations")
 async def test_rattacher_un_principal_rattache_ses_specialises_et_se_rejoue(
     base_v4, smtp, db_session, async_session
 ):
@@ -492,8 +494,14 @@ async def test_rattacher_un_principal_rattache_ses_specialises_et_se_rejoue(
         db_session, async_session
     )
     org_a = principal.organization_id
-    cle = await _cle(db_session, org_a, user.id)
-    entetes = {"X-API-Key": cle}
+    # Partie 3, 17a (liste fermée des clés) : rattacher un agent est un geste de l'équipe (``clients.exporter_ramener``), plus de la clé
+    # du portail ; le test le joue donc avec la session d'un Administrateur (l'adresse nomme le client), la lecture restant ouverte à la clé.
+    from api.tests.mark.equipe_commun import entetes as entetes_session
+    from api.utils.auth import create_jwt_token
+
+    roles = {r["nom"]: r["id"] for r in await db_session.lister_roles()}
+    await db_session.poser_membre(user.id, roles["Administrateur"])
+    entetes = entetes_session(create_jwt_token(user.id, user.email or "equipe@example.com"), org_a)
     async with _client() as client:
         # Sans base du client rattachée : la route le dit, rien n'est écrit.
         sans = await client.put(

@@ -25,7 +25,22 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     "atelier.regler": ("Atelier", "Régler l'atelier (Labo)"),
     # Partie 3, lot 15 (P-6) : les écritures du Hub (réponses, suivi, notes, témoignages), journalisées depuis la partie 2.
     "relation.ecrire": ("Relation clients", "Écrire dans la relation clients (réponses, notes, témoignages)"),
+    # Partie 3, sous-lot 17a : les deux gestes que le portail fait avec la clé du client, chacun avec sa permission (liste fermée des clés).
+    "connecteurs.autoriser": ("Clés", "Autoriser, reconnecter et couper les comptes d'un client"),
+    "base_client.connexion_portail": ("Clés", "Ouvrir l'accès du portail à la base du client"),
 }
+
+# Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
+# refusé : publier, appeler, lancer une campagne, créer une clé, régler les modèles, les gestes de l'équipe (droits, rôles, clients, atelier).
+# Une permission ajoutée à PERMISSIONS est donc fermée aux clés tant qu'elle n'est pas écrite ici.
+PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
+    {
+        "conversations.voir",  # lire les appels et leur rapport
+        "agents.modifier",  # apparence, sites, établissements, équipe, lexique, connaissances, relance d'une action (routes /organizations)
+        "connecteurs.autoriser",
+        "base_client.connexion_portail",
+    }
+)
 
 NOM_ADMINISTRATEUR = "Administrateur"
 NOM_MEMBRE = "Membre"
