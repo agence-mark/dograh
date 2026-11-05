@@ -20,7 +20,7 @@ export const MARQUEUR_TRAVAIL_DE_FOND = "travail_de_fond";
 const TEXTES = {
     libelle: { en: "Background work", fr: "Travail en arrière-plan" },
     aide: {
-        en: "At this step, the conversation model can hand a task to the background model (set in Bricks: model, instructions, tools, delay). Unchecked, the step does not offer it. A task already started still comes back, whatever the step.",
+        en: "At this step, the conversation model can hand a task to the background model (set in Services: model, instructions, tools, delay). Unchecked, the step does not offer it. A task already started still comes back, whatever the step.",
         fr: "À cette étape, le modèle de conversation peut confier une tâche au modèle de fond (réglé dans Briques : modèle, consigne, outils, délai). Décochée, l'étape ne le propose pas. Une tâche déjà lancée revient quand même, quelle que soit l'étape.",
     },
 } satisfies Record<string, Texte>;

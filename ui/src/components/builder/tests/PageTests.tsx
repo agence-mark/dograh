@@ -212,8 +212,8 @@ export function PageTests({ workflowId }: { workflowId: number }) {
                     {t({ en: "Tests", fr: "Tests" })}
                     <Info>
                         {t({
-                            en: "A test replays the agent on a situation and checks the result by the code. It passes only if all its attempts pass. A required test that fails blocks the publication. Only a whole-suite replay can verify the agent.",
-                            fr: "Un test rejoue l'agent sur une situation et vérifie le résultat par le code. Il réussit seulement si tous ses essais réussissent. Un test obligatoire qui échoue bloque la publication. Seul le rejeu de toute la suite peut vérifier l'agent.",
+                            en: "A test replays the agent on a situation and checks the result by the code. It passes only if all its attempts pass. A required test that fails stops the publication while the « Required tests » check of the Publish window is on « Blocks » (the default). Only a whole-suite replay can verify the agent.",
+                            fr: "Un test rejoue l'agent sur une situation et vérifie le résultat par le code. Il réussit seulement si tous ses essais réussissent. Un test obligatoire qui échoue arrête la publication tant que le contrôle « Tests obligatoires » de la fenêtre Publier est sur « Bloque » (le défaut). Seul le rejeu de toute la suite peut vérifier l'agent.",
                         })}
                     </Info>
                 </p>

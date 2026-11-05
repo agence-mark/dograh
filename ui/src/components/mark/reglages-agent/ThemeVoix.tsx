@@ -235,8 +235,8 @@ export const ThemeVoix = ({
                 {r("relecture_des_numeros")}
                 <p className="text-xs text-muted-foreground">
                     {t({
-                        en: "Enforced in code, not by the prompt: five rewrites of the instructions in two days still left the name spoken in 2 voice runs out of 5. Each switch works on its own.",
-                        fr: "Appliqué par le code, pas par le prompt : cinq réécritures des consignes en deux jours laissaient encore le nom prononcé dans 2 appels sur 5. Chaque interrupteur agit seul.",
+                        en: "Enforced by the code on top of the prompt: the model is not trusted to follow this one alone. Each switch works on its own.",
+                        fr: "Appliqué par le code en plus du prompt : on ne s'en remet pas au seul modèle pour cela. Chaque interrupteur agit seul.",
                     })}
                 </p>
                 {motParMot && (Boolean(brouillon.interdire_nom_appelant) || Boolean(brouillon.interdire_civilite_appelant)) && (
@@ -293,6 +293,12 @@ export const ThemeVoix = ({
                     cle="ambient_noise_configuration.enabled"
                     idControle="ambient-noise-enabled"
                     libelle={{ en: "Use Ambient Noise", fr: "Utiliser un bruit d'ambiance" }}
+                    aides={[
+                        {
+                            en: "Plays a light background sound under the agent's voice: the default office ambience, or your own file.",
+                            fr: "Joue un léger bruit de fond sous la voix de l'agent : l'ambiance de bureau par défaut, ou votre propre fichier.",
+                        },
+                    ]}
                     disposition="ligne"
                 >
                     <Switch
@@ -307,6 +313,7 @@ export const ThemeVoix = ({
                             cle="ambient_noise_configuration.volume"
                             idControle="ambient-volume"
                             libelle={{ en: "Volume", fr: "Volume" }}
+                            aides={[{ en: "From 0 (silent) to 1 (the file's own level).", fr: "De 0 (silence) à 1 (le niveau du fichier lui-même)." }]}
                             bornes={bornesDe(0, 1)}
                         >
                             <Input

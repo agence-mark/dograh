@@ -6,7 +6,7 @@ import { Marque, type TonMarque } from "../../studio/marques";
 /** Le statut d'un modèle est celui de la version courante de son élément de bibliothèque (E19 : une seule forme de badge). */
 const STATUTS: Record<string, { ton: TonMarque; texte: Texte }> = {
     candidat: { ton: "neutre", texte: { en: "Candidate", fr: "Candidat" } },
-    recette: { ton: "succes", texte: { en: "Proven", fr: "Recette" } },
+    recette: { ton: "succes", texte: { en: "Proven", fr: "Éprouvé" } },
     rejete: { ton: "danger", texte: { en: "Rejected", fr: "Rejeté" } },
 };
 

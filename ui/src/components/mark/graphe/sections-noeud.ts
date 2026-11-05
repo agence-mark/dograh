@@ -115,3 +115,14 @@ export const proprietesDeLaSection = (proprietesVisibles: string[], section: Sec
     const rang = (nom: string) => (ORDRE_CONVERSATION.includes(nom) ? ORDRE_CONVERSATION.indexOf(nom) : ORDRE_CONVERSATION.length);
     return noms.map((nom, i) => ({ nom, i })).sort((a, b) => rang(a.nom) - rang(b.nom) || a.i - b.i).map(({ nom }) => nom);
 };
+
+/**
+ * Les champs d'un nœud qu'on ne montre pas, par type (05 § 17).
+ * - Sur l'étape de départ, « L'appelant peut couper la parole » est masqué : la protection de l'accueil de l'agent l'annule ; seul
+ *   « L'appelant peut couper l'accueil » (réglage de l'agent) reste.
+ * - Sur une fin d'appel d'un agent principal qui porte ses fins, le prompt n'est pas écrit à la main.
+ */
+export const proprietesMasquees = (type: string, etape: { estPrincipal?: boolean; fins?: unknown }): string[] => [
+    ...(type === "endCall" && etape.estPrincipal && Array.isArray(etape.fins) && etape.fins.length > 0 ? ["prompt"] : []),
+    ...(type === "startCall" ? ["allow_interrupt"] : []),
+];

@@ -110,8 +110,8 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
             <h2 className="text-lg font-semibold">{t({ en: "New test", fr: "Nouveau test" })}</h2>
             <p className="text-xs text-muted-foreground">
                 {t({
-                    en: "Personal data is replaced by fake data before the test is kept. The code judges the criteria; a required test that fails blocks the publication.",
-                    fr: "Les données personnelles sont remplacées par des fausses avant d'enregistrer le test. Le code juge les critères ; un test obligatoire qui échoue bloque la publication.",
+                    en: "Personal data is replaced by fake data before the test is kept. The code judges the criteria. A required test that fails stops the publication while the « Required tests » check of the Publish window is on « Blocks » (the default).",
+                    fr: "Les données personnelles sont remplacées par des fausses avant d'enregistrer le test. Le code juge les critères. Un test obligatoire qui échoue arrête la publication tant que le contrôle « Tests obligatoires » de la fenêtre Publier est sur « Bloque » (le défaut).",
                 })}
             </p>
             <label className="block space-y-1 text-sm">
@@ -205,7 +205,7 @@ export function NouveauTest({ workflowId, source, onCree, onFermer }: Props) {
             <div className="flex flex-wrap items-center gap-4 text-sm">
                 <label className="flex items-center gap-2">
                     <input type="checkbox" checked={obligatoire} onChange={(e) => setObligatoire(e.target.checked)} aria-label={t({ en: "Required", fr: "Obligatoire" })} />
-                    {t({ en: "Required (blocks the publication)", fr: "Obligatoire (bloque la publication)" })}
+                    {t({ en: "Required (can block the publication)", fr: "Obligatoire (peut bloquer la publication)" })}
                 </label>
                 <label className="flex items-center gap-2">
                     <span>{t({ en: "Folder", fr: "Dossier" })}</span>

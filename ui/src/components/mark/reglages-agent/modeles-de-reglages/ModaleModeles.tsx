@@ -411,7 +411,7 @@ export const ModaleModeles = ({
                             <Info>
                                 {t({
                                     en: "The templates are the library's, shared by every space. Their status (candidate, proven, rejected) is set from the library.",
-                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, recette, rejeté) se règle depuis la bibliothèque.",
+                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, éprouvé, rejeté) se règle depuis la bibliothèque.",
                                 })}
                             </Info>
                         </h3>

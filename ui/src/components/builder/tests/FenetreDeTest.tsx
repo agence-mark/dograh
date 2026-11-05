@@ -36,6 +36,12 @@ import { type RessourcesDeTest, type SorteDeTest, sorteDuTest, type TestComplet 
 
 type Message = { role: "user" | "assistant"; texte: string };
 
+/** « Required » stops the publication only while the « Required tests » check of the Publish window is on « Blocks » (its default). */
+export const TEXTE_TEST_OBLIGATOIRE = {
+    en: "A required test that fails stops the publication of the agent while the « Required tests » check of the Publish window is on « Blocks » (the default).",
+    fr: "Un test obligatoire qui échoue arrête la publication de l'agent tant que le contrôle « Tests obligatoires » de la fenêtre Publier est sur « Bloque » (le défaut).",
+};
+
 const SORTES: Array<{ id: SorteDeTest; fr: string; en: string; info: { fr: string; en: string } }> = [
     {
         id: "conversation",
@@ -446,7 +452,7 @@ export function FenetreDeTest({
                     <label className="flex items-center gap-2 text-sm">
                         <Switch checked={obligatoire} onCheckedChange={setObligatoire} aria-label={t({ en: "Required", fr: "Obligatoire" })} />
                         {t({ en: "Required", fr: "Obligatoire" })}
-                        <Info>{t({ en: "A required test that fails blocks the publication of the agent.", fr: "Un test obligatoire qui échoue bloque la publication de l'agent." })}</Info>
+                        <Info>{t(TEXTE_TEST_OBLIGATOIRE)}</Info>
                     </label>
                     <span className="flex-1" />
                     <Button variant="outline" onClick={onFermer}>

@@ -248,8 +248,8 @@ export const CATALOGUE = {
         libelle: { en: "Pause before the agent answers (seconds)", fr: "Pause avant que l'agent réponde (secondes)" },
         aides: [
             {
-                en: "How long the caller may pause without losing the floor. Pipecat's own value, 0.6 s, applied until now.",
-                fr: "Combien de temps l'appelant peut marquer une pause sans perdre la parole. Valeur de Pipecat, 0,6 s, appliquée jusqu'ici.",
+                en: "How long the caller may pause without losing the floor. Default: 0.6 s.",
+                fr: "Combien de temps l'appelant peut marquer une pause sans perdre la parole. Défaut : 0,6 s.",
             },
         ],
     }),
@@ -301,13 +301,13 @@ export const CATALOGUE = {
     }),
     relance_apres_outil: d({
         type: "interrupteur",
-        libelle: { en: "Always reply after a tool", fr: "Toujours répondre après un outil" },
+        libelle: { en: "Reply after a tool that ends early", fr: "Répondre après un outil qui finit trop tôt" },
         aides: [
             {
-                en: "When a tool (taking a note, a transition) finishes before the caller's turn has fully closed, the agent's reply is kept and sent once the turn closes. Off, Pipecat drops it and the agent stays silent until the caller speaks again (Pipecat ticket 5960, seen on a real call).",
-                fr: "Quand un outil (une prise de notes, une porte) finit avant que le tour de l'appelant soit tout à fait fermé, la réponse de l'agent est gardée et envoyée à la fermeture du tour. Éteint, Pipecat la perd et l'agent se tait jusqu'à ce que l'appelant reparle (ticket Pipecat 5960, constaté sur un vrai appel).",
+                en: "When a tool (taking a note, a transition) finishes before the caller's turn has fully closed, the agent's reply is kept and sent once the turn closes. Off, the reply is lost and the agent stays silent until the caller speaks again. Only this case: a tool that ends after the turn closed was never a problem.",
+                fr: "Quand un outil (une prise de notes, une porte) finit avant que le tour de l'appelant soit tout à fait fermé, la réponse de l'agent est gardée et envoyée à la fermeture du tour. Éteint, la réponse est perdue et l'agent se tait jusqu'à ce que l'appelant reparle. Seulement ce cas : un outil qui finit après la fermeture du tour n'a jamais posé de problème.",
             },
-            { en: "Off until now. No effect in realtime mode.", fr: "Éteint jusqu'ici. Sans effet en mode temps réel." },
+            { en: "Off by default. No effect in realtime mode.", fr: "Éteint par défaut. Sans effet en mode temps réel." },
         ],
     }),
     // [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): the empty user turn.
@@ -328,12 +328,12 @@ export const CATALOGUE = {
     mute_until_first_bot_complete: d({
         type: "interrupteur",
         libelle: { en: "During the opening sentence", fr: "Pendant la phrase d'accueil" },
-        aides: [{ en: "Keeps a greeting from being cut in half by a hello. On until now.", fr: "Évite qu'un « allô » coupe l'accueil en deux. Allumé jusqu'ici." }],
+        aides: [{ en: "Keeps a greeting from being cut in half by a hello. On by default.", fr: "Évite qu'un « allô » coupe l'accueil en deux. Allumé par défaut." }],
     }),
     mute_during_function_call: d({
         type: "interrupteur",
         libelle: { en: "While the agent is running a tool", fr: "Pendant qu'un outil tourne" },
-        aides: [{ en: "A transfer or a lookup is not interrupted halfway through. On until now.", fr: "Un transfert ou une recherche n'est pas interrompu à moitié. Allumé jusqu'ici." }],
+        aides: [{ en: "A transfer or a lookup is not interrupted halfway through. On by default.", fr: "Un transfert ou une recherche n'est pas interrompu à moitié. Allumé par défaut." }],
     }),
     mute_engine_callback: d({
         type: "interrupteur",
@@ -343,7 +343,7 @@ export const CATALOGUE = {
     mute_first_speech: d({
         type: "interrupteur",
         libelle: { en: "During the agent's very first utterance", fr: "Pendant la toute première réplique de l'agent" },
-        aides: [{ en: "Narrower than the first one above. Never used until now.", fr: "Plus étroit que le premier ci-dessus. Jamais utilisé jusqu'ici." }],
+        aides: [{ en: "Narrower than the first one above: only the very first sentence. Off by default.", fr: "Plus étroit que le premier ci-dessus : seulement la toute première phrase. Éteint par défaut." }],
     }),
     mute_always: d({
         type: "interrupteur",
@@ -360,8 +360,8 @@ export const CATALOGUE = {
         libelle: { en: "Caller can cut the greeting", fr: "L'appelant peut couper l'accueil" },
         aides: [
             {
-                en: "Off until now: the greeting is always heard to the end. On: the \"During the opening sentence\" protection is lifted for this agent, and the greeting stops once the caller has said the number of words below.",
-                fr: "Éteint jusqu'ici : l'accueil est toujours entendu jusqu'au bout. Allumé : la protection « Pendant la phrase d'accueil » est levée pour cet agent, et l'accueil s'arrête dès que l'appelant a dit le nombre de mots ci-dessous.",
+                en: "Off by default: the greeting is always heard to the end. On: the \"During the opening sentence\" protection is lifted for this agent, and the greeting stops once the caller has said the number of words below.",
+                fr: "Éteint par défaut : l'accueil est toujours entendu jusqu'au bout. Allumé : la protection « Pendant la phrase d'accueil » est levée pour cet agent, et l'accueil s'arrête dès que l'appelant a dit le nombre de mots ci-dessous.",
             },
         ],
     }),
@@ -487,8 +487,8 @@ export const CATALOGUE = {
         libelle: { en: "Add silence after the agent speaks", fr: "Ajouter un silence après que l'agent parle" },
         aides: [
             {
-                en: "Useful where a phone line clips the last syllable. ⚠ Off until now, which is why the duration below changed nothing.",
-                fr: "Utile quand une ligne téléphonique mange la dernière syllabe. ⚠️ Éteint jusqu'ici, ce qui explique que la durée ci-dessous ne changeait rien.",
+                en: "Useful where a phone line clips the last syllable. Off by default: the duration below only counts once this is on.",
+                fr: "Utile quand une ligne téléphonique mange la dernière syllabe. Éteint par défaut : la durée ci-dessous ne compte qu'une fois ceci allumé.",
             },
         ],
     }),
@@ -497,14 +497,32 @@ export const CATALOGUE = {
         pas: "0.1",
         lecture: "decimalPositif",
         libelle: { en: "How long that silence lasts (seconds)", fr: "Durée de ce silence (secondes)" },
+        aides: [
+            {
+                en: "Length of the silence added after each sentence, in seconds. It only counts when « Add silence after the agent speaks » is on.",
+                fr: "Durée du silence ajouté après chaque phrase de l'agent, en secondes. Elle ne compte que si « Ajouter un silence après que l'agent parle » est allumé.",
+            },
+        ],
     }),
     interdire_nom_appelant: d({
         type: "interrupteur",
         libelle: { en: "Never say the caller's name", fr: "Ne jamais dire le nom de l'appelant" },
+        aides: [
+            {
+                en: "The agent never speaks the caller's name, even if it knows it. Applied by the code, line by line, on what the agent is about to say.",
+                fr: "L'agent ne prononce jamais le nom de l'appelant, même s'il le connaît. Appliqué par le code, ligne par ligne, sur ce que l'agent va dire.",
+            },
+        ],
     }),
     interdire_civilite_appelant: d({
         type: "interrupteur",
         libelle: { en: "Never say Monsieur, Madame or Mademoiselle", fr: "Ne jamais dire Monsieur, Madame ou Mademoiselle" },
+        aides: [
+            {
+                en: "The agent never uses a title to address the caller. Applied by the code, line by line, on what the agent is about to say.",
+                fr: "L'agent n'emploie jamais de civilité pour s'adresser à l'appelant. Appliqué par le code, ligne par ligne, sur ce que l'agent va dire.",
+            },
+        ],
     }),
     // Plan postscriptum-note-d-abord (C10, Q4): off by default.
     relecture_des_numeros: d({

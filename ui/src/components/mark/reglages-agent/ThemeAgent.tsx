@@ -333,7 +333,7 @@ export const ThemeAgent = ({
             id={ID_THEME_AGENT}
             icone={Bot}
             titre={TITRE_AGENT}
-            description={{ en: "Name, ID, variables, deployment and report.", fr: "Nom, identifiant, variables, diffusion et rapport." }}
+            description={{ en: "Name, ID, flow map, test values, specialised agents, diagnostic, website, recordings and report.", fr: "Nom, identifiant, schéma du parcours, valeurs d'essai, agents spécialisés, diagnostic, site, enregistrements et rapport." }}
             resume={[
                 nom,
                 `${nombreDeVariables} ${t({ en: "variables", fr: "variables" })}`,
