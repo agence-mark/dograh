@@ -378,8 +378,11 @@ async def test_une_fiche_ou_une_famille_proposee_par_le_builder_attend_une_perso
     await propositions.accepter(p2["proposition"], "evan")
     assert (await fiches.lire("moules-etape")).description == "D"
     assert "metiers" in await familles_libres.libres()
-    # Le builder n'a pas de geste pour accepter.
-    assert "bibliotheque_accepter_proposition" not in __import__("api.services.builder.actions", fromlist=["REGISTRE"]).REGISTRE
+    # N1 (05, permissions du builder) : les interdits codés sont retirés, c'est la permission qui décide. Accepter une
+    # proposition est un geste de la famille « entreprise » (groupe bibliothèque), fermé à la porte Claude Code ; en mode
+    # « Demander », une personne clique sa carte avant que rien ne soit écrit.
+    geste = __import__("api.services.builder.actions", fromlist=["REGISTRE"]).REGISTRE["bibliotheque_accepter_proposition"]
+    assert geste.famille == "entreprise" and geste.groupe == "bibliotheque" and geste.ecriture and not geste.mcp
 
 
 async def test_une_proposition_de_fiche_ou_de_famille_sans_contenu_est_refusee(monde):
