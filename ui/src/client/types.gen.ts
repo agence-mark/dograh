@@ -4165,6 +4165,26 @@ export type ControlesDePublication = {
      * Deux Webhooks
      */
     deux_webhooks?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Valeur En Dur
+     */
+    valeur_en_dur?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Verbe Ecran
+     */
+    verbe_ecran?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Action Sans Outil
+     */
+    action_sans_outil?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Sortie Non Citee
+     */
+    sortie_non_citee?: 'eteint' | 'previent' | 'bloque';
+    /**
+     * Poids Agent
+     */
+    poids_agent?: 'eteint' | 'previent';
 };
 
 /**
@@ -9376,6 +9396,30 @@ export type HuggingFaceSttConfiguration = {
      * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
      */
     adresse_libre?: boolean;
+};
+
+/**
+ * IgnorerUnDefaut
+ *
+ * « Ignorer pour cette version » (Bilan de santé du prompt) : le défaut de rédaction mis de côté pour la version en cours.
+ */
+export type IgnorerUnDefaut = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Etape
+     */
+    etape?: string | null;
+    /**
+     * Extrait
+     */
+    extrait?: string | null;
+    /**
+     * Version
+     */
+    version?: number | null;
 };
 
 /**
@@ -22431,6 +22475,18 @@ export type WorkflowConfigurationDefaults = {
         [key: string]: unknown;
     } | null;
     /**
+     * Cerveau Plafond Prompt
+     *
+     * Largest prompt (in characters) the brain handles well. A longer prompt is only a warning at publication. Empty: no threshold, the check stays silent.
+     */
+    cerveau_plafond_prompt?: number | null;
+    /**
+     * Cerveau Poids Max
+     *
+     * Heaviest reply (general prompt + step prompt + conditions of its exits, in characters) the brain handles well. Above it a step is only flagged. Empty: no threshold, the weight is shown as a plain figure.
+     */
+    cerveau_poids_max?: number | null;
+    /**
      * Phrases Regles
      *
      * Sentences said by the code, without the model: one rule per cause and place (group, agent or step), one to three sentences, a delay when the cause has one.
@@ -31386,6 +31442,52 @@ export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglageP
 export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostError = CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors[keyof CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostErrors];
 
 export type CorrigerUnReglageApiV1BuilderPublicationWorkflowIdCorrigerUnReglagePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostData = {
+    body: IgnorerUnDefaut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/publication/{workflow_id}/ignorer-un-defaut';
+};
+
+export type IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostError = IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostErrors[keyof IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostErrors];
+
+export type IgnorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPostResponses = {
     /**
      * Successful Response
      */
