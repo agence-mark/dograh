@@ -50,7 +50,7 @@ async def choisir_les_sondes(graphe: dict[str, Any], contrat: Contrat, jeu: dict
     ordre = ["demande_directe", *[t for t in catalogue.TECHNIQUES if t != "demande_directe"]]
     files = [
         [
-            {**s, "technique": t, "origine": "catalogue", "gravite_par_defaut": par_technique[t]["gravite_par_defaut"]}
+            {**s, "technique": t, "famille": par_technique[t]["nom"], "origine": "catalogue", "gravite_par_defaut": par_technique[t]["gravite_par_defaut"]}
             for s in par_technique[t]["sondes"]
         ]
         for t in ordre

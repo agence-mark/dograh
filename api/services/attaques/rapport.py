@@ -83,6 +83,7 @@ def construire(
                 "id": r["id"],
                 "technique": r.get("technique"),
                 "famille": r.get("famille"),
+                "origine": r.get("origine"),
                 "attaque": str((r.get("tours") or [""])[0])[:EXTRAIT_D_ATTAQUE],
                 "classe": classer(r),
                 "temoin": etat_du_temoin(r),

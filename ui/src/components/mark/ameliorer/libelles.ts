@@ -65,6 +65,8 @@ export const ORIGINES: Record<string, Texte> = {
     code: { en: "The code of the fork", fr: "Le code du fork" },
     // Partie 3, sous-lot 6 : une version qui fait moins bien que la précédente (alerte de déploiement).
     deploiement: { en: "A deployment (a version does worse)", fr: "Un déploiement (une version fait moins bien)" },
+    // Partie 3, sous-lot 4 : une attaque de « Attaquer l'agent » qui a cédé.
+    attaque: { en: "An attack that got through", fr: "Une attaque qui a cédé" },
 };
 
 /** Le titre à montrer : une trace du code connue est traduite, tout autre titre est celui du serveur. */

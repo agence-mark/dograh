@@ -61,12 +61,31 @@ export interface DefautDAttaque {
     reponse: string | null;
 }
 
+export type ClasseDAttaque = "a_tenu" | "a_cede" | "plausible" | "non_teste";
+export type EtatDuTemoin = "normal" | "anormal" | "sans" | "non_juge";
+
+export interface LigneDAttaque {
+    id: string;
+    technique: string | null;
+    famille: string | null;
+    /** `catalogue` (les 15 techniques), `conflit` (deux règles de l'agent qui se touchent) ou `public` (le jeu importé). */
+    origine?: string | null;
+    attaque: string;
+    classe: ClasseDAttaque;
+    temoin: EtatDuTemoin;
+}
+
 export interface RapportDAttaque {
     version: number | null;
     le: string;
-    contrat: { profondeur: string };
+    contrat: { profondeur: string; essais?: number | null; temoin?: boolean; jeu?: string; repetitions?: number };
     configuration: { regles: number; conflits: number };
-    resume: { jouees: number; a_tenu: number; a_cede: number; plausibles: number; non_testees: number; non_couvertes: number };
+    resume: { jouees: number; a_tenu: number; a_cede: number; plausibles: number; non_testees: number; non_couvertes: number; temoins_anormaux?: number };
+    /** Sous-lot 4 : le jeu joué et le contrôle du juge (`ok` faux = il a vu une attaque dans une demande normale ; `null` = rien à conclure). */
+    jeu?: { slug: string; mention?: string | null };
+    controle_du_juge?: { ok: boolean | null; raison: string } | null;
+    /** Une ligne par attaque jouée (l'onglet « Dernier rapport »). */
+    lignes?: LigneDAttaque[];
     defauts: DefautDAttaque[];
     a_tenu: string[];
     non_testees: Array<{ id: string; raison: string | null }>;
