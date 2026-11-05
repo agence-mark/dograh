@@ -120,6 +120,10 @@ ARGUMENTS = {
     "groupe_specialise_creer": {"workflow_id": AGENT, "nom": "Specialiste"},
     "groupe_regler": {"workflow_id": AGENT, "plafond_passations": 3},
     "groupe_completer": {"workflow_id": AGENT},
+    # Lots 8 et 22 : les étiquettes d'objets des prompts et les blocs de la bibliothèque.
+    "etiquettes_prompt_lire": {"workflow_id": AGENT},
+    "bloc_poser": {"workflow_id": AGENT, "noeud_id": "1", "bloc": "politesse", "version": 2},
+    "bloc_retirer": {"workflow_id": AGENT, "bloc": "politesse"},
 }
 
 

@@ -29,6 +29,8 @@ ENDROIT_DES_CONTROLES = {
     "attaques": {"theme": "agent", "onglet": "tests"},
     "garde_fous": {"theme": "securite", "onglet": None},
     "annonce_ia": {"theme": "phrases", "onglet": None},
+    "etiquettes": {"theme": "agent", "onglet": "parcours"},
+    "blocs_a_jour": {"theme": "agent", "onglet": "parcours"},
 }
 STATUT_VERS_ETAT = {"ok": FAIT, "alerte": A_FAIRE, "echec": BLOQUANT, "eteint": SANS_OBJET}
 

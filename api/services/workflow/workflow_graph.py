@@ -2,6 +2,7 @@ import re
 from collections import Counter
 from typing import Dict, Iterable, List, Set
 
+from api.services.etiquettes_prompt.familles import est_une_etiquette
 from api.services.workflow.dto import (
     EdgeDataDTO,
     NodeType,
@@ -63,6 +64,9 @@ def extract_template_variables(text: str) -> Set[str]:
         var_name = match.group(1).strip()
         filter_name = match.group(2).strip() if match.group(2) else None
 
+        # [.mark] Lot 8 : une étiquette d'objet ({{outil:x}}, {{bloc:y}}) n'est pas une variable (le résolveur la remplace).
+        if est_une_etiquette(var_name):
+            continue
         # Skip nested paths (runtime-resolved, e.g. gathered_context.city)
         if "." in var_name:
             continue

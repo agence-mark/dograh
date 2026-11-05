@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy import func, update
@@ -932,6 +932,16 @@ class WorkflowClient(BaseDBClient):
                 )
             )
             return result.scalars().all()
+
+    async def get_workflows_by_organization_light(self, organization_id: int) -> list[Any]:
+        """[.mark] Lot 8 (étiquettes des prompts) : (id, name, status) des agents de l'organisation, sans charger une définition."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel.id, WorkflowModel.name, WorkflowModel.status)
+                .where(WorkflowModel.organization_id == organization_id)
+                .order_by(WorkflowModel.name)
+            )
+            return [row for row in result.all()]
 
     async def get_workflow_name(
         self, workflow_id: int, user_id: int = None, organization_id: int = None

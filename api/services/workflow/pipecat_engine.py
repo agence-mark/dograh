@@ -577,6 +577,11 @@ class PipecatEngine:
             # Open persistent MCP server sessions for this call (degrades on failure)
             await self._open_mcp_sessions()
 
+            # [.mark] Lots 8 et 22 : la table des étiquettes de l'agent d'accueil (l'accueil peut en citer).
+            from api.services.etiquettes_prompt import moteur as etiquettes
+
+            await etiquettes.preparer(self, self.active_agent.workflow)
+
             # Helper that encapsulates context summarization
             if self._context_compaction_enabled:
                 self._context_summarization_manager = ContextSummarizationManager(self)
@@ -609,7 +614,11 @@ class PipecatEngine:
     def _format_prompt(self, prompt: str) -> str:
         """Delegate prompt formatting to the shared workflow.utils implementation."""
 
-        return render_template(prompt, self._call_context_vars)
+        # [.mark] Lots 8 et 22 : les étiquettes d'objets ({{outil:…}}, {{bloc:…}}…) sont résolues AVANT le moteur des
+        # variables, jamais par un second moteur (``services/etiquettes_prompt``). Un texte sans étiquette est inchangé.
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        return render_template(etiquettes.rendre(self, prompt), self._call_context_vars)
 
     async def _create_transition_func(
         self,
@@ -2448,6 +2457,10 @@ class PipecatEngine:
             return
 
         node = self.active_agent.workflow.nodes[node_id]
+        # [.mark] Lots 8 et 22 : la table des objets cités par le graphe de l'agent qui joue, lue une fois.
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        await etiquettes.preparer(self, self.active_agent.workflow)
 
         logger.debug(
             f"Executing node: name: {node.name} allow_interrupt: {node.allow_interrupt} is_end: {node.is_end}"

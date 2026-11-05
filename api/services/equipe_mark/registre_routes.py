@@ -203,6 +203,9 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/organizations/.*$", MEMBRE, par_defaut=True),
     # U3 bis : le catalogue des variables d'un agent (lecture seule, tout membre de l'organisation).
     _r(LECTURE, r"^/mark/variables(/.*)?$", MEMBRE),
+    # Lots 8 et 22 : les étiquettes d'objets des prompts ; lire = membre, corriger le brouillon = modifier les agents.
+    _r(LECTURE, r"^/mark/etiquettes-prompt(/.*)?$", MEMBRE),
+    _r({"POST"}, r"^/mark/etiquettes-prompt/[^/]+/corriger$", P("agents.modifier")),
 )
 
 

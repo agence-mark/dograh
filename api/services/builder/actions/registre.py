@@ -160,6 +160,10 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         from api.services.builder import sauvegarde
 
         await sauvegarde.garde(nom, parametres, contexte)
+        # [.mark] Lots 8 et 22 : le builder n'écrit jamais une étiquette d'objet hors du catalogue de l'organisation.
+        from api.services.builder.actions import etiquettes_prompt as garde_etiquettes
+
+        await garde_etiquettes.garde(nom, arguments, contexte)
         resultat = await action.fonction(contexte, parametres)
         if nom == "create_workflow" and isinstance(resultat, dict) and resultat.get("ok", True):
             await sauvegarde.apres_creation(contexte, resultat)

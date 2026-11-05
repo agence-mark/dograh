@@ -205,6 +205,7 @@ async def _essais_d_une_replique(test: dict[str, Any], workflow: Any, organisati
                 "lignes": _compact(obs.lignes),
                 "run_id": essai.run_id,
                 "simules": obs.simules,
+                "outils_appeles": [str(o.get("nom")) for o in obs.outils if isinstance(o, dict) and o.get("nom")],
             }
         )
     return sorties
@@ -245,6 +246,7 @@ async def _essais_d_une_conversation(
                 "lignes": _compact(obs.lignes),
                 "issue": obs.issue,
                 "simules": obs.simules,
+                "outils_appeles": [str(o.get("nom")) for o in obs.outils if isinstance(o, dict) and o.get("nom")],
             }
         )
     return sorties
@@ -396,6 +398,10 @@ async def rejouer_la_suite(
     empreinte_rejouee = _boucle.empreinte_du_brouillon(graphe, await brouillon.configurations_courantes(workflow))
     etapes = diagnostic.noms_de_etapes(graphe)
     outils = await _noms_d_outils(workflow, organisation_id, graphe)
+    # [.mark] Lot 8 (point 7) : les outils cités par une étiquette d'un prompt, pour signaler celui qu'un test n'appelle jamais.
+    from api.services.etiquettes_prompt.essais import fonctions_citees, outils_cites_jamais_appeles
+
+    cites = await fonctions_citees(organisation_id, graphe)
     cerveaux = CerveauxDesTests()
     if any(t.get("scenario") or t.get("questions_juge") for t in voulus):
         cerveaux = await cerveaux_des_tests(user, workflow)
@@ -436,6 +442,8 @@ async def rejouer_la_suite(
             "essais": essais,
             "juge": avis,
             "relecture": relecture,
+            # Un avertissement, jamais un échec seul (§ 3 bis, point 7).
+            "avertissements": outils_cites_jamais_appeles(cites, essais),
         }
         resultats.append(entree)
         # U8 (F) : un test qui échoue, ou « réussi, à revoir », entre dans « À améliorer » avec sa raison.

@@ -63,8 +63,15 @@ export const motif = (cle: string, repli: string | null): string => (repli ? `{{
 export const serialiser = (segments: Segment[]): string =>
     segments.map((s) => (s.type === "texte" ? s.texte : s.brut)).join("");
 
+/** Lot 8 : `outil:x`, `bloc:y@v2`… : une étiquette d'OBJET, jugée par son propre contrôle (`etiquettes-objets.ts`), jamais une variable. */
+const FAMILLES_OBJETS = ["outil", "etape", "agent", "equipe", "document", "phrase", "bloc"];
+const estUneEtiquetteDObjet = (cle: string) => {
+    const i = cle.indexOf(":");
+    return i > 0 && FAMILLES_OBJETS.includes(cle.slice(0, i)) && cle.length > i + 1;
+};
+
 export const estConnue = (cle: string, catalogue: VariableCatalogue[]): boolean => {
-    if (estDuMoteur(cle)) return true;
+    if (estDuMoteur(cle) || estUneEtiquetteDObjet(cle)) return true;
     const racine = cle.split(".")[0];
     return RACINES_OUVERTES.includes(racine) || catalogue.some((v) => v.cle === cle || v.cle === racine);
 };
@@ -85,11 +92,13 @@ export const sourceDe = (cle: string, catalogue: VariableCatalogue[]): Source | 
     return source === "entreprise" || source === "appel" || source === "fiche" || source === "campagne" ? source : "appel";
 };
 
-/** « Aperçu avec les valeurs » : chaque étiquette remplacée par son exemple, le repli si l'exemple est vide. */
-export const apercu = (texte: string, catalogue: VariableCatalogue[]): string =>
+/** « Aperçu avec les valeurs » : chaque étiquette remplacée par son exemple, le repli si l'exemple est vide. Une étiquette d'objet
+ * montre ce que le modèle recevra (le nom exact de la fonction d'un outil, le texte d'un bloc…). */
+export const apercu = (texte: string, catalogue: VariableCatalogue[], objets?: { cle: string; rendu?: string }[]): string =>
     decouper(texte)
         .map((s) => {
             if (s.type === "texte") return s.texte;
+            if (estUneEtiquetteDObjet(s.cle)) return objets?.find((o) => o.cle === s.cle.split("@")[0])?.rendu || `{{${s.cle}}}`;
             const exemple = parCle(s.cle, catalogue)?.exemple;
             return exemple || s.repli || `{{${s.cle}}}`;
         })

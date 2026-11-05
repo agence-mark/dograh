@@ -37,6 +37,8 @@ MODIFIENT_L_AGENT: frozenset[str] = frozenset(
         "groupe_regler",
         "groupe_completer",
         "groupe_specialise_creer",
+        "bloc_poser",
+        "bloc_retirer",
     }
 )
 ETATS_QUI_LAISSENT_PASSER = frozenset({"faite", "refusee", "cree_ici"})

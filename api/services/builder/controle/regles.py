@@ -17,6 +17,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from api.services.etiquettes_prompt.familles import est_une_etiquette, sans_etiquettes
 from api.utils.template_renderer import TEMPLATE_VAR_PATTERN, is_builtin_variable
 
 BLOQUANT = "bloquant"
@@ -175,6 +176,8 @@ def nom_d_outil_dans_le_texte(e: Entree) -> list[Defaut]:
     noms = {o.nom for o in e.outils.values() if o.nom} | set(e.noms_d_outils_du_moteur)
     defauts: list[Defaut] = []
     for n, prompt in _prompts_de_parole(e.graphe):
+        # [.mark] Lot 8 (décision du 04/11) : une étiquette {{outil:…}} n'est pas un nom écrit en clair ; le nom brut reste refusé.
+        prompt = sans_etiquettes(prompt)
         for nom in sorted(noms):
             if re.search(rf"(?<![\w]){re.escape(nom)}(?![\w])", prompt, flags=re.IGNORECASE):
                 defauts.append(
@@ -382,7 +385,8 @@ def genre_persona_contre_voix(e: Entree) -> list[Defaut]:
 
 
 def variables_ecrites(prompt: str) -> list[str]:
-    return [m.group(1) for m in re.finditer(TEMPLATE_VAR_PATTERN, prompt)]
+    # [.mark] Lot 8 : une étiquette d'objet n'est pas une variable (contrôle « Étiquettes des prompts » de la publication).
+    return [m.group(1) for m in re.finditer(TEMPLATE_VAR_PATTERN, prompt) if not est_une_etiquette(m.group(1))]
 
 
 def variable_connue(nom: str, e: Entree, noms_des_objets: set[str]) -> bool:

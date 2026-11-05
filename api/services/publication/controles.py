@@ -36,10 +36,36 @@ LIBELLES = {
     "sortie_d_impasse": "Sortie d'impasse",
     "deux_webhooks": "Deux webhooks",
     "annonce_ia": "Annonce « vous parlez à une IA »",
+    "etiquettes": "Étiquettes des prompts",
+    "blocs_a_jour": "Blocs à jour",
 }
 
 # [.mark] L3e : contrôles dont la position est FIXE (ils ne sont pas dans ``reglages.CONTROLES`` : aucun réglage ne les éteint).
 CONTROLES_FIXES = {"annonce_ia": "bloque"}
+# [.mark] Lot 8 (décision d'Evan du 04/11) : une étiquette cassée bloque TOUJOURS (aucun réglage ne l'assouplit). Lot 22 : un bloc
+# resté sur sa version alors qu'une Recette plus récente existe est un conseil, jamais un blocage.
+CONTROLES_FIXES["etiquettes"] = "bloque"
+CONTROLES_FIXES["blocs_a_jour"] = "previent"
+
+
+async def problemes_des_etiquettes(org: int, brouillon: Any) -> tuple[list[str] | None, list[str] | None]:
+    """(bloquants, conseils) : les étiquettes d'objets du brouillon, en phrases courtes (étape · message). ``None`` : sans objet
+    (aucune étiquette d'objet, ou aucun bloc) ; la ligne ne se montre alors pas dans « Prêt à publier »."""
+    from api.services.etiquettes_prompt import familles as f
+    from api.services.etiquettes_prompt.catalogue import problemes_du_brouillon, textes_du_brouillon
+
+    graphe = getattr(brouillon, "workflow_json", None)
+    configs = getattr(brouillon, "workflow_configurations", None)
+    textes = [t for _c, _n, _e, t, _d in textes_du_brouillon(graphe if isinstance(graphe, dict) else None, configs if isinstance(configs, dict) else None)]
+    if not textes:
+        return None, None
+    a_des_blocs = any(e.famille == f.BLOC for t in textes for e in f.etiquettes_de(t))
+    bloquants: list[str] = []
+    conseils: list[str] = []
+    for p in await problemes_du_brouillon(org, brouillon):
+        texte = f"{p.etape or 'Réglages'} · {p.message}"
+        (bloquants if p.bloquant else conseils).append(texte)
+    return bloquants, (conseils if a_des_blocs else None)
 
 
 class RaisonObligatoire(Exception):
@@ -196,8 +222,14 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
         controles.append(
             {"cle": cle, "libelle": LIBELLES[cle], "position": position, "statut": _statut(position, problemes), "problemes": problemes[:20]}
         )
+    etiquettes, conseils_blocs = await problemes_des_etiquettes(organisation_id, brouillon)
     for cle, position in CONTROLES_FIXES.items():
         problemes = _annonce_ia(configurations) if cle == "annonce_ia" else []
+        if cle in ("etiquettes", "blocs_a_jour"):
+            trouves = etiquettes if cle == "etiquettes" else conseils_blocs
+            if trouves is None:  # sans objet (aucune étiquette, aucun bloc) : le contrôle n'est pas joué, aucune ligne
+                continue
+            problemes = trouves
         controles.append({"cle": cle, "libelle": LIBELLES[cle], "position": position, "statut": _statut(position, problemes), "problemes": problemes})
     from api.services.preparation import liste
 

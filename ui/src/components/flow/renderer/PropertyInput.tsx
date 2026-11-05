@@ -15,6 +15,7 @@ import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Info } from "@/components/mark/studio/marques";
 import { ChampVariables } from "@/components/mark/variables/ChampVariables";
+import { useCatalogueEtiquettes } from "@/components/mark/variables/useCatalogueEtiquettes";
 import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,17 @@ export interface RendererContext {
     /** [.mark] Lot 7 de correctifs-apres-banc-commun: the conditions of the step's fields (sibling of champs_etape on the node data). */
     conditionsDeChamps?: ConditionDeChamp[];
     onConditionsDeChampsChange?: (next: ConditionDeChamp[] | undefined) => void;
+    /** [.mark] Lot 8 : l'étape dont on édite les textes (outils rattachés, « Rattacher l'outil à l'étape »). Absent : pas une étape. */
+    etape?: { outils: string[]; rattacher: (toolUuid: string) => void } | null;
 }
+
+/** [.mark] Lot 8 : un objet cité s'ouvre à côté (nouvel onglet du navigateur, en attendant le panneau de droite du lot 19). */
+const ouvrirUnObjet = (cle: string) => {
+    const [famille, reste] = [cle.slice(0, cle.indexOf(":")), cle.slice(cle.indexOf(":") + 1)];
+    const adresse =
+        famille === "outil" ? `/tools/${reste.split("/")[0]}` : famille === "agent" ? `/workflow/${reste}` : famille === "document" ? "/files" : null;
+    if (adresse) window.open(adresse, "_blank", "noopener");
+};
 
 export interface PropertyInputProps {
     spec: PropertySpec;
@@ -80,7 +91,7 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
     }
     switch (spec.type) {
         case "string":
-            return <StringWidget spec={spec} value={value} onChange={onChange} />;
+            return <StringWidget spec={spec} value={value} onChange={onChange} etape={context.etape} />;
         case "number":
             return <NumberWidget spec={spec} value={value} onChange={onChange} />;
         case "boolean":
@@ -109,6 +120,7 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
                     value={value}
                     onChange={onChange}
                     recordings={context.recordings}
+                    etape={context.etape}
                 />
             );
         case "tool_refs":
@@ -176,10 +188,11 @@ interface WidgetProps {
     onChange: (v: unknown) => void;
 }
 
-function StringWidget({ spec, value, onChange }: WidgetProps) {
+function StringWidget({ spec, value, onChange, etape }: WidgetProps & { etape?: RendererContext["etape"] }) {
     const v = (value as string | undefined) ?? "";
     const isMultiline = spec.editor === "textarea";
     const catalogue = useCatalogueVariables();
+    const etiquettes = useCatalogueEtiquettes(spec.name === "greeting");
     return (
         <div className="grid gap-2">
             {spec.name !== "greeting" && <StackedLabel spec={spec} />}
@@ -192,6 +205,11 @@ function StringWidget({ spec, value, onChange }: WidgetProps) {
                     catalogueLu={catalogue.lu}
                     placeholder={spec.placeholder ?? undefined}
                     ariaLabel={spec.display_name}
+                    objets={etiquettes.objets}
+                    objetsLus={etiquettes.lu}
+                    outilsDeLEtape={etape ? etape.outils : null}
+                    rattacher={etape?.rattacher}
+                    ouvrirObjet={ouvrirUnObjet}
                 />
             ) : isMultiline ? (
                 <Textarea
@@ -453,8 +471,11 @@ function MentionWidget({
     value,
     onChange,
     recordings,
-}: WidgetProps & { recordings: RecordingResponseSchema[] }) {
+    etape,
+}: WidgetProps & { recordings: RecordingResponseSchema[]; etape?: RendererContext["etape"] }) {
     const catalogue = useCatalogueVariables();
+    // [.mark] Lots 8 et 22 : un prompt cite aussi des objets (outils, étapes, agents, équipe, documents, phrases, blocs).
+    const etiquettes = useCatalogueEtiquettes(recordings.length === 0);
     // [.mark] U3 bis (E62) : sans enregistrement à citer (@), le champ montre les variables en étiquettes ;
     // avec des enregistrements, on garde le champ d'origine qui sait les citer.
     if (recordings.length === 0) {
@@ -468,6 +489,11 @@ function MentionWidget({
                     catalogueLu={catalogue.lu}
                     placeholder={spec.placeholder ?? undefined}
                     ariaLabel={spec.display_name}
+                    objets={etiquettes.objets}
+                    objetsLus={etiquettes.lu}
+                    outilsDeLEtape={etape ? etape.outils : null}
+                    rattacher={etape?.rattacher}
+                    ouvrirObjet={ouvrirUnObjet}
                 />
             </div>
         );
