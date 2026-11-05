@@ -49,6 +49,8 @@ class FauxDb:
         self.credentials: dict[str, SimpleNamespace] = {}
         self.configs_utilisateur: dict[tuple[int, str], dict] = {}
         self.ecritures_de_reglages: list[dict] = []
+        self.journal_builder: list[dict] = []  # N1 (sous-lot 4) : le journal des écritures du builder, en mémoire
+        self.journal_en_panne = False
         self._prochain = 100
 
     async def workflow_a_ete_publie(self, workflow_id):
@@ -93,6 +95,31 @@ class FauxDb:
             ((k, {c: x for c, x in v.items() if c not in fields} if isinstance(v, dict) else v) for (o, k), v in self.configs.items() if o == organization_id and k.startswith(prefix)),
             key=lambda paire: paire[0],
         )
+
+    # -- journal du builder (N1, sous-lot 4) : mêmes règles que la vraie table (filtre par organisation, clôture une fois) --
+    async def ecrire_journal_builder(self, organization_id, **champs):
+        if self.journal_en_panne:
+            raise RuntimeError("journal en panne")
+        ligne = {"id": len(self.journal_builder) + 1, "organization_id": organization_id, "quand": datetime.now(UTC), "annule_le": None, "annule_par": None,
+                 "workflow_id": None, "fil_id": None, "mode": None, "avant": None, "apres": None, "annulation": None, "non_annulable": None, "arguments": None, **champs}
+        self.journal_builder.append(ligne)
+        return ligne["id"]
+
+    async def clore_journal_builder(self, organization_id, ligne_id, **champs):
+        for ligne in self.journal_builder:
+            if ligne["id"] == ligne_id and ligne["organization_id"] == organization_id and ligne["statut"] == "en_cours":
+                ligne.update(champs)
+                return True
+        return False
+
+    async def lire_journal_builder(self, organization_id, ligne_id):
+        return next((dict(l) for l in self.journal_builder if l["id"] == ligne_id and l["organization_id"] == organization_id), None)
+
+    async def lister_journal_builder(self, organization_id, *, limit=25, offset=0, workflow_id=None, fil_id=None, famille=None):
+        lignes = [l for l in self.journal_builder if l["organization_id"] == organization_id and (workflow_id is None or l["workflow_id"] == workflow_id)
+                  and (fil_id is None or l["fil_id"] == fil_id) and (not famille or l["famille"] == famille)]
+        lignes.sort(key=lambda l: -l["id"])
+        return [dict(l) for l in lignes[offset : offset + limit]], len(lignes)
 
     # -- rôle d'équipe (N1 : le builder ne donne jamais plus de droits que la personne) --
     async def acces_du_compte(self, user_id):
@@ -223,6 +250,7 @@ MODULES_AVEC_DB = (
     "api.routes.builder_m",
     "api.services.builder.recettes",
     "api.services.builder.modes",
+    "api.services.builder.journal",
 )
 
 

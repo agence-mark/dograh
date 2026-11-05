@@ -9,6 +9,8 @@ la visionneuse de fichiers.
 - ``PUT  /builder/fils/{id}/mode``                               le mode du chat (N1 : demander, agent, tout, plan) ;
 - ``POST /builder/fils/{id}/autorisations/{demande}``            la réponse à une carte d'autorisation (une fois, pour ce chat, refuser) ;
 - ``DELETE /builder/fils/{id}/autorisations/{demande}``          retirer une autorisation « pour ce chat » ;
+- ``GET  /builder/journal``                                      le journal des écritures du builder de l'organisation (paginé) ;
+- ``POST /builder/journal/{id}/annuler``                         « Annuler » sur l'action faite (N1, sous-lot 4) ;
 - ``GET  /builder/fils/{id}/sous-agents`` · ``PUT .../sous-agents/interrupteur`` · ``POST .../sous-agents/arreter``;
 - ``GET|PUT /builder/sous-agents/reglages``                      Labo › Builder IA › Sous-agents ;
 - ``GET  /builder/fichiers/{uuid}/texte``                        le texte extrait d'un fichier de la base de connaissances (visionneuse).
@@ -18,6 +20,7 @@ Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,7 +30,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.builder import fil as service_fil
-from api.services.builder import revue, sous_agents
+from api.services.builder import journal, revue, sous_agents
 
 router = APIRouter(tags=["builder"])
 
@@ -297,6 +300,73 @@ async def retirer_une_autorisation(fil_id: int, demande_id: str, user: UserModel
     await db_client.modifier_fil(user.selected_organization_id, fil.id, historique=historique)
     await service_fil.noter(fil.id, {"type": "autorisation_reponse", "id": demande_id, "statut": "retiree"})
     return {"ok": True, "statut": "retiree"}
+
+
+# --- le journal du builder et « Annuler » (N1, sous-lot 4) -------------------------------------------------------------------
+
+
+class LigneDuJournal(BaseModel):
+    id: int
+    quand: datetime
+    workflow_id: int | None
+    fil_id: int | None
+    auteur: str
+    porte: str
+    action: str
+    famille: str
+    mode: str | None
+    autorisation: str
+    statut: str
+    arguments: Any = None
+    avant: Any = None
+    apres: Any = None
+    annulable: bool
+    non_annulable: str | None
+    annule_le: datetime | None
+    annule_par: str | None
+
+
+class PageDuJournal(BaseModel):
+    lignes: list[LigneDuJournal]
+    total: int
+    limit: int
+    offset: int
+
+
+@router.get("/journal", response_model=PageDuJournal)
+async def lire_le_journal_du_builder(
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    workflow_id: int | None = None,
+    fil_id: int | None = None,
+    famille: str | None = Query(None, max_length=24),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Ce que le builder a écrit dans CETTE organisation (le filtre est dans la requête), du plus récent au plus ancien."""
+    lignes, total = await db_client.lister_journal_builder(
+        user.selected_organization_id, limit=limit, offset=offset, workflow_id=workflow_id, fil_id=fil_id, famille=famille
+    )
+    return PageDuJournal(
+        lignes=[
+            LigneDuJournal(**{**{k: v for k, v in ligne.items() if k not in ("annulation", "user_id")}, "annulable": ligne["annulation"] is not None and not ligne["non_annulable"] and ligne["annule_le"] is None and ligne["statut"] == "fait"})
+            for ligne in lignes
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/journal/{ligne_id}/annuler")
+async def annuler_une_action_du_builder(ligne_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Défait une action du builder quand elle se défait (sinon un 409 qui dit pourquoi). Le fil en garde la trace."""
+    try:
+        fait = await journal.annuler(user, ligne_id)
+    except journal.ErreurAnnulation as erreur:
+        raise HTTPException(status_code=erreur.statut, detail={"code": erreur.code, "message": str(erreur)}) from None
+    if fait.get("fil_id"):
+        await service_fil.noter(fait["fil_id"], {"type": "journal_annule", "id": ligne_id})
+    return {"ok": True, "id": ligne_id}
 
 
 # --- les sous-agents -------------------------------------------------------------------------------------------------------

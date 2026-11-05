@@ -185,3 +185,46 @@ class ToolVersionModel(Base):
     definition = Column(JSON, nullable=False, default=dict)
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
+
+
+class MarkBuilderJournalModel(Base):
+    """[.mark] Partie 3, N1 (SA-N1b, 05 « Trois gardes ») : le journal de ce que le builder ÉCRIT, une ligne par action.
+
+    Qui (``auteur``, ``user_id``), quoi (``action``, ``famille``, ``arguments`` sans secret), quand (``quand``), dans quel mode du
+    chat et avec quelle autorisation, et l'état avant et après (``avant``, ``apres``, jamais une valeur de clé). ``annulation``
+    dit comment « Annuler » défait l'action (un instantané à restaurer ou l'état d'avant à réécrire), ``NULL`` quand elle ne se
+    défait pas (``non_annulable`` en donne la raison). Une ligne ne se réécrit que pour sa clôture et son annulation : l'historique
+    ne se supprime pas. Pourquoi pas ``mark_journal`` : celui de l'équipe est un journal de gestes d'équipe sans état avant/après ni
+    annulation, lu à travers les clients ; celui-ci est lu par organisation, plus gros, et porte l'état d'annulation.
+    """
+
+    __tablename__ = "mark_builder_journal"
+    __table_args__ = (
+        Index("ix_mark_builder_journal_org_quand", "organization_id", "quand"),
+        Index("ix_mark_builder_journal_org_agent", "organization_id", "workflow_id", "id"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    quand = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    workflow_id = Column(Integer, nullable=True)
+    fil_id = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    auteur = Column(String(255), nullable=False)
+    # ``ecran`` (le chat du builder) ou ``mcp`` (Claude Code)
+    porte = Column(String(12), nullable=False, default="ecran", server_default="ecran")
+    action = Column(String(120), nullable=False)
+    famille = Column(String(24), nullable=False)
+    # le mode du chat (``demander``, ``agent``, ``tout``, ``plan``), ``NULL`` hors chat (la personne agit par une route, ou Claude Code)
+    mode = Column(String(12), nullable=True)
+    # ``mode`` | ``une_fois`` | ``pour_ce_chat`` | ``depense`` | ``personne`` (hors chat) | ``claude_code``
+    autorisation = Column(String(16), nullable=False, default="mode", server_default="mode")
+    # ``en_cours`` | ``fait`` | ``echec``
+    statut = Column(String(10), nullable=False, default="en_cours", server_default="en_cours")
+    arguments = Column(JSON, nullable=True)
+    avant = Column(JSON, nullable=True)
+    apres = Column(JSON, nullable=True)
+    annulation = Column(JSON, nullable=True)
+    non_annulable = Column(String(24), nullable=True)
+    annule_le = Column(DateTime(timezone=True), nullable=True)
+    annule_par = Column(String(255), nullable=True)

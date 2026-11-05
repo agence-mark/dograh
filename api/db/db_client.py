@@ -9,6 +9,7 @@ from api.db.site_client import SiteClient
 from api.db.boucle_client import BoucleClient
 from api.db.branches_client import BranchesClient
 from api.db.installation_client_client import InstallationClientClient
+from api.db.journal_builder_client import JournalBuilderClient
 from api.db.outils_versions_client import OutilsVersionsClient
 from api.db.builder_fil_client import BuilderFilClient
 from api.db.depense_roles_client import DepenseRolesClient
@@ -96,6 +97,8 @@ class DBClient(
     BoucleClient,
     # [.mark] builder partie 3, sous-lot 9: the installation of a new client, step by step.
     InstallationClientClient,
+    # [.mark] builder partie 3, N1: the journal of what the builder writes (who, what, when, mode, authorization, before and after, undo).
+    JournalBuilderClient,
 ):
     """
     Unified database client that combines all specialized database operations.

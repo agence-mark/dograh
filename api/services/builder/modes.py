@@ -158,10 +158,10 @@ def _autorisation_existante(conversation: dict[str, Any], nom: str, arguments: d
         if d.get("nom") != nom:
             continue
         if d.get("statut") == "pour_ce_chat" and d.get("objet") == objet:
-            return identifiant
+            return "pour_ce_chat"
         if d.get("statut") == "une_fois" and not d.get("utilisee") and d.get("empreinte") == trace:
             d["utilisee"] = True
-            return identifiant
+            return "une_fois"
     return None
 
 
@@ -215,6 +215,7 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
     from api.services.builder.actions.registre import PORTE_MCP
 
     famille = action.famille or "irreversible"
+    contexte.autorisation = None
     if contexte.porte == PORTE_MCP:
         if famille in HORS_PORTE_MCP:
             return {
@@ -246,8 +247,11 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
             "erreur": "Plan mode: nothing is changed. Write the plan with plan_mettre_a_jour and wait for the person's agreement.",
         }
     if famille == "depense" and _depense_accordee(conversation):
+        contexte.autorisation = "depense"
         return None
-    if await _passe_par_le_mode(mode, famille, arguments, contexte) or _autorisation_existante(conversation, action.nom, arguments, contexte):
+    autorisation = "mode" if await _passe_par_le_mode(mode, famille, arguments, contexte) else _autorisation_existante(conversation, action.nom, arguments, contexte)
+    if autorisation:
+        contexte.autorisation = autorisation  # N1 (sous-lot 4) : le journal dit comment la permission a été donnée
         if famille == "depense":
             contexte.accord_donne = True  # l'accord de dépense est donné par le mode ou la carte (``consommer_un_accord``)
         return None
