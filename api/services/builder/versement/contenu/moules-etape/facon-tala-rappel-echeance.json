@@ -1,0 +1,17 @@
+{
+  "titre": "Rappel d'échéance (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Rappel d'échéance (façon Tala, par motif)\n\nFamille : **Écrire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil d'écriture⟧.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRappeler à la personne que ⟦échéance fournie par l'appel⟧ arrive, et proposer la suite.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Rappeler\n- Dire l'échéance en une phrase d'après les données de l'appel.\n- Proposer ⟦suite de la fiche⟧.\n### Tâche 2 : Situations particulières\n- Déjà fait ailleurs, plus concerné : le noter poliment et finir sans insister.\n- Hésitation ou question : base de connaissances, sans inventer.\n\n## Déroulement de l'appel\nCourtois, une idée à la fois, sans pression commerciale.\n\n# Critères de succès\n- Accepte -> prendre un rendez-vous\n- Refus, déjà fait, opposition -> fin après l'avoir noté\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers la suite : « La personne a accepté le principe de ⟦suite⟧. Déclencher cette transition au lieu de continuer à argumenter. »\n- Vers la fin : « … déjà fait ailleurs, plus concernée, refuse ou demande à ne plus être appelée. Déclencher cette transition immédiatement après l'avoir noté, sans insister. »\n\n## Pièges relevés\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/ecrire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

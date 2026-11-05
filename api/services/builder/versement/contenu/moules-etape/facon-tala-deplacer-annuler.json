@@ -1,0 +1,17 @@
+{
+  "titre": "Déplacer ou annuler un rendez-vous (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Déplacer ou annuler un rendez-vous (façon Tala, par motif)\n\nFamille : **Écrire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil de recherche de rendez-vous⟧, ⟦outil de recherche de créneaux⟧, ⟦outil de déplacement⟧, ⟦outil d'annulation⟧.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRetrouver le rendez-vous de la personne, puis le déplacer ou l'annuler.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Retrouver\n- ⟦outil de recherche de rendez-vous⟧ ; plusieurs : lequel ? ; aucun : vérifier le nom, puis ⟦repli⟧.\n### Tâche 2 : Déplacer\n- Préférences (jour, moment) ; ⟦outil de recherche de créneaux⟧ avec la même personne par défaut ; trois au plus.\n- Répéter le nouveau créneau, puis ⟦outil de déplacement⟧ ; à défaut d'outil de déplacement : annuler puis réserver.\n### Tâche 3 : Annuler\n- Proposer d'abord de déplacer.\n- Rappeler la règle d'annulation de la fiche, avec tact si elle s'applique.\n- Confirmation explicite, puis ⟦outil d'annulation⟧.\n\n## Règles métier\n- Récapituler, obtenir la confirmation, PUIS appeler l'outil. Annoncer le résultat seulement d'après la réponse de l'outil.\n\n## Déroulement de l'appel\nRetrouver, choisir, agir, confirmer à voix haute.\n\n# Critères de succès\n- Déplacé ou annulé, ou renoncé -> récapitulatif\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers annuler (depuis déplacer) : « La personne a finalement décidé d'annuler plutôt que de déplacer. Déclencher cette transition au lieu de chercher une nouvelle date. »\n- Vers déplacer (depuis annuler) : « La personne a finalement choisi de déplacer plutôt que d'annuler. Déclencher cette transition au lieu de procéder à l'annulation. »\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Le Builder de Tala recopie dans « déplacer » les paramètres de la description d'outil d'un autre métier : les paramètres viennent de la fiche du motif (contrôle de relecture).\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/ecrire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

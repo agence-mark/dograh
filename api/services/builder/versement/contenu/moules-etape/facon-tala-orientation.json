@@ -1,0 +1,17 @@
+{
+  "titre": "Orientation entre motifs (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Orientation entre motifs (façon Tala, par motif)\n\nFamille : **Converser**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nComprendre lequel des motifs de cet agent correspond à la demande, puis passer à l'étape du motif.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Identifier le motif\n- Les motifs possibles : ⟦liste fermée des motifs de la fiche⟧.\n- Si la demande est floue : une seule question de clarification.\n- Une question simple dont la réponse est dans « Ce que tu sais » reçoit sa réponse tout de suite.\n### Tâche 2 : Urgence\n- Si l'appelant décrit ⟦urgence de la fiche⟧ : passer à l'urgence sans autre question.\n\n## Déroulement de l'appel\nÉcouter, reconnaître le motif, passer. Les questions du motif se posent à l'étape du motif, jamais ici.\n\n# Critères de succès\n- Motif reconnu -> étape du motif\n- Urgence -> urgence\n- Personne demandée -> transfert\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers un motif : « L'appelant a exprimé une demande qui relève de ⟦motif⟧. Déclencher cette transition dès que ce motif est clair, au lieu de poser ici les questions du motif. »\n- Vers l'urgence : « L'appelant a décrit une situation qui correspond à l'urgence de la fiche. Déclencher cette transition immédiatement au lieu de finir la tâche en cours. »\n- Vers un humain : « L'appelant a explicitement demandé une personne, ou sa demande dépasse ce que cette étape traite. Déclencher cette transition au lieu d'essayer de traiter davantage la demande. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Le texte de l'étape doit citer TOUS les motifs vers lesquels elle mène (le Builder de Tala ajoute des sorties sans mettre à jour ce texte : contrôle K4).\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/converser",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

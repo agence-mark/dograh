@@ -1,0 +1,17 @@
+{
+  "titre": "Questions pratiques (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Questions pratiques (façon Tala, par motif)\n\nFamille : **Lire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : base de connaissances, ⟦outil d'écriture⟧.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRépondre aux questions pratiques sur ⟦entreprise⟧ avec la base de connaissances.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Répondre\n- Chercher dans la base de connaissances avant de répondre.\n- Absent de la base et de « Ce que tu sais » : le dire et proposer ⟦repli de la fiche⟧.\n### Tâche 2 : Hors périmètre\n- Question qui demande un avis de spécialiste : aucun avis, proposer un rappel enregistré par l'outil.\n\n## Règles métier\n- Rien d'inventé : prix, délais et conditions seulement depuis la fiche ou la base.\n\n## Déroulement de l'appel\nUne question, une réponse, puis « autre chose ? ».\n\n# Critères de succès\n- Réponse donnée ou rappel enregistré -> récapitulatif\n- Envie de prendre rendez-vous -> rendez-vous\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers le rendez-vous : « Après sa réponse, la personne souhaite prendre rendez-vous. Déclencher cette transition même si aucun détail n'est encore donné. »\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Chez Tala, la base de connaissances est un outil natif appelé par le modèle ; les suggestions y ajoutent des tarifs inventés.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/lire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

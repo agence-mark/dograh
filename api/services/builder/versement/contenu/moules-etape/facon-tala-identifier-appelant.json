@@ -1,0 +1,17 @@
+{
+  "titre": "Identifier l'appelant (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Identifier l'appelant (façon Tala, par motif)\n\nFamille : **Lire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil d'identification⟧ (lecture).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRetrouver l'appelant dans ⟦logiciel du client⟧ à partir du numéro de la ligne, avant de lui demander qui il est.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Recherche\n- Dès le début de l'étape, ⟦outil d'identification⟧ avec le numéro de la ligne.\n- Trouvé : faire confirmer le nom avant de s'en servir.\n- Inconnu : ne pas bloquer, le nom sera demandé plus tard selon le motif.\n\n## Règles métier\n- Le numéro identifie une ligne, pas une personne : rien de sensible sur le seul numéro.\n- Ne dire que ce que l'outil renvoie. Erreur de l'outil : ne rien affirmer, s'en excuser, proposer ⟦repli de la fiche⟧.\n\n## Déroulement de l'appel\nL'identification ne doit pas se sentir : une confirmation, puis le motif.\n\n# Critères de succès\n- Identifié ou inconnu -> orientation\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers l'orientation : « L'appelant a été identifié, ou il est inconnu du logiciel. Déclencher cette transition au lieu de lui redemander qui il est. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Chez Tala, l'accueil précise « ne pas lancer la recherche à cette étape » : l'identification vit dans la première étape de travail.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/lire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

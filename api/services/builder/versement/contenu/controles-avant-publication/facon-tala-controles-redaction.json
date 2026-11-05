@@ -1,0 +1,17 @@
+{
+  "titre": "Contrôles de rédaction (façon Tala)",
+  "contenu": {
+    "texte": "# Contrôles de rédaction (lot façon Tala par motif)\n\nChacun se règle dans Réglages › Publication › Contrôles de rédaction : Éteint, Prévient (défaut), Bloque ; le poids (K5) seulement Éteint ou Prévient. Une bonne pratique ne bloque jamais seule (décision du 04/11).\n\n| Code | Contrôle | Ce qu'il cherche |\n|---|---|---|\n| K1 | Valeur écrite en dur | un montant, un délai chiffré ou un prénom donné en exemple (« par exemple … ») dans un prompt |\n| K2 | Verbe d'écran | « afficher », « cliquer », « voir à l'écran », « s'affiche » dans un prompt d'agent vocal |\n| K3 | Action promise sans outil | « enregistrer, réserver, annuler, envoyer, noter dans » dans une étape sans aucun outil qui écrit |\n| K4 | Sortie que l'étape ne cite pas | une étape à au moins deux sorties de travail dont le texte ne mentionne pas l'une des étapes visées (nom ou libellé de la liaison) |\n| K5 | Poids de l'agent | par étape : prompt général + prompt de l'étape + conditions de ses sorties ; comparé au seuil réglé avec le cerveau (Briques › Taille supportée), vide par défaut : alors le nombre seul, à titre indicatif |\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

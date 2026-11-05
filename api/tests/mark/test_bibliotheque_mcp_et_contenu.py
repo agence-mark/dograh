@@ -70,10 +70,11 @@ async def test_les_recettes_gardent_la_trace_de_leur_banc_dans_les_notes(verse):
 
 async def test_chaque_recette_a_son_sous_dossier_et_sa_seule_etiquette(verse):
     elements = await tous()
-    tala = {k: r for k, r in elements.items() if k[1].startswith("facon-tala")}
+    tala = {k: r for k, r in elements.items() if k[1].startswith(("facon-tala", "tala-"))}
     polyai = {k: r for k, r in elements.items() if k[1].startswith("facon-polyai")}
     assert len(tala) >= 10 and len(polyai) >= 10
-    assert all(r.dossier == "facon-tala" and r.etiquettes == ["facon-tala"] for r in tala.values())
+    # Lot « par motif » (05/11) : les fiches Tala rangées par motif vivent dans un sous-dossier de « facon-tala », avec une étiquette de plus.
+    assert all(r.dossier.split("/")[0] == "facon-tala" and r.etiquettes[0] == "facon-tala" for r in tala.values())
     assert all(r.dossier == "facon-polyai" and r.etiquettes == ["facon-polyai"] for r in polyai.values())
     # Aucun élément hors de ces slugs ne porte l'étiquette d'une recette.
     autres = [k for k, r in elements.items() if k not in tala and k not in polyai and {"facon-tala", "facon-polyai"} & set(r.etiquettes)]
@@ -146,6 +147,10 @@ async def test_les_scenarios_gardent_leur_origine_leur_licence_et_ont_des_criter
             assert origine is None
             verdict.valider_criteres(element.courante.contenu["criteres"])
             continue
+        if slug.startswith("tala-"):  # lot « par motif » : méthode observée chez Tala, texte écrit par .mark (licence dite dans l'origine)
+            assert origine is not None and "écrit par .mark" in origine.licence, slug
+            verdict.valider_criteres(element.courante.contenu["criteres"])
+            continue
         assert origine is not None and origine.licence == "MIT" and ("tau2-bench" in origine.source or "abcd" in origine.source), slug
         verdict.valider_criteres(element.courante.contenu["criteres"])
     abcd = (await service.lire_element("scenarios-test", "rdv-cas-normal")).courante.origine
@@ -190,8 +195,8 @@ async def test_claude_code_lit_les_recettes_par_famille_et_leur_fiche(verse):
     redaction = next(f for f in familles["familles"] if f["slug"] == "regles-redaction")
     assert redaction["fiche"]["comment"]
     liste = await executer("bibliotheque_lister", {"famille": "prompt-general"}, MCP)
-    assert {e["slug"] for e in liste["elements"]} == {"facon-tala-telephone", "facon-polyai-telephone"}
-    assert set(liste["dossiers"]) == {"facon-tala", "facon-polyai"}
+    assert {e["slug"] for e in liste["elements"]} == {"facon-tala-telephone", "facon-tala-telephone-sortant", "facon-polyai-telephone"}
+    assert {d.split("/")[0] for d in liste["dossiers"]} == {"facon-tala", "facon-polyai"}
     lu = await executer("bibliotheque_lire", {"famille": "prompt-general", "slug": "facon-polyai-telephone"}, MCP)
     assert lu["statut"] == "candidat" and "not proven" in lu["avertissement"] and "Sécurité d'abord" in lu["contenu"]["texte"]
 

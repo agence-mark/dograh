@@ -1,0 +1,17 @@
+{
+  "titre": "Règles par famille d'outil (façon Tala)",
+  "contenu": {
+    "texte": "# Règles par famille d'outil (recette façon Tala)\n\n| Famille | Règle |\n|---|---|\n| Lire | Ne dire que ce que l'outil renvoie. Introuvable : une seule nouvelle recherche avec d'autres critères. Erreur : ne rien affirmer. |\n| Écrire | Récapituler, faire confirmer, puis appeler. Annoncer d'après la réponse. Jamais modifier soi-même ce que le logiciel tient : enregistrer une demande. |\n| Rendez-vous | Trois créneaux au plus, uniquement rendus par l'outil. Répéter le créneau avant de réserver. Avant d'annuler, proposer de déplacer ; confirmation explicite. |\n| Paiement | Le montant vient du logiciel. Numéro confirmé avant l'envoi. Échec : la référence pour un autre moyen. |\n| Identification | Au début de l'étape, avant de demander qui appelle. Le numéro identifie une ligne, pas une personne. |\n| Mise à jour | Seules les cases vides ; rien en cas de doute. |\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/gabarit-d-outil",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}
