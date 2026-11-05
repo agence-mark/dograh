@@ -30,6 +30,7 @@ from api.utils.template_renderer import (
 from api.utils.url_security import validate_user_configured_service_url
 from api.services.outils_mark import en_tetes as en_tetes_mark
 from api.services.outils_mark import parametres as parametres_mark
+from api.services.outils_mark import pour_la_voix as voix_mark
 from api.services.outils_mark import reponse as reponse_mark
 from api.services.outils_mark import simulation as simulation_mark
 
@@ -469,7 +470,7 @@ async def execute_http_tool(
     llm_arguments = parametres_mark.appliquer_les_defauts(config, dict(arguments or {}))
     refus_valeur = parametres_mark.verifier_les_valeurs(config, llm_arguments)
     if refus_valeur:
-        return build_result({"status": "error", "error": refus_valeur})
+        return build_result({"status": "error", "error": refus_valeur, "nature": "a_corriger"})
     resolved_arguments = {**preset_arguments, **llm_arguments}
 
     initial_context = dict(call_context_vars or {})
@@ -560,7 +561,11 @@ async def execute_http_tool(
     if simuler:
         simulee = simulation_mark.choisir(config, resolved_arguments)
         if simulee is not None:
-            return build_result(_apres_la_reponse(config, simulation_mark.en_reponse(simulee), fiche_cible))
+            return build_result(
+                _apres_la_reponse(
+                    config, simulation_mark.en_reponse(simulee), fiche_cible, method, body if sends_body else None
+                )
+            )
 
     logger.info(
         f"Executing custom tool '{tool.name}' ({tool.tool_uuid}): "
@@ -592,10 +597,18 @@ async def execute_http_tool(
 
     if echec is not None:
         log_failure(echec, organization_id=organization_id, tool_name=tool.name)
-    return build_result(_apres_la_reponse(config, resultat, fiche_cible))
+    return build_result(
+        _apres_la_reponse(config, resultat, fiche_cible, method, body if sends_body else None)
+    )
 
 
-def _apres_la_reponse(config: dict[str, Any], resultat: dict[str, Any], fiche_cible: dict[str, Any] | None) -> dict[str, Any]:
+def _apres_la_reponse(
+    config: dict[str, Any],
+    resultat: dict[str, Any],
+    fiche_cible: dict[str, Any] | None,
+    methode: str = "GET",
+    envoye: Any = None,
+) -> dict[str, Any]:
     """[.mark] U3 sexies point 2 : sur une réponse réussie, copie dans la fiche (réponse entière) puis filtrage de ce que
     lit le modèle. Une erreur passe telle quelle (elle sert à comprendre)."""
     if resultat.get("status") != "success":
@@ -605,6 +618,13 @@ def _apres_la_reponse(config: dict[str, Any], resultat: dict[str, Any], fiche_ci
     sortie = {**resultat, "data": reponse_mark.filtrer(donnees, config.get("chemins_gardes"))}
     if copiees:
         sortie["copies_dans_la_fiche"] = copiees
+    # [.mark] lot R (partie 3) : ce que l'outil renvoie pour la voix. Les champs appliqués se lisent dans la réponse
+    # entière ; le résumé et la consigne de parole viennent après (la fiche, elle, a déjà tout reçu).
+    entiere = voix_mark.avec_les_champs_appliques(resultat, config, methode, envoye)
+    sortie = {**sortie, **{c: entiere[c] for c in ("champs_appliques", "champs_ignores", "champs_source") if c in entiere}}
+    sortie = voix_mark.avec_consigne_de_parole(
+        voix_mark.resume_pour_la_voix(sortie, config), config
+    )
     return sortie
 
 

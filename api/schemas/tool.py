@@ -194,6 +194,31 @@ class ComportementOutil(BaseModel):
     )
     seuil_patience_ms: int = Field(default=1200, ge=0, le=15000, description="Patience threshold in milliseconds.")
     phrase_repli: str | None = Field(default=None, max_length=300, description="Said when the tool fails.")
+    # [.mark] lot R (partie 3) : ce que l'outil dit au modèle, pour la voix. Tout est éteint par défaut, sauf la consigne
+    # d'échec en mots de voix (un texte plus juste, rien d'autre).
+    consigne_en_cas_d_echec: str | None = Field(
+        default=None,
+        max_length=400,
+        description="What the model tells the caller when the tool fails, in spoken words. Empty: a default sentence.",
+    )
+    consigne_de_parole: str | None = Field(
+        default=None,
+        max_length=600,
+        description="Spoken instruction added to a successful result (say this, announce the count then the first one).",
+    )
+    consigne_de_parole_du_service: bool = Field(
+        default=False,
+        description="Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).",
+    )
+    un_seul_appel_a_la_fois: bool = Field(
+        default=False,
+        description="A second call of this tool (or of any tool with the same shared lock) is refused while one is running.",
+    )
+    verrou_commun: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Name of a lock shared with other tools (two searches never start together).",
+    )
     # Gérés par le serveur (la route d'essai les écrit, une mise à jour de l'outil les conserve).
     dernier_essai: dict[str, Any] | None = Field(
         default=None, description="Server-managed: the last trial (success, mode, date)."
@@ -324,6 +349,19 @@ class HttpApiConfig(ComportementOutil):
         default_factory=list,
         max_length=30,
         description="Values of the answer copied in the call record, before any filtering.",
+    )
+    # [.mark] lot R (partie 3) : le résumé pour la voix (C7, éteint par défaut) et les champs appliqués (C8).
+    resume_pour_la_voix: bool = Field(
+        default=False, description="Cut what the model reads: first items of a list, long strings, heavy fields."
+    )
+    resume_max_elements: int = Field(default=3, ge=1, le=50, description="Items kept from a list.")
+    resume_max_caracteres: int = Field(default=1200, ge=50, le=20000, description="Characters kept from a string.")
+    resume_champs_retires: list[str] = Field(
+        default_factory=list, max_length=50, description="Heavy fields removed from the answer the model reads."
+    )
+    champs_appliques: bool = Field(
+        default=True,
+        description="A successful write tells the model which fields were applied and which were ignored.",
     )
     reponses_simulees: list[ReponseSimulee] = Field(
         default_factory=list,
@@ -847,6 +885,16 @@ class IntegrationToolConfig(BaseModel):
     declencheurs: dict[str, str] = Field(
         default_factory=dict,
         description="Parameter of the action → field of the record that gives it (anticipation).",
+    )
+    # [.mark] lot R (partie 3) : voir ``ComportementOutil``.
+    consigne_de_parole: str | None = Field(
+        default=None, max_length=600, description="Spoken instruction added to a successful result."
+    )
+    consigne_en_cas_d_echec: str | None = Field(
+        default=None, max_length=400, description="What the model tells the caller when the action fails."
+    )
+    champs_appliques: bool = Field(
+        default=True, description="A successful write tells the model which fields were applied."
     )
     # K5 (E77): the connected account the tool follows when the organization has several of the same software (two Google
     # calendars...). Empty: the organization's only (or first) account. The name is the one given at connection time.
