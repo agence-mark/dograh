@@ -442,16 +442,17 @@ def test_utilise_par_trouve_le_nom_et_ses_phrases_jamais_un_autre():
 
 
 async def test_les_routes_creent_lisent_reecrivent_et_suppriment_un_objet(base_v4, smtp, db_session, async_session):
-    from api.tests.mark.test_ecritures_par_element import RACINE, _garnir, _installer, _rediriger
+    from api.tests.mark.test_ecritures_par_element import RACINE, _garnir, _installer, _rediriger, _session_de
 
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)
+            await _garnir(client, entetes, db_session, _org)
+            session = await _session_de(db_session, _org)
             r = await client.post(
                 f"{RACINE}/objets",
                 json=_liste(etablissement="nord").model_dump(mode="json"),
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
             cree = r.json()
@@ -462,27 +463,27 @@ async def test_les_routes_creent_lisent_reecrivent_et_suppriment_un_objet(base_v
             # Réécrire : la colonne et la ligne envoyées avec leur id restent, l'autre ligne part.
             envoi = {k: cree[k] for k in ObjetEnvoye.model_fields}
             envoi["lignes"] = [cree["lignes"][0]]
-            r = await client.put(f"{RACINE}/objets/{cree['id']}", json=envoi, headers=entetes)
+            r = await client.put(f"{RACINE}/objets/{cree['id']}", json=envoi, headers=session)
             assert r.status_code == 200, r.text
             assert [ligne["valeurs"]["Marque"] for ligne in r.json()["lignes"]] == ["Edilkamin"]
             assert r.json()["colonnes"][0]["id"] == cree["colonnes"][0]["id"]
             # Le plafond, réglé ici, bloque.
-            r = await client.put(f"{RACINE}/objets/reglages", json={"plafond_caracteres": 100}, headers=entetes)
+            r = await client.put(f"{RACINE}/objets/reglages", json={"plafond_caracteres": 100}, headers=session)
             assert r.status_code == 200 and r.json() == {"plafond_caracteres": 100}
             longues = tuple((f"Marque numéro {i}", "oui") for i in range(10))
             r = await client.post(
-                f"{RACINE}/objets", json=_liste(nom="longue", lignes=longues).model_dump(mode="json"), headers=entetes
+                f"{RACINE}/objets", json=_liste(nom="longue", lignes=longues).model_dump(mode="json"), headers=session
             )
             assert r.status_code == 422 and "plafond" in r.json()["detail"]
             # Un nom pris : 409 ; un type faux : 422 ; un objet inconnu : 404.
-            r = await client.post(f"{RACINE}/objets", json=_liste().model_dump(mode="json"), headers=entetes)
+            r = await client.post(f"{RACINE}/objets", json=_liste().model_dump(mode="json"), headers=session)
             assert r.status_code == 409
             r = await client.post(
-                f"{RACINE}/objets", json=_valeur(valeur="douze").model_dump(mode="json"), headers=entetes
+                f"{RACINE}/objets", json=_valeur(valeur="douze").model_dump(mode="json"), headers=session
             )
             assert r.status_code == 422
-            assert (await client.delete(f"{RACINE}/objets/999999", headers=entetes)).status_code == 404
-            r = await client.delete(f"{RACINE}/objets/{cree['id']}", headers=entetes)
+            assert (await client.delete(f"{RACINE}/objets/999999", headers=session)).status_code == 404
+            r = await client.delete(f"{RACINE}/objets/{cree['id']}", headers=session)
             assert r.status_code == 200
             assert (await client.get(f"{RACINE}/objets", headers=entetes)).json()["objets"] == []
             # Sans clé : refusé par l'authentification.
@@ -490,23 +491,25 @@ async def test_les_routes_creent_lisent_reecrivent_et_suppriment_un_objet(base_v
     c = await schema.connecter(base_v4)
     try:
         auteurs = {r["auteur"] for r in await c.fetch("SELECT auteur FROM mark.objet_agent_historique")}
-        assert auteurs and all("Camille Dupont" in a for a in auteurs)
+        assert auteurs and all(a and "portail" not in a for a in auteurs)  # RV2 : écrits par une session d'équipe (les objets ne sont plus ouverts à une clé)
     finally:
         await c.close()
 
 
 async def test_la_cle_d_une_autre_organisation_n_atteint_pas_ses_objets(base_v4, smtp, db_session, async_session):
-    from api.tests.mark.test_ecritures_par_element import RACINE, _installer, _rediriger
+    from api.tests.mark.test_ecritures_par_element import RACINE, _installer, _rediriger, _session_de
 
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
     autre = await _organisation(async_session, db_session)
-    cle_b = await _cle(db_session, autre.organisation.id, autre.utilisateur.id)
+    # RV2 : créer et supprimer un objet ne sont plus ouverts à une clé : le cloisonnement se prouve avec une session d'équipe par organisation.
+    session_a = await _session_de(db_session, _org)
+    session_b = await _session_de(db_session, autre.organisation.id)
     with _rediriger():
         async with _client() as client:
-            r = await client.post(f"{RACINE}/objets", json=_valeur().model_dump(mode="json"), headers=entetes)
+            r = await client.post(f"{RACINE}/objets", json=_valeur().model_dump(mode="json"), headers=session_a)
             assert r.status_code == 200, r.text
             ident = r.json()["id"]
-            b = {"X-API-Key": cle_b}
+            b = session_b
             # L'autre organisation n'a pas de base : la sienne est absente, celle de A n'est jamais lue.
             assert (await client.get(f"{RACINE}/objets", headers=b)).status_code == 409
             assert (await client.delete(f"{RACINE}/objets/{ident}", headers=b)).status_code == 409

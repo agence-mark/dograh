@@ -114,3 +114,76 @@ async def test_la_cle_du_client_ecrit_au_portail_pas_dans_les_outils_et_reste_da
     assert lexique.status_code != 403, lexique.text  # la route du portail est ouverte à la clé (la validation du corps répond ensuite)
     assert outil.status_code == 403 and archive.status_code == 403
     assert autre.status_code == 403 and "own organization" in autre.json()["detail"]
+
+
+# --- RV2 (I-1) : la clé du portail n'ouvre que les écritures du contrat, rien d'autre sous /organizations ---------------------------
+
+FERMEES_A_UNE_CLE_SOUS_ORGANIZATIONS = [
+    ("PUT", f"{P}/organizations/preferences"),
+    ("POST", f"{P}/organizations/call-events/test"),
+    ("PUT", f"{P}/organizations/apres-appel"),
+    ("PUT", f"{P}/organizations/apres-appel/installation"),
+    ("POST", f"{P}/organizations/apres-appel/essai-mail"),
+    ("PUT", f"{P}/organizations/apres-appel/nuit"),
+    ("PUT", f"{P}/organizations/apres-appel/recapitulatif"),
+    ("PUT", f"{P}/organizations/verification-appelant"),
+    ("POST", f"{P}/organizations/sites"),
+    ("POST", f"{P}/organizations/sites/{{site_id}}/regenerer-cle"),
+    ("PUT", f"{P}/organizations/sites/{{site_id}}/canal"),
+    ("PUT", f"{P}/organizations/sites/{{site_id}}/affichage"),
+    ("POST", f"{P}/organizations/sites/lire-site"),
+    ("POST", f"{P}/organizations/etablissements"),
+    ("POST", f"{P}/organizations/etablissements/{{identifiant}}/copier"),
+    ("POST", f"{P}/organizations/etablissements/{{identifiant}}/reprise"),
+    ("POST", f"{P}/organizations/lexique/import"),
+    ("PUT", f"{P}/organizations/annonce-ouverture"),
+    ("PUT", f"{P}/organizations/phrases"),
+    ("PUT", f"{P}/organizations/objets/{{objet_id}}"),
+    ("PUT", f"{P}/organizations/planificateur"),
+]
+
+
+@pytest.mark.parametrize(
+    "methode, chemin", FERMEES_A_UNE_CLE_SOUS_ORGANIZATIONS, ids=[f"{m} {c.removeprefix(P)}" for m, c in FERMEES_A_UNE_CLE_SOUS_ORGANIZATIONS]
+)
+async def test_une_cle_ne_touche_pas_les_ecritures_hors_contrat_sous_organizations(methode, chemin):
+    from api.services.equipe_mark import registre_routes
+
+    decision = registre_routes.decision_de(methode, chemin.removeprefix(P))[0]
+    assert getattr(decision, "pour_cle", None) != "portail.ecrire", (methode, chemin)
+    with pytest.raises(HTTPException) as erreur:
+        await _appliquer(methode, chemin, par_cle_api=True)
+    assert erreur.value.status_code == 403, (methode, chemin)
+    # une session d'équipe garde son droit
+    await _appliquer(methode, chemin, par_cle_api=False, permissions=frozenset({"agents.modifier"}))
+
+
+def test_toute_route_qui_porte_portail_ecrire_est_dans_le_contrat_et_chaque_ecriture_du_contrat_y_est():
+    from api.app import app
+    from fastapi.routing import APIRoute
+
+    from api.services.equipe_mark import registre_routes
+
+    contrat = set(ROUTES_DU_PORTAIL)
+    portent = set()
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            for methode in route.methods or []:
+                trouvee = registre_routes.decision_de(methode, route.path.removeprefix(P))
+                if trouvee and getattr(trouvee[0], "pour_cle", None) == "portail.ecrire":
+                    portent.add((methode, route.path))
+    assert not (portent - contrat), f"portail.ecrire posé hors contrat : {sorted(portent - contrat)}"
+
+    import json
+
+    from api.tests.mark.test_contrat_portail_fork import FICHIER
+
+    figees = json.loads(FICHIER.read_text(encoding="utf-8"))
+    attendues = {
+        (cle.split(" ", 1)[0], cle.split(" ", 1)[1])
+        for cle, forme in figees.items()
+        if forme.get("permission_de_cle") == "portail.ecrire"
+    }
+    assert attendues, "le contrat ne porte aucune écriture portail.ecrire"
+    assert attendues <= portent, f"écriture du contrat non ouverte à la clé : {sorted(attendues - portent)}"
+    assert attendues == {(m, c) for m, c in portent if (m, c) in contrat}
