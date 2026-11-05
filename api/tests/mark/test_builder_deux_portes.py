@@ -214,9 +214,14 @@ GESTES_ECRAN = {
 }
 
 
+# Partie 3, N1 (sous-lot 5) : l'entreprise (établissements, phrases, annonce, listes, équipe, campagnes, téléphonie), écran seulement ;
+# leurs arguments d'essai et leurs tests sont dans ``test_builder_entreprise.py``.
+from api.tests.mark.test_builder_entreprise import ARGUMENTS as ENTREPRISE_ECRAN  # noqa: E402
+
+
 def test_les_outils_deja_exposes_sont_dans_le_registre_et_pas_inscrits_deux_fois():
     existants = {n for n, a in registre.REGISTRE.items() if not a.mcp}
-    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT | set(GESTES_ECRAN)
+    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT | set(GESTES_ECRAN) | set(ENTREPRISE_ECRAN)
 
 
 @pytest.mark.parametrize("nom", sorted(GESTES_ECRAN))

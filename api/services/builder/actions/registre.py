@@ -155,13 +155,7 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
     contexte.autorisation = None
     if (decision := await modes.decider(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)) is not None:
         return decision
-    # N1 (sous-lot 4) : toute écriture a sa ligne de journal AVANT d'être jouée ; sans ligne, rien n'est fait (même en « Tout permettre »).
-    try:
-        entree = await journal.ouvrir(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)
-    except journal.ErreurJournal:
-        contexte.accord_donne = False
-        return {"ok": False, "code": "journal", "erreur": "Nothing was done: the journal of the builder cannot be written. Tell the person."}
-    ok = False
+    # Les garde-fous qui refusent SANS rien écrire passent avant le journal : un refus n'a ni ligne ni instantané.
     try:
         # [.mark] lot M : sauvegarde avant la première modification d'un agent existant (éteinte par défaut, ``sauvegarde.py``).
         from api.services.builder import sauvegarde
@@ -171,8 +165,21 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         from api.services.builder.actions import etiquettes_prompt as garde_etiquettes
 
         await garde_etiquettes.garde(nom, arguments, contexte)
+    except ErreurAction as erreur:
+        contexte.accord_donne = False
+        return {"ok": False, "code": erreur.code, "erreur": str(erreur)}
+    # N1 (sous-lot 4) : toute écriture a sa ligne de journal AVANT d'être jouée ; sans ligne, rien n'est fait (même en « Tout permettre »).
+    try:
+        entree = await journal.ouvrir(action, parametres.model_dump(mode="json", exclude_unset=True), contexte)
+    except journal.ErreurJournal:
+        contexte.accord_donne = False
+        return {"ok": False, "code": "journal", "erreur": "Nothing was done: the journal of the builder cannot be written. Tell the person."}
+    ok = False
+    try:
         resultat = await action.fonction(contexte, parametres)
         if nom == "create_workflow" and isinstance(resultat, dict) and resultat.get("ok", True):
+            from api.services.builder import sauvegarde
+
             await sauvegarde.apres_creation(contexte, resultat)
         ok = not (isinstance(resultat, dict) and resultat.get("ok", True) is False)
     except ErreurAction as erreur:

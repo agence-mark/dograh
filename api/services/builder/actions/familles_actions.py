@@ -11,7 +11,7 @@ du chat et le rôle de la personne (``modes.py``). Une liste fermée de neuf fam
 ``entreprise``     ce qui sert toute l'organisation : objets, bibliothèque, jeu public d'attaques
 ``autre_agent``    un autre agent ou un groupe : créer, régler, compléter
 ``depense``        ce qui fait tourner des modèles payants : rejouer les tests, les attaques, l'appelant simulé
-``appels_reels``   ce qui appelle de vrais gens (campagne, appel de test vers un vrai numéro) ; aucune action encore (SA-N1b)
+``appels_reels``   ce qui appelle de vrais gens (démarrer ou reprendre une campagne, appel de test vers un vrai numéro)
 ``irreversible``   supprimer, archiver
 =================  =====================================================================================================
 
@@ -60,6 +60,9 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         "tests_lister", "tests_lire", "correction_bilan", "modifications_lister",
         "fork_resume", "executions_lister", "a_ameliorer_lire", "appels_lister", "appel_lire", "versions_lister", "chat_etat",
         "qualite_lire",
+        # N1 (sous-lot 5) : lire l'entreprise (établissements, phrases, annonce, vocabulaire, listes, équipe, campagnes, téléphonie par leur nom)
+        "etablissements_lire", "phrases_organisation_lire", "annonce_lire", "lexique_lire", "listes_valeurs_lire", "equipe_lister",
+        "campagnes_lister", "campagne_lire", "telephonie_lister",
         # les cartes du dialogue : elles ne font rien d'autre que demander ou montrer (une personne clique ensuite)
         "plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer",
         "agent_proposer_archivage", "tests_supprimer", "deleguer",
@@ -82,6 +85,9 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         "objets_agent_ecrire", "fiche_creer_les_objets", "bibliotheque_ranger", "bibliotheque_ecrire_candidat", "bibliotheque_proposer",
         "attaques_importer_le_jeu_public", "bibliotheque_marquer", "bibliotheque_accepter_proposition",
         "bibliotheque_refuser_proposition", "bibliotheque_retour_arriere",
+        # N1 (sous-lot 5) : écrire l'entreprise
+        "etablissements_remplacer", "etablissement_modifier", "etablissement_fermer_ou_rouvrir", "phrases_organisation_ecrire",
+        "annonce_regler", "lexique_ecrire", "listes_valeurs_cocher", "equipe_inviter", "campagne_creer", "campagne_modifier", "campagne_pause",
     ),
     "autre_agent": (
         "groupe_creer", "groupe_specialise_creer", "groupe_regler", "groupe_completer",
@@ -89,7 +95,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
     "depense": (
         "tests_rejouer", "attaques_lancer", "attaques_rejouer", "test_demarrer", "test_tour", "test_finir",
     ),
-    "appels_reels": (),
+    "appels_reels": ("campagne_demarrer", "campagne_reprendre", "appel_de_test_lancer"),
     "irreversible": (
         "agent_archiver", "outil_supprimer",
     ),
@@ -106,6 +112,10 @@ PERMISSION_DE_L_ACTION: dict[str, str] = {
     "bibliotheque_retour_arriere": "atelier.regler",
     # Supprimer un outil est une écriture des outils à l'écran (``/tools/...`` : « agents.modifier »).
     "outil_supprimer": "agents.modifier",
+    # L'équipe .mark se gère avec « equipe.gerer » (jamais une clé d'API), comme ``/equipe-mark/*`` ; un appel de test est un test (« tests.jouer »).
+    "equipe_lister": "equipe.gerer",
+    "equipe_inviter": "equipe.gerer",
+    "appel_de_test_lancer": "tests.jouer",
 }
 
 
