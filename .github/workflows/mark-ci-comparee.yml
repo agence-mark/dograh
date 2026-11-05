@@ -127,7 +127,7 @@ jobs:
     needs: cadrage
     runs-on: ubuntu-latest
     # [.mark] Builder partie 2 : 45 min coupaient la branche (beaucoup plus de tests que la base) avant son rapport.
-    timeout-minutes: 100
+    timeout-minutes: 180  # [.mark] partie 3 : la suite de la branche dépasse 85 min (≈ 12 600 tests)
     strategy:
       fail-fast: false
       matrix:
@@ -243,7 +243,7 @@ jobs:
           # le blocage tient à l'environnement de GitHub. Désormais : arrêt forcé 5 min après l'arrêt doux (le job finit
           # toujours avant sa limite et téléverse ses rapports), et la sortie de pytest (piles du délai par test comprises)
           # est écrite dans le rapport : un blocage est NOMMÉ au lieu d'annuler le passage.
-          timeout --signal=INT --kill-after=5m 85m pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
+          timeout --signal=INT --kill-after=5m 150m pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
             -o faulthandler_timeout=120 --durations=25 --timeout=600 --timeout-method=signal \
             --junitxml="$rapports/junit.xml" 2>&1 | tee "$rapports/pytest.log"
           code=${PIPESTATUS[0]}
