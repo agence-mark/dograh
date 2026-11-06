@@ -341,6 +341,173 @@ quelque chose. **Un patch perdu ne se présente pas toujours comme un échec de 
 | `test_agent_facon_tala_lot_d_taux_impasse.py` | 🆕 **agent-facon-tala, suite, lot D** : compteur `reprises` de l'impasse (temps 1 et 2, jamais remis à zéro), `GET /tri/taux` par agent sur 7 ou 30 jours, cloisonné à l'organisation ; R-18 : le contexte converti une fois par run (plan `EXPLAIN`) |
 | `test_agent_facon_tala_lot_e_seuil_redemande.py` | 🆕 **agent-facon-tala, revue 2 (R-13)** : le signe « redemande reformulée » de l'impasse exige deux mots pleins communs |
 | `test_agent_facon_tala_revue_2_issues_reservees.py` | 🆕 **agent-facon-tala, revue 2 (R-12, R-16, R-17) et contre-revue (R-19)** : issues réservées lues dans la version que le run exécute, téléphone et clavier ; groupe et run lus une fois par fin de session clavier ; outil de rappel simulé au rejeu |
+| `test_aides_fournisseurs_deux_langues.py` | 🆕 **builder, parties 1 à 3** : V4 : chaque champ d'un fournisseur dit son aide en français ET en anglais. |
+| `test_alertes_agent.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, sous-lot 6 (SE-11 = D-3) : l'alerte « une version fait moins bien », le service d'alertes unique, le point d'origine « Déploiement » de « À améliorer », le rejeu planifié. |
+| `test_attaques_fenetre.py` | 🆕 **builder, parties 1 à 3** : Partie 3, sous-lot 4 (SE-10) : la fenêtre « Attaquer l'agent », ses deux onglets et ce qu'on fait d'une attaque qui a cédé. |
+| `test_banc_passation.py` | 🆕 **builder, parties 1 à 3** : Banc de la passation (lot P) : banc déterministe, la voix ne parle jamais deux fois à la fois, l'annonce est dite par le code sans passe du modèle, et où part le temps d'une passation vers un collègue de la réserve |
+| `test_base_formats_refuses.py` | 🆕 **builder, parties 1 à 3** : Constat C9 (builder partie 2, lot 0) : la base de connaissances refuse en le disant ce qu'elle ne sait pas lire. |
+| `test_bibliotheque_lot14.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 14 (SE-21) : Bibliothèque, I-1, I-3, I-5. |
+| `test_bibliotheque_mcp_et_contenu.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U7 (sous-lot 2) : le MCP de la bibliothèque, les deux recettes et les scénarios types versés. |
+| `test_bibliotheque_v2.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U7 (sous-lot 1) : la bibliothèque v2. |
+| `test_blocs_reutilisables.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, lot 22 (§ 3 bis du plan) : les blocs réutilisables de la bibliothèque. |
+| `test_boucle_g1b.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, G1b : une seule entrée vers « À améliorer » (clé d'API et Claude Code), la file « À juger » et les compteurs. |
+| `test_boucle_u8.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U8 (lot G1) : la boucle (« À améliorer »), les indicateurs, la version estampillée, la page Qualité, le corrigé des tests. |
+| `test_branches_champs.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3c, sous-lot 1 (05 § 12) : la fusion à trois, champ par champ (pure, sans base). |
+| `test_branches_comparer.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3c, sous-lot 3 (05 § 12, 18) : « Comparer en duel ». |
+| `test_branches_fusion.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3c, sous-lot 1 (05 § 12) : fusionner une branche et la mettre à jour depuis la principale. |
+| `test_branches_modele.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3b, sous-lot 1 (05 § 12) : le modèle des branches et des versions. |
+| `test_branches_repartition.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3b, sous-lot 2 (05 § 9 et § 12) : la répartition du trafic entre branches. |
+| `test_builder_actions.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lots 1 et 2 : les actions (fiche, réglages .mark B33, lexique B41, bibliothèque). |
+| `test_builder_banc_embedding.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 6 : le banc de recherche de la base de connaissances (comparaison de deux modèles d'embedding). |
+| `test_builder_batterie.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, lot M (pièce 9 de Cognigy) : la batterie de non-régression du builder lui-même. |
+| `test_builder_bibliotheque.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 2 : la bibliothèque (versions, retour arrière, statuts, import, propositions). |
+| `test_builder_branches.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3d, sous-lot 2 : le builder et les branches d'agent. |
+| `test_builder_c2.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U5 (lot C2) : la revue champ par champ, les versions restaurables, le rapport de fin, l'accord de dépense, les tests lus par le builder, la correction depuis un appel, les sous-agents, la visionneuse de fichiers. |
+| `test_builder_cerveau.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 1 : la couche d'appel unique (deux formats de fil, mêmes événements, mêmes erreurs). |
+| `test_builder_cle_du_cerveau.py` | 🆕 **builder, parties 1 à 3** : Builder, revue R2 : la clé du cerveau du builder ne part par aucun outil. |
+| `test_builder_contexte_client.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 3 : les dossiers déposés, la fiche sourcée, les faits classés, la base de connaissances. |
+| `test_builder_controle_prompt.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 5 : le contrôle du prompt par le code (Q12, B31, B34, B49). |
+| `test_builder_conversion_hors_boucle.py` | 🆕 **builder, parties 1 à 3** : Builder, revue R3 et constat C11 : la conversion d'un PDF ou d'un Word ne tourne jamais dans la boucle de l'API, et elle tourne dans un PROCESSUS à part, arrêté au-delà du délai. |
+| `test_builder_deux_portes.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 1 : un moteur, deux portes (écran et Claude Code par le serveur MCP). |
+| `test_builder_ecritures_concurrentes.py` | 🆕 **builder, parties 1 à 3** : Builder, revue R6 et N4 : des écritures simultanées ne se perdent pas ; la conversation est bornée en octets. |
+| `test_builder_entreprise.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, N1 (SA-N1b, sous-lot 5) : tout ce que l'écran permet pour l'entreprise, le builder le permet. |
+| `test_builder_espace_client.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U2 quater (lot H2, E57) : le builder et le chat dans l'espace d'un client, cloisonnés. |
+| `test_builder_essai_outil.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 5 : l'essai d'un outil avant « branché » (Q11). |
+| `test_builder_familles_et_modes.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, N1 (SA-N1a) : les familles d'actions, les quatre modes du chat et la demande ponctuelle. |
+| `test_builder_fils.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U5 (lot C1) : le chat en tables, en tâche de fond, rejouable ; le module d'événements ; arrêter, reprendre, redémarrer ; la carte plan et la carte question ; les démarrages de l'accueil. |
+| `test_builder_groupes.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, L5b (sous-lot 3) : le builder lit, crée et règle un groupe d'agents, par les fonctions de ``services/groupe/``. |
+| `test_builder_inventaire_reglages.py` | 🆕 **builder, parties 1 à 3** : Partie 3, N2 (sous-lot 1) : l'inventaire scripté « chaque réglage a son écran et son accès du builder » (05 § 4). |
+| `test_builder_journal.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, N1 (SA-N1b, sous-lots 4 et 6) : le journal des écritures du builder, « Annuler », et les trois gardes dans les quatre modes. |
+| `test_builder_k7.py` | 🆕 **builder, parties 1 à 3** : Conversations du builder : renommer, supprimer (événements et sous-agents compris, travail en cours coupé d'abord, garde-fous) ; la vue des cerveaux du Labo lit les vraies données |
+| `test_builder_m.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, lot M (méthodes de Cognigy, § 17) : sauvegarde avant modification, aperçu avant restauration, consigne de suite, rendu du graphe, recettes d'agent en données. |
+| `test_builder_m_base.py` | 🆕 **builder, parties 1 à 3** : Lot M : la recette d'un agent se fige à sa première VRAIE publication, sur la vraie base de test. |
+| `test_builder_methode.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal : la méthode du builder, prompt VERSIONNÉ dans la bibliothèque (famille ``methode-builder``). |
+| `test_builder_moteur.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 1 : le moteur (flux, cartes, opérations, plafond, compactage, cartes d'autorisation, conception, correction). |
+| `test_builder_n1_routes.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, N1 (SA-N1a) : le mode du chat et la carte d'autorisation, de bout en bout (vraie application, vraie base de test, cerveau simulé : rien n'est dépensé, aucun fournisseur appelé). |
+| `test_builder_n4_mode_a_l_ouverture.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, N4 : le mode choisi sur la page d'accueil du builder est posé À L'OUVERTURE du chat, avant le premier tour (vraie application, vraie base de test, cerveau simulé : rien n'est dépensé, aucun fournisseur appelé). |
+| `test_builder_routes.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lots 1 et 2 : les routes ``/builder`` (écran). |
+| `test_builder_stock_prefixe.py` | 🆕 **builder, parties 1 à 3** : Builder, revue R4 : ``stock.lister`` filtre par préfixe DANS LA BASE (``key LIKE``), sur la vraie base de test. |
+| `test_builder_tests_agent.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 6 : les tests de l'agent et la boucle d'amélioration. |
+| `test_builder_tests_routes.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 6 : les routes de la page « Tests et corrections » (``/builder/tests``) et le tri (assigné, origine). |
+| `test_builder_tests_tri_base.py` | 🆕 **builder, parties 1 à 3** : builder-agent-vocal, lot 6 : le tri (assigné, origine) contre la VRAIE base de test. |
+| `test_builder_versement.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2 (§ 6 bis) : le module de versement de la bibliothèque. |
+| `test_categories_du_catalogue.py` | 🆕 **builder, parties 1 à 3** : V4 : les catégories du catalogue des intégrations (CRM, Agenda, Messages…), comme la colonne de la maquette. |
+| `test_cerveaux_unifies.py` | 🆕 **builder, parties 1 à 3** : Partie 2, U6 (sous-lot 1) : les trois cerveaux unifiés. |
+| `test_cle_api_sans_role_equipe.py` | 🆕 **builder, parties 1 à 3** : Revue serveur B1 : une clé d'API n'a jamais le rôle d'équipe de la personne qui l'a créée. |
+| `test_cle_liste_fermee.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 17a : une clé d'API n'a que les permissions d'une LISTE FERMÉE (décision n° 1 de Pierre, option A). |
+| `test_client_api_a_jour.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, prérequis 6 : le client d'API généré (``ui/src/client``) colle au schéma du serveur. |
+| `test_connaissances_utilisation.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 14 (SE-21, K-2) : l'usage d'un document de « Connaissances » par les agents. |
+| `test_connecteurs_catalogue_f2.py` | 🆕 **builder, parties 1 à 3** : Non-regression test of the connectors of the catalogue, first half (U3 sexies, point 8, F2). |
+| `test_connecteurs_catalogue_f3.py` | 🆕 **builder, parties 1 à 3** : Non-regression test of the connectors of the catalogue, second half, and of the proposals (U3 sexies, F3). |
+| `test_consigne_synthese_bibliotheque.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2 (U2, Base et automatisations) : la consigne de synthèse par défaut vit dans la bibliothèque. |
+| `test_contacts_portail.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-17c : les trois gestes des contacts du portail, par la vraie route, la vraie authentification (la clé d'API du client) et une vraie base du client (migration 023). |
+| `test_contrat_portail_fork.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 17b : le contrat entre le portail et le fork, figé et comparé à chaque exécution (CI comprise). |
+| `test_controles_de_redaction.py` | 🆕 **builder, parties 1 à 3** : Lot « façon Tala par motif », T2 et T3 : les cinq contrôles de rédaction K1 à K5 (règles pures) et la règle ``longueur``. |
+| `test_controles_de_redaction_publication.py` | 🆕 **builder, parties 1 à 3** : Lot « façon Tala par motif », T2 et T3 : les contrôles de rédaction à travers la VRAIE publication (R1). |
+| `test_conversations_colonnes.py` | 🆕 **builder, parties 1 à 3** : Lot C4 : les colonnes de Conversations (Client, Motif, Note du juge, Version, Canal), leurs filtres et tris, la recherche dans les transcriptions. |
+| `test_deploiement_tous_chemins.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 2 (SE-8 / A-10) : le déploiement progressif sur TOUS les chemins de création d'un appel. |
+| `test_doute_de_doublon_apres_appel.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-17d : l'après-appel pose le doute de doublon et le mail déclaré (migration 024). |
+| `test_duree_max_appel_600.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, D1 (D5 du 03/11) : la durée maximale d'un appel vaut 600 s partout. |
+| `test_equipe_invitations.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, U2 ter, sous-lot 3 : invitations, premier compte, rôles, profil, dernier administrateur. |
+| `test_equipe_lot15.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 15 (SE-25 N-1, SE-29 O-1, P-1, P-2, P-3) : équipe, relation, journal, invitation. |
+| `test_equipe_permissions_serveur.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, U2 ter, sous-lot 1 : les permissions vérifiées côté serveur, sur la vraie application. |
+| `test_espaces.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, U2, sous-lot 2 : les espaces. |
+| `test_etablissements_derniere_modification.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2 (U2 bis, E56) : chaque fiche dit qui l'a modifiée en dernier et d'où (Dograh ou portail). |
+| `test_etiquettes.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, U3 (E30) : les étiquettes des agents. |
+| `test_etiquettes_prompt.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, lot 8 (§ 3 bis du plan) : les étiquettes d'objets des prompts. |
+| `test_export_agent.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U2 quinquies (lot H2, E58, E33) : exporter un agent du Labo vers un client, le ramener au Labo. |
+| `test_fenetre_noeud_complete.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, D1 (U4, E39) : la fenêtre d'un nœud montre toutes les propriétés du fork. |
+| `test_heritage_reglages.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, D1 (U4, F3, E16) : pour chaque réglage, sa valeur effective et son origine. |
+| `test_installation_client.py` | 🆕 **builder, parties 1 à 3** : Partie 3, sous-lot 9 (SE-5, § 5 du plan) : « Nouveau client » qui installe vraiment. |
+| `test_integrations_lot14.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 14 (SE-19, J-1 à J-3) : Intégrations à la maquette. |
+| `test_interventions_du_moteur.py` | 🆕 **builder, parties 1 à 3** : Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur. |
+| `test_inventaire_permissions_routes.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, U2 ter : l'inventaire des routes et leurs permissions. |
+| `test_juge_unifie.py` | 🆕 **builder, parties 1 à 3** : Partie 2, U6 (sous-lot 2) : le juge v1, le juge des vrais appels par agent (J3) et les outils MCP du juge. |
+| `test_l3e_alertes_appels.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, L3e sous-lot 1 : les alertes sur les VRAIS appels, nouveaux types du service d'alertes unique. |
+| `test_l3e_annonce_ia.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, L3e sous-lot 2 : l'annonce « vous parlez à une IA », impossible à éteindre. Réflexe R1 : tout traverse le VRAI moteur (``PipecatEngine.queue_node_opening``, par où passe l'ouverture de tout appel : téléphone, widget, campagne, passation, répondeur). |
+| `test_l3e_annonce_ia_publication.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, L3e sous-lot 2 : la ligne BLOQUANTE de « Prêt à publier » pour l'annonce « vous parlez à une IA ». |
+| `test_l3e_garde_fou_urgence.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, L3e sous-lot 3 : le garde-fou URGENCE. Réflexe R1 : il traverse la VRAIE route (``preparer_la_requete`` du vrai moteur, la même au téléphone, dans le widget, en campagne et au clavier), pas une doublure. |
+| `test_latence_par_phase.py` | 🆕 **builder, parties 1 à 3** : Partie 3, N3a : la latence par PHASE (transcription, modèle, outils, voix), par tour, par étape et par appel. |
+| `test_lexique_nature.py` | 🆕 **builder, parties 1 à 3** : V4 : la nature d'un terme du lexique (Marque / Nom propre / Mot du métier), comme la maquette. |
+| `test_liste_des_agents_etat_versions.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, K2 : la liste des agents dit la version, son état, la dernière modification et les appels des 7 derniers jours (colonnes de la maquette), lus en deux requêtes pour toute la liste. |
+| `test_lot_r_outils_pour_la_voix.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, lot R : ce que l'outil dit au modèle (R1), ce qu'il renvoie (R2), la relance du silence (R3). |
+| `test_migration_equipe_administrateurs.py` | 🆕 **builder, parties 1 à 3** : Revue serveur M8 : la migration de l'équipe (``b4e2a7c19d30``) ne fait plus de tous les comptes des Administrateurs. |
+| `test_migration_index_concurrently.py` | 🆕 **builder, parties 1 à 3** : Revue serveur, mineur 9 : les index de Conversations sur ``workflow_runs`` se créent SANS verrouiller les écritures. |
+| `test_miroir_u12.py` | 🆕 **builder, parties 1 à 3** : Partie 2, U12 (lot I1, sous-lot 2, serveur) : le miroir des conversations Claude Code, le direct, les routes des sources. |
+| `test_modeles_deux_configurations.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 13 (SE-24, M-2) : Modèles et clés garde DEUX configurations (la chaîne et le temps réel), bascule sans perte. |
+| `test_modeles_reglages_bibliotheque.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, D1 (U4, E45) : les modèles de réglages sont des éléments de la bibliothèque. |
+| `test_n3b_export_fichiers.py` | 🆕 **builder, parties 1 à 3** : Partie 3, N3b, sous-lot 3 : l'agent entier en fichiers lisibles, et leur import dans le brouillon (``services/export_agent/fichiers``). |
+| `test_n3b_motif_et_resume.py` | 🆕 **builder, parties 1 à 3** : Partie 3, N3b, sous-lot 1 : le motif devient un filtre EXACT (liste des appels et statistiques) et chaque appel a un résumé. |
+| `test_n3b_tests_par_api.py` | 🆕 **builder, parties 1 à 3** : Partie 3, N3b, sous-lot 2 (décision 20) : les tests d'un agent lancés par une automatisation (n8n) avec la clé de l'organisation. |
+| `test_onglet_tests.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, B2, U3 : l'onglet Tests de l'agent (E47) côté serveur. |
+| `test_outil_compte_branche.py` | 🆕 **builder, parties 1 à 3** : K5 (E77): the connected account an integration tool follows. |
+| `test_outils_mark_requete_et_comportement.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U3 sexies points 2 et 3 (E74) : la requête HTTP et le comportement commun des outils. |
+| `test_outils_mark_routes_et_essai.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U3 sexies points 1 à 4 : les routes d'Outils par la vraie application, et l'essai de tous les types. |
+| `test_outils_mark_stats_mcp_identifiants.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U3 sexies points 5 à 7 : statistiques par outil, serveurs MCP, identifiants. |
+| `test_outils_versions.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3d, sous-lot 1 (décision 21) : les versions des outils. |
+| `test_passation_par_le_code.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, lot P (P3) : une passe de moins, la passation prise par le code à l'arrivée (réglage d'étape ``passation_par_le_code``, éteint par défaut). |
+| `test_passation_recouverte.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, lot P (P2, A2) : la passation recouverte, sur le VRAI moteur et le VRAI coordinateur. |
+| `test_pilotage_client.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, L5b : la page de pilotage d'un client (décision 16), par la vraie application et la vraie base. |
+| `test_portail_connaissances_lexique.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10 points 7 et 8 : la base de connaissances et le lexique ouverts au portail. |
+| `test_portail_signalement_et_entree.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 17b : ce que le portail attend du fork, par la vraie application et la vraie clé d'API. |
+| `test_porte_identifiant_stable.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, L6+ (audit 01 A8) : la porte à identifiant stable, et l'annonce d'ouverture en étiquette (02 B5). |
+| `test_porte_mcp_cle_api.py` | 🆕 **builder, parties 1 à 3** : Revue de contrôle, point 3 (B1) : la porte MCP marque l'accès « par clé d'API ». |
+| `test_preparation_agent.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, D1 (U4, E42) : la liste de préparation d'un agent est calculée, rien n'est stocké. |
+| `test_pret_a_publier.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3a : « Prêt à publier » (une seule liste) et les contrôles « sans effet ». |
+| `test_principale_protegee.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3c, sous-lot 2 (05 § 12) : la branche principale PROTÉGÉE. |
+| `test_publication_et_attaques.py` | 🆕 **builder, parties 1 à 3** : U11 (G2) : prouver avant de publier, déploiement progressif, « Attaquer l'agent » (plan § 7 et § 17). |
+| `test_publication_legere.py` | 🆕 **builder, parties 1 à 3** : V4 : « Publier » ne grossit plus avec l'historique de l'organisation. |
+| `test_publier_complet.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 3 (SE-12 / D-1, D-2, D-4) : « Publier » complet. |
+| `test_ra_a_r1_champs_caches.py` | 🆕 **builder, parties 1 à 3** : RA-A, R1 (audit du 04/11, rouge n° 1) : le builder n'efface plus aucun réglage d'étape. |
+| `test_ra_a_r2_modeles_droit_equipe.py` | 🆕 **builder, parties 1 à 3** : RA-A, R2 (a) (audit du 04/11, rouge n° 7) : écrire un modèle de réglages est un geste de l'équipe, au Labo. |
+| `test_ra_a_r2_reglages_sans_cle.py` | 🆕 **builder, parties 1 à 3** : RA-A, R2 (b) (audit du 04/11, rouge n° 5) : le builder ne lit jamais une clé en clair. |
+| `test_ra_a_r3_ecriture_mise_de_cote.py` | 🆕 **builder, parties 1 à 3** : RA-A, R3 (a) (audit du 04/11, rouge n° 6) : une écriture mise de côté pendant l'appel n'est jamais perdue. |
+| `test_ra_a_r3_noms_reserves.py` | 🆕 **builder, parties 1 à 3** : RA-A, R3 (b) (audit du 04/11, 02 B6) : une seule liste de noms réservés, contrôlée dans les deux sens. |
+| `test_ra_b_r4_extraction_et_fiche.py` | 🆕 **builder, parties 1 à 3** : Rattrapage de l'audit d'Evan (RA-B) : l'extraction n'écrase jamais une valeur sûre de la fiche, elle ne remplace qu'une valeur non sûre ou vide |
+| `test_ra_b_r4_extraction_nom_de_fiche.py` | 🆕 **builder, parties 1 à 3** : RA-B, R4 (b) : une variable d'extraction ne porte pas le nom d'un champ de la fiche (audit 02 B1). |
+| `test_ra_b_r4_ordre_d_injection.py` | 🆕 **builder, parties 1 à 3** : RA-B, R4 (d) : l'ordre d'injection est écrit, et la lecture avant l'appel ne remplace un objet que si on le demande. |
+| `test_ra_b_r4_porte_fermee.py` | 🆕 **builder, parties 1 à 3** : Rattrapage de l'audit d'Evan (RA-B) : une condition fausse sur la fiche ferme la porte au modèle (y compris écrite dans la réponse) ; vraie ou absente, elle reste ouverte ; une étape en mode agent ne lit aucune condition |
+| `test_ra_b_r4_une_phrase_d_echec.py` | 🆕 **builder, parties 1 à 3** : Rattrapage de l'audit d'Evan (RA-B) : un outil HTTP ou un connecteur en échec ne fait parler l'agent qu'une seule fois, avec ou sans repli |
+| `test_ra_b_r5_delai_cache_panne.py` | 🆕 **builder, parties 1 à 3** : RA-B, R5 : le délai caché de la panne est retiré (script idempotent, sauvegarde avant d'écrire). |
+| `test_ra_b_r5_phrase_de_fin_du_widget.py` | 🆕 **builder, parties 1 à 3** : RA-B, R5 : la phrase de fin du widget (durée maximale) est au catalogue des phrases (audit 02 § 5.10). |
+| `test_ra_b_r6_juge_des_appels.py` | 🆕 **builder, parties 1 à 3** : RA-B, R6 : le juge des vrais appels reprend de Dograh ce qu'il fait mieux (audit 06 « Ce qu'on reprend »). |
+| `test_ra_b_r6_juge_par.py` | 🆕 **builder, parties 1 à 3** : RA-B, R6 : « Jugé par [modèle] » en colonne de la liste des appels (05 § 9). |
+| `test_ra_c_juge_depense.py` | 🆕 **builder, parties 1 à 3** : RA-C, sous-lot 1 (audit 06 point 6) : compteur et plafond du juge des vrais appels. |
+| `test_ra_c_saisie_ordre_d_injection.py` | 🆕 **builder, parties 1 à 3** : RA-C, sous-lot 2 : la saisie visible de l'ordre d'injection (``pre_call_fetch_remplace``). |
+| `test_relation_clients_stats.py` | 🆕 **builder, parties 1 à 3** : Passe de vérification V3 : la liste des clients du Hub donne, en lecture groupée, ce que l'accueil et la liste montrent (agents, appels des 7 jours, note du juge, signalements, pannes), jamais ceux d'un autre client. |
+| `test_relation_ecrire.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 15 (SE-29, P-6) : la permission « relation.ecrire » des écritures du Hub. |
+| `test_relation_hub.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U3 septies (lot H1, E78) : le Hub « Relation clients », ses routes et le lien d'entrée signé. |
+| `test_remplacements_de_modeles.py` | 🆕 **builder, parties 1 à 3** : V2b (E51) : « remplacé par N agents » sur les cartes de Modèles et clés. |
+| `test_revenir_avant.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, sous-lot 7 (SE-15 = E-2) : « Revenir avant » restaure TOUT, famille par famille. |
+| `test_revenir_avant_par_branche.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, SA-L3c, sous-lot 2 (05 § 12) : « Revenir avant » est propre à la branche. |
+| `test_revue_controle_r5_avis.py` | 🆕 **builder, parties 1 à 3** : Revue de contrôle, points 8 et 9 (avis du visiteur) : jamais gardé en entier sans limite, jamais fermé pour toujours. |
+| `test_revue_serveur_r2.py` | 🆕 **builder, parties 1 à 3** : Revue serveur, passage 1, corrections R2 (site public) : M2, M7, mineurs 2 et 3. |
+| `test_revue_serveur_r2_divers.py` | 🆕 **builder, parties 1 à 3** : Revue serveur, passage 1, corrections R2 : mineurs 1, 4 et 7. |
+| `test_revue_serveur_r2_hub.py` | 🆕 **builder, parties 1 à 3** : Revue serveur, passage 1, corrections R2 (Hub « Relation clients ») : M9 et mineur 8. |
+| `test_roles_simules_budget.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 12 (SE-23, M-5 et M-6) : l'appelant simulé et le juge séparés, chacun son interrupteur et son budget du mois. |
+| `test_run_note_juge_version.py` | 🆕 **builder, parties 1 à 3** : V1b : la route d'un appel rend la note du juge et la version jouée. |
+| `test_rv_depense_des_tests.py` | 🆕 **builder, parties 1 à 3** : Partie 3, revue RV (point 2) : les tests lancés par l'API ont une limite. |
+| `test_rv_mineurs.py` | 🆕 **builder, parties 1 à 3** : Partie 3, revue RV, points mineurs 4, 5, 6, 7 et 11 (le 10 est dans les tests des trois scripts de reprise). |
+| `test_rv_portail_ecrire.py` | 🆕 **builder, parties 1 à 3** : Partie 3, revue RV (point 3, tranché par Pierre le 05/11) : une permission de clé propre au portail. |
+| `test_rv2_mineurs.py` | 🆕 **builder, parties 1 à 3** : Partie 3, seconde revue (RV2), points mineurs M-1, M-2, M-3 et M-6 (le I-1 est dans ``test_rv_portail_ecrire.py``). |
+| `test_sa11_conditions_de_porte.py` | 🆕 **builder, parties 1 à 3** : Partie 3, sous-lot 21 : les conditions complètes d'une porte (étude ``05-etude-conditions-du-graphe.md``). |
+| `test_securite_conversation.py` | 🆕 **builder, parties 1 à 3** : builder partie 2, B2, U3 quinquies : la sécurité de la conversation (E68, `reference/29` § XXIX.5). |
+| `test_site_agent_de_site.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10 / S2 : le modèle « agent de site ». |
+| `test_site_conversations_base.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10.3 / lot S3 : les conversations du site dans la base du client (migration 022). |
+| `test_site_conversations_routes.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10.3 / lot S3 : le chemin d'une conversation du widget jusqu'à la base du client, et les routes publiques de l'avis, du rappel et de l'événement. |
+| `test_site_editeur_v5.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, V5 : ce que l'éditeur du widget (maquette) lit et écrit sur de vraies données. |
+| `test_site_etablissement_s2.py` | 🆕 **builder, parties 1 à 3** : Partie 3, lot 15 (SE-29, S-2) : l'en-tête de l'éditeur du site nomme la fiche d'établissement de l'agent. |
+| `test_site_plafond_duree_ip.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10 / S1 : plafond par mois, limite par adresse, durée maximale, contexte à l'initialisation. |
+| `test_site_securite_flux.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10 / S1 : le flux temps réel et le contexte d'une session PUBLIQUE. |
+| `test_site_texte_visiteur.py` | 🆕 **builder, parties 1 à 3** : Builder partie 2, U10 / S5 : le texte tapé par le visiteur pendant l'appel du widget. |
+| `test_sources_u12.py` | 🆕 **builder, parties 1 à 3** : Partie 2, U12 (lot I1, sous-lot 1) : deux sources pour chaque cerveau (Claude Code ou clé d'API), l'appelant joué par Claude Code, le juge qui remplit « À améliorer », la lecture du fork. Monde en mémoire, aucun fournisseur, aucune dépense. |
+| `test_tests_environnement.py` | 🆕 **builder, parties 1 à 3** : builder partie 3, sous-lot 5 (SE-11, C-3) : Tests, onglet Environnement, critères d'ordre et d'unicité, test depuis une conversation entière, scénarios « Nombres en français » et « Outil en panne ». |
+| `test_variables_agent.py` | 🆕 **builder, parties 1 à 3** : U3 bis (E62) : variables en étiquettes, côté serveur. |
+| `test_versement_gradium.py` | 🆕 **builder, parties 1 à 3** : Lot « façon Gradium » (SA-G, 05/11) : les 19 fiches G1 à G19 versées en Candidat, dossier ``facon-gradium``. |
+| `test_versement_tala_motifs.py` | 🆕 **builder, parties 1 à 3** : Lot « façon Tala par motif » (T1, 05/11) : la bibliothèque versée, et la recette qui la cite. |
+| `test_versement_verrou_delai.py` | 🆕 **builder, parties 1 à 3** : Revue serveur, mineur 10 : le versement au démarrage ne s'éternise pas et ne se joue pas en parallèle. |
+| `test_voix_gradium.py` | 🆕 **builder, parties 1 à 3** : Lot GT (builder partie 3) : Gradium, fournisseur de voix choisissable avec tous ses réglages. |
+| `test_vues_equipe.py` | 🆕 **builder, parties 1 à 3** : Builder partie 3, sous-lot 10 : les vues « tous clients » de l'équipe (SE-3, E-3), par la vraie application. |
 
 ⛔ **Le second cas est le plus dangereux, parce qu'il ressemble à une panne d'environnement.**
 Retirer le patch Mistral donne exactement ça :
