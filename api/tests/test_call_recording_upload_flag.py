@@ -70,6 +70,12 @@ async def _run_pipeline_finished(
         "api.services.pipecat.event_handlers.enqueue_job",
         AsyncMock(),
     )
+    # [.mark] The silence computation runs as a separate task and writes ``gathered_context`` through the shared
+    # ``db_client``: started by one test, it could land in the next one's mock (CI 42158087746). It has its own tests.
+    monkeypatch.setattr(
+        "api.services.pipecat.event_handlers.lancer_le_calcul_des_silences",
+        Mock(return_value=None),
+    )
 
     task = _EventSource()
     task.wait_for_observers = AsyncMock()
