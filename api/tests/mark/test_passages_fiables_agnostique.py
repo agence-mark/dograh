@@ -116,6 +116,9 @@ async def _requete(engine, cerveau, messages, sens=FrameDirection.DOWNSTREAM):
         Pipeline([avant, cerveau, apres]),
         frames_to_send=[LLMContextFrame(contexte)],
         frames_to_send_direction=sens,
+        # [.mark] CI 42152535972 : 1 s (le défaut de Pipecat) ne suffit pas toujours à un démarrage sous charge ; ce délai
+        # n'est pas ce que le test vérifie.
+        start_timeout=10.0,
     )
     return contexte, descendues
 

@@ -591,3 +591,31 @@ def no_disposition_mapping():
         AsyncMock(return_value=OrganizationPreferences()),
     ) as stub:
         yield stub
+
+
+# [.mark] Partie 3, fin : le run 42152535972 a bloqué 600 s à la fermeture de la boucle de session (``_cancel_all_tasks``)
+# après le dernier test : une tâche de fond laissée par un test ne finissait pas après son annulation. Cette garde, fermée
+# AVANT la boucle, NOMME chaque tâche encore en vie, l'annule (plusieurs fois s'il le faut) et le dit dans le journal ; une
+# tâche qui survit à tout est écrite avec sa pile. La suite n'attend donc plus sans fin sans dire qui la retient.
+@pytest.fixture(scope="session", autouse=True)
+async def _taches_laissees_en_fin_de_session():
+    import asyncio
+    import sys
+
+    yield
+    courante = asyncio.current_task()
+    restantes = [t for t in asyncio.all_tasks() if t is not courante and not t.done()]
+    if not restantes:
+        return
+    print(f"\n[.mark] {len(restantes)} tâche(s) encore en vie en fin de session :", file=sys.stderr)
+    for t in restantes:
+        print(f"  - {t.get_name()} : {t.get_coro()!r}", file=sys.stderr)
+    for _essai in range(3):
+        for t in restantes:
+            t.cancel()
+        _fini, restantes = await asyncio.wait(restantes, timeout=10)
+        if not restantes:
+            return
+    for t in restantes:
+        print(f"[.mark] tâche qui refuse l'annulation : {t.get_name()}", file=sys.stderr)
+        t.print_stack(file=sys.stderr)
