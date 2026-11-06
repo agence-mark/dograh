@@ -85,34 +85,36 @@ def _objet(nom):
 
 
 async def test_les_routes_refusent_un_nom_pose_par_le_code_ou_pris_par_une_phrase(base_v4, smtp, db_session, async_session):
-    from api.tests.mark.test_ecritures_par_element import RACINE, _garnir, _installer, _rediriger
+    from api.tests.mark.test_ecritures_par_element import RACINE, _garnir, _installer, _rediriger, _session_de
 
     _user, _org, entetes = await _installer(db_session, async_session, base_v4)
+    # RV2 : objets et phrases ne sont plus ouverts à une clé (hors contrat du portail) : une session d'équipe les écrit.
+    session = await _session_de(db_session, _org)
     with _rediriger():
         async with _client() as client:
-            await _garnir(client, entetes)  # le catalogue porte « mot_du_lieu » et « mot_commun »
+            await _garnir(client, entetes, db_session, _org)  # le catalogue porte « mot_du_lieu » et « mot_commun »
             for nom in ("etablissement", "numero_transfert", "date_appel", "etat_ouverture", "call_status", "mot_commun", "mot_du_lieu"):
-                r = await client.post(f"{RACINE}/objets", json=_objet(nom), headers=entetes)
+                r = await client.post(f"{RACINE}/objets", json=_objet(nom), headers=session)
                 assert r.status_code == 409, (nom, r.status_code, r.text)
                 assert nom in r.json()["detail"] and "Choose another name" in r.json()["detail"]
-            assert (await client.get(f"{RACINE}/objets", headers=entetes)).json()["objets"] == [], "rien d'écrit"
+            assert (await client.get(f"{RACINE}/objets", headers=session)).json()["objets"] == [], "rien d'écrit"
 
             # Un nom libre passe.
-            r = await client.post(f"{RACINE}/objets", json=_objet("frais"), headers=entetes)
+            r = await client.post(f"{RACINE}/objets", json=_objet("frais"), headers=session)
             assert r.status_code == 200, r.text
             cree = r.json()
             # Renommer vers un nom pris : 409, l'objet garde son nom.
             envoi = {k: cree[k] for k in ObjetEnvoye.model_fields}
-            r = await client.put(f"{RACINE}/objets/{cree['id']}", json={**envoi, "nom": "adresse_etablissement"}, headers=entetes)
+            r = await client.put(f"{RACINE}/objets/{cree['id']}", json={**envoi, "nom": "adresse_etablissement"}, headers=session)
             assert r.status_code == 409
-            assert (await client.get(f"{RACINE}/objets", headers=entetes)).json()["objets"][0]["nom"] == "frais"
+            assert (await client.get(f"{RACINE}/objets", headers=session)).json()["objets"][0]["nom"] == "frais"
 
             # Une phrase ajoutée APRÈS l'objet, du même nom : l'objet reste modifiable (seul un nom nouveau est jugé).
             r = await client.put(
                 f"{RACINE}/phrases",
                 json={"phrases": [{"variable": "frais", "contenu": "Les frais", "niveau": "organisation"}]},
-                headers=entetes,
+                headers=session,
             )
             assert r.status_code == 200, r.text
-            r = await client.put(f"{RACINE}/objets/{cree['id']}", json={**envoi, "valeur": "40"}, headers=entetes)
+            r = await client.put(f"{RACINE}/objets/{cree['id']}", json={**envoi, "valeur": "40"}, headers=session)
             assert r.status_code == 200, r.text

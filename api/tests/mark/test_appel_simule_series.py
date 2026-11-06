@@ -119,6 +119,8 @@ def base():
     redis = RedisFactice()
     file = AsyncMock()
     prix = AsyncMock(return_value=TABLE_DU_SIMULATEUR)
+    from api.services.builder.cerveau import budget_roles
+
     with (
         patch.object(stockage, "db_client", db),
         patch.object(moteur, "db_client", db),
@@ -126,6 +128,13 @@ def base():
         patch.object(moteur, "_client_redis", AsyncMock(return_value=redis)),
         patch.object(moteur, "lire_reglages_fenetre", prix),
         patch("api.tasks.arq.enqueue_job", file),
+        # [.mark] La dépense du mois des rôles (lot 12) lit la vraie base : ici une doublure, comme le reste de ``db``. Sinon le
+        # test emprunte une connexion du moteur ouverte sur la boucle d'un test précédent (CI 42147886073, « different loop »).
+        # Le budget a ses propres tests (``test_budget_roles*``).
+        patch(
+            "api.services.builder.cerveau.budget_roles.depense_du_mois",
+            AsyncMock(side_effect=lambda _org: {r: {"appels": 0, "jetons": 0, "cout": 0.0} for r in budget_roles.ROLES}),
+        ),
     ):
         yield SimpleNamespace(
             db=db, redis=redis, file=file, configurations=configurations, prix=prix
