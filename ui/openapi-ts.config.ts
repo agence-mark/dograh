@@ -12,8 +12,12 @@ const backendUrl = (
     'http://127.0.0.1:8000'
 ).replace(/\/+$/, '');
 
+// [.mark] Prérequis 6 du builder partie 2 : OPENAPI_INPUT=openapi.json lit le schéma écrit sans serveur
+// (`python -m scripts.mark.generer_openapi`) au lieu de l'API qui tourne.
+const input = process.env.OPENAPI_INPUT || `${backendUrl}/api/v1/openapi.json`;
+
 export default defineConfig({
-    input: `${backendUrl}/api/v1/openapi.json`,
+    input,
     output: 'src/client',
     plugins: [{
         name: '@hey-api/client-fetch',

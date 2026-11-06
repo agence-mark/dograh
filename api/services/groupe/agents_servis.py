@@ -29,6 +29,7 @@ from api.schemas.agents_servis import (
 )
 from api.services.etablissements.appel import CLE_FICHE_DE_LAGENT
 from api.services.groupe.passations import CLE_AGENTS_SPECIALISES, agent_principal_de
+from api.services.site_mark.canal import canal_de
 
 # Les outils internes du catalogue des connecteurs qui disent une capacité.
 OUTIL_DIRIGER = ("equipe", "diriger_vers_personne")
@@ -245,6 +246,11 @@ def assembler(
                 appele_par=sorted(appele_par[a.id]),
                 capacites=capacites[a.id],
                 rattache=a.id in rattaches,
+                # [.mark] U10 / S2 : le canal (un spécialisé prend celui de son principal).
+                canal=canal_de(
+                    a.configurations,
+                    reglages.get(principal) if role == "specialise" else None,
+                ),
             )
         )
 
@@ -308,7 +314,7 @@ async def lire_agents_lus(organization_id: int) -> tuple[list[AgentLu], list[str
         if agent is not None and actif and canonique:
             numeros.setdefault(agent, []).append(canonique)
     lus: list[AgentLu] = []
-    for workflow in await db_client.list_workflows_for_model_configuration_migration(
+    for workflow in await db_client.list_workflows_with_published_versions(
         organization_id
     ):
         if _statut(workflow.status) != "active":
@@ -346,12 +352,39 @@ async def lire_agents_servis(
         for outil in await db_client.get_tools_by_uuids(uuids, organization_id):
             outils_par_uuid[outil.tool_uuid] = outil
     try:
-        return assembler(agents, outils_par_uuid, rattaches or set())
+        servis = assembler(agents, outils_par_uuid, rattaches or set())
+        await _poser_les_emplacements(servis, organization_id)
+        return servis
     except Exception as erreur:  # noqa: BLE001 -- une lecture n'écrit rien : on dit ce qu'on sait
         logger.error(
             f"[.mark] Agents served of organization {organization_id} unreadable: {erreur!r}"
         )
         raise
+
+
+async def _poser_les_emplacements(servis: AgentsServis, organization_id: int) -> None:
+    """[.mark] U10 / S2 : pour chaque agent de site, son site, ses chemins et l'état de son widget (lus sous l'organisation)."""
+    from api.db import db_client
+    from api.schemas.agents_servis import EmplacementSite
+
+    sites_de_site = [a.id for a in servis.agents if a.canal == "site"]
+    if not sites_de_site:
+        return
+    lus = await db_client.lire_emplacements(organization_id, sites_de_site)
+    for agent in servis.agents:
+        if agent.canal != "site":
+            continue
+        e = lus.get(agent.id)
+        if e is None:
+            agent.emplacement = EmplacementSite()
+            continue
+        agent.emplacement = EmplacementSite(
+            site_id=e["site_id"],
+            site_cle=e["site_cle"],
+            chemins=e["chemins"],
+            widget_actif=e["widget_actif"],
+            dernier_chargement=e["dernier_chargement"],
+        )
 
 
 def membres_a_rattacher(servis: AgentsServis, ids: Iterable[int]) -> list[int]:

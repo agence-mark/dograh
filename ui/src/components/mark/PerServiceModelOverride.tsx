@@ -28,7 +28,8 @@
  */
 
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { notifier } from "@/components/mark/notifications";
 
 import { ServiceConfigurationForm } from "@/components/ServiceConfigurationForm";
 import { Label } from "@/components/ui/label";
@@ -87,6 +88,7 @@ export function PerServiceModelOverride({
     const hasFullOverride = Boolean(workflowConfigurations.model_configuration_v2_override);
     const [enabled, setEnabled] = useState(Boolean(savedOverrides));
     const [isRemoving, setIsRemoving] = useState(false);
+    const [erreurService, setErreurService] = useState<string | null>(null);
 
     const saveOverrides = async (config: Record<string, unknown>) => {
         const modelOverrides = config.model_overrides as ModelOverrides | undefined;
@@ -94,20 +96,16 @@ export function PerServiceModelOverride({
         // announcing "saved". Deleting is a deliberate act: it has its own
         // button below.
         if (!modelOverrides || Object.keys(modelOverrides).length === 0) {
-            toast.error(
-                t({
-                    en: "Enable at least one service, or use the remove button below.",
-                    fr: "Activez au moins un service, ou utilisez le bouton de suppression ci-dessous.",
-                }),
-            );
+            setErreurService(t({ fr: "Activez au moins un service, ou retirez le remplacement.", en: "Enable at least one service, or remove the override." }));
             return;
         }
+        setErreurService(null);
 
         const next = withoutAnyOverride(workflowConfigurations);
         next.model_overrides = modelOverrides;
         next[DELIBERATE_OVERRIDE_KEY] = true;
         await onSave(next, workflowName);
-        toast.success(`${t({ en: "Per-service override saved.", fr: "Remplacement par service enregistré." })} ${publishReminder}`);
+        notifier.succes({ fr: "Remplacement enregistré.", en: "Override saved." }, { publier: true });
     };
 
     const removeOverrides = async () => {
@@ -115,7 +113,7 @@ export function PerServiceModelOverride({
         try {
             await onSave(withoutAnyOverride(workflowConfigurations), workflowName);
             setEnabled(false);
-            toast.success(`${t({ en: "Per-service override removed.", fr: "Remplacement par service supprimé." })} ${publishReminder}`);
+            notifier.succes({ fr: "Remplacement retiré.", en: "Override removed." }, { publier: true });
         } finally {
             setIsRemoving(false);
         }
@@ -167,6 +165,7 @@ export function PerServiceModelOverride({
                     voixVerrouillee={voixVerrouillee}
                 />
             )}
+            <ErreurChamp>{enabled ? erreurService : null}</ErreurChamp>
 
             {!enabled && savedOverrides && (
                 <button

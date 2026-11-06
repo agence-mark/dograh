@@ -12,12 +12,18 @@ import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
 import { ToolSelector } from "@/components/flow/ToolSelector";
 import { CredentialSelector, UrlInput } from "@/components/http";
 import { type ConditionDeChamp, EtiquettesEtape } from "@/components/mark/graphe/EtiquettesEtape";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Info } from "@/components/mark/studio/marques";
+import { ChampVariables } from "@/components/mark/variables/ChampVariables";
+import { useCatalogueEtiquettes } from "@/components/mark/variables/useCatalogueEtiquettes";
+import { useCatalogueVariables } from "@/components/mark/variables/useCatalogueVariables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ChoixCoteACote } from "./ChoixCoteACote";
 import { evaluateDisplayOptions } from "./displayOptions";
 import {
     getPropertyColumnSpan,
@@ -37,7 +43,17 @@ export interface RendererContext {
     /** [.mark] Lot 7 de correctifs-apres-banc-commun: the conditions of the step's fields (sibling of champs_etape on the node data). */
     conditionsDeChamps?: ConditionDeChamp[];
     onConditionsDeChampsChange?: (next: ConditionDeChamp[] | undefined) => void;
+    /** [.mark] Lot 8 : l'étape dont on édite les textes (outils rattachés, « Rattacher l'outil à l'étape »). Absent : pas une étape. */
+    etape?: { outils: string[]; rattacher: (toolUuid: string) => void } | null;
 }
+
+/** [.mark] Lot 8 : un objet cité s'ouvre à côté (nouvel onglet du navigateur, en attendant le panneau de droite du lot 19). */
+const ouvrirUnObjet = (cle: string) => {
+    const [famille, reste] = [cle.slice(0, cle.indexOf(":")), cle.slice(cle.indexOf(":") + 1)];
+    const adresse =
+        famille === "outil" ? `/tools/${reste.split("/")[0]}` : famille === "agent" ? `/workflow/${reste}` : famille === "document" ? "/files" : null;
+    if (adresse) window.open(adresse, "_blank", "noopener");
+};
 
 export interface PropertyInputProps {
     spec: PropertySpec;
@@ -75,7 +91,7 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
     }
     switch (spec.type) {
         case "string":
-            return <StringWidget spec={spec} value={value} onChange={onChange} />;
+            return <StringWidget spec={spec} value={value} onChange={onChange} etape={context.etape} />;
         case "number":
             return <NumberWidget spec={spec} value={value} onChange={onChange} />;
         case "boolean":
@@ -104,6 +120,7 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
                     value={value}
                     onChange={onChange}
                     recordings={context.recordings}
+                    etape={context.etape}
                 />
             );
         case "tool_refs":
@@ -152,17 +169,14 @@ export function PropertyInput({ spec, value, onChange, context }: PropertyInputP
 
 // ─── Layout helpers ──────────────────────────────────────────────────────
 
+// [.mark] K2b : le libellé d'un champ, son explication dans un « ! » (jamais en note dessous), comme la maquette
+// (`modale-noeud.tsx`). Pas d'astérisque : le serveur refuse l'enregistrement d'un champ obligatoire vide.
 function StackedLabel({ spec }: { spec: PropertySpec }) {
     return (
-        <>
-            <Label>
-                {spec.display_name}
-                {spec.required && <span className="text-destructive ml-1">*</span>}
-            </Label>
-            {spec.description && (
-                <Label className="text-xs text-muted-foreground">{spec.description}</Label>
-            )}
-        </>
+        <Label className="flex items-center gap-1.5">
+            {spec.display_name}
+            {spec.description && <Info>{spec.description}</Info>}
+        </Label>
     );
 }
 
@@ -174,13 +188,30 @@ interface WidgetProps {
     onChange: (v: unknown) => void;
 }
 
-function StringWidget({ spec, value, onChange }: WidgetProps) {
+function StringWidget({ spec, value, onChange, etape }: WidgetProps & { etape?: RendererContext["etape"] }) {
     const v = (value as string | undefined) ?? "";
     const isMultiline = spec.editor === "textarea";
+    const catalogue = useCatalogueVariables();
+    const etiquettes = useCatalogueEtiquettes(spec.name === "greeting");
     return (
         <div className="grid gap-2">
-            <StackedLabel spec={spec} />
-            {isMultiline ? (
+            {spec.name !== "greeting" && <StackedLabel spec={spec} />}
+            {spec.name === "greeting" ? (
+                // [.mark] U3 bis (E62) : le moteur rend les variables de l'accueil, le champ les montre en étiquettes.
+                <ChampVariables
+                    value={v}
+                    onChange={onChange}
+                    catalogue={catalogue.variables}
+                    catalogueLu={catalogue.lu}
+                    placeholder={spec.placeholder ?? undefined}
+                    ariaLabel={spec.display_name}
+                    objets={etiquettes.objets}
+                    objetsLus={etiquettes.lu}
+                    outilsDeLEtape={etape ? etape.outils : null}
+                    rattacher={etape?.rattacher}
+                    ouvrirObjet={ouvrirUnObjet}
+                />
+            ) : isMultiline ? (
                 <Textarea
                     value={v}
                     onChange={(e) => onChange(e.target.value)}
@@ -222,7 +253,7 @@ function NumberWidget({ spec, value, onChange }: WidgetProps) {
                     const next = e.target.value;
                     onChange(next === "" ? undefined : parseFloat(next));
                 }}
-                placeholder={spec.placeholder ?? undefined}
+                placeholder={spec.placeholder ?? (spec.default != null ? String(spec.default) : undefined)}
                 className={isCompact ? "w-full" : "w-32"}
             />
         </div>
@@ -232,23 +263,40 @@ function NumberWidget({ spec, value, onChange }: WidgetProps) {
 function BooleanWidget({ spec, value, onChange }: WidgetProps) {
     const v = !!value;
     return (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between gap-3">
+            <Label htmlFor={`prop-${spec.name}`} className="flex cursor-pointer items-center gap-1.5">
+                {spec.display_name}
+                {spec.description && <Info>{spec.description}</Info>}
+            </Label>
             <Switch id={`prop-${spec.name}`} checked={v} onCheckedChange={onChange} />
-            <Label htmlFor={`prop-${spec.name}`}>{spec.display_name}</Label>
-            {spec.description && (
-                <Label className="text-xs text-muted-foreground ml-2">
-                    {spec.description}
-                </Label>
-            )}
         </div>
     );
 }
 
+/** [.mark] K2b : jusqu'à ce nombre de choix, ils se montrent côte à côte (maquette `Choix`), au-delà dans une liste. */
+const CHOIX_COTE_A_COTE_MAX = 4;
+
 function OptionsWidget({ spec, value, onChange }: WidgetProps) {
+    const options = spec.options ?? [];
+    if (options.length > 0 && options.length <= CHOIX_COTE_A_COTE_MAX) {
+        // Un champ jamais touché n'écrit rien : le choix actif est alors celui que le serveur donne par défaut, sinon le premier.
+        const actif = String((value as string | number | undefined) ?? spec.default ?? options[0].value);
+        return (
+            <div className="grid gap-2">
+                <StackedLabel spec={spec} />
+                <ChoixCoteACote
+                    libelle={spec.display_name}
+                    valeur={options.find((o) => String(o.value) === actif)?.value as string | number | undefined}
+                    options={options.map((o) => ({ value: o.value as string | number, label: o.label }))}
+                    onChange={onChange}
+                />
+            </div>
+        );
+    }
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />
-            <select
+            <ListeDeroulante
                 className="border rounded-md p-2 text-sm bg-background"
                 value={(value as string | number | undefined) ?? ""}
                 onChange={(e) => {
@@ -262,7 +310,7 @@ function OptionsWidget({ spec, value, onChange }: WidgetProps) {
                         {o.label}
                     </option>
                 ))}
-            </select>
+            </ListeDeroulante>
         </div>
     );
 }
@@ -423,7 +471,33 @@ function MentionWidget({
     value,
     onChange,
     recordings,
-}: WidgetProps & { recordings: RecordingResponseSchema[] }) {
+    etape,
+}: WidgetProps & { recordings: RecordingResponseSchema[]; etape?: RendererContext["etape"] }) {
+    const catalogue = useCatalogueVariables();
+    // [.mark] Lots 8 et 22 : un prompt cite aussi des objets (outils, étapes, agents, équipe, documents, phrases, blocs).
+    const etiquettes = useCatalogueEtiquettes(recordings.length === 0);
+    // [.mark] U3 bis (E62) : sans enregistrement à citer (@), le champ montre les variables en étiquettes ;
+    // avec des enregistrements, on garde le champ d'origine qui sait les citer.
+    if (recordings.length === 0) {
+        return (
+            <div className="grid gap-2">
+                <StackedLabel spec={spec} />
+                <ChampVariables
+                    value={(value as string | undefined) ?? ""}
+                    onChange={onChange}
+                    catalogue={catalogue.variables}
+                    catalogueLu={catalogue.lu}
+                    placeholder={spec.placeholder ?? undefined}
+                    ariaLabel={spec.display_name}
+                    objets={etiquettes.objets}
+                    objetsLus={etiquettes.lu}
+                    outilsDeLEtape={etape ? etape.outils : null}
+                    rattacher={etape?.rattacher}
+                    ouvrirObjet={ouvrirUnObjet}
+                />
+            </div>
+        );
+    }
     return (
         <div className="grid gap-2">
             <StackedLabel spec={spec} />

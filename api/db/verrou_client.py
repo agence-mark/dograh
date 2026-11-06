@@ -18,6 +18,7 @@ from api.db.base_client import BaseDBClient
 # Espace de noms du verrou (premier entier), l'organisation en est le second : deux organisations ne
 # s'attendent jamais, deux écritures de la même organisation oui.
 ESPACE_DES_ECRITURES_PAR_ELEMENT = 7_301
+ESPACE_DES_COPIES_D_AGENT = 7_302
 
 
 class VerrouClient(BaseDBClient):
@@ -31,3 +32,29 @@ class VerrouClient(BaseDBClient):
             # Le verrou vit autant que la transaction de la session : la fermer (sortie du ``async with``,
             # sans rien valider) le rend, même sur une erreur.
             yield
+
+    @asynccontextmanager
+    async def verrou_de_copie_d_agent(self, cle: str) -> AsyncIterator[None]:
+        """Un verrou consultatif de transaction par copie d'agent (``services/export_agent``) : deux copies identiques s'attendent."""
+        async with self.async_session() as session:
+            await session.execute(
+                text("SELECT pg_advisory_xact_lock(:espace, hashtext(:cle))"),
+                {"espace": ESPACE_DES_COPIES_D_AGENT, "cle": cle},
+            )
+            yield
+
+# [.mark] Versement de la bibliothèque (``scripts/mark/verser.py``) : plusieurs répliques démarrent ensemble, UNE seule verse.
+CLE_DU_VERSEMENT = 7_431_900_112
+
+
+@asynccontextmanager
+async def sous_verrou_du_versement(engine) -> AsyncIterator[bool]:
+    """Rend vrai si CETTE réplique tient le verrou du versement, faux si une autre verse déjà (sans attendre). Verrou de
+    session sur une connexion à part : libéré à la sortie, ou à la mort du processus."""
+    async with engine.connect() as connexion:
+        pris = bool((await connexion.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": CLE_DU_VERSEMENT})).scalar())
+        try:
+            yield pris
+        finally:
+            if pris:
+                await connexion.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": CLE_DU_VERSEMENT})

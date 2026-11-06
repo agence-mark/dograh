@@ -1,3 +1,4 @@
+import { useLangue } from "@/components/mark/langue/langue";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -69,6 +70,7 @@ export const SectionTourDeParole = ({
     tourPiloteAilleurs,
     smartTurnActif,
 }: SectionTourDeParoleProps) => {
+    const { t } = useLangue();
     const nombre = (cle: CleNumerique, etiquette: string, aide: string, pas = "0.1") => {
         // The server bounds every one of these. Until 2026-09-14 the screen
         // bounded none: one spinner arrow too many meant a 422, and the save
@@ -193,7 +195,7 @@ export const SectionTourDeParole = ({
                     id="stt_ttfs_p99_latency"
                     type="number"
                     step="0.05"
-                    placeholder="Provider value (0.35 s for Deepgram)"
+                    placeholder={t({ en: "Provider value (0.35 s for Deepgram)", fr: "Valeur du fournisseur (0,35 s pour Deepgram)" })}
                     value={reglages.stt_ttfs_p99_latency ?? ""}
                     onChange={(e) => {
                         const brut = e.target.value;
@@ -223,7 +225,7 @@ export const SectionTourDeParole = ({
                     id="user_turn_stop_timeout"
                     type="number"
                     step="0.5"
-                    placeholder="5 s (30 s when the transcription drives the turns)"
+                    placeholder={t({ en: "5 s (30 s when the transcription drives the turns)", fr: "5 s (30 s quand la transcription pilote les tours)" })}
                     value={reglages.user_turn_stop_timeout ?? ""}
                     onChange={(e) => {
                         const brut = e.target.value;

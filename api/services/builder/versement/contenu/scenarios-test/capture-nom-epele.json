@@ -1,0 +1,30 @@
+{
+  "titre": "Capture : nom épelé puis relu",
+  "contenu": {
+    "but": "Donner son nom, qui est difficile à comprendre, et le faire noter exactement.",
+    "personnage": "epelle-mal",
+    "ouverture": "Bonjour, je voudrais laisser mon nom pour être rappelé.",
+    "criteres": [
+      {
+        "type": "coordonnees_prises",
+        "champs": [
+          "nom"
+        ]
+      },
+      {
+        "type": "sans_redite"
+      }
+    ],
+    "questions_juge": [
+      "L'agent a-t-il relu les lettres une à une avant de les accepter ?",
+      "Le nom noté est-il exactement celui de l'appelant ?"
+    ]
+  },
+  "notes": "Scénario écrit en français par .mark d'après la politique de capture du domaine intake de tau2-bench (MIT) : épeler, relire, confirmer, puis comparer la fiche finale à la valeur exacte. Ce n'est pas une traduction ligne à ligne des tâches du corpus (non relu mot à mot). La mention de copyright du dépôt est à garder dans la fiche de l'élément : à compléter depuis son fichier LICENSE avant tout usage en production.",
+  "origine": {
+    "source": "sierra-research/tau2-bench, domaine intake (méthode de capture : épeler, relire, confirmer)",
+    "licence": "MIT",
+    "date": "2026-11-02"
+  },
+  "dossier": "capture"
+}

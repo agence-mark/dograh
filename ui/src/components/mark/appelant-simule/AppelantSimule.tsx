@@ -12,7 +12,7 @@
  * A call's transcript and verdict appear when it ends: Dograh writes a run's events at the end of
  * the call, so they cannot be read during it.
  */
-import { FileBarChart, ListChecks, Play, Settings, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -24,9 +24,10 @@ import {
     lancerSerieSimuleeApiV1AppelSimuleAgentsWorkflowIdSeriesPost,
 } from "@/client";
 import type { RapportSerie, ReglagesAppelantSimule, ScenarioSimule, SerieSimulee } from "@/client/types.gen";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 import { DirectAppelSimule } from "./DirectAppelSimule";
 import { ETATS_SERIE, ModaleRapportSeries } from "./ModaleRapportSeries";
@@ -71,7 +72,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         ]);
         const faute = s.error ?? r.error ?? l.error;
         if (faute) {
-            setErreur(detailFromError(faute, "Simulated caller unavailable"));
+            setErreur(echecAffiche(faute, ECHECS.appelSimuleCharger));
             return;
         }
         setScenarios((s.data as ScenarioSimule[]) ?? []);
@@ -122,7 +123,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Series not started"));
+            setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeLancer));
             return;
         }
         suivie.current = (reponse.data as SerieSimulee).id;
@@ -135,7 +136,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
         const reponse = await arreterSerieSimuleeApiV1AppelSimuleSeriesSerieIdArreterPost({
             path: { serie_id: rapport.serie.id },
         });
-        if (reponse.error) setErreur(detailFromError(reponse.error, "Series not stopped"));
+        if (reponse.error) setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeArreter));
         else await lireRapport();
     };
 
@@ -144,71 +145,75 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" data-testid="appelant-simule">
-            <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setModale("scenarios")}>
-                    <ListChecks className="mr-1 h-4 w-4" />
-                    {t({ en: "Scenarios…", fr: "Scénarios…" })}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setModale("reglages")}>
-                    <Settings className="mr-1 h-4 w-4" />
-                    {t({ en: "Settings…", fr: "Réglages…" })}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setModale("rapport")}>
-                    <FileBarChart className="mr-1 h-4 w-4" />
-                    {t({ en: "Report…", fr: "Rapport…" })}
-                </Button>
-            </div>
             {erreur && (
                 <p className="text-sm text-destructive" role="alert">
                     {erreur}
                 </p>
             )}
-            {scenarios === null ? (
-                !erreur && <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
-            ) : scenarios.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    {t({
-                        en: "No scenario for this agent yet: write one in « Scenarios… ».",
-                        fr: "Aucun scénario pour cet agent : écrivez-en un dans « Scénarios… ».",
-                    })}
-                </p>
-            ) : (
-                <div className="space-y-2">
-                    <ul className="space-y-1" data-testid="choix-scenarios">
-                        {scenarios.map((s) => (
-                            <li key={s.id}>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" checked={choisis.has(s.id)} onChange={() => basculer(s.id)} />
-                                    {s.nom}
-                                </label>
-                            </li>
-                        ))}
-                    </ul>
-                    <p className="text-xs text-muted-foreground" data-testid="estimation">
-                        {estime === null
-                            ? t({
-                                  en: `Estimated cost: unknown until the first call · cap ${reglages?.plafond ?? 5}`,
-                                  fr: `Coût estimé : inconnu avant le premier appel · plafond ${reglages?.plafond ?? 5}`,
-                              })
-                            : t({
-                                  en: `Estimated cost ≈ ${estime} · cap ${reglages?.plafond ?? 5} (the series stops before exceeding it)`,
-                                  fr: `Coût estimé ≈ ${estime} · plafond ${reglages?.plafond ?? 5} (la série s'arrête avant de le dépasser)`,
-                              })}
-                    </p>
-                    {trop && (
-                        <p className="text-xs text-destructive">
+            {/* [.mark] K2b : la forme de la maquette (`panneau-essai.tsx`, onglet « Appelant simulé »). */}
+            <div className="space-y-4 text-sm">
+                <div className="space-y-1.5">
+                    <p className="flex items-center gap-1.5 font-medium">
+                        {t({ en: "Scenarios", fr: "Scénarios" })}
+                        <Info>
                             {t({
-                                en: `A series is ${reglages?.taille_max_serie} calls at most.`,
-                                fr: `Une série fait ${reglages?.taille_max_serie} appels au plus.`,
+                                en: "The scenarios of this agent are written in « Scenarios… » below; the caller's settings and the judge's are in « Settings… ».",
+                                fr: "Les scénarios de cet agent s'écrivent dans « Scénarios… » ci-dessous ; les réglages de l'appelant et du juge sont dans « Réglages… ».",
                             })}
-                        </p>
+                        </Info>
+                    </p>
+                    {scenarios === null ? (
+                        !erreur && <p className="text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
+                    ) : scenarios.length === 0 ? (
+                        <p className="text-muted-foreground">{t({ en: "No scenario for this agent yet.", fr: "Aucun scénario pour cet agent." })}</p>
+                    ) : (
+                        <ul className="space-y-1.5" data-testid="choix-scenarios">
+                            {scenarios.map((s) => (
+                                <li key={s.id}>
+                                    <label className="flex cursor-pointer items-center gap-2">
+                                        <input type="checkbox" checked={choisis.has(s.id)} onChange={() => basculer(s.id)} />
+                                        {s.nom}
+                                    </label>
+                                </li>
+                            ))}
+                        </ul>
                     )}
-                    <Button size="sm" onClick={() => void lancer()} disabled={enCours || enJeu || choisis.size === 0 || trop}>
-                        <Play className="mr-1 h-4 w-4" />
-                        {t({ en: `Run ${choisis.size} call(s)`, fr: `Lancer ${choisis.size} appel(s)` })}
+                </div>
+                {scenarios !== null && scenarios.length > 0 && (
+                    <>
+                        <div className="flex items-center gap-2" data-testid="estimation">
+                            <span className="text-muted-foreground">{t({ en: `${choisis.size} call(s)`, fr: `${choisis.size} appel(s)` })}</span>
+                            <span className="ml-auto text-muted-foreground">
+                                {estime === null
+                                    ? t({ en: `cost unknown before the first call · cap ${reglages?.plafond ?? 5}`, fr: `coût inconnu avant le premier appel · plafond ${reglages?.plafond ?? 5}` })
+                                    : t({ en: `≈ ${estime} of ${reglages?.plafond ?? 5}`, fr: `≈ ${estime} sur ${reglages?.plafond ?? 5}` })}
+                            </span>
+                        </div>
+                        {trop && (
+                            <p className="text-xs text-destructive">
+                                {t({
+                                    en: `A series is ${reglages?.taille_max_serie} calls at most.`,
+                                    fr: `Une série fait ${reglages?.taille_max_serie} appels au plus.`,
+                                })}
+                            </p>
+                        )}
+                        <Button className="w-full" onClick={() => void lancer()} disabled={enCours || enJeu || choisis.size === 0 || trop}>
+                            {t({ en: "Run the series", fr: "Lancer la série" })}
+                        </Button>
+                    </>
+                )}
+                <div className="flex flex-wrap gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setModale("scenarios")}>
+                        {t({ en: "Scenarios…", fr: "Scénarios…" })}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setModale("reglages")}>
+                        {t({ en: "Settings…", fr: "Réglages…" })}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setModale("rapport")}>
+                        {t({ en: "Report…", fr: "Rapport…" })}
                     </Button>
                 </div>
-            )}
+            </div>
             {rapport ? (
                 <div className="space-y-2 rounded border border-border p-3 text-sm" data-testid="serie-suivie">
                     <div className="flex items-center justify-between gap-2">
@@ -235,7 +240,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        {t({ en: "run window", fr: "fenêtre du run" })}
+                                        {t({ en: "run window", fr: "fenêtre d'appel" })}
                                     </a>
                                 ) : null}
                             </li>
@@ -244,7 +249,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                     <p className="text-xs text-muted-foreground">
                         {t({
                             en: `Cost so far ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partial)" : ""}. The call on the line is followed live below; its saved transcript and verdict are in its run window when it ends.`,
-                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. L'appel en ligne se suit en direct ci-dessous ; sa transcription enregistrée et son verdict sont dans sa fenêtre du run à la fin de l'appel.`,
+                            fr: `Coût à ce stade ${rapport.serie.cout ?? 0} ${rapport.serie.devise ?? "USD"}${rapport.serie.cout_partiel ? " (partiel)" : ""}. L'appel en ligne se suit en direct ci-dessous ; sa transcription enregistrée et son verdict sont dans sa fenêtre d'appel à la fin de l'appel.`,
                         })}
                     </p>
                     {/* [.mark] The call on the line, or else the last one played (direct-et-passe-muette, lot A). */}

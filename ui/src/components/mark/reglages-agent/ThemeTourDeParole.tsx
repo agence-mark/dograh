@@ -31,7 +31,7 @@
  * which writes Soniox's `endpoint_detection` (`fin-du-tour.ts`); frozen for Flux and ink-2, whose end
  * of turn is part of the model. Meant for A/B tests in a few clicks, then frozen in a settings template.
  */
-import { Repeat } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -80,9 +80,34 @@ export const CLES_TOUR_MARK = [
     "filter_incomplete_user_turns",
     "incomplete_short_timeout",
     "incomplete_long_timeout",
-    "relance_apres_outil",
+    // (``relance_apres_outil`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
     "relance_tour_vide",
 ] as const satisfies readonly CleCatalogue[];
+
+/** Les protections de l'accueil, rangées dans leur propre bloc (05 § 15). */
+const CLES_ACCUEIL: readonly string[] = ["mute_until_first_bot_complete", "mute_first_speech"];
+
+export const TITRE_COUPER_A_L_ACCUEIL = { en: "Cutting the agent at the greeting", fr: "Couper l'agent à l'accueil" };
+export const DESCRIPTION_COUPER_A_L_ACCUEIL = {
+    en: "In the order the engine reads them. The caller can cut the greeting only if « Caller can cut the greeting » is on; it lifts « During the opening sentence » and nothing else.",
+    fr: "Dans l'ordre où le moteur les lit. L'appelant ne peut couper l'accueil que si « L'appelant peut couper l'accueil » est allumé ; il lève « Pendant la phrase d'accueil » et rien d'autre.",
+};
+
+/** Quand un réglage annule « L'appelant peut couper l'accueil » : la protection la plus forte l'emporte, et on le dit. */
+export const noteAccueil = (b: { accueil_interruptible?: unknown; mute_always?: unknown; mute_first_speech?: unknown }) => {
+    if (!b.accueil_interruptible) return null;
+    if (b.mute_always)
+        return {
+            en: "No effect: « Never let the caller interrupt at all » is on, and it wins over the greeting.",
+            fr: "Sans effet : « Ne jamais laisser l'appelant couper l'agent » est allumé, et il l'emporte sur l'accueil.",
+        };
+    if (b.mute_first_speech)
+        return {
+            en: "No effect: « During the agent's very first utterance » is on, and the greeting is that utterance.",
+            fr: "Sans effet : « Pendant la toute première réplique de l'agent » est allumé, et l'accueil est cette réplique.",
+        };
+    return null;
+};
 
 const CLES_MUETTES = [
     "mute_until_first_bot_complete",
@@ -193,7 +218,7 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
     return (
         <Theme
             id={ID_THEME_TOUR}
-            icone={Repeat}
+            icone={ArrowLeftRight}
             titre={TITRE_TOUR}
             description={{
                 en: "When the agent decides the caller has finished, and when the caller can cut it off.",
@@ -412,9 +437,20 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     fr: "Quand le micro de l'appelant est ignoré, pour que l'agent finisse ce qu'il fait.",
                 }}
             >
-                {CLES_MUETTES.map((cle) => r(cle))}
+                {CLES_MUETTES.filter((cle) => !CLES_ACCUEIL.includes(cle)).map((cle) => r(cle))}
+            </Intertitre>
+
+            {/* 05 § 15 : la coupure de parole à l'accueil, regroupée en un bloc, dans l'ordre où l'engine la lit. */}
+            <Intertitre id="tour-accueil" titre={TITRE_COUPER_A_L_ACCUEIL} description={DESCRIPTION_COUPER_A_L_ACCUEIL}>
+                {r("mute_until_first_bot_complete")}
                 {r("accueil_interruptible")}
                 {r("accueil_mots_minimum", true, !brouillon.accueil_interruptible)}
+                {r("mute_first_speech")}
+                {noteAccueil(brouillon) && (
+                    <p className="text-xs font-medium text-foreground" data-note="accueil-annule">
+                        {t(noteAccueil(brouillon)!)}
+                    </p>
+                )}
             </Intertitre>
 
             {/* C9 (D-C9-1): the voice detector is built on every call, whoever decides the turns. */}
@@ -454,11 +490,6 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     {r("incomplete_long_timeout", Boolean(brouillon.filter_incomplete_user_turns))}
                 </Intertitre>
             )}
-
-            {/* [.mark] Lot 4 of chantier langwatch-et-fenetre-du-run (Pipecat ticket 5960). */}
-            <Intertitre id="tour-apres-outil" titre={{ en: "After a tool", fr: "Après un outil" }}>
-                {r("relance_apres_outil")}
-            </Intertitre>
 
             {/* [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): the empty user turn. */}
             <Intertitre id="tour-vide" titre={{ en: "Unheard interruption", fr: "Interruption non comprise" }}>

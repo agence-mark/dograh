@@ -32,6 +32,7 @@ from api.services.integrations.connectors.execution import (
     executer,
     mettre_de_cote,
 )
+from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, echec_pour_la_voix
 
 TYPES = {"string": "string", "number": "number", "boolean": "boolean"}
 
@@ -147,7 +148,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         organization_id = await manager.get_organization_id()
         if not organization_id:
             logger.error("[.mark] Integration tool without an organization: refused")
-            await params.result_callback({"status": "error", "error": "unavailable"})
+            await params.result_callback(echec_pour_la_voix({"status": "error", "error": "unavailable"}, config))
             return
         # Lot D d'agent-leger-greffier (D6) : la phrase de patience, seulement au-delà du seuil.
         patience = Patience(engine, config)
@@ -224,7 +225,11 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             if isinstance(a_dire, str) and a_dire.strip():
                 await engine.queue_text_message(a_dire, mute_user=True)
                 donnees["said_to_caller"] = a_dire
-            await params.result_callback(donnees)
+            # [.mark] lot R (partie 3) : champs appliqués (C8, d'après ce que l'action a reçu : le relais ne renvoie pas
+            # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
+            if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
+                donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
+            await params.result_callback(avec_consigne_de_parole(donnees, config))
             return
         if (
             resultat is not None
@@ -251,6 +256,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         # place de la consigne anglaise d'avant ; la phrase est déjà dans l'historique.
         if probleme is not None and (phrase or probleme.issue is not None):
             from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+            from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
             from api.services.phrases.compte_rendu import compte_rendu
 
             issue = probleme.issue
@@ -261,8 +267,11 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                     dit=phrase,
                     notes=probleme.notes,
                     interdits=issue.interdit if issue is not None else (),
+                    actif=intervention_du_moteur(engine, CLE_COMPTE_RENDU_DE_PHRASE),
                 ),
             }
+            if not retour["compte_rendu"]:
+                del retour["compte_rendu"]
             if phrase:
                 retour["said_to_caller"] = phrase
             if issue is not None and issue.prise_en_main:

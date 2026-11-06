@@ -1,11 +1,14 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, PhoneIncoming, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
 import { CallTypeCell } from "@/components/CallTypeCell";
 import { FilterBuilder } from "@/components/filters/FilterBuilder";
+import { useLangue } from "@/components/mark/langue/langue";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { MediaPreviewButton, MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +63,17 @@ export interface WorkflowRunsTableProps {
     showFilters?: boolean;
     showAgentVersion?: boolean;
     emptyMessage?: string;
+    /** K3 : « agent » = la forme de l'onglet Appels de la maquette (tableau nu, sans titre ni cadre). */
+    forme?: "agent";
+}
+
+/** [.mark] V1 : « 3m 12s » comme la page Conversations (jamais « 192.0 s »). */
+function dureeLisible(secondes: number) {
+    const total = Math.round(secondes);
+    const minutes = Math.floor(total / 60);
+    const reste = total % 60;
+    if (minutes === 0) return `${reste}s`;
+    return reste === 0 ? `${minutes}m` : `${minutes}m ${reste}s`;
 }
 
 export function WorkflowRunsTable({
@@ -86,9 +100,11 @@ export function WorkflowRunsTable({
     showFilters = true,
     showAgentVersion = false,
     emptyMessage = "No workflow runs found",
+    forme,
 }: WorkflowRunsTableProps) {
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
     const organizationTimezone = useOrganizationTimezone();
+    const { t, langue } = useLangue();
 
     // Media preview dialog
     const mediaPreview = MediaPreviewDialog();
@@ -96,6 +112,83 @@ export function WorkflowRunsTable({
     const handleRowClick = (run: WorkflowRunResponseSchema) => {
         window.open(`/workflow/${run.workflow_id}/run/${run.id}`, '_blank');
     };
+
+    if (forme === "agent") {
+        return (
+            <div className="space-y-4" data-forme="appels-agent">
+                {/* Rien à filtrer tant qu'il n'y a aucun appel : la maquette montre alors l'état vide seul. */}
+                {showFilters && (runs.length > 0 || hasAppliedFilters) && (
+                    <FilterBuilder
+                        availableAttributes={availableAttributes}
+                        activeFilters={activeFilters}
+                        onFiltersChange={onFiltersChange}
+                        onApplyFilters={onApplyFilters}
+                        onClearFilters={onClearFilters}
+                        isExecuting={isExecutingFilters}
+                        hasAppliedFilters={hasAppliedFilters}
+                    />
+                )}
+                {loading ? (
+                    <EtatVide cas="chargement" />
+                ) : error ? (
+                    <EtatVide cas="erreur" reessayer={onReload} />
+                ) : runs.length === 0 ? (
+                    hasAppliedFilters ? (
+                        <EtatVide cas="filtre" recherche="" effacer={onClearFilters} />
+                    ) : (
+                        <EtatVide cas="premier" icone={PhoneIncoming} titre={emptyMessage} />
+                    )
+                ) : (
+                    <>
+                        <Tableau
+                            colonnes={[
+                                { titre: t({ en: "When", fr: "Quand" }) },
+                                ...(showAgentVersion ? [{ titre: "Version" }] : []),
+                                { titre: t({ en: "Call type", fr: "Type d'appel" }) },
+                                { titre: t({ en: "Outcome", fr: "Issue" }) },
+                                { titre: t({ en: "Duration", fr: "Durée" }), droite: true },
+                            ]}
+                        >
+                            {runs.map((run) => (
+                                <Ligne key={run.id} onClick={() => handleRowClick(run)}>
+                                    <Cellule principale>{formatDateTime(run.created_at, organizationTimezone, langue)}</Cellule>
+                                    {showAgentVersion && (
+                                        <Cellule>{run.version_number != null ? `v${run.version_number}` : "–"}</Cellule>
+                                    )}
+                                    <Cellule>
+                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                    </Cellule>
+                                    <Cellule>{(run.gathered_context?.mapped_call_disposition as string | undefined) ?? "–"}</Cellule>
+                                    <Cellule droite>
+                                        {typeof run.cost_info?.call_duration_seconds === "number"
+                                            ? dureeLisible(run.cost_info.call_duration_seconds)
+                                            : "–"}
+                                    </Cellule>
+                                </Ligne>
+                            ))}
+                        </Tableau>
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between pt-2">
+                                <p className="text-sm text-muted-foreground">
+                                    {t({ en: "Page", fr: "Page" })} {currentPage} / {totalPages}
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+                                        <ChevronLeft className="h-4 w-4" />
+                                        {t({ en: "Previous", fr: "Précédent" })}
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+                                        {t({ en: "Next", fr: "Suivant" })}
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

@@ -1,0 +1,18 @@
+{
+  "titre": "Comportement 03 : Donne au compte-gouttes",
+  "contenu": {
+    "description": "Un appelant ordinaire dont la particularité est ceci : Ne répond qu'à une seule chose à la fois, avec des silences entre les réponses.",
+    "but": "Obtenir ce pour quoi il appelle, tel que le scénario le décrit.",
+    "fin": "Quand il a obtenu ce qu'il voulait et qu'on lui demande s'il y a autre chose, il dit non et au revoir.",
+    "comportements": [
+      "Ne répond qu'à une seule chose à la fois, avec des silences entre les réponses."
+    ],
+    "casse": "relances trop rapides, impasse",
+    "priorite": 1
+  },
+  "notes": "Un des 18 comportements d'appelant (note 04), écrit par .mark d'après les typologies publiques : aucun exemple recopié d'un corpus. Un test combine un scénario, un personnage et un ou deux comportements.",
+  "dossier": "comportements",
+  "etiquettes": [
+    "priorite-1"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "titre": "Phrases fixes (façon Tala)",
+  "contenu": {
+    "texte": "# Phrases fixes (recette façon Tala)\n\nDites mot pour mot. Les trous viennent de la fiche du client. Rien d'autre n'est à réciter.\n\n- **Accueil** : « ⟦mention d'enregistrement si requise⟧ ⟦entreprise⟧, ⟦prénom⟧ à l'appareil. Comment puis-je vous aider ? »\n- **Fin** : « Je vous souhaite une bonne journée. À bientôt. »\n- **Repli, quand un outil échoue** : « Je n'arrive pas à finaliser cela pour le moment. ⟦suite prévue par la fiche⟧. »\n- **Fermeture** : « ⟦entreprise⟧ est fermé pour le moment. Elle rouvre ⟦horaires en toutes lettres⟧. »\n- **Réouverture** : « ⟦entreprise⟧ est de nouveau ouverte. »\n- **Transfert annoncé** : « Je vous mets en relation avec ⟦destinataire⟧. »\n\nRègle : la promesse « on vous rappelle » n'existe que si un outil a écrit la demande. Sinon, la phrase de repli ne la contient pas.\n"
+  },
+  "notes": "Bancs du 30/10/2026 : agent 274 (Small 4) et agent 288 au casque, fiche juste à 100 %. Le passage en Recette est un clic d'Evan.",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "titre": "Phrases de plateforme et de transfert (façon Tala)",
+  "contenu": {
+    "texte": "# Phrases de plateforme et de transfert (recette façon Tala)\n\nDites mot pour mot ; les trous viennent de la fiche ou de l'outil.\n- **Silence** : « Êtes-vous toujours là ? »\n- **Au revoir sur silence** : « Je n'entends plus personne, je vais devoir vous laisser. ⟦suite selon le sens : rappel ou « n'hésitez pas à nous rappeler »⟧. Au revoir. »\n- **Durée maximale** : « Je dois mettre fin à notre conversation. ⟦suite⟧. Bonne journée. »\n- **Attente d'outil** : « Un instant, je ⟦consulte l'objet de l'outil⟧. » Une phrase par outil, jamais une phrase unique pour tous.\n- **Entre deux numéros de transfert** : « J'essaie un autre numéro, ne quittez pas. »\n- **Accueil sortant** : « ⟦mention d'enregistrement⟧ Bonjour⟦, prénom si connu avec certitude⟧, je vous appelle de la part de ⟦entreprise⟧ ⟦objet en quelques mots⟧. Avez-vous un moment ? »\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

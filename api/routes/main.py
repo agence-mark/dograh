@@ -5,12 +5,30 @@ from fastapi import APIRouter, Header, HTTPException, Response, status
 from loguru import logger
 from pydantic import BaseModel
 
+from api.db import db_client
 from api.routes.agent_stream import router as agent_stream_router
 from api.routes.analyse_run import router as analyse_run_router
 from api.routes.appel_simule import router as appel_simule_router
 from api.routes.auth import router as auth_router
+from api.routes.builder import router as builder_router
+from api.routes.branches import router as branches_router
+from api.routes.builder_outils_versions import router as outils_versions_router
+from api.routes.builder_publication import router as builder_publication_router
+from api.routes.builder_alertes import router as builder_alertes_router
+from api.routes.builder_tests import router as builder_tests_router
+from api.routes.installation_client import router as installation_client_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
+from api.routes.equipe_mark import router as equipe_mark_router
+from api.routes.equipe_mark import routeur_public as invitation_router
+from api.routes.espaces import router as espaces_router
+from api.routes.pilotage_client import router as pilotage_client_router
+from api.routes.vues_equipe import router as vues_equipe_router
+from api.routes.export_agent import router as export_agent_router
+from api.routes.relation import router as relation_router
+from api.routes.relation_portail import router as relation_portail_router
+from api.routes.etiquettes import router as etiquettes_router
+from api.routes.ameliorations import router as ameliorations_router
 from api.routes.tri import router as tri_router
 from api.routes.apres_appel import router as apres_appel_router
 from api.routes.apres_appel import routeur_run as apres_appel_run_router
@@ -19,19 +37,28 @@ from api.services.panne.routes import routeur_twilio as panne_twilio_router
 from api.routes.base_client import router as base_client_router
 from api.routes.base_client import routeur_equipe as equipe_router
 from api.routes.base_client import routeur_planificateur as planificateur_router
+from api.routes.contacts import router as contacts_router
 from api.routes.listes_valeurs import router as listes_valeurs_router
 from api.routes.objets_agent import router as objets_agent_router
+from api.routes.variables_agent import router as variables_agent_router
+from api.routes.etiquettes_prompt import router as etiquettes_prompt_router
 from api.routes.modules import router as modules_router
 from api.routes.verification import router as verification_router
 from api.routes.agents_servis import router as agents_servis_router
+from api.routes.agents_site import router as agents_site_router
 from api.routes.etablissements import router as etablissements_router
 from api.routes.etablissements import routeur_phrases as phrases_router
 from api.routes.modeles_reglages import router as modeles_reglages_router
 from api.routes.conservation_appels import router as conservation_appels_router
 from api.routes.credentials import router as credentials_router
+from api.routes.outils_mark import router as outils_mark_router
+from api.routes.connaissances_mark import router as connaissances_mark_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
 from api.routes.groupe import router as groupe_router
+from api.routes.reglages_agent import router as reglages_agent_router
+from api.routes.agent_fichiers import router as agent_fichiers_router
+from api.routes.automatisation import router as automatisation_router
 from api.routes.knowledge_base import router as knowledge_base_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
@@ -40,6 +67,7 @@ from api.routes.public_agent import router as public_agent_router
 from api.routes.public_download import router as public_download_router
 from api.routes.public_embed import router as public_embed_router
 from api.routes.public_embed_chat import router as public_embed_chat_router
+from api.routes.public_embed_conversations import router as public_embed_conversations_router
 from api.routes.renvoi_en_test import router as renvoi_en_test_router
 from api.routes.reports import router as reports_router
 from api.routes.s3_signed_url import router as s3_router
@@ -66,6 +94,17 @@ router.include_router(telephony_router)
 router.include_router(superuser_router)
 router.include_router(workflow_router)
 router.include_router(groupe_router)
+router.include_router(reglages_agent_router)
+# [.mark] builder-agent-vocal : le builder d'agent vocal (conversation, bibliothèque, cerveau)
+router.include_router(builder_router)
+router.include_router(outils_versions_router)  # [.mark] partie 3, SA-L3d : versions des outils
+router.include_router(branches_router)  # [.mark] partie 3, SA-L3b : branches d'agent et répartition du trafic
+router.include_router(agent_fichiers_router)  # [.mark] partie 3, N3b : l'agent en fichiers (export, import dans le brouillon)
+router.include_router(automatisation_router)  # [.mark] partie 3, N3b : les tests d'un agent lancés par n8n (clé de l'organisation)
+router.include_router(installation_client_router)  # [.mark] partie 3, sous-lot 9 : « Nouveau client » qui installe vraiment
+router.include_router(builder_publication_router)  # [.mark] U11 : fenetre Publier, attaques
+router.include_router(builder_alertes_router)  # [.mark] partie 3, sous-lot 6 : alertes d'agent et rejeu planifié
+router.include_router(builder_tests_router)  # [.mark] builder lot 6 : tests et boucle d'amelioration
 router.include_router(workflow_text_chat_router)
 # [.mark] Lot D : la décision du testeur sur un renvoi d'appel (clavier, casque).
 router.include_router(renvoi_en_test_router)
@@ -79,6 +118,7 @@ router.include_router(appel_simule_router)
 router.include_router(cles_router)
 # [.mark] passages-fiables (lot G): the triage queue and the alerts.
 router.include_router(tri_router)
+router.include_router(ameliorations_router)
 # [.mark] The establishments of the organization (chantier l-agent-travaille, L1),
 # mounted BEFORE the organization router so its paths are never read as parameters.
 router.include_router(etablissements_router)
@@ -89,6 +129,7 @@ router.include_router(modeles_reglages_router)
 router.include_router(conservation_appels_router)
 # [.mark] Chantier agents-specialises, lot 9: the agents the organization serves, for the portal.
 router.include_router(agents_servis_router)
+router.include_router(agents_site_router)
 # [.mark] The client's own database and its team (chantier l-agent-travaille, L3).
 router.include_router(base_client_router)
 # [.mark] l-agent-travaille, L4: the after-call settings and the run's section.
@@ -100,13 +141,29 @@ router.include_router(panne_twilio_router)
 router.include_router(equipe_router)
 router.include_router(planificateur_router)
 router.include_router(listes_valeurs_router)
+router.include_router(contacts_router)
 router.include_router(objets_agent_router)
 # [.mark] cloture-code, F8: the agent's modules (portal and agent page).
 router.include_router(modules_router)
 # [.mark] l-agent-collegue, L6: the caller's verification.
 router.include_router(verification_router)
+# [.mark] builder partie 2, U2: the spaces (Labo, clients), mounted before the organization router.
+router.include_router(espaces_router)
+router.include_router(pilotage_client_router)  # [.mark] partie 3, L5b : la page de pilotage d'un client (lecture seule)
+router.include_router(vues_equipe_router)  # [.mark] partie 3, sous-lot 10 : les vues tous clients de l'equipe (lecture seule)
+router.include_router(etiquettes_router)
+# [.mark] U2 ter: the .mark team (roles, members, invitations, journal) and the public invitation page.
+router.include_router(equipe_mark_router)
+router.include_router(relation_router)
+router.include_router(relation_portail_router)
+router.include_router(export_agent_router)
+router.include_router(invitation_router)
 router.include_router(user_router)
 router.include_router(campaign_router)
+router.include_router(variables_agent_router)  # [.mark] U3 bis : le catalogue des variables (étiquettes)
+router.include_router(etiquettes_prompt_router)  # [.mark] lots 8 et 22 : les étiquettes d'objets des prompts
+router.include_router(outils_mark_router)  # [.mark] U3 sexies : avant `/tools/{uuid}` et `/credentials/{uuid}`
+router.include_router(connaissances_mark_router)  # [.mark] lot 14 (K-2) : l'usage d'un document par les agents
 router.include_router(credentials_router)
 router.include_router(tool_router)
 router.include_router(organization_router)
@@ -118,6 +175,7 @@ router.include_router(webrtc_signaling_router)
 router.include_router(turn_credentials_router)
 router.include_router(public_embed_router)
 router.include_router(public_embed_chat_router)
+router.include_router(public_embed_conversations_router)
 router.include_router(public_agent_router)
 router.include_router(public_download_router)
 router.include_router(workflow_embed_router)
@@ -151,6 +209,16 @@ class HealthResponse(BaseModel):
     # be baked into the browser bundle at build time. Both are public values.
     stack_project_id: str | None = None
     stack_publishable_client_key: str | None = None
+
+
+async def _inscription_ouverte(drapeau: bool) -> bool:
+    """[.mark] U2 ter: signup is open only while the installation is empty (the first account) and the flag allows it."""
+    if not drapeau:
+        return False
+    try:
+        return await db_client.compter_comptes() == 0
+    except Exception:  # noqa: BLE001
+        return False
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -190,7 +258,7 @@ async def health() -> HealthResponse:
         auth_provider=AUTH_PROVIDER,
         turn_enabled=ENABLE_COTURN,
         force_turn_relay=FORCE_TURN_RELAY,
-        signup_enabled=ENABLE_SIGNUP,
+        signup_enabled=await _inscription_ouverte(ENABLE_SIGNUP),
         stack_project_id=STACK_AUTH_PROJECT_ID if is_stack else None,
         stack_publishable_client_key=(
             STACK_PUBLISHABLE_CLIENT_KEY if is_stack else None

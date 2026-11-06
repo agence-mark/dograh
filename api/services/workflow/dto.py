@@ -351,6 +351,17 @@ class _PassageNodeDataMixin(BaseModel):
         min_value=0.0,
         max_value=1.0,
     )
+    # [.mark] Builder partie 3, lot P (P3) : une passe de moins. Éteint par défaut (vide = comportement d'avant).
+    passation_par_le_code: Optional[bool] = spec_field(
+        default=None,
+        ui_type=PropertyType.boolean,
+        display_name="Hand over by the code on arrival",
+        description=(
+            "When the call arrives on this step (an exit taken on the record, or written by the agent) and the step "
+            "carries a single hand-over to a colleague, the code hands the call over at once, with the tool's "
+            "announcement, instead of asking the agent's model one more time. Off by default."
+        ),
+    )
 
     @field_validator("delai_du_passage")
     @classmethod
@@ -381,6 +392,28 @@ class _PassageNodeDataMixin(BaseModel):
         raise ValueError(f"moment_du_passage must be one of {MOMENTS_DU_PASSAGE}")
 
 
+class RegleDePorteDTO(BaseModel):
+    """[.mark] Partie 3, sous-lot 21 : une règle de la condition d'une porte (source, champ, comparaison, valeur). Les
+    listes fermées vivent dans ``services/workflow/conditions_de_porte.py``."""
+
+    source: str
+    champ: Optional[str] = Field(default=None, max_length=200)
+    comparaison: str
+    valeur: Optional[str] = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _connue(self):
+        from api.services.workflow.conditions_de_porte import COMPARAISONS_PAR_SOURCE, ETAPE
+
+        if self.source not in COMPARAISONS_PAR_SOURCE:
+            raise ValueError(f"source must be one of {tuple(COMPARAISONS_PAR_SOURCE)}")
+        if self.comparaison not in COMPARAISONS_PAR_SOURCE[self.source]:
+            raise ValueError(f"comparaison must be one of {COMPARAISONS_PAR_SOURCE[self.source]} for {self.source}")
+        if self.source != ETAPE and not (self.champ or "").strip():
+            raise ValueError("a rule needs a field (champ)")
+        return self
+
+
 class ConditionDePorteDTO(BaseModel):
     """[.mark] passages-fiables (lot A) : la condition d'une porte sur la fiche. Soit « étape complète » (tous les
     champs de l'étape obtenus, plus rien à confirmer), soit un champ de la fiche qui vaut une valeur (« refusé »
@@ -389,6 +422,27 @@ class ConditionDePorteDTO(BaseModel):
     etape_complete: bool = Field(default=False)
     champ: Optional[str] = Field(default=None, max_length=200)
     vaut: Optional[str] = Field(default=None, max_length=500)
+    # [.mark] Partie 3, sous-lot 21 : la même condition, étendue (``services/workflow/conditions_de_porte.py``). Tout est
+    # vide par défaut, donc absent du JSON d'un agent qui ne s'en sert pas : la lecture d'avant, au bit près.
+    regles: Optional[List[RegleDePorteDTO]] = Field(default=None, max_length=20)
+    combien: Optional[str] = Field(default=None)
+    sinon: Optional[bool] = Field(default=None)
+    toujours: Optional[bool] = Field(default=None)
+
+    @field_validator("combien")
+    @classmethod
+    def _combien_connu(cls, valeur: Optional[str]) -> Optional[str]:
+        from api.services.workflow.conditions_de_porte import COMBIEN
+
+        if valeur in (None, "") or valeur in COMBIEN:
+            return valeur or None
+        raise ValueError(f"combien must be one of {COMBIEN}")
+
+    @model_validator(mode="after")
+    def _un_seul_genre(self):
+        if self.sinon and self.toujours:
+            raise ValueError("a gate condition is either « sinon » or « toujours », not both")
+        return self
 
 
 class _ConditionsDeChampsNodeDataMixin(BaseModel):
@@ -560,6 +614,7 @@ class _ToolDocumentRefsMixin(BaseModel):
         "delai_du_passage",
         "arbitre",
         "seuil_de_l_arbitre",
+        "passation_par_le_code",
         "allow_interrupt",
         "add_global_prompt",
         "delayed_start",
@@ -572,6 +627,7 @@ class _ToolDocumentRefsMixin(BaseModel):
         "pre_call_fetch_mode",
         "pre_call_fetch_url",
         "pre_call_fetch_credential_uuid",
+        "pre_call_fetch_remplace",
     ),
     field_overrides={
         "name": {
@@ -679,6 +735,20 @@ class _ToolDocumentRefsMixin(BaseModel):
                 show={"pre_call_fetch_mode": ["always", "inbound", "outbound"]}
             ),
         },
+        # [.mark] RA-C : la saisie de l'ordre d'injection (audit 02 B2), dans la section « avant ».
+        "pre_call_fetch_remplace": {
+            "display_name": "Objects the lookup may replace",
+            "description": (
+                "Names of agent objects (comma-separated) that the pre-call lookup is "
+                "allowed to replace. Empty = the lookup never replaces an agent object; "
+                "each replacement is traced in the run."
+            ),
+            "llm_hint": "Object names, comma-separated. Leave empty unless the lookup must override an object.",
+            "display_options": DisplayOptions(
+                show={"pre_call_fetch_mode": ["always", "inbound", "outbound"]}
+            ),
+            "placeholder": "brands, opening_hours",
+        },
     },
 )
 class StartCallNodeData(
@@ -715,6 +785,11 @@ class StartCallNodeData(
     )
     pre_call_fetch_credential_uuid: Optional[str] = spec_field(
         default=None, ui_type=PropertyType.credential_ref
+    )
+    # [.mark] RA-B R4d / RA-C : les objets que la lecture avant l'appel peut remplacer (noms séparés par des virgules),
+    # saisis dans la section « avant » de l'étape de départ.
+    pre_call_fetch_remplace: Optional[str] = spec_field(
+        default=None, ui_type=PropertyType.string
     )
 
     @model_validator(mode="before")
@@ -791,6 +866,7 @@ class StartCallNodeData(
         "delai_du_passage",
         "arbitre",
         "seuil_de_l_arbitre",
+        "passation_par_le_code",
         "allow_interrupt",
         "add_global_prompt",
         "extraction_enabled",
@@ -1449,6 +1525,9 @@ class EdgeDataDTO(BaseModel):
     transition_speech_recording_id: Optional[str] = None
     # [.mark] passages-fiables (lot A) : la condition de la porte sur la fiche (étape complète, ou champ = valeur).
     condition_sur_la_fiche: Optional[ConditionDePorteDTO] = None
+    # [.mark] L6+ (audit 01 A8) : l'identifiant STABLE de la porte, le nom de la fonction que le modèle appelle. Posé une fois
+    # (``services/workflow/portes.py``), gardé quand on renomme le libellé. Absent : le nom vient du libellé, comme avant.
+    identifiant: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]{1,200}$")
 
 
 class RFEdgeDTO(BaseModel):
@@ -1570,6 +1649,9 @@ def _sanitize_node(node):
     for cle in ("delai_du_passage", "arbitre", "seuil_de_l_arbitre"):
         if data.get(cle) is None or data.get(cle) == "":
             data.pop(cle, None)
+    # [.mark] Lot P (P3) : éteint = rien n'est écrit dans le JSON de l'agent.
+    if data.get("passation_par_le_code") is not True:
+        data.pop("passation_par_le_code", None)
     return {**node, "data": data}
 
 
@@ -1581,10 +1663,21 @@ def _sanitize_edge(edge):
         return edge
     allowed = EdgeDataDTO.model_fields.keys()
     data = {k: v for k, v in raw_data.items() if k in allowed}
-    # [.mark] passages-fiables : une condition vide (ni étape complète, ni champ) n'est pas écrite.
+    # [.mark] passages-fiables : une condition vide (ni étape complète, ni champ) n'est pas écrite. Sous-lot 21 : ni
+    # règles, ni « sinon », ni « toujours » non plus ; les clés nouvelles vides ne sont pas écrites.
     condition = data.get("condition_sur_la_fiche")
     if not isinstance(condition, dict) or not (
-        condition.get("etape_complete") or str(condition.get("champ") or "").strip()
+        condition.get("etape_complete")
+        or str(condition.get("champ") or "").strip()
+        or condition.get("regles")
+        or condition.get("sinon") is True
+        or condition.get("toujours") is True
     ):
         data.pop("condition_sur_la_fiche", None)
+    else:
+        propre = dict(condition)
+        for cle in ("regles", "combien", "sinon", "toujours"):
+            if propre.get(cle) in (None, "", [], False):
+                propre.pop(cle, None)
+        data["condition_sur_la_fiche"] = propre
     return {**edge, "data": data}

@@ -1,0 +1,19 @@
+{
+ "items": [
+  {
+   "id": 1,
+   "invoice_number": "F20230001",
+   "status": "late",
+   "paid": false,
+   "remaining_amount_with_tax": "120.00",
+   "deadline": "2026-10-01",
+   "customer": {
+    "id": 5,
+    "url": "https://app.pennylane.com/api/external/v2/customers/5"
+   },
+   "label": "Ne pas lire"
+  }
+ ],
+ "has_more": false,
+ "next_cursor": null
+}

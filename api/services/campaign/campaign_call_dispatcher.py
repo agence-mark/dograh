@@ -21,6 +21,7 @@ from api.services.campaign.errors import (
     ConcurrentSlotAcquisitionError,
 )
 from api.services.campaign.traffic_split import campaign_split, pick_variant
+from api.services.publication.deploiement import cle_campagne
 from api.services.quota_service import authorize_workflow_run_start
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
@@ -234,7 +235,11 @@ class CampaignCallDispatcher:
                 "telephony_configuration_id": campaign.telephony_configuration_id,
             }
             run_inputs = await prepare_workflow_run_inputs(
-                db_client, workflow, definition_id=variant["workflow_definition_id"]
+                db_client,
+                workflow,
+                definition_id=variant["workflow_definition_id"],
+                # [.mark] SE-8 : campagne, clé = la campagne et le contact (sans effet quand la variante fixe sa version).
+                cle_de_repartition=cle_campagne(campaign.id, phone_number),
             )
             workflow_run = await db_client.create_workflow_run(
                 name=f"WR-CAMPAIGN-{campaign.id}-{queued_run.id}",

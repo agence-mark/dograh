@@ -11,7 +11,7 @@ import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import { cn } from "@/lib/utils";
 
 /**
- * Amber caveat shown next to free-text fields that are spoken aloud via TTS
+ * Caution note shown next to free-text fields that are spoken aloud via TTS
  * (greetings, transition speech, custom tool messages). Two warnings: the text
  * is voiced verbatim (matters for multilingual flows), and realtime
  * (speech-to-speech) models have no TTS stage, so static text is never spoken —

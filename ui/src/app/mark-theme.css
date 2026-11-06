@@ -20,110 +20,201 @@
 /* ---- Tokens (plan D3) ---------------------------------------------------- */
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #0f0f10;
   --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --card-foreground: #0f0f10;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --primary: #0a0a0a;
+  --popover-foreground: #0f0f10;
+  --primary: #0f0f10;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f4;
-  --secondary-foreground: #0a0a0a;
-  --muted: #f4f4f4;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5;
-  --accent-foreground: #0a0a0a;
-  --destructive: #d93036;
-  --border: #ebebeb;
-  --input: #e5e5e5;
-  --ring: #2974ed;
+  --secondary: rgb(15 15 16 / 0.04);
+  --secondary-foreground: #0f0f10;
+  --muted: rgb(15 15 16 / 0.04);
+  --muted-foreground: #6b6b73;
+  --accent: rgb(15 15 16 / 0.05);
+  --accent-foreground: #0f0f10;
+  --destructive: #dd4949;
+  --border: rgb(15 15 16 / 0.075);
+  --input: rgb(15 15 16 / 0.1);
+  --ring: #3d8fe6;
 
-  --sidebar: #fafafa;
-  --sidebar-foreground: #0a0a0a;
-  --sidebar-primary: #0a0a0a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f0f10;
+  --sidebar-primary: #0f0f10;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #efefef;
-  --sidebar-accent-foreground: #0a0a0a;
-  --sidebar-border: #ebebeb;
-  --sidebar-ring: #2974ed;
+  --sidebar-accent: rgb(15 15 16 / 0.05);
+  --sidebar-accent-foreground: #0f0f10;
+  --sidebar-border: rgb(15 15 16 / 0.075);
+  --sidebar-ring: #3d8fe6;
 
   /* Dograh's orange call to action, now black. */
-  --cta: #0a0a0a;
+  --cta: #0f0f10;
   --cta-foreground: #ffffff;
 
   /* New .mark tokens, used as bg-(--surface), text-(--signal-ok), ... */
-  --surface: #fafafa;
-  --border-strong: #d4d4d4;
+  --surface: rgb(15 15 16 / 0.025);
+  --border-strong: rgb(15 15 16 / 0.18);
   --signal-ok: #22a355;
-  --signal-warn: #e08a00;
-  --signal-danger: #e5484d;
+  --signal-warn: #6d3fc0;
+  --signal-danger: #dd4949;
   --signal-idle: #b4b4b4;
-  --bubble-agent: #0a0a0a;
+  --bubble-agent: #0f0f10;
   --primary-disabled: #a3a3a3;
   --primary-disabled-foreground: #fafafa;
+
+  /* Le canevas d'un agent (K2) : fond, points, liaisons et leur pointe. */
+  --canevas: #fafafa;
+  --canevas-point: #e7e7ea;
+  --liaison: #c4c4cc;
+  --liaison-survol: #9a9aa4;
+  --liaison-fleche: #b5b5bd;
 
   /* The blue accent: --acc (lines, borders, icons), --acc-soft (tinted ground),
      --acc-text (text on the tinted ground), --acc-fill (full surface under white text),
      --acc-line (the gates' lines, lighter than a selected one). */
-  --acc: #2974ed;
-  --acc-soft: #eaf1fd;
-  --acc-text: #1f5fc8;
-  --acc-fill: #2268d8;
-  --acc-line: color-mix(in oklab, #2974ed 55%, transparent);
+  --acc: #3d8fe6;
+  --acc-soft: #eaf3fd;
+  --acc-text: #1b5fb0;
+  --acc-fill: #2b78cf;
+  --acc-line: color-mix(in oklab, #3d8fe6 55%, transparent);
 
   /* Node types in the graph (Evan, 27/09): start green, end red, global violet, white text. */
   --node-start: #15803d;
   --node-end: #c62f35;
   --node-global: #7c3aed;
 
+
+  /* Marques (E19, E100) : quatre tons, une pastille rouge réservée à ce qui demande une action.
+     Jamais d'orange à l'écran (E100) : « attention » prend le bleu .mark. */
+  --marque-neutre: rgb(15 15 16 / 0.05);
+  --marque-neutre-texte: #2e2e33;
+  --marque-succes: #e8f5ec;
+  --marque-succes-texte: #14532d;
+  --marque-attention: #eaf1fb;
+  --marque-attention-texte: #173f73;
+  --marque-danger: #fdeeee;
+  --marque-danger-texte: #7f1d1d;
+  --marque-plein: #0f0f10;
+  --marque-plein-texte: #ffffff;
+  --pastille-urgente: #dd4949;
+  --marque-relation: #e5486b;
+  --violet-relation: #7c5cdb;
+  /* V4 : une couleur par sorte de carte de démarrage du Builder (palette des tuiles de la maquette, E80). */
+  --demarrage-agent: #3d8fe6;
+  --demarrage-amelioration: #7c5cdb;
+  --demarrage-test: #1a9e5c;
+  --demarrage-fichier: #d6457a;
+  --demarrage-etincelle: #dd4949;
+  --point-publie: #1a7f3c;
+  --point-fini: #8a97a6;
+  --gravite-grave: #dd4949;
+  --gravite-surveiller: #1b5fb0;
+  --gravite-faible: #52606f;
+
+  /* Notifications passagères (Evan, 04/11) : pastille pleine foncée, jamais d'orange. */
+  --notif-succes: #15803d;
+  --notif-echec: #dd4949;
+  --notif-avertissement: #6d3fc0;
+  --notif-information: #1b5fb0;
+  --notif-encours: #0f0f10;
+  --etat-fait: #1a9e5c;
+
+  /* SA-L3c, Comparer en duel : la meilleure valeur (fond vert) et l'écart défavorable (rouge), jamais d'orange. */
+  --meilleur-fond: #e8f5ec;
+  --meilleur-texte: #14532d;
+  --ecart-mal: #9a2f2f;
+  --ecart-mal-fond: #fdeeee;
+
+  /* Pastilles des sources de variables (E63) : texte blanc dessus, contraste >= 4,5:1 dans les deux thèmes. */
+  --source-entreprise: #0e7490;
+  --source-appel: #4f46e5;
+  --source-fiche: #047857;
+  --source-campagne: #db2777;
+  --source-inconnue: #dd4949;
+  /* Lot 8 : pastilles des familles d'étiquettes d'objets (couleurs de la maquette, texte blanc, contraste >= 4,5:1, jamais d'orange). */
+  --famille-outil: #334155;
+  --famille-etape: #7e22ce;
+  --famille-agent: #1d4ed8;
+  --famille-equipe: #4d7c0f;
+  --famille-document: #6b4f3a;
+  --famille-phrase: #a21caf;
+  --famille-bloc: #0f172a;
+  /* Surlignage d une recherche (texte du thème dessus). */
+  --surligne: #fef08a;
+
   /* The giant faded "dograh" wordmark, removed (D8). */
+  /* Palette adoucie (décision 18, validée par Evan le 04/11) : encre, traits noirs transparents, un seul rouge #dd4949,
+     états pâles, bleu = liens et focus. Valeurs de la maquette (`maquette-dograh/app/globals.css`). */
+  --link: #1b5fb0;
+  --ok: #2f8f55;
+  --ok-soft: #e8f5ec;
+  --ok-ink: #14532d;
+  --danger-soft: #fdeeee;
+  --danger-ink: #7f1d1d;
+  --info-soft: #eaf1fb;
+  --info-ink: #173f73;
+  /* Ce qui vient de Claude Code (sigle >_) : sa propre couleur, un violet reconnaissable (Evan, 04/11). */
+  --claude: #6b4fd8;
+  --claude-soft: #f0ecfd;
+  --neutral-soft: rgb(15 15 16 / 0.04);
+  --neutral-ink: #2e2e33;
+
   --brand-imprint: none;
 }
 
 .dark {
-  --background: #0e0e0e;
-  --foreground: #f5f5f5;
-  --card: #141414;
-  --card-foreground: #f5f5f5;
-  --popover: #141414;
-  --popover-foreground: #f5f5f5;
-  --primary: #f5f5f5;
-  --primary-foreground: #0e0e0e;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #f5f5f5;
-  --muted: #1f1f1f;
-  --muted-foreground: #9a9a9a;
-  --accent: #1a1a1a;
-  --accent-foreground: #f5f5f5;
-  --destructive: #f16a6e;
-  --border: #333333;
-  --input: #3a3a3a;
+  /* Mode nuit (N4, 04/11) : les jetons de base sont ceux de la maquette (`maquette-dograh/app/globals.css`, bloc .dark),
+     valeur pour valeur ; les jetons .mark qui n'y sont pas suivent la même échelle de gris neutres. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: #e86a6a;
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  /* Écart voulu avec la maquette (gris 0.556) : l'anneau de focus garde le bleu .mark, visible sur le noir. */
   --ring: #5b97f5;
 
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #f5f5f5;
-  --sidebar-primary-foreground: #0e0e0e;
-  --sidebar-accent: #222222;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #333333;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #5b97f5;
 
-  --cta: #f5f5f5;
-  --cta-foreground: #0e0e0e;
+  --cta: oklch(0.922 0 0);
+  --cta-foreground: oklch(0.205 0 0);
 
-  --surface: #121212;
-  --border-strong: #4a4a4a;
+  --surface: oklch(0.175 0 0);
+  --border-strong: oklch(1 0 0 / 22%);
   --signal-ok: #3ecf7a;
-  --signal-warn: #f0a93a;
-  --signal-danger: #f16a6e;
+  --signal-warn: #a58df0;
+  --signal-danger: #e86a6a;
   --signal-idle: #5c5c5c;
-  --bubble-agent: #2a2a2a;
-  --primary-disabled: #3a3a3a;
-  --primary-disabled-foreground: #9a9a9a;
+  --bubble-agent: oklch(0.269 0 0);
+  --primary-disabled: oklch(0.32 0 0);
+  --primary-disabled-foreground: oklch(0.62 0 0);
+
+  --canevas: oklch(0.17 0 0);
+  --canevas-point: oklch(0.28 0 0);
+  --liaison: oklch(0.42 0 0);
+  --liaison-survol: oklch(0.62 0 0);
+  --liaison-fleche: oklch(0.5 0 0);
 
   --acc: #5b97f5;
   --acc-soft: #17243a;
@@ -131,43 +222,107 @@
   --acc-fill: #2f6fe0;
   --acc-line: color-mix(in oklab, #5b97f5 55%, transparent);
 
+  --node-start: #22a355;
+  --node-end: #c4383d;
+  --node-global: #8b5cf6;
+
+  --marque-neutre: oklch(0.269 0 0);
+  --marque-neutre-texte: oklch(0.94 0 0);
+  --marque-succes: rgb(92 192 136 / 0.14);
+  --marque-succes-texte: #a6e3c1;
+  --marque-attention: rgb(90 163 236 / 0.14);
+  --marque-attention-texte: #b4d4f6;
+  --marque-danger: rgb(232 106 106 / 0.14);
+  --marque-danger-texte: #f5b5b5;
+  --marque-plein: oklch(0.922 0 0);
+  --marque-plein-texte: oklch(0.205 0 0);
+  --pastille-urgente: #dd4949;
+  --marque-relation: #e5486b;
+  --violet-relation: #9d85ec;
+  --demarrage-agent: #6aa9ee;
+  --demarrage-amelioration: #9d85ec;
+  --demarrage-test: #5fd08a;
+  --demarrage-fichier: #ec7fa6;
+  --demarrage-etincelle: #f19a9d;
+  --point-publie: #3ecf7a;
+  --point-fini: #7a8796;
+  --gravite-grave: #e86a6a;
+  --gravite-surveiller: #2f6fe0;
+  --gravite-faible: #6b7684;
+
+  --notif-succes: #15803d;
+  --notif-echec: #c2362f;
+  --notif-avertissement: #6d3fc0;
+  --notif-information: #2f6fe0;
+  --notif-encours: oklch(0.32 0 0);
+  --etat-fait: #3ecf7a;
+
+  --meilleur-fond: rgb(92 192 136 / 0.14);
+  --meilleur-texte: #a6e3c1;
+  --ecart-mal: #f5b5b5;
+  --ecart-mal-fond: rgb(232 106 106 / 0.14);
+
+  --source-entreprise: #0e7490;
+  --source-appel: #5b57e8;
+  --source-fiche: #047857;
+  --source-campagne: #c21f6b;
+  --source-inconnue: #c4383d;
+  --famille-outil: #475569;
+  --famille-etape: #7e22ce;
+  --famille-agent: #1d4ed8;
+  --famille-equipe: #4d7c0f;
+  --famille-document: #6b4f3a;
+  --famille-phrase: #a21caf;
+  --famille-bloc: #334155;
+  --surligne: #6b5a00;
+
+  --link: #7db4f0;
+  --ok: #5cc088;
+  --ok-soft: rgb(92 192 136 / 0.14);
+  --ok-ink: #a6e3c1;
+  --danger-soft: rgb(232 106 106 / 0.14);
+  --danger-ink: #f5b5b5;
+  --info-soft: rgb(90 163 236 / 0.14);
+  --info-ink: #b4d4f6;
+  --claude: #b3a2f5;
+  --claude-soft: rgb(140 115 235 / 0.16);
+  --neutral-soft: rgb(255 255 255 / 0.07);
+  --neutral-ink: #d4d4d8;
+
   --brand-imprint: none;
 }
 
-/* ---- Page titles (D5) ---------------------------------------------------- */
+/* ---- Police Switzer (hébergée dans ui/public/fonts, aucune police chargée d'un site tiers) ---- */
 
-/* Page titles only: the agent's name in the editor bar is an h1 too (`text-base`)
-   and keeps its size. */
-.app-surface h1:is([class~="text-2xl"], [class~="text-3xl"], [class~="text-4xl"]) {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Switzer"; src: url("/fonts/Switzer-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
+:root {
+  /* globals.css lit --font-sans dans cette variable : la police de tout l'écran devient Switzer. */
+  --font-geist-sans: "Switzer", system-ui, sans-serif;
 }
 
-/* ---- Shapes (D6) --------------------------------------------------------- */
+/* ---- Interactions communes (E71, E89, E101) ---- */
 
-/* Fields: 44 px high, 12 px corners. Small selects (data-size="sm") and the
-   compact fields Dograh sets on purpose (`h-8`, next to small selects) keep theirs. */
-[data-slot="input"]:not([class~="h-8"]),
-[data-slot="select-trigger"][data-size="default"]:not([class~="h-8"]) {
-  height: 2.75rem;
+/* E101 : tout ce qui se clique montre la main ; ce qui est désactivé, l'interdiction. */
+button:not(:disabled), a[href], summary, select, label:has(input:not(:disabled)),
+input[type="checkbox"], input[type="radio"], input[type="file"], input[type="range"],
+[role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"],
+[role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"] {
+  cursor: pointer;
 }
-[data-slot="input"],
-[data-slot="textarea"],
-[data-slot="select-trigger"] {
-  border-radius: var(--radius);
+button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select:disabled {
+  cursor: not-allowed;
 }
 
-/* The main button, disabled: flat grey rather than a faded black. The WHOLE
-   class is compared: a calendar day carries `data-[selected-single=true]:bg-primary`
-   and is disabled when out of range; it must keep its own look. */
-[data-slot="button"][class~="bg-primary"]:disabled {
-  background-color: var(--primary-disabled);
-  color: var(--primary-disabled-foreground);
-  border-color: var(--primary-disabled);
-  opacity: 1;
+/* E71 : une fenêtre ouverte depuis une autre laisse la place de sa flèche retour devant le titre. */
+[data-slot="dialog-content"][data-imbriquee] > :first-child {
+  padding-left: 3.5rem !important;
 }
+
+/* Titres, champs, boutons et traits d'icônes : ceux de la maquette (lot K1, 04/11), aucune surcharge. */
 
 /* A full red surface in dark: white text on --destructive (#f16a6e) reads at ~3:1.
    The filled surfaces (buttons, "broken" labels) take a deeper red (~5.8:1);
@@ -222,18 +377,6 @@
   display: none;
 }
 
-/* ---- Icons (D14) --------------------------------------------------------- */
-
-/* A finer stroke everywhere (Dograh draws in 2). */
-svg.lucide {
-  stroke-width: 1.6;
-}
-/* Menu icons at 18 px (the first icon only: the telephony warning keeps its size). */
-[data-slot="sidebar-menu-button"] > svg:first-of-type {
-  width: 18px;
-  height: 18px;
-}
-
 /* ---- Signals ------------------------------------------------------------- */
 
 /* The onboarding pulse was blue: the same pulse, in the text colour. */
@@ -265,16 +408,57 @@ svg.lucide {
   }
 }
 
-/* Notifications (sonner, D7): white card, thin border, soft shadow; the icon is
-   red on an error, grey otherwise. Sonner appends its own sheet at the end of
-   <head>, after ours: the toaster prefix makes our selector outweigh its own. */
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
-  border-radius: var(--radius);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
+/* [.mark] builder-agent-vocal (lot 4): the count of changed fields on a node the builder modified. */
+.react-flow__node[data-builder-badge]::after {
+    content: attr(data-builder-badge);
+    position: absolute;
+    top: -0.625rem;
+    right: 0.75rem;
+    z-index: 5;
+    border-radius: 9999px;
+    background: var(--foreground);
+    color: var(--background);
+    padding: 0 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    pointer-events: none;
 }
-[data-sonner-toast] [data-icon] {
+
+/* Mode nuit (N4) : la mention de React Flow en bas du canevas prend les jetons, pas son fond blanc d'origine. */
+.dark .react-flow__attribution {
+  background-color: var(--card);
+}
+.dark .react-flow__attribution a {
   color: var(--muted-foreground);
 }
-[data-sonner-toast][data-type="error"] [data-icon] {
-  color: var(--destructive);
+
+/* Mode nuit (N4) : le logo .mark (carré et mot en bleu nuit) passe à ses versions claires, sinon il disparaît sur le noir. */
+.dark img[src="/mark-lockup.svg"] {
+  content: url("/mark-lockup-nuit.svg");
 }
+.dark img[src="/mark-symbol.svg"] {
+  content: url("/mark-symbol-nuit.svg");
+}
+
+/* [.mark] T5 : curseur à glisser commun (Evan, 05/11). Rail de 4 px sans bordure sur un gris à 10 % du texte, partie
+   remplie de la même finesse, point de 12 px cerclé du fond de page, anneau de focus au clavier. Composant :
+   components/ui/curseur.tsx (donne --pct). Jetons seulement. */
+input[type="range"].curseur {
+  -webkit-appearance: none; appearance: none; height: 16px; background: transparent; border: 0; padding: 0; cursor: pointer;
+}
+input[type="range"].curseur:disabled { cursor: not-allowed; opacity: 0.5; }
+input[type="range"].curseur::-webkit-slider-runnable-track {
+  height: 4px; border: 0; border-radius: 999px;
+  background: linear-gradient(to right, var(--foreground) var(--pct, 0%), color-mix(in srgb, var(--foreground) 10%, transparent) var(--pct, 0%));
+}
+input[type="range"].curseur::-moz-range-track { height: 4px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 10%, transparent); }
+input[type="range"].curseur::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--foreground); }
+input[type="range"].curseur::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-top: -4px; border: 0; border-radius: 999px;
+  background: var(--foreground); box-shadow: 0 0 0 2px var(--background);
+}
+input[type="range"].curseur::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 999px; background: var(--foreground); box-shadow: 0 0 0 2px var(--background); }
+input[type="range"].curseur:focus-visible { outline: none; }
+input[type="range"].curseur:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+input[type="range"].curseur:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }

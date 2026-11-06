@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Query, WebSocket
+from starlette.requests import HTTPConnection
 from loguru import logger
 
 from api.constants import AUTH_PROVIDER
@@ -44,6 +45,40 @@ async def get_user(
     authorization: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
     x_mark_auteur: Annotated[str | None, Header(alias="X-Mark-Auteur")] = None,
+    connexion: HTTPConnection = None,  # type: ignore[assignment]
+) -> UserModel:
+    """[.mark] Le compte de la requête, puis (si on a la requête) son organisation et son droit d'accès.
+
+    L'organisation est lue dans l'adresse (``X-Mark-Organisation``) et contrôlée ici à chaque requête, la
+    permission de la route aussi (``services/equipe_mark``). Appelée sans requête (``get_superuser``, WebSocket),
+    elle ne rend que le compte, comme en amont.
+    """
+    user = await _get_user_brut(authorization, x_api_key, x_mark_auteur)
+    # Revue serveur B1 : une requête par clé n'a jamais le rôle d'équipe du créateur (``equipe_mark/acces``). Posé à
+    # chaque requête, dans les deux sens : un même objet de compte peut servir deux requêtes.
+    user.par_cle_api = bool(x_api_key)
+    if connexion is not None:
+        from api.services.equipe_mark.acces import appliquer_acces
+
+        avant = user.selected_organization_id
+        await appliquer_acces(connexion, user, par_cle_api=bool(x_api_key))
+        if user.selected_organization_id and user.selected_organization_id != avant:
+            # L'organisation de l'adresse n'est pas celle déjà préparée par l'authentification : même préparation.
+            await ensure_organization_bootstrapped(
+                user.selected_organization_id, created_by=user.provider_id
+            )
+        # [.mark] Partie 3, SA-L3b : la branche d'agent ouverte (en-tête ``X-Mark-Branche``), pour que le builder et l'éditeur
+        # écrivent dans le brouillon de la personne sur cette branche. Absent ou illisible : la principale, comme avant.
+        from api.db import branche_ouverte
+
+        branche_ouverte.depuis_l_entete(connexion, user)
+    return user
+
+
+async def _get_user_brut(
+    authorization: str | None,
+    x_api_key: str | None,
+    x_mark_auteur: str | None,
 ) -> UserModel:
     # ------------------------------------------------------------------
     # Check if API key is provided (takes precedence)

@@ -1,0 +1,17 @@
+{
+  "titre": "Jamais confirmer sans outil (façon Gradium)",
+  "contenu": {
+    "texte": "# Jamais confirmer sans outil\n\nNe dis jamais « c'est noté », « c'est fait » ni aucune confirmation d'une donnée si l'outil correspondant n'a pas réellement été appelé dans ce tour de parole.\n\nSi l'outil n'a pas encore répondu, on n'a rien enregistré : on le dit simplement, ou on attend le résultat."
+  },
+  "notes": "À dédoublonner avec la vérité des actions et la condition « fait accompli » (façon Tala). Gardée ici telle que la démo la pose, pour comparaison. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « restaurant_ordering » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "verite-des-actions"
+  ]
+}

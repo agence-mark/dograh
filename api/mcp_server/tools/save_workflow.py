@@ -27,7 +27,7 @@ from loguru import logger
 from pydantic import ValidationError as PydanticValidationError
 
 from api.db import db_client
-from api.mcp_server.auth import authenticate_mcp_request
+from api.mcp_server.auth import authenticate_mcp_write
 from api.mcp_server.tools._workflow_projection import (
     select_workflow_projection_source,
 )
@@ -35,6 +35,7 @@ from api.mcp_server.tracing import traced_tool
 from api.mcp_server.ts_bridge import TsBridgeError, parse_code
 from api.services.workflow import schema_du_parcours
 from api.services.workflow.dto import ReactFlowDTO
+from api.services.workflow.champs_caches import fusionner_champs_caches
 from api.services.workflow.layout import reconcile_positions
 from api.services.workflow.tool_name_validation import (
     validate_workflow_tool_name_collisions,
@@ -97,7 +98,7 @@ async def save_workflow(workflow_id: int, code: str) -> dict[str, Any]:
       unreachable node, edge to/from the wrong node type).
     - `bridge_error` — internal/transient; retry once, then surface it.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     workflow = await db_client.get_workflow(
         workflow_id, organization_id=user.selected_organization_id
@@ -125,7 +126,10 @@ async def save_workflow(workflow_id: int, code: str) -> dict[str, Any]:
     # The parser drops positions by design (LLMs don't place nodes well);
     # here we fill them back in from what was there before, and pick
     # approximate placements for newly-introduced nodes.
-    payload = reconcile_positions(payload, await _previous_workflow_json(workflow))
+    precedent = await _previous_workflow_json(workflow)
+    payload = reconcile_positions(payload, precedent)
+    # [.mark] RA-A (R1) : les réglages d'étape que le code ne porte pas sont repris du brouillon.
+    payload = fusionner_champs_caches(payload, precedent)
     trigger_path_issues = validate_trigger_paths(payload)
     if trigger_path_issues:
         return _error_result(

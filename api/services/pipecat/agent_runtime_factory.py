@@ -33,6 +33,7 @@ from api.services.pipecat.pipeline_builder import (
 )
 from api.services.pipecat.recording_router_processor import RecordingRouterProcessor
 from api.services.pipecat.filtre_nom_civilite import creer_filtre_nom_civilite
+from api.services.interventions_du_moteur import brancher_les_interventions
 from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.service_factory import (
@@ -198,8 +199,11 @@ class AgentRuntimeFactory:
 
         # Unscoped by itself, but the lookup above already established that
         # this workflow belongs to the call's organization.
+        # [.mark] SE-8 : le transfert suit le déploiement progressif, clé = l'appel qui transfère.
+        from api.services.publication.deploiement import cle_appel
+
         definition = await definition_to_run(
-            db_client, workflow, use_draft=self._use_draft
+            db_client, workflow, use_draft=self._use_draft, cle_de_repartition=cle_appel(self._workflow_run_id)
         )
         if definition is None or not definition.workflow_json:
             raise AgentBuildError(
@@ -234,7 +238,10 @@ class AgentRuntimeFactory:
         dto = ReactFlowDTO.model_validate(definition.workflow_json)
         if lire_outils is not None:
             await precharge.outils(
-                uuids_des_outils(dto), self._organization_id, lire_outils
+                uuids_des_outils(dto),
+                self._organization_id,
+                lire_outils,
+                getattr(definition, "outils_epingles", None),
             )
         precharge.agents[workflow_id] = ChargeAgent(
             workflow=workflow, definition=definition, user_config=user_config, dto=dto
@@ -293,6 +300,7 @@ class AgentRuntimeFactory:
             if charge is not None
             else ReactFlowDTO.model_validate(definition.workflow_json),
             skip_instance_constraints_for={"trigger"},
+            outils_epingles=getattr(definition, "outils_epingles", None),
         )
 
         # [.mark] The call's first agent builds its model with its own cache key
@@ -311,6 +319,8 @@ class AgentRuntimeFactory:
             self._voix_de_l_appel if self._voix_de_l_appel is not None else user_config.tts,
             run_configs,
         )
+        # [.mark] Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur, ceux de CET agent.
+        brancher_les_interventions(llm, run_configs)
         # [.mark] Lot 8 (R12) : la trace du modèle suit l'agent appelé (case de CET agent), avant la
         # prise de notes ci-dessous qui lit la trace du moteur. Ne lève jamais.
         if self._moteur_de_l_appel is not None:

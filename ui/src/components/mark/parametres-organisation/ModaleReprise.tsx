@@ -12,14 +12,14 @@
  * for it. Centred window, never a side panel.
  */
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { repriseDesFichesApiV1OrganizationsEtablissementsReprisePost } from "@/client/sdk.gen";
 import type { ResultatReprise } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 const SUJETS: Record<"fiche" | "rendez_vous" | "agent", Texte> = {
@@ -41,13 +41,13 @@ export function ModaleReprise({ ouverte, onFermer }: { ouverte: boolean; onFerme
         const reponse = await repriseDesFichesApiV1OrganizationsEtablissementsReprisePost({ body: { ecrire } });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Takeover failed"));
+            setErreur(echecAffiche(reponse.error, ECHECS.fichesReprise));
             return;
         }
         setEssai(reponse.data);
         if (ecrire) {
             setEcrit(true);
-            toast.success(t({ en: "Takeover written", fr: "Reprise écrite" }));
+            notifier.succes({ fr: "Reprise enregistrée.", en: "Takeover saved." });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

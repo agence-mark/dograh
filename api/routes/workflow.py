@@ -6,13 +6,13 @@ from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from httpx import HTTPStatusError
 from loguru import logger
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
+from api.schemas.fiche_agent import verifier_extraction_contre_fiche
 from api.db.agent_trigger_client import TriggerPathConflictError
+from api.db.protection_principale import PrincipaleProtegee
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
 from api.enums import (
@@ -28,6 +28,7 @@ from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user_with_selected_organization, get_user
 from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisie
+from api.services import resume_appel
 from api.services.groupe.reglages import CONFIGURATION_DE_CREATION
 from api.services.configuration.ai_model_configuration import (
     DELIBERATE_PER_SERVICE_OVERRIDE_KEY,
@@ -58,7 +59,6 @@ from api.services.configuration.resolve import (
     enrich_overrides_with_api_keys,
     resolve_effective_config,
 )
-from api.services.mps_service_key_client import mps_service_key_client
 from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
@@ -69,6 +69,7 @@ from api.services.workflow.configuration_policy import (
     WorkflowConfigurationNotFoundError,
     apply_external_pbx_mapping_policy,
 )
+from api.services.builder.cerveau.refus_webhook import erreurs_cle_reservee_des_webhooks
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
 from api.services.groupe.groupe import (
     dupliquer_les_specialises,
@@ -77,6 +78,7 @@ from api.services.groupe.groupe import (
 )
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
+from api.schemas.publication import DemandeDePublication
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
 from api.services.workflow.run_usage_response import (
     format_public_cost_info,
@@ -96,6 +98,7 @@ from api.services.workflow.trigger_paths import (
 from api.services.workflow.workflow_graph import (
     WorkflowGraph,
     validate_node_instance_constraints,
+    nom_de_porte,
     validate_unique_transition_tool_names,
 )
 from api.utils.artifacts import artifact_url
@@ -284,7 +287,8 @@ def _transition_tool_name_validation_errors(
             and isinstance(label, str)
             and label
         ):
-            transitions.append((edge_id, source, label))
+            # [.mark] L6+ : l'unicité porte sur le nom de la fonction (identifiant stable, sinon libellé).
+            transitions.append((edge_id, source, nom_de_porte(data)))
 
     return validate_unique_transition_tool_names(transitions)
 
@@ -319,6 +323,11 @@ class WorkflowListResponse(BaseModel):
     total_runs: int
     folder_id: int | None = None
     workflow_uuid: str | None = None
+    # [.mark] K2: what the agents list shows (version, state, last change, calls of the last 7 days).
+    version_numero: int | None = None
+    version_etat: str | None = None
+    modifie_le: datetime | None = None
+    appels_7j: int = 0
 
 
 class MoveWorkflowToFolderRequest(BaseModel):
@@ -361,6 +370,15 @@ class UpdateWorkflowRequest(BaseModel):
     # enforced by FastAPI; extra="allow" keeps passthrough keys like
     # model_configuration_v2_override intact.
     workflow_configurations: WorkflowConfigurationDefaults | None = None
+
+    @model_validator(mode="after")
+    def extraction_hors_des_champs_de_la_fiche(self) -> "UpdateWorkflowRequest":
+        """[.mark] RA-B R4b : l'extraction de Dograh ne porte pas le nom d'un champ de la fiche (audit 02 B1)."""
+        if self.workflow_definition is not None and self.workflow_configurations is not None:
+            verifier_extraction_contre_fiche(
+                self.workflow_definition, self.workflow_configurations.fiche_champs
+            )
+        return self
 
     @field_validator("workflow_configurations")
     @classmethod
@@ -458,6 +476,8 @@ class CreateWorkflowTemplateRequest(BaseModel):
     call_type: Literal[CallType.INBOUND.value, CallType.OUTBOUND.value]
     use_case: str
     activity_description: str
+    # [.mark] lot M : la recette choisie à la création (identifiant d'une fiche de la bibliothèque) ; vide = le défaut.
+    recette: str | None = None
 
 
 @router.post("/{workflow_id}/validate")
@@ -559,6 +579,10 @@ async def create_workflow(
     )
     if tool_name_errors:
         raise _validation_errors_http_exception(tool_name_errors)
+    # [.mark] Builder, revue R2 : un webhook ne nomme pas la clé du cerveau.
+    reserved_errors = await erreurs_cle_reservee_des_webhooks(workflow_definition, user.selected_organization_id)
+    if reserved_errors:
+        raise _validation_errors_http_exception(reserved_errors)
 
     # Validate trigger path uniqueness BEFORE creating the workflow so we
     # don't leave an orphaned workflow record when the trigger conflicts.
@@ -620,114 +644,51 @@ async def create_workflow_from_template(
     user: UserModel = Depends(get_user),
 ) -> WorkflowResponse:
     """
-    Create a new workflow from a natural language template request.
+    Create a new workflow from a natural language request.
 
-    This endpoint:
-    1. Uses mps_service_key_client to call MPS workflow API
-    2. Passes organization ID (authenticated mode) or created_by (OSS mode)
-    3. Creates the workflow in the database
-
-    Args:
-        request: The template creation request with call_type, use_case, and activity_description
-        user: The authenticated user
-
-    Returns:
-        The created workflow
-
-    Raises:
-        HTTPException: If MPS API call fails
+    [.mark] builder-agent-vocal, lot 1: no more call to the hosted Dograh service (MPS, a Dograh service key and
+    a third party). The request becomes the agent's context and the agent is born as a neutral skeleton
+    (start -> end) that the builder (``/builder``) then builds. Same response shape as before.
     """
+    from api.services.builder import creation
+    from api.services.builder.recettes import ErreurRecette
+
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
     try:
-        # Call MPS API to generate workflow using the client
-        if DEPLOYMENT_MODE == "oss":
-            workflow_data = await mps_service_key_client.call_workflow_api(
-                call_type=request.call_type.upper(),
-                use_case=request.use_case,
-                activity_description=request.activity_description,
-                created_by=str(user.provider_id),
-            )
-        else:
-            if not user.selected_organization_id:
-                raise HTTPException(status_code=400, detail="No organization selected")
-
-            workflow_data = await mps_service_key_client.call_workflow_api(
-                call_type=request.call_type.upper(),
-                use_case=request.use_case,
-                activity_description=request.activity_description,
-                organization_id=user.selected_organization_id,
-            )
-
-        # Create the workflow in our database
-        # Regenerate trigger UUIDs to avoid conflicts with existing triggers
-        workflow_def = regenerate_trigger_uuids(
-            workflow_data.get("workflow_definition", {})
-        )
-
-        trigger_paths = extract_trigger_paths(workflow_def) if workflow_def else []
-        if trigger_paths:
-            try:
-                await db_client.assert_trigger_paths_available(
-                    trigger_paths=trigger_paths,
-                )
-            except TriggerPathConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-
-        workflow = await db_client.create_workflow(
-            name=workflow_data.get("name", f"{request.use_case} - {request.call_type}"),
-            workflow_definition=workflow_def,
-            user_id=user.id,
-            organization_id=user.selected_organization_id,
-            workflow_configurations=CONFIGURATION_DE_CREATION,
-        )
-
-        capture_event(
-            distinct_id=str(user.provider_id),
-            event=PostHogEvent.WORKFLOW_CREATED,
-            properties={
-                "workflow_id": workflow.id,
-                "workflow_name": workflow.name,
-                "source": "template",
-                "call_type": request.call_type,
-                "use_case": request.use_case,
-                "organization_id": user.selected_organization_id,
-            },
-        )
-
-        if trigger_paths:
-            await db_client.sync_triggers_for_workflow(
-                workflow_id=workflow.id,
-                organization_id=user.selected_organization_id,
-                trigger_paths=trigger_paths,
-            )
-
-        return {
-            "id": workflow.id,
-            "name": workflow.name,
-            "status": workflow.status,
-            "created_at": workflow.created_at,
-            "workflow_definition": mask_workflow_definition(workflow_def),
-            "current_definition_id": workflow.current_definition_id,
-            "template_context_variables": workflow.template_context_variables,
-            "call_disposition_codes": workflow.call_disposition_codes,
-            "workflow_configurations": mask_workflow_configurations(
-                workflow.workflow_configurations
-            ),
-        }
-
+        workflow = await creation.creer(user, request.call_type, request.use_case, request.activity_description, request.recette)
     except HTTPException:
         raise
-    except HTTPStatusError as e:
-        logger.error(f"MPS API error: {e}")
-        raise HTTPException(
-            status_code=e.response.status_code if hasattr(e, "response") else 500,
-            detail=str(e),
-        )
+    except ErreurRecette as e:
+        raise HTTPException(status_code=e.statut, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error creating workflow from template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred: {str(e)}",
-        )
+        logger.error(f"Unexpected error creating workflow from request: {type(e).__name__}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+    capture_event(
+        distinct_id=str(user.provider_id),
+        event=PostHogEvent.WORKFLOW_CREATED,
+        properties={
+            "workflow_id": workflow.id,
+            "workflow_name": workflow.name,
+            "source": "builder",
+            "call_type": request.call_type,
+            "use_case": request.use_case,
+            "organization_id": user.selected_organization_id,
+        },
+    )
+    workflow_def = creation.squelette()
+    return {
+        "id": workflow.id,
+        "name": workflow.name,
+        "status": workflow.status,
+        "created_at": workflow.created_at,
+        "workflow_definition": mask_workflow_definition(workflow_def),
+        "current_definition_id": workflow.current_definition_id,
+        "template_context_variables": workflow.template_context_variables,
+        "call_disposition_codes": workflow.call_disposition_codes,
+        "workflow_configurations": mask_workflow_configurations(workflow.workflow_configurations),
+    }
 
 
 class WorkflowSummaryResponse(BaseModel):
@@ -820,6 +781,7 @@ async def get_workflows(
     # Get run counts for all workflows in a single query
     workflow_ids = [workflow.id for workflow in workflows]
     run_counts = await db_client.get_workflow_run_counts(workflow_ids)
+    etats = await db_client.get_etat_des_versions_pour_liste(workflow_ids)
 
     return [
         WorkflowListResponse(
@@ -830,6 +792,7 @@ async def get_workflows(
             total_runs=run_counts.get(workflow.id, 0),
             folder_id=workflow.folder_id,
             workflow_uuid=workflow.workflow_uuid,
+            **etats.get(workflow.id, {}),
         )
         for workflow in workflows
     ]
@@ -867,12 +830,16 @@ async def get_workflow(
         workflow_configs = draft.workflow_configurations
         template_vars = draft.template_context_variables
     else:
-        published = workflow.released_definition
+        # [.mark] Partie 3, SA-L3b : une branche ouverte sans brouillon montre SA version en ligne, pas celle de la principale.
+        published = (
+            await db_client.version_en_ligne_de_la_branche_ouverte(workflow_id)
+            or workflow.released_definition
+        )
         workflow_def = published.workflow_json
         workflow_configs = published.workflow_configurations
         template_vars = published.template_context_variables
 
-    active_def = draft or workflow.released_definition
+    active_def = draft or published
     return {
         "id": workflow.id,
         "name": workflow.name,
@@ -958,7 +925,7 @@ async def get_workflow_versions(
     ]
 
 
-async def publier_un_agent(workflow_id: int, user: UserModel):
+async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[DemandeDePublication] = None):
     """Publish the current draft of a workflow (shared by the route and the group route).
 
     Drafts are allowed to be incomplete (so the editor can save mid-edit),
@@ -976,6 +943,9 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
             status_code=404, detail=f"Workflow with id {workflow_id} not found"
         )
 
+    # [.mark] Partie 3, SA-L3c : la principale protégée ne se publie que par une fusion relue (refus avant tout contrôle).
+    await db_client.exiger_la_principale_modifiable(workflow_id)
+
     draft = await db_client.get_draft_version(workflow_id)
     if draft is None:
         raise HTTPException(status_code=400, detail="No draft to publish")
@@ -988,10 +958,92 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
     if errors:
         raise _validation_errors_http_exception(errors)
 
+    # [.mark] builder-agent-vocal, lot 6 : la garde de publication (contrôle du prompt, tests obligatoires rejoués sur CE brouillon).
+    # C1 : tout agent qui a des tests obligatoires est gardé ; un refus a la forme de la validation (``is_valid`` + ``errors``).
+    from api.services.builder.tests_agent.publication import verifier_avant_publication
+
+    refus_du_builder = await verifier_avant_publication(workflow, draft, user.selected_organization_id, user.id)
+    if refus_du_builder is not None:
+        # [.mark] U11 : on peut toujours forcer, avec une raison écrite au journal (la personne, la version, ce qui bloquait).
+        if demande is None or not demande.forcer:
+            raise HTTPException(status_code=422, detail=refus_du_builder)
+        from api.services.equipe_mark.acces import journaliser
+        from api.services.publication.controles import RaisonObligatoire, raison_valide
+
+        try:
+            raison_forcee = raison_valide(demande.raison)
+        except RaisonObligatoire as erreur:
+            raise HTTPException(status_code=422, detail=str(erreur)) from None
+        await journaliser(
+            user,
+            "agents.publier_force",
+            user.selected_organization_id,
+            {
+                "agent": workflow_id,
+                "version": draft.version_number,
+                "raison": raison_forcee,
+                "ce_qui_bloquait": [e["message"] for e in refus_du_builder.get("errors", [])][:20],
+            },
+        )
+
+    # [.mark] U10 / S2 (D153, D163) : le canal est « telephone » ou « site » ; un agent de site ne porte aucun outil
+    # de transfert d'appel (ni vers un numéro, ni vers une personne de l'équipe).
+    from api.services.groupe.agents_servis import outils_des_etapes
+    from api.services.site_mark import canal as canal_site
+
+    canal_brouillon = (draft.workflow_configurations or {}).get(canal_site.CLE_CANAL)
+    if canal_brouillon is not None and canal_brouillon not in canal_site.CANAUX:
+        raise HTTPException(
+            status_code=422, detail="The agent's channel is « telephone » or « site »."
+        )
+    if canal_brouillon == canal_site.SITE:
+        uuids = outils_des_etapes(draft.workflow_json)
+        outils = (
+            list(await db_client.get_tools_by_uuids(uuids, user.selected_organization_id))
+            if uuids
+            else []
+        )
+        refus_canal = canal_site.refus_transfert_sur_agent_de_site(canal_site.SITE, outils)
+        if refus_canal:
+            raise HTTPException(status_code=422, detail=refus_canal)
+
+    # [.mark] Partie 3, SA-L3b (05 § 12) : la part des appels est la RÉPARTITION ENTRE BRANCHES (``/builder/branches``), plus une
+    # option de la publication. Publier ici publie la branche principale ; les branches gardent leur part.
+    # [.mark] Partie 3 (SE-12) : un agent sans réglages de publication propres reçoit ceux de l'organisation, recopiés dans son
+    # brouillon avant la publication (la création d'un appel lit le dictionnaire de la version publiée, rien de plus).
+    from api.services.publication import defauts_org
+
+    configurations_effectives = await defauts_org.effectives(user.selected_organization_id, draft.workflow_configurations)
+    if configurations_effectives != (draft.workflow_configurations or {}):
+        await db_client.save_workflow_draft(workflow_id, workflow_configurations=configurations_effectives)
+        draft.workflow_configurations = configurations_effectives
+
+    # [.mark] Partie 3, SA-L3b : une branche ouverte (``X-Mark-Branche``) se publie par SA branche, avec les MÊMES contrôles que
+    # la principale (ils viennent de passer sur le brouillon de la branche) ; la version en ligne de l'agent ne bouge pas.
+    ouverte = await db_client.branche_ouverte_de(workflow_id)
+    if ouverte.branch_id is not None:
+        from api.db.branches_client import ErreurDeBranche
+        from api.services.branches import service as service_branches
+        from api.services.equipe_mark.acces import journaliser as journaliser_branche
+
+        try:
+            version = await service_branches.publier(user.selected_organization_id, workflow, ouverte.branch_id, user.id)
+        except ErreurDeBranche as erreur:
+            raise HTTPException(status_code=409 if erreur.code == "sans_brouillon" else 422, detail=str(erreur)) from None
+        await journaliser_branche(
+            user,
+            "agents.branche_publiee",
+            user.selected_organization_id,
+            {"agent": workflow_id, "branche": ouverte.branch_id, "version": version["version_number"]},
+        )
+        return {"id": version["id"], "version_number": version["version_number"], "status": version["status"], "published_at": None}
+
     try:
         published = await db_client.publish_workflow_draft(workflow_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Une nouvelle version en ligne : la principale la suit (une épingle posée par un retour en arrière ou une migration tombe).
+    await db_client.epingler_la_principale(user.selected_organization_id, workflow_id, None)
 
     capture_event(
         distinct_id=str(user.provider_id),
@@ -1023,6 +1075,15 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
     from api.services.modules.lecture import synchroniser_modules
 
     await synchroniser_modules(user.selected_organization_id)
+    # [.mark] U8 : les problèmes « Testée » de l'agent passent « Publiée » (ne lève jamais).
+    from api.services.boucle.avancement import apres_une_publication
+
+    await apres_une_publication(user.selected_organization_id, workflow_id)
+    # [.mark] Partie 3, sous-lot 7 (SE-15) : l'état publié (graphe, phrases, réglages, vocabulaire, objets) est gardé pour « Revenir avant ».
+    # Ne lève jamais : une publication faite ne rate pas faute d'instantané.
+    from api.services.builder import revue as revue_du_builder
+
+    await revue_du_builder.apres_une_publication(user.selected_organization_id, workflow, published, user)
 
     return {
         "id": published.id,
@@ -1035,10 +1096,14 @@ async def publier_un_agent(workflow_id: int, user: UserModel):
 @router.post("/{workflow_id}/publish")
 async def publish_workflow(
     workflow_id: int,
+    demande: Optional[DemandeDePublication] = None,
     user: UserModel = Depends(get_user),
 ):
-    """Publish the current draft version of a workflow."""
-    return await publier_un_agent(workflow_id, user)
+    """Publish the current draft version of a workflow.
+
+    [.mark] U11 : le corps est facultatif (forcer avec une raison, part des appels, note pour le journal).
+    """
+    return await publier_un_agent(workflow_id, user, demande)
 
 
 @router.post("/{workflow_id}/create-draft")
@@ -1246,6 +1311,10 @@ async def update_workflow(
                 tool_name_errors,
                 status_code=409,
             )
+        # [.mark] Builder, revue R2 : un webhook ne nomme pas la clé du cerveau.
+        reserved_errors = await erreurs_cle_reservee_des_webhooks(workflow_definition, user.selected_organization_id)
+        if reserved_errors:
+            raise _validation_errors_http_exception(reserved_errors, status_code=409)
         if workflow_definition:
             existing_workflow = await db_client.get_workflow(
                 workflow_id, organization_id=user.selected_organization_id
@@ -1589,7 +1658,7 @@ async def update_workflow(
             "version_number": active_def.version_number if active_def else None,
             "version_status": active_def.status if active_def else None,
         }
-    except HTTPException:
+    except (HTTPException, PrincipaleProtegee):
         raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -1600,6 +1669,8 @@ async def update_workflow(
 @router.post("/{workflow_id}/duplicate")
 async def duplicate_workflow_endpoint(
     workflow_id: int,
+    avec_tests: bool = Query(False, description="[.mark] Recopier aussi les tests de l'agent (jamais leurs résultats)"),
+    nom: str | None = Query(None, max_length=200, description="[.mark] Le nom de la copie ; vide : « nom - Duplicate »"),
     user: UserModel = Depends(get_user),
 ) -> WorkflowResponse:
     """Duplicate a workflow including its definition, configuration, recordings, and triggers."""
@@ -1608,11 +1679,13 @@ async def duplicate_workflow_endpoint(
             workflow_id=workflow_id,
             organization_id=user.selected_organization_id,
             user_id=user.id,
+            nom=nom,
         )
 
         # [.mark] Lot 10 : la duplication d'un principal duplique son groupe.
+        nouveaux_specialises: list[int] = []
         try:
-            await dupliquer_les_specialises(
+            nouveaux_specialises = await dupliquer_les_specialises(
                 source_principal_id=workflow_id,
                 copie_principal_id=workflow.id,
                 organization_id=user.selected_organization_id,
@@ -1636,6 +1709,14 @@ async def duplicate_workflow_endpoint(
             raise HTTPException(
                 status_code=500,
                 detail="The group could not be duplicated; the incomplete copy was archived.",
+            )
+
+        # [.mark] U2 quinquies (E58) : « Dupliquer avec ses tests » recopie les tests de chaque agent sur sa copie (jamais leurs résultats).
+        if avec_tests:
+            from api.services.export_agent.ecriture import copier_les_tests_apres_duplication
+
+            await copier_les_tests_apres_duplication(
+                user.selected_organization_id, workflow_id, workflow.id, nouveaux_specialises
             )
 
         capture_event(
@@ -1799,6 +1880,11 @@ async def get_workflow_run(
         "call_type": run.call_type,
         "logs": run.logs,
         "annotations": run.annotations,
+        # [.mark] V1b : la version jouée et la note du juge, pour le titre de la page d'une conversation.
+        "version_number": run.definition.version_number if run.definition else None,
+        "note_juge": run.note_juge,
+        # [.mark] N3b : le résumé de l'appel, lu des annotations de la même ligne.
+        **resume_appel.champs(run.annotations),
     }
 
 

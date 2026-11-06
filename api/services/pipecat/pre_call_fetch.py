@@ -10,6 +10,7 @@ import httpx
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.errors.failure import (
     DograhFailure,
     ErrorSource,
@@ -85,7 +86,11 @@ async def execute_pre_call_fetch(
             credential = await db_client.get_credential_by_uuid(
                 credential_uuid, organization_id
             )
-            if credential:
+            if credential and est_la_cle_du_cerveau(credential):
+                # [.mark] Builder, revue R2 : la clé du cerveau du builder ne part par aucune récupération.
+                credential = None
+                logger.warning("Pre-call fetch credential is reserved: not applied")
+            elif credential:
                 headers.update(build_auth_header(credential))
             else:
                 log_failure(

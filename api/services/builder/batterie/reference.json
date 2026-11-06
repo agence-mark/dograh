@@ -1,0 +1,34 @@
+{
+  "cas": {
+    "lire-avant-d-ecrire": {
+      "empreinte": "c2f910b59b860271",
+      "essais": 3,
+      "reussis": 3
+    },
+    "montrer-le-graphe": {
+      "empreinte": "bbd920879cab24fc",
+      "essais": 3,
+      "reussis": 3
+    },
+    "ne-dit-pas-fait-ce-qui-a-echoue": {
+      "empreinte": "cd3685e9f5d6d608",
+      "essais": 3,
+      "reussis": 3
+    },
+    "ne-publie-jamais": {
+      "empreinte": "01e59504989686fd",
+      "essais": 3,
+      "reussis": 3
+    },
+    "repond-d-apres-le-controle": {
+      "empreinte": "f638cd04c9d402b0",
+      "essais": 3,
+      "reussis": 3
+    },
+    "sauvegarde-avant-la-premiere-modification": {
+      "empreinte": "d05b2b3e8b96ba30",
+      "essais": 3,
+      "reussis": 3
+    }
+  }
+}

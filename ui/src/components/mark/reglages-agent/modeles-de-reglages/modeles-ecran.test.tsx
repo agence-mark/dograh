@@ -10,11 +10,15 @@
  * | importer, exporter | le fichier part tel quel ; un refus du serveur est montre avec le nom du reglage |
  * | modale | centree, a en-tete fixe, jamais un panneau lateral ; textes en deux langues |
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../../langue/langue";
 import { BoutonModeles, TITRES_DES_SECTIONS } from "./ModaleModeles";
+import { PageModelesDeReglages } from "./PageModelesDeReglages";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const m = vi.hoisted(() => {
     const etat = {
@@ -34,6 +38,7 @@ const m = vi.hoisted(() => {
 });
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../../sdk-factice")).sdkFactice(await importOriginal(), {
     listerLesModelesApiV1OrganizationsModelesDeReglagesGet: m.enregistrer("lister", () => ({ data: m.liste })),
     mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet: m.enregistrer("mention", () => ({
@@ -66,17 +71,21 @@ const MODELE = {
 
 const appelsDe = (nom: string) => m.appels.filter((a) => a.nom === nom).map((a) => a.options as Record<string, unknown>);
 
-const ouvrirLaModale = async (props: { modifie?: boolean; apres?: () => void } = {}) => {
+const ouvrirLaModale = async (props: { modifie?: boolean; apres?: () => void; mode?: "appliquer" | "enregistrer" | "gerer" } = {}) => {
     render(
         <FournisseurLangue>
             <BoutonModeles workflowId={7} modifie={props.modifie ?? false} apresApplication={props.apres ?? (() => {})} />
         </FournisseurLangue>,
     );
     fireEvent.click(document.querySelector("[data-bouton-modeles]") as HTMLElement);
+    // U4 (E45 A): the « Template » menu; « Manage templates » shows everything, as the single button did.
+    fireEvent.click(document.querySelector(`[data-entree-modeles="${props.mode ?? "gerer"}"]`) as HTMLElement);
     await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
 };
 
 beforeEach(() => {
+
+  viderNotifications();
     m.liste = { modeles: [MODELE], sections: SECTIONS };
     m.mention = null;
     m.reglees = [];
@@ -92,7 +101,7 @@ afterEach(() => {
 
 describe("[.mark] settings templates on screen", () => {
     it("every section of the screen has a title in both languages, and the server's sections are all named", () => {
-        expect(SECTIONS).toEqual(["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]);
+        expect(SECTIONS).toEqual(["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement", "interventions"]);
         for (const titre of Object.values(TITRES_DES_SECTIONS)) {
             expect(titre.en.trim()).not.toBe("");
             expect(titre.fr.trim()).not.toBe("");
@@ -239,7 +248,8 @@ describe("[.mark] settings templates on screen", () => {
         })) as never);
         await ouvrirLaModale();
         fireEvent.click(await screen.findByText("Apply", { selector: "[data-appliquer-modele]" }));
-        await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).toContain("would not be accepted"));
+        await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).toMatch(phraseAttendue(ECHECS.modeleAppliquer)));
+        await waitFor(() => expect(document.querySelector("[data-refus-application]")?.textContent).not.toContain("would not be accepted"));
         expect((document.querySelector("[data-valider-application]") as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -281,21 +291,95 @@ describe("[.mark] settings templates on screen", () => {
     it("sends an imported file as it is, and shows the server's refusal with the setting's name", async () => {
         const fichier = { format: "modele-de-reglages-mark", version_du_format: 1, nom: "Importe", valeurs: { reglage_inconnu: 1 } };
         m.refusImport = { detail: [{ msg: "Setting « reglage_inconnu » refused: this server does not know it.", loc: ["body", "valeurs", "reglage_inconnu"] }] };
-        const { toast } = await import("sonner");
         await ouvrirLaModale();
         const champ = document.querySelector("[data-import-modele]") as HTMLInputElement;
         fireEvent.change(champ, { target: { files: [new File([JSON.stringify(fichier)], "modele.json", { type: "application/json" })] } });
         await waitFor(() => expect(appelsDe("importer")).toHaveLength(1));
         expect(appelsDe("importer")[0].body).toEqual(fichier);
-        await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("reglage_inconnu")));
+        await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toEqual(expect.arrayContaining([expect.stringContaining("reglage_inconnu")])));
     });
 
     it("refuses a file that is not JSON without asking the server", async () => {
-        const { toast } = await import("sonner");
         await ouvrirLaModale();
         const champ = document.querySelector("[data-import-modele]") as HTMLInputElement;
         fireEvent.change(champ, { target: { files: [new File(["pas du json"], "x.json")] } });
-        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
         expect(appelsDe("importer")).toHaveLength(0);
+    });
+});
+
+
+// builder partie 2, D1 (U4, E45 A et B) : le menu « Modèle ▾ » et la rubrique Bibliothèque › Modèles de réglages.
+describe("[.mark] the « Template » menu", () => {
+    it("offers three gestures, each opening the one window with what it needs", async () => {
+        await ouvrirLaModale({ mode: "enregistrer" });
+        expect(document.querySelector("[data-creer-modele]")).not.toBeNull();
+        expect(document.querySelector("[data-modele]")).toBeNull();
+        cleanup();
+        await ouvrirLaModale({ mode: "appliquer" });
+        expect(document.querySelector("[data-creer-modele]")).toBeNull();
+        await waitFor(() => expect(document.querySelector("[data-appliquer-modele]")).not.toBeNull());
+        cleanup();
+        await ouvrirLaModale({ mode: "gerer" });
+        expect(document.querySelector("[data-creer-modele]")).not.toBeNull();
+        await waitFor(() => expect(document.querySelector("[data-appliquer-modele]")).not.toBeNull());
+    });
+
+    it("lists the entries of the menu under the button, and closes on a click outside", () => {
+        render(
+            <FournisseurLangue>
+                <BoutonModeles workflowId={7} modifie={false} apresApplication={() => {}} />
+            </FournisseurLangue>,
+        );
+        fireEvent.click(document.querySelector("[data-bouton-modeles]") as HTMLElement);
+        expect([...document.querySelectorAll("[data-entree-modeles]")].map((e) => e.getAttribute("data-entree-modeles"))).toEqual([
+            "appliquer",
+            "enregistrer",
+            "gerer",
+        ]);
+        fireEvent.click(document.querySelector("[data-menu-modeles]")!.previousElementSibling as HTMLElement);
+        expect(document.querySelector("[data-menu-modeles]")).toBeNull();
+    });
+
+    it("shows the status of each template (the library's)", async () => {
+        m.liste = { modeles: [{ ...MODELE, statut: "recette", version: 3 }], sections: SECTIONS };
+        await ouvrirLaModale();
+        await waitFor(() => expect(document.querySelector("[data-modele] [data-ton='succes']")).not.toBeNull());
+    });
+});
+
+describe("[.mark] Library › Settings templates", () => {
+    it("draws the table, opens the sheet, renames, exports and deletes with a confirmation", async () => {
+        m.liste = { modeles: [{ ...MODELE, statut: "recette", version: 2 }], sections: SECTIONS };
+        m.appels = [];
+        render(
+            <FournisseurLangue>
+                <PageModelesDeReglages />
+            </FournisseurLangue>,
+        );
+        await waitFor(() => expect(document.querySelector("[data-modele='abc123']")).not.toBeNull());
+        expect(document.querySelector("table")?.textContent).toContain("Agent de test");
+        fireEvent.click(document.querySelector("[data-modele='abc123']") as HTMLElement);
+        await waitFor(() => expect(document.querySelector("[data-fiche-modele='abc123']")).not.toBeNull());
+        await waitFor(() => expect(document.querySelector("[data-reglages-du-modele]")?.textContent).toContain("turn_start_min_words"));
+        const champ = screen.getByLabelText("Name of the template");
+        fireEvent.change(champ, { target: { value: "Autre nom" } });
+        fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+        await waitFor(() => expect(appelsDe("renommer")).toHaveLength(1));
+        expect(appelsDe("renommer")[0]).toMatchObject({ path: { modele_id: "abc123" }, body: { nom: "Autre nom" } });
+        fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+        expect(appelsDe("supprimer")).toHaveLength(0);
+        fireEvent.click(document.querySelector("[data-confirmer-suppression]") as HTMLElement);
+        await waitFor(() => expect(appelsDe("supprimer")).toHaveLength(1));
+    });
+
+    it("says it when there is no template, and when the list cannot be read", async () => {
+        m.liste = { modeles: [], sections: SECTIONS };
+        render(
+            <FournisseurLangue>
+                <PageModelesDeReglages />
+            </FournisseurLangue>,
+        );
+        await waitFor(() => expect(screen.getByText("No template yet")).toBeTruthy());
     });
 });

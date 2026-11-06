@@ -10,6 +10,7 @@ import { ChampCleModele } from "@/components/mark/cles/ChampCleModele";
 import { useLangue } from "@/components/mark/langue/langue";
 import { CarteDesVoix, type VoixConnue } from "@/components/mark/modeles/CarteDesVoix";
 import { grouperChamps, LibelleChamp, SousMenuFournisseur } from "@/components/mark/modeles/GroupesFournisseur";
+import { ListeFournisseurs } from "@/components/mark/modeles/ListeFournisseurs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -88,12 +89,16 @@ interface SchemaProperty {
     // langues, declares cote serveur. Sans eux, l'aide est la `description` de l'api, en anglais.
     mark_aide?: { en: string; fr: string };
     mark_valeurs?: Record<string, { en: string; fr: string }>;
+    // [.mark] Lot GT (builder partie 3): a number shown as a factor (« × 1,2 »), for the Gradium speed.
+    mark_facteur?: boolean;
 }
 
 export interface ProviderSchema {
     title?: string;
     description?: string;
     provider_docs_url?: string;
+    // [.mark] Lot GT: what the provider choice says of its conditions, in both languages (else `description`).
+    mark_aide?: { en: string; fr: string };
     properties: Record<string, SchemaProperty>;
     required?: string[];
     $defs?: Record<string, SchemaProperty>;
@@ -149,6 +154,35 @@ const VOICE_DISPLAY_NAMES: Record<string, string> = {
     "hitesh": "Hitesh (Male)",
 };
 
+// The tabs of a window that shows several services at once (an organization that has set none yet).
+const ONGLETS_DE_LA_FENETRE: Record<ServiceSegment, { en: string; fr: string }> = {
+    llm: { en: "Brain", fr: "Cerveau" },
+    tts: { en: "Voice", fr: "Voix" },
+    stt: { en: "Transcription", fr: "Transcription" },
+    embeddings: { en: "Embedding", fr: "Plongement" },
+    realtime: { en: "Realtime model", fr: "Modèle temps réel" },
+};
+
+const LIBELLES_COMMUNS: Record<string, { en: string; fr: string }> = {
+    model: { en: "Model", fr: "Modèle" },
+    voice: { en: "Voice", fr: "Voix" },
+    speed: { en: "Speed", fr: "Vitesse" },
+    volume: { en: "Volume", fr: "Volume" },
+    language: { en: "Language", fr: "Langue" },
+    temperature: { en: "Temperature", fr: "Température" },
+    base_url: { en: "API address", fr: "Adresse de l'API" },
+};
+
+/** [.mark] V2b: the card of the upstream form, or nothing in a window (body white, no card inside). */
+function Enveloppe({ sansCarte, children }: { sansCarte: boolean; children: ReactNode }) {
+    if (sansCarte) return <div>{children}</div>;
+    return (
+        <Card>
+            <CardContent className="pt-6">{children}</CardContent>
+        </Card>
+    );
+}
+
 export interface ServiceConfigurationFormProps {
     mode: 'global' | 'override';
     currentOverrides?: ModelOverrides;
@@ -170,6 +204,19 @@ export interface ServiceConfigurationFormProps {
      * Les valeurs de la voix restent celles de la configuration (rien n'est effacé à l'enregistrement).
      */
     voixVerrouillee?: ReactNode;
+    /**
+     * [.mark] U3 (E35): when given, only these services are drawn (the window of ONE service passes `["llm"]`, say).
+     * Absent = every service of the mode, as before.
+     */
+    segments?: ServiceSegment[];
+    /**
+     * [.mark] V2b (E51): in the window of a service the form is a plain body (no card, no tab bar for a single
+     * service) and its submit button lives in the window's footer, which submits this form by its id.
+     */
+    idFormulaire?: string;
+    sansBoutonEnregistrer?: boolean;
+    /** [.mark] Revue de contrôle, point 4 (M4) : dit à la fenêtre si le formulaire porte une saisie non enregistrée. */
+    surModification?: (modifie: boolean) => void;
 }
 
 function getProviderDisplayName(
@@ -316,8 +363,14 @@ export function ServiceConfigurationForm({
     initialConfig,
     forceRealtime,
     voixVerrouillee,
+    segments,
+    idFormulaire,
+    sansBoutonEnregistrer,
+    surModification,
 }: ServiceConfigurationFormProps) {
     const { t } = useLangue();
+    // [.mark] V2b: in the window of a service the usual field names are written in the screen's language.
+    const libelleDuChamp = (champ: string) => (idFormulaire && LIBELLES_COMMUNS[champ] ? t(LIBELLES_COMMUNS[champ]) : champ.replace(/_/g, ' '));
     const [apiError, setApiError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isRealtime, setIsRealtime] = useState(forceRealtime ?? false);
@@ -343,6 +396,7 @@ export function ServiceConfigurationForm({
         embeddings: [""],
         realtime: [""],
     });
+    const [fournisseurChoisi, setFournisseurChoisi] = useState(false);
     const [isCustomInput, setIsCustomInput] = useState<Record<string, boolean>>({});
 
     // Override-specific state: which services have the override toggle enabled
@@ -356,12 +410,16 @@ export function ServiceConfigurationForm({
     const {
         register,
         handleSubmit,
-        formState: { },
+        formState: { isDirty },
         reset,
         getValues,
         setValue,
         watch
     } = useForm();
+
+    useEffect(() => {
+        surModification?.(isDirty || fournisseurChoisi);
+    }, [isDirty, fournisseurChoisi, surModification]);
 
     // Build effective config source: overlay overrides onto global config
     const configSource = useMemo(() => {
@@ -631,6 +689,7 @@ export function ServiceConfigurationForm({
 
         preservedValues[`${service}_provider`] = providerName;
         reset(preservedValues);
+        setFournisseurChoisi(true); // `reset` repart d'une base propre : le choix d'un fournisseur est quand même une saisie
         setServiceProviders(prev => ({ ...prev, [service]: providerName }));
         setApiKeys(prev => ({ ...prev, [service]: [""] }));
 
@@ -935,6 +994,7 @@ export function ServiceConfigurationForm({
         const availableProviders = schemas?.[service] ? Object.keys(schemas[service]) : [];
         return (
             <div className="space-y-2">
+                {!idFormulaire && (<>
                 <Label>Provider</Label>
                 <Select
                     value={currentProvider}
@@ -953,9 +1013,10 @@ export function ServiceConfigurationForm({
                         ))}
                     </SelectContent>
                 </Select>
+                </>)}
                 {(providerSchema?.description || providerSchema?.provider_docs_url) && (
                     <p className="text-xs text-muted-foreground">
-                        {providerSchema?.description}{" "}
+                        {providerSchema?.mark_aide ? t(providerSchema.mark_aide) : providerSchema?.description}{" "}
                         {providerSchema?.provider_docs_url && (
                             <a
                                 href={providerSchema.provider_docs_url}
@@ -1000,7 +1061,7 @@ export function ServiceConfigurationForm({
         );
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${idFormulaire ? "grid-cols-1" : "grid-cols-2"}`}>
                     {renderProviderSelect(service)}
                     {enHaut && champ(enHaut)}
                 </div>
@@ -1036,12 +1097,12 @@ export function ServiceConfigurationForm({
 
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${idFormulaire ? "grid-cols-1" : "grid-cols-2"}`}>
                     {renderProviderSelect(service)}
 
                     {currentProvider && providerSchema && configFields[0] && (
                         <div className="space-y-2">
-                            <Label className="capitalize">{configFields[0].replace(/_/g, ' ')}</Label>
+                            <Label className="capitalize">{libelleDuChamp(configFields[0])}</Label>
                             {renderField(service, configFields[0], providerSchema)}
                         </div>
                     )}
@@ -1064,7 +1125,7 @@ export function ServiceConfigurationForm({
                             if (!estVisibleSelonLesAutresChamps(actualFieldSchema, lire)) return null;
                             return (
                                 <div key={field} data-champ={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
-                                    <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
+                                    <Label className="capitalize">{libelleDuChamp(field)}</Label>
                                     {renderField(service, field, providerSchema)}
                                 </div>
                             );
@@ -1341,7 +1402,8 @@ export function ServiceConfigurationForm({
                         <SelectContent>
                             {options.map((value: string) => (
                                 <SelectItem key={value} value={value}>
-                                    {value}
+                                    {/* [.mark] Lot GT: the name of a menu value in both languages, when the schema gives it. */}
+                                    {actualSchema?.mark_valeurs?.[value] ? t(actualSchema.mark_valeurs[value]) : value}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -1413,7 +1475,7 @@ export function ServiceConfigurationForm({
             );
         }
 
-        return (
+        const champNombre = (
             <Input
                 type={numberSchema ? "number" : "text"}
                 {...(numberSchema && {
@@ -1430,6 +1492,16 @@ export function ServiceConfigurationForm({
                 })}
             />
         );
+        // [.mark] Lot GT: a factor is written « × 1,2 » (the sign before the box, the bounds in the hint).
+        if (actualSchema?.mark_facteur && numberSchema) {
+            return (
+                <div className="flex items-center gap-2" data-facteur={`${service}_${field}`}>
+                    <span aria-hidden="true" className="text-sm text-muted-foreground">×</span>
+                    {champNombre}
+                </div>
+            );
+        }
+        return champNombre;
     };
 
     const handleOverrideToggle = (service: string, enabled: boolean) => {
@@ -1464,17 +1536,17 @@ export function ServiceConfigurationForm({
     };
 
     const getVisibleTabs = () => {
-        if (mode === 'override') {
-            return isRealtime ? OVERRIDE_REALTIME_TABS : OVERRIDE_STANDARD_TABS;
-        }
-        return isRealtime ? REALTIME_TABS : STANDARD_TABS;
+        const tous = mode === 'override'
+            ? (isRealtime ? OVERRIDE_REALTIME_TABS : OVERRIDE_STANDARD_TABS)
+            : (isRealtime ? REALTIME_TABS : STANDARD_TABS);
+        return segments ? tous.filter(({ key }) => segments.includes(key)) : tous;
     };
 
     const visibleTabs = getVisibleTabs();
-    const defaultTab = isRealtime ? "realtime" : "llm";
+    const defaultTab = visibleTabs[0]?.key ?? (isRealtime ? "realtime" : "llm");
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form id={idFormulaire} onSubmit={handleSubmit(onSubmit)}>
             {/* Realtime toggle — hidden when the parent locks the mode (v2 tabs) */}
             {forceRealtime === undefined && (
                 <div className="flex items-center justify-between mb-4 p-4 border rounded-lg">
@@ -1494,13 +1566,12 @@ export function ServiceConfigurationForm({
                 </div>
             )}
 
-            <Card>
-                <CardContent className="pt-6">
+            <Enveloppe sansCarte={Boolean(segments)}>
                     <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
-                        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
+                        <TabsList className={segments && visibleTabs.length === 1 ? "hidden" : "grid w-full mb-6"} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
                             {visibleTabs.map(({ key, label }) => (
                                 <TabsTrigger key={key} value={key}>
-                                    {label}
+                                    {idFormulaire ? t(ONGLETS_DE_LA_FENETRE[key]) : label}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
@@ -1515,6 +1586,16 @@ export function ServiceConfigurationForm({
                                             {(mode === 'global' || enabledOverrides[key]) && renderServiceFields(key)}
                                         </fieldset>
                                     </>
+                                ) : idFormulaire ? (
+                                    <div className="grid grid-cols-[180px_1fr] gap-5">
+                                        <ListeFournisseurs
+                                            fournisseurs={Object.keys(schemas[key] ?? {}).map((id) => ({ id, nom: getProviderDisplayName(id, schemas[key]?.[id]) ?? id }))}
+                                            choisi={serviceProviders[key]}
+                                            choisir={(id) => handleProviderChange(key, id)}
+                                            libelle={label}
+                                        />
+                                        <div className="min-w-0">{renderServiceFields(key)}</div>
+                                    </div>
                                 ) : (
                                     <>
                                         {mode === 'override' && renderOverrideToggle(key, label)}
@@ -1524,14 +1605,15 @@ export function ServiceConfigurationForm({
                             </TabsContent>
                         ))}
                     </Tabs>
-                </CardContent>
-            </Card>
+            </Enveloppe>
 
             {apiError && <p className="text-destructive mt-4">{apiError}</p>}
 
-            <Button type="submit" className="w-full mt-6" disabled={isSaving}>
-                {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
-            </Button>
+            {!sansBoutonEnregistrer && (
+                <Button type="submit" className="w-full mt-6" disabled={isSaving}>
+                    {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
+                </Button>
+            )}
         </form>
     );
 }

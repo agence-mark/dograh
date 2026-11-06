@@ -15,10 +15,10 @@
  * le moteur lit les mêmes outils qu'avant. La fenêtre d'une étape n'est jamais traduite (T3), mais
  * ce composant est le nôtre : ses textes sont dans les deux langues.
  */
-import { ExternalLink, Plus, Trash2, UserRound } from "lucide-react";
+import { Plus, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import {
@@ -27,23 +27,23 @@ import {
     lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet,
 } from "@/client/sdk.gen";
 import type { ToolResponse, WorkflowListResponse } from "@/client/types.gen";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 
 const TEXTES = {
-    titre: { en: "Agents", fr: "Agents" },
+    titre: { en: "Agent attached to this step", fr: "Agent attaché à cette étape" },
+    annonceCourte: { en: "announcement", fr: "annonce" },
     aide: {
         en: "Hands the call to another agent of the organization. One brick, one destination: the model chooses between the bricks of the step by their names and descriptions.",
         fr: "Passe l'appel à un autre agent de l'organisation. Une brique, une destination : le modèle choisit entre les briques de l'étape d'après leurs noms et leurs descriptions.",
     },
-    aucune: { en: "No agent on this step.", fr: "Aucun agent sur cette étape." },
-    ajouter: { en: "Add an agent", fr: "Ajouter un agent" },
+    ajouter: { en: "Attach an agent", fr: "Attacher un agent" },
     retirer: { en: "Detach this agent from the step", fr: "Détacher cet agent de l'étape" },
     ouvrir: { en: "Open the agent in a new tab", fr: "Ouvrir l'agent dans un nouvel onglet" },
     modaleTitre: { en: "Choose an agent", fr: "Choisir un agent" },
@@ -180,14 +180,14 @@ export const BriqueAgent = ({
                 body: outilDePassation(cible, annonce, accueil, dejaPris),
             });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Brique non enregistrée. Réessayez.", en: "Block not saved. Try again." }, { erreur: reponse.error });
                 return;
             }
             ajouterOutil?.(reponse.data);
             onChange([...outilsUuids, reponse.data.tool_uuid]);
             setOuverte(false);
         } catch {
-            toast.error(t(TEXTES.echec));
+            notifier.echec({ fr: "Brique non enregistrée. Réessayez.", en: "Block not saved. Try again." });
         } finally {
             setEnCours(false);
         }
@@ -208,58 +208,51 @@ export const BriqueAgent = ({
     );
 
     return (
-        <div className="grid gap-2" data-brique="agent">
-            <div>
-                <p className="text-sm font-medium">{t(TEXTES.titre)}</p>
-                <p className="text-xs text-muted-foreground">{t(TEXTES.aide)}</p>
-            </div>
-            {passations.length === 0 ? (
-                <p className="text-xs text-muted-foreground">{t(TEXTES.aucune)}</p>
-            ) : (
-                <ul className="space-y-1" data-liste="briques-agent">
-                    {passations.map((outil) => {
-                        const config = configDe(outil);
-                        const cible = config.workflow_id;
-                        return (
-                            <li key={outil.tool_uuid} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm" data-brique-agent={cible}>
-                                <Link
-                                    href={`/workflow/${cible}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label={t(TEXTES.ouvrir)}
-                                    className="inline-flex min-w-0 flex-1 items-center gap-1 underline"
-                                >
-                                    <span className="truncate">{nomDe(cible) ?? t(TEXTES.inconnu)}</span>
-                                    <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />
-                                </Link>
-                                <span className="shrink-0 text-xs text-muted-foreground">
-                                    {config.message ? `« ${config.message} »` : t(TEXTES.sansAnnonce)}
-                                    {" · "}
-                                    {t(TEXTES.accueil)} : {config.play_greeting ? t(TEXTES.accueilOui) : t(TEXTES.accueilNon)}
-                                </span>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0"
-                                    aria-label={t(TEXTES.retirer)}
-                                    onClick={() => onChange(outilsUuids.filter((u) => u !== outil.tool_uuid))}
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-            <div>
-                <Button type="button" variant="outline" size="sm" onClick={ouvrir}>
-                    <Plus className="mr-2 h-3.5 w-3.5" />
-                    {t(TEXTES.ajouter)}
-                </Button>
-            </div>
+        <div className="grid gap-1.5" data-brique="agent">
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+                {t(TEXTES.titre)}
+                <Info>{t(TEXTES.aide)}</Info>
+            </p>
+            <ul className="divide-y border-y text-sm" data-liste="briques-agent">
+                {passations.map((outil) => {
+                    const config = configDe(outil);
+                    const cible = config.workflow_id;
+                    return (
+                        <li key={outil.tool_uuid} className="flex items-center gap-2 py-2" data-brique-agent={cible}>
+                            <Link
+                                href={`/workflow/${cible}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={t(TEXTES.ouvrir)}
+                                className="min-w-0 truncate hover:font-medium"
+                            >
+                                {nomDe(cible) ?? t(TEXTES.inconnu)}
+                            </Link>
+                            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                                {"· "}
+                                {config.message ? `${t(TEXTES.annonceCourte)} « ${config.message} »` : t(TEXTES.sansAnnonce)}
+                                {" · "}
+                                {t(TEXTES.accueil)} : {config.play_greeting ? t(TEXTES.accueilOui) : t(TEXTES.accueilNon)}
+                            </span>
+                            <button
+                                type="button"
+                                className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                                aria-label={t(TEXTES.retirer)}
+                                onClick={() => onChange(outilsUuids.filter((u) => u !== outil.tool_uuid))}
+                            >
+                                <X className="size-3.5" />
+                            </button>
+                        </li>
+                    );
+                })}
+                <li>
+                    <button type="button" onClick={ouvrir} className="flex w-full cursor-pointer items-center gap-1.5 py-2 text-left text-muted-foreground hover:font-medium hover:text-foreground">
+                        <Plus className="size-3.5" /> {t(TEXTES.ajouter)}
+                    </button>
+                </li>
+            </ul>
 
-            <Dialog open={ouverte} onOpenChange={setOuverte}>
+            <Dialog centree open={ouverte} onOpenChange={setOuverte}>
                 <DialogContent className="sm:max-w-lg" data-modale="choisir-un-agent">
                     <DialogHeader>
                         <DialogTitle>{t(TEXTES.modaleTitre)}</DialogTitle>

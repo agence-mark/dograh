@@ -11,13 +11,13 @@
  */
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { getInstallationApiV1OrganizationsApresAppelInstallationGet, putInstallationApiV1OrganizationsApresAppelInstallationPut } from "@/client/sdk.gen";
 import type { EcranInstallation, ReglagesInstallation, ReglagesSmtp } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { ChampEtiquettes } from "../ChampEtiquettes";
@@ -68,12 +68,12 @@ export function BlocInstallationMark() {
         const r = await putInstallationApiV1OrganizationsApresAppelInstallationPut({ body: { ...brouillon, smtp } });
         setEnCours(false);
         if (r.error || !r.data) {
-            toast.error(detailFromError(r.error, "Installation settings not saved"));
+            notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: r.error });
             return;
         }
         setEcran(r.data);
         setBrouillon(r.data.reglages);
-        toast.success(t({ en: "Installation settings saved", fr: "Réglages de l'installation enregistrés" }));
+        notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
     };
 
     return (
@@ -120,7 +120,7 @@ export function BlocInstallationMark() {
                 <Input id="installation-smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poserSmtp("port", Number(e.target.value))} />
             </ChampReglage>
             <ChampReglage cle="installation.smtp_securite" idControle="installation-smtp-securite" libelle={{ en: "Security", fr: "Sécurité" }}>
-                <select
+                <ListeDeroulante
                     id="installation-smtp-securite"
                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                     value={smtp.securite ?? "starttls"}
@@ -129,7 +129,7 @@ export function BlocInstallationMark() {
                     <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
                     <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
                     <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
-                </select>
+                </ListeDeroulante>
             </ChampReglage>
             <ChampReglage cle="installation.smtp_utilisateur" idControle="installation-smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>
                 <Input id="installation-smtp-utilisateur" value={smtp.utilisateur ?? ""} onChange={(e) => poserSmtp("utilisateur", vide(e.target.value))} />

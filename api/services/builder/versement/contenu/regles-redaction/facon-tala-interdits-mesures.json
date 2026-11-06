@@ -1,0 +1,11 @@
+{
+  "titre": "Interdits de rédaction mesurés (façon Tala)",
+  "contenu": {
+    "texte": "# Interdits de rédaction mesurés (recette façon Tala)\n\nMesurés au banc le 30/10/2026.\n\n- **Aucun exemple de nom, de numéro ou de date dans un prompt.** Une série de lettres donnée en exemple d'épellation contamine les épellations réelles.\n- **Aucun mot de mise en forme à dire.** Écrire « séparés par des virgules » fait prononcer « virgule ».\n- **Jamais « écris la sortie »** quand les sorties sont des outils : on nomme l'outil à appeler.\n- **Des exemples de formulation, jamais des phrases à réciter**, sauf l'accueil et les phrases légales.\n- **Aucune règle qui contredit le moule** : une consigne générale « faire épeler le nom » et une étape qui dit le contraire donnent un agent qui ne fait ni l'un ni l'autre.\n- **La relecture d'un numéro n'est pas du prompt** quand la plateforme la gère : ne pas la décrire deux fois.\n"
+  },
+  "notes": "Bancs du 30/10/2026 : agent 274 (Small 4) et agent 288 au casque, fiche juste à 100 %. Le passage en Recette est un clic d'Evan.",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

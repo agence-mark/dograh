@@ -24,6 +24,11 @@ OBJET_PERSONNE = "personne"
 OBJET_RENDEZ_VOUS = "rendez_vous"
 
 
+async def compte_des_avis(connexion: asyncpg.Connection) -> asyncpg.Record | None:
+    """[.mark] Relation clients : nombre d'avis et note moyenne de la base du client."""
+    return await connexion.fetchrow("SELECT count(*) AS n, avg(etoiles) AS moyenne FROM avis")
+
+
 async def agendas_par_personne(
     connexion: asyncpg.Connection,
 ) -> dict[int, dict[str, str]]:

@@ -3,7 +3,7 @@
 import { Clock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,10 +17,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChanges } from "@/context/UnsavedChangesContext";
-import { detailFromError } from "@/lib/apiError";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { RAPPEL_PUBLICATION } from "./SectionReglagesPipecat";
 
 /**
  * [.mark] The "Opening Hours" card of an agent's settings page.
@@ -64,9 +64,7 @@ interface SectionHorairesOuvertureProps {
 
 // FastAPI prefixes a validator's message; the line number is what matters.
 const messageLisible = (erreur: unknown): string => {
-    const brut = erreur instanceof Error && erreur.message
-        ? erreur.message
-        : detailFromError(erreur, "Opening hours not saved. Check the entry and try again.");
+    const brut = phraseEchec(erreur, ECHECS.horairesEnregistrer);
     // Several refusals come joined by line breaks: strip the prefix on each.
     return brut.replace(/^Value error,\s*/gm, "");
 };
@@ -96,11 +94,11 @@ export const SectionHorairesOuverture = ({
                 { ...workflowConfigurations, horaires_ouverture: aEnregistrer },
                 workflowName,
             );
-            toast.success(`Opening hours saved. ${RAPPEL_PUBLICATION}`);
+            notifier.succes({ fr: "Horaires enregistrés.", en: "Opening hours saved." }, { publier: true });
         } catch (e) {
             const message = messageLisible(e);
             setErreur(message);
-            toast.error(`Opening hours not saved: ${message}`);
+            notifier.echec({ fr: `Horaires non enregistrés : ${message}.`, en: `Opening hours not saved: ${message}.` }, { erreur: e });
         } finally {
             setIsSaving(false);
         }

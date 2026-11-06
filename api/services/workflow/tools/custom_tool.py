@@ -9,6 +9,8 @@ import httpx
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import REFUS as REFUS_CLE_RESERVEE
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.errors.failure import (
     DograhFailure,
     ErrorSource,
@@ -26,6 +28,11 @@ from api.utils.template_renderer import (
     render_url_template,
 )
 from api.utils.url_security import validate_user_configured_service_url
+from api.services.outils_mark import en_tetes as en_tetes_mark
+from api.services.outils_mark import parametres as parametres_mark
+from api.services.outils_mark import pour_la_voix as voix_mark
+from api.services.outils_mark import reponse as reponse_mark
+from api.services.outils_mark import simulation as simulation_mark
 
 # Map tool parameter types to JSON schema types
 TYPE_MAP = {
@@ -137,8 +144,11 @@ def tool_to_function_schema(tool: Any) -> dict[str, Any]:
                 "type": schema_type,
                 "description": param_desc,
             }
+            # [.mark] U3 sexies : la liste fermée est montrée au modèle.
+            if param.get("valeurs_permises"):
+                properties[param_name]["enum"] = [str(v) for v in param["valeurs_permises"]]
 
-        if param_required:
+        if param_required and param.get("defaut") is None:
             required.append(param_name)
 
     # If this is an end_call tool with endCallReason enabled, add a required 'reason' parameter
@@ -317,8 +327,14 @@ async def execute_http_tool(
     preset_params: dict[str, Any] | None = None,
     organization_id: int | None = None,
     include_request_headers: bool = False,
+    simuler: bool = False,
+    fiche_cible: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute an HTTP API tool.
+
+    [.mark] ``simuler`` : l'essai et le banc seulement (jamais un appel réel) servent la première réponse simulée de
+    l'outil au lieu de contacter le service. ``fiche_cible`` : la fiche de l'appel (``gathered_context``) où les
+    ``copies_dans_la_fiche`` sont écrites, lues dans la réponse entière avant le filtrage.
 
     Args:
         tool: ToolModel instance
@@ -351,12 +367,17 @@ async def execute_http_tool(
     # Add auth header if credential is configured. Keep track of which headers
     # came from the credential so only those values are masked in test previews.
     credential_headers: dict[str, str] = {}
+    cle_reservee = False
     credential_uuid = config.get("credential_uuid")
     if credential_uuid and organization_id:
         try:
             credential = await db_client.get_credential_by_uuid(
                 credential_uuid, organization_id
             )
+            if credential and est_la_cle_du_cerveau(credential):
+                # [.mark] Builder, revue R2 : la clé du cerveau du builder ne part par aucun outil.
+                cle_reservee = True
+                credential = None
             if credential:
                 credential_headers = build_auth_header(credential)
                 headers.update(credential_headers)
@@ -414,6 +435,9 @@ async def execute_http_tool(
             }
         return result
 
+    if cle_reservee:
+        return build_result({"status": "error", "error": REFUS_CLE_RESERVEE})
+
     # Get timeout
     timeout_ms = config.get("timeout_ms", 5000)
     timeout_seconds = timeout_ms / 1000
@@ -442,7 +466,11 @@ async def execute_http_tool(
     else:
         preset_arguments = dict(preset_params)
 
-    llm_arguments = dict(arguments or {})
+    # [.mark] U3 sexies : défauts des paramètres, puis valeurs permises (refus avant d'envoyer quoi que ce soit).
+    llm_arguments = parametres_mark.appliquer_les_defauts(config, dict(arguments or {}))
+    refus_valeur = parametres_mark.verifier_les_valeurs(config, llm_arguments)
+    if refus_valeur:
+        return build_result({"status": "error", "error": refus_valeur, "nature": "a_corriger"})
     resolved_arguments = {**preset_arguments, **llm_arguments}
 
     initial_context = dict(call_context_vars or {})
@@ -479,13 +507,39 @@ async def execute_http_tool(
             {"status": "error", "error": f"URL validation failed: {e!s}"}
         )
 
+    # [.mark] U3 sexies point 2 : en-têtes texte / variable / secret, et emplacement de chaque paramètre.
+    try:
+        ext, secrets_ext = await en_tetes_mark.resoudre(
+            config.get("en_tetes_ext"),
+            {**url_render_context},
+            organization_id,
+        )
+    except en_tetes_mark.SecretIntrouvable as e:
+        return build_result({"status": "error", "error": str(e)})
+    repartition = parametres_mark.repartir(config, resolved_arguments)
+    for nom_en_tete, valeur_en_tete in repartition.en_tete.items():
+        ext[nom_en_tete] = parametres_mark.valeur_d_en_tete(valeur_en_tete)
+    if ext:
+        if form_encoded:
+            ext = _without_content_type(ext)
+        headers.update(ext)
+        if include_request_headers:
+            request_headers.update(en_tetes_mark.apercu(ext, secrets_ext))
+    defaut_corps = {**repartition.non_declares, **repartition.corps}
+    requete_fixe = dict(repartition.requete)
+    if not sends_body:
+        # Pas de corps pour GET/DELETE : un paramètre « corps » part dans la requête.
+        requete_fixe.update(repartition.corps)
+        defaut_corps = {}
+    declares = bool(repartition.chemin or repartition.requete or repartition.corps or repartition.en_tete)
+
     # Build request: body for POST/PUT/PATCH, query params for GET/DELETE
     body = None
     params = None
     if sends_body:
         body_template = config.get("body_template")
         if body_template is None:
-            body = resolved_arguments
+            body = defaut_corps if declares else resolved_arguments
         else:
             body = render_body_template(
                 body_template,
@@ -497,7 +551,21 @@ async def execute_http_tool(
             )
         _request_body_preview = body
     elif method in ("GET", "DELETE") and resolved_arguments:
-        params = serialize_query_params(resolved_arguments)
+        params = serialize_query_params(
+            {**repartition.non_declares, **requete_fixe} if declares else resolved_arguments
+        )
+    if sends_body and requete_fixe:
+        params = serialize_query_params(requete_fixe)
+
+    # [.mark] U3 sexies point 2 : une réponse simulée, à l'essai et au banc seulement.
+    if simuler:
+        simulee = simulation_mark.choisir(config, resolved_arguments)
+        if simulee is not None:
+            return build_result(
+                _apres_la_reponse(
+                    config, simulation_mark.en_reponse(simulee), fiche_cible, method, body if sends_body else None
+                )
+            )
 
     logger.info(
         f"Executing custom tool '{tool.name}' ({tool.tool_uuid}): "
@@ -529,7 +597,35 @@ async def execute_http_tool(
 
     if echec is not None:
         log_failure(echec, organization_id=organization_id, tool_name=tool.name)
-    return build_result(resultat)
+    return build_result(
+        _apres_la_reponse(config, resultat, fiche_cible, method, body if sends_body else None)
+    )
+
+
+def _apres_la_reponse(
+    config: dict[str, Any],
+    resultat: dict[str, Any],
+    fiche_cible: dict[str, Any] | None,
+    methode: str = "GET",
+    envoye: Any = None,
+) -> dict[str, Any]:
+    """[.mark] U3 sexies point 2 : sur une réponse réussie, copie dans la fiche (réponse entière) puis filtrage de ce que
+    lit le modèle. Une erreur passe telle quelle (elle sert à comprendre)."""
+    if resultat.get("status") != "success":
+        return resultat
+    donnees = resultat.get("data")
+    copiees = reponse_mark.copier_dans_la_fiche(donnees, config.get("copies_dans_la_fiche"), fiche_cible)
+    sortie = {**resultat, "data": reponse_mark.filtrer(donnees, config.get("chemins_gardes"))}
+    if copiees:
+        sortie["copies_dans_la_fiche"] = copiees
+    # [.mark] lot R (partie 3) : ce que l'outil renvoie pour la voix. Les champs appliqués se lisent dans la réponse
+    # entière ; le résumé et la consigne de parole viennent après (la fiche, elle, a déjà tout reçu).
+    entiere = voix_mark.avec_les_champs_appliques(resultat, config, methode, envoye)
+    sortie = {**sortie, **{c: entiere[c] for c in ("champs_appliques", "champs_ignores", "champs_source") if c in entiere}}
+    sortie = voix_mark.avec_consigne_de_parole(
+        voix_mark.resume_pour_la_voix(sortie, config), config
+    )
+    return sortie
 
 
 # --- [.mark] correctifs-apres-banc-v4, lot 3 : les essais d'un outil HTTP ------------------------

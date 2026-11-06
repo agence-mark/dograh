@@ -1,30 +1,30 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { REDIRECTIONS } from "./src/lib/redirections";
+
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   experimental: {
     serverSourceMaps: true,
   },
-  async rewrites() {
+  // [.mark] U10 / S4 : le widget (script, polices) se charge depuis la page d'un autre site : lisible de partout, sans
+  // identifiants. Les polices portent un nom versionné (Switzer-400.woff2) : elles se gardent un an.
+  async headers() {
+    const ouvert = [
+      { key: "Access-Control-Allow-Origin", value: "*" },
+      { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+    ];
     return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://us.i.posthog.com/:path*",
-      },
-      {
-        source: "/ingest/decide",
-        destination: "https://us.i.posthog.com/decide",
-      },
+      { source: "/embed/:path*", headers: ouvert },
+      { source: "/embed/fonts/:path*", headers: [...ouvert, { key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     ];
   },
-  // This is required to support PostHog trailing slash API requests
-  skipTrailingSlashRedirect: true,
+  // [.mark] La table unique des anciennes adresses (src/lib/redirections.ts).
+  async redirects() {
+    return REDIRECTIONS.map((r) => ({ ...r, permanent: false }));
+  },
 };
 
 export default withSentryConfig(nextConfig, {

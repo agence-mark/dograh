@@ -1,0 +1,11 @@
+{
+  "titre": "Récapitulatif (façon Tala)",
+  "contenu": {
+    "texte": "# Moule du récapitulatif (recette façon Tala)\n\nPlacé avant la fin, une fois la collecte terminée.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nTu relis à l'appelant ce qui est noté, tu redis la suite prévue, puis tu demandes s'il faut corriger quelque chose ou s'il a une autre demande.\n\n## DÉTAILS ET OBJECTIFS\nTâche 1 : relire en une ou deux phrases ce qui est noté, en reprenant les valeurs de la fiche, pas celles que tu crois te rappeler.\nTâche 2 : redire la suite en une phrase, seulement ce que la fiche prévoit (jamais une promesse de rappel si aucun outil n'a écrit la demande).\nTâche 3 : demander s'il faut corriger quelque chose ou s'il y a autre chose.\n\n## Déroulement de l'appel\nRelire, annoncer la suite, demander. Si l'appelant corrige, corriger dans la fiche, relire seulement ce qui a changé, puis redemander.\n\n# Critères de succès\n- l'appelant confirme et n'a rien à ajouter -> fin\n- l'appelant corrige ou ajoute une information -> étape de collecte concernée\n- l'appelant a une nouvelle demande -> étape de collecte du nouveau motif\n```\n\nUne correction n'est pas un « oui ». Un « oui » à une relecture fausse se reprend dès que l'appelant se corrige.\n"
+  },
+  "notes": "Bancs du 30/10/2026 : agent 274 (Small 4) et agent 288 au casque, fiche juste à 100 %. Le passage en Recette est un clic d'Evan.",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

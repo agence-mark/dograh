@@ -8,6 +8,8 @@
  * | enregistrer | seules les cases changees partent ; bouton ferme tant que rien ne change ; point orange du theme |
  * | refus | le refus du serveur est montre |
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -103,6 +105,10 @@ describe("Value list boxes (« Client data »)", () => {
         await screen.findByTestId("enregistrer-listes-valeurs");
         fireEvent.click(document.getElementById("liste-motif_appel-devis-opportunite") as HTMLElement);
         fireEvent.click(screen.getByTestId("enregistrer-listes-valeurs"));
-        expect((await screen.findByTestId("erreur-listes-valeurs")).textContent).toContain("is not a value of the list");
+        {
+            const affiche = (await screen.findByTestId("erreur-listes-valeurs")).textContent ?? "";
+            expect(affiche).toMatch(phraseAttendue(ECHECS.listesValeursEnregistrer));
+            expect(affiche).not.toContain("is not a value of the list");
+        }
     });
 });

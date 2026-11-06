@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { Bot, CalendarIcon, Clipboard, Download, ExternalLink, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet } from "@/client/sdk.gen";
 import { Button } from "@/components/ui/button";
@@ -132,11 +132,11 @@ const Rapport = ({ workflowId }: { workflowId: number }) => {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error(t({ en: "Failed to download report", fr: "Téléchargement du rapport impossible" }));
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (err) {
             logger.error(`Failed to download workflow report: ${err}`);
-            toast.error(t({ en: "Failed to download report", fr: "Téléchargement du rapport impossible" }));
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloading(false);
         }
@@ -309,7 +309,7 @@ export const ThemeAgent = ({
                 config: () => ({ filet_de_fin: filet }),
             },
             {
-                nom: { en: "Template variables", fr: "Variables du modèle" },
+                nom: { en: "Test values", fr: "Valeurs d'essai" },
                 modifie: variablesModifiees,
                 enregistrerAutrement: () => enregistrerVariables(variablesAEnregistrer),
             },
@@ -320,9 +320,9 @@ export const ThemeAgent = ({
         if (!workflowUuid) return;
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success(t({ en: "Agent UUID copied", fr: "Identifiant de l'agent copié" }));
+            notifier.succes({ fr: "Identifiant copié.", en: "ID copied." });
         } catch {
-            toast.error(t({ en: "Failed to copy Agent UUID", fr: "Copie de l'identifiant impossible" }));
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 
@@ -333,7 +333,7 @@ export const ThemeAgent = ({
             id={ID_THEME_AGENT}
             icone={Bot}
             titre={TITRE_AGENT}
-            description={{ en: "Name, ID, variables, deployment and report.", fr: "Nom, identifiant, variables, diffusion et rapport." }}
+            description={{ en: "Name, ID, flow map, test values, specialised agents, diagnostic, website, recordings and report.", fr: "Nom, identifiant, schéma du parcours, valeurs d'essai, agents spécialisés, diagnostic, site, enregistrements et rapport." }}
             resume={[
                 nom,
                 `${nombreDeVariables} ${t({ en: "variables", fr: "variables" })}`,
@@ -474,23 +474,23 @@ export const ThemeAgent = ({
                 </ZoneCommune>
             )}
 
-            <Intertitre id="agent-variables" titre={{ en: "Template Variables", fr: "Variables du modèle" }}>
+            <Intertitre id="agent-variables" titre={{ en: "Test values", fr: "Valeurs d'essai" }}>
                 <ChampReglage
                     cle="template_context_variables"
-                    libelle={{ en: "Template Variables", fr: "Variables du modèle" }}
+                    libelle={{ en: "Test values", fr: "Valeurs d'essai" }}
                     aides={[
                         {
-                            en: "Variables available in workflow prompts via {{variable_name}} syntax for testing the workflow.",
-                            fr: "Disponibles dans les prompts avec la syntaxe {{nom_variable}}, pour tester l'agent.",
+                            en: "Values used only for tests (Try, test call, chat, simulated caller), never in a real call or a campaign. They are not a source of the variable tags.",
+                            fr: "Des valeurs qui ne servent qu'aux essais (Essayer, appel d'essai, chat, appelant simulé), jamais dans un vrai appel ni une campagne. Ce n'est pas une source d'étiquettes.",
                         },
                     ]}
                 >
                     <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
                         <span>
-                            {nombreDeVariables} {t({ en: "variables", fr: "variables" })}
+                            {nombreDeVariables} {t({ en: "test values", fr: "valeurs d'essai" })}
                         </span>
                         <Button variant="outline" size="sm" onClick={() => setFenetreVariables(true)}>
-                            {t({ en: "Manage variables", fr: "Gérer les variables" })}
+                            {t({ en: "Manage test values", fr: "Gérer les valeurs d'essai" })}
                         </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">

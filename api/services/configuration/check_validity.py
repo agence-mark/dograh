@@ -20,6 +20,7 @@ from api.services.configuration.registry import (
     ServiceProviders,
     est_champ_adresse,
     region_soniox,
+    region_gradium_voix,
     region_soniox_voix,
 )
 from api.services.mps_service_key_client import mps_service_key_client
@@ -64,6 +65,7 @@ class UserConfigurationValidator:
             ServiceProviders.AWS_BEDROCK.value: self._check_aws_bedrock_api_key,
             ServiceProviders.SPEACHES.value: self._check_speaches_api_key,
             ServiceProviders.SONIOX.value: self._check_soniox_api_key,
+            ServiceProviders.GRADIUM.value: self._check_gradium_api_key,
             ServiceProviders.HUGGINGFACE.value: self._check_huggingface_api_key,
             ServiceProviders.GOOGLE_VERTEX.value: self._check_google_vertex_llm_api_key,
             ServiceProviders.OPENAI_REALTIME.value: self._check_openai_api_key,
@@ -268,6 +270,7 @@ class UserConfigurationValidator:
             ServiceProviders.OPENAI_REALTIME.value,
             ServiceProviders.MISTRAL.value,
             ServiceProviders.SONIOX.value,
+            ServiceProviders.GRADIUM.value,
         ):
             return validator(provider, api_key, service_config)
         return validator(provider, api_key)
@@ -318,6 +321,47 @@ class UserConfigurationValidator:
         except httpx.RequestError as exc:
             raise ValueError(
                 "Could not connect to the Soniox API. Please check your network "
+                "connection and try again."
+            ) from exc
+
+    def _check_gradium_api_key(
+        self,
+        provider: str,
+        api_key: str,
+        service_config: Optional[ServiceConfig] = None,
+    ) -> bool:
+        """[.mark] Lot GT : check a Gradium key against the credits endpoint of the address's region.
+
+        ``GET /usages/credits`` with the ``x-api-key`` header (docs.gradium.ai, API reference "Get Credits",
+        read 2026-11-05). Only the key leaves, never audio. The host follows the voice's address (Europe by
+        default), the same function the screen's mirror uses.
+        """
+        base_url = getattr(service_config, "base_url", None) if service_config else None
+        hote = {
+            "eu": "eu.api.gradium.ai",
+            "us": "us.api.gradium.ai",
+        }.get(region_gradium_voix(base_url), "api.gradium.ai")
+        try:
+            response = httpx.get(
+                f"https://{hote}/api/usages/credits",
+                headers={"x-api-key": api_key},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (401, 403):
+                raise ValueError(
+                    "Invalid Gradium API key. The key was rejected by the Gradium API "
+                    f"({hote}). Please verify that your API key is correct and active."
+                ) from exc
+            raise ValueError(
+                "The Gradium API returned an error while validating the API key. "
+                "Please try again later."
+            ) from exc
+        except httpx.RequestError as exc:
+            raise ValueError(
+                "Could not connect to the Gradium API. Please check your network "
                 "connection and try again."
             ) from exc
 

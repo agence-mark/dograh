@@ -1,14 +1,15 @@
 "use client";
 
-import { ExternalLink, FileText } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
 import type { DocumentResponseSchema } from "@/client/types.gen";
-import { Button } from "@/components/ui/button";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
+import { Info } from "@/components/mark/studio/marques";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { KNOWLEDGE_BASE_DOC_URL } from "@/constants/documentation";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface DocumentSelectorProps {
     value: string[];
@@ -20,6 +21,20 @@ interface DocumentSelectorProps {
     showLabel?: boolean;
 }
 
+const T = {
+    ajouter: { en: "document", fr: "document" },
+    aucun: {
+        en: "No document available. Add documents to the knowledge base first.",
+        fr: "Aucun document disponible. Ajoutez d'abord des documents à la base de connaissances.",
+    },
+    gerer: { en: "Manage documents", fr: "Gérer les documents" },
+    retirer: { en: "Remove", fr: "Retirer" },
+} satisfies Record<string, Texte>;
+
+/**
+ * [.mark] K2b : les documents d'une étape comme la maquette les dessine (`modale-noeud.tsx`) : les documents choisis en
+ * pastilles et « + document » qui ouvre la liste. Les valeurs écrites sont celles d'avant (les identifiants de documents).
+ */
 export const DocumentSelector = ({
     value,
     onChange,
@@ -29,125 +44,69 @@ export const DocumentSelector = ({
     description = "Select documents that the agent can reference during conversations.",
     showLabel = true,
 }: DocumentSelectorProps) => {
+    const { t } = useLangue();
     // Only show completed documents
-    const completedDocuments = useMemo(
-        () => documents.filter((doc) => doc.processing_status === "completed"),
-        [documents]
-    );
+    const completedDocuments = useMemo(() => documents.filter((doc) => doc.processing_status === "completed"), [documents]);
+    const choisis = completedDocuments.filter((d) => value.includes(d.document_uuid));
 
     const handleToggle = (documentUuid: string, checked: boolean) => {
-        if (checked) {
-            onChange([...value, documentUuid]);
-        } else {
-            onChange(value.filter((uuid) => uuid !== documentUuid));
-        }
+        if (checked) onChange([...value, documentUuid]);
+        else onChange(value.filter((uuid) => uuid !== documentUuid));
     };
-
-    const formatFileSize = (bytes: number): string => {
-        if (bytes === 0) return "0 Bytes";
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
-    };
-
-    if (completedDocuments.length === 0) {
-        return (
-            <div className="space-y-2">
-                {showLabel && (
-                    <>
-                        <Label>{label}</Label>
-                        {description && (
-                            <Label className="text-xs text-muted-foreground">
-                            {description}{" "}
-                            <a href={KNOWLEDGE_BASE_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline">Learn more</a>
-                        </Label>
-                        )}
-                    </>
-                )}
-                <div className="border rounded-md p-4 space-y-3">
-                    <div className="text-sm text-muted-foreground text-center">
-                        No documents available. Upload documents to the knowledge base first.
-                    </div>
-                    <div className="flex justify-center">
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/files" target="_blank">
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                Upload Documents
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
-        <div className="space-y-2">
+        <div className="grid gap-1.5" data-selecteur-documents>
             {showLabel && (
-                <>
-                    <Label>{label}</Label>
-                    {description && (
-                        <Label className="text-xs text-muted-foreground">
-                            {description}{" "}
-                            <a href={KNOWLEDGE_BASE_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline">Learn more</a>
-                        </Label>
-                    )}
-                </>
+                <Label className="flex items-center gap-1.5">
+                    {label}
+                    {description && <Info>{description}</Info>}
+                </Label>
             )}
-            <div className="border rounded-md max-h-[300px] overflow-y-auto">
-                <div className="divide-y">
-                    {completedDocuments.map((doc) => (
-                        <div
-                            key={doc.document_uuid}
-                            className="flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors"
+            <div className="flex flex-wrap items-center gap-2">
+                {choisis.map((doc) => (
+                    <span key={doc.document_uuid} className="inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs">
+                        {doc.filename}
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            aria-label={`${t(T.retirer)} ${doc.filename}`}
+                            className="cursor-pointer text-muted-foreground hover:text-foreground"
+                            onClick={() => handleToggle(doc.document_uuid, false)}
                         >
-                            <Checkbox
-                                id={`doc-${doc.document_uuid}`}
-                                checked={value.includes(doc.document_uuid)}
-                                onCheckedChange={(checked) =>
-                                    handleToggle(doc.document_uuid, checked as boolean)
-                                }
-                                disabled={disabled}
-                            />
-                            <div className="flex-1 space-y-1">
-                                <label
-                                    htmlFor={`doc-${doc.document_uuid}`}
-                                    className="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                                        <FileText className="w-4 h-4 text-foreground" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium truncate">
-                                            {doc.filename}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {formatFileSize(doc.file_size_bytes)} • {doc.retrieval_mode === 'full_document' ? 'Full Document' : `${doc.total_chunks} chunks`}
-                                        </div>
-                                    </div>
+                            <X className="size-3" />
+                        </button>
+                    </span>
+                ))}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:font-medium hover:text-foreground"
+                        >
+                            + {t(T.ajouter)}
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-80 p-1">
+                        {completedDocuments.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">{t(T.aucun)}</p>}
+                        <div className="max-h-64 overflow-y-auto">
+                            {completedDocuments.map((doc) => (
+                                <label key={doc.document_uuid} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 hover:bg-muted/50">
+                                    <Checkbox
+                                        checked={value.includes(doc.document_uuid)}
+                                        disabled={disabled}
+                                        onCheckedChange={(checked) => handleToggle(doc.document_uuid, checked === true)}
+                                    />
+                                    <span className="min-w-0 flex-1 truncate text-sm">{doc.filename}</span>
                                 </label>
-                            </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-                <div className="p-2 bg-muted/30">
-                    <Link
-                        href="/files"
-                        target="_blank"
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                        <ExternalLink className="h-4 w-4" />
-                        Manage Documents
-                    </Link>
-                </div>
+                        <Link href="/files" target="_blank" className="block px-3 py-2 text-sm text-muted-foreground hover:font-medium hover:text-foreground">
+                            {t(T.gerer)}
+                        </Link>
+                    </PopoverContent>
+                </Popover>
             </div>
-
-            {value.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                    {value.length} {value.length === 1 ? "document" : "documents"} selected
-                </p>
-            )}
         </div>
     );
 };

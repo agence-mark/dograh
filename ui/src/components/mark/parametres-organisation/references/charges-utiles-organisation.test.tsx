@@ -140,7 +140,11 @@ vi.stubGlobal(
     },
 );
 
-const { default: SettingsPage } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: SettingsPage } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 const reinitialiser = () => {
     m.savePreferences.mockReset().mockImplementation(async ({ body }) => ({ data: body }));
@@ -170,7 +174,7 @@ const relever = (): AppelOrganisation[] =>
 
 const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     organisation: "Organization",
-    etablissement: "Establishments",
+    etablissement: "Whole company",
     equipe: "Team and routing",
     "rendez-vous": "Appointments",
     verification: "Caller verification",
@@ -179,15 +183,17 @@ const TITRE_ANGLAIS: Record<ThemeOrganisation, string> = {
     "apres-appel": "After the call",
     integrations: "Integrations",
     developpeurs: "Developers",
+    publication: "Publication",
 };
 
 const ouvrirLaPage = async () => {
     render(<SettingsPage />);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
 };
 
 const ouvrirLeTheme = async (theme: ThemeOrganisation) => {
-    const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+    ouvrirOnglet(theme);
+    const entete = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     // Loaded: the fields replace « Loading... ».
     await waitFor(() => {
@@ -195,17 +201,36 @@ const ouvrirLeTheme = async (theme: ThemeOrganisation) => {
     });
 };
 
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+
+// Forme de la maquette : « Tout fermer » est une liste du design system (plus un <select>), jouée en l'ouvrant.
+const OPTION_ETAT: Record<string, RegExp> = { FERME: /forced: closed/i, PAUSE: /forced: on a break/i, "": /computed from/i };
+const choisirEtat = async (valeur: string) => {
+    const liste = document.querySelector('#reglage-etat_force [role="combobox"]') as HTMLElement;
+    fireEvent.pointerDown(liste, { button: 0, ctrlKey: false });
+    fireEvent.click(liste);
+    fireEvent.click(await screen.findByRole("option", { name: OPTION_ETAT[valeur] }));
+};
+
 const jouer = async (cas: CasOrganisation) => {
     await ouvrirLaPage();
     await ouvrirLeTheme(cas.theme);
-    for (const geste of cas.gestes) jouerGeste(geste);
+    for (const geste of cas.gestes) {
+        if (geste.type === "choisir" && geste.id === "etat_force") await choisirEtat(geste.valeur);
+        else jouerGeste(geste);
+    }
     if (!cas.enregistreSeul) {
         const nom = `Save ${TITRE_ANGLAIS[cas.theme]}`;
         const bouton = screen.getByRole("button", { name: nom }) as HTMLButtonElement;
         expect(bouton.disabled, `${cas.id}: ${nom} must be enabled`).toBe(false);
         fireEvent.click(bouton);
     }
-    await waitFor(() => expect(m.savePreferences.mock.calls.length + m.saveAnnonce.mock.calls.length).toBeGreaterThan(0));
+    // The route of the case itself (a theme saves its parts one after the other: the first call is not always the case's).
+    const sienne = cas.carte === "annonce" ? m.saveAnnonce : m.savePreferences;
+    // A theme saves its parts in sequence: under a loaded suite the case's own call can come after 1 s.
+    await waitFor(() => expect(sienne.mock.calls.length).toBeGreaterThan(0), { timeout: 5000 });
     // A theme saves its parts one after the other.
     await new Promise((fin) => setTimeout(fin, 50));
     return relever();

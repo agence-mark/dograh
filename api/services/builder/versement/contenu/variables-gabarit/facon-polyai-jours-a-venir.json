@@ -1,0 +1,11 @@
+{
+  "titre": "Liste des jours à venir (façon PolyAI)",
+  "contenu": {
+    "texte": "# Variable : liste des jours à venir (recette façon PolyAI)\n\n- Nom : `jours_a_venir`\n- Source : calculée par le code au départ de l'appel, jamais par le modèle.\n- Contenu : les prochains jours ouvrés, chacun avec son nom du jour et sa date en toutes lettres, sur l'horizon réglé par le client (par exemple vingt-huit jours).\n- Usage : le prompt dit « résous les jours relatifs avec cette liste ». L'outil de disponibilité reçoit la date en toutes lettres et rend les créneaux.\n- Les règles du client (zone, horaires, demi-journées, vocabulaire normalisé) vivent dans ses réglages et sont jugées par l'outil, pas par le prompt.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

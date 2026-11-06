@@ -4,7 +4,7 @@ All routes are scoped to the user's selected organization; no route takes an org
 body (M1). Routes (prefix ``/organizations/modeles-de-reglages``):
 
 - ``GET    ""``                  the templates of the organization, and the sections a template is applied by;
-- ``POST   ""``                  freeze the active settings of an agent under a name (M7);
+- ``POST   ""``                  (équipe .mark, au Labo) freeze the active settings of an agent under a name (M7);
 - ``POST   "/import"``           bring in a file exported from another organization (refuses what it does not know);
 - ``GET    "/agent/{id}"``       the mention an agent keeps of the last template applied (M4);
 - ``PATCH  "/{id}"``             rename;  ``DELETE "/{id}"`` delete (no agent already set changes, M4);
@@ -38,6 +38,25 @@ from api.services.modeles_reglages import service
 router = APIRouter(prefix="/organizations/modeles-de-reglages", tags=["organizations"])
 
 
+def _auteur(user: UserModel) -> str:
+    """Le nom écrit dans l'historique de la bibliothèque : l'identifiant du compte, jamais un nom ni une adresse."""
+    from api.services.builder.bibliotheque.droits import nom_de_l_auteur
+
+    return nom_de_l_auteur(user)
+
+
+async def _exiger_l_equipe(user: UserModel) -> None:
+    """[.mark] RA-A (R2, audit du 04/11, rouge n° 7) : écrire un modèle est un geste de l'équipe .mark, depuis le Labo
+    (décision 10 : les modèles sont l'outil de .mark). La lecture reste ouverte à tout membre."""
+    from api.services.builder.bibliotheque import droits
+    from api.services.builder.bibliotheque.service import ErreurBibliotheque
+
+    try:
+        await droits.exiger_l_equipe_au_labo(user)
+    except ErreurBibliotheque as erreur:
+        raise HTTPException(status_code=erreur.statut, detail=str(erreur)) from None
+
+
 def _refus(erreur: service.ModeleRefuse) -> HTTPException:
     detail: object = erreur.message
     if erreur.statut == 422 and erreur.cle:
@@ -61,6 +80,8 @@ def _resume(modele: ModeleDeReglages) -> ResumeDuModele:
         origine=modele.origine,
         sections=modele.sections,
         nombre_de_reglages=len(modele.valeurs),
+        statut=modele.statut,
+        version=modele.version,
     )
 
 
@@ -79,8 +100,13 @@ async def creer_un_modele(
     demande: DemandeCreation,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
+    await _exiger_l_equipe(user)
     try:
-        return _resume(await service.creer_un_modele(user.selected_organization_id, demande.nom, demande.workflow_id))
+        return _resume(
+            await service.creer_un_modele(
+                user.selected_organization_id, demande.nom, demande.workflow_id, _auteur(user)
+            )
+        )
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:
@@ -92,8 +118,9 @@ async def importer_un_modele(
     fichier: FichierDeModele,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
+    await _exiger_l_equipe(user)
     try:
-        return _resume(await service.importer_un_fichier(user.selected_organization_id, fichier))
+        return _resume(await service.importer_un_fichier(user.selected_organization_id, fichier, _auteur(user)))
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:
@@ -125,6 +152,7 @@ async def renommer_un_modele(
     demande: DemandeRenommer,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
+    await _exiger_l_equipe(user)
     try:
         return _resume(await service.renommer_un_modele(user.selected_organization_id, modele_id, demande.nom))
     except service.ModeleRefuse as erreur:
@@ -138,6 +166,7 @@ async def supprimer_un_modele(
     modele_id: str,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
+    await _exiger_l_equipe(user)
     try:
         await service.supprimer_un_modele(user.selected_organization_id, modele_id)
     except service.ModeleRefuse as erreur:
@@ -180,6 +209,7 @@ async def appliquer_un_modele(
     demande: DemandeApplication,
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
+    await _exiger_l_equipe(user)
     try:
         return await service.appliquer_un_modele(
             user.selected_organization_id,

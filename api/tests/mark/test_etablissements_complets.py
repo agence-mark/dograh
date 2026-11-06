@@ -299,8 +299,9 @@ async def test_la_021_complete_les_lieux_existants_sans_toucher_une_valeur_posee
         await connexion.execute("INSERT INTO mark.phrase_site (variable, site_id, contenu) VALUES ('phrase_acces', $1, 'Derrière la gare.')", sud)
         await connexion.execute("INSERT INTO mark.module_reglage (module_code, site_id, cle, valeur) VALUES ('essai', $1, 'seuil', '9')", sud)
 
-        assert await schema.appliquer_migrations(connexion) == [21]
-        assert await schema.version_de(connexion) == schema.version_attendue() == 21
+        # Les migrations d'après la 021 (022, …) s'appliquent à la suite : celle-ci vient la première.
+        assert await schema.appliquer_migrations(connexion) == list(range(21, schema.version_attendue() + 1))
+        assert await schema.version_de(connexion) == schema.version_attendue() >= 21
         nord = await _du_lieu(connexion, "nord")
         assert (nord["reglages"]["nombre_creneaux"], nord["reglages"]["repartition"], nord["reglages"]["fenetre_equite_jours"]) == (
             2, "tour_de_role", 45)

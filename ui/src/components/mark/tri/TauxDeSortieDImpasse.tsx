@@ -6,12 +6,12 @@
  * by itself (repeated nudges, no dead end). The nudges are only counted, never lines to triage. A click on an agent sets the
  * agent filter of the queue below. No threshold, no alert: the numbers are for reading.
  */
-import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
-import type { LigneDeTaux } from "@/client/types.gen";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { detailFromError } from "@/lib/apiError";
-
+import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
+import type { LigneDeTaux } from "@/client/types.gen";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 
 const PERIODES = [7, 30] as const;
@@ -36,7 +36,7 @@ export function TauxDeSortieDImpasse({ agentChoisi, onChoisir, onAgents }: {
         const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours: demandee } });
         if (demandee !== periodeCourante.current) return;
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "The rates could not be read"));
+            setErreur(echecAffiche(reponse.error, ECHECS.triTaux));
             return;
         }
         setErreur(null);

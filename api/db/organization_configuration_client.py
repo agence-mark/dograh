@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from sqlalchemy import update
+from sqlalchemy import text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.future import select
 
@@ -39,6 +39,121 @@ class OrganizationConfigurationClient(BaseDBClient):
                 )
             )
             return result.scalars().all()
+
+    async def get_configurations_by_prefix(
+        self, organization_id: int, prefix: str
+    ) -> list[OrganizationConfigurationModel]:
+        """[.mark] The configurations of an organization whose key starts with ``prefix``, sorted by key.
+
+        Filtered by the database (``key LIKE 'prefix%'``), never by loading every row: ``%``, ``_`` and the escape character
+        of the prefix are escaped, so ``MARK_X`` does not match ``MARKAX``. Always bounded by ``organization_id``.
+        """
+        motif = (
+            prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        )
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key.like(motif, escape="\\"),
+                )
+                .order_by(OrganizationConfigurationModel.key)
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
+    def _motif_de_prefixe(prefix: str) -> str:
+        return prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+    async def get_configuration_keys_by_prefix(
+        self, organization_id: int, prefix: str
+    ) -> list[str]:
+        """[.mark] V4: only the KEYS that start with ``prefix``, sorted (never the values: a snapshot of a graph is tens of KB)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel.key)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key.like(
+                        self._motif_de_prefixe(prefix), escape="\\"
+                    ),
+                )
+                .order_by(OrganizationConfigurationModel.key)
+            )
+            return list(result.scalars().all())
+
+    async def get_configurations_by_prefix_without(
+        self, organization_id: int, prefix: str, fields: list[str]
+    ) -> list[tuple[str, dict]]:
+        """[.mark] V4: (key, value) of the rows whose key starts with ``prefix``, WITHOUT the top-level ``fields`` of the value.
+
+        The database removes the heavy fields (``value::jsonb - fields``): they are never read, never sent, never parsed.
+        Always bounded by ``organization_id``; sorted by key. A value that is not an object comes back as it is.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                text(
+                    "SELECT key, CASE WHEN json_typeof(value) = 'object' "
+                    "THEN (value::jsonb - CAST(:retirer AS text[])) ELSE value::jsonb END AS value "
+                    "FROM organization_configurations "
+                    "WHERE organization_id = :organisation AND key LIKE :motif ESCAPE '\\' "
+                    "ORDER BY key"
+                ),
+                {
+                    "retirer": list(fields),
+                    "organisation": organization_id,
+                    "motif": self._motif_de_prefixe(prefix),
+                },
+            )
+            return [(ligne.key, ligne.value) for ligne in result.all()]
+
+    async def compare_and_set_configuration(
+        self, organization_id: int, key: str, expected: Any, value: Any
+    ) -> bool:
+        """[.mark] Write ``value`` only if the stored value is still ``expected`` (``None`` = no row yet). True if written.
+
+        The row is read under ``SELECT ... FOR UPDATE`` in the same transaction as the write, so two writers that read the
+        same value cannot both win: the second gets False and starts again from the new value (review R6). A row created
+        in between is detected by the insert (``ON CONFLICT DO NOTHING``), not overwritten.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(OrganizationConfigurationModel)
+                .where(
+                    OrganizationConfigurationModel.organization_id == organization_id,
+                    OrganizationConfigurationModel.key == key,
+                )
+                .with_for_update()
+            )
+            config = result.scalars().first()
+            if config is None:
+                if expected is not None:
+                    return False
+                inserted = await session.execute(
+                    insert(OrganizationConfigurationModel)
+                    .values(
+                        organization_id=organization_id,
+                        key=key,
+                        value=value,
+                        updated_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_nothing(index_elements=["organization_id", "key"])
+                )
+                if inserted.rowcount == 0:
+                    await session.rollback()
+                    return False
+            else:
+                if config.value != expected:
+                    return False
+                config.value = value
+                config.updated_at = datetime.now(UTC)
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            return True
 
     async def upsert_configuration(
         self,

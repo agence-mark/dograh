@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -66,7 +66,9 @@ from api.services.communes.adresse import AdresseInvalide, valider_adresse_saisi
 from api.services.communes.base import obtenir_base
 from api.services.configuration.ai_model_configuration import (
     check_for_masked_keys_in_ai_model_configuration_v2,
+    basculer_le_mode,
     compile_ai_model_configuration_v2,
+    configurations_inactives_modifiees,
     convert_legacy_ai_model_configuration_to_v2,
     get_organization_ai_model_configuration_v2,
     get_resolved_ai_model_configuration,
@@ -505,6 +507,17 @@ async def get_model_configuration_v2(
     return await _model_configuration_v2_response(user=user)
 
 
+@router.get("/model-configurations/v2/remplacements")
+async def get_model_configuration_v2_remplacements(
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> dict[str, int]:
+    """[.mark] V2b (E51) : par brique (llm, tts, stt, realtime), le nombre d'agents qui la remplacent ; la carte
+    de l'organisation dit « remplacé par N agents »."""
+    return await db_client.compter_remplacements_de_modeles(
+        user.selected_organization_id
+    )
+
+
 @router.get(
     "/model-configurations/v2/pricing",
     response_model=ModelConfigurationPricingResponse,
@@ -561,6 +574,14 @@ async def save_model_configuration_v2(
             organization_id=organization_id,
             created_by=user.provider_id,
         )
+        # [.mark] Partie 3, lot 13 (SE-24) : l'autre configuration (chaîne ou temps réel), si cet enregistrement l'a changée,
+        # est testée elle aussi : une clé refusée ne se découvre pas au jour de la bascule.
+        for autre in configurations_inactives_modifiees(configuration, existing):
+            await UserConfigurationValidator().validate(
+                autre,
+                organization_id=organization_id,
+                created_by=user.provider_id,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=exc.args[0])
 
@@ -572,6 +593,36 @@ async def save_model_configuration_v2(
         user=user,
         configuration=configuration,
     )
+
+
+class ModeDesModeles(BaseModel):
+    mode: Literal["pipeline", "realtime"]
+
+
+@router.put(
+    "/model-configurations/v2/mode",
+    response_model=OrganizationAIModelConfigurationResponse,
+)
+async def switch_model_configuration_v2_mode(
+    request: ModeDesModeles,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """[.mark] Partie 3, lot 13 (SE-24, M-2) : rend active la chaîne ou le temps réel SANS rien perdre de l'autre. Le moteur d'appel lit
+    la configuration active (``compile_ai_model_configuration_v2``) ; rien d'autre ne bouge. 422 quand l'autre n'est pas encore réglée."""
+    organization_id = user.selected_organization_id
+    existing = await get_organization_ai_model_configuration_v2(organization_id)
+    if existing is None:
+        raise HTTPException(status_code=422, detail="No model configuration is set yet.")
+    try:
+        configuration = basculer_le_mode(existing, request.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=exc.args[0])
+    await upsert_organization_ai_model_configuration_v2(organization_id, configuration)
+    from api.services.equipe_mark.acces import journaliser
+
+    # Un geste qui change ce avec quoi les appels tournent : qui, quoi, quand, où (jamais une clé).
+    await journaliser(user, "modeles.bascule", organization_id, {"mode": request.mode})
+    return await _model_configuration_v2_response(user=user, configuration=configuration)
 
 
 @router.get("/model-configurations/v2/migration-preview")
@@ -1666,6 +1717,19 @@ async def list_phone_numbers(config_id: int, user: UserModel = Depends(get_user)
     )
 
 
+async def _refuser_numero_sur_agent_de_site(workflow_id: int, organization_id: int) -> None:
+    """[.mark] U10 / S2 (D153) : un numéro de téléphone ne mène jamais à un agent de site."""
+    from api.routes.agents_site import _canal_de_lagent
+    from api.services.site_mark.canal import refus_numero_sur_agent
+
+    workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
+    if workflow is None:
+        return
+    refus = refus_numero_sur_agent(await _canal_de_lagent(workflow, organization_id, brouillon=True))
+    if refus:
+        raise HTTPException(status_code=409, detail=refus)
+
+
 @router.post(
     "/telephony-configs/{config_id}/phone-numbers",
     response_model=PhoneNumberResponse,
@@ -1681,6 +1745,9 @@ async def create_phone_number(
 
     if request.inbound_workflow_id is not None:
         await _ensure_workflow_belongs_to_org(
+            request.inbound_workflow_id, user.selected_organization_id
+        )
+        await _refuser_numero_sur_agent_de_site(
             request.inbound_workflow_id, user.selected_organization_id
         )
 
@@ -1779,6 +1846,9 @@ async def update_phone_number(
 
     if request.inbound_workflow_id is not None:
         await _ensure_workflow_belongs_to_org(
+            request.inbound_workflow_id, user.selected_organization_id
+        )
+        await _refuser_numero_sur_agent_de_site(
             request.inbound_workflow_id, user.selected_organization_id
         )
 

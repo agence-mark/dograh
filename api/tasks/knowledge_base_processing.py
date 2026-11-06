@@ -13,9 +13,19 @@ from loguru import logger
 from api.db import db_client
 from api.db.models import KnowledgeBaseChunkModel
 from api.services.gen_ai import build_embedding_service
-from api.services.gen_ai.documents_locaux import est_un_texte, traiter_un_texte
+from api.services.gen_ai.documents_locaux import (
+    MESSAGE_FORMAT_REFUSE,
+    est_lisible_sur_place,
+    est_un_texte,
+    format_accepte,
+    traiter_un_document,
+    traiter_un_texte,
+)
 from api.services.mps_service_key_client import mps_service_key_client
 from api.services.storage import storage_fs
+
+# [.mark] Revue R3 : le délai de la conversion d'un PDF ou d'un Word (dans un fil, jamais dans la boucle de l'API).
+DELAI_CONVERSION_S = 120.0
 
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 EMBEDDING_BATCH_SIZE = 64
@@ -184,6 +194,27 @@ async def process_knowledge_base_document(
         if est_un_texte(filename, mime_type):
             logger.info(f"Processing text document locally (mode={retrieval_mode})")
             mps_response = traiter_un_texte(temp_file_path, retrieval_mode, max_tokens)
+        elif est_lisible_sur_place(filename):
+            # [.mark] Lot 3 du builder : un PDF ou un Word est lu ici aussi (jamais envoyé à l'éditeur).
+            logger.info(f"Processing PDF/Word document locally (mode={retrieval_mode})")
+            # Revue R3, constat C11 : la conversion tourne dans un processus à part, ARRÊTÉ au-delà du délai.
+            from api.services.builder.dossiers.processus import (
+                DelaiDepasse,
+                executer_arretable_async,
+            )
+
+            try:
+                mps_response = await executer_arretable_async(
+                    traiter_un_document, temp_file_path, filename, retrieval_mode, max_tokens, delai_s=DELAI_CONVERSION_S
+                )
+            except DelaiDepasse:
+                raise ValueError(
+                    f"Reading the document took more than {DELAI_CONVERSION_S:g} seconds: split it or send a simpler file."
+                ) from None
+        elif not format_accepte(filename, mime_type):
+            # [.mark] Constat C9 : le service de l'éditeur (MPS) est coupé par notre patch n° 60 ; un autre format est
+            # refusé ici en le disant, au lieu d'échouer en silence chez un service injoignable.
+            raise ValueError(MESSAGE_FORMAT_REFUSE)
         else:
             logger.info(
                 f"Delegating document processing to MPS (mode={retrieval_mode})"

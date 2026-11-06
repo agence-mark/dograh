@@ -1,0 +1,17 @@
+{
+  "titre": "Prise de commande (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Prise de commande (façon Tala, par motif)\n\nFamille : **Écrire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nPrendre une commande dans ⟦logiciel du client⟧.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Articles\n- ⟦outil de catalogue⟧ pour chaque article ; quantité ; relire la liste.\n### Tâche 2 : Valider\n- Total tiré du logiciel, jamais calculé de tête ; confirmation, puis ⟦outil de commande⟧.\n\n## Règles métier\n- Récapituler, obtenir la confirmation, PUIS appeler l'outil. Annoncer le résultat seulement d'après la réponse de l'outil.\n\n## Déroulement de l'appel\nUne question à la fois, relecture avant l'outil.\n\n# Critères de succès\n- Fait et confirmé, ou renoncé -> récapitulatif\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers un humain : « L'appelant a explicitement demandé une personne, ou sa demande dépasse ce que cette étape traite. Déclencher cette transition au lieu d'essayer de traiter davantage la demande. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- À écrire par .mark : Tala ne le fait pas (ou seulement en intégration fermée). À éprouver au banc avant tout usage.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/ecrire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

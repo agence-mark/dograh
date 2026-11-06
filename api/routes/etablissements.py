@@ -29,6 +29,7 @@ from api.db.models import UserModel
 from api.schemas.etablissements import (
     CatalogueEtablissements,
     DemandeCopieEtablissement,
+    DerniereModification,
     DemandeEtatFiche,
     DemandeReprise,
     Etablissement,
@@ -88,6 +89,41 @@ async def get_etablissements(user: UserModel = Depends(get_user_with_selected_or
                 "Nothing was changed; saving now would replace them."
             ),
         ) from None
+
+
+def _qui_et_d_ou(auteur: str) -> tuple[str, str | None]:
+    """L'auteur tel que le journal le garde (``rattachement.auteur_de``) : « portail : Prénom Nom (dograh:12) » pour
+    une écriture du portail, « dograh:12 » pour un compte de l'équipe. Jamais l'identifiant du compte en retour."""
+    if auteur.startswith("portail :"):
+        nom = auteur[len("portail :") :].rsplit(" (dograh:", 1)[0].strip()
+        return "portail", nom or None
+    return "dograh", None
+
+
+@router.get("/dernieres-modifications", response_model=list[DerniereModification])
+async def get_dernieres_modifications(user: UserModel = Depends(get_user_with_selected_organization)):
+    """[.mark] U2 bis (E56) : pour chaque fiche, qui l'a modifiée en dernier et d'où (Dograh ou portail), lu dans le
+    journal de la base du client. Sans base rattachée : rien n'est journalisé, la liste est vide (jamais inventé)."""
+    from api.db.bases_clients.connexion import connecter
+    from api.db.bases_clients.referentiel import dernieres_modifications
+    from api.services.base_client import rattachement
+
+    nom = await rattachement.nom_de_la_base(user.selected_organization_id)
+    if not nom:
+        return []
+    try:
+        connexion = await connecter(nom)
+    except BaseClientIndisponible as erreur:
+        raise _base_injoignable(erreur) from None
+    try:
+        lignes = await dernieres_modifications(connexion)
+    finally:
+        await connexion.close()
+    sortie = []
+    for ligne in lignes:
+        origine, auteur = _qui_et_d_ou(ligne["auteur"])
+        sortie.append(DerniereModification(id=ligne["id"], origine=origine, auteur=auteur, le=ligne["le"]))
+    return sortie
 
 
 async def _numeros_de_lorganisation(organization_id: int) -> list[NumeroDeLorganisation]:

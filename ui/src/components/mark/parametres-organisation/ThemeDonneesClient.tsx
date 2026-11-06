@@ -10,7 +10,6 @@
  */
 import { Database } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
     getBaseClientApiV1OrganizationsBaseClientGet,
@@ -21,29 +20,29 @@ import {
     putConservationApiV1OrganizationsBaseClientConservationPut,
 } from "@/client/sdk.gen";
 import type { Conservation, EtatBaseClient } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
+import { LigneLue } from "../entreprise/section-lue";
 import { type Texte, useLangue } from "../langue/langue";
+import { EtatVide } from "../studio/etat-vide";
+import { GroupePage } from "../studio/groupe-page";
+import { PointEtat } from "../studio/marques";
 import { SectionConservationAppels, useConservationAppels } from "./SectionConservationAppels";
-import { SectionListesValeurs, useListesValeurs } from "./SectionListesValeurs";
+import { BaseDuClient, LIBELLES_TABLES, TableauConservation } from "./DonneesClientMaquette";
+import { SectionListesValeurs, TableauxListesValeurs, useListesValeurs } from "./SectionListesValeurs";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
 export const TITRE_DONNEES: Texte = { en: "Client data", fr: "Données du client" };
 
-const LIBELLES_TABLES: Record<string, Texte> = {
-    appel: { en: "Calls", fr: "Appels" },
-    demande: { en: "Requests", fr: "Demandes" },
-    contact: { en: "Contacts (after their last activity)", fr: "Contacts (après leur dernière activité)" },
-    action: { en: "Actions (mails, SMS…)", fr: "Actions (mails, SMS…)" },
-    // [.mark] L4 (A8): 6 months by default, shorter if the client wants.
-    verbatim: { en: "Transcripts (verbatim)", fr: "Transcriptions (verbatim)" },
-};
 
 export const useBaseClient = () => {
     const { user, loading: authLoading } = useAuth();
@@ -54,7 +53,7 @@ export const useBaseClient = () => {
     const relire = useCallback(async () => {
         const reponse = await getBaseClientApiV1OrganizationsBaseClientGet();
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Client database state unreadable"));
+            setErreur(echecAffiche(reponse.error, ECHECS.baseClientLire));
             return;
         }
         setErreur(null);
@@ -65,18 +64,18 @@ export const useBaseClient = () => {
         dejaLu.current = true;
         void relire();
     }, [authLoading, user, relire]);
-    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown; response?: Response }>, succes: string) => {
+    const agir = useCallback(async (action: () => Promise<{ data?: EtatBaseClient; error?: unknown; response?: Response }>, succes: Texte) => {
         setEnCours(true);
         setErreur(null);
         const reponse = await action();
         setEnCours(false);
         if (reponse.error || !reponse.data) {
             // 409: the name is taken (another organization's database, or one the server already has).
-            setErreur(reponse.response?.status === 409 ? NOM_PRIS : detailFromError(reponse.error, "Action refused"));
+            setErreur(reponse.response?.status === 409 ? NOM_PRIS : echecAffiche(reponse.error, ECHECS.baseClientLire));
             return false;
         }
         setEtat(reponse.data);
-        toast.success(succes);
+        notifier.succes(succes);
         return true;
     }, []);
     return { etat, erreur, enCours, relire, agir };
@@ -94,8 +93,11 @@ export const ThemeDonneesClient = ({
     onBasculer,
     signaler,
     base,
+    plat,
+    sansTitre,
 }: ProprietesThemeOrganisation & { base: ReturnType<typeof useBaseClient> }) => {
     const { t } = useLangue();
+    const maquette = useFormeMaquette();
     const { etat, erreur, enCours, agir } = base;
     const [nom, setNom] = useState("");
     const [conservation, setConservation] = useState<Conservation[]>([]);
@@ -130,6 +132,8 @@ export const ThemeDonneesClient = ({
     return (
         <Theme
             id="donnees"
+            plat={plat}
+            sansTitre={sansTitre}
             icone={Database}
             titre={TITRE_DONNEES}
             description={{
@@ -147,11 +151,42 @@ export const ThemeDonneesClient = ({
                     {erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur}
                 </p>
             )}
-            {!etat ? (
+            {maquette ? (
+                !etat ? (
+                    erreur ? null : <EtatVide cas="chargement" />
+                ) : (
+                    <>
+                        <BaseDuClient etat={etat} enCours={enCours} agir={agir} enRetard={enRetard} erreur={erreur === NOM_PRIS ? t(MESSAGE_NOM_PRIS) : erreur} />
+                        {rattachee && etat.joignable && conservation.length > 0 && (
+                            <>
+                                <GroupePage titre={t({ en: "Retention", fr: "Conservation" })} />
+                                <TableauConservation
+                                    conservation={conservation}
+                                    setConservation={setConservation}
+                                    bloque={enCours || !conservationModifiee || conservation.some((l) => !(l.duree_jours >= 1 && l.duree_jours <= 3650))}
+                                    enregistrer={() =>
+                                        void agir(
+                                            () => putConservationApiV1OrganizationsBaseClientConservationPut({ body: conservation }),
+                                            { en: "Retention saved.", fr: "Conservation enregistrée." },
+                                        )
+                                    }
+                                />
+                            </>
+                        )}
+                        <SectionConservationAppels etat={conservationAppels} />
+                        {etat.joignable && !enRetard && (
+                            <>
+                                <GroupePage titre={t({ en: "Portal indicators", fr: "Indicateurs du portail" })} />
+                                <TableauxListesValeurs etat={listesValeurs} />
+                            </>
+                        )}
+                    </>
+                )
+            ) : !etat ? (
                 <p className="text-sm text-muted-foreground">{t({ en: "Loading...", fr: "Chargement..." })}</p>
             ) : (
                 <>
-                    <Intertitre id="donnees-base" titre={{ en: "Database", fr: "Base" }}>
+                    <Intertitre id="donnees-base" titre={{ en: "Client database", fr: "Base du client" }}>
                         {!etat.serveur_configure && (
                             <p className="text-sm text-destructive" data-testid="serveur-non-configure">
                                 {t({
@@ -161,19 +196,27 @@ export const ThemeDonneesClient = ({
                             </p>
                         )}
                         {rattachee ? (
-                            <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[12rem_1fr]" data-testid="etat-base-client">
-                                <dt className="text-muted-foreground">{t({ en: "Name", fr: "Nom" })}</dt>
-                                <dd className="font-mono">{etat.nom_base}</dd>
-                                <dt className="text-muted-foreground">{t({ en: "State", fr: "État" })}</dt>
-                                <dd>{etat.joignable ? t({ en: "reachable", fr: "joignable" }) : `${t({ en: "not reachable", fr: "injoignable" })}${etat.erreur ? ` : ${etat.erreur}` : ""}`}</dd>
-                                <dt className="text-muted-foreground">{t({ en: "Schema version", fr: "Version du schéma" })}</dt>
-                                <dd>
-                                    {etat.version ?? "—"} / {etat.version_attendue}
-                                    {enRetard && <span className="ml-2 text-destructive">{t({ en: "behind", fr: "en retard" })}</span>}
-                                </dd>
-                                <dt className="text-muted-foreground">{t({ en: "Last write", fr: "Dernière écriture" })}</dt>
-                                <dd>{etat.derniere_ecriture ? new Date(etat.derniere_ecriture).toLocaleString() : "—"}</dd>
-                            </dl>
+                            <div className="divide-y border-t" data-testid="etat-base-client">
+                                <LigneLue libelle={t({ en: "Name", fr: "Nom" })} valeur={<span className="font-mono text-xs">{etat.nom_base}</span>} />
+                                <LigneLue
+                                    libelle={t({ en: "State", fr: "État" })}
+                                    valeur={
+                                        <PointEtat etat={etat.joignable ? "publie" : "panne"}>
+                                            {etat.joignable ? t({ en: "reachable", fr: "joignable" }) : `${t({ en: "not reachable", fr: "injoignable" })}${etat.erreur ? ` : ${etat.erreur}` : ""}`}
+                                        </PointEtat>
+                                    }
+                                />
+                                <LigneLue
+                                    libelle={t({ en: "Schema version", fr: "Version du schéma" })}
+                                    valeur={
+                                        <>
+                                            {etat.version ?? "—"} / {etat.version_attendue}
+                                            {enRetard && <span className="ml-2 text-destructive">{t({ en: "behind", fr: "en retard" })}</span>}
+                                        </>
+                                    }
+                                />
+                                <LigneLue libelle={t({ en: "Last write", fr: "Dernière écriture" })} valeur={etat.derniere_ecriture ? new Date(etat.derniere_ecriture).toLocaleString() : "—"} />
+                            </div>
                         ) : (
                             <ChampReglage
                                 cle="nom_base"
@@ -199,7 +242,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => postCreerApiV1OrganizationsBaseClientCreerPost({ body: { nom_base: nom } }),
-                                                t({ en: "Database created and attached", fr: "Base créée et rattachée" }),
+                                                { en: "Database created and attached.", fr: "Base créée et rattachée." },
                                             )
                                         }
                                     >
@@ -213,7 +256,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: nom } }),
-                                                t({ en: "Database attached", fr: "Base rattachée" }),
+                                                { en: "Database attached.", fr: "Base rattachée." },
                                             )
                                         }
                                     >
@@ -231,7 +274,7 @@ export const ThemeDonneesClient = ({
                                             onClick={() =>
                                                 void agir(
                                                     () => postMettreANiveauApiV1OrganizationsBaseClientMettreANiveauPost(),
-                                                    t({ en: "Database upgraded", fr: "Base mise à niveau" }),
+                                                    { en: "Database upgraded.", fr: "Base mise à niveau." },
                                                 )
                                             }
                                         >
@@ -246,7 +289,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => postResynchroniserApiV1OrganizationsBaseClientResynchroniserPost(),
-                                                t({ en: "Tested: the calls read the database again", fr: "Testée : les appels relisent la base" }),
+                                                { en: "Tested: the calls read the database again.", fr: "Testée : les appels relisent la base." },
                                             )
                                         }
                                     >
@@ -260,7 +303,7 @@ export const ThemeDonneesClient = ({
                                         onClick={() =>
                                             void agir(
                                                 () => putBaseClientApiV1OrganizationsBaseClientPut({ body: { nom_base: null } }),
-                                                t({ en: "Database detached", fr: "Base détachée" }),
+                                                { en: "Database detached.", fr: "Base détachée." },
                                             )
                                         }
                                     >
@@ -321,7 +364,7 @@ export const ThemeDonneesClient = ({
                                 onClick={() =>
                                     void agir(
                                         () => putConservationApiV1OrganizationsBaseClientConservationPut({ body: conservation }),
-                                        t({ en: "Retention saved", fr: "Conservation enregistrée" }),
+                                        { en: "Retention saved.", fr: "Conservation enregistrée." },
                                     )
                                 }
                             >
@@ -332,7 +375,7 @@ export const ThemeDonneesClient = ({
                     {etat?.joignable && !enRetard && <SectionListesValeurs etat={listesValeurs} />}
                 </>
             )}
-            <SectionConservationAppels etat={conservationAppels} />
+            {!maquette && <SectionConservationAppels etat={conservationAppels} />}
         </Theme>
     );
 };

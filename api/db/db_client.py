@@ -3,9 +3,22 @@ from api.db.api_key_client import APIKeyClient
 from api.db.campaign_client import CampaignClient
 from api.db.conservation_client import ConservationClient
 from api.db.embed_token_client import EmbedTokenClient
+from api.db.equipe_client import EquipeClient
+from api.db.espaces_client import EspacesClient
+from api.db.site_client import SiteClient
+from api.db.boucle_client import BoucleClient
+from api.db.branches_client import BranchesClient
+from api.db.installation_client_client import InstallationClientClient
+from api.db.journal_builder_client import JournalBuilderClient
+from api.db.outils_versions_client import OutilsVersionsClient
+from api.db.builder_fil_client import BuilderFilClient
+from api.db.depense_roles_client import DepenseRolesClient
+from api.db.copie_agent_client import CopieAgentClient
+from api.db.relation_client import RelationClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
+from api.db.outils_mark_client import OutilsMarkClient
 from api.db.folder_client import FolderClient
 from api.db.integration_client import IntegrationClient
 from api.db.knowledge_base_client import KnowledgeBaseClient
@@ -54,6 +67,7 @@ class DBClient(
     FolderClient,
     # [.mark] The establishments' reads (chantier l-agent-travaille).
     EtablissementsClient,
+    OutilsMarkClient,
     # [.mark] l-agent-travaille, L4: the after-call steps of a run.
     ApresAppelClient,
     # [.mark] cloture-code, lot 6: the retention of a call's copies (the nightly purge).
@@ -62,6 +76,29 @@ class DBClient(
     VerrouClient,
     # [.mark] passages-fiables, lot G: the triage queue and the alerts (bounded reads of a run's JSON).
     TriClient,
+    # [.mark] builder partie 2, U2 ter: roles, members, invitations and the journal of the .mark team.
+    EquipeClient,
+    EspacesClient,
+    # [.mark] builder partie 2, U10: public widget sites, paths per agent, monthly usage.
+    SiteClient,
+    # [.mark] builder partie 2, U5: the builder conversations and events in tables.
+    BuilderFilClient,
+    # [.mark] builder partie 3, lot 12: the monthly spend of the simulated caller and of the judge.
+    DepenseRolesClient,
+    # [.mark] builder partie 3, SA-L3b: the agent branches (versions, drafts per person, traffic shares).
+    BranchesClient,
+    # [.mark] builder partie 3, SA-L3d: the versions of the tools and what each agent version pins.
+    OutilsVersionsClient,
+    # [.mark] builder partie 2, U3 septies: the Relation hub (threads, notes, testimonials, portal entries).
+    RelationClient,
+    # [.mark] builder partie 2, U2 quinquies: copying a document or a recording from one organization to another.
+    CopieAgentClient,
+    # [.mark] builder partie 2, U8: the improvement loop ("À améliorer") and the quality page.
+    BoucleClient,
+    # [.mark] builder partie 3, sous-lot 9: the installation of a new client, step by step.
+    InstallationClientClient,
+    # [.mark] builder partie 3, N1: the journal of what the builder writes (who, what, when, mode, authorization, before and after, undo).
+    JournalBuilderClient,
 ):
     """
     Unified database client that combines all specialized database operations.

@@ -1,0 +1,11 @@
+{
+ "value": [
+  {
+   "scheduleId": "agenda@exemple.fr",
+   "error": {
+    "message": "not found",
+    "responseCode": "ErrorMailRecipientNotFound"
+   }
+  }
+ ]
+}

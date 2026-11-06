@@ -55,6 +55,8 @@ export interface Borne {
  */
 export const BORNES: Record<string, Borne> = {
     // Turn taking
+    // Rhythm theme: the longest a call may last (`MAX_CALL_DURATION_SECONDS`, kept under the 20-minute stale-call purge).
+    max_call_duration: { min: 0, minStrict: true, max: 1200 },
     user_speech_timeout: { min: 0, minStrict: true, max: 10 },
     stt_ttfs_p99_latency: { min: 0, minStrict: true, max: 10 },
     user_turn_stop_timeout: { min: 0, minStrict: true, max: 60 },
@@ -78,6 +80,9 @@ export const BORNES: Record<string, Borne> = {
     travail_delai_max_s: { min: 5, minStrict: false, max: 300 },
     // fiabilite-orchestration, lot 4 (F20): the model guard delay.
     delai_garde_modele_s: { min: 1, minStrict: false, max: 30 },
+    // Lot « façon Tala par motif » (T3): the size the brain handles (empty = no threshold).
+    cerveau_plafond_prompt: { min: 1, minStrict: false, max: 1000000 },
+    cerveau_poids_max: { min: 1, minStrict: false, max: 1000000 },
 };
 
 /**

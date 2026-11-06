@@ -221,4 +221,16 @@ async def conservation_de_nuit(_ctx=None) -> dict[int, dict]:
                 )
             except Exception:  # noqa: BLE001 -- telling a failure must not make a second one
                 pass
+    # [.mark] U10 / S3 : les sessions du widget public (adresse IP, navigateur) ont leur durée écrite.
+    try:
+        from api.services.site_mark.conservation import purger_sessions, reduire_avis_anciens
+
+        reduits = await reduire_avis_anciens()
+        if reduits:
+            logger.info(f"[.mark] Widget reviews kept in full past their retention: {reduits} reduced")
+        effacees = await purger_sessions()
+        if effacees:
+            logger.info(f"[.mark] Widget sessions past their retention: {effacees} deleted")
+    except Exception as erreur:  # noqa: BLE001 -- a failed purge is replayed the next night
+        logger.error(f"[.mark] Widget sessions purge failed: {type(erreur).__name__}: {erreur}")
     return sortie

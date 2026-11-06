@@ -60,7 +60,7 @@ export const DialogueNom = ({
     };
 
     return (
-        <Dialog open={ouvert} onOpenChange={onOuvertChange}>
+        <Dialog centree open={ouvert} onOpenChange={onOuvertChange}>
             <DialogContent className="sm:max-w-md" data-modale="nom">
                 <DialogHeader>
                     <DialogTitle>{t(titre)}</DialogTitle>

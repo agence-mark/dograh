@@ -1,5 +1,6 @@
 "use client";
 
+import { useLangue } from "@/components/mark/langue/langue";
 import { MessageSquare, Mic, MicOff } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -17,20 +18,20 @@ interface ConversationContainerProps {
 const STATUS_CONFIG = {
     ready: {
         icon: MicOff,
-        label: "Ready",
+        label: { en: "Ready", fr: "Prêt" },
         className: "border border-border bg-background text-foreground before:bg-(--signal-idle) before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
     live: {
         icon: Mic,
-        label: "Live",
+        label: { en: "Live", fr: "En direct" },
         className: "border border-border bg-background text-foreground before:bg-foreground before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
     ended: {
         icon: MicOff,
-        label: "Ended",
+        label: { en: "Ended", fr: "Terminé" },
         className: "border border-border bg-background text-foreground before:bg-(--signal-idle) before:size-1.5 before:shrink-0 before:rounded-full before:content-['']",
     },
-} satisfies Record<ConversationStatus, { icon: typeof Mic; label: string; className: string }>;
+} satisfies Record<ConversationStatus, { icon: typeof Mic; label: { en: string; fr: string }; className: string }>;
 
 export function ConversationContainer({
     title,
@@ -38,6 +39,7 @@ export function ConversationContainer({
     children,
     messageCount,
 }: ConversationContainerProps) {
+    const { t } = useLangue();
     const statusConfig = STATUS_CONFIG[status];
     const StatusIcon = statusConfig.icon;
 
@@ -51,7 +53,7 @@ export function ConversationContainer({
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         {messageCount !== undefined && messageCount > 0 ? (
-                            <span className="text-xs text-muted-foreground">{messageCount} messages</span>
+                            <span className="text-xs text-muted-foreground">{messageCount} {t({ en: "messages", fr: "messages" })}</span>
                         ) : null}
                         <div
                             className={cn(
@@ -60,7 +62,7 @@ export function ConversationContainer({
                             )}
                         >
                             <StatusIcon className="h-3 w-3" />
-                            <span>{statusConfig.label}</span>
+                            <span>{t(statusConfig.label)}</span>
                         </div>
                     </div>
                 </div>

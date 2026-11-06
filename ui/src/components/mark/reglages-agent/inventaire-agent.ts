@@ -41,6 +41,9 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // fiabilite-orchestration, lot 4 (F20, F26): the guard and the fallback brains.
     delai_garde_modele_s: { theme: "briques", cas: ["garde-delai"] },
     cerveau_de_repli: { theme: "briques", cas: ["garde-repli"] },
+    // Lot « façon Tala par motif » (T3): « Size the brain handles », the two thresholds of the brain.
+    cerveau_plafond_prompt: { theme: "briques", cas: ["taille-plafond"] },
+    cerveau_poids_max: { theme: "briques", cas: ["taille-poids"] },
     travail_llm_repli: { theme: "briques", cas: ["travail-repli"] },
     travail_consigne: { theme: "briques", cas: ["travail-modele"] },
     travail_outils: { theme: "briques", cas: ["travail-outils"] },
@@ -77,7 +80,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     turn_start_use_interim: { theme: "tour", cas: ["transcriptions-partielles"] },
     mute_until_first_bot_complete: { theme: "tour", cas: ["muet-accueil"] },
     mute_during_function_call: { theme: "tour", cas: ["muet-outil"] },
-    relance_apres_outil: { theme: "tour", cas: ["relance-outil"] },
+    relance_apres_outil: { theme: "interventions", cas: ["relance-outil"] },
     relance_tour_vide: { theme: "tour", cas: ["tour-vide"] },
     mute_engine_callback: { theme: "tour", cas: ["muet-workflow"] },
     mute_first_speech: { theme: "tour", cas: ["muet-premiere"] },
@@ -102,6 +105,17 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     interdire_nom_appelant: { theme: "voix", cas: ["nom-appelant"] },
     interdire_civilite_appelant: { theme: "voix", cas: ["civilite"] },
     relecture_des_numeros: { theme: "voix", cas: ["relecture-des-numeros"] },
+    // U3 quinquies (E68): the safety of the conversation. The server side is built and tested; the « Safety » theme of the
+    // settings screen is built (K3).
+    securite_conversation: {
+        theme: "securite",
+        via: "Safety theme (ThemeSecurite.tsx), drawn from the maquette; its own tests are in securite-ecran.test.tsx",
+    },
+    // U11: the checks before publishing and the progressive deployment are set in the « Publish » window itself.
+    publication: {
+        theme: "securite",
+        via: "The « Publish » window (FenetreDePublication.tsx): each check on three positions, the progressive deployment switch",
+    },
     tts_replacements: { theme: "voix", cas: ["prononciation"] },
     // Chantier voix-soniox, lot 5 bis (D11) then lot 7: a card that opens a centred modal (`BalisesPermises.tsx`).
     tts_balises_permises: { theme: "voix", cas: ["balises-permises"] },
@@ -113,8 +127,19 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     user_idle_max_prompts: { theme: "rythme", cas: ["relances-nombre"] },
     user_idle_goodbye_prompt: { theme: "rythme", cas: ["au-revoir"] },
     raccrochage_silence_agent_s: { theme: "rythme", cas: ["raccrochage-agent"] },
-    laisser_la_parole: { theme: "rythme", cas: ["laisser-la-parole"] },
+    laisser_la_parole: { theme: "interventions", cas: ["laisser-la-parole"] },
     max_call_duration: { theme: "rythme", cas: ["duree-max"] },
+    // builder-agent-vocal, lot 8: the engine interventions.
+    moteur_sorties_de_l_etape: { theme: "interventions", cas: ["sorties-de-l-etape"] },
+    moteur_sortie_d_impasse: { theme: "interventions", cas: ["sortie-d-impasse"] },
+    moteur_parole_avant_outil: { theme: "interventions", cas: ["parole-avant-outil"] },
+    moteur_main_passee: { theme: "interventions", cas: ["main-passee"] },
+    moteur_ordre_outil_puis_parole: { theme: "interventions", cas: ["ordre-outil-puis-parole"] },
+    moteur_compte_rendu_de_phrase: { theme: "interventions", cas: ["compte-rendu-de-phrase"] },
+    moteur_phrases_coupees: { theme: "interventions", cas: ["phrases-coupees"] },
+    moteur_replique_inachevee: { theme: "interventions", cas: ["replique-inachevee"] },
+    moteur_reponse_muette: { theme: "interventions", cas: ["reponse-muette"] },
+    moteur_notes_de_passation: { theme: "interventions", cas: ["notes-de-passation"] },
     // Données de l'appel
     fiche_au_fil_de_leau: { theme: "donnees", cas: ["fiche"] },
     fiche_mode_de_note: { theme: "donnees", cas: ["mode-de-note"] },

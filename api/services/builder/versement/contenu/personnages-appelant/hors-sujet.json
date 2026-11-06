@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Hors sujet",
+  "contenu": {
+    "description": "Un appelant qui dérive vers d'autres sujets.",
+    "but": "Poser sa question, qui n'est pas celle de l'agent.",
+    "fin": "Revient à sa demande quand on le ramène gentiment.",
+    "comportements": [
+      "Digresse",
+      "Pose une question hors sujet"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

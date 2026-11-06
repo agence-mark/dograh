@@ -573,6 +573,7 @@ async def _signaler_la_panne(
     n'est pas relancé. ⛔ Ne lève jamais : sans règle posée, le résultat part tel quel."""
     try:
         from api.services.phrases.catalogue import MOTIFS, OUTIL_ECHOUE
+        from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
         from api.services.phrases.compte_rendu import compte_rendu
         from api.services.phrases.diseur import DiseurDePhrases
 
@@ -582,8 +583,15 @@ async def _signaler_la_panne(
         cible = _action_du_agent(agent, moteur, params)
         if cible is None:
             return resultat, kwargs, None
+        # [.mark] RA-B R4c (audit 02 B4) : le repli de l'outil (``said_to_caller``) vient d'être dit : il remplace
+        # la phrase de la règle, qui ne redit rien (compteur et sortie de la règle inchangés).
+        deja_dit = resultat.get("said_to_caller") if isinstance(resultat, dict) else None
         probleme = await diseur.signaler_un_probleme(
-            OUTIL_ECHOUE, cible, outil=nom_outil, seulement_si_posee=True
+            OUTIL_ECHOUE,
+            cible,
+            outil=nom_outil,
+            seulement_si_posee=True,
+            deja_dit=deja_dit if isinstance(deja_dit, str) and deja_dit.strip() else None,
         )
         if probleme.dit is None and probleme.issue is None:
             return resultat, kwargs, None
@@ -593,6 +601,7 @@ async def _signaler_la_panne(
             dit=probleme.dit,
             notes=probleme.notes,
             interdits=issue.interdit if issue is not None else (),
+            actif=intervention_du_moteur(moteur, CLE_COMPTE_RENDU_DE_PHRASE),
         )
         resultat = _avec_le_compte_rendu(resultat, compte)
         if issue is not None and issue.prise_en_main:

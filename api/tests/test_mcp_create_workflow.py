@@ -36,7 +36,7 @@ async def test_create_workflow_rejects_duplicate_api_triggers():
 
     with (
         patch(
-            "api.mcp_server.tools.create_workflow.authenticate_mcp_request",
+            "api.mcp_server.tools.create_workflow.authenticate_mcp_write",
             AsyncMock(return_value=user),
         ),
         patch(

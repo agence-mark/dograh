@@ -37,10 +37,25 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
     "integrations/connectors/outil.py": [
         (NATURE_ACTION, "Phrase rendue par une action interne (planificateur, vérification)")
     ],
+    # Builder partie 2 (U3 sexies) : le comportement commun des outils qui appellent l'extérieur.
+    "outils_mark/comportement.py": [
+        (NATURE_ACTION, "Phrase avant un outil (son enregistré)"),
+        (NATURE_ACTION, "Phrase avant un outil (texte)"),
+        (NATURE_ACTION, "Phrase d'attente d'un outil qui tarde"),
+        (NATURE_ACTION, "Son pendant un outil qui tarde"),
+        (NATURE_ACTION, "Phrase de repli d'un outil en échec"),
+    ],
     "pipecat/post_scriptum.py": [(NATURE_GRAPHE, "Phrase d'une porte, mode Post-scriptum")],
     "pipecat/realtime/openai_live.py": [
         (NATURE_HORS, "Voix temps réel : accueil"),
         (NATURE_HORS, "Voix temps réel : message de fin"),
+    ],
+    # L3e : l'annonce « vous parlez à une IA » (motif verrouillé) et le garde-fou urgence : les phrases du code sont au catalogue.
+    "securite/annonce_ia.py": [
+        (NATURE_MOTIF, "Annonce « vous parlez à une IA » avant un accueil enregistré ou l'ouverture du modèle (motif annonce_ia, verrouillé)")
+    ],
+    "site_mark/duree_max.py": [
+        (NATURE_MOTIF, "Phrase de fin d'une conversation du widget à sa durée maximale (motif fin_duree_max)")
     ],
     "travail/outils.py": [(NATURE_SOCLE, "Cerveau de fond au clavier : rien n'est dit")],
     "workflow/agent_runtime.py": [(NATURE_SOCLE, "Parole d'un agent (``speak``)")],
@@ -65,8 +80,6 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
     "workflow/pipecat_engine_custom_tools.py": [
         (NATURE_ACTION, "Message d'un outil (son enregistré)"),
         (NATURE_ACTION, "Message d'un outil (texte)"),
-        (NATURE_ACTION, "Message avant un outil HTTP (son enregistré)"),
-        (NATURE_ACTION, "Message avant un outil HTTP (texte)"),
         (NATURE_ACTION, "Message d'attente d'un transfert dynamique"),
         (NATURE_ACTION, "Message d'un transfert d'appel"),
         (NATURE_ACTION, "Message d'un transfert d'appel, au clavier"),

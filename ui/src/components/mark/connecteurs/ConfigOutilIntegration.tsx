@@ -14,9 +14,8 @@
  */
 import { Copy, Link2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
-import { BuiltinToolConfig } from "@/app/tools/[toolUuid]/components";
 import type { ConnecteurVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { ChampReglage } from "../ecran/ChampReglage";
 import { useLangue } from "../langue/langue";
+import { Liste } from "../studio/liste";
 import {
     ATTENTE_MAX_DEFAUT_MS,
     type ConfigIntegration,
@@ -426,7 +426,7 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
             const r = await connecteurs.demanderLien([nom]);
             if (r.lien) setLien({ connecteur: nom, url: r.lien });
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "No authorization link", fr: "Pas de lien d'autorisation" }));
+            notifier.echec({ fr: "Lien d'autorisation indisponible. Réessayez.", en: "Authorization link unavailable. Try again." }, { erreur: e });
         } finally {
             setEnCours(null);
         }
@@ -471,7 +471,7 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
                                     aria-label={t({ en: "Copy the link", fr: "Copier le lien" })}
                                     onClick={() => {
                                         void navigator.clipboard?.writeText(lien.url);
-                                        toast.success(t({ en: "Link copied", fr: "Lien copié" }));
+                                        notifier.succes({ fr: "Lien copié.", en: "Link copied." });
                                     }}
                                 >
                                     <Copy className="h-3.5 w-3.5" />
@@ -489,11 +489,21 @@ export function BlocConnexions({ connecteurs, seulement }: { connecteurs: Connec
     );
 }
 
-/** The creation dialog of « Tools »: the software and the action; the rest on the tool page. */
-export function ChampsCreationIntegration({ onChange }: { onChange: (valeur: ConfigIntegration | null) => void }) {
+/** [.mark] K5 (E77) : les comptes branchés de ce logiciel, pour que l'outil choisisse le sien. */
+export function comptesDuLogiciel(connecteurs: ReturnType<typeof useConnecteurs>, nomConnecteur: string): string[] {
+    const integration = connecteurs.catalogue?.find((c) => c.nom === nomConnecteur)?.integration;
+    return (connecteurs.etat?.connexions ?? []).filter((x) => x.integration === integration).map((x) => x.compte ?? x.connection_id);
+}
+
+/**
+ * The creation dialog of « Tools »: the software, the action and (K5, as in the maquette) the connected account the tool
+ * follows; the rest on the tool page. A single account needs no choice: the tool follows it without writing anything.
+ */
+export function ChampsCreationIntegration({ onChange, avecCompte = false }: { onChange: (valeur: ConfigIntegration | null) => void; avecCompte?: boolean }) {
     const { t } = useLangue();
     const connecteurs = useConnecteurs();
     const [valeur, setValeur] = useState<ConfigIntegration | null>(null);
+    const [compte, setCompte] = useState("");
     useEffect(() => {
         if (connecteurs.catalogue && valeur === null) {
             const premier = configParDefaut(connecteurs.catalogue);
@@ -501,36 +511,47 @@ export function ChampsCreationIntegration({ onChange }: { onChange: (valeur: Con
             onChange(premier);
         }
     }, [connecteurs.catalogue, valeur, onChange]);
+    // Plusieurs comptes : l'outil garde dès le départ celui qu'on voit choisi (jamais « le premier » par hasard).
+    const nomsDesComptes = valeur && avecCompte ? comptesDuLogiciel(connecteurs, valeur.connecteur).join(" ") : "";
+    useEffect(() => {
+        const noms = nomsDesComptes ? nomsDesComptes.split(" ") : [];
+        if (valeur && noms.length > 1) onChange({ ...valeur, compte: noms.includes(compte) ? compte : noms[0] } as ConfigIntegration);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nomsDesComptes, valeur?.connecteur, valeur?.action, compte]);
     if (connecteurs.erreur) return <p className="text-sm text-destructive">{connecteurs.erreur}</p>;
     if (!connecteurs.catalogue || !valeur) return <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>;
+    const comptes = avecCompte ? comptesDuLogiciel(connecteurs, valeur.connecteur) : [];
+    const choisi = comptes.includes(compte) ? compte : (comptes[0] ?? "");
+    const poser = (v: ConfigIntegration, nom: string) => {
+        const c = comptesDuLogiciel(connecteurs, v.connecteur);
+        onChange(avecCompte && c.length > 1 ? ({ ...v, compte: c.includes(nom) ? nom : c[0] } as ConfigIntegration) : v);
+    };
     return (
-        <ChoixAction
-            catalogue={connecteurs.catalogue}
-            valeur={valeur}
-            onChange={(v) => {
-                setValeur(v);
-                onChange(v);
-            }}
-        />
+        <div className="space-y-3">
+            <ChoixAction
+                catalogue={connecteurs.catalogue}
+                valeur={valeur}
+                onChange={(v) => {
+                    setValeur(v);
+                    poser(v, choisi);
+                }}
+            />
+            {comptes.length > 1 && (
+                <div className="flex items-center gap-3" data-testid="choix-du-compte">
+                    <span className="text-sm text-muted-foreground">{t({ en: "Connected account", fr: "Compte branché" })}</span>
+                    <Liste
+                        valeur={choisi}
+                        changer={(nom) => {
+                            setCompte(nom);
+                            poser(valeur, nom);
+                        }}
+                        options={comptes}
+                        className="w-64"
+                    />
+                </div>
+            )}
+        </div>
     );
 }
 
 /** The name and description card of the tool page, its texts in two languages. */
-export function EnteteOutilIntegration(props: {
-    name: string;
-    onNameChange: (v: string) => void;
-    description: string;
-    onDescriptionChange: (v: string) => void;
-}) {
-    const { t } = useLangue();
-    return (
-        <BuiltinToolConfig
-            {...props}
-            title={t({ en: "Integration Configuration", fr: "Configuration de l'intégration" })}
-            subtitle={t({
-                en: "An action in the client's software, done during the call. Empty description: the action's own.",
-                fr: "Une action dans le logiciel du client, faite pendant l'appel. Description vide : celle de l'action.",
-            })}
-        />
-    );
-}

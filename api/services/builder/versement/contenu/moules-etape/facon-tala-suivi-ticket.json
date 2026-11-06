@@ -1,0 +1,17 @@
+{
+  "titre": "Suivi d'un ticket de service après-vente (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Suivi d'un ticket de service après-vente (façon Tala, par motif)\n\nFamille : **Lire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil de lecture du ticket⟧ (lecture).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nRenseigner la personne identifiée sur un ticket de service après-vente : le statut et la prochaine action, tels que ⟦logiciel du client⟧ les rend.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Retrouver\n- Demander la référence ; à défaut, utiliser le nom et le numéro connus.\n- ⟦outil de lecture du ticket⟧.\n- Introuvable : vérifier la référence avec la personne, puis UNE seule nouvelle recherche avec d'autres critères (⟦critères de repli de la fiche⟧).\n- Toujours introuvable, ou erreur : le dire simplement, proposer ⟦repli de la fiche⟧.\n### Tâche 2 : Dire\n- Dire le statut et la prochaine action, tels que l'outil les renvoie, dates et montants en toutes lettres.\n- Ne rien modifier soi-même : un changement devient une demande enregistrée.\n### Tâche 3 : Orienter\n- Un problème signalé (réclamation, contestation) : passer à l'étape dédiée.\n\n## Règles métier\n- Ne dire que ce que l'outil renvoie. Erreur de l'outil : ne rien affirmer, s'en excuser, proposer ⟦repli de la fiche⟧.\n\n## Déroulement de l'appel\nUne recherche, une réponse, une orientation.\n\n# Critères de succès\n- Information donnée -> récapitulatif\n- Problème signalé -> réclamation\n- Introuvable après repli ou personne demandée -> transfert\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers la réclamation : « La personne signale un problème. Déclencher cette transition au lieu de simplement répéter l'information. »\n- Vers le transfert : « L'élément reste introuvable après la seconde recherche, ou la personne demande une personne. Déclencher cette transition au lieu de retenter. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Tala écrit en dur des listes de statuts et des délais inventés par ses suggestions : les statuts viennent de l'outil, les délais de la fiche.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/lire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

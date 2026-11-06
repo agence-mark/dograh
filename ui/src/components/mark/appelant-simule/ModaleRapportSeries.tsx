@@ -11,10 +11,11 @@ import { useEffect, useState } from "react";
 
 import { getRapportSerieApiV1AppelSimuleSeriesSerieIdGet, getSeriesSimuleesApiV1AppelSimuleSeriesGet } from "@/client";
 import type { RapportSerie, SerieSimulee } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Resultat = {
@@ -216,7 +217,7 @@ export function ModaleRapportSeries({
             const reponse = await getSeriesSimuleesApiV1AppelSimuleSeriesGet({ query: { workflow_id: workflowId } });
             if (annule) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Series unreadable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.seriesSimuleesListe));
                 return;
             }
             const liste = (reponse.data as SerieSimulee[]) ?? [];
@@ -237,7 +238,7 @@ export function ModaleRapportSeries({
                 const reponse = await getRapportSerieApiV1AppelSimuleSeriesSerieIdGet({ path: { serie_id: id } });
                 if (annule) return;
                 if (reponse.error) {
-                    setErreur(detailFromError(reponse.error, "Series report unreadable"));
+                    setErreur(echecAffiche(reponse.error, ECHECS.serieSimuleeRapport));
                     return;
                 }
                 setRapports((avant) => ({ ...avant, [id]: reponse.data as RapportSerie }));
@@ -278,7 +279,7 @@ export function ModaleRapportSeries({
                     <div className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-2">
                             {([0, 1] as const).map((k) => (
-                                <select
+                                <ListeDeroulante
                                     key={k}
                                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                                     value={choix[k]}
@@ -301,7 +302,7 @@ export function ModaleRapportSeries({
                                             {libelle(s)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                             ))}
                         </div>
                         <div className="grid gap-6 sm:grid-cols-2">

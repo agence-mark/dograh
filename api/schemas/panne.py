@@ -51,12 +51,6 @@ class PanneAgent(BaseModel):
             "written and an alert sent. Off: the agent behaves exactly as before."
         ),
     )
-    delai_modele_s: float = Field(
-        default=4.0,
-        ge=0.1,
-        le=30,
-        description="PN2: past this delay without the model's answer, « Un instant », then a new try; the second time, the fallback.",
-    )
     delai_voix_s: float = Field(
         default=3.0,
         ge=0.5,

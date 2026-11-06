@@ -1,0 +1,13 @@
+{
+  "titre": "Améliorer un agent",
+  "contenu": {
+    "phrase": "à partir de ses appels",
+    "demande": "Améliore {agent} à partir de ses derniers appels et de ce qui attend dans « À améliorer ». Classe d'abord les échecs par cause, puis propose les corrections.",
+    "besoin": "agent",
+    "icone": "amelioration"
+  },
+  "notes": "Carte de départ de la maquette (E50). Versée en Candidat : le passage en Recette est un clic humain.",
+  "etiquettes": [
+    "accueil"
+  ]
+}

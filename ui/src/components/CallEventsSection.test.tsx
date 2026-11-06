@@ -2,12 +2,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OrganizationPreferencesResponse } from "@/client/types.gen";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 import { CallEventsSection } from "./CallEventsSection";
 
 const mocks = vi.hoisted(() => ({
   save: vi.fn(), test: vi.fn(),
-  success: vi.fn(), error: vi.fn(),
   auth: { user: { id: "user-1" }, loading: false, provider: "stack" },
   org: {
     orgContext: { organization_id: 7 }, loading: false, error: null as Error | null,
@@ -22,7 +22,6 @@ vi.mock("@/client/sdk.gen", () => ({
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/context/OrgConfigContext", () => ({ useOrgConfig: () => mocks.org }));
-vi.mock("sonner", () => ({ toast: { success: mocks.success, error: mocks.error } }));
 
 const saved = {
   enabled: true,
@@ -31,6 +30,7 @@ const saved = {
 };
 
 beforeEach(() => {
+  viderNotifications();
   vi.stubGlobal("ResizeObserver", class {
     observe() {}
     unobserve() {}
@@ -73,7 +73,7 @@ describe("Call event organization settings", () => {
       enabled: true, sink_type: "bigquery", config: { ...saved.config, table: "example-project.analytics.new_table" },
     } });
     await waitFor(() => expect(mocks.org.refreshConfig).toHaveBeenCalledOnce());
-    expect(mocks.success).toHaveBeenCalledWith("Call event settings saved");
+    expect(lireNotifications().map((n) => [n.sorte, n.texte.en])).toEqual([["succes", "Destination saved."]]);
   });
 
   it("removes the destination through preferences without resetting other settings", async () => {
@@ -97,15 +97,14 @@ describe("Call event organization settings", () => {
     mocks.save.mockResolvedValue({ error: { detail: [{ msg: "Invalid table" }] } });
     render(<CallEventsSection />);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith("Invalid table"));
-    expect(mocks.success).not.toHaveBeenCalled();
+    await waitFor(() => expect(lireNotifications().map((n) => [n.sorte, n.detail])).toEqual([["echec", "Invalid table"]]));
     expect(mocks.org.refreshConfig).not.toHaveBeenCalled();
   });
 
   it("retries failures through the organization context", async () => {
     mocks.org.error = new Error("Preferences unavailable");
     render(<CallEventsSection />);
-    expect(screen.getByRole("alert").textContent).toBe("Preferences unavailable");
+    expect(screen.getByRole("alert").textContent).toBe("Could not load organization settings");
     expect(screen.queryByLabelText("Private key")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(mocks.org.refreshConfig).toHaveBeenCalledOnce();

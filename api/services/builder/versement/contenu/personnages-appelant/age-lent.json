@@ -1,0 +1,14 @@
+{
+  "titre": "Personnage : Âgé, parle lentement",
+  "contenu": {
+    "description": "Une personne âgée qui parle lentement, en phrases longues.",
+    "but": "Comprendre ce qu'on lui propose avant d'accepter.",
+    "fin": "Remercie longuement avant de raccrocher.",
+    "comportements": [
+      "Demande de répéter",
+      "Fait de longues phrases"
+    ]
+  },
+  "notes": "Personnage d'appelant (B32) : il porte ses comportements, sa description, son but et sa fin. C'est lui qu'un test choisit.",
+  "dossier": "personnages"
+}

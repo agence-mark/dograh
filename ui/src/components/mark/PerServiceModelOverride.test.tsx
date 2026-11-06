@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { PerServiceModelOverride } from "./PerServiceModelOverride";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 // What the stand-in form hands back when the submit button is pressed. Set to
@@ -199,13 +200,16 @@ describe("[.mark] per-service override", () => {
     it("refuses to save when no service is enabled, instead of deleting in silence", async () => {
         // The form returns an empty payload when nothing is enabled. Saving it
         // would drop the override while announcing a successful save.
+        viderNotifications();
         chargeUtile.valeur = {};
         const onSave = afficher(configurations());
 
         fireEvent.click(screen.getByRole("switch"));
         fireEvent.click(screen.getByText("Save Per-Service Override"));
 
-        await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+        // Une faute de saisie se lit sous le champ, pas dans une notification.
+        expect(await screen.findByRole("alert")).toBeTruthy();
+        expect(lireNotifications()).toHaveLength(0);
         expect(onSave).not.toHaveBeenCalled();
     });
 

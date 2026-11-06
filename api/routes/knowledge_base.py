@@ -19,6 +19,9 @@ from api.schemas.knowledge_base import (
     DocumentUploadRequestSchema,
     DocumentUploadResponseSchema,
     ProcessDocumentRequestSchema,
+    RemplacerFichierRequestSchema,
+    UtilisationDocumentSchema,
+    UtilisationDocumentsResponseSchema,
 )
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
@@ -94,6 +97,15 @@ async def get_upload_url(
     * All authenticated users can upload documents scoped to their organization.
     """
 
+    # [.mark] Constat C9 : un format que la base ne sait pas lire est refusé AVANT l'envoi, avec un message clair.
+    from api.services.gen_ai.documents_locaux import (
+        MESSAGE_FORMAT_REFUSE,
+        format_accepte,
+    )
+
+    if not format_accepte(request.filename, request.mime_type):
+        raise HTTPException(status_code=422, detail=MESSAGE_FORMAT_REFUSE)
+
     try:
         # Generate unique document UUID for S3 organization
         document_uuid = str(uuid.uuid4())
@@ -156,6 +168,12 @@ async def process_document(
     Access Control:
     * Users can only process documents in their organization.
     """
+
+    # [.mark] U10: the key comes from the request body; it must be under THIS organization's folder.
+    from api.services.knowledge_base_portail import cle_stockage_valide
+
+    if not cle_stockage_valide(request.s3_key, user.selected_organization_id):
+        raise HTTPException(status_code=422, detail="Invalid file location.")
 
     try:
         # Extract filename from s3_key
@@ -274,6 +292,60 @@ async def list_documents(
     except Exception as exc:
         logger.error(f"Error listing documents: {exc}")
         raise HTTPException(status_code=500, detail="Failed to list documents") from exc
+
+
+@router.get(
+    "/utilisation",
+    response_model=UtilisationDocumentsResponseSchema,
+    summary="Which published agents consult each document",
+)
+async def documents_utilisation(user=Depends(get_user)):
+    """[.mark] U10: used-by, calculated from the PUBLISHED agents of the organization (never declared)."""
+    from api.services.knowledge_base_portail import calculer_utilisation
+
+    organization_id = user.selected_organization_id
+    documents = await db_client.get_documents_for_organization(
+        organization_id=organization_id, processing_status=None, limit=100, offset=0
+    )
+    uuids = [d.document_uuid for d in documents]
+    lecteurs = await calculer_utilisation(organization_id, uuids)
+    return UtilisationDocumentsResponseSchema(
+        documents=[
+            UtilisationDocumentSchema(
+                document_uuid=u, agents=[{"id": a.id, "nom": a.nom} for a in lecteurs.get(u, [])]
+            )
+            for u in uuids
+        ]
+    )
+
+
+@router.post(
+    "/documents/{document_uuid}/remplacer",
+    response_model=DocumentResponseSchema,
+    summary="Replace the file of a document (PDF, Word, text) and re-index",
+)
+async def remplacer_fichier_du_document(
+    document_uuid: str,
+    request: RemplacerFichierRequestSchema,
+    user=Depends(get_user),
+):
+    """[.mark] U10: a new version of the file, under the SAME document: the agents that consult it keep it.
+    Upload the new file with /upload-url first, then give its ``s3_key``. Agents keep reading the previous
+    version until the new one is read with success."""
+    from api.services.knowledge_base_portail import RemplacementRefuse, remplacer_fichier
+
+    document = await db_client.get_document_by_uuid(
+        document_uuid=document_uuid, organization_id=user.selected_organization_id
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        mis_a_jour = await remplacer_fichier(
+            document, request.s3_key, user.selected_organization_id, str(user.provider_id)
+        )
+    except RemplacementRefuse as refus:
+        raise HTTPException(status_code=refus.code, detail=str(refus)) from None
+    return _to_document_response(mis_a_jour)
 
 
 @router.get(

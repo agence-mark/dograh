@@ -8,9 +8,8 @@ import {
 } from "@xyflow/react";
 import { EdgeChange, NodeChange } from "@xyflow/system";
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import {
@@ -29,7 +28,6 @@ import {
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, FlowNodeData, NodeType } from "@/components/flow/types";
 import { avertissementApresEnregistrement } from "@/components/mark/graphe/avertir-premiere-replique";
-import { PostHogEvent } from "@/constants/posthog-events";
 import { detailFromError } from "@/lib/apiError";
 import logger from '@/lib/logger';
 import { getNextNodeId, getRandomId } from "@/lib/utils";
@@ -38,6 +36,9 @@ import {
     type WorkflowConfigurationDefaults,
     type WorkflowConfigurations,
 } from "@/types/workflow-configurations";
+
+// [.mark] V : un enregistrement du graphe dit son résultat (règle de l'écran « retour d'action »).
+const PHRASE_BROUILLON_NON_ENREGISTRE = { fr: "Brouillon non enregistré. Réessayez.", en: "Draft not saved. Try again." };
 
 // Pull a WorkflowError[] out of any validate-shaped payload — works whether
 // the body is the raw `{ is_valid, errors }` (validate success-with-errors)
@@ -146,7 +147,6 @@ export const useWorkflowState = ({
         edges,
         workflowName,
         isDirty,
-        isAddNodePanelOpen,
         workflowValidationErrors,
         templateContextVariables,
         workflowConfigurations,
@@ -156,7 +156,6 @@ export const useWorkflowState = ({
         setEdges,
         setWorkflowName,
         setIsDirty,
-        setIsAddNodePanelOpen,
         setWorkflowValidationErrors,
         setTemplateContextVariables,
         setWorkflowConfigurations,
@@ -325,12 +324,7 @@ export const useWorkflowState = ({
 
         // Use addNodes from ReactFlow instance
         rfInstance.current.addNodes([newNode]);
-        posthog.capture(PostHogEvent.WORKFLOW_NODE_ADDED, {
-            node_type: nodeType,
-            workflow_id: workflowId,
-        });
-        setIsAddNodePanelOpen(false);
-    }, [nodes, setIsAddNodePanelOpen, workflowId, bySpecName]);
+    }, [nodes, workflowId, bySpecName]);
 
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setWorkflowName(e.target.value);
@@ -401,9 +395,7 @@ export const useWorkflowState = ({
             );
         });
         if (maxInstanceViolation) {
-            toast.error(
-                `${maxInstanceViolation.display_name} limit reached. Remove the extra node before saving.`,
-            );
+            notifier.echec({ fr: `Limite atteinte pour « ${maxInstanceViolation.display_name} ». Retirez le nœud en trop avant d'enregistrer.`, en: `Limit reached for "${maxInstanceViolation.display_name}". Remove the extra node before saving.` });
             return;
         }
         const viewport = rfInstance.current.getViewport();
@@ -432,6 +424,7 @@ export const useWorkflowState = ({
                     applyWorkflowErrors(workflowErrors);
                 }
                 logger.error(`Error saving workflow: ${JSON.stringify(response.error)}`);
+                notifier.echec(PHRASE_BROUILLON_NON_ENREGISTRE, { erreur: response.error, groupe: "enregistrer-graphe" });
             } else {
                 setIsDirty(false);
                 if (response.data) {
@@ -449,16 +442,23 @@ export const useWorkflowState = ({
                         wf,
                         useWorkflowStore.getState().workflowConfigurations,
                     );
-                    if (avertissement) toast.warning(avertissement);
+                    if (avertissement) {
+                        notifier.avertissement({
+                            fr: avertissementApresEnregistrement(wf, useWorkflowStore.getState().workflowConfigurations, "fr") ?? avertissement,
+                            en: avertissementApresEnregistrement(wf, useWorkflowStore.getState().workflowConfigurations, "en") ?? avertissement,
+                        });
+                    }
                     result = {
                         versionNumber: response.data.version_number ?? undefined,
                         versionStatus: response.data.version_status ?? undefined,
                     };
                     saveSucceeded = true;
+                    notifier.succes({ fr: "Brouillon enregistré.", en: "Draft saved." }, { publier: workflowId, groupe: "enregistrer-graphe" });
                 }
             }
         } catch (error) {
             logger.error(`Error saving workflow: ${error}`);
+            notifier.echec(PHRASE_BROUILLON_NON_ENREGISTRE, { erreur: error, groupe: "enregistrer-graphe" });
         }
 
         // Only run validate after a successful save — when save failed we've
@@ -608,7 +608,10 @@ export const useWorkflowState = ({
                         )
                         .join('\n');
                 }
-                throw new Error(msg);
+                // [.mark] Revue de contrôle, point 2 (M5) : la liste de fautes de champ (422) reste portée par l'erreur
+                // (`detail`), pour que l'écran sache la montrer sous son champ ; tout autre texte du serveur ne sert
+                // qu'au motif (« Détails » de la notification), jamais à l'écran.
+                throw Object.assign(new Error(msg), Array.isArray(detail) ? { detail } : {});
             }
 
             const savedConfigurations = resolveWorkflowConfigurations(
@@ -672,7 +675,6 @@ export const useWorkflowState = ({
         rfInstance,
         nodes,
         edges,
-        isAddNodePanelOpen,
         workflowName,
         isDirty,
         workflowValidationErrors,
@@ -686,7 +688,6 @@ export const useWorkflowState = ({
         setNodes,
         setEdges,
         setIsDirty,
-        setIsAddNodePanelOpen,
         handleNodeSelect,
         handleNameChange,
         saveWorkflow,

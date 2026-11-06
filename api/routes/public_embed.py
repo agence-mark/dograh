@@ -6,7 +6,7 @@ They handle CORS, domain validation, and session management for embedded workflo
 
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -44,7 +44,22 @@ from api.services.workflow.embed_text_chat_service import (
     build_public_chat_session_response,
     start_embed_text_chat,
 )
-from api.services.workflow.run_creation import prepare_workflow_run_inputs
+from api.services.workflow.run_creation import (
+    prepare_workflow_run_inputs,
+    published_definition,
+)
+
+# [.mark] U10 : sécurité du widget public (S1) et agent de site (S2).
+from api.services.site_mark import config_site, plafond
+from api.services.site_mark.contexte_public import (
+    CANAL_SITE,
+    CLE_CANAL,
+    filtrer_contexte_public,
+)
+from api.services.site_mark.demarrage import annotation_du_widget
+from api.services.site_mark.adresse import adresse_du_visiteur
+from api.services.site_mark.limite_ip import autoriser_session
+from api.services.site_mark.reglages import ReglagesMark
 from api.services.workflow.text_chat_session_service import (
     TextChatPendingTurnLostError,
     TextChatSessionExecutionError,
@@ -67,6 +82,9 @@ class InitEmbedRequest(BaseModel):
 
     token: str
     context_variables: Optional[dict] = None
+    # [.mark] S4 : « ecrit » = la conversation passe à l'écrit avec le même agent (micro refusé ou voix impossible).
+    # Admis seulement pour un jeton rattaché à un site ; un jeton hors site ne change jamais de modalité.
+    mode: Optional[Literal["voix", "ecrit"]] = None
 
 
 class InitEmbedResponse(BaseModel):
@@ -153,6 +171,13 @@ async def _config_preflight_response(token: str, origin: str) -> Response:
     return _cors_response(origin, "GET, OPTIONS")
 
 
+async def _site_preflight_response(cle: str, origin: str) -> Response:
+    site = await db_client.lire_site_par_cle(cle)
+    if site is None or not validate_embed_origin(origin, site.allowed_domains or []):
+        return Response(status_code=403)
+    return _cors_response(origin, "GET, OPTIONS")
+
+
 async def _session_preflight_response(
     session_token: str, origin: str, methods: str
 ) -> Response:
@@ -194,6 +219,38 @@ async def build_public_embed_preflight_response(
             return Response(status_code=405)
         token = path[len(config_prefix) :].split("/", 1)[0]
         return await _config_preflight_response(token, origin)
+
+    # [.mark] S2 : la configuration d'un site par chemin (un seul script par site).
+    site_prefix = f"{public_embed_prefix}/site/"
+    if path.startswith(site_prefix) and path.endswith("/config"):
+        if requested_method.upper() != "GET":
+            return Response(status_code=405)
+        cle = path[len(site_prefix) :].split("/", 1)[0]
+        return await _site_preflight_response(cle, origin)
+
+    # [.mark] S3 : l'avis (jeton de session), la demande de rappel (clé du site) et l'événement anonyme.
+    avis_prefix = f"{public_embed_prefix}/avis/"
+    if path.startswith(avis_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        session_token = path[len(avis_prefix) :].split("/", 1)[0]
+        return await _session_preflight_response(session_token, origin, "POST, OPTIONS")
+
+    rappel_prefix = f"{public_embed_prefix}/rappel/"
+    if path.startswith(rappel_prefix):
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        cle = path[len(rappel_prefix) :].split("/", 1)[0]
+        site = await db_client.lire_site_par_cle(cle)
+        if site is None or not validate_embed_origin(origin, site.allowed_domains or []):
+            return Response(status_code=403)
+        return _cors_response(origin, "POST, OPTIONS")
+
+    if path == f"{public_embed_prefix}/evenement":
+        if requested_method.upper() != "POST":
+            return Response(status_code=405)
+        # Comme /init : la clé ou le jeton sont dans le corps, le domaine est vérifié par la route.
+        return _cors_response(origin, "POST, OPTIONS")
 
     turn_credentials_prefix = f"{public_embed_prefix}/turn-credentials/"
     if path.startswith(turn_credentials_prefix):
@@ -300,11 +357,10 @@ async def initialize_embed_session(
     if embed_token.expires_at and embed_token.expires_at < datetime.now(UTC):
         raise HTTPException(status_code=403, detail="Embed token has expired")
 
-    # Validate domain
-    if not validate_embed_origin(origin, embed_token.allowed_domains or []):
-        logger.warning(
-            f"Domain validation failed: {origin} not in {embed_token.allowed_domains}"
-        )
+    # Validate domain (a token attached to a site falls back on the site's domains)
+    domaines = await config_site.domaines_du_jeton(db_client, embed_token)
+    if not validate_embed_origin(origin, domaines):
+        logger.warning(f"Domain validation failed: {origin} not in {domaines}")
         raise HTTPException(status_code=403, detail=f"Domain not allowed: {origin}")
 
     if origin:
@@ -315,6 +371,11 @@ async def initialize_embed_session(
     widget_type = (
         "chat" if (embed_token.settings or {}).get("widgetType") == "chat" else "voice"
     )
+    # [.mark] S4 (D162) : le secours écrit d'un agent de site. La modalité ne vient JAMAIS de la requête pour un jeton
+    # sans site (un visiteur ne transforme pas un jeton vocal en chat) ; pour un agent de site, « ecrit » est la
+    # bascule voulue quand le micro est refusé. Mêmes plafonds, mêmes limites, même seau de greffe que le chat.
+    if init_request.mode == "ecrit" and widget_type == "voice" and getattr(embed_token, "site_id", None):
+        widget_type = "chat"
     is_chat = widget_type == "chat"
 
     # Chat initialization immediately performs billable greeting work. Keep it
@@ -325,6 +386,24 @@ async def initialize_embed_session(
             status_code=429, detail="Too many chat sessions. Please try again shortly"
         )
 
+    # [.mark] S1 : limite par adresse (par heure) puis plafond du mois (conversations et minutes, une requête
+    # atomique). Refus propres : le widget les traduit en « laissez vos coordonnées ».
+    reglages_mark = ReglagesMark.depuis(getattr(embed_token, "reglages_mark", None))
+    if not await autoriser_session(
+        embed_token.id,
+        adresse_du_visiteur(request),
+        reglages_mark.sessions_par_heure_et_ip,
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "address_rate_limited", "message": "Too many sessions from this address."},
+        )
+    if not await plafond.reserver(embed_token.id, reglages_mark):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "monthly_cap_reached", "message": "The agent is unavailable until next month."},
+        )
+
     # This conditional update is the authoritative usage-limit check. Keeping
     # the comparison and increment in one statement prevents parallel public
     # requests from all passing a stale in-memory usage_count check.
@@ -332,6 +411,7 @@ async def initialize_embed_session(
         embed_token.id, embed_token.organization_id
     )
     if not usage_reserved:
+        await plafond.rendre(embed_token.id)
         raise HTTPException(status_code=403, detail="Embed token usage limit exceeded")
 
     # Create workflow run
@@ -341,19 +421,27 @@ async def initialize_embed_session(
         )
         if not workflow:
             raise ValueError("Workflow not found")
-        run_inputs = await prepare_workflow_run_inputs(db_client, workflow)
+        # [.mark] SE-8 : widget du site, clé = le jeton du site et l'adresse du visiteur (déploiement progressif).
+        from api.services.publication.deploiement import cle_site
+
+        run_inputs = await prepare_workflow_run_inputs(
+            db_client, workflow, cle_de_repartition=cle_site(embed_token.id, adresse_du_visiteur(request))
+        )
         # Visitor context comes from the host page (script URL params or the
         # data-dograh-context attribute) and is addressable from prompts as
         # {{initial_context.<name>}}.
-        context_variables = sanitize_embed_context_variables(
-            init_request.context_variables
+        # [.mark] S1 / D182 : une session publique ne reçoit que les clés que l'agent déclare (liste blanche).
+        definition_publiee = published_definition(workflow)
+        context_variables = filtrer_contexte_public(
+            sanitize_embed_context_variables(init_request.context_variables),
+            getattr(definition_publiee, "workflow_configurations", None),
         )
         if is_chat:
             mode = WorkflowRunMode.TEXTCHAT.value
             name = f"Embed Chat - {datetime.now(UTC).isoformat()}"
             # Text-chat runs carry no transport provider (mirrors the
             # authenticated text-chat route).
-            initial_context = {**context_variables}
+            initial_context = {**context_variables, CLE_CANAL: CANAL_SITE}
         else:
             mode = WorkflowRunMode.SMALLWEBRTC.value
             name = f"Embed Run - {datetime.now(UTC).isoformat()}"
@@ -362,6 +450,8 @@ async def initialize_embed_session(
                 "provider": WorkflowRunMode.SMALLWEBRTC.value,
                 # Embed visitors initiate the voice call into the workflow.
                 "direction": CallType.INBOUND.value,
+                # [.mark] S2 : un agent de site sert sa fiche ou aucune, jamais « le premier ».
+                CLE_CANAL: CANAL_SITE,
             }
         workflow_run = await db_client.create_workflow_run(
             name=name,
@@ -378,8 +468,20 @@ async def initialize_embed_session(
                 workflow_run.id,
                 annotations={"embed": {"source": "embed_widget", "modality": "text"}},
             )
+        else:
+            # [.mark] S1 / D179 : la durée maximale de la conversation vocale, lue par le pipeline au démarrage.
+            workflow_run = await db_client.update_workflow_run(
+                workflow_run.id,
+                annotations={
+                    "embed": annotation_du_widget(
+                        "voice", embed_token.id, reglages_mark.duree_max_s
+                    )
+                },
+            )
     except Exception as e:
         logger.error(f"Failed to create workflow run: {e}")
+        # [.mark] Revue serveur, mineur 2 : la place réservée sur le plafond du mois est rendue (aucune conversation n'a eu lieu).
+        await plafond.rendre(embed_token.id)
         raise HTTPException(status_code=500, detail="Failed to create workflow run")
 
     # Generate session token
@@ -391,13 +493,14 @@ async def initialize_embed_session(
             session_token=session_token,
             embed_token_id=embed_token.id,
             workflow_run_id=workflow_run.id,
-            client_ip=request.client.host if request.client else None,
+            client_ip=adresse_du_visiteur(request),
             user_agent=request.headers.get("user-agent", "")[:500],
             origin=origin[:255],
             expires_at=datetime.now(UTC) + timedelta(hours=1),  # 1 hour expiry
         )
     except Exception as e:
         logger.error(f"Failed to create embed session: {e}")
+        await plafond.rendre(embed_token.id)
         raise HTTPException(status_code=500, detail="Failed to create session")
 
     # For chat widgets, seed the text session and run the greeting turn
@@ -413,6 +516,7 @@ async def initialize_embed_session(
             workflow_run_id=workflow_run.id,
         )
         if not quota_result.has_quota:
+            await plafond.rendre(embed_token.id)
             raise HTTPException(
                 status_code=402, detail="The agent is unavailable right now"
             )
@@ -569,3 +673,43 @@ async def options_turn_credentials(request: Request, session_token: str):
     return await _session_preflight_response(
         session_token, request.headers.get("origin", ""), "GET, OPTIONS"
     )
+
+
+@router.get("/site/{cle}/config")
+async def get_site_config(cle: str, request: Request, response: Response, chemin: str = "/"):
+    """[.mark] S2 : la configuration de l'agent qui sert ``chemin`` sur ce site (D156, D175, D181).
+
+    Le plus long préfixe par segments, sinon l'agent « tout le site », sinon ``{"actif": false}`` : le widget ne
+    s'affiche pas. Même contrôle de domaine que le reste du widget, fait à chaque requête avant le cache. Cache de
+    cinq minutes côté navigateur (ETag) et côté serveur. L'ancien ``/config/{token}`` reste pour un jeton déjà posé.
+    """
+    origin = get_request_origin(request)
+    site = await db_client.lire_site_par_cle(cle)
+    if site is None:
+        raise HTTPException(status_code=404, detail="Invalid site key")
+    if not validate_embed_origin(origin, site.allowed_domains or []):
+        raise HTTPException(status_code=403, detail=f"Domain not allowed: {origin}")
+    try:
+        config_site.lib_chemins.normaliser(chemin)
+    except config_site.lib_chemins.CheminInvalide:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if origin:
+        _allow_embed_origin(response, origin)
+    charge = await config_site.configuration_pour(
+        db_client,
+        site,
+        chemin,
+        tour_active=_turn_credentials_available(),
+        relais_force=FORCE_TURN_RELAY,
+    )
+    await config_site.noter_le_chargement(db_client, site.id)
+    etag = config_site.etag_de(charge)
+    en_tetes = {"ETag": etag, "Cache-Control": "public, max-age=300"}
+    if request.headers.get("if-none-match") == etag:
+        reponse_304 = Response(status_code=304, headers=en_tetes)
+        if origin:
+            _allow_embed_origin(reponse_304, origin)
+        return reponse_304
+    for k, v in en_tetes.items():
+        response.headers[k] = v
+    return charge

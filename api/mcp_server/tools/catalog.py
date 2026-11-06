@@ -6,6 +6,7 @@ list the catalog before populating those fields with real UUIDs.
 """
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.mcp_server.auth import authenticate_mcp_request
 from api.mcp_server.tracing import traced_tool
 from api.services.bibliotheque_cles import fournisseur_de
@@ -79,6 +80,8 @@ async def list_credentials() -> list[dict]:
         for c in credentials
         # [.mark] Keys of the key library are not HTTP credentials (direct-et-passe-muette).
         if fournisseur_de(c) is None
+        # [.mark] Builder, revue R2 : la clé du cerveau du builder n'est jamais proposée à un outil.
+        and not est_la_cle_du_cerveau(c)
     ]
 
 

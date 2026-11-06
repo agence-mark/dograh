@@ -172,7 +172,9 @@ async def test_le_seuil_de_l_etape_remplace_le_defaut(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_l_agent_a_pris_une_autre_porte_l_agent_gagne_et_le_desaccord_est_trace(monkeypatch):
-    harness, engine, jeton = await _arbitre(Faux(_reponse("suite", 0.97)), monkeypatch)
+    # RA-B R4a (audit 🔴 2) : une porte dont la condition sur la fiche est fausse est fermée au modèle ; la fiche rend donc
+    # la condition du refus vraie, pour que l'agent puisse prendre cette autre porte que l'arbitre.
+    harness, engine, jeton = await _arbitre(Faux(_reponse("suite", 0.97)), monkeypatch, fiche={"objet": "refusé"})
     try:
         depart = engine.etat_pour_le_filet()
         await engine.prendre_porte_ecrite("refus")  # l'agent choisit une autre sortie que l'arbitre

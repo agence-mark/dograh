@@ -88,9 +88,12 @@ class TestRejouable:
     organisation_id: int | None = None
     source: dict[str, Any] = field(default_factory=dict)
     description: str = ""
+    # [.mark] sous-lot 5 : l'environnement du test (date, numéro, variables, réponses d'outils simulées), voir ``environnement.py``.
+    environnement: dict[str, Any] | None = None
 
     def en_json(self) -> dict[str, Any]:
         return {
+            "environnement": self.environnement,
             "version": VERSION,
             "nom": self.nom,
             "description": self.description,
@@ -153,7 +156,14 @@ def depuis_json(brut: Any, *, defaut_nom: str = "", origine: str = "test") -> Te
         critere = valider_critere(brut.get("critere"))
     except ErreurTestRejouable as e:
         raise ErreurTestRejouable(f"{origine} : {e}") from None
+    from api.services.tests_rejouables.environnement import valider as valider_l_environnement
+
+    try:
+        environnement = valider_l_environnement(brut.get("environnement"))
+    except ErreurTestRejouable as e:
+        raise ErreurTestRejouable(f"{origine} : {e}") from None
     return TestRejouable(
+        environnement=environnement,
         nom=str(brut.get("nom") or defaut_nom or "sans-nom"),
         description=str(brut.get("description") or ""),
         organisation_id=organisation,

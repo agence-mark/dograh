@@ -1,0 +1,26 @@
+{
+  "titre": "Lire : introuvable puis une seule nouvelle recherche",
+  "contenu": {
+    "but": "Donner une référence fausse, puis les bons critères de repli.",
+    "personnage": "presse",
+    "criteres": [
+      {
+        "type": "sans_redite"
+      }
+    ],
+    "questions_juge": [
+      "L'agent a-t-il fait plus d'une nouvelle recherche ou affirmé une information non rendue par l'outil ?"
+    ]
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/par-motif",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

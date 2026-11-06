@@ -19,6 +19,9 @@ import { NodeEditForm } from "@/components/flow/renderer/NodeEditForm";
 import { etapesSansPremiereReplique } from "./premiere-replique";
 import specs from "./specs-premiere-replique.json";
 
+// Le catalogue des variables (`useCatalogueVariables`) lit l'utilisateur connecté : le test le fournit, sans toucher au code.
+vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false, getAccessToken: async () => "t" }) }));
+
 const CONTEXTE = { tools: [], documents: [], recordings: [] };
 
 afterEach(cleanup);
@@ -26,12 +29,14 @@ afterEach(cleanup);
 describe.each(["agentNode", "endCall"] as const)("[.mark] first reply on %s", (type) => {
     const spec = (specs as Record<string, unknown>)[type] as NodeSpec;
 
-    it("shows the field right after the prompt, with its help", () => {
+    it("shows the field right after the prompt, with its help in a « ! »", () => {
         const { container } = render(
             <NodeEditForm spec={spec} values={{ name: "Step", prompt: "Ask." }} onChange={() => {}} context={CONTEXTE} />,
         );
         expect(screen.getByText("First reply")).toBeTruthy();
-        expect(screen.getByText(/Used only when "Transitions in the reply" is on/)).toBeTruthy();
+        // K2b : l'explication est dans le « ! » du champ, pas en note dessous.
+        const info = screen.getByText("First reply").closest("label")?.querySelector('[role="button"][aria-label]') as HTMLElement;
+        expect(info).toBeTruthy();
         const textes = container.textContent ?? "";
         expect(textes.indexOf("Prompt")).toBeLessThan(textes.indexOf("First reply"));
     });
@@ -47,9 +52,11 @@ describe.each(["agentNode", "endCall"] as const)("[.mark] first reply on %s", (t
             />,
         );
         const zones = screen.getAllByRole("textbox");
-        const zone = zones.find((z) => (z as HTMLTextAreaElement).value === "" && z.tagName === "TEXTAREA");
+        // Les champs de texte des étapes sont des champs à pastilles (`ChampVariables`, contenteditable).
+        const zone = zones.find((z) => z.getAttribute("contenteditable") === "true" && (z.textContent ?? "") === "");
         expect(zone).toBeTruthy();
-        fireEvent.change(zone!, { target: { value: "Quelle marque ?" } });
+        zone!.textContent = "Quelle marque ?";
+        fireEvent.input(zone!);
         expect(onChange).toHaveBeenCalledWith({ name: "Step", prompt: "Ask.", premiere_replique: "Quelle marque ?" });
     });
 });

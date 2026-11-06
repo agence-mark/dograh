@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getCampaignRunsApiV1CampaignCampaignIdRunsGet } from "@/client/sdk.gen";
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
+import { useLangue } from "@/components/mark/langue/langue";
 import { WorkflowRunsTable } from "@/components/workflow-runs";
 import { useDispositionCodes } from "@/hooks/useDispositionCodes";
 import { useAuth } from "@/lib/auth";
@@ -19,6 +20,7 @@ interface CampaignRunsProps {
 }
 
 export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignRunsProps) {
+    const { t } = useLangue();
     const router = useRouter();
     const { isAuthenticated } = useAuth();
     const { codes: dispositionCodes } = useDispositionCodes();
@@ -209,8 +211,9 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
             workflowId={workflowId}
             showAgentVersion
             onReload={handleReload}
+            forme="agent"
             title="Campaign Workflow Runs"
-            emptyMessage="No workflow runs found for this campaign"
+            emptyMessage={t({ en: "No calls for this campaign", fr: "Aucun appel pour cette campagne" })}
         />
     );
 }

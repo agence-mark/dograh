@@ -9,13 +9,15 @@
  *     Does an alert tell whether it was mailed, not mailed (kept here) or already notified?
  *     Do the pages of the menu carry their title, and the sidebar its two entries?
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import PageAlertesDuMenu from "@/app/alertes/page";
 import PageATrierDuMenu from "@/app/a-trier/page";
 
 import { FournisseurLangue } from "../langue/langue";
+import { OngletAlertes } from "./OngletAlertes";
 import { PageAlertes } from "./PageAlertes";
 import { PageATrier } from "./PageATrier";
 
@@ -24,13 +26,16 @@ const m = vi.hoisted(() => ({
     statut: vi.fn(),
     alertes: vi.fn(),
     taux: vi.fn(),
+    personnes: vi.fn(),
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client", () => ({
     lireLaFileDeTriApiV1TriGet: (options: unknown) => m.tri(options),
     changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),
     lireLesAlertesApiV1AlertesGet: (options: unknown) => m.alertes(options),
     lireLesTauxDeSortieDImpasseApiV1TriTauxGet: (options: unknown) => m.taux(options),
+    lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => m.personnes(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
 
@@ -61,6 +66,7 @@ beforeEach(() => {
     m.statut.mockResolvedValue({ data: { run_id: 12, identifiant: "agent:0", statut: "résolu" } });
     m.alertes.mockResolvedValue({ data: { lignes: ALERTES, page: 0, a_une_suite: true } });
     m.taux.mockResolvedValue({ data: { jours: 7, lignes: [] } });
+    m.personnes.mockResolvedValue({ data: [{ id: 5, nom: "equipe@exemple.test" }] });
 });
 afterEach(() => {
     cleanup();
@@ -105,8 +111,38 @@ describe("[.mark] the « To triage » page", () => {
         render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
         await screen.findByText("Signalé par l'agent");
         fireEvent.change(screen.getAllByLabelText("Statut")[0], { target: { value: "fusionné" } });
-        expect((await screen.findByRole("alert")).textContent).toContain("Flag not found");
+        {
+            const affiche = (await screen.findByRole("alert")).textContent ?? "";
+            expect(affiche).toMatch(phraseAttendue(ECHECS.triStatut));
+            expect(affiche).not.toContain("Flag not found");
+        }
         expect((screen.getAllByLabelText("Statut")[0] as HTMLSelectElement).value).toBe("ouvert");
+    });
+
+    it("assigns a flag to a person of the organization and sets its origin, then shows where the origin leads (builder, lot 6)", async () => {
+        m.statut.mockResolvedValue({ data: { run_id: 12, identifiant: "agent:0", statut: "ouvert" } });
+        render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
+        await screen.findByText("Signalé par l'agent");
+        await screen.findAllByRole("option", { name: "equipe@exemple.test", hidden: true });
+        fireEvent.change(screen.getAllByLabelText("Assigné à")[0], { target: { value: "5" } });
+        await waitFor(() => expect(m.statut).toHaveBeenCalledWith({ path: { run_id: 12 }, body: { identifiant: "agent:0", assigne: 5 } }));
+        expect((screen.getAllByLabelText("Assigné à")[0] as HTMLSelectElement).value).toBe("5");
+        fireEvent.change(screen.getAllByLabelText("Origine du signalement")[0], { target: { value: "client" } });
+        await waitFor(() => expect(m.statut).toHaveBeenCalledWith({ path: { run_id: 12 }, body: { identifiant: "agent:0", origine: "client" } }));
+        expect((await screen.findAllByTestId("suite-de-l-origine"))[0].textContent).toContain("Corriger la fiche du client");
+    });
+
+    it("filters by origin and links each flag to the creation of a test from its reply", async () => {
+        render(<FournisseurLangue><PageATrier /></FournisseurLangue>);
+        await screen.findByText("Signalé par l'agent");
+        fireEvent.change(screen.getByLabelText("Filtrer par origine"), { target: { value: "code" } });
+        await waitFor(() => expect(m.tri).toHaveBeenLastCalledWith({ query: { page: 0, workflow_id: undefined, origine: "code" } }));
+        const liens = screen.getAllByRole("link", { name: "Créer un test" });
+        expect(liens.map((l) => l.getAttribute("href"))).toEqual([
+            "/workflow/3/run/12?creer_test=2",
+            "/workflow/3/run/12?creer_test=4",
+            "/workflow/4/run/15?creer_test=5",
+        ]);
     });
 
     it("filters by agent: the server is asked for that agent only, from the first page", async () => {
@@ -201,25 +237,39 @@ describe("[.mark] the « Alerts » page", () => {
         cleanup();
         m.alertes.mockResolvedValue({ data: { lignes: [], page: 0, a_une_suite: false } });
         render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
-        expect((await screen.findByTestId("alertes-vide")).textContent).toBe("Aucune alerte.");
+        expect(await screen.findByText("Aucune alerte.")).toBeTruthy();
+        expect(document.querySelector("table")).toBeNull();
     });
 
-    it("shows the server's refusal instead of an empty list", async () => {
+    it("says it could not load, with a retry, and never shows the server's text (V2)", async () => {
         m.alertes.mockResolvedValue({ error: { detail: "Not allowed" } });
         render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
-        expect((await screen.findByRole("alert")).textContent).toContain("Not allowed");
+        expect(await screen.findByText("Impossible de charger")).toBeTruthy();
+        expect(screen.queryByText(/Not allowed/)).toBeNull();
+        m.alertes.mockResolvedValue({ data: { lignes: ALERTES, page: 0, a_une_suite: false } });
+        fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+        expect(await screen.findByText("Outil en échec")).toBeTruthy();
+    });
+
+    it("lists the alerts in a bare table, never in framed cards (V2)", async () => {
+        render(<FournisseurLangue><PageAlertes /></FournisseurLangue>);
+        await screen.findByText("Outil en échec");
+        expect(document.querySelectorAll("tbody tr").length).toBe(ALERTES.length);
+        expect(document.querySelector(".rounded.border")).toBeNull();
     });
 });
 
 describe("[.mark] the pages of the menu", () => {
-    it("carry their title and description in both languages", async () => {
+    it("carry their title in both languages; the explanation is in the « ! », never a visible sentence (K1b)", async () => {
         render(<FournisseurLangue><PageATrierDuMenu /></FournisseurLangue>);
         expect(await screen.findByRole("heading", { name: "À trier" })).toBeTruthy();
         cleanup();
-        render(<FournisseurLangue><PageAlertesDuMenu /></FournisseurLangue>);
-        expect(await screen.findByRole("heading", { name: "Alertes" })).toBeTruthy();
+        render(<FournisseurLangue><OngletAlertes /></FournisseurLangue>);
+        expect(await screen.findByText("Alertes")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Précision" })).toBeTruthy();
+        expect(screen.queryByText(/Les problèmes rencontrés par les appels/)).toBeNull();
         cleanup();
-        render(<PageAlertesDuMenu />);
-        expect(await screen.findByRole("heading", { name: "Alerts" })).toBeTruthy();
+        render(<OngletAlertes />);
+        expect(await screen.findByText("Alerts")).toBeTruthy();
     });
 });

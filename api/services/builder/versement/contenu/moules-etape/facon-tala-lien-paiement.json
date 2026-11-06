@@ -1,0 +1,17 @@
+{
+  "titre": "Lien de paiement par message (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Lien de paiement par message (façon Tala, par motif)\n\nFamille : **Écrire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil de lecture de la facture⟧, ⟦outil d'envoi du lien⟧.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nEnvoyer à la personne identifiée un lien de paiement sécurisé pour ⟦facture retrouvée⟧.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Montant\n- Le montant est toujours celui que ⟦outil de lecture de la facture⟧ a rendu, jamais un montant dit pendant l'appel.\n- Facture déjà réglée : le dire, rien à payer.\n### Tâche 2 : Numéro\n- Faire confirmer le numéro qui recevra le message (relecture par groupes de deux chiffres).\n### Tâche 3 : Envoyer\n- ⟦outil d'envoi du lien⟧ ; dire que le message est parti seulement d'après la réponse.\n- Échec : donner la référence pour un autre moyen de paiement de la fiche.\n- Lien expiré ou non reçu : reconfirmer le numéro, puis renvoyer.\n\n## Règles métier\n- Récapituler, obtenir la confirmation, PUIS appeler l'outil. Annoncer le résultat seulement d'après la réponse de l'outil.\n\n## Déroulement de l'appel\nMontant, numéro, envoi, confirmation.\n\n# Critères de succès\n- Lien envoyé, ou rien à payer -> récapitulatif\n- Contestation -> réclamation\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers la réclamation : « La personne conteste le montant au lieu de payer. Déclencher cette transition même si la facture vient d'être retrouvée. »\n- Vers le récapitulatif : « ⟦le résultat de l'étape⟧ a été obtenu et dit à l'appelant, ou il y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/ecrire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

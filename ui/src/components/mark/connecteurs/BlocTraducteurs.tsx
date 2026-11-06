@@ -12,7 +12,6 @@
  */
 import { Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
     getChoixTraducteursApiV1ConnecteursTraducteursChoixGet,
@@ -20,9 +19,12 @@ import {
     putChoixTraducteursApiV1ConnecteursTraducteursChoixPut,
 } from "@/client/sdk.gen";
 import type { TraducteurVue } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
@@ -51,7 +53,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                 getChoixTraducteursApiV1ConnecteursTraducteursChoixGet(),
             ]);
             if (liste.error || !liste.data) {
-                setErreur(detailFromError(liste.error, "Calendar software unreadable"));
+                setErreur(echecAffiche(liste.error, ECHECS.traducteursListe));
                 return;
             }
             setTraducteurs(liste.data.filter((x) => x.domaine === "agenda"));
@@ -73,11 +75,11 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
         const r = await putChoixTraducteursApiV1ConnecteursTraducteursChoixPut({ body: { agenda: choix || null } });
         setEnCours(false);
         if (r.error) {
-            setErreur(detailFromError(r.error, "Calendar software not saved"));
+            setErreur(echecAffiche(r.error, ECHECS.traducteursEnregistrer));
             return;
         }
         setEnregistre(choix);
-        toast.success(t({ en: "Calendar software saved", fr: "Logiciel d'agenda enregistré" }));
+        notifier.succes({ fr: "Logiciel d'agenda enregistré.", en: "Calendar software saved." });
     };
 
     const genererLien = async () => {
@@ -86,7 +88,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
             const r = await connecteurs.demanderLien([choisi.systeme]);
             setLien(r.lien ?? null);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : t({ en: "No authorization link", fr: "Pas de lien d'autorisation" }));
+            notifier.echec({ fr: "Lien d'autorisation indisponible. Réessayez.", en: "Authorization link unavailable. Try again." }, { erreur: e });
         }
     };
 
@@ -103,7 +105,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                     },
                 ]}
             >
-                <select
+                <ListeDeroulante
                     id="traducteur-agenda"
                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                     value={choix}
@@ -118,7 +120,7 @@ export function BlocTraducteurs({ connecteurs }: { connecteurs: Connecteurs }) {
                             {x.libelle}
                         </option>
                     ))}
-                </select>
+                </ListeDeroulante>
             </ChampReglage>
             {choisi && connecteurs.etat?.nango_configure && (
                 <div className="flex flex-wrap items-center gap-3 rounded-md border bg-(--surface) p-3 text-sm" data-testid="etat-traducteur">

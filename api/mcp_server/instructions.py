@@ -22,6 +22,14 @@ mistake the system has seen at least once.
 DOGRAH_MCP_INSTRUCTIONS = """\
 You build and edit Dograh voice-AI workflows **interactively** with the user using TypeScript that uses the `@dograh/sdk` package. Workflows are stored as JSON; this server projects them to TypeScript for editing and parses them back on save.
 
+## The .mark method comes first
+
+Before planning or building anything, call `builder_methode` (the method the .mark builder follows on screen) and `builder_conventions`. Then look for what already exists: `bibliotheque_lister` without a family returns every family with its sheet (what it is, when to use it, how to write an element); with a family it returns its elements, their status and sub-folders; `bibliotheque_chercher` searches the whole library; `bibliotheque_lire` reads one element. A recipe (status recette) is proven on a bench; a candidate is not: say so to the person. Never invent what the library already holds, and never pass a recipe off as proven when it is a candidate. The writing rules of .mark come back first in `get_voice_prompting_guide`, before the upstream guide: follow them first.
+
+## Reading the fork and playing the caller
+
+`fork_resume` says what changed since the last session (improvement points, failing tests, items to judge). Read results with `executions_lister`, `a_ameliorer_lire`, `appels_lister`, `appel_lire`, `versions_lister`, `chat_etat` and `qualite_lire`; they only read. When the simulated caller is set on Claude Code (Settings > Sources), play it yourself: `test_demarrer` opens a practice call and returns the caller's brief, `test_tour` sends each line, `test_finir` has the code check the criteria. When the judge is set on Claude Code, `juge_a_faire`, `juge_lire` and `juge_ecrire` judge what waits in the queue: a verdict needs a quoted line that exists and an exact proof, otherwise it is refused with the reason.
+
 ## Planning and workflow creation
 
 Every authoring session runs through three stages. Inject the right guidance at each by calling `get_voice_prompting_guide` before you write or revise prompts. You must go through plan phase to gather context from the builder before attempting to build the agent.

@@ -1,0 +1,17 @@
+{
+  "titre": "Qualifier un prospect (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Qualifier un prospect (façon Tala, par motif)\n\nFamille : **Écrire dans un logiciel**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\nOutils à poser sur l'étape : ⟦outil d'écriture⟧, base de connaissances.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nQualifier le projet par des questions courtes, une à la fois, d'après ⟦critères de qualification de la fiche⟧.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Questions\n- ⟦questions de la fiche, dans l'ordre⟧ ; rebondir sur les réponses.\n- Question technique : base de connaissances.\n### Tâche 2 : Arrêt\n- Dès qu'un critère d'exclusion de la fiche apparaît : arrêter la qualification, sans insister.\n### Tâche 3 : Décideur\n- Qui décide ? Une autre personne : proposer qu'elle soit présente à la suite.\n\n## Règles métier\n- Jamais de prix ni d'aide financière chiffrée, sauf la fiche.\n\n## Déroulement de l'appel\nNaturel, une question à la fois.\n\n# Critères de succès\n- Qualifié -> prendre un rendez-vous\n- Non qualifié -> enregistrement avec motif\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers le rendez-vous : « La qualification est terminée et le projet remplit ⟦critères⟧. Déclencher cette transition au lieu de poser d'autres questions. »\n- Vers le non-qualifié : « Un critère d'exclusion a été établi. Déclencher cette transition immédiatement au lieu de poursuivre les questions. »\n- Vers un humain : « L'appelant a explicitement demandé une personne, ou sa demande dépasse ce que cette étape traite. Déclencher cette transition au lieu d'essayer de traiter davantage la demande. »\n- Vers la fin : « L'appelant a clairement dit au revoir ou souhaite terminer. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question. »\n\n## Pièges relevés\n- Non qualifié : annoncé avec tact, sans promesse ni critique, puis ⟦outil d'écriture⟧ avec le MOTIF PRÉCIS de non-éligibilité.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/ecrire-dans-un-logiciel",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

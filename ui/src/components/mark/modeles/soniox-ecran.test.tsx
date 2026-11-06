@@ -150,7 +150,7 @@ describe("[.mark] Soniox on the Models screen", () => {
         const zone = champ.querySelector("textarea") as HTMLTextAreaElement;
         expect(zone.maxLength).toBe(300);
         expect(zone.value).toBe("Poêles à bois");
-        expect(champ.textContent).toContain("300 characters at most");
+        expect(champ.textContent).toContain("300 caractères au plus");
     });
 
     it("does not draw the domain description for Deepgram", async () => {

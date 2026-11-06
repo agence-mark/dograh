@@ -82,6 +82,17 @@ export const DEFAUTS_PIPECAT = {
     relecture_des_numeros: false,
     // [.mark] passages-fiables (lot E): off by default.
     laisser_la_parole: false,
+    // [.mark] builder-agent-vocal, lot 8: the engine's interventions, ALL ON by default (an agent without the key is on).
+    moteur_sorties_de_l_etape: true,
+    moteur_sortie_d_impasse: true,
+    moteur_parole_avant_outil: true,
+    moteur_main_passee: true,
+    moteur_ordre_outil_puis_parole: true,
+    moteur_compte_rendu_de_phrase: true,
+    moteur_phrases_coupees: true,
+    moteur_replique_inachevee: true,
+    moteur_reponse_muette: true,
+    moteur_notes_de_passation: true,
     // [.mark] figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: false,
     // [.mark] agent-facon-tala (C8): off by default.
@@ -307,7 +318,7 @@ export type SmsAgent = {
 };
 
 /** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
-export type PanneAgent = { actif: boolean; delai_modele_s: number; delai_voix_s: number; sonnerie_s: number };
+export type PanneAgent = { actif: boolean; delai_voix_s: number; sonnerie_s: number };
 
 export type ApresAppelAgent = {
     actif?: boolean;
@@ -363,6 +374,40 @@ export interface AttenteDuGroupe {
     transfert_humain?: boolean;
     phrase_pont?: string | null;
     delai_phrase_pont_s?: number | null;
+}
+
+export interface ConsigneDeSecurite {
+    actif?: boolean;
+    phrase?: string;
+}
+
+/** [.mark] U11: see `api/schemas/publication.py`. */
+export type PositionControle = "eteint" | "previent" | "bloque";
+export interface PublicationAgent {
+    controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks" | "valeur_en_dur" | "verbe_ecran" | "action_sans_outil" | "sortie_non_citee", PositionControle>> & {
+        /** K5: only off or warns, never blocks. */
+        poids_agent?: "eteint" | "previent";
+    };
+    deploiement?: { actif?: boolean };
+}
+
+/** [.mark] U3 quinquies (E68): see `api/schemas/securite_conversation.py`. */
+export interface SecuriteConversation {
+    manipulation?: ConsigneDeSecurite;
+    confidentialite?: ConsigneDeSecurite;
+    role?: ConsigneDeSecurite;
+    urgence?: ConsigneDeSecurite & { transfert?: boolean };
+    jamais?: { outils?: boolean; recitation?: boolean; mots?: number; phrase?: string };
+    ecoute?: {
+        actif?: boolean;
+        sensibilite?: "prudente" | "normale" | "large";
+        sur_manipulation?: "rappel" | "noter";
+        sur_detresse?: "urgence" | "noter";
+        consigne?: string;
+    };
+    marquer?: boolean;
+    /** [.mark] L3e: the emergency safeguard of the code (words and phrases, no model call), off by default. */
+    garde_urgence?: { actif?: boolean; numero?: string; mots_en_plus?: string[] };
 }
 
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
@@ -488,6 +533,9 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     travail_delai_max_s?: number;
     // [.mark] fiabilite-orchestration, lot 4 (F20, F26, C5): the model guard and the fallback brains.
     delai_garde_modele_s?: number | null;
+    /** Lot « façon Tala par motif » (T3): the size the brain handles, in characters. Empty = no threshold. */
+    cerveau_plafond_prompt?: number | null;
+    cerveau_poids_max?: number | null;
     cerveau_de_repli?: GreffierLlm | null;
     travail_llm_repli?: GreffierLlm | null;
     // [.mark] fiabilite-orchestration, lot 4 bis (F15, F17, F18, F23): the rules of the sentences said by the code.
@@ -512,7 +560,20 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // `null` or absent = the voice's own default; `[]` = every bracket removed.
     tts_balises_permises?: string[] | null;
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
+    // [.mark] U3 quinquies (E68): the safety of the conversation, three layers, all off by default.
+    securite_conversation?: SecuriteConversation | null;
+    publication?: PublicationAgent | null;  // [.mark] U11: the checks before publishing, the progressive deployment
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
+    moteur_sorties_de_l_etape?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_sortie_d_impasse?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_parole_avant_outil?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_main_passee?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_ordre_outil_puis_parole?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_compte_rendu_de_phrase?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_phrases_coupees?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_replique_inachevee?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_reponse_muette?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_notes_de_passation?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
     signaler_un_probleme?: boolean;  // [.mark] passages-fiables F: the agent can flag, silently, that it is lost
     alertes_par_mail?: boolean;  // [.mark] passages-fiables G: one grouped mail per call that raised alerts
     mute_until_first_bot_complete: boolean;
@@ -560,7 +621,7 @@ const FALLBACK_WORKFLOW_CONFIGURATIONS: WorkflowConfigurations = {
         enabled: false,
         volume: 0.3
     },
-    max_call_duration: 300,
+    max_call_duration: 600,
     max_user_idle_timeout: 10,  // 10 seconds
     smart_turn_stop_secs: 2,  // 2 seconds
     turn_start_strategy: 'default',  // Default to platform-chosen user turn start detection

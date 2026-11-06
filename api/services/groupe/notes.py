@@ -56,7 +56,10 @@ CONSIGNE_RETOUR = (
 )
 CONSIGNE_ALLER = (
     "Tu reprends la conversation là où elle en est : tout ce qui a été dit compte, "
-    "tu ne redemandes rien de connu."
+    "tu ne redemandes rien de connu. "
+    # Builder partie 3, lot P (A2 d'Evan, note Gradium § 5 ter) : sinon le collègue prolonge le ton ou la phrase
+    # de l'accueil.
+    "L'accueil a quitté l'appel : tu ne parles pas comme lui et tu ne finis pas ses phrases."
 )
 
 

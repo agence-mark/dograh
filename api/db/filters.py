@@ -7,6 +7,7 @@ from sqlalchemy import Float, Text, and_, cast, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 from api.db.models import WorkflowRunModel
+from api.db import appels_liste
 from api.enums import WORKFLOW_RUN_MODES_BY_CHANNEL, CallType
 
 
@@ -29,6 +30,11 @@ def get_workflow_run_order_clause(
         sort_column = WorkflowRunModel.usage_info.op("->>")(
             "call_duration_seconds"
         ).cast(Float)
+    elif sort_by == "judge_note":
+        # [.mark] C4 : les appels non jugés restent en bas dans les deux sens (nullslast).
+        sort_column = WorkflowRunModel.note_juge
+    elif sort_by == "version":
+        sort_column = appels_liste.version_jouee()
     else:
         # Default to created_at
         sort_column = WorkflowRunModel.created_at
@@ -55,6 +61,11 @@ ATTRIBUTE_FIELD_MAPPING = {
     "calledNumber": "initial_context.called_number",
     "callDirection": "call_type",
     "callChannel": "mode",
+    # [.mark] C4 : colonnes de Conversations.
+    "judgeNote": "note_juge",
+    "agentVersion": "definition_version",
+    "callReason": "call_reason",
+    "callClient": "call_client",
 }
 
 
@@ -177,6 +188,10 @@ def apply_workflow_run_filters(
             elif filter_type == "radio" and field == "mode":
                 # The UI filters by channel (telephony / web / chat); the column
                 # stores the provider-level mode, so expand to that channel's modes.
+                if value.get("status") == "site":
+                    # [.mark] C4 : le canal du site = les conversations lancées depuis le widget.
+                    filter_conditions.append(appels_liste.depuis_le_site())
+                    continue
                 modes = WORKFLOW_RUN_MODES_BY_CHANNEL.get(value.get("status"))
                 if modes:
                     filter_conditions.append(WorkflowRunModel.mode.in_(modes))
@@ -222,6 +237,25 @@ def apply_workflow_run_filters(
                             Text,
                         ).contains(phone)
                     )
+
+            elif filter_type == "number" and field == "definition_version":
+                if isinstance(value.get("value"), int) and not isinstance(value.get("value"), bool):
+                    filter_conditions.append(appels_liste.filtre_version(value["value"]))
+
+            elif filter_type == "text" and field in ("call_reason", "call_client"):
+                terme = str(value.get("value") or "").strip()[:80]
+                if terme:
+                    filter_conditions.append(
+                        appels_liste.filtre_motif(terme)
+                        if field == "call_reason"
+                        else appels_liste.filtre_client(terme)
+                    )
+
+            elif filter_type == "numberRange" and field == "note_juge":
+                if value.get("min") is not None:
+                    filter_conditions.append(WorkflowRunModel.note_juge >= value["min"])
+                if value.get("max") is not None:
+                    filter_conditions.append(WorkflowRunModel.note_juge <= value["max"])
 
             elif filter_type == "numberRange":
                 min_val = value.get("min")

@@ -72,6 +72,8 @@ from api.services.workflow.tools.custom_tool import (
     execute_http_tool,
     tool_to_function_schema,
 )
+from api.services.outils_mark.comportement import executer_avec_comportement
+from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, echec_pour_la_voix
 from api.services.workflow.tools.transfer_resolver import (
     TransferResolutionError,
     resolve_transfer_config,
@@ -174,11 +176,15 @@ class CustomToolManager:
     async def _lire_outils(self, tool_uuids: list[str], organization_id: int) -> list:
         """[.mark] Lot 6 : les outils d'une étape, lus dans le cache de préchauffage de l'appel
         quand il les a déjà chargés (aucune requête), sinon en base comme avant."""
+        # [.mark] SA-L3d (décision 21) : les versions d'outils figées par la version d'agent qui joue.
+        versions = getattr(getattr(self._agent, "workflow", None), "outils_epingles", None)
         precharge = precharge_de(self._engine)
         if precharge is None:
+            if versions:
+                return await db_client.get_tools_by_uuids(tool_uuids, organization_id, versions=versions)
             return await db_client.get_tools_by_uuids(tool_uuids, organization_id)
         return await precharge.outils(
-            tool_uuids, organization_id, db_client.get_tools_by_uuids
+            tool_uuids, organization_id, db_client.get_tools_by_uuids, versions
         )
 
     async def get_organization_id(self) -> Optional[int]:
@@ -349,7 +355,9 @@ class CustomToolManager:
                                         self._engine,
                                         tool.category,
                                         fs.name,
-                                        self._create_mcp_handler(session, fs.name),
+                                        self._create_mcp_handler(
+                                            session, fs.name, (tool.definition or {}).get("config", {}) or {}
+                                        ),
                                     ),
                                     self._agent,
                                 ),
@@ -579,31 +587,26 @@ class CustomToolManager:
             logger.info(f"Arguments: {function_call_params.arguments}")
 
             try:
-                # Queue custom message before executing the API call
-                # Queue custom message (text or audio) before executing the API call
                 config = tool.definition.get("config", {}) if tool.definition else {}
-                custom_msg_type = config.get("customMessageType", "text")
-                custom_message = config.get("customMessage", "")
-                if custom_msg_type == "audio":
-                    recording_pk = config.get("customMessageRecordingId")
-                    if recording_pk and self._engine._fetch_recording_audio:
-                        logger.info(
-                            f"Playing audio message before HTTP tool: pk={recording_pk}"
-                        )
-                        await self._engine.queue_speech(
-                            recording_pk=int(recording_pk), mute_user=True
-                        )
-                elif custom_message:
-                    await self._engine.queue_text_message(
-                        custom_message, mute_user=True
+                organisation = await self.get_organization_id()
+
+                async def appel():
+                    return await execute_http_tool(
+                        tool=tool,
+                        arguments=function_call_params.arguments,
+                        call_context_vars=self._engine._call_context_vars,
+                        gathered_context_vars=self._engine._gathered_context,
+                        organization_id=organisation,
+                        fiche_cible=self._engine._gathered_context,
                     )
 
-                result = await execute_http_tool(
-                    tool=tool,
-                    arguments=function_call_params.arguments,
-                    call_context_vars=self._engine._call_context_vars,
-                    gathered_context_vars=self._engine._gathered_context,
-                    organization_id=await self.get_organization_id(),
+                # [.mark] U3 sexies point 3 : phrase avant (Auto, Toujours, Jamais), mode d'exécution, patience, repli.
+                result = await executer_avec_comportement(
+                    self._engine,
+                    config,
+                    function_name,
+                    appel,
+                    fiche=self._engine._gathered_context,
                 )
 
                 await function_call_params.result_callback(result)
@@ -611,15 +614,19 @@ class CustomToolManager:
             except Exception as e:
                 logger.error(f"HTTP tool '{function_name}' execution failed: {e}")
                 await function_call_params.result_callback(
-                    {"status": "error", "error": str(e)}
+                    echec_pour_la_voix({"status": "error", "error": str(e)}, config)
                 )
 
         return http_tool_handler
 
-    def _create_mcp_handler(self, session: "McpToolSession", function_name: str):
+    def _create_mcp_handler(self, session: "McpToolSession", function_name: str, config: Optional[dict] = None):
         """Create a handler that proxies an LLM function call to a live MCP
         session. Errors are returned to the LLM as structured text so the
-        agent can recover verbally; the call is never crashed."""
+        agent can recover verbally; the call is never crashed.
+
+        [.mark] U3 sexies points 3 et 6 : le comportement commun de l'outil (phrase avant, patience, repli) et
+        la confirmation avec l'appelant (``accord_appelant`` doit être vrai)."""
+        config = config or {}
 
         async def mcp_tool_handler(
             function_call_params: FunctionCallParams,
@@ -627,14 +634,32 @@ class CustomToolManager:
             logger.info(f"MCP Tool EXECUTED: {function_name}")
             logger.info(f"Arguments: {function_call_params.arguments}")
             try:
-                result = await session.call(
-                    function_name, function_call_params.arguments or {}
+                arguments = function_call_params.arguments or {}
+                if session.demande_un_accord(function_name) and arguments.get("accord_appelant") is not True:
+                    await function_call_params.result_callback(
+                        {
+                            "status": "confirmation_required",
+                            "message": "Ask the caller for an explicit agreement first, then call again with accord_appelant true.",
+                        }
+                    )
+                    return
+
+                async def appel():
+                    try:
+                        return await session.call(function_name, arguments)
+                    except Exception as e:
+                        logger.error(f"MCP tool '{function_name}' failed: {e}")
+                        return {"status": "error", "error": str(e)}
+
+                result = await executer_avec_comportement(
+                    self._engine, config, function_name, appel, fiche=self._engine._gathered_context
                 )
-                await function_call_params.result_callback(result)
+                # [.mark] lot R (C6) : la consigne de parole du résultat, éteinte par défaut.
+                await function_call_params.result_callback(avec_consigne_de_parole(result, config))
             except Exception as e:
                 logger.error(f"MCP tool '{function_name}' failed: {e}")
                 await function_call_params.result_callback(
-                    {"status": "error", "error": str(e)}
+                    echec_pour_la_voix({"status": "error", "error": str(e)}, config)
                 )
 
         return mcp_tool_handler
@@ -1542,6 +1567,7 @@ class CustomToolManager:
             propriete = None
             if probleme is not None and (probleme.dit or probleme.issue is not None):
                 from api.services.phrases.catalogue import MOTIFS, TRANSFERT_ECHOUE
+                from api.services.interventions_du_moteur import CLE_COMPTE_RENDU_DE_PHRASE, intervention_du_moteur
                 from api.services.phrases.compte_rendu import compte_rendu
 
                 issue = probleme.issue
@@ -1553,12 +1579,15 @@ class CustomToolManager:
                     interdits.append("transférer")
                 if probleme.dit:
                     echec["said_to_caller"] = probleme.dit
-                echec["compte_rendu"] = compte_rendu(
+                compte = compte_rendu(
                     MOTIFS[TRANSFERT_ECHOUE].fait_fr,
                     dit=probleme.dit,
                     notes=notes,
                     interdits=interdits,
+                    actif=intervention_du_moteur(self, CLE_COMPTE_RENDU_DE_PHRASE),
                 )
+                if compte:
+                    echec["compte_rendu"] = compte
                 if issue is not None and issue.prise_en_main:
                     propriete = FunctionCallResultProperties(run_llm=False)
                 elif probleme.dit and issue is None:

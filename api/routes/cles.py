@@ -37,6 +37,7 @@ from api.services.bibliotheque_cles import (
     nom_apres_suppression,
     nom_fournisseur_de,
     usages_de,
+    usages_de_toutes,
 )
 from api.services.bibliotheque_cles_adresse import (
     AdresseInvalide,
@@ -198,6 +199,17 @@ async def rattacher_a_une_cle(
     if modifiee is None:
         raise HTTPException(status_code=404, detail="Key not found")
     return _vue(modifiee)
+
+
+@router.get("/usages", response_model=dict[str, list[Usage]])
+async def usages_de_toutes_les_cles(
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """V2b : où chaque clé de la bibliothèque sert, en UNE lecture (colonne « Sert à » du tableau des clés)."""
+    org = user.selected_organization_id
+    identifiants = await db_client.get_credentials_for_organization(org)
+    uuids = [i.credential_uuid for i in identifiants if fournisseur_de(i) is not None]
+    return await usages_de_toutes(uuids, org)
 
 
 @router.get("/fournisseurs", response_model=list[str])

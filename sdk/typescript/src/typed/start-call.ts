@@ -76,6 +76,10 @@ export interface StartCall {
      */
     seuil_de_l_arbitre?: number;
     /**
+     * When the call arrives on this step (an exit taken on the record, or written by the agent) and the step carries a single hand-over to a colleague, the code hands the call over at once, with the tool's announcement, instead of asking the agent's model one more time. Off by default.
+     */
+    passation_par_le_code?: boolean;
+    /**
      * When true, the user can interrupt the agent mid-utterance.
      */
     allow_interrupt?: boolean;
@@ -129,6 +133,12 @@ export interface StartCall {
      * LLM hint: Credential UUID from `list_credentials`.
      */
     pre_call_fetch_credential_uuid?: string;
+    /**
+     * Names of agent objects (comma-separated) that the pre-call lookup is allowed to replace. Empty = the lookup never replaces an agent object; each replacement is traced in the run.
+     *
+     * LLM hint: Object names, comma-separated. Leave empty unless the lookup must override an object.
+     */
+    pre_call_fetch_remplace?: string;
 }
 
 /** Factory — sets `type` for you so you don't repeat the discriminator. */

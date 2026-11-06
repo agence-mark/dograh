@@ -1,0 +1,21 @@
+{
+ "success": true,
+ "data": {
+  "items": [
+   {
+    "result_score": 0.9,
+    "item": {
+     "id": 42,
+     "type": "person",
+     "name": "Jeanne Martin",
+     "phones": [
+      "+33612345678"
+     ],
+     "emails": [
+      "j@exemple.fr"
+     ]
+    }
+   }
+  ]
+ }
+}

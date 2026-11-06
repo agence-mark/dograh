@@ -34,6 +34,7 @@ from api.errors.failure import (
     classify_http_response,
     log_failure,
 )
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.tasks.function_names import FunctionNames
 from api.utils.credential_auth import build_auth_header
 
@@ -191,7 +192,10 @@ async def _build_headers(delivery: WebhookDeliveryModel, attempt: int) -> dict:
         credential = await db_client.get_credential_by_uuid(
             delivery.credential_uuid, delivery.organization_id
         )
-        if credential:
+        if credential and est_la_cle_du_cerveau(credential):
+            # [.mark] Builder, revue R2 : la clé du cerveau ne part par aucun webhook.
+            logger.warning(f"Reserved credential refused for webhook '{delivery.webhook_name}' (delivery {delivery.id})")
+        elif credential:
             headers.update(build_auth_header(credential))
         else:
             logger.warning(

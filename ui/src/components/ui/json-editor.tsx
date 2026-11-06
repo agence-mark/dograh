@@ -1,6 +1,6 @@
 import { AlertCircle, Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -120,7 +120,7 @@ export function JsonEditor({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy JSON");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     }, [value]);
 

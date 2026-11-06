@@ -39,6 +39,8 @@ export type ThemeAgent =
     | "rythme"
     | "phrases"
     | "donnees"
+    | "interventions"
+    | "securite"
     | "etablissement";
 
 export type Geste =
@@ -168,16 +170,27 @@ export const CAS_AGENT: CasAgent[] = [
     c("attente-temps", "speech-tuning", "tour", ["incomplete_long_timeout"], [saisir("incomplete_long_timeout", "12")]),
     c("muet-accueil", "speech-tuning", "tour", ["mute_until_first_bot_complete"], [inter("mute_until_first_bot_complete")]),
     c("muet-outil", "speech-tuning", "tour", ["mute_during_function_call"], [inter("mute_during_function_call")]),
-    c("relance-outil", "ajout-mark", "tour", ["relance_apres_outil"], [inter("relance_apres_outil")]),
+    c("relance-outil", "ajout-mark", "interventions", ["relance_apres_outil"], [inter("relance_apres_outil")]),
     c("tour-vide", "ajout-mark", "tour", ["relance_tour_vide"], [inter("relance_tour_vide")]),
     c("muet-workflow", "speech-tuning", "tour", ["mute_engine_callback"], [inter("mute_engine_callback")]),
     c("muet-premiere", "speech-tuning", "tour", ["mute_first_speech"], [inter("mute_first_speech")]),
     c("muet-toujours", "speech-tuning", "tour", ["mute_always"], [inter("mute_always")]),
     c("accueil-coupable", "speech-tuning", "tour", ["accueil_interruptible"], [inter("accueil_interruptible")]),
     c("accueil-mots", "speech-tuning", "tour", ["accueil_mots_minimum"], [saisir("accueil_mots_minimum", "3")]),
+    // builder-agent-vocal, lot 8: the engine interventions (on by default; the gesture switches one OFF).
+    c("sorties-de-l-etape", "ajout-mark", "interventions", ["moteur_sorties_de_l_etape"], [inter("moteur_sorties_de_l_etape")]),
+    c("sortie-d-impasse", "ajout-mark", "interventions", ["moteur_sortie_d_impasse"], [inter("moteur_sortie_d_impasse")]),
+    c("parole-avant-outil", "ajout-mark", "interventions", ["moteur_parole_avant_outil"], [inter("moteur_parole_avant_outil")]),
+    c("main-passee", "ajout-mark", "interventions", ["moteur_main_passee"], [inter("moteur_main_passee")]),
+    c("ordre-outil-puis-parole", "ajout-mark", "interventions", ["moteur_ordre_outil_puis_parole"], [inter("moteur_ordre_outil_puis_parole")]),
+    c("compte-rendu-de-phrase", "ajout-mark", "interventions", ["moteur_compte_rendu_de_phrase"], [inter("moteur_compte_rendu_de_phrase")]),
+    c("phrases-coupees", "ajout-mark", "interventions", ["moteur_phrases_coupees"], [inter("moteur_phrases_coupees")]),
+    c("replique-inachevee", "ajout-mark", "interventions", ["moteur_replique_inachevee"], [inter("moteur_replique_inachevee")]),
+    c("reponse-muette", "ajout-mark", "interventions", ["moteur_reponse_muette"], [inter("moteur_reponse_muette")]),
+    c("notes-de-passation", "ajout-mark", "interventions", ["moteur_notes_de_passation"], [inter("moteur_notes_de_passation")]),
     c("raccrochage-agent", "speech-tuning", "rythme", ["raccrochage_silence_agent_s"], [saisir("raccrochage_silence_agent_s", "40")]),
     // passages-fiables (lot E): added after the reorganisation, frozen once.
-    c("laisser-la-parole", "ajout-mark", "rythme", ["laisser_la_parole"], [inter("laisser_la_parole")]),
+    c("laisser-la-parole", "ajout-mark", "interventions", ["laisser_la_parole"], [inter("laisser_la_parole")]),
     c("relance-texte", "speech-tuning", "rythme", ["user_idle_prompt"], [saisir("user_idle_prompt", "Relance modifiée.")]),
     c("relances-nombre", "speech-tuning", "rythme", ["user_idle_max_prompts"], [saisir("user_idle_max_prompts", "3")]),
     c("au-revoir", "speech-tuning", "rythme", ["user_idle_goodbye_prompt"], [saisir("user_idle_goodbye_prompt", "Au revoir modifié.")]),
@@ -260,6 +273,15 @@ export const CAS_AGENT: CasAgent[] = [
         saisir("delai_garde_modele_s", "6"),
         { type: "cliquer", nom: "Save the guard delay" },
     ], true),
+    // Lot « façon Tala par motif » (T3): the thresholds of the brain.
+    c("taille-plafond", "ajout-mark", "briques", ["cerveau_plafond_prompt"], [
+        saisir("cerveau_plafond_prompt", "6000"),
+        { type: "cliquer", nom: "Save the longest prompt" },
+    ], true),
+    c("taille-poids", "ajout-mark", "briques", ["cerveau_poids_max"], [
+        saisir("cerveau_poids_max", "9000"),
+        { type: "cliquer", nom: "Save the heaviest reply" },
+    ], true),
     c("garde-repli", "ajout-mark", "briques", ["cerveau_de_repli"], [
         { type: "cliquer", nom: "Configure the fallback brain" },
         saisir("repli_provider", "mistral"),
@@ -273,6 +295,8 @@ export const CAS_AGENT: CasAgent[] = [
         { type: "cliquer", nom: "Save the fallback brain" },
     ], true, { travail_actif: true }),
     c("travail-outils", "ajout-mark", "briques", ["travail_outils"], [
+        // K2b : les outils sont des pastilles ; la liste à cocher s'ouvre par « + outil ».
+        { type: "cliquer", nom: "+ tool" },
         { type: "case", nom: "Chercher un créneau" },
     ], true, { travail_actif: true }),
     c("travail-delai", "ajout-mark", "briques", ["travail_delai_max_s"], [
@@ -437,6 +461,8 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
     rythme: "Call pacing",
     phrases: "Phrases",
     donnees: "Call data",
+    interventions: "Engine interventions",
+    securite: "Safety",
     etablissement: "Business",
 };
 
@@ -448,8 +474,8 @@ export const TITRE_ANGLAIS_DU_THEME: Record<ThemeAgent, string> = {
 export const AUTOUR_DU_CAS: Record<string, { avant: Geste[]; apres: Geste[] }> = {
     "pbx-correspondance": { avant: [{ type: "cliquer", nom: "Edit field mappings" }], apres: [{ type: "cliquer", nom: "Done" }] },
     "pbx-prospect": { avant: [{ type: "cliquer", nom: "Edit lead fields" }], apres: [{ type: "cliquer", nom: "Done" }] },
-    "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
-    "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage variables" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-ajoutee": { avant: [{ type: "cliquer", nom: "Manage test values" }], apres: [{ type: "cliquer", nom: "Done" }] },
+    "variable-en-cours": { avant: [{ type: "cliquer", nom: "Manage test values" }], apres: [{ type: "cliquer", nom: "Done" }] },
     // cloture-code, F8 (M4): a card moved to « Modules » sits in its module's sub-menu, opened first.
     ...Object.fromEntries(
         CAS_AGENT.filter((cas) => cas.theme === "modules").map((cas) => [

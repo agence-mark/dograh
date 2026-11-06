@@ -1,16 +1,60 @@
-from datetime import UTC, datetime
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy import func, update
 from sqlalchemy.future import select
 from sqlalchemy.orm import load_only, selectinload
 
+from api.db import branche_ouverte, outils_epingles, protection_principale
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
 
 
+def _ou_est_le_brouillon(cible: "branche_ouverte.Cible") -> list:
+    """[.mark] Partie 3, SA-L3b : où vit le brouillon visé. Principale : le brouillon unique de l'agent (``branch_id`` NULL, comme
+    avant). Une branche ouverte : le brouillon DE CETTE PERSONNE sur CETTE branche (un par personne et par branche)."""
+    if cible.branch_id is None:
+        return [WorkflowDefinitionModel.branch_id.is_(None)]
+    return [
+        WorkflowDefinitionModel.branch_id == cible.branch_id,
+        WorkflowDefinitionModel.draft_owner_id == cible.user_id,
+    ]
+
+
 class WorkflowClient(BaseDBClient):
+    async def compter_remplacements_de_modeles(
+        self, organization_id: int
+    ) -> dict[str, int]:
+        """[.mark] V2b (E51) : combien d'agents actifs de l'organisation remplacent chaque brique de modèle
+        (``model_overrides`` de la version publiée). UNE requête, filtrée par l'organisation dans la requête."""
+        async with self.async_session() as session:
+            lignes = await session.execute(
+                select(
+                    WorkflowDefinitionModel.workflow_configurations,
+                    WorkflowModel.workflow_configurations,
+                )
+                .select_from(WorkflowModel)
+                .outerjoin(
+                    WorkflowDefinitionModel,
+                    WorkflowDefinitionModel.id == WorkflowModel.released_definition_id,
+                )
+                .where(
+                    WorkflowModel.organization_id == organization_id,
+                    WorkflowModel.status == "active",
+                )
+            )
+            comptes = {"llm": 0, "tts": 0, "stt": 0, "realtime": 0}
+            for publiee, courante in lignes.all():
+                configuration = publiee if publiee is not None else courante
+                surcharges = (configuration or {}).get("model_overrides")
+                if not isinstance(surcharges, dict):
+                    continue
+                for service in comptes:
+                    if isinstance(surcharges.get(service), dict) and surcharges[service]:
+                        comptes[service] += 1
+            return comptes
+
     async def get_workflow_definition(
         self, workflow_id: int, definition_id: int, organization_id: int
     ) -> WorkflowDefinitionModel | None:
@@ -47,6 +91,7 @@ class WorkflowClient(BaseDBClient):
                     WorkflowModel.id == workflow_id,
                     WorkflowModel.organization_id == organization_id,
                     WorkflowDefinitionModel.status.in_(["published", "archived"]),
+                    WorkflowDefinitionModel.branch_id.is_(None),  # [.mark] SA-L3b : l'historique de la principale
                 )
                 .order_by(WorkflowDefinitionModel.version_number.desc())
             )
@@ -97,6 +142,9 @@ class WorkflowClient(BaseDBClient):
                     or {},
                 )
                 session.add(definition)
+                if organization_id is not None:
+                    # [.mark] SA-L3d (décision 21) : la première version fige la version de chaque outil qu'elle cite.
+                    await outils_epingles.figer(session, definition, organization_id)
                 await session.flush()
 
                 # Set the released pointer
@@ -124,13 +172,22 @@ class WorkflowClient(BaseDBClient):
 
         If a draft already exists, it is updated in place.
         If no draft exists, a new one is created with the next version number.
+
+        [.mark] Partie 3, SA-L3b : sur une branche ouverte (``X-Mark-Branche``), c'est le brouillon de la personne sur cette
+        branche ; un premier brouillon part de la version en ligne de la BRANCHE, et la copie héritée de la table ``workflows``
+        (qui reflète le brouillon de la principale) n'est jamais touchée.
         """
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
+            if cible.branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
+            base_de_la_branche = await self._base_de_la_branche(session, workflow_id, cible) if cible.branch_id else None
             # Check for existing draft
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
                     WorkflowDefinitionModel.status == "draft",
+                    *_ou_est_le_brouillon(cible),
                 )
             )
             draft = result.scalars().first()
@@ -151,12 +208,14 @@ class WorkflowClient(BaseDBClient):
                         WorkflowDefinitionModel.status == "published",
                     )
                 )
-                published = pub_result.scalars().first()
+                published = base_de_la_branche or pub_result.scalars().first()
 
                 next_version = await self._next_version_number(session, workflow_id)
 
                 draft = WorkflowDefinitionModel(
                     workflow_id=workflow_id,
+                    branch_id=cible.branch_id,
+                    draft_owner_id=cible.user_id if cible.branch_id else None,
                     workflow_json=workflow_definition
                     if workflow_definition is not None
                     else (published.workflow_json if published else {}),
@@ -169,6 +228,8 @@ class WorkflowClient(BaseDBClient):
                     status="draft",
                     version_number=next_version,
                     is_current=False,
+                    # [.mark] SA-L3d : un brouillon part des épingles de la version dont il est la copie.
+                    outils_epingles=outils_epingles.copie(published.outils_epingles) if published else None,
                 )
                 session.add(draft)
 
@@ -177,7 +238,7 @@ class WorkflowClient(BaseDBClient):
                 select(WorkflowModel).where(WorkflowModel.id == workflow_id)
             )
             workflow = wf_result.scalars().first()
-            if workflow:
+            if workflow and cible.branch_id is None:
                 workflow.workflow_definition = draft.workflow_json
                 workflow.workflow_configurations = draft.workflow_configurations
                 workflow.template_context_variables = draft.template_context_variables
@@ -190,6 +251,50 @@ class WorkflowClient(BaseDBClient):
             await session.refresh(draft)
         return draft
 
+    async def _cible(self, session, workflow_id: int) -> "branche_ouverte.Cible":
+        """[.mark] SA-L3b : la branche ouverte par la requête, SI elle est une branche active de CET agent ; sinon la principale (un
+        en-tête de branche d'un autre agent, forgé ou resté d'une autre page, ne donne accès à rien et ne casse rien)."""
+        cible = branche_ouverte.courante()
+        if cible.branch_id is None:
+            return cible
+        from api.db.models_builder import WorkflowBranchModel
+
+        ok = await session.scalar(
+            select(WorkflowBranchModel.id).where(
+                WorkflowBranchModel.id == cible.branch_id,
+                WorkflowBranchModel.workflow_id == workflow_id,
+                WorkflowBranchModel.statut == "active",
+                WorkflowBranchModel.est_principale.is_(False),
+            )
+        )
+        return cible if ok else branche_ouverte.Cible(None, cible.user_id)
+
+    async def branche_ouverte_de(self, workflow_id: int) -> "branche_ouverte.Cible":
+        """La branche non principale que la requête a ouverte sur cet agent (``branch_id`` None : la principale)."""
+        async with self.async_session() as session:
+            return await self._cible(session, workflow_id)
+
+    async def exiger_la_principale_modifiable(self, workflow_id: int) -> None:
+        """[.mark] SA-L3c : refuse (``PrincipaleProtegee``) si la requête vise la principale d'un agent dont elle est protégée ;
+        sur une branche ouverte, rien à dire. Pour refuser tôt (mise en attente du builder), avant tout travail."""
+        async with self.async_session() as session:
+            if (await self._cible(session, workflow_id)).branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)
+
+    async def _base_de_la_branche(self, session, workflow_id: int, cible) -> WorkflowDefinitionModel | None:
+        """[.mark] SA-L3b : la version en ligne de la branche ouverte (pour y fonder un premier brouillon). La branche doit
+        appartenir à CET agent, sinon rien (un en-tête forgé ne donne accès à rien)."""
+        from api.db.models_builder import WorkflowBranchModel
+
+        branche = await session.scalar(
+            select(WorkflowBranchModel).where(
+                WorkflowBranchModel.id == cible.branch_id, WorkflowBranchModel.workflow_id == workflow_id
+            )
+        )
+        if branche is None or branche.head_definition_id is None:
+            return None
+        return await session.get(WorkflowDefinitionModel, branche.head_definition_id)
+
     async def publish_workflow_draft(
         self,
         workflow_id: int,
@@ -200,13 +305,21 @@ class WorkflowClient(BaseDBClient):
         - Previous published → archived
         - Updates released_definition_id on the workflow
         - Sets is_current for backward compatibility
+
+        [.mark] SA-L3b : la publication de la principale seulement. Le brouillon d'une branche se publie par sa branche
+        (``publier_le_brouillon_de_branche``), jamais comme la version en ligne de l'agent.
         """
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
+            if cible.branch_id is not None:
+                raise ValueError("A branch draft is published from its branch, not as the agent's live version")
+            await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
             # Find the draft
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
                     WorkflowDefinitionModel.status == "draft",
+                    *_ou_est_le_brouillon(cible),
                 )
             )
             draft = result.scalars().first()
@@ -233,6 +346,8 @@ class WorkflowClient(BaseDBClient):
                 select(WorkflowModel).where(WorkflowModel.id == workflow_id)
             )
             workflow = wf_result.scalars().first()
+            # [.mark] SA-L3d (décision 21) : publier fige la version de chaque outil que le graphe cite.
+            await outils_epingles.figer(session, draft, workflow.organization_id)
             workflow.released_definition_id = draft.id
             workflow.workflow_definition = draft.workflow_json
             workflow.workflow_configurations = draft.workflow_configurations
@@ -250,12 +365,14 @@ class WorkflowClient(BaseDBClient):
         self,
         workflow_id: int,
     ) -> None:
-        """Delete the current draft version."""
+        """Delete the current draft version (of the open branch's person, on a branch)."""
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
                     WorkflowDefinitionModel.status == "draft",
+                    *_ou_est_le_brouillon(cible),
                 )
             )
             draft = result.scalars().first()
@@ -280,11 +397,15 @@ class WorkflowClient(BaseDBClient):
         Raises ValueError if a draft already exists (must discard first).
         """
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
+            if cible.branch_id is None:
+                await protection_principale.exiger_modifiable(session, workflow_id)  # SA-L3c : principale protégée
             # Ensure no existing draft
             draft_result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
                     WorkflowDefinitionModel.status == "draft",
+                    *_ou_est_le_brouillon(cible),
                 )
             )
             if draft_result.scalars().first():
@@ -317,6 +438,9 @@ class WorkflowClient(BaseDBClient):
                 status="draft",
                 version_number=next_version,
                 is_current=False,
+                branch_id=cible.branch_id,
+                draft_owner_id=cible.user_id if cible.branch_id else None,
+                outils_epingles=outils_epingles.copie(source.outils_epingles),  # SA-L3d : « revenir » ramène aussi les outils
             )
             session.add(draft)
 
@@ -332,12 +456,17 @@ class WorkflowClient(BaseDBClient):
         self,
         workflow_id: int,
     ) -> WorkflowDefinitionModel | None:
-        """Get the draft version for a workflow, or None if no draft exists."""
+        """Get the draft version for a workflow, or None if no draft exists.
+
+        [.mark] SA-L3b : sur une branche ouverte, le brouillon de la personne sur cette branche.
+        """
         async with self.async_session() as session:
+            cible = await self._cible(session, workflow_id)
             result = await session.execute(
                 select(WorkflowDefinitionModel).where(
                     WorkflowDefinitionModel.workflow_id == workflow_id,
                     WorkflowDefinitionModel.status == "draft",
+                    *_ou_est_le_brouillon(cible),
                 )
             )
             return result.scalars().first()
@@ -382,6 +511,7 @@ class WorkflowClient(BaseDBClient):
         offset: int = 0,
         version_number: int | None = None,
         status: str | None = None,
+        branch_id: int | None = None,
     ) -> list[WorkflowDefinitionModel]:
         """List versions for a workflow, newest first.
 
@@ -398,6 +528,11 @@ class WorkflowClient(BaseDBClient):
                     WorkflowDefinitionModel.status.in_(
                         ["published", "draft", "archived"]
                     ),
+                    # [.mark] SA-L3b : l'historique d'une branche (NULL = la principale) ne se mêle pas à celui d'une autre
+                    # ; le brouillon d'une personne sur une branche n'est jamais listé ici.
+                    WorkflowDefinitionModel.branch_id.is_(None)
+                    if branch_id is None
+                    else WorkflowDefinitionModel.branch_id == branch_id,
                 )
                 .order_by(WorkflowDefinitionModel.version_number.desc())
             )
@@ -436,6 +571,29 @@ class WorkflowClient(BaseDBClient):
             result = await session.execute(query)
             return result.scalars().all()
 
+    async def workflow_a_ete_publie(self, workflow_id: int) -> bool:
+        """[.mark] True once a real publication happened: a version beyond the skeleton v1 (published when the agent is created) that is
+        no longer a draft. Used to freeze the recipe of an agent."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowDefinitionModel.id)
+                .where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.version_number > 1,
+                    WorkflowDefinitionModel.status.in_(["published", "archived"]),
+                )
+                .limit(1)
+            )
+            return result.first() is not None
+
+    async def list_workflow_ids_with_organization(self) -> list[tuple[int, int]]:
+        """[.mark] (workflow_id, organization_id) of every workflow, without loading any definition (versement of the recipes)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel.id, WorkflowModel.organization_id).where(WorkflowModel.organization_id.is_not(None))
+            )
+            return [(row[0], row[1]) for row in result.all()]
+
     async def list_workflows_for_model_configuration_migration(
         self, organization_id: int
     ) -> list[WorkflowModel]:
@@ -444,6 +602,27 @@ class WorkflowClient(BaseDBClient):
             result = await session.execute(
                 select(WorkflowModel)
                 .options(selectinload(WorkflowModel.definitions))
+                .where(WorkflowModel.organization_id == organization_id)
+            )
+            return list(result.scalars().unique().all())
+
+    async def list_workflows_with_published_versions(
+        self, organization_id: int
+    ) -> list[WorkflowModel]:
+        """[.mark] V4 : an organization's workflows with ONLY their published version(s) in ``definitions``.
+
+        What the publication and the screens that read « what the calls read » need (``_version_publiee``): loading every
+        archived version of every agent (a graph each, tens of KB) made « Publish » grow with the history of the
+        organization. ``definitions`` holds the published rows only: never use this to look for a draft or an old version.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel)
+                .options(
+                    selectinload(
+                        WorkflowModel.definitions.and_(WorkflowDefinitionModel.status == "published")
+                    )
+                )
                 .where(WorkflowModel.organization_id == organization_id)
             )
             return list(result.scalars().unique().all())
@@ -754,6 +933,16 @@ class WorkflowClient(BaseDBClient):
             )
             return result.scalars().all()
 
+    async def get_workflows_by_organization_light(self, organization_id: int) -> list[Any]:
+        """[.mark] Lot 8 (étiquettes des prompts) : (id, name, status) des agents de l'organisation, sans charger une définition."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowModel.id, WorkflowModel.name, WorkflowModel.status)
+                .where(WorkflowModel.organization_id == organization_id)
+                .order_by(WorkflowModel.name)
+            )
+            return [row for row in result.all()]
+
     async def get_workflow_name(
         self, workflow_id: int, user_id: int = None, organization_id: int = None
     ) -> Optional[str]:
@@ -902,6 +1091,65 @@ class WorkflowClient(BaseDBClient):
             except Exception as e:
                 await session.rollback()
                 raise e
+
+    async def get_etat_des_versions_pour_liste(
+        self, workflow_ids: list[int]
+    ) -> dict[int, dict]:
+        """[.mark] K2: what the agents list shows per agent, in two queries for the whole list.
+
+        Per agent: the number of the version shown (the published one, else the draft), its state
+        (``publiee`` | ``brouillon`` | ``brouillon_modifie`` = a published version with a draft above it),
+        the date of the last change (newest definition) and the calls of the last 7 days.
+        """
+        if not workflow_ids:
+            return {}
+        depuis = datetime.now(UTC) - timedelta(days=7)
+        async with self.async_session() as session:
+            definitions = await session.execute(
+                select(
+                    WorkflowDefinitionModel.workflow_id,
+                    WorkflowDefinitionModel.status,
+                    WorkflowDefinitionModel.version_number,
+                    WorkflowDefinitionModel.created_at,
+                ).where(
+                    WorkflowDefinitionModel.workflow_id.in_(workflow_ids),
+                    WorkflowDefinitionModel.status.in_(("draft", "published")),
+                    WorkflowDefinitionModel.branch_id.is_(None),  # [.mark] SA-L3b : la liste montre la principale
+                )
+            )
+            appels = await session.execute(
+                select(
+                    WorkflowRunModel.workflow_id,
+                    func.count(WorkflowRunModel.id),
+                )
+                .where(
+                    WorkflowRunModel.workflow_id.in_(workflow_ids),
+                    WorkflowRunModel.created_at >= depuis,
+                )
+                .group_by(WorkflowRunModel.workflow_id)
+            )
+            appels_par_agent = dict(appels.all())
+
+        par_agent: dict[int, dict] = {i: {} for i in workflow_ids}
+        for workflow_id, statut, numero, cree_le in definitions.all():
+            fiche = par_agent[workflow_id]
+            fiche[statut] = numero
+            dernier = fiche.get("modifie_le")
+            if cree_le is not None and (dernier is None or cree_le > dernier):
+                fiche["modifie_le"] = cree_le
+        resultat: dict[int, dict] = {}
+        for workflow_id, fiche in par_agent.items():
+            publiee = "published" in fiche
+            brouillon = "draft" in fiche
+            resultat[workflow_id] = {
+                "version_numero": fiche.get("published") if publiee else fiche.get("draft"),
+                "version_etat": (
+                    "brouillon_modifie" if publiee and brouillon else "publiee" if publiee else "brouillon"
+                ),
+                "modifie_le": fiche.get("modifie_le"),
+                "appels_7j": appels_par_agent.get(workflow_id, 0),
+            }
+        return resultat
 
     async def get_workflow_run_counts(self, workflow_ids: list[int]) -> dict[int, int]:
         """Get run counts for multiple workflows in a single query.

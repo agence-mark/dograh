@@ -3,40 +3,53 @@ import '@xyflow/react/dist/style.css';
 import {
     Background,
     BackgroundVariant,
-    Panel,
+    MarkerType,
+    MiniMap,
+    type NodeChange,
     ReactFlow,
 } from "@xyflow/react";
-import { BrushCleaning, Maximize2, Minus, Plus, Settings } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { createPortal } from 'react-dom';
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
 
-import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet } from '@/client';
+import { createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost, getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet, listDocumentsApiV1KnowledgeBaseDocumentsGet, listRecordingsApiV1WorkflowRecordingsGet, listToolsApiV1ToolsGet,updateWorkflowApiV1WorkflowWorkflowIdPut } from '@/client';
 import type { DocumentResponseSchema, RecordingResponseSchema, ToolResponse, WorkflowVersionResponse } from '@/client/types.gen';
+// [.mark] builder-agent-vocal (lot 4): the « Builder AI » panel, its highlighting of the graph, the node menu.
+import { appliquerLesOperations, grapheAAfficher, instantane, retirerLeSurlignage } from "@/components/builder/ecran/graphe";
+import { MenuDuNoeud, type MenuOuvert } from "@/components/builder/ecran/MenuDuNoeud";
+import { PanneauBuilder } from "@/components/builder/ecran/PanneauBuilder";
+import { useBuilderEcran } from "@/components/builder/ecran/store";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
-import { HireExpertNudge } from "@/components/lead-forms/HireExpertNudge";
+import { BandeauSelection, gestesDuGraphe } from "@/components/mark/graphe/gestes-graphe";
+import { FilGroupe, GroupeSurCanevas } from "@/components/mark/graphe/GroupeSurCanevas";
+import { BarreCanevas } from '@/components/mark/agent/BarreCanevas';
+import { BarreOutilsGraphe } from "@/components/mark/graphe/BarreOutilsGraphe";
+import { usePreferenceLocale, useStatistiquesDesEtapes } from "@/components/mark/graphe/hooks-graphe";
+import { fermeUnCycle, liensEnBoucle } from "@/components/mark/graphe/sans-boucle";
+import { latenceDeLEtape, partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
+import { useDecalagePanneau } from "@/components/mark/studio/panneau-droit";
+import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
+import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
+import { libelleDuType } from "@/components/flow/nodes/GenericNode";
+import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
 import { ProposerLaPublicationDuGroupe } from '@/components/mark/groupe/PublierLeGroupe';
-import { Button } from '@/components/ui/button';
+import { useLangue } from "@/components/mark/langue/langue";
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { detailFromError } from '@/lib/apiError';
+import { espaceRetenu } from '@/lib/espaceCourant';
 import { ReglePhrase, WorkflowConfigurations } from '@/types/workflow-configurations';
 
-import AddNodePanel from "../../../components/flow/AddNodePanel";
 import CustomEdge from "../../../components/flow/edges/CustomEdge";
 import { GenericNode } from "../../../components/flow/nodes/GenericNode";
 import { PhoneCallDialog } from './components/PhoneCallDialog';
-import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester/types';
-import { WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
+import { type ModeEssai, WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
 import { WorkflowTesterPanel } from './components/WorkflowTesterPanel';
-import { WorkflowVersionDiffDialog } from './components/WorkflowVersionDiffDialog';
-import { nomDeFonction } from "@/components/mark/graphe/VeriteDesActions";
-
 import { WorkflowProvider } from "./contexts/WorkflowContext";
 import { useWorkflowState } from "./hooks/useWorkflowState";
+import { useWorkflowStore } from "./stores/workflowStore";
 import { layoutNodes } from './utils/layoutNodes';
 
 const edgeTypes = {
@@ -83,25 +96,36 @@ function RenderWorkflow({
     user,
 }: RenderWorkflowProps) {
     const router = useRouter();
+    useAgentCourant(workflowId);
     const searchParams = useSearchParams();
     const { specs } = useNodeSpecs();
     const { hasCompletedAction } = useOnboarding();
     const [isPhoneCallDialogOpen, setIsPhoneCallDialogOpen] = useState(false);
-    const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
-    const [isTesterRailOpen, setIsTesterRailOpen] = useState(true);
+    const [isTesterRailOpen, setIsTesterRailOpen] = useState(false);
     const [isTesterSheetOpen, setIsTesterSheetOpen] = useState(false);
+    const [zoomPourCent, setZoomPourCent] = useState(80);
     const [isDesktopViewport, setIsDesktopViewport] = useState(false);
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
-    const [versionsLoading, setVersionsLoading] = useState(false);
-    const [versionsLoadingMore, setVersionsLoadingMore] = useState(false);
-    const [versionsHasMore, setVersionsHasMore] = useState(false);
+    const [, setVersionsLoading] = useState(false);
     const [activeVersionId, setActiveVersionId] = useState<number | null>(initialSelectedVersion?.id ?? null);
-    const [comparingVersionId, setComparingVersionId] = useState<number | null>(null);
-    const [versionDiffPair, setVersionDiffPair] = useState<{
-        previousVersion: WorkflowVersionResponse;
-        selectedVersion: WorkflowVersionResponse;
-    } | null>(null);
     const hasAutoOpenedTester = useRef(false);
+    // [.mark] builder-agent-vocal (lot 4): what the builder panel needs from this editor.
+    const { t: tBuilder } = useLangue();
+    const builderOuvert = useBuilderEcran((s) => s.ouvert);
+    const builderAvant = useBuilderEcran((s) => s.avant);
+    const builderOperations = useBuilderEcran((s) => s.operationsVives);
+    const builderBascule = useBuilderEcran((s) => s.bascule);
+    const [menuDuNoeud, setMenuDuNoeud] = useState<MenuOuvert | null>(null);
+    // The panel and the tester rail share the right side: opening the builder leaves the room to it.
+    useEffect(() => {
+        if (builderOuvert) setIsTesterRailOpen(false);
+    }, [builderOuvert]);
+    // A new editor starts with a clean builder state; `?builder=1` (« Start with the Builder AI ») opens the panel.
+    useEffect(() => {
+        useBuilderEcran.getState().reinitialiser();
+        if (searchParams.get('builder') === '1') useBuilderEcran.getState().ouvrir();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workflowId]);
     // Version info that updates immediately from the GET/save/publish responses.
     const [currentVersionNumber, setCurrentVersionNumber] = useState<number | null>(initialVersionNumber ?? null);
     const [currentVersionStatus, setCurrentVersionStatus] = useState<string | null>(initialVersionStatus ?? null);
@@ -115,7 +139,6 @@ function RenderWorkflow({
         rfInstance,
         nodes,
         edges,
-        isAddNodePanelOpen,
         workflowName,
         isDirty,
         workflowValidationErrors,
@@ -123,7 +146,6 @@ function RenderWorkflow({
         setNodes,
         setEdges,
         setIsDirty,
-        setIsAddNodePanelOpen,
         handleNodeSelect,
         saveWorkflow,
         workflowConfigurations,
@@ -132,6 +154,10 @@ function RenderWorkflow({
         onEdgesChange,
         onNodesChange,
         onDelete,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
     } = useWorkflowState({
         initialWorkflowName,
         workflowId,
@@ -178,14 +204,13 @@ function RenderWorkflow({
                 query: { limit: VERSIONS_PAGE_SIZE + 1, offset: 0 },
             });
             if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to load version history"));
+                notifier.echec({ fr: "Historique illisible. Rechargez la page.", en: "Could not load version history. Reload the page." }, { erreur: response.error });
                 return;
             }
             const data = response.data;
             if (data) {
                 const page = data.slice(0, VERSIONS_PAGE_SIZE);
                 setVersions(page);
-                setVersionsHasMore(data.length > VERSIONS_PAGE_SIZE);
                 // Set active version to draft if exists, else published.
                 // Both live on the newest page so the first fetch always sees them.
                 const current = page.find((v) => v.status === "draft") ?? page.find((v) => v.status === "published");
@@ -205,102 +230,12 @@ function RenderWorkflow({
         }
     }, [workflowId]);
 
-    const handleLoadMoreVersions = useCallback(async () => {
-        if (versionsLoadingMore || !versionsHasMore) return;
-        setVersionsLoadingMore(true);
-        try {
-            const response = await getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
-                path: { workflow_id: workflowId },
-                query: { limit: VERSIONS_PAGE_SIZE + 1, offset: versions.length },
-            });
-            if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to load more versions"));
-                return;
-            }
-            const data = response.data;
-            if (data) {
-                setVersions((prev) => [...prev, ...data.slice(0, VERSIONS_PAGE_SIZE)]);
-                setVersionsHasMore(data.length > VERSIONS_PAGE_SIZE);
-            }
-        } finally {
-            setVersionsLoadingMore(false);
-        }
-    }, [workflowId, versions.length, versionsLoadingMore, versionsHasMore]);
-
-    const handleOpenVersionPanel = useCallback(() => {
-        setIsVersionPanelOpen(true);
-        void fetchVersions(false, true);
-    }, [fetchVersions]);
-
-    const handleCompareVersion = useCallback(async (version: WorkflowVersionResponse) => {
-        if (comparingVersionId !== null) return;
-
-        const selectedIndex = versions.findIndex((candidate) => candidate.id === version.id);
-        if (selectedIndex < 0) {
-            toast.error("That workflow version is no longer in the history list");
-            return;
-        }
-
-        setComparingVersionId(version.id);
-        try {
-            // Fetch the selected row and the row immediately below it afresh.
-            // The offset also handles comparisons that cross a pagination boundary.
-            const response = await getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
-                path: { workflow_id: workflowId },
-                query: { limit: 2, offset: selectedIndex },
-            });
-            if (response.error) {
-                toast.error(detailFromError(response.error, "Failed to compare workflow versions"));
-                return;
-            }
-
-            const pair = response.data;
-            const selectedVersion = pair?.[0];
-            const previousVersion = pair?.[1];
-
-            // A new draft may have been inserted since the panel opened, shifting
-            // every offset. Refresh instead of showing a mismatched comparison.
-            if (!selectedVersion || selectedVersion.id !== version.id) {
-                await fetchVersions(true, true);
-                toast.error("Version history changed. Please try the comparison again.");
-                return;
-            }
-            if (
-                !previousVersion ||
-                previousVersion.version_number >= selectedVersion.version_number
-            ) {
-                toast.error(`v${selectedVersion.version_number} has no previous version`);
-                return;
-            }
-
-            // Keep the panel's cached copies in sync with the fresh pair so they
-            // remain current when the dialog closes and history reopens.
-            setVersions((currentVersions) => currentVersions.map((currentVersion) => (
-                pair?.find((freshVersion) => freshVersion.id === currentVersion.id)
-                ?? currentVersion
-            )));
-            setVersionDiffPair({ previousVersion, selectedVersion });
-            setIsVersionPanelOpen(false);
-        } catch {
-            toast.error("Failed to compare workflow versions");
-        } finally {
-            setComparingVersionId(null);
-        }
-    }, [comparingVersionId, fetchVersions, versions, workflowId]);
-
-    const handleVersionDiffOpenChange = useCallback((open: boolean) => {
-        if (open) return;
-        setVersionDiffPair(null);
-        setIsVersionPanelOpen(true);
-    }, []);
-
     const navigateToVersion = useCallback((version: number | null) => {
         const query = new URLSearchParams(searchParams.toString());
         if (version === null) query.delete('version');
         else query.set('version', String(version));
         const suffix = query.toString();
-        router.push(`/workflow/${workflowId}${suffix ? `?${suffix}` : ''}`, { scroll: false });
-        setIsVersionPanelOpen(false);
+        router.push(`/agents/${workflowId}${suffix ? `?${suffix}` : ''}`, { scroll: false });
     }, [router, searchParams, workflowId]);
 
     const handleSelectVersion = useCallback((version: WorkflowVersionResponse) => {
@@ -378,25 +313,14 @@ function RenderWorkflow({
         if (estPrincipal) setPropositionGroupe(true);
     }, [fetchVersions, estPrincipal]);
 
-    // Compute version label for the header.
-    // Uses currentVersionNumber/Status which update immediately from save responses,
-    // falling back to the versions list for history navigation.
-    const activeVersionLabel = useMemo(() => {
-        // When viewing a version from the history panel, use the versions list
+    // K2 : la version que dit la barre (point vert publiée, creux brouillon) : celle qu'on regarde, sinon la courante.
+    const versionAffichee = useMemo(() => {
         if (activeVersionId) {
             const v = versions.find((ver) => ver.id === activeVersionId)
                 ?? (initialSelectedVersion?.id === activeVersionId ? initialSelectedVersion : undefined);
-            if (v) {
-                const statusSuffix = v.status === "draft" ? " (Draft)" : v.status === "published" ? " (Published)" : "";
-                return `v${v.version_number}${statusSuffix}`;
-            }
+            if (v) return { numero: v.version_number ?? null, statut: v.status ?? null };
         }
-        // Otherwise use the immediately-available version info from save responses
-        if (currentVersionNumber != null) {
-            const statusSuffix = currentVersionStatus === "draft" ? " (Draft)" : currentVersionStatus === "published" ? " (Published)" : "";
-            return `v${currentVersionNumber}${statusSuffix}`;
-        }
-        return undefined;
+        return { numero: currentVersionNumber, statut: currentVersionStatus };
     }, [activeVersionId, versions, currentVersionNumber, currentVersionStatus, initialSelectedVersion]);
 
     const testerDisabledReason = useMemo(() => {
@@ -412,7 +336,35 @@ function RenderWorkflow({
         return null;
     }, [isDirty, isViewingHistoricalVersion, workflowValidationErrors.length]);
 
-    const handleOpenTester = useCallback(() => {
+    // [.mark] E36 : « Prompt général » ouvre la fenêtre du nœud global ; s'il n'existe pas, la barre le crée puis l'ouvre.
+    const demanderOuverture = useOuvertureNoeud((s) => s.demander);
+    const [ouvrirLeGlobalApresAjout, setOuvrirLeGlobalApresAjout] = useState(false);
+    const noeudGlobal = nodes.find((n) => n.type === NodeType.GLOBAL_NODE);
+    const handlePromptGeneral = useCallback(() => {
+        if (noeudGlobal) {
+            demanderOuverture(noeudGlobal.id);
+            return;
+        }
+        setOuvrirLeGlobalApresAjout(true);
+        handleNodeSelect(NodeType.GLOBAL_NODE);
+    }, [noeudGlobal, demanderOuverture, handleNodeSelect]);
+    useEffect(() => {
+        if (ouvrirLeGlobalApresAjout && noeudGlobal) {
+            setOuvrirLeGlobalApresAjout(false);
+            demanderOuverture(noeudGlobal.id);
+        }
+    }, [ouvrirLeGlobalApresAjout, noeudGlobal, demanderOuverture]);
+    // La bibliothèque est celle du Labo : le lien n'est proposé que depuis l'espace Labo.
+    const [bibliothequeHref, setBibliothequeHref] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        const espace = espaceRetenu();
+        setBibliothequeHref(espace === 'labo' ? '/labo/bibliotheque' : undefined);
+    }, []);
+
+    // [.mark] U3 : « Try ▾ » choisit l'onglet du panneau d'essai ; `cle` change à chaque choix.
+    const [modeEssai, setModeEssai] = useState<{ mode: ModeEssai; cle: number } | null>(null);
+    const handleOpenTester = useCallback((mode?: ModeEssai) => {
+        if (mode) setModeEssai((precedent) => ({ mode, cle: (precedent?.cle ?? 0) + 1 }));
         if (window.innerWidth >= 1280) {
             setIsTesterRailOpen(true);
             return;
@@ -423,6 +375,28 @@ function RenderWorkflow({
     const shouldShowWebCallOnboarding = useMemo(() => {
         return (initialTotalRuns ?? 0) === 0 && !hasCompletedAction('web_call_started');
     }, [hasCompletedAction, initialTotalRuns]);
+
+    // K2 : les onglets autres que le Parcours envoient ici leur « Essayer » (`?essai=audio|text|simulated|telephone`).
+    const essaiDemande = searchParams.get('essai');
+    const essaiJoue = useRef(false);
+    useEffect(() => {
+        if (essaiJoue.current || !essaiDemande) return;
+        essaiJoue.current = true;
+        if (essaiDemande === 'telephone') setIsPhoneCallDialogOpen(true);
+        else if (essaiDemande === 'audio' || essaiDemande === 'text' || essaiDemande === 'simulated') handleOpenTester(essaiDemande);
+    }, [essaiDemande, handleOpenTester]);
+
+    // [.mark] Partie 3 (SA-L3a) : « Régler » dans « Prêt à publier » mène à l'étape exacte (`?etape=<identifiant>`) : elle est
+    // sélectionnée et centrée dans le graphe, une seule fois.
+    const etapeDemandee = searchParams.get('etape');
+    const etapeMontree = useRef(false);
+    useEffect(() => {
+        if (etapeMontree.current || !etapeDemandee || !nodes.some((n) => n.id === etapeDemandee)) return;
+        etapeMontree.current = true;
+        setNodes(nodes.map((n) => ({ ...n, selected: n.id === etapeDemandee })));
+        // Pas de nettoyage : la sélection change `nodes` et relancerait l'effet avant que le centrage ait eu lieu.
+        setTimeout(() => rfInstance.current?.fitView({ nodes: [{ id: etapeDemandee }], padding: 0.6, duration: 300, maxZoom: 1 }), 120);
+    }, [etapeDemandee, nodes, setNodes, rfInstance]);
 
     useEffect(() => {
         const syncViewport = () => {
@@ -482,8 +456,8 @@ function RenderWorkflow({
 
     // Memoize defaultEdgeOptions to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
-        animated: true,
-        type: "custom"
+        type: "custom",
+        markerEnd: { type: MarkerType.ArrowClosed, color: "var(--liaison-fleche)", width: 14, height: 14 },
     }), []);
 
     const displayNodes = useMemo(
@@ -501,6 +475,185 @@ function RenderWorkflow({
             ),
         [activeRuntimeNodeId, nodes],
     );
+
+    // [.mark] builder-agent-vocal (lot 4) -----------------------------------------------------------------------------
+    const lireLeGrapheDuBuilder = useCallback(() => {
+        const etat = useWorkflowStore.getState();
+        return instantane(etat.nodes, etat.edges);
+    }, []);
+
+    // Reads the agent's draft again (the builder saved it on the server) and puts it on the canvas.
+    const rechargerLeBrouillon = useCallback(async () => {
+        const reponse = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({ path: { workflow_id: workflowId } });
+        const definition = reponse.data?.workflow_definition;
+        if (reponse.error || !definition) return false;
+        setNodes((definition.nodes ?? []) as FlowNode[]);
+        setEdges((definition.edges ?? []) as FlowEdge[]);
+        setIsDirty(false);
+        setCurrentVersionNumber(reponse.data?.version_number ?? null);
+        setCurrentVersionStatus(reponse.data?.version_status ?? null);
+        void fetchVersions(true);
+        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 300, maxZoom: 0.8 }), 100);
+        return true;
+    }, [workflowId, setNodes, setEdges, setIsDirty, fetchVersions, rfInstance]);
+
+    // « Refuse »: the graph from before becomes the draft again (a normal save, then read back).
+    const restaurerLeGraphe = useCallback(async (graphe: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
+        const reponse = await updateWorkflowApiV1WorkflowWorkflowIdPut({
+            path: { workflow_id: workflowId },
+            body: {
+                name: workflowName,
+                workflow_definition: { ...graphe, viewport: rfInstance.current?.getViewport() ?? { x: 0, y: 0, zoom: 0.75 } },
+            },
+        });
+        if (reponse.error) return false;
+        return rechargerLeBrouillon();
+    }, [workflowId, workflowName, rfInstance, rechargerLeBrouillon]);
+
+    const contexteDuBuilder = useMemo(
+        () => ({
+            workflowId,
+            lireLeGraphe: lireLeGrapheDuBuilder,
+            recharger: rechargerLeBrouillon,
+            restaurer: restaurerLeGraphe,
+            appelerLAgent: () => setIsPhoneCallDialogOpen(true),
+            essayerAuClavier: () => handleOpenTester("text"),
+        }),
+        [workflowId, lireLeGrapheDuBuilder, rechargerLeBrouillon, restaurerLeGraphe, handleOpenTester],
+    );
+
+    // What the canvas shows while the builder has changes to review: Sim-style highlighting, or the graph from before.
+    const affichageDuBuilder = useMemo(() => {
+        if (!builderAvant) return null;
+        const apres = builderOperations.length ? appliquerLesOperations(builderAvant, builderOperations) : { nodes, edges };
+        return grapheAAfficher(builderAvant, apres, builderBascule, {
+            champs: (n) => `${n} ${tBuilder({ en: "field(s)", fr: "champ(s)" })}`,
+        });
+    }, [builderAvant, builderOperations, builderBascule, nodes, edges, tBuilder]);
+    // React Flow reports « replace » changes built from the nodes it DISPLAYS (the highlighted copies): none of that may
+    // reach the editor's own nodes, which are saved. A ghost (a node the builder removed, kept on screen) is not stored.
+    const onNodesChangeDuBuilder = useCallback(
+        (changes: NodeChange<FlowNode>[]) => {
+            const connus = new Set(useWorkflowStore.getState().nodes.map((n) => n.id));
+            const propres = (changes as { type: string; id?: string; item?: FlowNode }[]).flatMap((c) => {
+                if (c.type !== 'replace') return [c];
+                return c.id && c.item && connus.has(c.id) ? [{ ...c, item: retirerLeSurlignage(c.item) }] : [];
+            });
+            onNodesChange(propres as unknown as NodeChange<FlowNode>[]);
+        },
+        [onNodesChange],
+    );
+    // [.mark] T4 : annuler la sélection (Échap) ; lu dans le magasin au moment du geste, jamais pendant un rendu.
+    const annulerLaSelection = useCallback(() => {
+        const courants = useWorkflowStore.getState().nodes;
+        if (courants.some((n) => n.selected)) useWorkflowStore.getState().setNodes(courants.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    }, []);
+    const panneauOuvert = builderOuvert || isTesterRailOpen;
+    // [.mark] K2b : les panneaux de droite flottent sur tout le cadre du studio, barre d'agent comprise (maquette `superpose`) :
+    // ils s'y posent par un portail ; sans cadre (test, autre page), ils restent dans la zone du canevas.
+    const [cadreStudio, setCadreStudio] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        setCadreStudio(document.getElementById('cadre-studio'));
+    }, []);
+    const noeudsDeBase = affichageDuBuilder ? affichageDuBuilder.nodes : displayNodes;
+    const liaisonsAffichees = affichageDuBuilder ? affichageDuBuilder.edges : edges;
+
+    // [.mark] Partie 3, sous-lot 20 : l'éditeur du graphe façon ElevenLabs (annuler, aimant, carte, recherche, statistiques, boucles).
+    const [aimant, basculerAimant] = usePreferenceLocale("mark.graphe.aimant", false);
+    const [carte, basculerCarte] = usePreferenceLocale("mark.graphe.carte", true);
+    const [boucles, basculerBoucles] = usePreferenceLocale(`mark.graphe.sans-boucle.${workflowId}`, false);
+    const [statsAllumees, setStatsAllumees] = useState(false);
+    const statistiques = useStatistiquesDesEtapes(workflowId, statsAllumees);
+    // Les statistiques se posent à l'affichage seulement (jamais dans les étapes enregistrées).
+    const noeudsAffiches = useMemo(
+        () =>
+            statistiques
+                ? noeudsDeBase.map((n) => {
+                      const nom = String((n.data as { name?: string }).name ?? "");
+                      const part = partDesAppels(statistiques, nom);
+                      const latence = latenceDeLEtape(statistiques, nom);
+                      return part === null ? n : { ...n, data: { ...n.data, stats_part: part, ...(latence ? { stats_latence: latence } : {}) } };
+                  })
+                : noeudsDeBase,
+        [noeudsDeBase, statistiques],
+    );
+    const nombreEnBoucle = useMemo(() => (boucles ? liensEnBoucle(edges).length : 0), [boucles, edges]);
+    const onConnectGardee = useCallback(
+        (connexion: Parameters<typeof onConnect>[0]) => {
+            const { source, target } = connexion;
+            if (boucles && source && target && fermeUnCycle(useWorkflowStore.getState().edges, source, target)) {
+                notifier.avertissement({
+                    fr: "Cette liaison fermerait une boucle. Éteignez « Empêcher les boucles » pour la poser.",
+                    en: "This link would close a loop. Turn off \"Forbid loops\" to add it.",
+                });
+                return;
+            }
+            onConnect(connexion);
+        },
+        [boucles, onConnect],
+    );
+    const reorganiser = useCallback(() => {
+        const rangees = layoutNodes(nodes, edges, 'TB', rfInstance);
+        // Comme un glissement terminé : le geste entre dans l'historique, « Annuler » remet les places d'avant.
+        useWorkflowStore.getState().setNodes(
+            rangees,
+            rangees.map((n) => ({ type: 'position', id: n.id, position: n.position, dragging: false }) as NodeChange<FlowNode>),
+        );
+        setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.8 }), 60);
+    }, [nodes, edges, rfInstance]);
+    const montrerUneEtape = useCallback(
+        (id: string) => {
+            useWorkflowStore.getState().setNodes(useWorkflowStore.getState().nodes.map((n) => ({ ...n, selected: n.id === id })));
+            setTimeout(() => rfInstance.current?.fitView({ nodes: [{ id }], padding: 0.6, duration: 300, maxZoom: 1 }), 60);
+        },
+        [rfInstance],
+    );
+    const { langue } = useLangue();
+    const etapesCherchables = useMemo(
+        () =>
+            nodes.map((n) => {
+                const spec = specs.find((s) => s.name === n.type);
+                return { id: n.id, nom: String((n.data as { name?: string }).name ?? n.id), type: spec ? libelleDuType(spec, langue) : n.type };
+            }),
+        [nodes, specs, langue],
+    );
+    // Supprimer au clavier demande aussi confirmation (la barre au survol a la sienne).
+    const [suppressionDemandee, setSuppressionDemandee] = useState<{ nombre: number; nom: string; reponse: (ok: boolean) => void } | null>(null);
+    const avantSuppression = useCallback(
+        ({ nodes: aSupprimer }: { nodes: FlowNode[]; edges: FlowEdge[] }) =>
+            aSupprimer.length === 0
+                ? Promise.resolve(true)
+                : new Promise<boolean>((reponse) =>
+                      setSuppressionDemandee({
+                          nombre: aSupprimer.length,
+                          nom: String((aSupprimer[0].data as { name?: string }).name ?? aSupprimer[0].id),
+                          reponse,
+                      }),
+                  ),
+        [],
+    );
+    const decalagePanneau = useDecalagePanneau();
+    // Le panneau de droite s'ouvre ou s'élargit : la zone du graphe rétrécit ; le graphe glisse (sans toucher au zoom) pour garder
+    // l'étape choisie entièrement visible (maquette `canevas.tsx`).
+    useEffect(() => {
+        const minuteur = setTimeout(() => {
+            const instance = rfInstance.current;
+            const choisie = useWorkflowStore.getState().nodes.find((n) => n.selected);
+            if (!instance || !choisie) return;
+            const mesuree = instance.getInternalNode(choisie.id);
+            const largeur = mesuree?.measured?.width ?? 250;
+            const hauteur = mesuree?.measured?.height ?? 100;
+            instance.setCenter(choisie.position.x + largeur / 2, choisie.position.y + hauteur / 2, { zoom: instance.getZoom(), duration: 250 });
+        }, 120);
+        return () => clearTimeout(minuteur);
+    }, [decalagePanneau, rfInstance]);
+
+    // The nodes appear one by one: keep the whole graph in view while the operations arrive.
+    useEffect(() => {
+        if (builderOperations.length === 0) return;
+        const minuteur = setTimeout(() => rfInstance.current?.fitView({ padding: 0.2, duration: 250, maxZoom: 0.8 }), 60);
+        return () => clearTimeout(minuteur);
+    }, [builderOperations.length, rfInstance]);
 
     const handleRuntimeNodeTransition = useCallback(
         (transition: WorkflowRuntimeNodeTransition) => {
@@ -648,6 +801,28 @@ function RenderWorkflow({
         phrasesDeLEtape,
     ]);
 
+    const panneauFlottant = (
+        <div style={{ right: 8 + decalagePanneau }} className="absolute bottom-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
+            {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
+            {isTesterRailOpen && (
+                <aside className="hidden h-full w-[420px] shrink-0 xl:block">
+                    <WorkflowTesterPanel
+                        workflowId={workflowId}
+                        initialContextVariables={templateContextVariables}
+                        ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
+                        disabled={testerDisabledReason !== null}
+                        disabledReason={testerDisabledReason}
+                        isVisible={isDesktopViewport}
+                        onClose={() => setIsTesterRailOpen(false)}
+                        onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                        modeDemande={modeEssai}
+                    />
+                </aside>
+            )}
+        </div>
+    );
+    const panneauPose = cadreStudio ? createPortal(panneauFlottant, cadreStudio) : panneauFlottant;
+
     return (
         <WorkflowProvider value={workflowContextValue}>
             <ProposerLaPublicationDuGroupe
@@ -655,8 +830,7 @@ function RenderWorkflow({
                 ouvert={propositionGroupe}
                 onOuvertChange={setPropositionGroupe}
             />
-            <div className="flex flex-col h-screen min-w-fit">
-                <HireExpertNudge workflowId={workflowId} />
+            <div className="flex h-full min-w-fit flex-col">
                 {/* New Workflow Editor Header */}
                 <WorkflowEditorHeader
                     workflowName={workflowName}
@@ -669,35 +843,67 @@ function RenderWorkflow({
                     user={user}
                     onPhoneCallClick={() => setIsPhoneCallDialogOpen(true)}
                     onTestAgentClick={handleOpenTester}
-                    onHistoryClick={handleOpenVersionPanel}
-                    activeVersionLabel={activeVersionLabel}
+                    versionNumber={versionAffichee.numero}
+                    versionStatus={versionAffichee.statut}
                     isViewingHistoricalVersion={isViewingHistoricalVersion}
                     onBackToDraft={handleBackToDraft}
                     hasDraft={hasDraft}
                     onPublished={handlePublished}
                     renameWorkflow={renameWorkflow}
+                    builder={{
+                        ouvert: builderOuvert,
+                        onToggle: () => useBuilderEcran.getState().basculerLePanneau(),
+                        raisonDeBlocage: builderAvant
+                            ? tBuilder({ en: "Review the builder's changes first.", fr: "Relisez d'abord les changements du builder." })
+                            : null,
+                    }}
                 />
 
                 {/* Workflow Canvas */}
                 <div className="flex-1 min-h-0">
-                    <div className="flex h-full min-w-0">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="relative flex h-full min-w-0">
+                        <div className={`min-w-0 flex-1 bg-(--canevas) ${panneauOuvert ? "lg:pr-[436px]" : ""}`}>
+                        {/* [.mark] V1b : au clavier, Entrée sur un nœud (il prend le focus par Tab) ouvre sa fenêtre, comme le double-clic. */}
+                        <div
+                            className="relative h-full"
+                            onKeyDown={(evenement) => {
+                                const cible = evenement.target as HTMLElement;
+                                if (evenement.key !== 'Enter' || !cible.classList?.contains('react-flow__node')) return;
+                                const id = cible.getAttribute('data-id');
+                                if (!id) return;
+                                evenement.preventDefault();
+                                demanderOuverture(id);
+                            }}
+                        >
                             <ReactFlow
                                 key={activeVersionId ?? 'current'}
-                                nodes={displayNodes}
-                                edges={edges}
-                                onNodesChange={onNodesChange}
+                                nodes={noeudsAffiches}
+                                edges={liaisonsAffichees}
+                                onNodeContextMenu={(evenement, noeud) => {
+                                    evenement.preventDefault();
+                                    setMenuDuNoeud({
+                                        x: evenement.clientX,
+                                        y: evenement.clientY,
+                                        id: noeud.id,
+                                        nom: String((noeud.data as { name?: string }).name ?? noeud.id),
+                                    });
+                                }}
+                                onNodesChange={onNodesChangeDuBuilder}
                                 onEdgesChange={onEdgesChange}
                                 onDelete={onDelete}
                                 nodeTypes={nodeTypes}
                                 edgeTypes={edgeTypes}
-                                onConnect={isViewingHistoricalVersion ? undefined : onConnect}
+                                onConnect={isViewingHistoricalVersion ? undefined : onConnectGardee}
+                                onBeforeDelete={avantSuppression}
+                                snapToGrid={aimant}
+                                snapGrid={[20, 20]}
                                 minZoom={0.2}
+                                onMove={(_, vue) => setZoomPourCent(Math.round(vue.zoom * 100))}
                                 onInit={(instance) => {
                                     rfInstance.current = instance;
                                     // Center the workflow on load
                                     setTimeout(() => {
-                                        instance.fitView({ padding: 0.2, duration: 200, maxZoom: 0.75 });
+                                        instance.fitView({ padding: 0.2, duration: 200, maxZoom: 0.8 });
                                     }, 0);
                                 }}
                                 defaultEdgeOptions={defaultEdgeOptions}
@@ -706,147 +912,74 @@ function RenderWorkflow({
                                 nodesConnectable={!isViewingHistoricalVersion}
                                 edgesReconnectable={!isViewingHistoricalVersion}
                                 zoomOnDoubleClick={false}
+                                {...gestesDuGraphe(isViewingHistoricalVersion)}
                                 deleteKeyCode={isViewingHistoricalVersion ? null : "Backspace"}
                             >
+                                {carte && (
+                                    <MiniMap
+                                        pannable
+                                        zoomable
+                                        ariaLabel={tBuilder({ en: "Mini map", fr: "Carte miniature" })}
+                                        className="rounded-lg! border! bg-card! shadow-sm!"
+                                        maskColor="var(--canevas-point)"
+                                        nodeColor="var(--liaison)"
+                                        nodeStrokeColor="var(--liaison-survol)"
+                                    />
+                                )}
+                                <GroupeSurCanevas agentId={workflowId} />
                                 <Background
                                     variant={BackgroundVariant.Dots}
-                                    gap={16}
-                                    size={1}
-                                    color="var(--border-strong)"
+                                    gap={20}
+                                    size={2}
+                                    color="var(--canevas-point)"
                                 />
 
-                                {/* Top-right controls - vertical layout (hidden when viewing history) */}
-                                {!isViewingHistoricalVersion && (
-                                    <Panel position="top-right">
-                                        <TooltipProvider>
-                                            <div className="flex flex-col gap-2">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="default"
-                                                            size="icon"
-                                                            onClick={() => setIsAddNodePanelOpen(true)}
-                                                            className="shadow-md hover:shadow-lg"
-                                                        >
-                                                            <Plus className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="left">
-                                                        <p>Add node</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={() => router.push(`/workflow/${workflowId}/settings`)}
-                                                            className="shadow-sm"
-                                                        >
-                                                            <Settings className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="left">
-                                                        <p>Workflow settings</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                        </TooltipProvider>
-                                    </Panel>
-                                )}
                             </ReactFlow>
 
-                            {/* Bottom-left controls - horizontal layout with custom buttons */}
-                            <div className="absolute bottom-12 left-8 z-10 flex gap-2">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.zoomIn()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Zoom in</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.zoomOut()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Zoom out</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => rfInstance.current?.fitView()}
-                                                className="shadow-sm h-8 w-8"
-                                            >
-                                                <Maximize2 className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Fit view</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-
-                                    {!isViewingHistoricalVersion && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setNodes(layoutNodes(nodes, edges, 'TB', rfInstance));
-                                                        setIsDirty(true);
-                                                    }}
-                                                    className="shadow-sm h-8 w-8"
-                                                >
-                                                    <BrushCleaning className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Tidy Up</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                </TooltipProvider>
-                            </div>
+                            <FilGroupe agentId={workflowId} />
+                            <BarreOutilsGraphe
+                                lectureSeule={isViewingHistoricalVersion}
+                                peutAnnuler={canUndo}
+                                peutRetablir={canRedo}
+                                onAnnuler={undo}
+                                onRetablir={redo}
+                                onReorganiser={reorganiser}
+                                aimant={aimant}
+                                onAimant={basculerAimant}
+                                carte={carte}
+                                onCarte={basculerCarte}
+                                stats={statsAllumees}
+                                onStats={() => setStatsAllumees((v) => !v)}
+                                appelsLus={statistiques ? statistiques.appels : null}
+                                boucles={boucles}
+                                onBoucles={basculerBoucles}
+                                enBoucle={nombreEnBoucle}
+                                etapes={etapesCherchables}
+                                onChoisirEtape={montrerUneEtape}
+                            />
+                            <BandeauSelection nombre={noeudsAffiches.filter((n) => n.selected).length} onAnnuler={annulerLaSelection} />
+                            {/* [.mark] E36 : la barre flottante du canevas (prompt général, nœud, bibliothèque, zoom, ajuster, ranger) */}
+                            <BarreCanevas
+                                lectureSeule={isViewingHistoricalVersion}
+                                zoom={zoomPourCent}
+                                changementDuBuilder={Boolean(builderAvant)}
+                                noeuds={nodes}
+                                onPromptGeneral={handlePromptGeneral}
+                                onAjouter={handleNodeSelect}
+                                onZoomAvant={() => rfInstance.current?.zoomIn()}
+                                onZoomArriere={() => rfInstance.current?.zoomOut()}
+                                onAjuster={() => rfInstance.current?.fitView()}
+                                onRanger={() => {
+                                    setNodes(layoutNodes(nodes, edges, 'TB', rfInstance));
+                                    setIsDirty(true);
+                                }}
+                                bibliothequeHref={bibliothequeHref}
+                            />
+                        </div>
                         </div>
 
-                        {isTesterRailOpen && (
-                            <aside className="hidden h-full w-[400px] shrink-0 border-l border-border xl:block">
-                                <WorkflowTesterPanel
-                                    workflowId={workflowId}
-                                    initialContextVariables={templateContextVariables}
-                                    ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
-                                    disabled={testerDisabledReason !== null}
-                                    disabledReason={testerDisabledReason}
-                                    showWebCallOnboarding={shouldShowWebCallOnboarding}
-                                    isVisible={isDesktopViewport}
-                                    onClose={() => setIsTesterRailOpen(false)}
-                                    onRuntimeNodeTransition={handleRuntimeNodeTransition}
-                                />
-                            </aside>
-                        )}
+                        {/* K2 : les panneaux de droite flottent au-dessus du canevas, comme la maquette (« superpose »). */}
+                        {panneauOuvert && panneauPose}
                     </div>
 
                     <Sheet open={isTesterSheetOpen} onOpenChange={setIsTesterSheetOpen}>
@@ -857,43 +990,36 @@ function RenderWorkflow({
                                 ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
                                 disabled={testerDisabledReason !== null}
                                 disabledReason={testerDisabledReason}
-                                showWebCallOnboarding={shouldShowWebCallOnboarding}
                                 isVisible={isTesterSheetOpen}
                                 onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                                modeDemande={modeEssai}
                             />
                         </SheetContent>
                     </Sheet>
                 </div>
 
-                <AddNodePanel
-                    isOpen={isAddNodePanelOpen}
-                    onNodeSelect={handleNodeSelect}
-                    onClose={() => setIsAddNodePanelOpen(false)}
-                    nodes={nodes}
-                />
+                <MenuDuNoeud menu={menuDuNoeud} onFermer={() => setMenuDuNoeud(null)} />
 
-                <VersionHistoryPanel
-                    isOpen={isVersionPanelOpen}
-                    onClose={() => setIsVersionPanelOpen(false)}
-                    versions={versions}
-                    loading={versionsLoading}
-                    activeVersionId={activeVersionId}
-                    onSelectVersion={handleSelectVersion}
-                    onCompareVersion={handleCompareVersion}
-                    comparingVersionId={comparingVersionId}
-                    hasMore={versionsHasMore}
-                    loadingMore={versionsLoadingMore}
-                    onLoadMore={handleLoadMoreVersions}
+                <ConfirmerSuppression
+                    ouvert={suppressionDemandee !== null}
+                    titre={
+                        suppressionDemandee && suppressionDemandee.nombre > 1
+                            ? tBuilder({ en: `Delete ${suppressionDemandee.nombre} steps?`, fr: `Supprimer ${suppressionDemandee.nombre} étapes ?` })
+                            : tBuilder({ en: `Delete "${suppressionDemandee?.nom ?? ''}"?`, fr: `Supprimer « ${suppressionDemandee?.nom ?? ''} » ?` })
+                    }
+                    description={tBuilder({
+                        en: 'The steps and their transitions leave the draft. "Undo" in the toolbar puts them back.',
+                        fr: "Les étapes et leurs transitions sortent du brouillon. « Annuler » dans la barre d'outils les remet.",
+                    })}
+                    onFermer={() => {
+                        suppressionDemandee?.reponse(false);
+                        setSuppressionDemandee(null);
+                    }}
+                    onConfirmer={() => {
+                        suppressionDemandee?.reponse(true);
+                        setSuppressionDemandee(null);
+                    }}
                 />
-
-                {versionDiffPair && (
-                    <WorkflowVersionDiffDialog
-                        open
-                        onOpenChange={handleVersionDiffOpenChange}
-                        previousVersion={versionDiffPair.previousVersion}
-                        selectedVersion={versionDiffPair.selectedVersion}
-                    />
-                )}
 
                 <PhoneCallDialog
                     open={isPhoneCallDialogOpen}

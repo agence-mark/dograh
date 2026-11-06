@@ -168,6 +168,12 @@ def _sample_node_data(spec: NodeSpec) -> dict[str, Any]:
 
 
 def _sample_edge_value(field_name: str, annotation: Any) -> Any:
+    # [.mark] Partie 3, SA-11 : les règles d'une condition de porte et « combien » sont des listes fermées validées par le
+    # schéma ; l'échantillon prend une valeur permise pour traverser le pont.
+    if field_name.endswith(".regles"):
+        return [{"source": "fiche", "champ": "nom", "comparaison": "est", "valeur": "x"}]
+    if field_name.endswith(".combien"):
+        return "toutes"
     inner = _strip_optional(annotation)
     if inner is str:
         return f"{field_name}_value"

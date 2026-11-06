@@ -10,6 +10,7 @@ import type {
 } from "@/client/types.gen";
 
 import { TrunkCard } from "./TrunkCard";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const mocks = vi.hoisted(() => ({
   createTrunk: vi.fn(),
@@ -138,6 +139,7 @@ function renderCard(
 
 describe("TrunkCard", () => {
   beforeEach(() => {
+    viderNotifications();
     mocks.createTrunk.mockReset();
     mocks.createTrunk.mockResolvedValue({ data: indiaTrunk });
     mocks.updateTrunk.mockReset();
@@ -234,11 +236,11 @@ describe("TrunkCard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save trunk" }));
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        "Trunk name may only contain letters, digits and hyphens",
-      ),
+    // Erreur de saisie : sous le champ, pas une notification.
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Trunk name may only contain letters, digits and hyphens",
     );
+    expect(lireNotifications()).toHaveLength(0);
     expect(mocks.createTrunk).not.toHaveBeenCalled();
   });
 
@@ -257,8 +259,8 @@ describe("TrunkCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining("1 phone number(s)"),
+      expect(lireNotifications().map((n) => n.detail)).toEqual(
+        expect.arrayContaining([expect.stringContaining("1 phone number(s)")]),
       ),
     );
   });

@@ -86,8 +86,11 @@ const monter = async (type: "agentNode" | "endCall", regles: unknown[] = []) => 
             </WorkflowProvider>
         </ReactFlowProvider>,
     );
-    fireEvent.doubleClick(screen.getByText("Étape"));
-    return await screen.findByRole("dialog");
+    fireEvent.doubleClick(screen.getAllByText("Étape")[0]);
+    const fenetre = await screen.findByRole("dialog");
+    // La fenêtre d'un nœud est à onglets par sujet (E15) : cette section est dans l'onglet « Phrases ».
+    fireEvent.click(fenetre.querySelector('[data-section="phrases"]') as HTMLElement);
+    return fenetre;
 };
 
 beforeEach(() => m.enregistrer.mockClear());
@@ -113,7 +116,7 @@ describe("[.mark] section « Phrases fixes à cette étape » de la fenêtre d'u
 
     it("adds a rule at this step with the node identifier and saves it at once", async () => {
         const dialogue = await monter("agentNode", []);
-        fireEvent.click(within(dialogue).getByRole("button", { name: "Add to this step" }));
+        fireEvent.click(within(dialogue).getByRole("button", { name: "Sentence" }));
         const ajout = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
         fireEvent.click(within(ajout).getByRole("button", { name: "A tool is working" }));
         const endroit = await waitFor(() => document.getElementById("phrase_endroit") as HTMLSelectElement);

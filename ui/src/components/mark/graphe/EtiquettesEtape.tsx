@@ -225,12 +225,18 @@ export function EtiquettesEtape({
             )}
             {champsFiche.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                    {"The agent's record has no field yet (agent settings, Call data)."}
+                    {t({
+                        en: "The agent's record has no field yet (agent settings, Call data).",
+                        fr: "La fiche de l'agent n'a pas encore de champ (réglages de l'agent, Données de l'appel).",
+                    })}
                 </p>
             )}
             {inconnus.length > 0 && (
                 <p className="text-xs text-destructive" role="alert">
-                    {`Not a field of the record, ignored by the code: ${inconnus.join(", ")}.`}
+                    {t({
+                        en: `Not a field of the record, ignored by the code: ${inconnus.join(", ")}.`,
+                        fr: `Pas un champ de la fiche, ignoré par le code : ${inconnus.join(", ")}.`,
+                    })}
                 </p>
             )}
         </div>

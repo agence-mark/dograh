@@ -1,0 +1,86 @@
+{
+  "titre": "Façon PolyAI",
+  "contenu": {
+    "nom": "Façon PolyAI",
+    "quand": "Un agent à prompt général court, tâches en objectifs et outils qui portent la consigne dans leur retour.",
+    "quand_en": "A short general prompt, tasks written as objectives, and tools that carry the instruction in what they return.",
+    "defaut_de_depart": false,
+    "methode_de_construction": "Tu construis avec les pièces de cette recette : prompt général court, tâche en objectifs, outil de départ par tâche, porte d'écriture en deux appels, retours d'outil verdict puis consigne. Les dix principes de la recette passent avant. Une consigne d'étape qui échoue à son test descend dans le retour de l'outil (règle de descente).",
+    "pieces": [
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-polyai-outil-de-depart",
+        "role": "Outil de départ par tâche (façon PolyAI)"
+      },
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-polyai-pieces-de-wren",
+        "role": "Pièces relevées chez Wren (façon PolyAI)"
+      },
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-polyai-porte-a-deux-appels",
+        "role": "Porte d'écriture en deux appels (façon PolyAI)"
+      },
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-polyai-retours-verdict-consigne",
+        "role": "Retours d'outil : verdict puis consigne (façon PolyAI)"
+      },
+      {
+        "famille": "modeles-transfert",
+        "slug": "facon-polyai-motifs-fermes",
+        "role": "Motifs de transfert fermés (façon PolyAI)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-polyai-tache-objectifs",
+        "role": "Tâche en objectifs (façon PolyAI)"
+      },
+      {
+        "famille": "prompt-general",
+        "slug": "facon-polyai-telephone",
+        "role": "Prompt général court, téléphone (façon PolyAI)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-polyai-principes",
+        "role": "Les dix principes (façon PolyAI)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-polyai-regle-de-descente",
+        "role": "Règle de descente (façon PolyAI)"
+      },
+      {
+        "famille": "variables-gabarit",
+        "slug": "facon-polyai-jours-a-venir",
+        "role": "Liste des jours à venir (façon PolyAI)"
+      }
+    ],
+    "tests": [
+      "capture-adresse",
+      "capture-correction-a-la-relecture",
+      "capture-nom-epele",
+      "capture-numero-par-paires",
+      "capture-refus-de-donner",
+      "capture-tout-d-un-coup",
+      "correction-au-recapitulatif",
+      "demande-d-un-humain",
+      "demande-hors-perimetre",
+      "demarchage",
+      "entreprise-fermee",
+      "rdv-cas-normal",
+      "urgence-prioritaire"
+    ],
+    "capacites": [
+      "regle_de_descente",
+      "porte_ecriture_deux_appels"
+    ]
+  },
+  "notes": "Reprise de l'existant sans changement : les pièces sont celles déjà versées (lot M, 04/11).",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

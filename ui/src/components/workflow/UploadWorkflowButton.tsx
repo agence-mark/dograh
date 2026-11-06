@@ -48,7 +48,7 @@ export function UploadWorkflowButton() {
                 setIsOpen(false);
             }
         } catch (err) {
-            setError('Failed to upload workflow. Please check if the file is valid.');
+            setError("L'agent n'a pas pu être importé. Vérifiez le fichier.");
             logger.error(`Error uploading workflow: ${err}`);
         }
     }, [router, user, getAccessToken]);
@@ -62,7 +62,7 @@ export function UploadWorkflowButton() {
         if (file && file.type === 'application/json') {
             handleFileUpload(file);
         } else {
-            setError('Please upload a valid JSON file');
+            setError('Le fichier doit être au format JSON.');
         }
     }, [handleFileUpload]);
 
@@ -90,13 +90,13 @@ export function UploadWorkflowButton() {
                 variant="outline"
             >
                 <Upload className="w-4 h-4 mr-2" />
-                Upload Agent Definition
+                Import an agent (JSON)
             </Button>
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog centree open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Upload Agent Definition</DialogTitle>
+                        <DialogTitle>Import an agent</DialogTitle>
                     </DialogHeader>
                     <div
                         className={`mt-4 border-2 border-dashed rounded-lg p-8 text-center ${isDragging ? 'border-primary bg-primary/5' : 'border-border'
@@ -107,7 +107,7 @@ export function UploadWorkflowButton() {
                     >
                         <Upload className="w-8 h-8 mx-auto mb-4 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground mb-4">
-                            Drag and drop your Workflow JSON File here, or Click to Select
+                            Drag the agent's JSON file here, or choose it.
                         </p>
                         <input
                             type="file"
@@ -120,7 +120,7 @@ export function UploadWorkflowButton() {
                             variant="outline"
                             onClick={() => document.getElementById('workflow-upload')?.click()}
                         >
-                            Select File
+                            Choose a file
                         </Button>
                         {error && (
                             <p className="mt-4 text-sm text-destructive">{error}</p>

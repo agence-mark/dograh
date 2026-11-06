@@ -599,6 +599,7 @@ class DiseurDePhrases:
         historique: bool = True,
         seulement_si_posee: bool = False,
         differer: bool = True,
+        deja_dit: str | None = None,
     ) -> Probleme:
         """Un fait (l'échec d'un outil, du travail de fond, d'un transfert) : le n-ième incident de
         l'appel pour cette règle. La phrase est dite tant que l'incident est sous le plafond « au plus M
@@ -608,6 +609,8 @@ class DiseurDePhrases:
         HTTP qui échoue ne disait rien avant). ``texte`` : la phrase propre de l'action, dite à la place
         des variantes. ``differer`` vrai (le défaut) : l'action finale est rangée dans ``issue.apres`` et lancée par
         l'appelant (``lancer_apres``), comme le fait le garde-fou de sortie d'impasse ; faux : elle est jouée ici même.
+        ``deja_dit`` (RA-B R4c, audit 02 B4) : l'appelant vient d'entendre cette phrase (le repli de l'outil) : elle
+        remplace la parole de la règle (rien n'est redit), le compteur et la sortie de la règle jouent comme avant.
         ⛔ Ne lève jamais."""
         probleme = Probleme()
         try:
@@ -628,7 +631,9 @@ class DiseurDePhrases:
             self._incidents[cle] = self._incidents.get(cle, 0) + 1
             n = probleme.incident = self._incidents[cle]
             plafond = phrase.max_par_appel
-            if phrase.dite or texte:
+            if deja_dit:
+                probleme.dit = deja_dit
+            elif phrase.dite or texte:
                 if plafond is None or n <= plafond:
                     parole = await self.dire_la_parole(
                         motif_id,

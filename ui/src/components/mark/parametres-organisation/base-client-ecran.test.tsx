@@ -6,8 +6,7 @@
  *   - attached and behind: « Upgrade » appears; refusals of the database are listed and
  *     put the theme's red dot on;
  *   - the retention is saved by its own button, with exactly the durations typed;
- *   - « Team and routing » without a database says where to attach it; with one, the modal
- *     loads the team, adds a person and saves exactly what is on screen.
+ *   (« Team and routing » : son inventaire est prouvé sur ses fenêtres, `entreprise/inventaire-fenetres.test.tsx`.)
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -15,7 +14,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
 import { ThemeDonneesClient, useBaseClient } from "./ThemeDonneesClient";
-import { charge_utile_equipe, ThemeEquipe } from "./ThemeEquipe";
 
 const m = vi.hoisted(() => ({
     etat: vi.fn(),
@@ -137,100 +135,5 @@ describe("Client data", () => {
         await waitFor(() =>
             expect(m.conservation).toHaveBeenCalledWith({ body: [{ ...RATTACHEE.conservation[0], duree_jours: 90 }] }),
         );
-    });
-});
-
-describe("Team and routing", () => {
-    it("without a database, says where to attach one", () => {
-        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee={false} />);
-        expect(screen.getByTestId("equipe-sans-base")).toBeTruthy();
-        expect(screen.queryByTestId("ouvrir-equipe")).toBeNull();
-    });
-
-    it("loads the team, adds a person and saves exactly what is on screen", async () => {
-        m.equipe.mockResolvedValue({
-            data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", actif: true }], sujets: [] },
-        });
-        m.saveEquipe.mockImplementation(async ({ body }) => ({ data: body }));
-        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-        await screen.findByDisplayValue("Alice");
-        fireEvent.click(screen.getByTestId("ajouter-personne"));
-        const enregistrer = screen.getByTestId("enregistrer-equipe") as HTMLButtonElement;
-        expect(enregistrer.disabled).toBe(true); // a person without a first name
-        const prenoms = screen.getAllByLabelText(/First name|Prénom/) as HTMLInputElement[];
-        fireEvent.change(prenoms[1], { target: { value: " Bruno " } });
-        fireEvent.click(enregistrer);
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        const envoye = m.saveEquipe.mock.calls[0][0].body;
-        expect(envoye.personnes.map((p: { prenom: string }) => p.prenom)).toEqual(["Alice", "Bruno"]);
-        expect(envoye.personnes[1].cle).toBe("personne-2");
-    });
-
-    it("l-agent-collegue C1: description, transfer and disclosures are on screen and saved as set", async () => {
-        m.equipe.mockResolvedValue({
-            data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", actif: true }], sujets: [] },
-        });
-        m.saveEquipe.mockReset();
-        m.saveEquipe.mockImplementation(async ({ body }) => ({ data: body }));
-        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-        await screen.findByDisplayValue("Alice");
-        const description = screen.getByLabelText(/What this person takes care of|Ce dont cette personne s'occupe/) as HTMLTextAreaElement;
-        expect(description.maxLength).toBe(300);
-        fireEvent.change(description, { target: { value: "  Les rendez-vous et les factures.  " } });
-        const transfert = screen.getByLabelText(/may transfer calls|lui transférer un appel/) as HTMLInputElement;
-        expect(transfert.checked).toBe(false); // off by default (C1)
-        fireEvent.click(transfert);
-        // No phone: the modal says the agent will pass the request on instead.
-        expect(screen.getByTestId("transfert-sans-telephone")).toBeTruthy();
-        fireEvent.click(screen.getByLabelText(/may give the e-mail|donner son e-mail/));
-        expect((screen.getByLabelText(/may give the phone|donner son téléphone/) as HTMLInputElement).checked).toBe(false);
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0]).toMatchObject({
-            description: "Les rendez-vous et les factures.",
-            joignable_par_transfert: true,
-            divulguer_mail: true,
-            divulguer_telephone: false,
-        });
-    });
-
-    it("l-agent-collegue L4 (H7): the person's agenda in the software chosen, saved as typed", async () => {
-        m.equipe.mockResolvedValue({
-            data: { personnes: [{ cle: "p1", prenom: "Alice", actif: true, agendas: { outlook_agenda: "a@x.org" } }], sujets: [] },
-        });
-        m.saveEquipe.mockReset();
-        m.saveEquipe.mockImplementation(async ({ body }) => ({ data: body }));
-        // Nothing chosen in « Integrations »: no agenda field (E8, it plays no role).
-        m.choix.mockResolvedValue({ data: { agenda: null } });
-        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-        await screen.findByDisplayValue("Alice");
-        expect(screen.queryByTestId("agenda-p1")).toBeNull();
-        cleanup();
-
-        m.choix.mockResolvedValue({ data: { agenda: "google_agenda" } });
-        rendre(<ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />);
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-        const champ = (await screen.findByTestId("agenda-p1")) as HTMLInputElement;
-        expect(screen.getByText(/Identifiant de l'agenda|Calendar ID/)).toBeTruthy();
-        fireEvent.change(champ, { target: { value: " alice@example.org " } });
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        // The other software's agenda is kept; the one typed is trimmed.
-        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0].agendas).toEqual({
-            outlook_agenda: "a@x.org",
-            google_agenda: "alice@example.org",
-        });
-    });
-
-    it("the payload trims, and empties become null", () => {
-        const charge = charge_utile_equipe({
-            personnes: [{ cle: "p1", prenom: " A ", nom: "  ", mail: "", etablissement: "" }],
-            sujets: [{ code: "devis", libelle: " Devis ", mots_declencheurs: [" prix ", ""] }],
-        });
-        expect(charge.personnes?.[0]).toMatchObject({ prenom: "A", nom: null, mail: null, etablissement: null });
-        expect(charge.sujets?.[0]).toMatchObject({ libelle: "Devis", mots_declencheurs: ["prix"] });
     });
 });

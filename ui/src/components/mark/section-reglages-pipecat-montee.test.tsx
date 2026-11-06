@@ -141,12 +141,22 @@ vi.stubGlobal(
 const { default: WorkflowSettingsPage } = await import(
     "@/app/workflow/[workflowId]/settings/page"
 );
+const { THEMES_AGENT } = await import("@/components/mark/reglages-agent/PageReglagesAgent");
 
 const rendreLaPage = async () => {
     const rendu = render(<WorkflowSettingsPage />);
     // The page shows a spinner until the workflow fetch resolves.
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10), { timeout: 3000 });
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(THEMES_AGENT.length), { timeout: 3000 });
     return rendu;
+};
+
+/**
+ * [.mark] Since E-maquette the help of a setting lives in its « ! » (a tooltip opened on hover), and `ChampReglage` also
+ * writes it, whole, in `data-aide`: that is where a test reads it, with the rest of the line.
+ */
+const texteDuReglage = (cle: string) => {
+    const ligne = document.querySelector(`[data-reglage="${cle}"]`);
+    return `${ligne?.textContent ?? ""} ${ligne?.getAttribute("data-aide") ?? ""}`;
 };
 
 /**
@@ -228,8 +238,8 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(silence.value).toBe("35");
         // The bounds are shown (convention E5), and the word count is inert
         // while the greeting cannot be cut.
-        expect(document.querySelector('[data-reglage="accueil_mots_minimum"]')?.textContent).toContain("≥ 1 · ≤ 10");
-        expect(document.querySelector('[data-reglage="raccrochage_silence_agent_s"]')?.textContent).toContain("≥ 10 · ≤ 120");
+        expect(texteDuReglage("accueil_mots_minimum")).toContain("≥ 1 · ≤ 10");
+        expect(texteDuReglage("raccrochage_silence_agent_s")).toContain("≥ 10 · ≤ 120");
         expect(mots.disabled).toBe(true);
     });
 
@@ -242,28 +252,28 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(screen.getByRole("button", { name: "Save Listening" })).toBeTruthy();
     });
 
-    it("has an entry per theme in the navigation, pointing at a theme that exists", async () => {
-        // An entry whose id no element carries is an entry that does nothing, silently.
+    it("has a card per theme, in its level (Essential, Advanced, Engine)", async () => {
+        // U4 (E44): the themes are cards in three levels; a theme without its card cannot be opened, silently.
         const { container } = await rendreLaPage();
-        for (const id of ["agent", "briques", "ecoute", "modules", "tour", "voix", "rythme", "donnees", "etablissement"]) {
-            expect(container.querySelector(`a[href="#${id}"]`), id).not.toBeNull();
-            expect(container.querySelector(`#${id}`), id).not.toBeNull();
+        const niveaux: Record<string, string[]> = {
+            essentiel: ["agent", "etablissement", "voix", "phrases", "donnees"],
+            avance: ["briques", "ecoute", "modules", "tour", "rythme"],
+            moteur: ["interventions"],
+        };
+        for (const [niveau, ids] of Object.entries(niveaux)) {
+            for (const id of ids) {
+                expect(container.querySelector(`[data-niveau="${niveau}"] [data-theme="${id}"][data-carte]`), id).not.toBeNull();
+            }
         }
-        expect(container.querySelector('a[href="#tour"]')?.textContent).toContain("Turn taking");
+        expect(container.querySelector('[data-theme="tour"]')?.textContent).toContain("Turn taking");
     });
 
-    it("sits at the file path Next turns into the route, and the canvas SOURCE pushes to it", async () => {
-        // Honest title: the second half is a text assertion on their file --
-        // the same class of check thrown out one floor below, and acceptable
-        // only here. Two reasons: Next routes by file path, so the URL works
-        // whatever that button does, and the button is upstream code we do not
-        // own. What this really guarantees is the route; the gear is a
-        // convenience whose loss would not make the settings unreachable.
-        const canevas = readFileSync(
-            join(process.cwd(), "src/app/workflow/[workflowId]/RenderWorkflow.tsx"),
-            "utf8",
-        );
-        expect(canevas).toContain("/settings`");
+    it("sits at the file path Next turns into the route, and the agent bar's Settings tab leads to it", async () => {
+        // Honest title: the second half is a text assertion on our own file (the tab list of the agent page, U3),
+        // acceptable only here. Next routes by file path, so the URL works whatever the tab does; what this really
+        // guarantees is the route. The tab is a convenience whose loss would not make the settings unreachable.
+        const onglets = readFileSync(join(process.cwd(), "src/components/mark/agent/onglets-agent.ts"), "utf8");
+        expect(onglets).toContain('suite: "/settings"');
 
         // And the page file is where Next expects the route to live.
         expect(() =>
@@ -272,9 +282,13 @@ describe("[.mark] our settings are reachable on the settings page", () => {
                 "utf8",
             ),
         ).not.toThrow();
+        // The agent route mounts that same page under the agent's tabs.
+        expect(() =>
+            readFileSync(join(process.cwd(), "src/app/agents/[workflowId]/settings/page.tsx"), "utf8"),
+        ).not.toThrow();
     });
 
-    it("[call record] is really mounted, with its switch, its field editor, its theme's Save button and navigation entry", async () => {
+    it("[call record] is really mounted, with its switch, its field editor, its theme's Save button and card", async () => {
         // Plan fiche au fil de l'eau, lot 5: a switch nobody can reach is a
         // switch nobody turns on.
         const { container } = await rendreLaPage();
@@ -283,7 +297,7 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(document.getElementById("fiche_au_fil_de_leau")?.getAttribute("aria-checked")).toBe("false");
         expect(screen.getByRole("button", { name: /edit fields/i })).toBeTruthy();
         expect(screen.getByRole("button", { name: "Save Call data" })).toBeTruthy();
-        expect(container.querySelector('a[href="#donnees"]')?.textContent).toContain("Call data");
+        expect(container.querySelector('[data-theme="donnees"][data-carte]')?.textContent).toContain("Call data");
     });
 
     it("[call record] the field editor of the MOUNTED theme offers the allowed values (PB3)", async () => {
@@ -314,12 +328,12 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(champ.value).toBe("reference*");
     });
 
-    it("[opening hours] are really mounted, with their field, their theme's Save button and navigation entry", async () => {
+    it("[opening hours] are really mounted, with their field, their theme's Save button and card", async () => {
         const { container } = await rendreLaPage();
         const theme = ouvrirLeTheme("etablissement");
         expect(theme.contains(document.getElementById("horaires_ouverture"))).toBe(true);
         expect(screen.getByRole("button", { name: "Save Business" })).toBeTruthy();
-        expect(container.querySelector('a[href="#etablissement"]')?.textContent).toContain("Business");
+        expect(container.querySelector('[data-theme="etablissement"][data-carte]')?.textContent).toContain("Business");
     });
 
     it("[verification-communes] the business address is mounted, with its fields, right after the opening hours", async () => {
@@ -347,13 +361,13 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         await rendreLaPage();
         const theme = ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /recognise the caller's town/i });
-        const champ = screen.getByLabelText("Variables that trigger the town check") as HTMLInputElement;
+        const champ = screen.getByLabelText(/Variables that trigger the town check/) as HTMLInputElement;
         expect(champ.value).toBe("commune, commune_*, adresse*");
         // Under the switch, inside the same theme.
         expect(theme.contains(champ)).toBe(true);
         expect(interrupteur.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         // The notice: where the name is, commas, the final *, an example, empty = default.
-        const texte = theme.textContent ?? "";
+        const texte = texteDuReglage("variables_commune");
         expect(texte).toMatch(/Variables to Extract and its Variable Name/);
         expect(texte).toMatch(/separate them with commas/);
         expect(texte).toMatch(/A \* at the end means "every name that starts with"/);
@@ -374,8 +388,9 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         ouvrirLeTheme("modules");
         const interrupteur = screen.getByRole("switch", { name: /write dictated numbers as digits/i });
         expect(interrupteur.getAttribute("aria-checked")).toBe("false");
-        expect(screen.getByText(/reads postal codes said both ways/i)).toBeTruthy();
-        expect(screen.getByText(/the recorded transcript keeps the caller's words/i)).toBeTruthy();
+        const aide = texteDuReglage("conversion_nombres_transcription");
+        expect(aide).toMatch(/reads postal codes said both ways/i);
+        expect(aide).toMatch(/the recorded transcript keeps the caller's words/i);
         expect(screen.queryByText(/minimum words/i)).toBeNull();
     });
 

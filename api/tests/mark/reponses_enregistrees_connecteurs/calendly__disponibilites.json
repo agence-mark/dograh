@@ -1,0 +1,34 @@
+{
+ "collection": [
+  {
+   "status": "available",
+   "invitees_remaining": 1,
+   "start_time": "2030-01-09T14:00:00Z",
+   "scheduling_url": "https://calendly.com/x/30min/2030-01-09T14:00:00Z"
+  },
+  {
+   "status": "available",
+   "invitees_remaining": 1,
+   "start_time": "2030-01-08T09:00:00Z",
+   "scheduling_url": "https://calendly.com/x/30min/2030-01-08T09:00:00Z"
+  },
+  {
+   "status": "unavailable",
+   "invitees_remaining": 0,
+   "start_time": "2030-01-08T09:30:00Z",
+   "scheduling_url": "u"
+  },
+  {
+   "status": "available",
+   "invitees_remaining": 1,
+   "start_time": "2030-01-08T10:00:00Z",
+   "scheduling_url": "u"
+  },
+  {
+   "status": "available",
+   "invitees_remaining": 1,
+   "start_time": "2030-01-10T10:00:00Z",
+   "scheduling_url": "u"
+  }
+ ]
+}

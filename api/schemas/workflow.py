@@ -32,3 +32,8 @@ class WorkflowRunResponseSchema(BaseModel):
     call_type: CallType
     logs: Dict[str, Any] | None = None
     annotations: Dict[str, Any] | None = None
+    # [.mark] V1b : la note du juge (colonne `note_juge`), lue par la page d'une conversation.
+    note_juge: float | None = None
+    # [.mark] N3b : le résumé de l'appel (une ou deux phrases) et sa source (synthese ou modele), lus par la page d'une conversation.
+    resume: str | None = None
+    resume_source: str | None = None

@@ -1,0 +1,11 @@
+{
+  "titre": "Motifs de transfert fermés (façon PolyAI)",
+  "contenu": {
+    "texte": "# Motifs de transfert fermés (recette façon PolyAI)\n\nLe transfert est un outil à motif fermé. Le modèle ne choisit pas librement : il choisit dans la liste.\n\n| Motif | Quand | Ce que l'outil fait |\n|---|---|---|\n| SÉCURITÉ | situation dangereuse définie par la fiche | transfert immédiat, sans phrase avant |\n| DEMANDE_D_UN_HUMAIN | l'appelant insiste explicitement | refus contrôlé la première fois (proposer de finir), puis transfert si l'appelant insiste |\n| HORS_PÉRIMÈTRE | la demande sort des motifs pris en charge | message fermé, aucune promesse de rappel |\n| PLAFOND_DE_TENTATIVES | trop d'essais sur une même information | message fermé, transfert si une ligne existe |\n| PANNE_DU_LOGICIEL | le logiciel métier ne répond pas | message fermé, aucune promesse |\n\n## Règles\n- Chaque message de sortie est écrit une fois, dans le code de l'outil.\n- Si aucun transfert n'est possible sur la ligne, le message le dit franchement, sans renvoyer l'appelant vers l'entreprise qu'il vient d'appeler.\n- Aucun motif n'ajoute un rappel que personne n'a écrit.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

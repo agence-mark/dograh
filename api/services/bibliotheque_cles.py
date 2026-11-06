@@ -95,38 +95,89 @@ def nom_apres_suppression(nom: str, uuid: str) -> str:
     return f"{nom} · deleted {uuid[:8]}"
 
 
-async def usages_de(uuid: str, organization_id: int) -> list[Usage]:
-    """Où la clé sert encore dans l'organisation : les réglages de l'appelant simulé, les outils,
-    la configuration de modèle de l'organisation (« Models »), et pour chaque agent sa version
-    courante (récupération avant l'appel, webhook) et ses réglages de modèle (P23)."""
+async def _lire_les_endroits_ou_une_cle_sert(organization_id: int) -> dict:
+    """Tout ce qui peut désigner une clé, lu UNE fois pour l'organisation (V2b : le tableau des clés demande
+    les usages de toutes les clés d'un coup, jamais une lecture complète par clé)."""
+    return {
+        "reglages": await reglages_simules.lire_reglages(organization_id),
+        "outils": [
+            (outil.name, str(outil.definition or {}))
+            for outil in await db_client.get_tools_for_organization(organization_id)
+        ],
+        "apres_appel": str(
+            getattr(
+                await db_client.get_configuration(
+                    organization_id, OrganizationConfigurationKey.APRES_APPEL.value
+                ),
+                "value",
+                None,
+            )
+            or {}
+        ),
+        "modeles": await get_organization_ai_model_configuration_v2(organization_id),
+        "agents": [
+            (
+                agent.name,
+                str(
+                    getattr(
+                        getattr(agent, "current_definition", None), "workflow_json", None
+                    )
+                    or {}
+                ),
+                (
+                    str(getattr(agent, "workflow_configurations", None) or {}),
+                    str(
+                        getattr(
+                            getattr(agent, "current_definition", None),
+                            "workflow_configurations",
+                            None,
+                        )
+                        or {}
+                    ),
+                ),
+            )
+            for agent in await db_client.get_all_workflows(
+                organization_id=organization_id
+            )
+        ],
+    }
+
+
+def _usages_dans(uuid: str, donnees: dict) -> list[Usage]:
     reference = reference_de(uuid)
     usages: list[Usage] = []
-    reglages = await reglages_simules.lire_reglages(organization_id)
+    reglages = donnees["reglages"]
     if uuid in {reglages.appelant.identifiant, reglages.juge.identifiant}:
         usages.append(Usage(ou="reglages_modele"))
     if reglages.voix.identifiant == uuid:
         usages.append(Usage(ou="reglages_voix"))
-    for outil in await db_client.get_tools_for_organization(organization_id):
-        if uuid in str(outil.definition or {}):
-            usages.append(Usage(ou="outil", nom=outil.name))
+    for nom, definition in donnees["outils"]:
+        if uuid in definition:
+            usages.append(Usage(ou="outil", nom=nom))
     # [.mark] L4 : la clé de la synthèse, le mot de passe du serveur de mail, le secret du webhook.
-    apres_appel = await db_client.get_configuration(
-        organization_id, OrganizationConfigurationKey.APRES_APPEL.value
-    )
-    if apres_appel is not None and reference in str(apres_appel.value or {}):
+    if reference in donnees["apres_appel"]:
         usages.append(Usage(ou="apres_appel"))
-    modeles = await get_organization_ai_model_configuration_v2(organization_id)
+    modeles = donnees["modeles"]
     if modeles is not None and reference in modeles.model_dump_json():
         usages.append(Usage(ou="modeles_organisation"))
-    for agent in await db_client.get_all_workflows(organization_id=organization_id):
-        version = agent.current_definition
-        definition = getattr(version, "workflow_json", None)
-        if uuid in str(definition or {}):
-            usages.append(Usage(ou="agent", nom=agent.name))
-        configurations = (
-            str(getattr(agent, "workflow_configurations", None) or {}),
-            str(getattr(version, "workflow_configurations", None) or {}),
-        )
+    for nom, definition, configurations in donnees["agents"]:
+        if uuid in definition:
+            usages.append(Usage(ou="agent", nom=nom))
         if any(reference in c for c in configurations):
-            usages.append(Usage(ou="modeles_agent", nom=agent.name))
+            usages.append(Usage(ou="modeles_agent", nom=nom))
     return usages
+
+
+async def usages_de(uuid: str, organization_id: int) -> list[Usage]:
+    """Où la clé sert encore dans l'organisation : les réglages de l'appelant simulé, les outils,
+    la configuration de modèle de l'organisation (« Models »), et pour chaque agent sa version
+    courante (récupération avant l'appel, webhook) et ses réglages de modèle (P23)."""
+    return _usages_dans(uuid, await _lire_les_endroits_ou_une_cle_sert(organization_id))
+
+
+async def usages_de_toutes(
+    uuids: list[str], organization_id: int
+) -> dict[str, list[Usage]]:
+    """V2b : les usages de plusieurs clés avec UNE seule lecture de l'organisation (tableau des clés)."""
+    donnees = await _lire_les_endroits_ou_une_cle_sert(organization_id)
+    return {uuid: _usages_dans(uuid, donnees) for uuid in uuids}

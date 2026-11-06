@@ -16,7 +16,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -139,7 +139,7 @@ const ouvrir = async (config: Record<string, unknown>, userConfig: unknown, enve
     m.config = resolveWorkflowConfigurations(config as never);
     m.userConfig = userConfig;
     render(<>{enveloppe ? enveloppe(<WorkflowSettingsPage />) : <WorkflowSettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(13));
 };
 
 const ouvrirLeTheme = (id: string) => {
@@ -237,14 +237,15 @@ describe("[.mark] the agent page in themes", () => {
         // Every key of the inventory, one after the other: slow under a full run.
     }, 30000);
 
-    // Cloture-code, lot 5 (M11): the settings templates button sits in the FIXED header, next to the agent's name,
-    // outside the themes, and opens the centred modal.
-    it("has the settings templates button in the fixed header, outside the themes", async () => {
+    // Cloture-code, lot 5 (M11), then U4 (E44): the settings templates button sits in the page's toolbar, next to the
+    // search, outside the themes, and opens the centred modal.
+    it("has the settings templates button in the toolbar, outside the themes", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
-        const bouton = document.querySelector("header [data-bouton-modeles]") as HTMLElement;
-        expect(bouton, "the button is in the header").not.toBeNull();
+        const bouton = document.querySelector("[data-bouton-modeles]") as HTMLElement;
+        expect(bouton, "the button is in the toolbar").not.toBeNull();
         expect(document.querySelector("[data-theme] [data-bouton-modeles]")).toBeNull();
         fireEvent.click(bouton);
+        fireEvent.click(document.querySelector('[data-entree-modeles="gerer"]') as HTMLElement);
         await waitFor(() => expect(document.querySelector('[data-modale-phrase="modeles-de-reglages"]')).not.toBeNull());
     });
 
@@ -499,9 +500,8 @@ describe("[.mark] the agent page in themes", () => {
     it("names a value out of range that another choice hides, blocks the theme, and « show » reveals it", async () => {
         // C9: the detector is shown under Flux now; the pause stays hidden there.
         await ouvrir({ user_speech_timeout: 11 }, FLUX);
-        // The red dot, on the theme and in the navigation, before anything is opened.
+        // The red dot, on the theme's card, before anything is opened.
         expect(document.querySelector('[data-theme="tour"] [data-pastille="erreur"]')).not.toBeNull();
-        await waitFor(() => expect(document.querySelector('[data-navigation="tour"] [data-pastille="erreur"]')).not.toBeNull());
 
         ouvrirLeTheme("tour");
         expect(document.getElementById("user_speech_timeout")).toBeNull();
@@ -1066,7 +1066,10 @@ describe("[.mark] the flow map, the retry reasoning and the model request trace"
 
     it("greys out « Generate the flow map » in a group (the code always generates it), never for a lone agent", async () => {
         const interrupteur = () => document.getElementById("generer_schema_parcours") as HTMLElement;
-        const aide = () => document.querySelector('[data-reglage="generer_schema_parcours"]')?.textContent ?? "";
+        const aide = () => {
+            const bloc = document.querySelector('[data-reglage="generer_schema_parcours"]');
+            return `${bloc?.getAttribute("data-aide") ?? ""} ${bloc?.textContent ?? ""}`;
+        };
         for (const [config, force] of [
             [PRINCIPAL, true],
             [SPECIALISE, true],
@@ -1224,6 +1227,8 @@ describe("[.mark] the background work settings (lot 4)", () => {
 
     it("offers the catalogue's tools minus a transfer, the end of the call and MCP, and saves the choice at once", async () => {
         await ouvrirBriques({ ...REFERENCE, travail_actif: true });
+        // K2b : les outils sont des pastilles ; la liste à cocher s'ouvre par « + outil ».
+        fireEvent.click(await screen.findByRole("button", { name: /^\+ tool$/ }));
         const outil = await screen.findByRole("checkbox", { name: /Chercher un creneau/ });
         expect(screen.queryByRole("checkbox", { name: /Passer a un humain/ })).toBeNull();
         expect(screen.queryByRole("checkbox", { name: /Raccrocher/ })).toBeNull();
@@ -1288,7 +1293,7 @@ describe("[.mark] the background work settings (lot 4)", () => {
         const en = briques.querySelector('[data-groupe="briques-travail"]')?.textContent ?? "";
         expect(en).toContain("Background work");
         expect(en).toContain("Allowed tools");
-        expect(en).toContain("Max duration (s)");
+        expect(en).toContain("Max duration");
         cleanup();
         window.localStorage.setItem("mark.langue", "fr");
         const brFr = await ouvrirBriques({ ...REFERENCE, travail_actif: true }, (page) => <FournisseurLangue>{page}</FournisseurLangue>);
@@ -1388,5 +1393,114 @@ describe("[.mark] the agent's improvement boxes (passages-fiables, lots F and G)
         const charge = appels[appels.length - 1][0];
         expect(charge.signaler_un_probleme).toBe(true);
         expect(charge.alertes_par_mail).toBe(true);
+    });
+});
+
+// builder partie 2, D1 (U4, E38, E42, E44): the cards, their windows, the search, the Engine level, « Cancel ».
+describe("[.mark] the agent page: cards, windows and search", () => {
+    const cartes = () => [...document.querySelectorAll("[data-theme][data-carte]")].map((e) => e.getAttribute("data-theme"));
+
+    it("draws the 13 themes as cards in three levels, in the order of the plan", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const niveaux = [...document.querySelectorAll("[data-niveau]")].map((n) => [
+            n.getAttribute("data-niveau"),
+            [...n.querySelectorAll("[data-theme][data-carte]")].map((c) => c.getAttribute("data-theme")),
+        ]);
+        expect(niveaux).toEqual([
+            ["essentiel", ["agent", "etablissement", "voix", "phrases", "donnees", "securite", "qualite"]],
+            ["avance", ["briques", "ecoute", "modules", "tour", "rythme"]],
+            ["moteur", ["interventions"]],
+        ]);
+        expect(cartes()).toHaveLength(13);
+    });
+
+    it("A-4: the real-call judge lives in the « Quality » theme, no longer under the grid", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        expect(document.querySelector('[data-testid="juge-vrais-appels"]')).toBeNull();
+        ouvrirLeTheme("qualite");
+        const fenetre = document.querySelector('[data-fenetre-theme="qualite"]') as HTMLElement;
+        expect(fenetre.querySelector('[data-testid="juge-vrais-appels"]')).not.toBeNull();
+        expect(fenetre.querySelector('input[type="checkbox"]')).not.toBeNull();
+    });
+
+    it("opens a theme in a centred window with a fixed header and footer, and closes it with Escape", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        expect(document.querySelector("[data-fenetre-theme]")).toBeNull();
+        ouvrirLeTheme("rythme");
+        const fenetre = document.querySelector('[data-fenetre-theme="rythme"]') as HTMLElement;
+        expect(fenetre.getAttribute("role")).toBe("dialog");
+        expect(fenetre.querySelector("[data-pied-fenetre]")).not.toBeNull();
+        expect(fenetre.querySelector('[data-reglage="max_call_duration"]')).not.toBeNull();
+        fireEvent.keyDown(document, { key: "Escape" });
+        await waitFor(() => expect(document.querySelector("[data-fenetre-theme]")).toBeNull());
+    });
+
+    it("RA-B R5: the max call duration is bounded on screen by the server's ceiling (1200 s)", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("rythme");
+        const champ = document.getElementById("max_call_duration") as HTMLInputElement;
+        expect(champ.getAttribute("max")).toBe("1200");
+        fireEvent.change(champ, { target: { value: "5000" } });
+        const fenetre = document.querySelector('[data-fenetre-theme="rythme"]') as HTMLElement;
+        expect(fenetre.querySelector('[data-erreur="max_call_duration"]')).not.toBeNull();
+        expect(within(fenetre.querySelector('[data-reglage="max_call_duration"]') as HTMLElement).getByText(/Must be at most 1200/)).toBeTruthy();
+        expect((screen.getByRole("button", { name: /^Save Call pacing/ }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.change(champ, { target: { value: "1200" } });
+        expect(fenetre.querySelector('[data-erreur="max_call_duration"]')).toBeNull();
+    });
+
+    it("« Cancel » forgets the draft of the theme and closes its window", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        ouvrirLeTheme("rythme");
+        const champ = document.getElementById("max_call_duration") as HTMLInputElement;
+        const avant = champ.value;
+        fireEvent.change(champ, { target: { value: "777" } });
+        expect((document.getElementById("max_call_duration") as HTMLInputElement).value).toBe("777");
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+        await waitFor(() => expect(document.querySelector("[data-fenetre-theme]")).toBeNull());
+        ouvrirLeTheme("rythme");
+        expect((document.getElementById("max_call_duration") as HTMLInputElement).value).toBe(avant);
+    });
+
+    it("searches all the settings by label or technical name and opens the theme on the setting", async () => {
+        await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+        const champ = screen.getByLabelText("Search all settings");
+        fireEvent.change(champ, { target: { value: "max_call_duration" } });
+        const resultat = await waitFor(() => {
+            const r = document.querySelector('[data-resultat="max_call_duration"]');
+            if (!r) throw new Error("no result yet");
+            return r as HTMLElement;
+        });
+        fireEvent.click(resultat);
+        await waitFor(() => expect(document.querySelector('[data-fenetre-theme="rythme"] [data-reglage="max_call_duration"]')).not.toBeNull());
+        fireEvent.change(screen.getByLabelText("Search all settings"), { target: { value: "zzzzzz" } });
+        await waitFor(() => expect(document.querySelector('[data-recherche="aucun"]')).not.toBeNull());
+    });
+
+    it("hides the Engine level in a client's space, and its settings from the search", async () => {
+        window.history.pushState({}, "", "/clients/7/agents");
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA).catch(() => undefined);
+            await waitFor(() => expect(document.querySelector('[data-niveau="essentiel"]')).not.toBeNull());
+            await waitFor(() => expect(document.querySelector('[data-niveau="moteur"]')).toBeNull());
+            expect(cartes()).not.toContain("interventions");
+            // N2 : la page DIT que le niveau Moteur existe et qui le tient, au lieu de le taire
+            expect(document.querySelector("[data-niveau-moteur-cache]")?.textContent).toMatch(/Engine level.*\.mark team/);
+            fireEvent.change(screen.getByLabelText("Search all settings"), { target: { value: "laisser_la_parole" } });
+            await waitFor(() => expect(document.querySelector('[data-recherche="aucun"]')).not.toBeNull());
+        } finally {
+            window.history.pushState({}, "", "/");
+        }
+    });
+
+    it("shows the Engine level in the Labo", async () => {
+        window.history.pushState({}, "", "/labo/agents");
+        try {
+            await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
+            expect(document.querySelector('[data-niveau="moteur"] [data-theme="interventions"]')).not.toBeNull();
+            expect(document.querySelector("[data-niveau-moteur-cache]")).toBeNull();
+        } finally {
+            window.history.pushState({}, "", "/");
+        }
     });
 });

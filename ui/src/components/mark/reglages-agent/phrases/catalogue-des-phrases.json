@@ -13,6 +13,45 @@
   },
   "motifs": [
     {
+      "id": "annonce_ia",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "Announcement: you are talking to an AI",
+        "fr": "Annonce : vous parlez à une IA"
+      },
+      "quand": {
+        "en": "At the start of every call (phone, widget, campaign), before the greeting. Locked: the text can change, the announcement never turns off.",
+        "fr": "Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Verrouillée : le texte se change, l'annonce ne s'éteint jamais."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Vous êtes en communication avec un assistant virtuel, une intelligence artificielle."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "Cannot be turned off: an empty or off announcement is replaced by the default text, and publishing is blocked while the text is empty.",
+        "fr": "Impossible à éteindre : une annonce vide ou éteinte est remplacée par le texte par défaut, et la publication est bloquée tant que le texte est vide."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false,
+      "verrouille": true
+    },
+    {
       "id": "outil_tarde",
       "famille": "attente",
       "moment": "attente",
@@ -48,7 +87,8 @@
         "fr": "Rien n'est dit : l'appelant attend le résultat de l'outil."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "travail_dure",
@@ -86,7 +126,8 @@
         "fr": "Rien n'est dit jusqu'au résultat."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "passation_tarde",
@@ -124,7 +165,8 @@
         "fr": "Rien n'est dit : l'appelant attend la première phrase du collègue."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "modele_tarde",
@@ -162,7 +204,8 @@
         "fr": "Rien n'est dit pendant la seconde tentative."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "appelant_se_tait",
@@ -203,7 +246,8 @@
         "fr": "Le modèle relance lui-même la conversation, comme avant le chantier."
       },
       "silence_de_l_appelant": true,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "attente_accordee",
@@ -241,7 +285,8 @@
         "fr": "Rien n'est dit : l'attente se termine sans phrase, et l'appel n'est jamais raccroché pendant elle."
       },
       "silence_de_l_appelant": true,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "reponse_perdue",
@@ -282,7 +327,8 @@
         "fr": "Silence : l'appelant reprend la parole."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "outil_echoue",
@@ -323,7 +369,8 @@
         "fr": "Rien n'est dit par le code : le modèle lit l'échec et répond."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "travail_echoue",
@@ -364,7 +411,8 @@
         "fr": "Le modèle lit « Échec : rien n'a été fait » et répond."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "impasse",
@@ -406,7 +454,8 @@
         "fr": "Le code ne dit rien et ne change pas d'étape : le modèle garde la main (les deux consignes qui lui sont destinées restent)."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": true
+      "sortie_par_le_code": true,
+      "verrouille": false
     },
     {
       "id": "impasse_repetee",
@@ -448,7 +497,8 @@
         "fr": "Le code ne dit rien et ne change pas d'étape : le modèle garde la main."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": true
+      "sortie_par_le_code": true,
+      "verrouille": false
     },
     {
       "id": "transfert_echoue",
@@ -488,7 +538,8 @@
         "fr": "Le modèle dit lui-même que le transfert n'a pas abouti."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
     },
     {
       "id": "mise_en_relation",
@@ -526,7 +577,86 @@
         "fr": "Le modèle annonce lui-même la mise en relation."
       },
       "silence_de_l_appelant": false,
-      "sortie_par_le_code": false
+      "sortie_par_le_code": false,
+      "verrouille": false
+    },
+    {
+      "id": "fin_duree_max",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "The website conversation reaches its maximum duration",
+        "fr": "La conversation du site atteint sa durée maximale"
+      },
+      "quand": {
+        "en": "A website widget conversation reaches its maximum duration: the code says this sentence, then ends the call.",
+        "fr": "Une conversation du widget du site arrive à sa durée maximale : le code dit cette phrase puis met fin à l'appel."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Je dois malheureusement conclure cette conversation. Merci de votre visite et à bientôt."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The code still says the default sentence: a conversation never ends in silence.",
+        "fr": "Le code dit quand même la phrase par défaut : une conversation ne se termine jamais en silence."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false,
+      "verrouille": false
+    },
+    {
+      "id": "urgence_vitale",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "Danger or medical emergency detected",
+        "fr": "Danger ou urgence médicale détectés"
+      },
+      "quand": {
+        "en": "The emergency safeguard (set in Security) recognises distress or a medical emergency in the caller's words: the code says this sentence, once per call.",
+        "fr": "Le garde-fou urgence (réglé dans Sécurité) reconnaît une détresse ou une urgence médicale dans les mots de l'appelant : le code dit cette phrase, une fois par appel."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Si vous ou une personne près de vous êtes en danger, raccrochez et appelez tout de suite le {{numero}}."
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The safeguard detects and notes it, but the agent does not say the sentence.",
+        "fr": "Le garde-fou le détecte et le note, mais l'agent ne dit pas la phrase."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false,
+      "verrouille": false
     }
   ]
 }

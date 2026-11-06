@@ -19,6 +19,7 @@ export const TYPES_DE_SIGNALEMENT: Record<string, Texte> = {
     passage_sans_suite: { en: "Transition by the code that did not go through", fr: "Passage par le code sans suite" },
     garde_modele: { en: "Model too slow, several times", fr: "Modèle trop lent, plusieurs fois" },
     retenue_verite: { en: "Action held back by the truth check", fr: "Action retenue par la vérité des actions" },
+    securite: { en: "Safety guard triggered", fr: "Garde-fou de sécurité déclenché" },
 };
 
 /**

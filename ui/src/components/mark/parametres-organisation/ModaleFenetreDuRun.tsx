@@ -17,6 +17,8 @@ import {
     saveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPut,
 } from "@/client";
 import type { LignePrix, ReglagesFenetreDuRun, Seuils } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -27,8 +29,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 type Brique = LignePrix["brique"];
@@ -150,7 +152,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
             const reponse = await getReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGet();
             if (annule) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Price table unreadable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.fenetreAppelLire));
                 return;
             }
             const lue = reponse.data as ReglagesFenetreDuRun;
@@ -176,9 +178,10 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Price table not saved"));
+            setErreur(echecAffiche(reponse.error, ECHECS.fenetreAppelEnregistrer));
             return;
         }
+        notifier.succes({ fr: "Tarifs enregistrés.", en: "Prices saved." });
         onFermer();
     };
 
@@ -186,11 +189,11 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
         <Dialog open={ouverte} onOpenChange={(o) => (o ? null : onFermer())}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl" data-testid="modale-fenetre-du-run">
                 <DialogHeader>
-                    <DialogTitle>{t({ en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" })}</DialogTitle>
+                    <DialogTitle>{t({ en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" })}</DialogTitle>
                     <DialogDescription>
                         {t({
                             en: "One line per provider model, with the date of the rate. The run window multiplies each call's consumption by these prices. A model without a price is shown as unpriced, never guessed.",
-                            fr: "Une ligne par modèle de fournisseur, avec la date du tarif. La fenêtre du run multiplie la consommation de chaque appel par ces prix. Un modèle sans prix est affiché « sans prix », jamais deviné.",
+                            fr: "Une ligne par modèle de fournisseur, avec la date du tarif. La fenêtre d'appel multiplie la consommation de chaque appel par ces prix. Un modèle sans prix est affiché « sans prix », jamais deviné.",
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -205,7 +208,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                     <div className="space-y-3">
                         <label className="flex items-center gap-2 text-sm">
                             {t({ en: "Currency", fr: "Devise" })}
-                            <select
+                            <ListeDeroulante
                                 className="rounded border border-border bg-background px-2 py-1"
                                 value={devise}
                                 onChange={(e) => setDevise(e.target.value as "USD" | "EUR")}
@@ -213,7 +216,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                             >
                                 <option value="USD">{t({ en: "USD", fr: "USD" })}</option>
                                 <option value="EUR">{t({ en: "EUR", fr: "EUR" })}</option>
-                            </select>
+                            </ListeDeroulante>
                         </label>
                         {brouillon.map((ligne, i) => (
                             <div
@@ -221,7 +224,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                                 data-testid="ligne-de-prix"
                                 className="grid gap-2 rounded border border-border p-3 sm:grid-cols-[8rem_1fr_9rem_auto]"
                             >
-                                <select
+                                <ListeDeroulante
                                     className="rounded border border-border bg-background px-2 py-1 text-sm"
                                     value={ligne.brique}
                                     onChange={(e) => changer(i, { brique: e.target.value as Brique })}
@@ -232,7 +235,7 @@ export function ModaleFenetreDuRun({ ouverte, onFermer }: { ouverte: boolean; on
                                             {t(b.libelle)}
                                         </option>
                                     ))}
-                                </select>
+                                </ListeDeroulante>
                                 <Input
                                     value={ligne.modele}
                                     onChange={(e) => changer(i, { modele: e.target.value })}

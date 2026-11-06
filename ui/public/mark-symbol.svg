@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
+<mask id="notch-sym-color">
+  <rect x="0" y="0" width="25" height="25" fill="#fff"/>
+  <rect x="12" y="12" width="13" height="13" rx="4" fill="#000"/>
+</mask>
+<rect x="0" y="0" width="21" height="21" rx="7" fill="#0f1c2e" mask="url(#notch-sym-color)"/>
+<rect x="14" y="14" width="10" height="10" rx="3" fill="#3d8fe6"/>
+</svg>

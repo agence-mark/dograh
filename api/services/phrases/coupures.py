@@ -40,6 +40,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.interventions_du_moteur import CLE_PHRASES_COUPEES, intervention_du_service
 from api.services.phrases.compte_rendu import ligne_entendue
 
 ETAT_TOUT = "tout"  # coupée après le dernier mot (ou jouée en entier) : rien ne change
@@ -377,7 +378,11 @@ def brancher_les_coupures(engine: Any, llm: Any) -> bool:
         construire = llm.build_chat_completion_params
 
         def build_chat_completion_params(params_from_context):
-            return reecrire_les_coupures(construire(params_from_context), registre)
+            params = construire(params_from_context)
+            # Lot 8 de builder-agent-vocal : interrupteur éteint = la requête part avec la phrase entière.
+            if not intervention_du_service(llm, CLE_PHRASES_COUPEES):
+                return params
+            return reecrire_les_coupures(params, registre)
 
         llm.build_chat_completion_params = build_chat_completion_params
         setattr(llm, _MARQUE, True)

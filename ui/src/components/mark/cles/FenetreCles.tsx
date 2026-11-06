@@ -24,6 +24,8 @@ import {
     usagesDUneCleApiV1ClesUuidUsagesGet,
 } from "@/client";
 import type { Cle, Designation, Usage } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -34,11 +36,19 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { type Texte, useLangue } from "../langue/langue";
+import { Liste } from "../studio/liste";
+import { Info } from "../studio/marques";
 
 export type Fournisseur = Cle["fournisseur"];
+
+const ADRESSE_EXPLIQUEE = {
+    en: "A key with an address is only sent to that address; choosing it in a setting fills the setting's address. A key without an address works as before.",
+    fr: "Une clé qui a une adresse ne part que vers cette adresse ; la choisir dans un réglage remplit l'adresse du réglage. Une clé sans adresse marche comme avant.",
+};
 
 // How a provider is written on screen; any other one shows as the server names it.
 const NOMS: Record<string, string> = {
@@ -114,7 +124,7 @@ export function useCles(fournisseur?: Fournisseur, actif = true) {
         if (!actif) return;
         const reponse = await listerLesClesApiV1ClesGet({ query: fournisseur ? { fournisseur } : undefined });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Keys unreadable"));
+            setErreur(echecAffiche(reponse.error, ECHECS.clesListe));
             return;
         }
         setErreur(null);
@@ -136,20 +146,22 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
         setErreur(null);
         const reponse = await usagesDUneCleApiV1ClesUuidUsagesGet({ path: { uuid: cle.uuid } });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Key usage unreadable"));
+            setErreur(echecAffiche(reponse.error, ECHECS.cleUsages));
             return;
         }
         setUsages((reponse.data as Usage[] | undefined) ?? []);
     };
     const supprimer = async () => {
         setEnCours(true);
+        // suppression-confirmee : « Supprimer cette clé ? » en place avant ce bouton.
         const reponse = await supprimerUneCleApiV1ClesUuidDelete({ path: { uuid: cle.uuid } });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Key not deleted"));
+            setErreur(echecAffiche(reponse.error, ECHECS.cleSupprimer));
             return;
         }
         onSupprimee();
+        notifier.succes({ fr: "Clé supprimée.", en: "Key deleted." });
     };
 
     return (
@@ -214,17 +226,20 @@ function LigneCle({ cle, onUtiliser, onSupprimee }: { cle: Cle; onUtiliser?: () 
     );
 }
 
-/** The library itself: the keys (of one provider, or all), and a key to add. */
-export function BibliothequeCles({
+/** The « add a key » form: the library shows it under its list; « Modèles et clés » opens it in a window (V2b). */
+export function FormulaireAjoutCle({
     fournisseur,
     onChoisir,
+    onAjoutee,
+    sansCadre = false,
 }: {
-    /** Shown from a setting: this provider only, and a new key is picked at once. */
     fournisseur?: Fournisseur;
     onChoisir?: (uuid: string) => void | Promise<void>;
+    onAjoutee: () => void | Promise<void>;
+    /** In a window: no frame around the fields (the window is the frame). */
+    sansCadre?: boolean;
 }) {
     const { t } = useLangue();
-    const { cles, erreur, recharger } = useCles(fournisseur);
     const fournisseurs = useFournisseurs();
     const [saisi, setSaisi] = useState<Fournisseur | null>(null);
     const [nom, setNom] = useState("");
@@ -254,18 +269,131 @@ export function BibliothequeCles({
         });
         setEnCours(false);
         if (reponse.error) {
-            setFaute(detailFromError(reponse.error, "Key not saved"));
+            setFaute(echecAffiche(reponse.error, ECHECS.cleAjouter));
             return;
         }
         const ajoutee = reponse.data as Cle;
+        notifier.succes({ fr: "Clé ajoutée.", en: "Key added." });
         setNom("");
         setValeur("");
         setNomFournisseur("");
         setAdresse("");
-        await recharger();
+        await onAjoutee();
         if (onChoisir) await onChoisir(ajoutee.uuid);
     };
 
+    return (
+        <fieldset className={`grid gap-2 sm:grid-cols-2 ${sansCadre ? "" : "rounded border border-border p-3"}`}>
+            <legend className={sansCadre ? "sr-only" : "px-1 text-sm font-medium"}>{t({ en: "Add a key", fr: "Ajouter une clé" })}</legend>
+            <label className="space-y-1 text-xs text-muted-foreground">
+                <span>{t({ en: "Protocol", fr: "Protocole" })}</span>
+                <ListeDeroulante
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+                    value={choisi ?? ""}
+                    disabled={Boolean(fournisseur)}
+                    onChange={(e) => setSaisi(e.target.value as Fournisseur)}
+                    aria-label={t({ en: "Protocol", fr: "Protocole" })}
+                >
+                    {options.map((f) => (
+                        <option key={f} value={f}>
+                            {nomDu(f)}
+                        </option>
+                    ))}
+                </ListeDeroulante>
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+                <span>{t({ en: "Name (e.g. Mistral · lab organization)", fr: "Nom (ex. Mistral · organisation du labo)" })}</span>
+                <Input
+                    name="mark-nom-cle"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    value={nom}
+                    maxLength={80}
+                    onChange={(e) => setNom(e.target.value)}
+                    aria-label={t({ en: "Key name", fr: "Nom de la clé" })}
+                />
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+                <span>{t({ en: "Provider (free text, optional)", fr: "Fournisseur (texte libre, facultatif)" })}</span>
+                <Input
+                    name="mark-fournisseur-cle"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    value={nomFournisseur}
+                    maxLength={80}
+                    placeholder={t({ en: "e.g. Scaleway", fr: "ex. Scaleway" })}
+                    onChange={(e) => setNomFournisseur(e.target.value)}
+                    aria-label={t({ en: "Provider", fr: "Fournisseur" })}
+                />
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                    {t({ en: "Provider address (optional)", fr: "Adresse du fournisseur (facultatif)" })}
+                    {/* En fenêtre, l'explication passe par le « ! », jamais une phrase visible. */}
+                    {sansCadre && <Info>{t(ADRESSE_EXPLIQUEE)}</Info>}
+                </span>
+                <Input
+                    name="mark-adresse-cle"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    value={adresse}
+                    maxLength={500}
+                    placeholder="https://api.exemple.com/v1"
+                    onChange={(e) => setAdresse(e.target.value)}
+                    aria-label={t({ en: "Provider address", fr: "Adresse du fournisseur" })}
+                />
+            </label>
+            {!sansCadre && <p className="text-xs text-muted-foreground sm:col-span-2">
+                {t({
+                    en: "A key with an address is only sent to that address; choosing it in a setting fills the setting's address. A key without an address works as before.",
+                    fr: "Une clé qui a une adresse ne part que vers cette adresse ; la choisir dans un réglage remplit l'adresse du réglage. Une clé sans adresse marche comme avant.",
+                })}
+            </p>}
+            <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">
+                <span>{t({ en: "Key", fr: "Clé" })}</span>
+                {/* « new-password »: a browser never fills a saved login password here (seen
+                    in production on 06/10: name and key filled with the Dograh login). */}
+                <Input
+                    type="password"
+                    name="mark-valeur-cle"
+                    autoComplete="new-password"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    value={valeur}
+                    onChange={(e) => setValeur(e.target.value)}
+                    aria-label={t({ en: "Key value", fr: "Valeur de la clé" })}
+                />
+            </label>
+            {faute && (
+                <p className="text-xs text-destructive sm:col-span-2" role="alert">
+                    {faute}
+                </p>
+            )}
+            <div className="sm:col-span-2">
+                <Button size="sm" disabled={!pret || enCours} onClick={() => void ajouter()}>
+                    {onChoisir
+                        ? t({ en: "Save and use", fr: "Enregistrer et utiliser" })
+                        : t({ en: "Save the key", fr: "Enregistrer la clé" })}
+                </Button>
+            </div>
+        </fieldset>
+    );
+}
+
+/** The library itself: the keys (of one provider, or all), and a key to add. */
+export function BibliothequeCles({
+    fournisseur,
+    onChoisir,
+}: {
+    /** Shown from a setting: this provider only, and a new key is picked at once. */
+    fournisseur?: Fournisseur;
+    onChoisir?: (uuid: string) => void | Promise<void>;
+}) {
+    const { t } = useLangue();
+    const { cles, erreur, recharger } = useCles(fournisseur);
     return (
         <div className="space-y-3">
             {erreur && (
@@ -290,99 +418,7 @@ export function BibliothequeCles({
                 </ul>
             )}
 
-            <fieldset className="grid gap-2 rounded border border-border p-3 sm:grid-cols-2">
-                <legend className="px-1 text-sm font-medium">{t({ en: "Add a key", fr: "Ajouter une clé" })}</legend>
-                <label className="space-y-1 text-xs text-muted-foreground">
-                    <span>{t({ en: "Protocol", fr: "Protocole" })}</span>
-                    <select
-                        className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
-                        value={choisi ?? ""}
-                        disabled={Boolean(fournisseur)}
-                        onChange={(e) => setSaisi(e.target.value as Fournisseur)}
-                        aria-label={t({ en: "Protocol", fr: "Protocole" })}
-                    >
-                        {options.map((f) => (
-                            <option key={f} value={f}>
-                                {nomDu(f)}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label className="space-y-1 text-xs text-muted-foreground">
-                    <span>{t({ en: "Name (e.g. Mistral · lab organization)", fr: "Nom (ex. Mistral · organisation du labo)" })}</span>
-                    <Input
-                        name="mark-nom-cle"
-                        autoComplete="off"
-                        data-1p-ignore
-                        data-lpignore="true"
-                        value={nom}
-                        maxLength={80}
-                        onChange={(e) => setNom(e.target.value)}
-                        aria-label={t({ en: "Key name", fr: "Nom de la clé" })}
-                    />
-                </label>
-                <label className="space-y-1 text-xs text-muted-foreground">
-                    <span>{t({ en: "Provider (free text, optional)", fr: "Fournisseur (texte libre, facultatif)" })}</span>
-                    <Input
-                        name="mark-fournisseur-cle"
-                        autoComplete="off"
-                        data-1p-ignore
-                        data-lpignore="true"
-                        value={nomFournisseur}
-                        maxLength={80}
-                        placeholder={t({ en: "e.g. Scaleway", fr: "ex. Scaleway" })}
-                        onChange={(e) => setNomFournisseur(e.target.value)}
-                        aria-label={t({ en: "Provider", fr: "Fournisseur" })}
-                    />
-                </label>
-                <label className="space-y-1 text-xs text-muted-foreground">
-                    <span>{t({ en: "Provider address (optional)", fr: "Adresse du fournisseur (facultatif)" })}</span>
-                    <Input
-                        name="mark-adresse-cle"
-                        autoComplete="off"
-                        data-1p-ignore
-                        data-lpignore="true"
-                        value={adresse}
-                        maxLength={500}
-                        placeholder="https://api.exemple.com/v1"
-                        onChange={(e) => setAdresse(e.target.value)}
-                        aria-label={t({ en: "Provider address", fr: "Adresse du fournisseur" })}
-                    />
-                </label>
-                <p className="text-xs text-muted-foreground sm:col-span-2">
-                    {t({
-                        en: "A key with an address is only sent to that address; choosing it in a setting fills the setting's address. A key without an address works as before.",
-                        fr: "Une clé qui a une adresse ne part que vers cette adresse ; la choisir dans un réglage remplit l'adresse du réglage. Une clé sans adresse marche comme avant.",
-                    })}
-                </p>
-                <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">
-                    <span>{t({ en: "Key", fr: "Clé" })}</span>
-                    {/* « new-password »: a browser never fills a saved login password here (seen
-                        in production on 06/10: name and key filled with the Dograh login). */}
-                    <Input
-                        type="password"
-                        name="mark-valeur-cle"
-                        autoComplete="new-password"
-                        data-1p-ignore
-                        data-lpignore="true"
-                        value={valeur}
-                        onChange={(e) => setValeur(e.target.value)}
-                        aria-label={t({ en: "Key value", fr: "Valeur de la clé" })}
-                    />
-                </label>
-                {faute && (
-                    <p className="text-xs text-destructive sm:col-span-2" role="alert">
-                        {faute}
-                    </p>
-                )}
-                <div className="sm:col-span-2">
-                    <Button size="sm" disabled={!pret || enCours} onClick={() => void ajouter()}>
-                        {onChoisir
-                            ? t({ en: "Save and use", fr: "Enregistrer et utiliser" })
-                            : t({ en: "Save the key", fr: "Enregistrer la clé" })}
-                    </Button>
-                </div>
-            </fieldset>
+            <FormulaireAjoutCle fournisseur={fournisseur} onChoisir={onChoisir} onAjoutee={recharger} />
         </div>
     );
 }
@@ -463,11 +499,31 @@ export function SelecteurCle({
     const perdue = horsListe && designation?.etat === "supprimee";
     const ancienne = horsListe && designation?.etat !== "supprimee" ? designation : null;
 
+    const maquette = useFormeMaquette();
+    const valeurListe = perdue || (horsListe && !ancienne) ? "" : (valeur ?? "");
+    const videListe =
+        cles && cles.length === 0
+            ? t({ en: "— no key yet: add one with « Keys… » —", fr: "— aucune clé : ajoute-en une avec « Clés… » —" })
+            : t({ en: "— choose a key —", fr: "— choisir une clé —" });
+
     return (
         <div className="space-y-1 text-xs text-muted-foreground">
-            <span>{t(libelle)}</span>
+            {!maquette && <span>{t(libelle)}</span>}
             <div className="flex gap-2">
-                <select
+                {maquette ? (
+                    <Liste
+                        valeur={valeurListe}
+                        changer={(v) => onChange(v || null)}
+                        vide={videListe}
+                        options={[
+                            ...(cles ?? []).map((k) => ({ valeur: k.uuid, libelle: k.nom })),
+                            ...(ancienne && valeur ? [{ valeur, libelle: `${ancienne.nom ?? ""} ${t({ en: "(outside the library)", fr: "(hors bibliothèque)" })}` }] : []),
+                        ]}
+                        taille="default"
+                        className="min-w-0 flex-1"
+                    />
+                ) : (
+                <ListeDeroulante
                     className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                     value={perdue || (horsListe && !ancienne) ? "" : (valeur ?? "")}
                     onChange={(e) => onChange(e.target.value || null)}
@@ -488,9 +544,10 @@ export function SelecteurCle({
                             {`${ancienne.nom ?? ""} ${t({ en: "(outside the library)", fr: "(hors bibliothèque)" })}`}
                         </option>
                     )}
-                </select>
-                <Button type="button" size="sm" variant="outline" onClick={() => setBibliotheque(true)}>
-                    {t({ en: "Keys…", fr: "Clés…" })}
+                </ListeDeroulante>
+                )}
+                <Button type="button" size={maquette ? "default" : "sm"} variant="outline" onClick={() => setBibliotheque(true)}>
+                    {maquette ? `+ ${t({ en: "Key", fr: "Clé" })}` : t({ en: "Keys…", fr: "Clés…" })}
                 </Button>
             </div>
             {perdue && (

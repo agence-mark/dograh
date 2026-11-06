@@ -1,0 +1,11 @@
+{
+  "titre": "Étape de collecte (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'une étape de collecte (recette façon Tala)\n\nUne étape de collecte par motif d'appel : toute la collecte du motif tient dans une seule étape. Seule la panne se découpe, avec la sécurité à part, en tête.\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nTu es ⟦prénom⟧. Ta mission ici : ⟦ce que cette étape obtient, en deux ou trois phrases⟧.\n\n## DÉTAILS ET OBJECTIFS\nTâche 1 : ⟦comprendre la demande⟧. ⟦ce qu'il faut savoir à la fin de la tâche⟧.\nTâche 2 : ⟦prendre les coordonnées⟧. ⟦champs dans l'ordre, une question à la fois⟧.\nTâche 3 : ⟦annoncer la suite⟧. ⟦ce qui va se passer, d'après la fiche, rien d'autre⟧.\n\n## Règles métier\n⟦Seulement les règles de ce motif, tirées de la fiche : zone, horaires, conditions.⟧\n\n## Déroulement de l'appel\n⟦L'ordre en une phrase.⟧\n\n# Critères de succès\n- ⟦résultat obtenu⟧ -> ⟦étape suivante⟧\n- ⟦l'appelant veut terminer⟧ -> ⟦fin⟧\n```\n\n## Ce que chaque partie doit contenir\n- Le point d'action dit qui parle et ce que l'étape obtient. Il ne répète pas le prompt général.\n- Les tâches sont numérotées dans l'ordre où elles se font. Une tâche = un résultat vérifiable.\n- Le trou « Ce que tu sais » : les faits sûrs de la fiche dont cette étape a besoin (horaires en toutes lettres, zones, marques). Pas plus.\n- Les outils posés sur l'étape sont nommés dans la tâche où on les appelle.\n- Les critères de succès sont de la forme « résultat -> destination ». Chaque sortie correspond à une condition de passage.\n\n## Interdits\nAucun exemple de nom, de numéro ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire.\n"
+  },
+  "notes": "Bancs du 30/10/2026 : agent 274 (Small 4) et agent 288 au casque, fiche juste à 100 %. Le passage en Recette est un clic d'Evan.",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

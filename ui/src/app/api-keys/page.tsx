@@ -2,18 +2,15 @@
 
 import { Copy, Eye, EyeOff, Key, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
     archiveApiKeyApiV1UserApiKeysApiKeyIdDelete,
-    archiveServiceKeyApiV1UserServiceKeysServiceKeyIdDelete,
     createApiKeyApiV1UserApiKeysPost,
-    createServiceKeyApiV1UserServiceKeysPost,
     getApiKeysApiV1UserApiKeysGet,
-    getServiceKeysApiV1UserServiceKeysGet,
     reactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePut
 } from '@/client/sdk.gen';
-import type { ApiKeyResponse, CreateApiKeyResponse, CreateServiceKeyResponse,ServiceKeyResponse } from '@/client/types.gen';
+import type { ApiKeyResponse, CreateApiKeyResponse } from '@/client/types.gen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +18,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAppConfig } from '@/context/AppConfigContext';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -30,9 +26,7 @@ import logger from '@/lib/logger';
 
 export default function APIKeysPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
-    const { config } = useAppConfig();
     const organizationTimezone = useOrganizationTimezone();
-    const isOSS = config?.deploymentMode === 'oss';
 
     logger.debug('[APIKeysPage] Component render', {
         loading,
@@ -42,19 +36,12 @@ export default function APIKeysPage() {
     });
 
     const [apiKeys, setApiKeys] = useState<ApiKeyResponse[]>([]);
-    const [serviceKeys, setServiceKeys] = useState<ServiceKeyResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isServiceKeysLoading, setIsServiceKeysLoading] = useState(true);
     const [showArchived, setShowArchived] = useState(false);
-    const [showServiceArchived, setShowServiceArchived] = useState(false);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isCreateServiceDialogOpen, setIsCreateServiceDialogOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState('');
-    const [newServiceKeyName, setNewServiceKeyName] = useState('');
     const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
-    const [createdServiceKey, setCreatedServiceKey] = useState<CreateServiceKeyResponse | null>(null);
     const [showCreatedKeyDialog, setShowCreatedKeyDialog] = useState(false);
-    const [showCreatedServiceKeyDialog, setShowCreatedServiceKeyDialog] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Redirect if not authenticated
@@ -106,55 +93,10 @@ export default function APIKeysPage() {
         }
     }, [loading, user, getAccessToken, showArchived]);
 
-    const fetchServiceKeys = useCallback(async () => {
-        logger.debug('[APIKeysPage] fetchServiceKeys called', {
-            loading,
-            hasUser: !!user,
-            userId: user?.id
-        });
-
-        // Follow the pattern from UserConfigContext - check both loading and user
-        if (loading || !user) {
-            logger.debug('[APIKeysPage] fetchServiceKeys - skipping due to loading or no user');
-            return;
-        }
-
-        try {
-            setIsServiceKeysLoading(true);
-            setError(null);
-            logger.debug('[APIKeysPage] fetchServiceKeys - calling getAccessToken...');
-            const accessToken = await getAccessToken();
-            logger.debug('[APIKeysPage] fetchServiceKeys - got access token');
-
-            const response = await getServiceKeysApiV1UserServiceKeysGet({
-                query: {
-                    include_archived: showServiceArchived
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
-            });
-
-            if (response.data) {
-                setServiceKeys(response.data);
-            }
-        } catch (err) {
-            setError('Failed to fetch service keys');
-            console.error('Error fetching service keys:', err);
-        } finally {
-            setIsServiceKeysLoading(false);
-        }
-    }, [loading, user, getAccessToken, showServiceArchived]);
-
     useEffect(() => {
         logger.debug('[APIKeysPage] useEffect for fetchApiKeys triggered');
         fetchApiKeys();
     }, [fetchApiKeys]);
-
-    useEffect(() => {
-        logger.debug('[APIKeysPage] useEffect for fetchServiceKeys triggered');
-        fetchServiceKeys();
-    }, [fetchServiceKeys]);
 
     const handleCreateKey = async () => {
         if (!newKeyName.trim()) {
@@ -188,39 +130,6 @@ export default function APIKeysPage() {
         }
     };
 
-    const handleCreateServiceKey = async () => {
-        if (!newServiceKeyName.trim()) {
-            setError('Please enter a name for the service key');
-            return;
-        }
-
-        try {
-            setError(null);
-            const accessToken = await getAccessToken();
-
-            const response = await createServiceKeyApiV1UserServiceKeysPost({
-                body: {
-                    name: newServiceKeyName,
-                    expires_in_days: 90
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
-            });
-
-            if (response.data) {
-                setCreatedServiceKey(response.data);
-                setIsCreateServiceDialogOpen(false);
-                setShowCreatedServiceKeyDialog(true);
-                setNewServiceKeyName('');
-                fetchServiceKeys();
-            }
-        } catch (err) {
-            setError('Failed to create service key');
-            console.error('Error creating service key:', err);
-        }
-    };
-
     const handleArchiveKey = async (keyId: number) => {
         try {
             setError(null);
@@ -239,27 +148,6 @@ export default function APIKeysPage() {
         } catch (err) {
             setError('Failed to archive API key');
             console.error('Error archiving API key:', err);
-        }
-    };
-
-    const handleArchiveServiceKey = async (keyId: string) => {
-        try {
-            setError(null);
-            const accessToken = await getAccessToken();
-
-            await archiveServiceKeyApiV1UserServiceKeysServiceKeyIdDelete({
-                path: {
-                    service_key_id: keyId
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
-            });
-
-            fetchServiceKeys();
-        } catch (err) {
-            setError('Failed to archive service key');
-            console.error('Error archiving service key:', err);
         }
     };
 
@@ -290,10 +178,10 @@ export default function APIKeysPage() {
     const copyToClipboard = async (text: string) => {
         try {
             await copyTextToClipboard(text);
-            toast.success('Key copied to clipboard');
+            notifier.succes({ fr: "Clé copiée.", en: "Key copied." });
         } catch (err) {
             console.error('Failed to copy to clipboard:', err);
-            toast.error('Failed to copy key');
+            notifier.echec({ fr: "Copie impossible. Sélectionnez la clé à la main.", en: "Could not copy. Select the key by hand." });
         }
     };
 
@@ -313,11 +201,6 @@ export default function APIKeysPage() {
             </div>
         );
     }
-
-    // In OSS mode, check if there's already an active service key
-    const activeServiceKeys = serviceKeys.filter(key => !key.archived_at);
-    const canCreateServiceKey = !isOSS || activeServiceKeys.length === 0;
-    const showServiceKeyArchiveControls = !isOSS;
 
     return (
         <div className="min-h-screen">
@@ -442,132 +325,11 @@ export default function APIKeysPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Dograh Service Keys Section */}
-                    <Card className="mb-6">
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <CardTitle>Dograh Service Keys</CardTitle>
-                                    <CardDescription>
-                                        Manage service keys for accessing Dograh AI services (LLM, TTS, STT)
-                                    </CardDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    {showServiceKeyArchiveControls && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setShowServiceArchived(!showServiceArchived)}
-                                        >
-                                            {showServiceArchived ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                                            {showServiceArchived ? 'Hide' : 'Show'} Archived
-                                        </Button>
-                                    )}
-                                    {canCreateServiceKey ? (
-                                        <Button
-                                            onClick={() => setIsCreateServiceDialogOpen(true)}
-                                            size="sm"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Create Service Key
-                                        </Button>
-                                    ) : (
-                                        <span className="text">
-                                            To generate additional service keys, <a href="https://app.dograh.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Sign up on app.dograh.com</a>
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {isServiceKeysLoading ? (
-                                <div className="space-y-4">
-                                    {[1, 2].map((i) => (
-                                        <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                                            <div className="space-y-2">
-                                                <Skeleton className="h-4 w-32" />
-                                                <Skeleton className="h-3 w-24" />
-                                            </div>
-                                            <Skeleton className="h-8 w-20" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : serviceKeys.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Key className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                                    <p className="text-muted-foreground mb-4">No service keys found</p>
-                                    {canCreateServiceKey && (
-                                        <Button onClick={() => setIsCreateServiceDialogOpen(true)}>
-                                            Create Your First Service Key
-                                        </Button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {serviceKeys.map((key) => (
-                                        <div
-                                            key={key.id}
-                                            className={`flex items-center justify-between p-4 border rounded-lg ${
-                                                key.archived_at ? 'bg-muted opacity-60' : 'bg-card'
-                                            }`}
-                                        >
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-medium">{key.name}</span>
-                                                    {key.archived_at ? (
-                                                        <Badge variant="secondary">Archived</Badge>
-                                                    ) : key.is_active ? (
-                                                        <Badge variant="default">Active</Badge>
-                                                    ) : (
-                                                        <Badge variant="destructive">Inactive</Badge>
-                                                    )}
-                                                    {key.expires_at && new Date(key.expires_at) > new Date() && (
-                                                        <Badge variant="outline">
-                                                            Expires: {formatDate(key.expires_at)}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <span className="font-mono bg-muted px-2 py-1 rounded">{key.key_prefix}...</span>
-                                                    <span className="text-xs text-muted-foreground/70">
-                                                        (Full key hidden for security)
-                                                    </span>
-                                                </div>
-                                                <div className="mt-2 text-xs text-muted-foreground">
-                                                    Created: {formatDate(key.created_at)} •
-                                                    Last used: {formatDate(key.last_used_at ?? null)}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {!key.archived_at && showServiceKeyArchiveControls && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleArchiveServiceKey(String(key.id))}
-                                                        className="text-destructive hover:text-destructive/90"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-foreground">
-                            <strong>Important:</strong> Keep your API keys secure. Never share them publicly or commit them to version control.
-                            API keys provide full access to your organization&apos;s resources.
-                        </p>
-                    </div>
                 </div>
             </div>
 
             {/* Create API Key Dialog */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog centree open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create New API Key</DialogTitle>
@@ -598,7 +360,7 @@ export default function APIKeysPage() {
             </Dialog>
 
             {/* Show Created Key Dialog */}
-            <Dialog open={showCreatedKeyDialog} onOpenChange={setShowCreatedKeyDialog}>
+            <Dialog centree open={showCreatedKeyDialog} onOpenChange={setShowCreatedKeyDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>API Key Created Successfully</DialogTitle>
@@ -641,90 +403,6 @@ export default function APIKeysPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Create Service Key Dialog */}
-            <Dialog open={isCreateServiceDialogOpen} onOpenChange={setIsCreateServiceDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Create New Service Key</DialogTitle>
-                        <DialogDescription>
-                            Create a service key to access Dograh AI services (LLM, TTS, STT)
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="service-name">Service Key Name</Label>
-                            <Input
-                                id="service-name"
-                                value={newServiceKeyName}
-                                onChange={(e) => setNewServiceKeyName(e.target.value)}
-                                placeholder="e.g., Production AI Services, Development LLM Access"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCreateServiceDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCreateServiceKey}>
-                            Create Service Key
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Show Created Service Key Dialog */}
-            <Dialog open={showCreatedServiceKeyDialog} onOpenChange={setShowCreatedServiceKeyDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Service Key Created Successfully</DialogTitle>
-                        <DialogDescription>
-                            Make sure to copy your service key now. You won&apos;t be able to see it again!
-                        </DialogDescription>
-                    </DialogHeader>
-                    {createdServiceKey && (
-                        <div className="space-y-4">
-                            <div className="p-4 bg-muted rounded-lg">
-                                <p className="text-sm text-muted-foreground mb-2">Your Service Key:</p>
-                                <div className="flex items-center gap-2">
-                                    <code className="flex-1 p-2 bg-background rounded text-sm font-mono break-all">
-                                        {createdServiceKey.service_key}
-                                    </code>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => copyToClipboard(createdServiceKey.service_key)}
-                                    >
-                                        <Copy className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg">
-                                <p className="text-sm text-foreground">
-                                    This key provides access to Dograh AI services including LLM, Text-to-Speech, and Speech-to-Text.
-                                    {createdServiceKey.expires_at && (
-                                        <span className="block mt-1">
-                                            Expires on: {formatDate(createdServiceKey.expires_at)}
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg">
-                                <p className="text-sm text-foreground">
-                                    Store this key securely. It will only be shown once and cannot be retrieved later.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button onClick={() => {
-                            setShowCreatedServiceKeyDialog(false);
-                            setCreatedServiceKey(null);
-                        }}>
-                            Done
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

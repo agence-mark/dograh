@@ -78,7 +78,7 @@ export default function FilesPage() {
                 </CardContent>
             </Card>
 
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <Dialog centree open={isUploadOpen} onOpenChange={setIsUploadOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Upload Document</DialogTitle>

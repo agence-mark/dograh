@@ -1,0 +1,364 @@
+"""[.mark] Le builder, le chat : ses conversations en tables, en tâche de fond, rejouables (builder partie 2, U5).
+
+- ``GET  /builder/demarrages``                        les 4 démarrages les plus utilisés (hors Rejeté) ;
+- ``GET  /builder/fils``                              les conversations (``?workflow_id=``), les plus récentes d'abord ;
+- ``GET  /builder/fils/compteur``                     le nombre de conversations qui attendent la personne (pastille « Chat » de la barre) ;
+- ``POST /builder/fils``                              ouvre une conversation et lance le travail (``demarrage`` facultatif) ;
+- ``GET  /builder/fils/{id}``                         une conversation (état, coût, jauge, changements à valider) ;
+- ``GET  /builder/fils/{id}/evenements``              le flux SSE, rejoué depuis ``?depuis=`` ou ``Last-Event-ID`` ;
+- ``POST /builder/fils/{id}/messages``                un message de plus ;
+- ``POST /builder/fils/{id}/arreter`` · ``reprendre`` · ``modifier-dernier`` ;
+- ``PUT  /builder/fils/{id}/titre``                   renomme (menu ⋮ du Chat) ;
+- ``DELETE /builder/fils/{id}``                       supprime (journalisé ; jamais par une clé d'API).
+
+Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0) : la conversation d'une autre organisation est un 404, et l'agent
+joint est contrôlé de la même façon. Le travail tourne en tâche de fond : fermer l'onglet ne l'arrête pas.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any, Literal
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from api.db import db_client
+from api.db.models import UserModel
+from api.services.auth.depends import get_user_with_selected_organization
+from api.services.equipe_mark.acces import journaliser
+from api.services import modifications_live as live
+from api.services.builder import demarrages, fil as service_fil, modes
+from api.services.builder.constantes import organisation_bibliotheque
+from api.services.mark_evenements import flux_sse, suivre
+
+router = APIRouter(tags=["builder"])
+
+DUREE_MAX_CLAUDE_CODE_S = 600.0
+
+
+async def _cerveau_de(user: UserModel):
+    # Même fabrique que la conversation historique (les tests la remplacent au même endroit).
+    from api.routes import builder as routes_builder
+
+    return await routes_builder._cerveau_de(user)
+
+
+async def _fil_ou_404(user: UserModel, fil_id: int):
+    fil = await db_client.lire_fil(user.selected_organization_id, fil_id)
+    if fil is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return fil
+
+
+async def _agent_ou_404(user: UserModel, workflow_id: int):
+    workflow = await db_client.get_workflow(workflow_id, organization_id=user.selected_organization_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return workflow
+
+
+class VueFil(BaseModel):
+    id: int
+    workflow_id: int | None
+    titre: str
+    etat: str
+    jetons: int
+    cout: float
+    jauge: float
+    changements: int
+    demarrage: str | None
+    cree_le: Any
+    modifie_le: Any
+    en_cours: bool
+    genre: str = "principal"
+    parent_id: int | None = None
+    sous_agents_actifs: bool = True
+    # U12 : une conversation recopiée depuis Claude Code (genre « claude_code ») : lecture seule, auteur affiché « Claude Code · <prénom> ».
+    auteur: str | None = None
+    # N1 : le mode du chat (« demander », « agent », « tout », « plan ») et ses autorisations « pour ce chat » (retirables).
+    mode: str = "demander"
+    autorisations_du_chat: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _autorisations_du_chat(historique: dict[str, Any] | None) -> list[dict[str, Any]]:
+    demandes = (historique or {}).get("autorisations") or {}
+    return [
+        {"id": i, "nom": d.get("nom"), "famille": d.get("famille"), "objet": d.get("objet")}
+        for i, d in demandes.items()
+        if isinstance(d, dict) and d.get("statut") == "pour_ce_chat"
+    ]
+
+
+def _vue(fil) -> VueFil:
+    from api.services.builder import modes
+
+    historique = fil.historique if isinstance(getattr(fil, "historique", None), dict) else {}
+    return VueFil(
+        id=fil.id,
+        workflow_id=fil.workflow_id,
+        titre=fil.titre,
+        etat=fil.etat,
+        jetons=fil.jetons or 0,
+        cout=fil.cout or 0.0,
+        jauge=fil.jauge or 0.0,
+        changements=fil.changements or 0,
+        demarrage=fil.demarrage,
+        cree_le=fil.cree_le,
+        modifie_le=fil.modifie_le,
+        en_cours=service_fil.en_cours(fil.id),
+        genre=fil.genre or "principal",
+        parent_id=fil.parent_id,
+        sous_agents_actifs=bool(fil.sous_agents_actifs),
+        auteur=fil.auteur,
+        mode=modes.mode_de(historique),
+        autorisations_du_chat=_autorisations_du_chat(historique),
+    )
+
+
+def _chat_de_l_auteur(fil, user: UserModel) -> None:
+    """RV (point 6) : le mode d'un chat et ses cartes (autorisations, accord de dépense) sont à celui qui l'a ouvert. Un chat sans auteur
+    (anciens fils) reste ouvert à l'organisation, comme avant."""
+    if fil.user_id is not None and fil.user_id != user.id:
+        raise HTTPException(status_code=403, detail="This conversation belongs to someone else.")
+
+
+def _pas_un_sous_agent(fil) -> None:
+    """C2 (E96) : un sous-agent est lu, arrêté, jamais écrit à ni relancé par une personne."""
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent receives no message.")
+    if fil.genre == "claude_code":  # U12 : on écrit dans Claude Code, on lit dans les deux
+        raise HTTPException(status_code=409, detail="This conversation is led in Claude Code: it is read-only here.")
+
+
+def _refus(erreur: service_fil.ErreurFil) -> HTTPException:
+    return HTTPException(status_code=erreur.statut, detail=str(erreur))
+
+
+def _dans_le_labo(user: UserModel) -> bool:
+    """L'espace de la requête est-il le Labo ? Un client ne voit pas les cartes « proposées dans le Labo seulement » (E57)."""
+    return user.selected_organization_id == organisation_bibliotheque()
+
+
+class VueDemarrage(BaseModel):
+    slug: str
+    titre: str
+    phrase: str
+    demande: str
+    besoin: str
+    icone: str
+    statut: str
+    utilisations: int
+    proposee_dans: str = "labo_et_clients"
+
+
+@router.get("/demarrages", response_model=list[VueDemarrage])
+async def lire_les_demarrages(user: UserModel = Depends(get_user_with_selected_organization)):
+    return await demarrages.plus_utilises(dans_le_labo=_dans_le_labo(user))
+
+
+@router.get("/fils", response_model=list[VueFil])
+async def lister_les_fils(
+    workflow_id: int | None = Query(default=None), user: UserModel = Depends(get_user_with_selected_organization)
+):
+    return [_vue(f) for f in await db_client.lister_fils(user.selected_organization_id, workflow_id)]
+
+
+class CompteurDesFils(BaseModel):
+    en_attente: int
+
+
+@router.get("/fils/compteur", response_model=CompteurDesFils)
+async def compter_les_fils(user: UserModel = Depends(get_user_with_selected_organization)):
+    """Déclarée avant ``/fils/{fil_id}`` (sinon « compteur » serait lu comme un numéro)."""
+    return CompteurDesFils(en_attente=await db_client.compter_les_fils_en_attente(user.selected_organization_id))
+
+
+# SE-16 (E-5) : « continuer quand même » une fois le plafond du mois atteint. Ponctuel (par demande, jamais mémorisé), réservé à
+# l'équipe .mark (la dépense est celle de .mark), journalisé par ``fil.lancer``.
+DEPASSER_LE_PLAFOND = Field(default=False, description="Continue although the monthly ceiling is reached, for this request only (.mark team).")
+
+
+async def _depassement_permis(user: UserModel, voulu: bool) -> bool:
+    if not voulu:
+        return False
+    from api.services.builder.bibliotheque import droits
+    from api.services.builder.bibliotheque.service import ErreurBibliotheque
+
+    try:
+        await droits.exiger_l_equipe(user)
+    except ErreurBibliotheque:
+        raise HTTPException(status_code=403, detail="Only the .mark team can go past the monthly ceiling.") from None
+    return True
+
+
+class NouveauFil(BaseModel):
+    message: str = Field(min_length=1, max_length=20000)
+    workflow_id: int | None = None
+    demarrage: str | None = Field(default=None, max_length=120)
+    depasser_le_plafond: bool = DEPASSER_LE_PLAFOND
+    # N4 : le mode choisi sur la page d'accueil du builder (vaut pour CE chat, posé AVANT le premier tour). Absent : « demander ».
+    mode: Literal["demander", "agent", "tout", "plan"] | None = None
+
+
+@router.post("/fils", response_model=VueFil)
+async def ouvrir_un_fil(demande: NouveauFil, user: UserModel = Depends(get_user_with_selected_organization)):
+    workflow = await _agent_ou_404(user, demande.workflow_id) if demande.workflow_id is not None else None
+    carte = None
+    if demande.demarrage:
+        carte = await demarrages.lire(demande.demarrage, dans_le_labo=_dans_le_labo(user))
+        if carte is None:
+            raise HTTPException(status_code=404, detail="Starter not found")
+        if (manque := demarrages.manque(carte, demande.workflow_id)) is not None:
+            raise HTTPException(status_code=422, detail=manque)
+    cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
+    message = demarrages.remplir(demande.message, getattr(workflow, "name", None))
+    titre = carte["titre"] if carte else message.strip().splitlines()[0]
+    fil = await service_fil.creer(user, demande.workflow_id, titre, demande.demarrage)
+    if demande.mode and demande.mode != modes.MODE_PAR_DEFAUT:
+        await modes.poser(user, fil, demande.mode)
+        fil = await _fil_ou_404(user, fil.id)  # relu : ``lancer`` part de la conversation avec son mode
+    if demande.demarrage:
+        await demarrages.noter_l_utilisation(demande.demarrage, user.selected_organization_id, fil.id)
+    try:
+        await service_fil.lancer(user, fil, message, cerveau, reglages, depasser_le_plafond=depasser)
+    except service_fil.ErreurFil as erreur:
+        raise _refus(erreur) from None
+    return _vue(await _fil_ou_404(user, fil.id))
+
+
+@router.get("/fils/{fil_id}", response_model=VueFil)
+async def lire_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.get("/fils/{fil_id}/evenements")
+async def suivre_un_fil(
+    fil_id: int,
+    depuis: int | None = Query(default=None, ge=0),
+    last_event_id: str | None = Header(default=None),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Le flux SSE : tout ce qui a été écrit après ``depuis`` (ou ``Last-Event-ID`` à la reconnexion), puis la suite en direct."""
+    await _fil_ou_404(user, fil_id)
+    org = user.selected_organization_id
+    fin_du_flux = asyncio.get_running_loop().time() + DUREE_MAX_CLAUDE_CODE_S
+    reprise = depuis if depuis is not None else (int(last_event_id) if last_event_id and last_event_id.isdigit() else 0)
+
+    async def est_fini() -> bool:
+        courant = await db_client.lire_fil(org, fil_id)
+        if courant is not None and courant.genre == "claude_code":
+            # Une session Claude Code reprend à chaque message : le flux reste ouvert, borné à DUREE_MAX_CLAUDE_CODE_S (l'écran se reconnecte).
+            return asyncio.get_running_loop().time() >= fin_du_flux
+        return courant is None or (courant.etat != "en_cours" and not service_fil.en_cours(fil_id))
+
+    source = suivre(service_fil.canal(fil_id), lambda apres: service_fil.lire_apres(fil_id, apres), est_fini, reprise)
+    return StreamingResponse(
+        flux_sse(source),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+class MessageDuFil(BaseModel):
+    message: str = Field(min_length=1, max_length=20000)
+    depasser_le_plafond: bool = DEPASSER_LE_PLAFOND
+
+
+@router.post("/fils/{fil_id}/messages", response_model=VueFil)
+async def envoyer_un_message(fil_id: int, demande: MessageDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
+    fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
+    cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
+    try:
+        await service_fil.lancer(user, fil, demande.message, cerveau, reglages, depasser_le_plafond=depasser)
+    except service_fil.ErreurFil as erreur:
+        raise _refus(erreur) from None
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.post("/fils/{fil_id}/arreter", response_model=VueFil)
+async def arreter_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "claude_code":
+        raise HTTPException(status_code=409, detail="This conversation is led in Claude Code: it is read-only here.")
+    await service_fil.arreter(user.selected_organization_id, fil_id)
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.post("/fils/{fil_id}/reprendre", response_model=VueFil)
+async def reprendre_un_fil(
+    fil_id: int,
+    depasser_le_plafond: bool = Query(default=False, description="Continue although the monthly ceiling is reached, for this request only (.mark team)."),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
+    cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, depasser_le_plafond)
+    try:
+        await service_fil.reprendre(user, fil, cerveau, reglages, depasser_le_plafond=depasser)
+    except service_fil.ErreurFil as erreur:
+        raise _refus(erreur) from None
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.post("/fils/{fil_id}/modifier-dernier", response_model=VueFil)
+async def modifier_le_dernier_message(
+    fil_id: int, demande: MessageDuFil, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    fil = await _fil_ou_404(user, fil_id)
+    _pas_un_sous_agent(fil)
+    _chat_de_l_auteur(fil, user)  # RV2 (M-6) : écrire dans un chat est réservé à celui qui l'a ouvert
+    cerveau, reglages = await _cerveau_de(user)
+    depasser = await _depassement_permis(user, demande.depasser_le_plafond)
+    try:
+        await service_fil.modifier_le_dernier_message(user, fil, demande.message, cerveau, reglages, depasser_le_plafond=depasser)
+    except service_fil.ErreurFil as erreur:
+        raise _refus(erreur) from None
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+
+
+
+class TitreDuFil(BaseModel):
+    titre: str = Field(min_length=1, max_length=200)
+
+
+@router.put("/fils/{fil_id}/titre", response_model=VueFil)
+async def renommer_un_fil(fil_id: int, demande: TitreDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent keeps its task as title.")
+    titre = " ".join(demande.titre.split())
+    if not titre:
+        raise HTTPException(status_code=422, detail="The title is empty.")
+    await db_client.modifier_fil(user.selected_organization_id, fil_id, titre=titre[:200])
+    await live.noter(user.selected_organization_id, "conversations", "fil_renomme", source="ecran", auteur=live.auteur_de(user))
+    return _vue(await _fil_ou_404(user, fil_id))
+
+
+@router.delete("/fils/{fil_id}", status_code=204)
+async def supprimer_un_fil(
+    fil_id: int,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """Supprime la conversation (événements et sous-agents avec). Un accès de machine (clé d'API, portail) ne supprime pas."""
+    if x_api_key:
+        raise HTTPException(status_code=403, detail="An API key cannot delete a conversation.")
+    fil = await _fil_ou_404(user, fil_id)
+    if fil.genre == "sous_agent":
+        raise HTTPException(status_code=409, detail="A sub-agent is removed with its parent conversation.")
+    org = user.selected_organization_id
+    if not await service_fil.supprimer(org, fil_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    # Qui, quoi, quand, où : jamais le contenu de la conversation ni son titre (peut citer un client).
+    await journaliser(user, "builder.fil_supprime", org, {"fil_id": fil_id, "genre": fil.genre, "agent_id": fil.workflow_id})
+    await live.noter(org, "conversations", "fil_supprime", source="ecran", auteur=live.auteur_de(user))

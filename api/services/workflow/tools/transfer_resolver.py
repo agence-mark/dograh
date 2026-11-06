@@ -11,6 +11,7 @@ import httpx
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import REFUS, est_la_cle_du_cerveau
 from api.services.workflow.tools.custom_tool import _resolve_preset_parameters
 from api.utils.credential_auth import build_auth_header
 from api.utils.template_renderer import render_template
@@ -293,6 +294,9 @@ async def _execute_http_resolver(
         credential = await db_client.get_credential_by_uuid(
             credential_uuid, organization_id
         )
+        if credential and est_la_cle_du_cerveau(credential):
+            # [.mark] Builder, revue R2 : la clé du cerveau ne part par aucun résolveur de transfert.
+            raise TransferResolutionError("credential_reserved", REFUS)
         if credential:
             headers.update(build_auth_header(credential))
         else:

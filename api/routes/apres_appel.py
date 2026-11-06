@@ -195,6 +195,54 @@ async def post_nuit(user: UserModel = Depends(get_user_with_selected_organizatio
     return ResultatAction(statut="faite", detail=resultat)
 
 
+class ActionRelancee(BaseModel):
+    action_id: int
+    etape: str
+    statut: str
+
+
+@router.post("/actions/{action_id}/relancer", response_model=ActionRelancee)
+async def post_relancer_action(
+    action_id: int, user: UserModel = Depends(get_user_with_selected_organization)
+):
+    """[.mark] S3 (lot 1 de la v2, D147) : relance l'étape d'après-appel d'une action en échec, pour le portail.
+
+    La même fonction que le « Réessayer » de la fenêtre du run (``chaine.relancer``). Jamais deux fois une action
+    faite (seule une action en ``echec`` repart) ; un échec définitif (aucune étape en échec à rejouer) est refusé.
+    La base lue est celle de l'organisation de l'appelant : l'action d'une autre organisation n'existe pas."""
+    org = user.selected_organization_id
+    nom = await nom_de_la_base(org)
+    if not nom:
+        raise HTTPException(status_code=404, detail="No such action")
+    from api.db.bases_clients.apres_appel import action_a_relancer
+    from api.db.bases_clients.connexion import connecter
+
+    try:
+        connexion = await connecter(nom)
+    except BaseClientIndisponible as erreur:
+        raise HTTPException(status_code=503, detail=str(erreur)) from erreur
+    try:
+        ligne = await action_a_relancer(connexion, action_id)
+    finally:
+        await connexion.close()
+    if ligne is None or ligne["dograh_run_id"] is None:
+        raise HTTPException(status_code=404, detail="No such action")
+    run_id = ligne["dograh_run_id"]
+    if await db_client.get_workflow_run(run_id, organization_id=org) is None:
+        raise HTTPException(status_code=404, detail="No such action")
+    if ligne["statut"] != "echec":
+        raise HTTPException(status_code=409, detail="Only a failed action can be retried")
+    etapes = (await db_client.lire_apres_appel(run_id)).get("etapes") or {}
+    en_echec = [nom_etape for nom_etape, bloc in etapes.items() if (bloc or {}).get("statut") == "echec"]
+    candidates = [e for e in en_echec if e == "mail"] if ligne["canal"] == "mail" else [
+        e for e in en_echec if e.startswith("module:")
+    ]
+    if not candidates:
+        raise HTTPException(status_code=409, detail="This failure is final: nothing to retry")
+    await chaine.relancer(run_id, candidates[0])
+    return ActionRelancee(action_id=action_id, etape=candidates[0], statut="en_attente")
+
+
 @router.post("/recapitulatif", response_model=ResultatAction)
 async def post_recapitulatif(
     user: UserModel = Depends(get_user_with_selected_organization),

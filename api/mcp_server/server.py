@@ -53,3 +53,8 @@ _DOCS_TOOL_ANNOTATIONS = ToolAnnotations(
 
 for _tool in (list_docs, read_doc, search_docs):
     mcp.tool(_tool, annotations=_DOCS_TOOL_ANNOTATIONS)
+
+# [.mark] builder-agent-vocal, lot 1 : les actions du builder, la seconde porte du moteur (l'écran est la première).
+from api.mcp_server.tools.builder import inscrire as _inscrire_le_builder  # noqa: E402
+
+_inscrire_le_builder(mcp)

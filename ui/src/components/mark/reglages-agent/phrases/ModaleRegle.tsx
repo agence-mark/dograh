@@ -4,7 +4,7 @@
  * [.mark] correctifs-apres-banc-v4, lot 5 (plan 4.2, 4.3, 4.7) : la MODALE d'une règle de phrase, ouverte par sa
  * carte ou par « Ajouter une phrase » (étape 2). La phrase se lit de haut en bas ; une case que le motif ne permet
  * pas DISPARAÎT, remplacée par une ligne grise qui dit pourquoi. L'apercu déroule ce que vit l'appelant, seconde par
- * seconde, avec les incohérences en orange (sans bloquer) ; les erreurs qui bloquent sont nommées au-dessus du pied.
+ * seconde, avec les incohérences en violet (sans bloquer) ; les erreurs qui bloquent sont nommées au-dessus du pied.
  *
  * Elle travaille sur une COPIE de la règle : « Enregistrer » la rend à l'appelant (le thème l'inscrit dans son
  * brouillon, la fenêtre d'une étape l'enregistre tout de suite), « Annuler » la jette.
@@ -677,10 +677,16 @@ export const ModaleRegle = ({
                             </div>
                         )}
                         <div className="flex items-center gap-4">
+                            {motif?.verrouille ? (
+                                <p className="text-xs text-muted-foreground" data-note="motif-verrouille">
+                                    {t({ en: "Locked: the text can change, this announcement cannot be turned off.", fr: "Verrouillée : le texte peut changer, cette annonce ne peut pas être éteinte." })}
+                                </p>
+                            ) : (
                             <label className="flex items-center gap-2 text-sm">
                                 <Switch id="phrase_active" aria-label={t(TEXTES.activee)} checked={regle.active !== false} onCheckedChange={(active) => setRegle({ ...regle, active })} />
                                 {regle.active !== false ? t(TEXTES.activee) : t(TEXTES.eteinte)}
                             </label>
+                            )}
                             {nouvelle && onRetour && (
                                 <Button variant="ghost" size="sm" onClick={onRetour}>
                                     {t(TEXTES.changerMotif)}

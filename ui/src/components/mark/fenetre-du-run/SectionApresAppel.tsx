@@ -24,7 +24,8 @@ import type { ActionEquipe, ApresAppelDuRun, EtapeApresAppel, MentionDuRun } fro
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
@@ -179,7 +180,7 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
             path: { workflow_id: workflowId, run_id: runId },
         });
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "After-call unreadable"));
+            setErreur(echecAffiche(reponse.error, ECHECS.appelApresAppel));
             return null;
         }
         setErreur(null);
@@ -211,7 +212,7 @@ export function SectionApresAppel({ workflowId, runId }: { workflowId: number; r
             path: { workflow_id: workflowId, run_id: runId, etape },
         });
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Retry refused"));
+            setErreur(echecAffiche(reponse.error, ECHECS.apresAppelRelancer));
             return;
         }
         if (reponse.data) setDonnees(reponse.data);

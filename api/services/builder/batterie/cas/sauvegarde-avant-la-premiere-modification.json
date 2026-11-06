@@ -1,0 +1,56 @@
+{
+  "id": "sauvegarde-avant-la-premiere-modification",
+  "demande": "Réécris le prompt de mon agent déjà en service, mais ne perds rien.",
+  "plateforme": {
+    "brouillon_enregistrer": {
+      "ok": false,
+      "code": "sauvegarde_requise",
+      "erreur": "NOTHING WAS CHANGED. No backup yet."
+    },
+    "sauvegarde_prendre": {
+      "ok": true,
+      "instantane": 1
+    }
+  },
+  "tours": [
+    [
+      {
+        "appel": "brouillon_enregistrer",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "appel": "sauvegarde_prendre",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "appel": "brouillon_enregistrer",
+        "arguments": {}
+      }
+    ],
+    [
+      {
+        "texte": "Sauvegarde prise, puis brouillon enregistré."
+      }
+    ]
+  ],
+  "correcteurs": [
+    {
+      "genre": "ordre",
+      "actions": [
+        "brouillon_enregistrer",
+        "sauvegarde_prendre",
+        "brouillon_enregistrer"
+      ]
+    },
+    {
+      "genre": "interdite",
+      "actions": [
+        "sauvegarde_refuser"
+      ]
+    }
+  ]
+}

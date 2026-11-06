@@ -56,6 +56,7 @@ const TRADUCTEURS = [
       reference_agenda: { en: "Mailbox", fr: "Boîte aux lettres" }, operations: {} },
 ];
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getPreferencesApiV1OrganizationsPreferencesGet: m.getPreferences,
     savePreferencesApiV1OrganizationsPreferencesPut: m.savePreferences,
@@ -119,7 +120,11 @@ vi.mock("@/components/MCPSection", () => ({ MCPSection: () => <div data-testid="
 vi.mock("@/components/TelemetrySection", () => ({ TelemetrySection: () => <div data-testid="telemetrie" /> }));
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
-const { default: SettingsPage } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: SettingsPage } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 const OBJETS = {
     plafond_caracteres: 3000,
@@ -157,16 +162,28 @@ afterEach(() => {
 
 const ouvrirLaPage = async (enveloppe?: (n: ReactNode) => ReactNode) => {
     render(<>{enveloppe ? enveloppe(<SettingsPage />) : <SettingsPage />}</>);
-    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
+    await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(7));
 };
 
 const ouvrirLeTheme = async (id: string) => {
-    const entete = document.querySelector(`[data-theme="${id}"] > button[aria-expanded]`) as HTMLButtonElement;
+    ouvrirOnglet(id);
+    const entete = document.querySelector(`[data-theme="${id}"] button[aria-expanded], [data-theme="${id}"][data-plat]`) as HTMLButtonElement;
     if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
     await waitFor(() => {
         if (/Loading|Chargement/.test(document.getElementById(id)?.textContent ?? "")) throw new Error("still loading");
     });
     return document.getElementById(id) as HTMLElement;
+};
+
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+// Dans la fenêtre de la maquette, l'état forcé est une liste du design system (plus un <select>).
+const forcerEtat = async (nom: RegExp) => {
+    const liste = document.querySelector('#reglage-etat_force [role="combobox"]') as HTMLElement;
+    fireEvent.pointerDown(liste, { button: 0, ctrlKey: false });
+    fireEvent.click(liste);
+    fireEvent.click(await screen.findByRole("option", { name: nom }));
 };
 
 const bouton = (nom: string) => screen.getByRole("button", { name: nom }) as HTMLButtonElement;
@@ -178,13 +195,13 @@ describe("[.mark] the Platform Settings page in themes", () => {
             if ("horsEcran" in entree) continue;
             const theme = await ouvrirLeTheme(entree.theme);
             if (cle === "etat_force_jusqu_a") {
-                // Shown once a state is forced: it is, in the stored settings.
-                expect(document.getElementById("etat_force")).not.toBeNull();
+                // Shown once a state is forced.
+                await forcerEtat(/forced: closed/i);
             }
             await waitFor(() => expect(theme.querySelector(`[data-reglage="${cle}"]`), `${cle} in ${entree.theme}`).not.toBeNull());
         }
         // Reused as they are, in their themes.
-        expect((await ouvrirLeTheme("ecoute")).textContent).toMatch(/open vocabulary/i);
+        expect((await ouvrirLeTheme("ecoute")).textContent).toMatch(/No term yet/i);
         const developpeurs = await ouvrirLeTheme("developpeurs");
         expect(developpeurs.querySelector('[data-testid="mcp"]')).not.toBeNull();
         expect(developpeurs.querySelector('[data-testid="telemetrie"]')).not.toBeNull();
@@ -192,11 +209,14 @@ describe("[.mark] the Platform Settings page in themes", () => {
 
     it("[l-agent-travaille] the Establishments theme lists them and opens their modal (E4)", async () => {
         await ouvrirLaPage();
-        const theme = await ouvrirLeTheme("etablissement");
-        expect(theme.querySelector('[data-reglage="etablissements"]')).not.toBeNull();
-        expect(theme.textContent).toContain("Establishments of the organization");
-        fireEvent.click(screen.getByTestId("ouvrir-etablissements"));
-        await waitFor(() => expect(screen.getByTestId("ajouter-etablissement")).toBeTruthy());
+        // Forme de la maquette : la liste des fiches est un tableau (plus un réglage du thème), `+ Établissement` ouvre la
+        // fenêtre d'une nouvelle fiche, la reprise et les phrases ont leur bouton au-dessus du tableau.
+        ouvrirOnglet("etablissement");
+        expect(screen.getByTestId("ouvrir-reprise")).toBeTruthy();
+        expect(screen.getByTestId("ouvrir-phrases")).toBeTruthy();
+        expect(screen.getByTestId("creer-par-copie")).toBeTruthy();
+        fireEvent.click(screen.getByTestId("ajouter-etablissement"));
+        await waitFor(() => expect(document.body.textContent).toMatch(/New establishment|Nouvel établissement/i));
     });
 
     it("[agents-specialises, lot 11] « Close everything » is the old forced state, and the takeover opens its trial run", async () => {
@@ -204,10 +224,10 @@ describe("[.mark] the Platform Settings page in themes", () => {
         await ouvrirLaPage();
         const theme = await ouvrirLeTheme("etablissement");
         // The same control and the same keys (etat_force, etat_force_jusqu_a), relabelled.
-        expect(theme.querySelector('label[for="etat_force"]')?.textContent).toBe("Close everything");
+        expect(theme.querySelector('#reglage-etat_force label')?.textContent).toContain("Close everything");
         expect(theme.querySelector('[data-reglage="etat_force"]')).not.toBeNull();
         // The takeover is offered next to the establishments, and shows a trial run before writing anything.
-        expect(theme.querySelector('[data-reglage="reprise_des_fiches"]')).not.toBeNull();
+        expect(screen.getByTestId("ouvrir-reprise")).toBeTruthy();
         fireEvent.click(screen.getByTestId("ouvrir-reprise"));
         await waitFor(() => expect(screen.getByTestId("etat-reprise").textContent).toContain("Trial run, nothing written"));
         await waitFor(() => expect(m.reprise).toHaveBeenCalledWith({ body: { ecrire: false } }));
@@ -218,8 +238,9 @@ describe("[.mark] the Platform Settings page in themes", () => {
         // A PUT sent from the empty defaults would clear the whole row.
         m.getPreferences.mockReset().mockImplementation(() => new Promise(() => undefined));
         await ouvrirLaPage();
-        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Establishments"]]) {
-            const entete = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`) as HTMLButtonElement;
+        for (const [theme, titre] of [["organisation", "Organization"], ["integrations", "Integrations"], ["etablissement", "Whole company"]]) {
+            ouvrirOnglet(theme);
+            const entete = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`) as HTMLButtonElement;
             fireEvent.click(entete);
             expect(bouton(`Save ${titre}`).disabled, theme).toBe(true);
         }
@@ -233,8 +254,8 @@ describe("[.mark] the Platform Settings page in themes", () => {
         const alerte = await screen.findByRole("alert");
         expect(alerte.textContent).toContain("adresse_etablissement");
         expect(alerte.textContent).toContain("Choose the town for this postal code before saving.");
-        expect(bouton("Save Establishments").disabled).toBe(true);
-        expect(document.querySelector('[data-navigation="etablissement"] [data-pastille="erreur"]')).not.toBeNull();
+        expect(bouton("Save Whole company").disabled).toBe(true);
+        expect(document.querySelector('[data-onglet="etablissements"] [data-pastille="erreur"]')).not.toBeNull();
     });
 
     it("never overwrites an announcement it could not read, and still saves the address", async () => {
@@ -244,13 +265,13 @@ describe("[.mark] the Platform Settings page in themes", () => {
         expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
 
         // Untouched: the address alone is saved.
-        fireEvent.click(bouton("Save Establishments"));
+        fireEvent.click(bouton("Save Whole company"));
         await waitFor(() => expect(m.savePreferences).toHaveBeenCalledTimes(1));
         expect(m.saveAnnonce).not.toHaveBeenCalled();
 
         // A sentence typed over the unread one: named, and nothing saved.
         fireEvent.change(document.getElementById("annonce_fermeture")!, { target: { value: "Fermé." } });
-        await waitFor(() => expect(bouton("Save Establishments").disabled).toBe(true));
+        await waitFor(() => expect(bouton("Save Whole company").disabled).toBe(true));
         expect(document.querySelector('[data-erreur="annonce_fermeture"]')).not.toBeNull();
         expect(m.saveAnnonce).not.toHaveBeenCalled();
     });
@@ -275,11 +296,15 @@ describe("[.mark] the Platform Settings page in themes", () => {
 
     it("speaks French until the user chooses", async () => {
         await ouvrirLaPage((page) => <FournisseurLangue>{page}</FournisseurLangue>);
-        expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Paramètres de la plateforme");
-        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Établissements");
+        // Deux écrans montés ensemble : Entreprise, puis les réglages (dont le titre est testé ici).
+        expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
+            "Entreprise!",
+            "Paramètres de la plateforme",
+        ]);
+        expect(document.querySelector('[data-theme="etablissement"]')?.textContent).toContain("Toute l'entreprise");
         const theme = await ouvrirLeTheme("etablissement");
         expect(theme.textContent).toContain("Quand l'entreprise est fermée");
-        expect(bouton("Enregistrer Établissements")).toBeTruthy();
+        expect(bouton("Enregistrer Toute l'entreprise")).toBeTruthy();
     });
 });
 
@@ -421,14 +446,26 @@ describe("[.mark] cloture-code F7: the « Objects » section of « Establishment
         const { CHAMPS_OBJET } = await import("./ModaleObjet");
         const { CHAMPS_REGLAGES_OBJETS } = await import("./SectionObjets");
         await ouvrirLaPage();
-        const theme = await ouvrirLeTheme("etablissement");
+        // U2 bis : les objets ont leur sous-onglet de l'écran Entreprise.
+        ouvrirOnglet("objets");
+        const theme = document.querySelector('[data-theme="objets"]') as HTMLElement;
         await waitFor(() => expect(theme.querySelectorAll("[data-objet]").length).toBe(2));
         expect(theme.querySelector("#etablissement-objets")).not.toBeNull();
-        const marques = theme.querySelector('[data-objet="marques"]') as HTMLElement;
+        const marques = (theme.querySelector('[data-objet="marques"]') as HTMLElement).closest("tr") as HTMLElement;
         expect(marques.textContent).toContain("{{marques}}");
-        expect(marques.querySelector("[data-utilise-par]")!.textContent).toContain("Accueil");
-        expect(theme.querySelector('[data-objet="frais"] [data-utilise-par]')!.textContent).toMatch(/no agent|aucun agent/);
-        for (const champ of CHAMPS_REGLAGES_OBJETS) expect(theme.querySelector(`[data-reglage="${champ}"]`)).not.toBeNull();
+        // K4 : le tableau dit « 1 agent » (le nom des agents se lit dans la fenêtre de la variable).
+        expect(marques.querySelector("[data-utilise-par]")!.textContent).toMatch(/1 agent/);
+        expect((theme.querySelector('[data-objet="frais"]') as HTMLElement).closest("tr")!.querySelector("[data-utilise-par]")!.textContent).toMatch(/no agent|aucun agent/);
+        // Le plafond est une section en lignes : « Modifier » ouvre sa fenêtre, qui porte son champ.
+        expect(CHAMPS_REGLAGES_OBJETS).toEqual(["plafond_caracteres"]);
+        const lignes = await waitFor(() => {
+            const b = [...theme.querySelectorAll("button")].find((x) => /Edit|Modifier/.test(x.textContent ?? ""));
+            if (!b) throw new Error("plafond pas encore dessiné");
+            return b;
+        });
+        fireEvent.click(lignes);
+        await waitFor(() => expect(theme.querySelector('input[type="number"]')).not.toBeNull());
+        fireEvent.click(screen.getByRole("button", { name: /Cancel|Annuler/ }));
         // Une liste : ses colonnes et ses lignes ; une valeur : son type et sa valeur. Ensemble, tous les champs.
         const vus = new Set<string>();
         for (const nom of ["marques", "frais"]) {
@@ -443,6 +480,7 @@ describe("[.mark] cloture-code F7: the « Objects » section of « Establishment
             fireEvent.click(screen.getByRole("button", { name: /Cancel|Annuler/ }));
             await waitFor(() => expect(document.querySelector('[data-reglage="nom"]')).toBeNull());
         }
-        for (const champ of CHAMPS_OBJET) expect(vus.has(champ), champ).toBe(true);
+        // E66 : « Qui la tient à jour » (etablissement) n'apparaît que si le client a plusieurs établissements ou si la variable en porte un.
+        for (const champ of CHAMPS_OBJET.filter((c) => c !== "etablissement")) expect(vus.has(champ), champ).toBe(true);
     });
 });

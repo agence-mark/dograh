@@ -35,11 +35,12 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-facti
 }));
 vi.mock("@/lib/files", () => ({ getSignedUrl: vi.fn(async () => null), downloadFile: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("next/navigation", () => ({
     useParams: () => ({ workflowId: "34", runId: "967" }),
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
     usePathname: () => "/workflow/34/run/967",
+    // La page lit ?creer_test=<rang> (builder, lot 6) : aucun paramètre ici.
+    useSearchParams: () => new URLSearchParams(),
 }));
 // One stable object: the page re-fetches whenever `auth` changes identity.
 const AUTH = { isAuthenticated: true, loading: false, user: { id: "u-1" } };
@@ -222,7 +223,7 @@ describe("Fenêtre du run", () => {
     it("dit qu'une requête refusée a échoué, au lieu d'une fenêtre vide", async () => {
         lireAnalyse.mockResolvedValue({ error: { detail: "Workflow run not found" } });
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
-        expect(texte(await screen.findByRole("alert"))).toContain("Analyse du run indisponible : Workflow run not found");
+        expect(texte(await screen.findByRole("alert"))).toContain("Analyse du run indisponible");
     });
 
     it("est MONTÉE sur la page du run : la vraie page la rend pour un run terminé", async () => {
@@ -231,10 +232,13 @@ describe("Fenêtre du run", () => {
         });
         lireAgent.mockResolvedValue({ data: { name: "essai" } });
         lireAnalyse.mockResolvedValue({ data: ANALYSE });
+        lireAnalyse.mockClear();
         const { default: PageDuRun } = await import("@/app/workflow/[workflowId]/run/[runId]/page");
         enFrancais(<PageDuRun />);
-        await waitFor(() => expect(screen.getByTestId("fenetre-du-run")).toBeTruthy());
+        // La page range les blocs dans ses onglets (U3) : plusieurs fenêtres, une seule lecture de l'analyse.
+        await waitFor(() => expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0));
         expect(lireAnalyse).toHaveBeenCalledWith({ path: { workflow_id: 34, run_id: 967 } });
+        expect(lireAnalyse).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -333,13 +337,13 @@ describe("Fenêtre du run : coût estimé", () => {
         const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
         expect(texte(screen.getByTestId("fenetre-cout"))).toContain(
-            "Coût estimé : 0.1234 USD au tarif du 01/10 · partiel : pas de prix pour eleven_flash_v2_5",
+            "Coût estimé0.1234 USD au tarif du 01/10 · partiel : pas de prix pour eleven_flash_v2_5",
         );
         unmount();
         lireAnalyse.mockResolvedValue({ data: ANALYSE });
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
-        expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estimé : non capté");
+        expect(texte(screen.getByTestId("fenetre-cout"))).toContain("Coût estiménon capté");
     });
 });
 
@@ -432,6 +436,48 @@ describe("Fenêtre du run : chronomètre par tour, connexions et réseau", () =>
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
         expect(texte(ouvrir("bloc-chrono"))).toContain("Non capté pour ce run");
+    });
+
+    it("N3a : montre la latence par phase (moyenne · pire) pour tout l'appel et chaque étape, « – » pour une phase sans mesure, « non mesuré » sans tour mesuré", async () => {
+        const bloc = (moy: number, pire: number, tours: number, phases: Record<string, [number, number, number]>) => ({
+            tours,
+            total: { moyenne_ms: moy, pire_ms: pire },
+            phases: Object.fromEntries(Object.entries(phases).map(([k, [m, p, n]]) => [k, { moyenne_ms: m, pire_ms: p, tours: n }])),
+        });
+        lireAnalyse.mockResolvedValue({
+            data: {
+                ...ANALYSE,
+                latence_par_phase: {
+                    status: "ok",
+                    resume: {
+                        ...bloc(1733.3, 2400, 3, { modele: [1200, 2000, 3], voix: [233.3, 400, 3], transcription: [300, 400, 2] }),
+                        par_etape: {
+                            Accueil: bloc(1400, 1800, 2, { modele: [800, 1000, 2], outils: [200, 200, 1] }),
+                            Devis: bloc(2400, 2400, 1, { modele: [2000, 2000, 1], voix: [400, 400, 1] }),
+                        },
+                    },
+                    tours: [],
+                },
+            },
+        });
+        const { unmount } = enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        ouvrir("bloc-latence-par-phase");
+        const lignes = screen.getAllByTestId("latence-etape");
+        expect(lignes).toHaveLength(3);
+        expect(texte(lignes[0])).toContain("Tout l'appel");
+        expect(texte(lignes[0])).toContain("1200 ms · 2000 ms"); // modèle
+        expect(texte(lignes[0])).toContain("1733 ms · 2400 ms"); // total
+        expect(texte(lignes[1])).toContain("Accueil");
+        expect(texte(lignes[1])).toContain("200 ms · 200 ms"); // outils
+        expect(texte(lignes[2])).toContain("–"); // Devis : ni transcription ni outils
+        expect(texte(screen.getByTestId("bloc-latence-par-phase"))).toContain("moyenne 1733 ms");
+        unmount();
+        // Un appel sans tour mesuré, ou un serveur d'avant : « non mesuré », jamais « 0 ms ».
+        lireAnalyse.mockResolvedValue({ data: { ...ANALYSE, latence_par_phase: { status: "not_captured", reason: "no_measured_turn" } } });
+        enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
+        await screen.findByTestId("fenetre-du-run");
+        expect(texte(ouvrir("bloc-latence-par-phase"))).toContain("Non mesuré pour ce run");
     });
 
     it("montre les connexions par brique, le modèle ouvert ou repris et la liaison audio", async () => {

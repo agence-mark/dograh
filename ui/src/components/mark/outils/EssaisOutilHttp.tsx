@@ -138,7 +138,7 @@ export const EssaisOutilHttp = ({
                         {valeur.essais === 0
                             ? t({
                                   en: `A single request, ${delai} s at most (the Timeout above).`,
-                                  fr: `Une seule requête, ${delai} s au plus (le « Timeout » ci-dessus).`,
+                                  fr: `Une seule requête, ${delai} s au plus (le « Délai » ci-dessus).`,
                               })
                             : t({
                                   en: `${delai} s × ${valeur.essais + 1} requests + ${valeur.attente_entre_essais_s} s × ${valeur.essais} wait(s) = ${total} s at most.`,

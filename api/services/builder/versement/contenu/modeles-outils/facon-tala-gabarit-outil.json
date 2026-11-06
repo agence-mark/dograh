@@ -1,0 +1,17 @@
+{
+  "titre": "Gabarit d'outil (façon Tala)",
+  "contenu": {
+    "texte": "# Gabarit d'outil (recette façon Tala, par motif)\n\n## La description (ce que lit le modèle)\n`⟦Ce qu'il fait, dans quel logiciel⟧. À appeler ⟦déclencheur : dès que telles informations sont connues / au début de l'étape⟧. Répond un statut (⟦liste fermée⟧) et ⟦champs rendus⟧. ⟦Ce qui compte comme réussi⟧.`\n\nRègles :\n- Écrite comme pour expliquer à un collègue quand et pourquoi l'utiliser.\n- Les statuts sont une liste fermée, stable d'un appel à l'autre (le test les cherche).\n- Les paramètres sont ceux du motif, demandés à l'appelant dans l'étape : jamais recopiés d'un autre métier.\n\n## L'usage dans l'étape (ce que dit le moule)\n```\nDès que ⟦champs⟧ sont connus, ⟦outil⟧.\n⟦statut A⟧ : ⟦geste⟧.\n⟦statut B⟧ : ⟦geste⟧.\nIntrouvable : vérifier la référence, une seule nouvelle recherche, puis ⟦repli⟧.\nErreur : ne rien affirmer, ⟦repli⟧.\n```\n\n## Phrase d'attente\nPropre à l'outil, d'après son logiciel : « je consulte ⟦l'agenda, le dossier, la comptabilité⟧ ». Jamais une phrase générique pour tous.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/gabarit-d-outil",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

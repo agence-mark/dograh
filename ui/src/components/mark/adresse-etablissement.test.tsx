@@ -25,6 +25,7 @@ import type { AdresseEtablissement, OrganizationPreferences } from "@/client/typ
 import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { ChampAdresseEtablissement } from "./ChampAdresseEtablissement";
+import { lireNotifications } from "./notifications/magasin";
 import { SectionAdresseEtablissement } from "./SectionAdresseEtablissement";
 
 const mocks = vi.hoisted(() => ({
@@ -51,6 +52,7 @@ const mocks = vi.hoisted(() => ({
     codesSysteme: ["do_not_call"],
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: () =>
         Promise.resolve({ data: { format: "etablissements-mark", version: 1, etablissements: [] } }),
@@ -225,7 +227,11 @@ describe("[.mark] business address field", () => {
 // 2. The organization's card, on the Platform Settings PAGE
 // --------------------------------------------------------------------------- //
 
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 /**
  * 🆕 Chantier reorganisation-ecran-reglages (step 5): the page is in themes.
@@ -233,8 +239,9 @@ const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
  * in « Integrations »; the vocabulary in « Listening ».
  */
 const ouvrirLeTheme = async (theme: string) => {
+    ouvrirOnglet(theme);
     const entete = await waitFor(() => {
-        const trouve = document.querySelector(`[data-theme="${theme}"] > button[aria-expanded]`);
+        const trouve = document.querySelector(`[data-theme="${theme}"] button[aria-expanded], [data-theme="${theme}"][data-plat]`);
         if (!trouve) throw new Error("page not drawn yet");
         return trouve as HTMLButtonElement;
     });
@@ -245,14 +252,15 @@ const ouvrirPlateforme = async () => {
     await ouvrirLeTheme("etablissement");
     await waitFor(() => expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull());
 };
-const ENREGISTRER = { name: "Save Establishments" };
+const ENREGISTRER = { name: "Save Whole company" };
 
 describe("[.mark] business address on the Platform Settings page", () => {
     it("is on the page, in the Business theme", async () => {
         await ouvrirPlateforme();
         expect(screen.getByText("Business address")).toBeTruthy();
         expect(document.getElementById("settings-business-address-code-postal")).not.toBeNull();
-        expect(document.body.textContent).toMatch(/Helps recognise the towns callers name/);
+        // K1b : l'explication est dans le « ! », plus en phrase visible.
+        expect(document.body.textContent).not.toMatch(/Helps recognise the towns callers name/);
     });
 
     it("[trade vocabulary] the card is really mounted on the same page", async () => {
@@ -260,10 +268,9 @@ describe("[.mark] business address on the Platform Settings page", () => {
         // is mounted nowhere is a vocabulary nobody can fill.
         render(<PageReglagesPlateforme />);
         await ouvrirLeTheme("ecoute");
-        // 🆕 18/09 : la liste est passée dans une modale, la carte porte le résumé
-        // et le bouton qui l'ouvre.
-        expect(await screen.findByRole("button", { name: /open vocabulary/i })).toBeTruthy();
-        expect(document.body.textContent).toMatch(/0 terms/);
+        // La liste est un tableau posé dans « Écoute et sons » : sans terme, son état vide et ses boutons.
+        expect(await screen.findByText("No term yet")).toBeTruthy();
+        expect(screen.getByRole("button", { name: /^Import$/ })).toBeTruthy();
     });
 
     it("sends the chosen address with the other preferences", async () => {
@@ -375,7 +382,8 @@ describe("[.mark] business address on the Platform Settings page, after the revi
         await ouvrirPlateforme();
         fireEvent.click(screen.getByRole("button", ENREGISTRER));
         await waitFor(() => expect(mocks.savePreferences).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
+        // Le retour passe par le module des notifications (plus par sonner) : un échec, et rien sous l'adresse.
+        await waitFor(() => expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true));
         expect(screen.queryByRole("alert")).toBeNull();
     });
 });
@@ -429,7 +437,7 @@ describe("[.mark] business address for this agent", () => {
     });
 
     it("shows a refusal from the server under the fields", async () => {
-        const onSave = vi.fn().mockRejectedValue(new Error("Unknown commune (INSEE code 60999)."));
+        const onSave = vi.fn().mockRejectedValue(Object.assign(new Error("Unknown commune (INSEE code 60999)."), { detail: [{ msg: "Unknown commune (INSEE code 60999)." }] }));
         ouvrirAgent(null, onSave);
         taper("agent-business-address", "code-postal", "60740");
         await waitFor(() => expect(liste("agent-business-address").value).toBe("60589"));

@@ -1,0 +1,13 @@
+{
+  "titre": "Écrire des tests",
+  "contenu": {
+    "phrase": "scénario, appelant, critères",
+    "demande": "Écris les tests de {agent} : un test par motif d'appel de la fiche, plus les cas difficiles. Joue-les et donne-moi le rapport.",
+    "besoin": "agent",
+    "icone": "test"
+  },
+  "notes": "Carte de départ de la maquette (E50). Versée en Candidat : le passage en Recette est un clic humain.",
+  "etiquettes": [
+    "accueil"
+  ]
+}

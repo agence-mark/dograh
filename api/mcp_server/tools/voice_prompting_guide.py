@@ -66,7 +66,23 @@ async def get_voice_prompting_guide(
     template content is actually read. Do not pull every topic.
     """
     await authenticate_mcp_request()
+    resultat = await _guide_de_l_amont(stage, topic, node_type)
+    # [.mark] Nos règles de rédaction d'abord (bibliothèque), le guide de l'amont en second.
+    from api.services.builder.regles_redaction import charger
 
+    regles = await charger()
+    if not regles:
+        return resultat
+    return {
+        "regles_mark": {
+            "lire_en_premier": "These are the .mark writing rules. They come BEFORE the upstream guide below: follow them first. A rule with a `recette` belongs to that recipe only (facon-tala or facon-polyai): never mix the two.",
+            "regles": regles,
+        },
+        **resultat,
+    }
+
+
+async def _guide_de_l_amont(stage: Optional[str], topic: Optional[str], node_type: Optional[str]) -> dict[str, Any]:
     if topic is not None and stage is not None:
         raise ValueError(
             "Pass either `topic` or `stage`, not both. Use `stage` for a "

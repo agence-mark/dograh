@@ -29,6 +29,11 @@ fi
 
 alembic -c "$BASE_DIR/api/alembic.ini" upgrade head
 
+# [.mark] Builder partie 2 (§ 6 bis) : le contenu de la bibliothèque rangé dans le dépôt, versé une fois par démarrage.
+# Idempotent, n'écrase jamais une version écrite par une personne, ne bloque jamais le démarrage.
+# Revue serveur, mineur 10 : borné par un délai (VERSEMENT_DELAI_S, 300 s) ; un verrou de la base fait verser UNE réplique à la fois.
+timeout "${VERSEMENT_DELAI_S:-300}" python -m api.scripts.mark.verser || echo "[.mark] versement de la bibliothèque en échec ou trop long (démarrage poursuivi)"
+
 ###############################################################################
 ### 3) Signal handling — forward TERM/INT to children for clean docker stop
 ###############################################################################

@@ -37,6 +37,8 @@ export interface MotifDePhrase {
     eteinte: Texte;
     silence_de_l_appelant: boolean;
     sortie_par_le_code: boolean;
+    /** L3e : un motif verrouillé ne s'éteint pas et ne se vide pas (l'annonce « vous parlez à une IA »). */
+    verrouille: boolean;
 }
 
 export const MOTIFS_DE_PHRASES = CATALOGUE.motifs as unknown as MotifDePhrase[];
@@ -364,7 +366,7 @@ const texteDeSortie = (r: ReglePhrase, motif: MotifDePhrase, c: ContextePhrases)
 
 /**
  * Ce que vit l'appelant, seconde par seconde, pour cette règle. Les incohérences sortent en `alertes`
- * (orange, sans bloquer). `reposS` est la pause minimale entre deux phrases d'attente.
+ * (violet, sans bloquer). `reposS` est la pause minimale entre deux phrases d'attente.
  */
 export const apercuDeLaRegle = (brute: ReglePhrase, c: ContextePhrases, hors: { existeUneRegleDuGroupe?: boolean } = {}): ApercuRegle => {
     const r = normaliserRegle(brute);

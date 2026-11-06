@@ -24,6 +24,8 @@ from typing import Any
 
 MARQUE = "MARK_VERDICT "
 CLE_MODELE = "SIMULATEUR_CLE_MODELE"
+# Partie 3, lot 12 (M-5) : la clé du juge, quand elle n'est pas celle de l'appelant.
+CLE_JUGE = "SIMULATEUR_CLE_JUGE"
 
 
 class EntreeInvalide(ValueError):
@@ -146,6 +148,7 @@ async def jouer(entree: dict) -> dict:
     litellm.completion = pour_le_fournisseur(litellm.completion)
 
     cle = os.environ.get(CLE_MODELE) or None
+    cle_juge = os.environ.get(CLE_JUGE) or cle
     # La transcription de l'agent (pour l'appelant et le juge) passe par la même clé ElevenLabs
     # que la voix de l'appelant : aucune clé OpenAI.
     scenario.set_stt_provider(ElevenLabsSTTProvider())
@@ -167,7 +170,7 @@ async def jouer(entree: dict) -> dict:
             scenario.JudgeAgent(
                 criteria=entree["criteres"],
                 model=juge["modele"],
-                api_key=cle,
+                api_key=cle_juge,
                 system_prompt=juge["consigne"],
             ),
         ],

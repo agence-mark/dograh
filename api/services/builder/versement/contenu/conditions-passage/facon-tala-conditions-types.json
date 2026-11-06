@@ -1,0 +1,17 @@
+{
+  "titre": "Conditions types façon Tala (catalogue)",
+  "contenu": {
+    "texte": "# Conditions de passage types (recette façon Tala, par motif)\n\nComplète « Conditions fait accompli, au lieu de ». Toujours : un fait déjà accompli, puis la tentation à ne pas suivre.\n\n| Situation | Formule |\n|---|---|\n| Accueil vers le travail | « L'accueil est terminé et l'appelant a formulé sa demande. Déclencher cette transition même si elle appelle une réponse immédiate. » |\n| Accueil vers le travail, si identification d'abord | « … car l'appelant doit d'abord être identifié. » |\n| Orientation vers un motif | « … relève de ⟦motif⟧. Déclencher cette transition dès que ce motif est clair, au lieu de poser d'autres questions à cette étape. » |\n| Motif reconnu avant les détails | « … même si l'appelant n'a pas encore précisé ⟦détail⟧. » |\n| Vers une personne | « … explicitement demandé une personne, ou sa demande dépasse cette étape. Déclencher cette transition au lieu d'essayer de traiter davantage. » |\n| Non identifiable | « … impossible à identifier après deux essais. Déclencher cette transition au lieu d'insister. » |\n| Résultat vers récapitulatif | « ⟦résultat⟧ a été obtenu et dit, ou l'appelant y a renoncé. Déclencher cette transition au lieu d'ouvrir un nouveau sujet. » |\n| Introuvable après repli | « … reste introuvable après la seconde recherche. Déclencher cette transition au lieu de retenter. » |\n| Réservation impossible | « … ne peut pas être résolu ici. Déclencher cette transition au lieu de retenter la réservation. » |\n| Litige | « … Déclencher cette transition au lieu de chercher à résoudre le litige à cette étape / au lieu d'insister ou d'argumenter. » |\n| Changer d'avis entre deux gestes | « … a finalement choisi ⟦l'autre geste⟧. Déclencher cette transition au lieu de ⟦geste en cours⟧. » |\n| Exclusion | « Un critère d'exclusion a été établi. Déclencher cette transition immédiatement au lieu de poursuivre les questions. » |\n| Opposition | « … a demandé à ne plus être appelée et c'est enregistré. Déclencher cette transition immédiatement au lieu de poursuivre. » |\n| Retour depuis le récapitulatif | « … Déclencher cette transition même si la demande pourrait recevoir une réponse brève ici. » |\n| Fin | « … clairement dit au revoir. Un simple merci ou d'accord n'est pas une fin. Déclencher cette transition au lieu de poser une nouvelle question ouverte. » |\n\nChaque étape a sa sortie de fin et sa sortie vers une personne ; l'urgence sort de l'accueil ET de chaque étape."
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

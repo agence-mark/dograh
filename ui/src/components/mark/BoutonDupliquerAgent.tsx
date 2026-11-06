@@ -1,10 +1,12 @@
 "use client";
 
 import { Copy } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost } from "@/client";
+import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 
 import { useLangue } from "./langue/langue";
@@ -32,11 +34,18 @@ interface BoutonDupliquerAgentProps {
     onDuplique: () => void;
 }
 
+/** What the button says of itself: where the copy goes, and that a main agent copies its whole group. */
+export const TEXTE_DUPLIQUER = {
+    en: "Copies the agent with its settings, at the root of the list. A main agent copies its whole group of specialised agents.",
+    fr: "Copie l'agent avec ses réglages, à la racine de la liste. Un agent principal copie tout son groupe d'agents spécialisés.",
+};
+
 export const BoutonDupliquerAgent = ({
     workflowId,
     onDuplique,
 }: BoutonDupliquerAgentProps) => {
     const { t } = useLangue();
+    const router = useRouter();
     const [enCours, setEnCours] = useState(false);
     const echec = t({ en: "Failed to duplicate agent", fr: "Échec de la duplication de l'agent" });
 
@@ -55,18 +64,19 @@ export const BoutonDupliquerAgent = ({
             // resolves with `{ data, error }`. Without this check a 500 would
             // read as a success and the list would refresh onto nothing.
             if (reponse.error) {
-                toast.error(echec);
+                notifier.echec({ fr: "Duplication impossible. Réessayez.", en: "Could not duplicate. Try again." });
                 return;
             }
-            toast.success(
-                t({
-                    en: "Agent duplicated. The copy is at the root of the list.",
-                    fr: "Agent dupliqué. La copie est à la racine de la liste.",
-                }),
+            const copie = reponse.data?.id;
+            notifier.succes(
+                { fr: "Agent dupliqué. La copie est à la racine de la liste.", en: "Agent duplicated. The copy is at the root of the list." },
+                copie === undefined
+                    ? undefined
+                    : { bouton: { libelle: { fr: "Ouvrir la copie", en: "Open the copy" }, action: () => router.push(adresseOnglet(copie, "parcours")) } },
             );
             onDuplique();
         } catch {
-            toast.error(echec);
+            notifier.echec({ fr: "Duplication impossible. Réessayez.", en: "Could not duplicate. Try again." });
         } finally {
             setEnCours(false);
         }
@@ -78,6 +88,7 @@ export const BoutonDupliquerAgent = ({
             size="sm"
             onClick={dupliquer}
             disabled={enCours}
+            title={t(TEXTE_DUPLIQUER)}
             className="flex items-center gap-2"
         >
             {enCours ? (

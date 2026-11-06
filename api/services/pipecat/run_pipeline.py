@@ -110,6 +110,7 @@ from api.services.pipecat.greffier import (
 )
 from api.services.pipecat.post_scriptum import post_scriptum_du_moteur
 from api.services.pipecat.replique_inachevee import brancher_la_relance
+from api.services.interventions_du_moteur import brancher_les_interventions
 from api.services.phrases.coupures import brancher_les_coupures
 from api.services.pipecat.trace_modele import brancher_la_trace
 from api.services.pipecat.reconnaissance_lexique import (
@@ -1136,6 +1137,7 @@ async def _run_pipeline_impl(
     workflow_graph = WorkflowGraph(
         ReactFlowDTO.model_validate(run_workflow_json),
         skip_instance_constraints_for={"trigger"},
+        outils_epingles=getattr(run_definition, "outils_epingles", None),
     )
     call_dispositions = WorkflowConfigurationDefaults.model_validate(
         {"call_dispositions": run_configs.get("call_dispositions") or []}
@@ -1477,6 +1479,7 @@ async def _run_pipeline_impl(
     # [.mark] D1 et D10 de repliques-coupees : la trace du cerveau (case allumée
     # seulement) et la réflexion de secours de la relance d'une réplique inachevée.
     # D20 (voix-soniox) : avant la trace, qui photographie la requête telle qu'elle part.
+    brancher_les_interventions(llm, run_configs)  # lot 8 de builder-agent-vocal
     brancher_les_coupures(engine, llm)
     brancher_la_trace(engine, llm, run_configs, getattr(workflow, "name", None))
     brancher_la_relance(engine, llm, run_configs)
@@ -1643,6 +1646,11 @@ async def _run_pipeline_impl(
     call_monitor_processor.bind_user(
         user_context_aggregator, idle_timeout=max_user_idle_timeout
     )
+    # [.mark] U10 / S1 (D179) : la durée maximale d'une conversation du widget public, en trois temps
+    # (consigne, phrase de fin après la phrase en cours, coupure dure). Appel normal : rien.
+    from api.services.site_mark.demarrage import lancer_la_duree_du_widget
+
+    lancer_la_duree_du_widget(engine, workflow_run, workflow.organization_id)
 
     pipeline_metrics_aggregator = PipelineMetricsAggregator()
     # [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D12) : le greffier et le cerveau de fond
@@ -1810,6 +1818,13 @@ async def _run_pipeline_impl(
     # Now set the task and transport output on the engine
     engine.call_worker = task
     engine.set_transport_output(transport.output())
+    # [.mark] U10 / S5 : la porte du texte tapé par le visiteur du widget (retirée à la fin de l'appel).
+    from api.services.site_mark import texte_visiteur as _texte_visiteur
+
+    _texte_visiteur.enregistrer_porte(
+        workflow_run_id,
+        _texte_visiteur.PorteTexte(_texte_visiteur.fabriquer_injecteur(engine, in_memory_logs_buffer)),
+    )
 
     from api.services.observability.call_events.runtime import create_session
 
@@ -1941,8 +1956,10 @@ async def _run_pipeline_impl(
         # sous-circuit de l'agent, juste avant le bus qui porte son texte à la
         # voix de l'appel (réglages PAR agent : le filtre reste dans son sous-circuit). L'état est vivant : le nom n'est pas connu au
         # montage, il arrive avec l'extraction, pendant l'appel.
+        from api.services.securite.contexte import depuis_le_moteur as securite_du_moteur  # [.mark] U3 quinquies
+
         agent.filtre_nom_civilite = creer_filtre_nom_civilite(
-            run_configs, variables_appel, contexte_appel, voix=user_config.tts
+            run_configs, variables_appel, contexte_appel, voix=user_config.tts, securite=securite_du_moteur(engine)
         )
         # [.mark] Plan mode-prise-de-notes : le post-scriptum ou le déclencheur
         # du greffier, sur l'agent qui porte la fiche (le premier), seulement
@@ -2084,6 +2101,9 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
+
+        _retirer_porte_texte(workflow_run_id)
         # Close MCP sessions here, not in engine.cleanup(). The anyio cancel
         # scopes opened by MCPClient.start() in engine.initialize() are
         # task-affine; this finally runs in the same task as initialize(),

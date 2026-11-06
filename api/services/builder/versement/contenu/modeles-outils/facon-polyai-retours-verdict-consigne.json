@@ -1,0 +1,11 @@
+{
+  "titre": "Retours d'outil : verdict puis consigne (façon PolyAI)",
+  "contenu": {
+    "texte": "# Retours d'outil : verdict puis consigne (recette façon PolyAI)\n\nChaque retour commence par un **verdict en majuscules**, suivi de la **consigne exacte**. Le modèle n'a jamais à deviner la suite.\n\n| Verdict | Quand | Consigne qui suit |\n|---|---|---|\n| NON VÉRIFIÉ | valeur manquante ou mal formée | quoi redemander, avec la question |\n| HORS ZONE | l'adresse sort de la zone de l'entreprise | le dire à l'appelant, ne rien réserver |\n| ADRESSE OK | adresse vérifiée | la question suivante à poser |\n| ADRESSE CORRIGÉE | l'appelant a corrigé pendant une relecture | rappeler l'outil d'écriture sans confirmation et relire l'adresse corrigée |\n| PAS ENCORE ENREGISTRÉ | première étape de la porte d'écriture | le texte exact à relire |\n| DÉJÀ ENREGISTRÉ | la porte a déjà écrit | ne rien refaire, redire le résultat |\n| ENREGISTRÉ | écriture réussie | ce qu'il faut dire à l'appelant |\n\n## Règles\n- Le verdict est stable (jamais reformulé d'un appel à l'autre) : le test le cherche.\n- La consigne est à l'impératif et ne dépend pas du prompt général.\n- Les messages de sortie (transfert, panne, incompréhension) vivent dans le code de l'outil, par motif fermé : le modèle ne les improvise pas.\n- Aucun retour ne promet un rappel ou un transfert qu'aucun mécanisme n'exécute.\n"
+  },
+  "notes": "Relevé du 03/11/2026 (note 13) : Candidat jusqu'à son banc. Recette distincte de la recette façon Tala, jamais fusionnée.",
+  "dossier": "facon-polyai",
+  "etiquettes": [
+    "facon-polyai"
+  ]
+}

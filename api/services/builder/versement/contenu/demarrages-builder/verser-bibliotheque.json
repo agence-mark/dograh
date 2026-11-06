@@ -1,0 +1,14 @@
+{
+  "titre": "Verser à la bibliothèque",
+  "contenu": {
+    "phrase": "un PDF, un prompt, une recette",
+    "demande": "Range les fichiers joints dans la bibliothèque : propose la famille et le sous-dossier de chacun, en Candidat.",
+    "besoin": "fichiers",
+    "proposee_dans": "labo",
+    "icone": "fichier"
+  },
+  "notes": "Carte de départ de la maquette (E50). Versée en Candidat : le passage en Recette est un clic humain.",
+  "etiquettes": [
+    "accueil"
+  ]
+}

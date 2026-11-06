@@ -1,0 +1,11 @@
+Polices du widget (S-1). Hebergees chez nous, jamais chez un tiers.
+
+Pour ajouter une police : deposer ici ses deux fichiers, 400 (normal) et 600 (gras) :
+  Poppins-400.woff2        Poppins-600.woff2
+  Montserrat-400.woff2     Montserrat-600.woff2
+  Lato-400.woff2           Lato-600.woff2
+  Nunito-400.woff2         Nunito-600.woff2
+  DMSans-400.woff2         DMSans-600.woff2
+  PlayfairDisplay-400.woff2  PlayfairDisplay-600.woff2
+(Switzer-400 et Switzer-600 y sont deja.) Rien d'autre a changer : le widget ne charge que la police choisie ;
+tant qu'un fichier manque, le visiteur voit la police du systeme.

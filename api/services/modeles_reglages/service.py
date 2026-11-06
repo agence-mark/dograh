@@ -2,8 +2,9 @@
 
 The rules, from the plan ``modeles-de-reglages`` (M1 to M11):
 
-- a template lives in the organization (M1): every read and write below takes the organization's id and
-  goes through ``organization_configurations``; nothing here reads another organization's row;
+- a template lives in the LIBRARY (builder partie 2, D1, E45: family ``modeles-reglages``, ``bibliotheque.py``): one
+  versioned element per template, shared by the team's spaces. What stays per organization is the MENTION of the last
+  template applied to each agent (``MODELES_REGLAGES.applications``); applying is still scoped to the agent's organization;
 - it holds the BEHAVIOUR settings only (M6, ``classement.py``), and never a key of access nor a reference
   to a key (M3): the keys are removed when it is created and refused when a file brings one;
 - applying is a COPY on the DRAFT (M4, M5): the sections ticked replace exactly their settings, a setting
@@ -43,6 +44,9 @@ from api.schemas.modeles_reglages import (
 )
 from api.services.groupe.passations import agent_principal_de
 from api.services.groupe.reglages import CLES_COMMUNES, CLES_SUIVENT_LE_CERVEAU, a_son_cerveau
+from api.services.builder.bibliotheque.modele import Statut
+from api.services.builder.bibliotheque.service import ErreurBibliotheque
+from api.services.modeles_reglages import bibliotheque as lib
 from api.services.modeles_reglages import classement as cl
 
 CLE = OrganizationConfigurationKey.MODELES_REGLAGES.value
@@ -66,17 +70,36 @@ class ModeleRefuse(Exception):
 # --------------------------------------------------------------------------- #
 
 
-async def lire_le_stock(organization_id: int) -> StockModeles:
-    """The organization's templates. ⛔ Strict: a row that exists and cannot be read raises, so the next
-    write never replaces templates the screen could not show."""
+def _traduire(erreur: ErreurBibliotheque) -> ModeleRefuse:
+    return ModeleRefuse(str(erreur), statut=erreur.statut)
+
+
+async def _mentions(organization_id: int) -> dict[str, MentionApplication]:
+    """⛔ Strict: a row that exists and cannot be read raises, so the next write never replaces mentions the screen could
+    not show. The templates the row may still hold (before the move to the library) are not read here."""
     ligne = await db_client.get_configuration(organization_id, CLE)
     if ligne is None or not ligne.value:
-        return StockModeles()
-    return StockModeles.model_validate(ligne.value)
+        return {}
+    return StockModeles.model_validate(ligne.value).applications
+
+
+async def lire_le_stock(organization_id: int) -> StockModeles:
+    """The templates (library) and the mentions of the organization's agents."""
+    try:
+        elements = await lib.lister_les_elements()
+    except ErreurBibliotheque as erreur:
+        raise _traduire(erreur) from None
+    modeles = sorted((lib.vers_le_modele(e) for e in elements), key=lambda m: (m.nom.casefold(), m.id))
+    return StockModeles(modeles=modeles, applications=await _mentions(organization_id))
 
 
 async def ecrire_le_stock(organization_id: int, stock: StockModeles) -> StockModeles:
-    await db_client.upsert_configuration(organization_id, CLE, stock.model_dump(mode="json"))
+    """Writes the MENTIONS only; a template is written in the library, never in the organization's row. The templates an
+    old row still holds are kept as they are (nothing is deleted)."""
+    ligne = await db_client.get_configuration(organization_id, CLE)
+    brut = dict(ligne.value) if ligne is not None and isinstance(ligne.value, dict) else {}
+    brut["applications"] = {c: m.model_dump(mode="json") for c, m in stock.applications.items()}
+    await db_client.upsert_configuration(organization_id, CLE, brut)
     return stock
 
 
@@ -86,7 +109,7 @@ def _nom_pris(stock: StockModeles, nom: str, sauf: str | None = None) -> bool:
 
 
 def _nom_libre(stock: StockModeles, nom: str) -> str:
-    """A name no template of the organization carries: the file's name, then « (2) », « (3) »..."""
+    """A name no template carries: the file's name, then « (2) », « (3) »..."""
     if not _nom_pris(stock, nom):
         return nom
     rang = 2
@@ -142,49 +165,59 @@ def valeurs_du_modele(configurations: Mapping[str, Any]) -> dict[str, Any]:
     return valeurs
 
 
-async def creer_un_modele(organization_id: int, nom: str, workflow_id: int) -> ModeleDeReglages:
+def _auteur(organization_id: int, auteur: str | None) -> str:
+    return auteur or f"organisation:{organization_id}"
+
+
+async def creer_un_modele(
+    organization_id: int, nom: str, workflow_id: int, auteur: str | None = None
+) -> ModeleDeReglages:
     stock = await lire_le_stock(organization_id)
     if len(stock.modeles) >= MAX_MODELES:
-        raise ModeleRefuse(f"An organization holds {MAX_MODELES} templates at most.")
+        raise ModeleRefuse(f"The library holds {MAX_MODELES} settings templates at most.")
     if _nom_pris(stock, nom):
         raise ModeleRefuse("Another template already has this name.", statut=409)
     active = await configuration_active(workflow_id, organization_id)
     valeurs = valeurs_du_modele(active["configurations"])
-    modele = ModeleDeReglages(
-        id=uuid.uuid4().hex[:12],
-        nom=nom,
-        cree_le=datetime.now(UTC),
-        origine=OrigineDuModele(
-            workflow_id=workflow_id,
-            agent_nom=active["agent_nom"],
-            version_number=active["version_number"],
-            version_status=active["version_status"],
-        ),
-        commit=os.getenv(VARIABLE_DU_COMMIT) or None,
-        sections=cl.sections_presentes(valeurs),
-        valeurs=valeurs,
-    )
-    stock.modeles.append(modele)
-    await ecrire_le_stock(organization_id, stock)
-    return modele
+    try:
+        element = await lib.creer(
+            nom,
+            valeurs,
+            OrigineDuModele(
+                workflow_id=workflow_id,
+                agent_nom=active["agent_nom"],
+                version_number=active["version_number"],
+                version_status=active["version_status"],
+            ),
+            os.getenv(VARIABLE_DU_COMMIT) or None,
+            _auteur(organization_id, auteur),
+            notes=f"Gelé depuis l'agent « {active['agent_nom']} ».",
+        )
+    except ErreurBibliotheque as erreur:
+        raise _traduire(erreur) from None
+    return lib.vers_le_modele(element)
 
 
 async def renommer_un_modele(organization_id: int, modele_id: str, nom: str) -> ModeleDeReglages:
     stock = await lire_le_stock(organization_id)
-    modele = trouver(stock, modele_id)
+    trouver(stock, modele_id)
     if _nom_pris(stock, nom, sauf=modele_id):
         raise ModeleRefuse("Another template already has this name.", statut=409)
-    modele.nom = nom
-    await ecrire_le_stock(organization_id, stock)
-    return modele
+    try:
+        element = await lib.bibliotheque.renommer(lib.FAMILLE, modele_id, nom)
+    except ErreurBibliotheque as erreur:
+        raise _traduire(erreur) from None
+    return lib.vers_le_modele(element)
 
 
 async def supprimer_un_modele(organization_id: int, modele_id: str) -> None:
     """M4: no agent already set is touched; the mention they keep carries a copy of the name."""
     stock = await lire_le_stock(organization_id)
     trouver(stock, modele_id)
-    stock.modeles = [m for m in stock.modeles if m.id != modele_id]
-    await ecrire_le_stock(organization_id, stock)
+    try:
+        await lib.bibliotheque.supprimer(lib.FAMILLE, modele_id)
+    except ErreurBibliotheque as erreur:
+        raise _traduire(erreur) from None
 
 
 # --------------------------------------------------------------------------- #
@@ -239,24 +272,21 @@ def verifier_le_fichier(fichier: FichierDeModele) -> dict[str, Any]:
     return copy.deepcopy(fichier.valeurs)
 
 
-async def importer_un_fichier(organization_id: int, fichier: FichierDeModele) -> ModeleDeReglages:
+async def importer_un_fichier(
+    organization_id: int, fichier: FichierDeModele, auteur: str | None = None
+) -> ModeleDeReglages:
     valeurs = verifier_le_fichier(fichier)
     stock = await lire_le_stock(organization_id)
     if len(stock.modeles) >= MAX_MODELES:
-        raise ModeleRefuse(f"An organization holds {MAX_MODELES} templates at most.")
-    modele = ModeleDeReglages(
-        id=uuid.uuid4().hex[:12],
-        nom=_nom_libre(stock, fichier.nom),
-        cree_le=datetime.now(UTC),
+        raise ModeleRefuse(f"The library holds {MAX_MODELES} settings templates at most.")
+    try:
         # The origin of a file is the organization it came from: its agent means nothing here (M1).
-        origine=None,
-        commit=fichier.commit,
-        sections=cl.sections_presentes(valeurs),
-        valeurs=valeurs,
-    )
-    stock.modeles.append(modele)
-    await ecrire_le_stock(organization_id, stock)
-    return modele
+        element = await lib.creer(
+            _nom_libre(stock, fichier.nom), valeurs, None, fichier.commit, _auteur(organization_id, auteur), notes="Importé d'un fichier."
+        )
+    except ErreurBibliotheque as erreur:
+        raise _traduire(erreur) from None
+    return lib.vers_le_modele(element)
 
 
 # --------------------------------------------------------------------------- #
@@ -329,7 +359,7 @@ def calculer_l_application(
     vues: set[str] = set()
 
     for section in choisies:
-        for cle in cl.cles_de_la_section(section):
+        for cle in cl.cles_a_appliquer(section):
             if cle in vues:
                 continue
             if cle in reglees_par_le_principal:
@@ -455,6 +485,11 @@ async def appliquer_un_modele(
         raise ModeleRefuse("Tick at least one section.")
     stock = await lire_le_stock(organization_id)
     modele = trouver(stock, modele_id)
+    element = await lib.lire_le_modele(modele_id)
+    if element is not None and element.statut is Statut.REJETE:
+        raise ModeleRefuse(
+            f"This template is rejected ({element.courante.raison_rejet or 'no reason kept'}): it is not applied."
+        )
     active = await configuration_active(workflow_id, organization_id)
     cles_org, effectif = await _cles_de_l_organisation(organization_id)
     nouveau, resultat = calculer_l_application(
@@ -482,7 +517,7 @@ async def appliquer_un_modele(
 
     await recopier_dans_les_specialises(workflow_id, organization_id)
     stock = await lire_le_stock(organization_id)
-    stock.applications[str(workflow_id)] = MentionApplication(
+    stock.applications[await cle_de_la_mention(workflow_id)] = MentionApplication(
         modele_id=modele.id,
         nom=modele.nom,
         applique_le=datetime.now(UTC),
@@ -492,13 +527,22 @@ async def appliquer_un_modele(
     return resultat.model_copy(update={"ecrit": True})
 
 
+async def cle_de_la_mention(workflow_id: int) -> str:
+    """[.mark] Partie 3, SA-L3d (audit 12 § 2, « blocs et modèles : suivre ou rester se décide PAR BRANCHE ») : la clé de la mention
+    d'un agent. La principale garde la clé d'avant (l'identifiant de l'agent : aucune mention existante n'est réécrite) ; une branche
+    ouverte a la sienne (``agent:branche``), donc le modèle appliqué (et sa version) se garde par branche."""
+    ouverte = (await db_client.branche_ouverte_de(workflow_id)).branch_id
+    return str(workflow_id) if ouverte is None else f"{workflow_id}:{ouverte}"
+
+
 async def mention_de_l_agent(organization_id: int, workflow_id: int) -> MentionApplication | None:
-    """The mention an agent of the organization keeps (M4). 404 for another organization's agent."""
+    """The mention an agent of the organization keeps (M4), the one of the branch the request opened (SA-L3d). 404 for another
+    organization's agent."""
     workflow = await db_client.get_workflow(workflow_id, organization_id=organization_id)
     if not workflow:
         raise ModeleRefuse("Agent not found.", statut=404)
     stock = await lire_le_stock(organization_id)
-    return stock.applications.get(str(workflow_id))
+    return stock.applications.get(await cle_de_la_mention(workflow_id))
 
 
 async def sections_reglees_par_le_principal_de_l_agent(organization_id: int, workflow_id: int) -> list[str]:

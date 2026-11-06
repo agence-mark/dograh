@@ -5,7 +5,6 @@ import { ArrowLeft, BookA, Brain, CalendarIcon, Clipboard, ClipboardList, Clock,
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
     downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet,
@@ -26,6 +25,9 @@ import {
 } from "@/components/AIModelConfigurationV2Editor";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier, useAgentCourant } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { PerServiceModelOverride } from "@/components/mark/PerServiceModelOverride";
 import { PageReglagesAgent } from "@/components/mark/reglages-agent/PageReglagesAgent";
 import { ID_SECTION_ADRESSE_ETABLISSEMENT, SectionAdresseEtablissement } from "@/components/mark/SectionAdresseEtablissement";
@@ -47,7 +49,6 @@ import { SETTINGS_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { useOrgConfig } from "@/context/OrgConfigContext";
 import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from "@/context/UnsavedChangesContext";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import logger from "@/lib/logger";
@@ -149,11 +150,11 @@ function ReportSection({ workflowId }: { workflowId: number }) {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error("Failed to download report");
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (err) {
             logger.error(`Failed to download workflow report: ${err}`);
-            toast.error("Failed to download report");
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloading(false);
         }
@@ -413,7 +414,7 @@ function GeneralSection({
                 original_filename: file.name,
             }));
         } catch (err) {
-            setAudioUploadError(err instanceof Error ? err.message : "Upload failed");
+            setAudioUploadError(echecAffiche(err, ECHECS.bruitAmbiantEnvoyer));
         } finally {
             setIsUploadingAudio(false);
             if (ambientFileInputRef.current) ambientFileInputRef.current.value = "";
@@ -461,7 +462,7 @@ function GeneralSection({
                     }))
                     : current
             ));
-            toast.success(`General settings saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save general settings:", error);
         } finally {
@@ -840,11 +841,11 @@ function GeneralSection({
                             <Input
                                 id="max_user_idle_timeout"
                                 type="number"
-                                min="1"
+                                min="0"
                                 value={maxUserIdleTimeout}
                                 onChange={(e) => {
                                     const value = parseInt(e.target.value);
-                                    if (!isNaN(value) && value > 0) setMaxUserIdleTimeout(value);
+                                    if (!isNaN(value) && value >= 0) setMaxUserIdleTimeout(value);
                                 }}
                             />
                             <p className="text-xs text-muted-foreground">Default: 10 seconds</p>
@@ -1058,7 +1059,7 @@ function TemplateVariablesSection({
                 varsToSave = { ...varsToSave, [newKey]: newValue };
             }
             await onSave(varsToSave);
-            toast.success(`Template variables saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Variables enregistrées.", en: "Variables saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save variables:", error);
         } finally {
@@ -1157,7 +1158,7 @@ function DictionarySection({
         setIsSaving(true);
         try {
             await onSave(dictionaryValue);
-            toast.success(`Dictionary saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Dictionnaire enregistré.", en: "Dictionary saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save dictionary:", error);
         } finally {
@@ -1280,7 +1281,7 @@ function VoicemailSection({
             );
             setSystemPrompt(voicemailConfig.system_prompt || defaultAnswerClassifierPrompt);
             setPromptEdited(false);
-            toast.success(`Voicemail settings saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Messagerie enregistrée.", en: "Voicemail saved." }, { publier: true });
         } catch (error) {
             console.error("Failed to save voicemail settings:", error);
         } finally {
@@ -1387,9 +1388,9 @@ function AgentUuidSection({ workflowUuid }: { workflowUuid: string }) {
     const handleCopy = async () => {
         try {
             await copyTextToClipboard(workflowUuid);
-            toast.success("Agent UUID copied");
+            notifier.succes({ fr: "Identifiant copié.", en: "ID copied." });
         } catch {
-            toast.error("Failed to copy Agent UUID");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
 
@@ -1471,7 +1472,7 @@ function WorkflowModelOverridesSection({
         const nextConfigurations = withoutModelConfigurationOverrides(workflowConfigurations);
         nextConfigurations.model_configuration_v2_override = configuration;
         await onSave(nextConfigurations, workflowName);
-        toast.success(`Model override saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+        notifier.succes({ fr: "Cerveau de l'agent enregistré.", en: "Agent brain saved." }, { publier: true });
     };
 
     const removeV2Override = async () => {
@@ -1479,7 +1480,7 @@ function WorkflowModelOverridesSection({
         try {
             await onSave(withoutModelConfigurationOverrides(workflowConfigurations), workflowName);
             setOverrideEnabled(false);
-            toast.success(`Organization model configuration saved. ${PUBLISH_WORKFLOW_REMINDER}`);
+            notifier.succes({ fr: "Cerveau de l'organisation enregistré.", en: "Organization brain saved." }, { publier: true });
         } finally {
             setIsRemovingOverride(false);
         }
@@ -1608,6 +1609,8 @@ export default function WorkflowSettingsPage() {
     const [workflow, setWorkflow] = useState<WorkflowResponse | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Le bouton « Publier » des notifications publie l'agent de cette page.
+    useAgentCourant(workflow?.id);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -1753,12 +1756,12 @@ function WorkflowSettingsInner({
             ]);
 
             if (defaultsResult.error) {
-                setModelConfigurationError(detailFromError(defaultsResult.error, "Failed to load model configuration defaults"));
+                setModelConfigurationError(echecAffiche(defaultsResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }
             if (configurationResult.error) {
-                setModelConfigurationError(detailFromError(configurationResult.error, "Failed to load model configuration"));
+                setModelConfigurationError(echecAffiche(configurationResult.error, ECHECS.modelesOrganisationLire));
                 setModelConfigurationLoading(false);
                 return;
             }

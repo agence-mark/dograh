@@ -83,7 +83,10 @@ def test_aucune_description_ni_genre_inventes_et_la_source_est_ecrite():
 
     assert SONIOX_TTS_VOIX_RELEVE == "2026-10-21"
     assert "tts-models" in SONIOX_TTS_VOIX_SOURCE
-    assert all(voix["genre"] is None for voix in SONIOX_TTS_VOIX)
+    # C10 (partie 2 du builder) : le genre vient du champ « gender » de la même route, relevé le 2026-11-03.
+    genres = {voix["id"]: voix["genre"] for voix in SONIOX_TTS_VOIX}
+    assert {i for i, g in genres.items() if g == "féminin"} == {"Celine", "Elodie", "Camille", "Manon", "Noemie", "Genevieve"}
+    assert {i for i, g in genres.items() if g == "masculin"} == {"Mathieu", "Julien", "Olivier", "Baptiste", "Antoine"}
     decrites = {voix["id"] for voix in SONIOX_TTS_VOIX if voix["description"]}
     assert decrites == {"Mathieu", "Celine", "Julien", "Manon"}
 
@@ -139,9 +142,13 @@ def test_une_voix_videe_retombe_sur_la_voix_du_produit_pas_sur_celle_du_connecte
 
 
 def test_le_format_audio_et_la_frequence_sont_poses_par_la_fabrique():
-    from api.services.pipecat.audio_config import AudioConfig
-    from api.services.pipecat.service_factory import SONIOX_TTS_FORMAT_AUDIO, create_tts_service
     from types import SimpleNamespace
+
+    from api.services.pipecat.audio_config import AudioConfig
+    from api.services.pipecat.service_factory import (
+        SONIOX_TTS_FORMAT_AUDIO,
+        create_tts_service,
+    )
 
     assert SONIOX_TTS_FORMAT_AUDIO == "pcm_s16le"
     service = _voix()
@@ -194,7 +201,9 @@ def test_les_filtres_de_texte_suivent_le_mode_de_la_voix():
     """La phrase par phrase retire un appel de fonction écrit dans le texte ; mot à mot il arrive en
     morceaux et le retrait ne s'applique pas (réglage commun à toutes les voix). Le mode choisi à
     l'écran de la voix doit donc régler AUSSI ces transformations, pas seulement le connecteur."""
-    from api.services.pipecat.service_factory import _run_configs_avec_le_mode_de_la_voix
+    from api.services.pipecat.service_factory import (
+        _run_configs_avec_le_mode_de_la_voix,
+    )
 
     voix = _config(text_aggregation_mode="token")
     assert _run_configs_avec_le_mode_de_la_voix(voix, None) == {"tts_text_aggregation_mode": "token"}
@@ -208,7 +217,9 @@ def test_les_filtres_de_texte_suivent_le_mode_de_la_voix():
 def test_un_autre_fournisseur_de_voix_recoit_le_dictionnaire_d_agent_inchange():
     """Zéro perte : ElevenLabs (et tout autre) ne passe pas par le mode de la voix Soniox."""
     from api.services.configuration.registry import ElevenlabsTTSConfiguration
-    from api.services.pipecat.service_factory import _run_configs_avec_le_mode_de_la_voix
+    from api.services.pipecat.service_factory import (
+        _run_configs_avec_le_mode_de_la_voix,
+    )
 
     eleven = ElevenlabsTTSConfiguration(api_key="el-key")
     agent = {"tts_text_aggregation_mode": "token"}
@@ -249,3 +260,11 @@ def test_la_garde_du_modele_s_arme_sous_une_voix_soniox_et_sous_le_delai_de_flux
     assert delai_de_garde({}) < delai_de_flux_soniox_s
     service = _voix()
     assert hasattr(service, "_keepalive_task_handler")
+
+
+def test_c10_le_controle_lit_le_genre_de_la_voix_choisie_et_l_avertissement_redevient_actif():
+    from api.services.builder.controle.service import genre_de_la_voix
+
+    assert genre_de_la_voix({"model_overrides": {"tts": {"voice": "Celine"}}}) == "f"
+    assert genre_de_la_voix({"model_overrides": {"tts": {"voice": "Mathieu"}}}) == "m"
+    assert genre_de_la_voix({"model_overrides": {"tts": {"voice": "Inconnue"}}}) is None  # jamais deviné

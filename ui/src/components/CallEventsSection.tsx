@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 
 import {
   savePreferencesApiV1OrganizationsPreferencesPut,
   testCallEventsConnectionApiV1OrganizationsCallEventsTestPost,
 } from "@/client/sdk.gen";
 import type { CallEventsSettings } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,7 +74,7 @@ export function CallEventsSection() {
     return <p className="text-sm text-muted-foreground">Loading call event settings…</p>;
   }
   if (error || !orgContext?.organization_id || !organizationPreferences) {
-    return <div className="space-y-2"><p role="alert">{error?.message ?? "Could not load organization settings"}</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
+    return <div className="space-y-2"><p role="alert">Could not load organization settings</p><Button variant="outline" onClick={() => void refreshConfig()}>Retry</Button></div>;
   }
   return <CallEventsForm key={orgContext.organization_id} initialSettings={organizationPreferences.call_events} deploymentIdentityAvailable={provider === "local"} />;
 }
@@ -97,7 +97,7 @@ function CallEventsForm({ initialSettings, deploymentIdentityAvailable }: {
       if (action === "test") {
         const { data, error } = await testCallEventsConnectionApiV1OrganizationsCallEventsTestPost({ body: settings });
         if (error || !data) throw new Error(detailFromError(error, "Connection check failed"));
-        toast.success(data.message);
+        notifier.succes(data.message ? { fr: data.message, en: data.message } : { fr: "Connexion vérifiée.", en: "Connection checked." });
       } else {
         const { data, error } = await savePreferencesApiV1OrganizationsPreferencesPut({
           body: { call_events: action === "save" ? settings : null },
@@ -105,10 +105,10 @@ function CallEventsForm({ initialSettings, deploymentIdentityAvailable }: {
         if (error || !data) throw new Error(detailFromError(error, "Could not update call event settings"));
         setSettings(formSettings(data.call_events));
         await refreshConfig();
-        toast.success(action === "save" ? "Call event settings saved" : "Call event destination removed");
+        notifier.succes(action === "save" ? { fr: "Destination enregistrée.", en: "Destination saved." } : { fr: "Destination retirée.", en: "Destination removed." });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Request failed");
+      notifier.echec({ fr: "Opération impossible. Réessayez.", en: "Could not complete. Try again." }, { erreur: error });
     } finally {
       setBusy(false);
     }

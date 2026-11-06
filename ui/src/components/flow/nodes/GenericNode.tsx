@@ -1,18 +1,24 @@
-import { NodeProps, NodeToolbar, Position } from "@xyflow/react";
+import { NodeProps } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
-import { Check, Circle, Copy, Edit, type LucideIcon, Trash2Icon } from "lucide-react";
+import { Check, Circle, Copy, Flag, type LucideIcon, Play, Square } from "lucide-react";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { notifier } from "@/components/mark/notifications";
 
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
 import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
+import { evaluateDisplayOptions } from "@/components/flow/renderer/displayOptions";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
+import { useBuilderEcran } from "@/components/builder/ecran/store";
+import { useLangue } from "@/components/mark/langue/langue";
+import { useOuvertureNoeud } from "@/components/mark/agent/ouverture-noeud";
+import { BarreAuSurvol, useSurvolDeLEtape } from "@/components/mark/graphe/BarreAuSurvol";
 import { BriqueAgent } from "@/components/mark/graphe/BriqueAgent";
+import { copieDeLEtape } from "@/components/mark/graphe/dupliquer-etape";
 import {
     DeclenchementDeLAction,
     positionEcrite,
@@ -20,9 +26,18 @@ import {
 } from "@/components/mark/graphe/DeclenchementDeLAction";
 import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
+import { OngletsNoeud } from "@/components/mark/graphe/OngletsNoeud";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { OrdreDInjection } from "@/components/mark/graphe/OrdreDInjection";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
+import {
+    PROPRIETE_DU_NOM,
+    proprietesDeLaSection,
+    proprietesMasquees,
+    type SectionNoeud,
+    sectionsAMontrer,
+} from "@/components/mark/graphe/sections-noeud";
 import { TravailDeFond } from "@/components/mark/graphe/TravailDeFond";
 import {
     agentQuiAgit,
@@ -33,7 +48,6 @@ import {
 } from "@/components/mark/graphe/VeriteDesActions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { NODE_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { useAppConfig } from "@/context/AppConfigContext";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
@@ -77,16 +91,6 @@ const HANDLES_BY_SPEC: Record<string, { source: boolean; target: boolean }> = {
     trigger: { source: false, target: false },
     webhook: { source: false, target: false },
     qa: { source: false, target: false },
-};
-
-const DOC_URL_BY_SPEC: Record<string, string | undefined> = {
-    startCall: NODE_DOCUMENTATION_URLS.startCall,
-    agentNode: NODE_DOCUMENTATION_URLS.agent,
-    endCall: NODE_DOCUMENTATION_URLS.endCall,
-    globalNode: NODE_DOCUMENTATION_URLS.global,
-    trigger: NODE_DOCUMENTATION_URLS.apiTrigger,
-    webhook: NODE_DOCUMENTATION_URLS.webhook,
-    qa: NODE_DOCUMENTATION_URLS.qaAnalysis,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -168,32 +172,41 @@ function resolveIntegrationSummary(
     return hasSecret ? "Configured" : "Not configured";
 }
 
-function getBadgeForSpec(
-    spec: NodeSpec | undefined,
-    variant: NodeStyleVariant,
-): { label: string; className: string } {
-    if (!spec) {
-        return { label: "Node", className: "bg-secondary text-secondary-foreground" };
-    }
-
+function getBadgeForSpec(spec: NodeSpec | undefined, variant: NodeStyleVariant, langue: "fr" | "en"): { label: string } {
+    const L = (fr: string, en: string) => (langue === "fr" ? fr : en);
+    if (!spec) return { label: L("Nœud", "Node") };
     switch (variant) {
         case "start":
-            return { label: "Start Node", className: "bg-(--node-start) text-white" };
+            return { label: L("Début", "Start") };
         case "agent":
-            return { label: "Agent Node", className: "bg-secondary text-secondary-foreground" };
+            return { label: L("Étape", "Step") };
         case "end":
-            return { label: "End Node", className: "bg-(--node-end) text-white" };
+            return { label: L("Fin", "End") };
         case "global":
-            return { label: "Global Node", className: "bg-(--node-global) text-white" };
+            return { label: "Global" };
         case "trigger":
-            return { label: "API Trigger", className: "bg-secondary text-secondary-foreground" };
+            return { label: L("Déclencheur", "Trigger") };
         case "webhook":
-            return { label: "Webhook", className: "bg-secondary text-secondary-foreground" };
+            return { label: "Webhook" };
         case "qa":
-            return { label: "QA Analysis", className: "bg-secondary text-secondary-foreground" };
+            return { label: L("Contrôle qualité", "Quality control") };
         case "integration":
-            return { label: spec.display_name, className: "bg-secondary text-secondary-foreground" };
+            return { label: spec.display_name };
     }
+}
+
+/** Le type d'un nœud, dit comme la carte le dit (« Étape », « Fin », « Contrôle qualité »…) : le menu « Nœud » le reprend. */
+export function libelleDuType(spec: NodeSpec, langue: "fr" | "en"): string {
+    return getBadgeForSpec(spec, STYLE_VARIANT_BY_SPEC[spec.name] ?? "integration", langue).label;
+}
+
+/** Le texte de la carte : le prompt sans ses titres, tel que l'étape le dit (la maquette en montre deux lignes). */
+function resumeDuPrompt(prompt?: string): string {
+    return (prompt ?? "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"))
+        .join(" ");
 }
 
 // ─── Canvas preview dispatch ──────────────────────────────────────────────
@@ -303,39 +316,25 @@ function CanvasPreview({
         );
     }
 
-    // Default: prompt preview + tool/document badges (when spec declares them).
+    // Défaut : deux lignes du prompt (maquette). Les pastilles d'outils et de documents restent montées, cachées : elles
+    // retirent d'elles-mêmes les outils et documents qui n'existent plus ; leur liste se lit dans la fenêtre de l'étape.
     const hasToolRefs = spec.properties.some((p) => p.type === "tool_refs");
     const hasDocRefs = spec.properties.some((p) => p.type === "document_refs");
     return (
         <>
-            <p className="text-sm text-muted-foreground line-clamp-5 leading-relaxed">
-                {data.prompt || "No prompt configured"}
-            </p>
-            {hasToolRefs && data.tool_uuids && data.tool_uuids.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                        <LucideIcons.Wrench className="h-3 w-3" />
-                        <span>Tools:</span>
-                    </div>
+            <p className="line-clamp-2 text-xs text-muted-foreground">{resumeDuPrompt(data.prompt)}</p>
+            <div hidden>
+                {hasToolRefs && data.tool_uuids && data.tool_uuids.length > 0 && (
                     <ToolBadges
                         toolUuids={data.tool_uuids}
                         onStaleUuidsDetected={onStaleTools}
                         mcpToolFilters={data.mcp_tool_filters}
                     />
-                </div>
-            )}
-            {hasDocRefs && data.document_uuids && data.document_uuids.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                        <LucideIcons.FileText className="h-3 w-3" />
-                        <span>Documents:</span>
-                    </div>
-                    <DocumentBadges
-                        documentUuids={data.document_uuids}
-                        onStaleUuidsDetected={onStaleDocuments}
-                    />
-                </div>
-            )}
+                )}
+                {hasDocRefs && data.document_uuids && data.document_uuids.length > 0 && (
+                    <DocumentBadges documentUuids={data.document_uuids} onStaleUuidsDetected={onStaleDocuments} />
+                )}
+            </div>
         </>
     );
 }
@@ -385,7 +384,7 @@ function ClickToCopy({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy value");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     };
     return (
@@ -511,13 +510,26 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         id,
         additionalData,
     });
-    const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif } =
+    // [.mark] E36 : la barre du canevas (« Prompt général ») demande l'ouverture de cette fenêtre.
+    const demandeOuverture = useOuvertureNoeud((s) => s.demande);
+    useEffect(() => {
+        if (demandeOuverture?.id === id) setOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [demandeOuverture?.cle]);
+    const { saveWorkflow, tools, documents, recordings, champsFiche, outilsQuiEcrivent, agentPrincipalId, estPrincipal, travailActif, readOnly: lectureSeule } =
         useWorkflow();
+    // [.mark] Partie 3, sous-lot 20 : la barre au survol et ses gestes.
+    const { survol, entrer: entrerSurvol, sortir: sortirSurvol } = useSurvolDeLEtape();
+    const ajouterUneEtape = useWorkflowStore((s) => s.addNode);
     // fiabilite-de-la-conversation: the start step shows « Truth of actions » as soon as the agent acts anywhere.
     const agentAgit = useWorkflowStore((s) => agentQuiAgit(s.nodes, travailActif === true));
     const { bySpecName } = useNodeSpecs();
     const { config: appConfig } = useAppConfig();
     const spec = bySpecName.get(type);
+    const dupliquerLEtape = useCallback(() => {
+        const copie = copieDeLEtape(useWorkflowStore.getState().nodes, id, "(copie)", bySpecName.get(type)?.graph_constraints?.max_instances);
+        if (copie) ajouterUneEtape(copie);
+    }, [id, type, bySpecName, ajouterUneEtape]);
     const webhookBaseUrl = resolveWebhookBaseUrl(appConfig?.tunnelUrl);
 
     // ── Form state ─────────────────────────────────────────────────────
@@ -576,7 +588,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
             setTriggerCopied(true);
             setTimeout(() => setTriggerCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy trigger URL");
+            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
         }
     }, [data.trigger_path, webhookBaseUrl]);
 
@@ -670,17 +682,166 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         (spec?.category === "integration"
             ? { source: false, target: false }
             : { source: true, target: true });
-    const badge = getBadgeForSpec(spec, styleVariant);
-    const Icon = spec ? resolveIcon(spec.icon) : Circle;
-    const docUrl = spec?.docs_url ?? DOC_URL_BY_SPEC[type];
-    const contentLabel = spec?.properties.some((p) => p.name === "prompt")
-        ? "Prompt"
-        : "Details";
+    const { langue } = useLangue();
+    const badge = getBadgeForSpec(spec, styleVariant, langue);
+    const Icon = styleVariant === "start" ? Play : styleVariant === "agent" ? Square : styleVariant === "end" ? Flag : spec ? resolveIcon(spec.icon) : Circle;
 
-    // Edit dialog title: "Edit {display_name}". Webhook keeps the original
-    // "Edit Webhook" wording — display_name is "Webhook" so it works out.
-    const dialogTitle = spec ? `Edit ${spec.display_name}` : "Edit Node";
     const fallbackTitle = spec?.display_name ?? "Node";
+
+    // ── [.mark] La fenêtre du nœud, à onglets par sujet (E15) ─────────────
+    // Chaque onglet n'existe que si le type de nœud porte des champs ou des blocs de ce sujet.
+    const fenetre = (() => {
+        if (!open || !spec) return null;
+        const masque = proprietesMasquees(type, { estPrincipal, fins: values.fins });
+        const contexte = {
+            tools: tools ?? [],
+            documents: documents ?? [],
+            recordings: recordings ?? [],
+            champsFiche: champsFiche ?? [],
+            conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
+            onConditionsDeChampsChange: (next: ConditionDeChamp[] | undefined) =>
+                setValues((prev) => ({ ...prev, conditions_de_champs: next })),
+            // [.mark] Lot 8 : les outils rattachés à l'étape (pour « pas dans l'étape ») et la correction en un clic. Le nœud global n'est
+            // pas une étape : un outil qu'il cite n'est pas contrôlé ici (le contrôle de publication le juge).
+            etape:
+                type === "globalNode"
+                    ? null
+                    : {
+                          outils: Array.isArray(values.tool_uuids) ? (values.tool_uuids as string[]) : [],
+                          rattacher: (uuid: string) =>
+                              setValues((prev) => {
+                                  const actuels = Array.isArray(prev.tool_uuids) ? (prev.tool_uuids as string[]) : [];
+                                  return actuels.includes(uuid) ? prev : { ...prev, tool_uuids: [...actuels, uuid] };
+                              }),
+                      },
+            mcpToolFilters: (values.mcp_tool_filters as Record<string, string[]> | undefined) ?? {},
+            onMcpToolFiltersChange: (next: Record<string, string[]>) =>
+                setValues((prev) => ({
+                    ...prev,
+                    mcp_tool_filters: Object.keys(next).length > 0 ? next : undefined,
+                })),
+        };
+        const formulaire = (noms: string[]) => (
+            <NodeEditForm spec={spec} values={values} onChange={setValues} masquer={masque} seulement={noms} context={contexte} />
+        );
+        const visibles = spec.properties
+            .filter((p) => !masque.includes(p.name) && evaluateDisplayOptions(p.display_options, values))
+            .map((p) => p.name);
+        const outilsDeLEtape = ((values.tool_uuids as string[] | undefined) ?? []).length > 0;
+        const etapeAgit = type === "agentNode" || type === "startCall";
+
+        // Les blocs .mark rangés par sujet : mêmes conditions qu'avant, seule leur place change.
+        const blocs: Partial<Record<SectionNoeud, ReactNode[]>> = {};
+        const poser = (section: SectionNoeud, bloc: ReactNode) => {
+            (blocs[section] ??= []).push(bloc);
+        };
+        if (etapeAgit) {
+            poser(
+                "agents",
+                <BriqueAgent
+                    key="brique"
+                    outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
+                    onChange={(uuids) => setValues((prev) => ({ ...prev, tool_uuids: uuids.length > 0 ? uuids : undefined }))}
+                />,
+            );
+        }
+        if (type === "agentNode" && typeof agentPrincipalId === "number") {
+            poser(
+                "agents",
+                <RetourAuPrincipal
+                    key="retour"
+                    agentPrincipalId={agentPrincipalId}
+                    coche={values.retour_au_principal === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, retour_au_principal: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (type === "agentNode" && estPrincipal) {
+            poser(
+                "agents",
+                <EtapeDeRetour
+                    key="etape-retour"
+                    coche={values.etape_de_retour === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (etapeAgit && travailActif) {
+            poser(
+                "outils",
+                <TravailDeFond
+                    key="travail"
+                    coche={values.travail_de_fond === true}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))}
+                />,
+            );
+        }
+        if (etapeAgit && (outilsDeLEtape || (travailActif && values.travail_de_fond === true) || (type === "startCall" && agentAgit))) {
+            poser(
+                "garde",
+                <VeriteDesActions
+                    key="verite"
+                    coche={caseCochee(values.verite_des_actions, etapeEcrit)}
+                    onChange={(coche) => setValues((prev) => ({ ...prev, verite_des_actions: valeurAEcrire(coche, etapeEcrit) }))}
+                />,
+            );
+        }
+        if (etapeAgit && (outilsDeLEtape || (travailActif && values.travail_de_fond === true))) {
+            poser(
+                "garde",
+                <DeclenchementDeLAction
+                    key="declenchement"
+                    position={positionLue(values.declenchement_de_l_action)}
+                    demandeType={typeof values.demande_type === "string" ? values.demande_type : ""}
+                    automatiquePossible={travailActif === true && values.travail_de_fond === true}
+                    champsDeclares={String(values.champs_etape ?? "").trim() !== ""}
+                    onChange={(position) => setValues((prev) => ({ ...prev, declenchement_de_l_action: positionEcrite(position) }))}
+                    onDemandeTypeChange={(texte) =>
+                        setValues((prev) => ({ ...prev, demande_type: texte.trim() === "" ? undefined : texte }))
+                    }
+                />,
+            );
+        }
+        if (etapeAgit) {
+            poser(
+                "phrases",
+                <PhrasesDeLEtape key="phrases-etape" etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />,
+            );
+        }
+        if (type === "endCall") {
+            poser(
+                "phrases",
+                <PhrasesDeFin
+                    key="phrases-fin"
+                    fins={values.fins as FinFigee[] | undefined}
+                    champsFiche={champsFiche ?? []}
+                    onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
+                />,
+            );
+        }
+        if (type === "startCall") {
+            poser("avant", <OrdreDInjection key="ordre-d-injection" />);
+        }
+        if (type === "trigger") {
+            poser("requete", <TriggerWebhookUrls key="urls" endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)} />);
+        }
+
+        const sections = sectionsAMontrer(visibles, Object.keys(blocs) as SectionNoeud[]).map((section) => {
+            const noms = proprietesDeLaSection(visibles, section);
+            return {
+                id: section,
+                contenu: (
+                    <>
+                        {noms.length > 0 && formulaire(noms)}
+                        {blocs[section]}
+                    </>
+                ),
+            };
+        });
+        return (
+            <OngletsNoeud sections={sections} />
+        );
+    })();
 
     return (
         <>
@@ -693,12 +854,16 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 title={data.name || fallbackTitle}
                 icon={<Icon />}
                 badgeLabel={badge.label}
-                badgeClassName={badge.className}
-                contentLabel={contentLabel}
                 hasSourceHandle={handles.source}
                 hasTargetHandle={handles.target}
                 onDoubleClick={() => setOpen(true)}
-                nodeId={id}
+                onMouseEnter={entrerSurvol}
+                onMouseLeave={sortirSurvol}
+                statistique={
+                    data.stats_part == null
+                        ? undefined
+                        : `${data.stats_part} %${data.stats_latence ? ` · ${data.stats_latence.moyenne_ms} ms (${data.stats_latence.pire_ms})` : ""}`
+                }
             >
                 {spec && (
                     <CanvasPreview
@@ -712,143 +877,43 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
                 )}
             </NodeContent>
 
-            <NodeToolbar isVisible={selected} position={Position.Right}>
-                <div className="flex flex-col gap-1">
-                    <Button onClick={() => setOpen(true)} variant="outline" size="icon">
-                        <Edit />
-                    </Button>
-                    {/* Start nodes can't be deleted (workflow always needs one). */}
-                    {type !== "startCall" && (
-                        <Button
-                            onClick={handleDeleteNode}
-                            variant="outline"
-                            size="icon"
-                        >
-                            <Trash2Icon />
-                        </Button>
-                    )}
-                </div>
-            </NodeToolbar>
+            {/* [.mark] Partie 3, sous-lot 20 : la barre au survol (modifier, dupliquer, relier, supprimer confirmé). */}
+            <BarreAuSurvol
+                visible={selected || survol}
+                nom={String(data.name || fallbackTitle)}
+                peutDupliquer={type !== "startCall" && spec?.graph_constraints?.max_instances == null}
+                peutSupprimer={type !== "startCall"}
+                lectureSeule={lectureSeule}
+                onModifier={() => setOpen(true)}
+                onDupliquer={dupliquerLEtape}
+                onRelier={() =>
+                    notifier.information({
+                        fr: "Tirez depuis le point sous l'étape jusqu'à une autre étape.",
+                        en: "Drag from the dot under the step to another step.",
+                    })
+                }
+                onSupprimer={handleDeleteNode}
+                onEntrer={entrerSurvol}
+                onSortir={sortirSurvol}
+            />
 
             <NodeEditDialog
                 open={open}
                 onOpenChange={handleOpenChange}
                 nodeData={data}
-                title={dialogTitle}
+                title={data.name || fallbackTitle}
                 onSave={handleSave}
                 isDirty={isDirty}
-                documentationUrl={docUrl}
+                typeLabel={badge.label}
+                nom={String(values.name ?? data.name ?? "")}
+                onNomChange={spec?.properties.some((p) => p.name === PROPRIETE_DU_NOM) ? (nom) => setValues((prev) => ({ ...prev, name: nom })) : undefined}
+                onDemanderAuBuilder={() => {
+                    useBuilderEcran.getState().ouvrir();
+                    useBuilderEcran.getState().citer({ id, nom: String(values.name ?? data.name ?? id) });
+                    setOpen(false);
+                }}
             >
-                {open && spec && (
-                    <div className="grid gap-4">
-                        <NodeEditForm
-                            spec={spec}
-                            values={values}
-                            onChange={setValues}
-                            masquer={
-                                type === "endCall" && estPrincipal && Array.isArray(values.fins) && values.fins.length > 0
-                                    ? ["prompt"]
-                                    : []
-                            }
-                            context={{
-                                tools: tools ?? [],
-                                documents: documents ?? [],
-                                recordings: recordings ?? [],
-                                champsFiche: champsFiche ?? [],
-                                conditionsDeChamps: values.conditions_de_champs as ConditionDeChamp[] | undefined,
-                                onConditionsDeChampsChange: (next) =>
-                                    setValues((prev) => ({ ...prev, conditions_de_champs: next })),
-                                mcpToolFilters:
-                                    (values.mcp_tool_filters as
-                                        | Record<string, string[]>
-                                        | undefined) ?? {},
-                                onMcpToolFiltersChange: (next) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        mcp_tool_filters:
-                                            Object.keys(next).length > 0
-                                                ? next
-                                                : undefined,
-                                    })),
-                            }}
-                        />
-                        {(type === "agentNode" || type === "startCall") && (
-                            <BriqueAgent
-                                outilsUuids={(values.tool_uuids as string[] | undefined) ?? []}
-                                onChange={(uuids) =>
-                                    setValues((prev) => ({ ...prev, tool_uuids: uuids.length > 0 ? uuids : undefined }))
-                                }
-                            />
-                        )}
-                        {type === "agentNode" && typeof agentPrincipalId === "number" && (
-                            <RetourAuPrincipal
-                                agentPrincipalId={agentPrincipalId}
-                                coche={values.retour_au_principal === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, retour_au_principal: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {type === "agentNode" && estPrincipal && (
-                            <EtapeDeRetour
-                                coche={values.etape_de_retour === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, etape_de_retour: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {(type === "agentNode" || type === "startCall") && travailActif && (
-                            <TravailDeFond
-                                coche={values.travail_de_fond === true}
-                                onChange={(coche) =>
-                                    setValues((prev) => ({ ...prev, travail_de_fond: coche ? true : undefined }))
-                                }
-                            />
-                        )}
-                        {(type === "agentNode" || type === "startCall") &&
-                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
-                                (travailActif && values.travail_de_fond === true) ||
-                                (type === "startCall" && agentAgit)) && (
-                                <VeriteDesActions
-                                    coche={caseCochee(values.verite_des_actions, etapeEcrit)}
-                                    onChange={(coche) =>
-                                        setValues((prev) => ({ ...prev, verite_des_actions: valeurAEcrire(coche, etapeEcrit) }))
-                                    }
-                                />
-                            )}
-                        {(type === "agentNode" || type === "startCall") &&
-                            (((values.tool_uuids as string[] | undefined) ?? []).length > 0 ||
-                                (travailActif && values.travail_de_fond === true)) && (
-                                <DeclenchementDeLAction
-                                    position={positionLue(values.declenchement_de_l_action)}
-                                    demandeType={typeof values.demande_type === "string" ? values.demande_type : ""}
-                                    automatiquePossible={travailActif === true && values.travail_de_fond === true}
-                                    champsDeclares={String(values.champs_etape ?? "").trim() !== ""}
-                                    onChange={(position) =>
-                                        setValues((prev) => ({ ...prev, declenchement_de_l_action: positionEcrite(position) }))
-                                    }
-                                    onDemandeTypeChange={(texte) =>
-                                        setValues((prev) => ({ ...prev, demande_type: texte.trim() === "" ? undefined : texte }))
-                                    }
-                                />
-                            )}
-                        {(type === "agentNode" || type === "startCall") && (
-                            <PhrasesDeLEtape etapeId={id} etapeNom={typeof values.name === "string" ? values.name : data.name ?? ""} />
-                        )}
-                        {type === "endCall" && (
-                            <PhrasesDeFin
-                                fins={values.fins as FinFigee[] | undefined}
-                                champsFiche={champsFiche ?? []}
-                                onChange={(fins) => setValues((prev) => ({ ...prev, fins }))}
-                            />
-                        )}
-                        {type === "trigger" && (
-                            <TriggerWebhookUrls
-                                endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)}
-                            />
-                        )}
-                    </div>
-                )}
+                {open && spec && fenetre}
             </NodeEditDialog>
         </>
     );

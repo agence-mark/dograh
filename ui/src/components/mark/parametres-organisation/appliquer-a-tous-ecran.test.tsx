@@ -10,13 +10,15 @@
  *   - « Apply » sends the setting only (never the value), then the list is read again ;
  *   - a refusal of the server is shown and the window stays open.
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
-import { ModaleEtablissements } from "./ModaleEtablissements";
 import { FicheRendezVous } from "./FicheRendezVous";
+import { ModaleEtablissements } from "./ModaleEtablissements";
 import { CHOIX, FENETRE, NOMBRES, NOMBRES_TRAJETS, OUI_NON } from "./reglages-rendez-vous";
 
 const m = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), phrases: vi.fn(), appliquer: vi.fn() }));
@@ -154,7 +156,8 @@ describe("[.mark] Apply to all establishments (D152)", () => {
         fireEvent.click(screen.getByTestId("appliquer-a-tous-fiche-adresse"));
         fireEvent.click(screen.getByTestId("confirmer-appliquer-a-tous"));
         const erreur = await screen.findByTestId("erreur-appliquer-a-tous");
-        expect(erreur.textContent).toContain("behind this installation");
+        expect(erreur.textContent).toMatch(phraseAttendue(ECHECS.etablissementsAppliquerATous));
+        expect(erreur.textContent).not.toContain("behind this installation");
         expect(screen.getByTestId("modale-appliquer-a-tous")).toBeTruthy();
     });
 });

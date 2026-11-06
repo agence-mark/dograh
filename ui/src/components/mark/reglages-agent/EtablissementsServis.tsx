@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { postEtablissementsDeLagentApiV1OrganizationsEtablissementsAgentPost } from "@/client/sdk.gen";
 import type { AdresseEtablissement, EtablissementsDeLagent, ValeurHeritee } from "@/client/types.gen";
 import { useAuth } from "@/lib/auth";
+import { formaterNumero } from "@/lib/numero";
 
 import { type Texte, useLangue } from "../langue/langue";
 
@@ -132,7 +133,7 @@ export const EtablissementsServis = ({
                     <p className="text-sm font-medium">
                         {e.nom}{" "}
                         {/* A fiche has no numbers on screen (C4): they are the agent's, shown under the menu. */}
-                        {!vue.fiche_de_lagent && <span className="font-mono text-xs text-muted-foreground">{(e.numeros ?? []).join(", ")}</span>}
+                        {!vue.fiche_de_lagent && <span className="font-mono text-xs text-muted-foreground">{(e.numeros ?? []).map(formaterNumero).join(", ")}</span>}
                     </p>
                     <dl className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
                         {LIGNES.map(({ cle: champ, libelle }) => {
@@ -153,7 +154,7 @@ export const EtablissementsServis = ({
             {(vue.numeros_sans_etablissement ?? []).length > 0 && (
                 <p className="text-xs text-muted-foreground">
                     {t({ en: "Numbers of no establishment (calls as before):", fr: "Numéros d'aucun établissement (appels comme avant) :" })}{" "}
-                    <span className="font-mono">{(vue.numeros_sans_etablissement ?? []).join(", ")}</span>
+                    <span className="font-mono">{(vue.numeros_sans_etablissement ?? []).map(formaterNumero).join(", ")}</span>
                 </p>
             )}
         </div>

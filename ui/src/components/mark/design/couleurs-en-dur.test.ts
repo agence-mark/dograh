@@ -43,8 +43,8 @@ export const PALETTE_MARK = new Set(
     [
         "#ffffff", "#0e0e0e", "#0a0a0a", "#f5f5f5", "#141414", "#f4f4f4", "#1f1f1f",
         "#737373", "#9a9a9a", "#1a1a1a", "#ebebeb", "#242424", "#e5e5e5", "#2c2c2c",
-        "#a3a3a3", "#5c5c5c", "#d93036", "#f16a6e", "#fafafa", "#efefef", "#222222",
-        "#121212", "#d4d4d4", "#3a3a3a", "#22a355", "#3ecf7a", "#e08a00", "#f0a93a",
+        "#a3a3a3", "#5c5c5c", "#d93036", "#f16a6e", "#fafafa", "#efefef", "#222222", "#0f1c2e", "#3d8fe6", "#111a26", "#5e6b7b", "#e4ebf3", "#eaf3fd", "#f2f7fe", "#1b5fb0", "#2b78cf", "#dd4949",
+        "#121212", "#d4d4d4", "#3a3a3a", "#22a355", "#3ecf7a", "#6d3fc0", "#a58df0",
         "#e5484d", "#b4b4b4", "#2a2a2a", "#333333", "#4a4a4a", "#2268d8",
     ],
 );
@@ -60,6 +60,16 @@ const FICHIERS_EXCLUS = new Set([
  * by something that is not this screen; changing it changes the data.
  */
 const HEX_DONNEES: Record<string, { valeurs: Set<string>; pourquoi: string }> = {
+    // R3 mineur 5 : la palette par défaut du widget est une DONNÉE du client (enregistrée dans ses réglages, lue par le widget sur
+    // son propre site), pas l'apparence de notre écran. Le cadre de l'aperçu, lui, prend les jetons.
+    "components/mark/site/editeur-donnees.ts": {
+        valeurs: new Set(["#1b5fb0", "#ffffff", "#0f1c2e", "#3d8fe6", "#8fbdf1", "#f1f1f1", "#1c1917", "#dc2626", "#111111"]),
+        pourquoi: "default colours of the client's widget, saved in its settings and read by the widget on the client's own website",
+    },
+    "components/mark/site/EditeurWidget.tsx": {
+        valeurs: new Set(["#1b5fb0", "#000000"]),
+        pourquoi: "starting values of the widget's colour fields (saved data), not the look of this screen",
+    },
     "app/workflow/[workflowId]/components/EmbedDialog.tsx": {
         valeurs: new Set(["#10b981"]),
         pourquoi: "default colour of the widget button put on the client's own website, saved in its settings",
@@ -76,7 +86,7 @@ const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     // 27/09: grey for new tools, and the existing ones set to grey in the database).
     "app/tools/config.tsx",
     "app/tools/page.tsx",
-    "app/tools/[toolUuid]/page.tsx",
+    "components/mark/outils/FenetreNouvelOutil.tsx",
     "components/flow/ToolSelector.tsx",
 ]);
 

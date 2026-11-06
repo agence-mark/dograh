@@ -74,7 +74,10 @@ async def agent_stream_websocket(
         "direction": "inbound",
     }
     try:
-        run_inputs = await prepare_workflow_run_inputs(db_client, workflow)
+        # [.mark] SE-8 : flux d'agent entrant, clé = le numéro de l'appelant donné par le fournisseur ("" = masqué).
+        from api.services.publication.deploiement import appelant_du_flux
+
+        run_inputs = await prepare_workflow_run_inputs(db_client, workflow, appelant=appelant_du_flux(params))
         workflow_run = await db_client.create_workflow_run(
             workflow_run_name,
             workflow.id,

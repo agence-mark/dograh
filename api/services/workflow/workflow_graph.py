@@ -2,6 +2,7 @@ import re
 from collections import Counter
 from typing import Dict, Iterable, List, Set
 
+from api.services.etiquettes_prompt.familles import est_une_etiquette
 from api.services.workflow.dto import (
     EdgeDataDTO,
     NodeType,
@@ -20,6 +21,13 @@ _SYSTEM_VARIABLES = {"campaign_id", "provider", "source_uuid"}
 def transition_tool_name(label: str) -> str:
     """Return the LLM function name generated for a transition edge."""
     return re.sub(r"[^a-z0-9]", "_", label.lower())
+
+
+def nom_de_porte(donnees) -> str:
+    """[.mark] L6+ : le nom de la fonction d'une liaison : son identifiant stable, sinon son libellé (ancien graphe)."""
+    from api.services.workflow.portes import nom_de_porte as _nom
+
+    return _nom(donnees)
 
 
 def validate_unique_transition_tool_names(
@@ -63,6 +71,9 @@ def extract_template_variables(text: str) -> Set[str]:
         var_name = match.group(1).strip()
         filter_name = match.group(2).strip() if match.group(2) else None
 
+        # [.mark] Lot 8 : une étiquette d'objet ({{outil:x}}, {{bloc:y}}) n'est pas une variable (le résolveur la remplace).
+        if est_une_etiquette(var_name):
+            continue
         # Skip nested paths (runtime-resolved, e.g. gathered_context.city)
         if "." in var_name:
             continue
@@ -97,7 +108,8 @@ class Edge:
         self.data = data
 
     def get_function_name(self):
-        return transition_tool_name(self.label)
+        # [.mark] L6+ : l'identifiant stable de la porte, sinon le libellé (un graphe sans identifiant se lit comme avant).
+        return nom_de_porte(self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Edge):
@@ -256,7 +268,12 @@ class WorkflowGraph:
         dto: ReactFlowDTO,
         *,
         skip_instance_constraints_for: Set[str] | None = None,
+        outils_epingles: Dict[str, int] | None = None,
     ):
+        # [.mark] Partie 3, SA-L3d (décision 21) : la version de chaque outil que la version d'agent qui joue a figée
+        # (``{tool_uuid: numéro}``). Les lectures d'outils du moteur la passent à la couche de données : un agent joue
+        # SA version d'un outil, jamais la plus récente. ``None`` : rien d'épinglé (contenu courant, comme avant).
+        self.outils_epingles = dict(outils_epingles) if isinstance(outils_epingles, dict) and outils_epingles else None
         # Build adjacency list from validated DTO nodes. Core node comparisons
         # still use NodeType string enums; integration nodes remain plain
         # strings and resolve constraints through node specs.

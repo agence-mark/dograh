@@ -1,0 +1,18 @@
+{
+ "total": 1,
+ "results": [
+  {
+   "id": "501",
+   "createdAt": "2029-01-01T00:00:00Z",
+   "properties": {
+    "firstname": "Jeanne",
+    "lastname": "Martin",
+    "email": "j@exemple.fr",
+    "phone": "+33612345678",
+    "mobilephone": null,
+    "zip": "60000",
+    "city": "Beauvais"
+   }
+  }
+ ]
+}

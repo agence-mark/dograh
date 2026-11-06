@@ -29,6 +29,7 @@ import {
     porteeParDefaut,
     SectionFiche,
 } from "./SectionFiche";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toastMock }));
@@ -47,6 +48,8 @@ vi.stubGlobal(
 );
 
 beforeEach(() => {
+
+  viderNotifications();
     toastMock.success.mockClear();
     toastMock.error.mockClear();
 });
@@ -122,7 +125,7 @@ describe("[.mark] Call Record card", () => {
             description: "Numéro et rue",
             lecteur: null,
         });
-        expect(toastMock.success).toHaveBeenCalled();
+        expect(lireNotifications().some((n) => n.sorte === "succes")).toBe(true);
     });
 
     it("declares a cumulative field (D7) and carries it out on save", async () => {
@@ -338,7 +341,7 @@ describe("[.mark] Call Record card", () => {
         fireEvent.click(interrupteur());
         fireEvent.click(boutonEnregistrer());
         expect(await screen.findByRole("alert")).toBeTruthy();
-        expect(toastMock.error).toHaveBeenCalled();
+        expect(lireNotifications().some((n) => n.sorte === "echec")).toBe(true);
     });
 });
 
@@ -431,7 +434,8 @@ describe("[.mark] Call Record rules mirror the server", () => {
     });
 
     it("refuses the same reserved names as the server", () => {
-        const bloc = serveur("fiche_agent.py").split("NOMS_RESERVES = frozenset(")[1].split(/\r?\n\)/)[0];
+        // RA-A : une seule liste, dans `noms_reserves.py`, que la fiche importe.
+        const bloc = serveur("noms_reserves.py").split("NOMS_RESERVES: frozenset[str] = frozenset(")[1].split(/\r?\n\)/)[0];
         // Comments carry backticked names too: only the quoted strings count.
         const duServeur = [...bloc.matchAll(/^\s*"([a-z_]+)",/gm)].map((m) => m[1]).sort();
         expect([...NOMS_RESERVES].sort()).toEqual(duServeur);

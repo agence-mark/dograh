@@ -1,0 +1,17 @@
+{
+  "titre": "Récapitulatif d'un motif (façon Tala)",
+  "contenu": {
+    "texte": "# Moule d'étape : Récapitulatif d'un motif (façon Tala, par motif)\n\nFamille : **Converser**. Un moule par motif, valable pour tout secteur : le secteur n'apporte que les trous ⟦…⟧ (fiche du client, objets de l'agent).\n\n```\n# POINT D'ACTION PRINCIPAL À CETTE ÉTAPE\nDire en une ou deux phrases ce qui a été fait pendant l'appel, puis demander s'il reste autre chose.\n\n## DÉTAILS ET OBJECTIFS\n### Tâche 1 : Récapituler\n- Information donnée, demande enregistrée, rendez-vous et sa date en toutes lettres, suite prévue et délai seulement s'il vient de la fiche.\n- Ne rien ajouter qui n'ait pas été dit ou enregistré pendant l'appel.\n### Tâche 2 : Autre chose ?\n- Nouvelle demande : repartir vers l'orientation.\n- Sinon : remercier et passer à la fin.\n\n## Déroulement de l'appel\nCourt, factuel.\n\n# Critères de succès\n- Plus de question -> fin\n- Nouvelle demande -> orientation\n- Personne demandée -> transfert\n```\n\n## Conditions de sortie types (gabarit « fait accompli, au lieu de »)\n- Vers l'orientation : « Le récapitulatif est terminé et l'appelant a une autre demande. Déclencher cette transition même si elle pourrait recevoir une réponse brève ici. »\n- Vers la fin : « Le récapitulatif est terminé et l'appelant n'a plus de question. Déclencher cette transition au lieu de poser une nouvelle question ouverte. »\n\n## Pièges relevés\n- Les horaires ou contacts ne se redisent que si l'appelant les demande.\n\n## Interdits\nAucun exemple de nom, de numéro, de montant ou de date. Aucune phrase à réciter, sauf l'accueil et les phrases légales. Aucun mot de mise en forme à dire. Aucun nom technique d'outil : l'outil est cité par son étiquette.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala/converser",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

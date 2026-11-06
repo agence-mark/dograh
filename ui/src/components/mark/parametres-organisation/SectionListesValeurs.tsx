@@ -11,7 +11,7 @@
  * les cases changees partent (une case non touchee n'est pas envoyee).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     getListesValeursApiV1OrganizationsListesValeursGet,
@@ -20,11 +20,14 @@ import {
 import type { CasesDUneValeur, ListesValeurs, ValeurDeListe } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 
 import { Intertitre } from "../ecran/Intertitre";
 import { type Texte, useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
+import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 
 /** Les cases d'une valeur, dans l'ordre d'affichage (un test les compare au client genere). */
 export const CASES_LISTES_VALEURS = ["regle_seul", "opportunite", "urgent"] as const;
@@ -59,7 +62,7 @@ export const useListesValeurs = (actif: boolean) => {
         void (async () => {
             const reponse = await getListesValeursApiV1OrganizationsListesValeursGet();
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Value lists unreadable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.listesValeursLire));
                 return;
             }
             if (reponse.data) poser(reponse.data);
@@ -82,7 +85,7 @@ export const useListesValeurs = (actif: boolean) => {
     };
     const modifie = changements().length > 0;
 
-    const enregistrer = async (succes: string) => {
+    const enregistrer = async (succes: Texte) => {
         const valeurs = changements();
         if (valeurs.length === 0 || enCours) return;
         setEnCours(true);
@@ -90,11 +93,11 @@ export const useListesValeurs = (actif: boolean) => {
         try {
             const reponse = await putListesValeursApiV1OrganizationsListesValeursPut({ body: { valeurs } });
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "Value list boxes refused"));
+                setErreur(echecAffiche(reponse.error, ECHECS.listesValeursEnregistrer));
                 return;
             }
             poser(reponse.data);
-            toast.success(succes);
+            notifier.succes(succes);
         } catch {
             setErreur("Value lists: the server did not answer");
         } finally {
@@ -168,12 +171,88 @@ export const SectionListesValeurs = ({ etat }: { etat: ReturnType<typeof useList
                         size="sm"
                         data-testid="enregistrer-listes-valeurs"
                         disabled={enCours || !modifie}
-                        onClick={() => void enregistrer(t({ en: "Value list boxes saved", fr: "Cases des listes enregistrées" }))}
+                        onClick={() => void enregistrer({ fr: "Listes enregistrées.", en: "Lists saved." })}
                     >
                         {t({ en: "Save the boxes", fr: "Enregistrer les cases" })}
                     </Button>
                 </>
             )}
         </Intertitre>
+    );
+};
+
+/**
+ * [.mark] K4b : les cases comme la maquette (`EcranBase`) : le titre et son « ! », « Enregistrer les cases » à droite, puis un
+ * tableau nu par liste (la valeur et son code dessous, un interrupteur par case que le serveur propose pour cette liste).
+ */
+export const TableauxListesValeurs = ({ etat }: { etat: ReturnType<typeof useListesValeurs> }) => {
+    const { t } = useLangue();
+    const { vue, brouillon, erreur, enCours, modifie, enregistrer, cocher } = etat;
+    return (
+        <section id="donnees-listes-valeurs" data-groupe="donnees-listes-valeurs">
+            <TitreTableau
+                titre={t(TITRE_SECTION)}
+                info={
+                    <Info>
+                        {t({
+                            en: "Boxes the portal's indicators read: which outcomes count as settled alone, which reasons are an opportunity, which urgency levels are urgent. None is ticked by default.",
+                            fr: "Les cases que lisent les indicateurs du portail : quelles issues comptent comme réglées seules, quels motifs sont une opportunité, quels degrés d'urgence sont urgents. Aucune n'est cochée d'office.",
+                        })}
+                    </Info>
+                }
+                action={
+                    <Button
+                        size="sm"
+                        data-testid="enregistrer-listes-valeurs"
+                        disabled={enCours || !modifie}
+                        onClick={() => void enregistrer({ fr: "Listes enregistrées.", en: "Lists saved." })}
+                    >
+                        {t({ en: "Save the boxes", fr: "Enregistrer les cases" })}
+                    </Button>
+                }
+            />
+            {erreur && (
+                <p className="text-sm text-destructive" role="alert" data-testid="erreur-listes-valeurs">
+                    {erreur}
+                </p>
+            )}
+            {!vue ? null : (
+                <div className="mt-10 space-y-5">
+                    {(vue.listes ?? []).map((liste) => (
+                        <div key={liste.liste} data-liste={liste.liste}>
+                            <Tableau
+                                colonnes={[
+                                    { titre: <span className="font-mono">{liste.liste}</span> },
+                                    ...(liste.cases ?? []).map((boite) => ({ titre: t(LIBELLE_CASE[boite]), droite: true })),
+                                ]}
+                            >
+                                {(liste.valeurs ?? []).map((valeur) => (
+                                    <Ligne key={valeur.code}>
+                                        <Cellule principale sous={<span className="font-mono">{valeur.code}</span>}>
+                                            <span data-valeur={valeur.code}>{valeur.libelle}</span>
+                                        </Cellule>
+                                        {(liste.cases ?? []).map((boite) => (
+                                            <td key={boite} className="text-right" data-reglage={boite}>
+                                                <Switch
+                                                    id={`liste-${liste.liste}-${valeur.code}-${boite}`}
+                                                    aria-label={`${valeur.libelle} : ${t(LIBELLE_CASE[boite])}`}
+                                                    checked={Boolean(brouillon[cle(liste.liste, valeur.code)]?.[boite])}
+                                                    onCheckedChange={(v) => cocher(liste.liste, valeur.code, boite, v)}
+                                                />
+                                            </td>
+                                        ))}
+                                    </Ligne>
+                                ))}
+                            </Tableau>
+                            {(liste.valeurs ?? []).length === 0 && (
+                                <p className="py-3 text-sm text-muted-foreground" data-testid={`liste-vide-${liste.liste}`}>
+                                    {t({ en: "No value in this list yet.", fr: "Aucune valeur dans cette liste pour l'instant." })}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 };

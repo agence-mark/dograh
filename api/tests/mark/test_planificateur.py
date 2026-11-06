@@ -162,7 +162,8 @@ def test_cas_rouge_connu_pas_le_lundi_n_est_jamais_lundi():
 # sha256 of ``dates_relatives.py`` as of da977daf (line ends normalised); works without git history.
 # [.mark] correctifs-apres-banc-commun, lot 11 (F-1): updated on purpose after K6a (lot 3, « l'année dernière,
 # en octobre »), a reviewed change of the reader, not a planner change.
-EMPREINTE_DATES_RELATIVES = "2ea97108e76f2ebd2a0f2f76d0b8f559b0acb11da7433b768d316905729666f4"
+# [.mark] Partie 3, SA-5 (d1b03e64) : `aujourd_hui` lit l'horloge simulée d'un test ; le lecteur du planificateur reste à part.
+EMPREINTE_DATES_RELATIVES = "19b859097d02bd822ddb8bb3443c5d56d8bd13e2fbda386054ee6ca51b7794f8"
 
 
 def _empreinte(octets: bytes) -> str:

@@ -11,7 +11,6 @@
  */
 import { Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
     getApresAppelApiV1OrganizationsApresAppelGet,
@@ -21,20 +20,28 @@ import {
     putApresAppelApiV1OrganizationsApresAppelPut,
 } from "@/client/sdk.gen";
 import type { EcranApresAppel, ReglagesApresAppel } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 import { PREFIXE_REFERENCE } from "../cles/ChampCleModele";
 import { type Fournisseur, SelecteurCle } from "../cles/FenetreCles";
 import { ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
+import { BlocLu } from "../entreprise/section-lue";
 import { type Texte, useLangue } from "../langue/langue";
+import { EtatVide } from "../studio/etat-vide";
+import { FenetreChamps } from "../studio/fenetre-champs";
+import { Info } from "../studio/marques";
 import { BlocInstallationMark } from "./BlocInstallationMark";
 import { type ProprietesThemeOrganisation, useSignaler } from "./ThemesOrganisation";
 
@@ -62,7 +69,7 @@ export const useApresAppel = () => {
     const relire = useCallback(async () => {
         const reponse = await getApresAppelApiV1OrganizationsApresAppelGet();
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "After-call settings unreadable"));
+            setErreur(echecAffiche(reponse.error, ECHECS.apresAppelLire));
             return;
         }
         setErreur(null);
@@ -95,8 +102,11 @@ export const ThemeApresAppel = ({
     ouvrir,
     signaler,
     apresAppel,
+    plat,
+    sansTitre,
 }: ProprietesThemeOrganisation & { apresAppel: ReturnType<typeof useApresAppel> }) => {
     const { t } = useLangue();
+    const maquette = useFormeMaquette();
     const { ecran, setEcran, erreur } = apresAppel;
     const enregistre = ecran?.reglages ?? REGLAGES_VIDES;
     const [brouillon, setBrouillon] = useState<ReglagesApresAppel>(enregistre);
@@ -143,23 +153,25 @@ export const ThemeApresAppel = ({
         const reponse = await putApresAppelApiV1OrganizationsApresAppelPut({ body: envoye });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            toast.error(detailFromError(reponse.error, "After-call settings not saved"));
-            return;
+            notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: reponse.error });
+            return false;
         }
         setEcran(reponse.data);
-        toast.success(t({ en: "After-call settings saved", fr: "Réglages de l'après-appel enregistrés" }));
+        notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
+        return true;
     };
 
-    const agir = async (action: () => Promise<{ data?: unknown; error?: unknown }>, succes: Texte) => {
+    const agir = async (action: () => Promise<{ data?: unknown; error?: unknown }>, succes: Texte): Promise<boolean> => {
         setEnCours(true);
         const reponse = await action();
         setEnCours(false);
         if (reponse.error) {
-            toast.error(detailFromError(reponse.error, "Refused"));
-            return;
+            notifier.echec({ fr: "Demande refusée.", en: "Request refused." }, { erreur: reponse.error });
+            return false;
         }
-        toast.success(t(succes));
+        notifier.succes(succes);
         await apresAppel.relire();
+        return true;
     };
 
     const nuit = ecran?.derniere_nuit as { debut?: string; statut?: string; resultat?: { purge?: Record<string, number> } } | null | undefined;
@@ -182,9 +194,276 @@ export const ThemeApresAppel = ({
         />
     );
 
+    const champsSynthese = (
+        <>
+                <ChampReglage
+                    cle="synthese_modele"
+                    idControle="apres-appel-modele"
+                    libelle={{ en: "Model", fr: "Modèle" }}
+                    aides={[{ en: "A smaller model than the agent's: Mistral's rate limit is per model.", fr: "Un modèle plus petit que celui de l'agent : la limite de Mistral est par modèle." }]}
+                    bornes={{ en: `Default: ${MODELE_SYNTHESE_DEFAUT}`, fr: `Par défaut : ${MODELE_SYNTHESE_DEFAUT}` }}
+                >
+                    <Input id="apres-appel-modele" value={synthese.modele ?? ""} onChange={(e) => poser("synthese", "modele", e.target.value || MODELE_SYNTHESE_DEFAUT)} />
+                </ChampReglage>
+                <ChampReglage cle="synthese_cle" libelle={{ en: "Mistral key", fr: "Clé Mistral" }}>
+                    {cleSelecteur("mistral", "synthese", "cle", synthese.cle, { en: "The client's key, chosen in « Keys »", fr: "La clé du client, choisie dans « Clés »" })}
+                </ChampReglage>
+                <ChampReglage
+                    cle="synthese_nom_assistant"
+                    idControle="apres-appel-assistant"
+                    libelle={{ en: "Assistant's name in the summary", fr: "Nom de l'assistant dans la synthèse" }}
+                    aides={[{ en: "Empty: « the voice assistant ».", fr: "Vide : « l'assistant vocal »." }]}
+                >
+                    <Input id="apres-appel-assistant" value={synthese.nom_assistant ?? ""} onChange={(e) => poser("synthese", "nom_assistant", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage cle="synthese_nom_entreprise" idControle="apres-appel-entreprise" libelle={{ en: "Company", fr: "Entreprise" }}>
+                    <Input id="apres-appel-entreprise" value={synthese.nom_entreprise ?? ""} onChange={(e) => poser("synthese", "nom_entreprise", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage
+                    cle="synthese_consigne"
+                    idControle="apres-appel-consigne"
+                    libelle={{ en: "Instructions", fr: "Consigne" }}
+                    aides={[{ en: "Empty: the default instructions of the library (family After-call, element consigne-synthese).", fr: "Vide : la consigne par défaut de la bibliothèque (famille Après-appel, élément consigne-synthese)." }]}
+                >
+                    <Textarea id="apres-appel-consigne" rows={3} value={synthese.consigne ?? ""} onChange={(e) => poser("synthese", "consigne", vide(e.target.value))} />
+                </ChampReglage>
+        </>
+    );
+    const champsSmtp = (
+        <>
+                <ChampReglage cle="smtp_hote" idControle="smtp-hote" libelle={{ en: "Server", fr: "Serveur" }}>
+                    <Input id="smtp-hote" value={smtp.hote ?? ""} placeholder={t({ en: "smtp.example.org", fr: "smtp.example.org" })} onChange={(e) => poser("smtp", "hote", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage cle="smtp_port" idControle="smtp-port" libelle={{ en: "Port", fr: "Port" }} bornes={{ en: "1 to 65535, default 587", fr: "1 à 65535, 587 par défaut" }}>
+                    <div className="flex items-center gap-2">
+                        <Input id="smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poser("smtp", "port", Number(e.target.value))} className={maquette ? "w-32" : ""} />
+                        {maquette && <span className="ml-auto text-xs text-muted-foreground">{t({ en: "from 1 to 65535", fr: "de 1 à 65535" })}</span>}
+                    </div>
+                </ChampReglage>
+                <ChampReglage cle="smtp_securite" idControle="smtp-securite" libelle={{ en: "Security", fr: "Sécurité" }}>
+                    {maquette ? (
+                        <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm" role="group" aria-label={t({ en: "Security", fr: "Sécurité" })}>
+                            {(
+                                [
+                                    ["starttls", "STARTTLS"],
+                                    ["ssl", "SSL/TLS"],
+                                    ["aucune", t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })],
+                                ] as const
+                            ).map(([valeur, libelle]) => (
+                                <button
+                                    key={valeur}
+                                    type="button"
+                                    aria-pressed={(smtp.securite ?? "starttls") === valeur}
+                                    onClick={() => poser("smtp", "securite", valeur)}
+                                    className={`cursor-pointer rounded-md px-3 py-1 ${(smtp.securite ?? "starttls") === valeur ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:font-medium"}`}
+                                >
+                                    {libelle}
+                                </button>
+                            ))}
+                        </span>
+                    ) : (
+                    <ListeDeroulante
+                        id="smtp-securite"
+                        className="rounded border border-border bg-background px-2 py-1 text-sm"
+                        value={smtp.securite ?? "starttls"}
+                        onChange={(e) => poser("smtp", "securite", e.target.value)}
+                    >
+                        <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
+                        <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
+                        <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
+                    </ListeDeroulante>
+                    )}
+                </ChampReglage>
+                <ChampReglage cle="smtp_utilisateur" idControle="smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>
+                    <Input id="smtp-utilisateur" value={smtp.utilisateur ?? ""} onChange={(e) => poser("smtp", "utilisateur", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage cle="smtp_mot_de_passe" libelle={{ en: "Password", fr: "Mot de passe" }}>
+                    {cleSelecteur("smtp", "smtp", "mot_de_passe", smtp.mot_de_passe, { en: "A key of « Keys », provider SMTP", fr: "Une clé de « Clés », fournisseur SMTP" })}
+                </ChampReglage>
+                <ChampReglage cle="smtp_expediteur" idControle="smtp-expediteur" libelle={{ en: "Sender", fr: "Expéditeur" }}>
+                    <Input id="smtp-expediteur" value={smtp.expediteur ?? ""} placeholder={t({ en: "agent@example.org", fr: "agent@example.org" })} onChange={(e) => poser("smtp", "expediteur", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage cle="smtp_nom_expediteur" idControle="smtp-nom-expediteur" libelle={{ en: "Sender name", fr: "Nom de l'expéditeur" }}>
+                    <Input id="smtp-nom-expediteur" value={smtp.nom_expediteur ?? ""} onChange={(e) => poser("smtp", "nom_expediteur", vide(e.target.value))} />
+                </ChampReglage>
+        </>
+    );
+    const champsRecap = (
+        <>
+                <ChampReglage cle="recapitulatif_actif" idControle="recapitulatif-actif" libelle={{ en: "Send the recap", fr: "Envoyer le récapitulatif" }} bornes={{ en: "Default: off", fr: "Par défaut : éteint" }} disposition="ligne">
+                    <Switch id="recapitulatif-actif" checked={Boolean(recap.actif)} onCheckedChange={(v) => poser("recapitulatif", "actif", v)} />
+                </ChampReglage>
+                {recap.actif && (
+                    <ChampReglage cle="recapitulatif_heures" idControle="recapitulatif-heures" libelle={{ en: "Hours", fr: "Heures" }} bornes={{ en: "0 to 23, e.g. 8, 17", fr: "0 à 23, par ex. 8, 17" }}>
+                        <Input id="recapitulatif-heures" value={heures} onChange={(e) => setHeures(e.target.value)} />
+                    </ChampReglage>
+                )}
+        </>
+    );
+    const champsWebhook = (
+        <>
+                <ChampReglage
+                    cle="webhook_url"
+                    idControle="webhook-url"
+                    libelle={{ en: "Custom webhook: address", fr: "Webhook sur mesure : adresse" }}
+                    aides={[
+                        {
+                            en: "A custom n8n workflow after the call. It receives the record, the request and the summary; never the transcript. The organization travels in the secret of the X-Mark-Secret header.",
+                            fr: "Un workflow n8n sur mesure après l'appel. Il reçoit la fiche, la demande et la synthèse ; jamais la transcription. L'organisation voyage dans le secret de l'en-tête X-Mark-Secret.",
+                        },
+                    ]}
+                >
+                    <Input id="webhook-url" value={webhook.url ?? ""} placeholder="https://n8n.example.org/webhook/…" onChange={(e) => poser("webhook", "url", vide(e.target.value))} />
+                </ChampReglage>
+                <ChampReglage cle="webhook_secret" libelle={{ en: "Custom webhook: secret", fr: "Webhook sur mesure : secret" }}>
+                    {cleSelecteur("webhook", "webhook", "secret", webhook.secret, { en: "A key of « Keys », provider Webhook", fr: "Une clé de « Clés », fournisseur Webhook" })}
+                </ChampReglage>
+        </>
+    );
+
+    if (maquette) {
+        const unite = (n: string | null | undefined) => (n && n.trim() ? n : null);
+        const aucun = t({ en: "not set", fr: "non réglé" });
+        const fenetre = (titre: Texte, corps: React.ReactNode) => ({
+            titre: t(titre),
+            corps,
+            onAnnuler: () => {
+                setBrouillon(JSON.parse(cle) as ReglagesApresAppel);
+                setHeures((enregistre.recapitulatif?.heures ?? [8]).join(", "));
+            },
+            onValider: () => enregistrer(),
+            verifier: () => (erreurs.length > 0 ? { [erreurs[0].cle]: erreurs[0].message } : null),
+        });
+        return (
+            <Theme
+                id="apres-appel"
+                plat={plat}
+                sansTitre={sansTitre}
+                icone={Mail}
+                titre={TITRE_APRES_APPEL}
+                description={{ en: "After the call", fr: "Après l'appel" }}
+                resume={resume}
+                ouvert={ouvert}
+                onBasculer={onBasculer}
+                modifie={modifie}
+                erreurs={erreurs}
+            >
+                {erreur && (
+                    <p className="text-sm text-destructive" role="alert">
+                        {erreur}
+                    </p>
+                )}
+                {!ecran ? (
+                    erreur ? null : <EtatVide cas="chargement" />
+                ) : (
+                    <>
+                        <BlocLu
+                            id="apres-appel-synthese"
+                            titre={t({ en: "Summary", fr: "Synthèse" })}
+                            info={t({
+                                en: "A few lines on what happened on the phone, next to the record's fields and never in their place. Billed on the client's Mistral key.",
+                                fr: "Quelques lignes sur ce qui s'est passé au téléphone, à côté des champs de la fiche et jamais à leur place. Facturée sur la clé Mistral du client.",
+                            })}
+                            lignes={[
+                                [t({ en: "Model", fr: "Modèle" }), synthese.modele ?? MODELE_SYNTHESE_DEFAUT],
+                                [t({ en: "Key", fr: "Clé" }), synthese.cle ? t({ en: "a key of « Keys »", fr: "une clé de « Clés »" }) : aucun],
+                                [t({ en: "Instructions", fr: "Consigne" }), synthese.consigne ? t({ en: "written here", fr: "écrite ici" }) : t({ en: "generic (library)", fr: "générique (bibliothèque)" })],
+                            ]}
+                            fenetre={fenetre({ en: "Summary", fr: "Synthèse" }, champsSynthese)}
+                        />
+                        <BlocLu
+                            id="apres-appel-smtp"
+                            titre={t({ en: "Mail server", fr: "Serveur de mail" })}
+                            info={t({
+                                en: "One mail per request, to the people its subject is routed to (« Team and routing »), else to the default recipients.",
+                                fr: "Un mail par demande, aux personnes de son sujet (« Équipe et routage »), sinon aux destinataires par défaut.",
+                            })}
+                            action={<EssaiMail enCours={enCours} bloque={modifie || !smtp.hote} envoyer={(destinataire) => agir(() => postEssaiMailApiV1OrganizationsApresAppelEssaiMailPost({ body: { destinataire } }), { en: "Test mail sent", fr: "Mail d'essai envoyé" })} />}
+                            lignes={[
+                                [t({ en: "Server", fr: "Serveur" }), unite(smtp.hote) ? `${smtp.hote} · ${smtp.port} · ${(smtp.securite ?? "starttls").toUpperCase()}` : aucun],
+                                [t({ en: "Sender", fr: "Expéditeur" }), unite(smtp.nom_expediteur) ?? unite(smtp.expediteur) ?? aucun],
+                                [t({ en: "Password", fr: "Mot de passe" }), smtp.mot_de_passe ? t({ en: "a key of « Keys »", fr: "une clé de « Clés »" }) : aucun],
+                            ]}
+                            fenetre={fenetre({ en: "Mail server", fr: "Serveur de mail" }, champsSmtp)}
+                        />
+                        <BlocLu
+                            id="apres-appel-recapitulatif"
+                            titre={t({ en: "Recap", fr: "Récapitulatif" })}
+                            info={t({
+                                en: "A mail of the requests that still wait for a call-back, to the default recipients, at the hours set (the organization's timezone).",
+                                fr: "Un mail des demandes qui attendent encore un rappel, aux destinataires par défaut, aux heures réglées (fuseau de l'organisation).",
+                            })}
+                            action={
+                                <Button variant="ghost" size="sm" disabled={enCours || modifie || !ecran.base_rattachee} data-testid="recapitulatif-maintenant" onClick={() => void agir(() => postRecapitulatifApiV1OrganizationsApresAppelRecapitulatifPost(), { en: "Recap sent", fr: "Récapitulatif envoyé" })}>
+                                    {t({ en: "Send now", fr: "Envoyer maintenant" })}
+                                </Button>
+                            }
+                            lignes={[[t({ en: "State", fr: "État" }), recap.actif ? `${t({ en: "on", fr: "allumé" })} · ${(recap.heures ?? []).map((h) => `${h} h`).join(", ")}` : t({ en: "off", fr: "éteint" })]]}
+                            fenetre={fenetre({ en: "Recap", fr: "Récapitulatif" }, champsRecap)}
+                        />
+                        <BlocLu
+                            id="apres-appel-modules"
+                            titre={t({ en: "Custom webhook", fr: "Webhook sur mesure" })}
+                            info={t({
+                                en: "Set here, switched on agent by agent (« Call data »). Off by default.",
+                                fr: "Réglé ici, allumé agent par agent (« Données de l'appel »). Éteint par défaut.",
+                            })}
+                            lignes={[[t({ en: "Address", fr: "Adresse" }), unite(webhook.url) ?? aucun]]}
+                            fenetre={fenetre({ en: "Custom webhook", fr: "Webhook sur mesure" }, champsWebhook)}
+                        />
+                        <BlocLu
+                            id="apres-appel-nuit"
+                            titre={t({ en: "Night task", fr: "Tâche de nuit" })}
+                            info={t({
+                                en: "Every night: the purge, table by table (durations in « Client data »), and the day's counters. The result is kept as proof.",
+                                fr: "Chaque nuit : la purge, table par table (durées dans « Données du client »), et les compteurs du jour. Le résultat est gardé comme preuve.",
+                            })}
+                            action={
+                                <Button variant="ghost" size="sm" disabled={enCours || !ecran.base_rattachee} data-testid="purge-maintenant" onClick={() => void agir(() => postNuitApiV1OrganizationsApresAppelNuitPost(), { en: "Purge done", fr: "Purge faite" })}>
+                                    {t({ en: "Run the purge now", fr: "Lancer la purge maintenant" })}
+                                </Button>
+                            }
+                            lignes={[
+                                [
+                                    t({ en: "Last passage", fr: "Dernier passage" }),
+                                    <span key="n" data-testid="derniere-nuit">
+                                        {nuit?.debut
+                                            ? `${new Date(nuit.debut).toLocaleString()} · ${nuit.statut} · ${Object.entries(nuit.resultat?.purge ?? {})
+                                                  .map(([table, n]) => `${table} ${n}`)
+                                                  .join(", ")}`
+                                            : t({ en: "Not run yet.", fr: "Pas encore passée." })}
+                                    </span>,
+                                ],
+                                ...(ecran.base_rattachee
+                                    ? []
+                                    : ([
+                                          [
+                                              t({ en: "Client database", fr: "Base du client" }),
+                                              <span key="b" className="flex items-center gap-1.5" data-testid="apres-appel-sans-base">
+                                                  {t({ en: "not attached", fr: "non rattachée" })}
+                                                  <Info>
+                                                      {t({
+                                                          en: "No client database is attached (« Client data »): the calls cannot be written, nor the requests routed.",
+                                                          fr: "Aucune base du client n'est rattachée (« Données du client ») : les appels ne peuvent pas s'écrire, ni les demandes être routées.",
+                                                      })}
+                                                  </Info>
+                                              </span>,
+                                          ],
+                                      ] as [string, React.ReactNode][])),
+                            ]}
+                        />
+                        <BlocInstallationMark />
+                    </>
+                )}
+            </Theme>
+        );
+    }
+
     return (
         <Theme
             id="apres-appel"
+            plat={plat}
+            sansTitre={sansTitre}
             icone={Mail}
             titre={TITRE_APRES_APPEL}
             description={{
@@ -220,37 +499,7 @@ export const ThemeApresAppel = ({
                     fr: "Quelques lignes sur ce qui s'est passé au téléphone, à côté des champs de la fiche et jamais à leur place. Facturée sur la clé Mistral du client.",
                 }}
             >
-                <ChampReglage
-                    cle="synthese_modele"
-                    idControle="apres-appel-modele"
-                    libelle={{ en: "Model", fr: "Modèle" }}
-                    aides={[{ en: "A smaller model than the agent's: Mistral's rate limit is per model.", fr: "Un modèle plus petit que celui de l'agent : la limite de Mistral est par modèle." }]}
-                    bornes={{ en: `Default: ${MODELE_SYNTHESE_DEFAUT}`, fr: `Par défaut : ${MODELE_SYNTHESE_DEFAUT}` }}
-                >
-                    <Input id="apres-appel-modele" value={synthese.modele ?? ""} onChange={(e) => poser("synthese", "modele", e.target.value || MODELE_SYNTHESE_DEFAUT)} />
-                </ChampReglage>
-                <ChampReglage cle="synthese_cle" libelle={{ en: "Mistral key", fr: "Clé Mistral" }}>
-                    {cleSelecteur("mistral", "synthese", "cle", synthese.cle, { en: "The client's key, chosen in « Keys »", fr: "La clé du client, choisie dans « Clés »" })}
-                </ChampReglage>
-                <ChampReglage
-                    cle="synthese_nom_assistant"
-                    idControle="apres-appel-assistant"
-                    libelle={{ en: "Assistant's name in the summary", fr: "Nom de l'assistant dans la synthèse" }}
-                    aides={[{ en: "Empty: « the voice assistant ».", fr: "Vide : « l'assistant vocal »." }]}
-                >
-                    <Input id="apres-appel-assistant" value={synthese.nom_assistant ?? ""} onChange={(e) => poser("synthese", "nom_assistant", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="synthese_nom_entreprise" idControle="apres-appel-entreprise" libelle={{ en: "Company", fr: "Entreprise" }}>
-                    <Input id="apres-appel-entreprise" value={synthese.nom_entreprise ?? ""} onChange={(e) => poser("synthese", "nom_entreprise", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage
-                    cle="synthese_consigne"
-                    idControle="apres-appel-consigne"
-                    libelle={{ en: "Instructions", fr: "Consigne" }}
-                    aides={[{ en: "Empty: the generic instructions written in the code (the lab's version 6).", fr: "Vide : la consigne générique écrite dans le code (la version 6 du labo)." }]}
-                >
-                    <Textarea id="apres-appel-consigne" rows={3} value={synthese.consigne ?? ""} onChange={(e) => poser("synthese", "consigne", vide(e.target.value))} />
-                </ChampReglage>
+                {champsSynthese}
             </Intertitre>
 
             <Intertitre
@@ -261,36 +510,7 @@ export const ThemeApresAppel = ({
                     fr: "Un mail par demande, aux personnes de son sujet (« Équipe et routage »), sinon aux destinataires par défaut.",
                 }}
             >
-                <ChampReglage cle="smtp_hote" idControle="smtp-hote" libelle={{ en: "Server", fr: "Serveur" }}>
-                    <Input id="smtp-hote" value={smtp.hote ?? ""} placeholder={t({ en: "smtp.example.org", fr: "smtp.example.org" })} onChange={(e) => poser("smtp", "hote", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="smtp_port" idControle="smtp-port" libelle={{ en: "Port", fr: "Port" }} bornes={{ en: "1 to 65535, default 587", fr: "1 à 65535, 587 par défaut" }}>
-                    <Input id="smtp-port" type="number" min={1} max={65535} value={smtp.port ?? 587} onChange={(e) => poser("smtp", "port", Number(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="smtp_securite" idControle="smtp-securite" libelle={{ en: "Security", fr: "Sécurité" }}>
-                    <select
-                        id="smtp-securite"
-                        className="rounded border border-border bg-background px-2 py-1 text-sm"
-                        value={smtp.securite ?? "starttls"}
-                        onChange={(e) => poser("smtp", "securite", e.target.value)}
-                    >
-                        <option value="starttls">{t({ en: "STARTTLS", fr: "STARTTLS" })}</option>
-                        <option value="ssl">{t({ en: "SSL/TLS", fr: "SSL/TLS" })}</option>
-                        <option value="aucune">{t({ en: "None (local network only)", fr: "Aucune (réseau local seulement)" })}</option>
-                    </select>
-                </ChampReglage>
-                <ChampReglage cle="smtp_utilisateur" idControle="smtp-utilisateur" libelle={{ en: "User", fr: "Utilisateur" }}>
-                    <Input id="smtp-utilisateur" value={smtp.utilisateur ?? ""} onChange={(e) => poser("smtp", "utilisateur", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="smtp_mot_de_passe" libelle={{ en: "Password", fr: "Mot de passe" }}>
-                    {cleSelecteur("smtp", "smtp", "mot_de_passe", smtp.mot_de_passe, { en: "A key of « Keys », provider SMTP", fr: "Une clé de « Clés », fournisseur SMTP" })}
-                </ChampReglage>
-                <ChampReglage cle="smtp_expediteur" idControle="smtp-expediteur" libelle={{ en: "Sender", fr: "Expéditeur" }}>
-                    <Input id="smtp-expediteur" value={smtp.expediteur ?? ""} placeholder={t({ en: "agent@example.org", fr: "agent@example.org" })} onChange={(e) => poser("smtp", "expediteur", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="smtp_nom_expediteur" idControle="smtp-nom-expediteur" libelle={{ en: "Sender name", fr: "Nom de l'expéditeur" }}>
-                    <Input id="smtp-nom-expediteur" value={smtp.nom_expediteur ?? ""} onChange={(e) => poser("smtp", "nom_expediteur", vide(e.target.value))} />
-                </ChampReglage>
+                {champsSmtp}
                 <div className="flex flex-wrap items-end gap-2">
                     <Input
                         className="max-w-xs"
@@ -329,14 +549,7 @@ export const ThemeApresAppel = ({
                     fr: "Un mail des demandes qui attendent encore un rappel, aux destinataires par défaut, aux heures réglées (fuseau de l'organisation).",
                 }}
             >
-                <ChampReglage cle="recapitulatif_actif" idControle="recapitulatif-actif" libelle={{ en: "Send the recap", fr: "Envoyer le récapitulatif" }} bornes={{ en: "Default: off", fr: "Par défaut : éteint" }} disposition="ligne">
-                    <Switch id="recapitulatif-actif" checked={Boolean(recap.actif)} onCheckedChange={(v) => poser("recapitulatif", "actif", v)} />
-                </ChampReglage>
-                {recap.actif && (
-                    <ChampReglage cle="recapitulatif_heures" idControle="recapitulatif-heures" libelle={{ en: "Hours", fr: "Heures" }} bornes={{ en: "0 to 23, e.g. 8, 17", fr: "0 à 23, par ex. 8, 17" }}>
-                        <Input id="recapitulatif-heures" value={heures} onChange={(e) => setHeures(e.target.value)} />
-                    </ChampReglage>
-                )}
+                {champsRecap}
                 <Button
                     size="sm"
                     variant="outline"
@@ -356,22 +569,7 @@ export const ThemeApresAppel = ({
                     fr: "Réglés ici, allumés agent par agent (« Données de l'appel »). Éteints par défaut.",
                 }}
             >
-                <ChampReglage
-                    cle="webhook_url"
-                    idControle="webhook-url"
-                    libelle={{ en: "Custom webhook: address", fr: "Webhook sur mesure : adresse" }}
-                    aides={[
-                        {
-                            en: "A custom n8n workflow after the call. It receives the record, the request and the summary; never the transcript. The organization travels in the secret of the X-Mark-Secret header.",
-                            fr: "Un workflow n8n sur mesure après l'appel. Il reçoit la fiche, la demande et la synthèse ; jamais la transcription. L'organisation voyage dans le secret de l'en-tête X-Mark-Secret.",
-                        },
-                    ]}
-                >
-                    <Input id="webhook-url" value={webhook.url ?? ""} placeholder="https://n8n.example.org/webhook/…" onChange={(e) => poser("webhook", "url", vide(e.target.value))} />
-                </ChampReglage>
-                <ChampReglage cle="webhook_secret" libelle={{ en: "Custom webhook: secret", fr: "Webhook sur mesure : secret" }}>
-                    {cleSelecteur("webhook", "webhook", "secret", webhook.secret, { en: "A key of « Keys », provider Webhook", fr: "Une clé de « Clés », fournisseur Webhook" })}
-                </ChampReglage>
+                {champsWebhook}
             </Intertitre>
 
             <Intertitre
@@ -402,5 +600,29 @@ export const ThemeApresAppel = ({
 
             <BlocInstallationMark />
         </Theme>
+    );
+};
+
+/** Le « Mail d'essai » de la maquette : un geste direct ; l'adresse du destinataire se donne dans une petite fenêtre. */
+const EssaiMail = ({ enCours, bloque, envoyer }: { enCours: boolean; bloque: boolean; envoyer: (destinataire: string) => Promise<boolean> }) => {
+    const { t } = useLangue();
+    const [ouverte, setOuverte] = useState(false);
+    return (
+        <>
+            <Button variant="ghost" size="sm" disabled={enCours || bloque} data-testid="essai-mail" onClick={() => setOuverte(true)}>
+                <Mail className="size-3.5" />
+                {t({ en: "Test mail", fr: "Mail d'essai" })}
+            </Button>
+            <FenetreChamps
+                ouverte={ouverte}
+                fermer={() => setOuverte(false)}
+                titre={t({ en: "Send a test mail", fr: "Envoyer un mail d'essai" })}
+                info={t({ en: "The test uses the saved mail server.", fr: "L'essai utilise le serveur de mail enregistré." })}
+                sections={[{ champs: [{ id: "destinataire", t: "texte", l: t({ en: "Test recipient", fr: "Destinataire de l'essai" }) }] }]}
+                valider={t({ en: "Send", fr: "Envoyer" })}
+                verifier={(v) => (ADRESSE.test(String(v.destinataire ?? "").trim()) ? null : { destinataire: t({ en: "Not a mail address.", fr: "Pas une adresse mail." }) })}
+                onValider={(v) => envoyer(String(v.destinataire).trim())}
+            />
+        </>
     );
 };

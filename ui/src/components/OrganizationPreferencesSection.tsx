@@ -3,7 +3,6 @@
 import { Save, SlidersHorizontal } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
-import { toast } from "sonner";
 
 import {
   getPreferencesApiV1OrganizationsPreferencesGet,
@@ -12,6 +11,7 @@ import {
 import type { OrganizationPreferences } from "@/client/types.gen";
 import { DispositionMappingDialog } from "@/components/DispositionMappingDialog";
 import { ChampAdresseEtablissement } from "@/components/mark/ChampAdresseEtablissement";
+import { notifier } from "@/components/mark/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -145,12 +145,7 @@ export function OrganizationPreferencesSection() {
         await getPreferencesApiV1OrganizationsPreferencesGet();
 
       if (result.error) {
-        toast.error(
-          detailFromError(
-            result.error,
-            "Failed to load organization preferences",
-          ),
-        );
+        notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." }, { erreur: result.error });
         return;
       }
 
@@ -161,7 +156,7 @@ export function OrganizationPreferencesSection() {
         nextPreferences.timezone || emptyPreferences.timezone || "UTC",
       );
     } catch {
-      toast.error("Failed to load organization preferences");
+      notifier.echec({ fr: "Réglages illisibles. Rechargez la page.", en: "Could not load settings. Reload the page." });
     } finally {
       setLoading(false);
     }
@@ -198,7 +193,6 @@ export function OrganizationPreferencesSection() {
         );
 
       if (result.error) {
-        const message = detailFromError(result.error, "Failed to save preferences");
         // [.mark] A refused address is shown under its fields, not only in a
         // toast that disappears. Only an ADDRESS refusal: the route raises it
         // as a plain string, while a validation error of another field comes
@@ -208,23 +202,24 @@ export function OrganizationPreferencesSection() {
           typeof detail === "string" ||
           JSON.stringify(detail ?? "").includes("adresse_etablissement");
         if (result.response?.status === 422 && refusAdresse) {
-          setErreurAdresse(message);
+          // faute-de-champ : refus d'adresse écrit par notre propre validateur, lu sous ses champs
+          setErreurAdresse(detailFromError(result.error, "Failed to save preferences"));
         }
-        toast.error(message);
+        notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." }, { erreur: result.error });
         return false;
       }
       if (!result.data) {
-        toast.error("Failed to save preferences");
+        notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
         return false;
       }
 
       setPreferences(toFormPreferences(result.data));
       setTimezone(result.data.timezone || emptyPreferences.timezone || "UTC");
       await refreshConfig();
-      toast.success(successMessage);
+      notifier.succes({ fr: "Réglages enregistrés.", en: "Settings saved." });
       return true;
     } catch {
-      toast.error("Failed to save preferences");
+      notifier.echec({ fr: "Réglages non enregistrés. Réessayez.", en: "Settings not saved. Try again." });
       return false;
     } finally {
       setSaving(false);

@@ -46,6 +46,7 @@ export const EtapeDeRetour = ({
         libelle={TEXTES.libelle}
         aides={[TEXTES.aide, TEXTES.aide2]}
         disposition="ligne"
+        variante="noeud"
     >
         <Switch id={MARQUEUR_ETAPE_DE_RETOUR} checked={coche} onCheckedChange={onChange} />
     </ChampReglage>

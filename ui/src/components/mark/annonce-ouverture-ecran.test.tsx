@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
     toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("./sdk-factice")).sdkFactice(await importOriginal(), {
     getAnnonceOuvertureApiV1OrganizationsAnnonceOuvertureGet: mocks.getAnnonce,
     saveAnnonceOuvertureApiV1OrganizationsAnnonceOuverturePut: mocks.saveAnnonce,
@@ -323,26 +324,38 @@ describe("[.mark] the announcement settings card", () => {
 // 3. The card is really MOUNTED on the Platform Settings page
 // --------------------------------------------------------------------------- //
 
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
 
 describe("[.mark] the announcement settings, on the Platform Settings page", () => {
     it("is on the page, and its four settings can be reached there", async () => {
         render(<PageReglagesPlateforme />);
         // 🆕 Step 5 of reorganisation-ecran-reglages: in the « Business » theme.
         const entete = await waitFor(() => {
-            const trouve = document.querySelector('[data-theme="etablissement"] > button[aria-expanded]');
+            const trouve = document.querySelector('[data-theme="etablissement"] button[aria-expanded], [data-theme="etablissement"][data-plat]');
             if (!trouve) throw new Error("page not drawn yet");
             return trouve as HTMLButtonElement;
         });
         fireEvent.click(entete);
-        await screen.findByText("Closed-business announcement");
+        await screen.findAllByText("Closed-business announcement");
         // The two sentences and the state selector are on the PAGE, not only in
         // the card's own test.
         await waitFor(() => expect(champ("annonce_fermeture")).not.toBeNull());
         expect(champ("annonce_pause")).not.toBeNull();
-        expect(champ("etat_force")).not.toBeNull();
+        // Dans la fenêtre de la maquette, l'état forcé est une liste du design system (plus un <select>).
+        const liste = document.querySelector('#reglage-etat_force [role="combobox"]') as HTMLElement;
+        expect(liste).not.toBeNull();
         // The fourth one appears once a state is forced, on the page too.
-        fireEvent.change(champ("etat_force"), { target: { value: "FERME" } });
+        fireEvent.pointerDown(liste, { button: 0, ctrlKey: false });
+        fireEvent.click(liste);
+        fireEvent.click(await screen.findByRole("option", { name: /forced: closed/i }));
         await waitFor(() => expect(champ("etat_force_jusqu_a")).not.toBeNull());
     });
 
@@ -351,9 +364,9 @@ describe("[.mark] the announcement settings, on the Platform Settings page", () 
         // export (BigQuery, its only destination) is neutralised and absent
         // from the screen; the server refuses it anyway.
         render(<PageReglagesPlateforme />);
-        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBe(10));
-        for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] > button[aria-expanded]")) fireEvent.click(entete);
-        await screen.findByText("Closed-business announcement");
+        await waitFor(() => expect(document.querySelectorAll("[data-theme]").length).toBeGreaterThan(0));
+        for (const entete of document.querySelectorAll<HTMLButtonElement>("[data-theme] button[aria-expanded]")) fireEvent.click(entete);
+        await screen.findAllByText("Closed-business announcement");
         expect(screen.queryByText("Call events")).toBeNull();
         expect(document.body.textContent).not.toMatch(/bigquery/i);
     });

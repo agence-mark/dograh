@@ -135,3 +135,25 @@ class ChunkSearchResponseSchema(BaseModel):
     chunks: List[ChunkResponseSchema]
     query: str
     total_results: int
+
+
+class RemplacerFichierRequestSchema(BaseModel):
+    """[.mark] U10: the new file of an existing document (uploaded with /upload-url first)."""
+
+    s3_key: str = Field(..., description="S3 key of the new file, as returned by /upload-url")
+
+
+class AgentConsultantSchema(BaseModel):
+    id: int
+    nom: str
+
+
+class UtilisationDocumentSchema(BaseModel):
+    document_uuid: str
+    agents: List[AgentConsultantSchema]
+
+
+class UtilisationDocumentsResponseSchema(BaseModel):
+    """[.mark] U10: used-by, calculated from the published agents, never declared."""
+
+    documents: List[UtilisationDocumentSchema]

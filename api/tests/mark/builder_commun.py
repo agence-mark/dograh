@@ -1,0 +1,291 @@
+"""[.mark] builder-agent-vocal : le monde simulé des tests du builder (aucune base, aucun appel réel).
+
+``FauxDb`` tient en mémoire ce que le builder lit et écrit dans ``db_client`` ; la fixture ``monde`` le branche
+partout où le code du builder importe ``db_client`` et règle l'organisation .mark de la bibliothèque.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+
+ORG_MARK = 1
+ORG_CLIENT = 7
+ORG_AUTRE = 8
+AGENT = 42
+
+
+def graphe_depart() -> dict:
+    return {
+        "nodes": [
+            {"id": "1", "type": "startCall", "position": {"x": 0, "y": 0}, "data": {"name": "Départ", "prompt": "p1"}},
+            {"id": "2", "type": "endCall", "position": {"x": 0, "y": 100}, "data": {"name": "Fin", "prompt": "p2"}},
+        ],
+        "edges": [{"id": "1-2", "source": "1", "target": "2", "data": {"label": "Fini", "condition": "c"}}],
+    }
+
+
+def utilisateur(identifiant: int = 1, organisation: int = ORG_CLIENT):
+    return SimpleNamespace(
+        id=identifiant,
+        provider_id=f"p{identifiant}",
+        email=f"u{identifiant}@exemple.test",
+        selected_organization_id=organisation,
+        mark_auteur=None,
+    )
+
+
+class FauxDb:
+    def __init__(self):
+        self.configs: dict[tuple[int, str], dict] = {}
+        self.epingles_des_outils: dict[str, dict] = {}  # SA-L3d : {uuid: {tool_uuid, nom, epinglee, courante, figee}}
+        self.epingles_ecrites: dict | None = None
+        self.membres: set[tuple[int, int]] = set()
+        self.workflows: dict[int, SimpleNamespace] = {}
+        self.brouillons: dict[int, SimpleNamespace] = {}
+        self.credentials: dict[str, SimpleNamespace] = {}
+        self.configs_utilisateur: dict[tuple[int, str], dict] = {}
+        self.ecritures_de_reglages: list[dict] = []
+        self.journal_builder: list[dict] = []  # N1 (sous-lot 4) : le journal des écritures du builder, en mémoire
+        self.journal_en_panne = False
+        self._prochain = 100
+
+    async def workflow_a_ete_publie(self, workflow_id):
+        return workflow_id in getattr(self, "publies", set())
+
+    async def list_workflow_ids_with_organization(self):
+        return [(w.id, w.organization_id) for w in self.workflows.values()]
+
+    # -- organization_configurations --
+    async def get_configuration(self, organization_id, key):
+        valeur = self.configs.get((organization_id, key))
+        return SimpleNamespace(key=key, value=valeur) if valeur is not None else None
+
+    async def upsert_configuration(self, organization_id, key, value, last_validated_at=None):
+        self.configs[(organization_id, key)] = value
+        return SimpleNamespace(key=key, value=value)
+
+    async def delete_configuration(self, organization_id, key):
+        return self.configs.pop((organization_id, key), None) is not None
+
+    async def compare_and_set_configuration(self, organization_id, key, expected, value):
+        """Comme la vraie : écrit seulement si la valeur est celle qu'on a lue (aucun ``await`` entre la lecture et l'écriture)."""
+        if self.configs.get((organization_id, key)) != expected:
+            return False
+        self.configs[(organization_id, key)] = value
+        return True
+
+    async def get_all_configurations(self, organization_id):
+        return [SimpleNamespace(key=k, value=v) for (o, k), v in self.configs.items() if o == organization_id]
+
+    async def get_configurations_by_prefix(self, organization_id, prefix):
+        return sorted(
+            (SimpleNamespace(key=k, value=v) for (o, k), v in self.configs.items() if o == organization_id and k.startswith(prefix)),
+            key=lambda ligne: ligne.key,
+        )
+
+    async def get_configuration_keys_by_prefix(self, organization_id, prefix):
+        return sorted(k for (o, k) in self.configs if o == organization_id and k.startswith(prefix))
+
+    async def get_configurations_by_prefix_without(self, organization_id, prefix, fields):
+        return sorted(
+            ((k, {c: x for c, x in v.items() if c not in fields} if isinstance(v, dict) else v) for (o, k), v in self.configs.items() if o == organization_id and k.startswith(prefix)),
+            key=lambda paire: paire[0],
+        )
+
+    # -- journal du builder (N1, sous-lot 4) : mêmes règles que la vraie table (filtre par organisation, clôture une fois) --
+    async def ecrire_journal_builder(self, organization_id, **champs):
+        if self.journal_en_panne:
+            raise RuntimeError("journal en panne")
+        ligne = {"id": len(self.journal_builder) + 1, "organization_id": organization_id, "quand": datetime.now(UTC), "annule_le": None, "annule_par": None,
+                 "workflow_id": None, "fil_id": None, "mode": None, "avant": None, "apres": None, "annulation": None, "non_annulable": None, "arguments": None, **champs}
+        self.journal_builder.append(ligne)
+        return ligne["id"]
+
+    async def clore_journal_builder(self, organization_id, ligne_id, **champs):
+        for ligne in self.journal_builder:
+            if ligne["id"] == ligne_id and ligne["organization_id"] == organization_id and ligne["statut"] == "en_cours":
+                ligne.update(champs)
+                return True
+        return False
+
+    async def lire_journal_builder(self, organization_id, ligne_id):
+        return next((dict(l) for l in self.journal_builder if l["id"] == ligne_id and l["organization_id"] == organization_id), None)
+
+    async def lister_journal_builder(self, organization_id, *, limit=25, offset=0, workflow_id=None, fil_id=None, famille=None):
+        lignes = [l for l in self.journal_builder if l["organization_id"] == organization_id and (workflow_id is None or l["workflow_id"] == workflow_id)
+                  and (fil_id is None or l["fil_id"] == fil_id) and (not famille or l["famille"] == famille)]
+        lignes.sort(key=lambda l: -l["id"])
+        return [dict(l) for l in lignes[offset : offset + limit]], len(lignes)
+
+    # -- rôle d'équipe (N1 : le builder ne donne jamais plus de droits que la personne) --
+    async def acces_du_compte(self, user_id):
+        """Toutes les permissions par défaut (un administrateur) ; ``permissions_des_comptes[user_id]`` en pose d'autres, ``None`` = aucun rôle."""
+        from api.services.equipe_mark.permissions import PERMISSIONS
+
+        propres = getattr(self, "permissions_des_comptes", {})
+        if user_id in propres:
+            return None if propres[user_id] is None else SimpleNamespace(permissions=list(propres[user_id]))
+        return SimpleNamespace(permissions=list(PERMISSIONS))
+
+    # -- membres --
+    async def is_user_member_of_organization(self, user_id, organization_id):
+        return (user_id, organization_id) in self.membres
+
+    # -- agents --
+    def ajouter_agent(self, organization_id=ORG_CLIENT, identifiant=AGENT, graphe=None, configurations=None):
+        definition = SimpleNamespace(
+            workflow_json=graphe or graphe_depart(), version_number=1, status="published", workflow_configurations=configurations or {}
+        )
+        self.workflows[identifiant] = SimpleNamespace(
+            id=identifiant,
+            name=f"agent-{identifiant}",
+            organization_id=organization_id,
+            status="active",
+            released_definition=definition,
+            workflow_definition=definition.workflow_json,
+            workflow_configurations=configurations or {},
+            current_definition_id=1,
+            template_context_variables={},
+            call_disposition_codes=None,
+            created_at=datetime.now(UTC),
+        )
+        return self.workflows[identifiant]
+
+    async def get_workflow(self, workflow_id, organization_id=None):
+        w = self.workflows.get(workflow_id)
+        if w is None or (organization_id is not None and w.organization_id != organization_id):
+            return None
+        return w
+
+    async def get_all_workflows_for_listing(self, organization_id, status=None):
+        return [
+            SimpleNamespace(id=w.id, name=w.name, status=w.status, created_at=w.created_at)
+            for w in self.workflows.values()
+            if w.organization_id == organization_id and status in (None, w.status)
+        ]
+
+    async def branche_ouverte_de(self, workflow_id):
+        from api.db import branche_ouverte
+
+        return branche_ouverte.Cible(None, None)  # SA-L3c : la principale (les branches ont leurs propres tests, en vraie base)
+
+    async def exiger_la_principale_modifiable(self, workflow_id):
+        return None  # SA-L3c : la protection a ses propres tests, en vraie base
+
+    async def get_draft_version(self, workflow_id):
+        return self.brouillons.get(workflow_id)
+
+    async def outils_epingles_de_l_agent(self, organization_id, workflow_id):
+        return {"source": None, "outils": [self.epingles_des_outils[u] for u in sorted(self.epingles_des_outils)]}  # SA-L3d
+
+    async def remplacer_les_epingles_du_brouillon(self, organization_id, workflow_id, epingles):
+        self.epingles_ecrites = dict(epingles)  # SA-L3d
+
+    async def save_workflow_draft(self, workflow_id, workflow_definition=None, workflow_configurations=None, template_context_variables=None):
+        ancien = self.brouillons.get(workflow_id)
+        numero = (ancien.version_number if ancien else self.workflows[workflow_id].released_definition.version_number) + 1
+        self.brouillons[workflow_id] = SimpleNamespace(
+            workflow_json=workflow_definition or (ancien.workflow_json if ancien else None),
+            version_number=numero,
+            status="draft",
+            workflow_configurations=workflow_configurations or {},
+        )
+        return self.brouillons[workflow_id]
+
+    async def update_workflow(self, workflow_id, name, workflow_definition, template_context_variables, workflow_configurations, user_id=None, organization_id=None):
+        self.ecritures_de_reglages.append({"workflow_id": workflow_id, "configurations": workflow_configurations})
+        await self.save_workflow_draft(workflow_id, None, workflow_configurations)
+        return self.workflows[workflow_id]
+
+    async def create_workflow(self, name, workflow_definition, user_id, organization_id=None, workflow_configurations=None):
+        self._prochain += 1
+        w = self.ajouter_agent(organization_id, self._prochain, workflow_definition, workflow_configurations)
+        w.name = name
+        return w
+
+    # -- coffre --
+    async def get_credential_by_uuid(self, credential_uuid, organization_id, active_only=True):
+        c = self.credentials.get(credential_uuid)
+        return c if c is not None and c.organization_id == organization_id else None
+
+    async def create_credential(self, organization_id, user_id, name, credential_type, credential_data, description=None):
+        self._prochain += 1
+        c = SimpleNamespace(credential_uuid=f"cred-{self._prochain}", organization_id=organization_id, name=name, credential_data=credential_data)
+        self.credentials[c.credential_uuid] = c
+        return c
+
+    async def update_credential(self, credential_uuid, organization_id, name=None, description=None, credential_type=None, credential_data=None):
+        c = self.credentials[credential_uuid]
+        if credential_data is not None:
+            c.credential_data = credential_data
+        return c
+
+    # -- préférences de la personne --
+    async def get_user_configuration_value(self, user_id, key):
+        return self.configs_utilisateur.get((user_id, key))
+
+    async def upsert_user_configuration_value(self, user_id, key, value):
+        self.configs_utilisateur[(user_id, key)] = value
+        return value
+
+
+MODULES_AVEC_DB = (
+    "api.services.builder.stock",
+    "api.services.builder.cerveau.reglages",
+    "api.services.builder.bibliotheque.droits",
+    "api.services.builder.brouillon",
+    "api.services.builder.instantane",
+    "api.services.builder.contexte",
+    "api.services.builder.creation",
+    "api.services.builder.actions._commun",
+    "api.mcp_server.tools._workflow_projection",
+    "api.services.modeles_reglages.service",
+    "api.services.builder.reglages_agent",
+    "api.services.lexique.stockage",
+    "api.mcp_server.tools.workflows",
+    "api.routes.builder_m",
+    "api.services.builder.recettes",
+    "api.services.builder.modes",
+    "api.services.builder.journal",
+)
+
+
+@pytest.fixture
+def monde(monkeypatch):
+    """Un monde en mémoire : une organisation .mark (1), un client (7), un agent (42) à lui."""
+    import importlib
+
+    db = FauxDb()
+    for chemin in MODULES_AVEC_DB:
+        monkeypatch.setattr(importlib.import_module(chemin), "db_client", db)
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(ORG_MARK))
+    from api.services.groupe import groupe
+    from api.services.workflow import schema_du_parcours, tool_name_validation
+
+    monkeypatch.setattr(groupe, "recopier_dans_les_specialises", AsyncMock(return_value=[]))
+    monkeypatch.setattr(schema_du_parcours, "a_l_enregistrement", AsyncMock(return_value=None))
+    monkeypatch.setattr(tool_name_validation, "validate_workflow_tool_name_collisions", AsyncMock(return_value=[]))
+    db.membres.add((1, ORG_MARK))  # l'utilisateur 1 est de l'équipe .mark ; l'utilisateur 2 ne l'est pas
+    db.ajouter_agent()
+    return db
+
+
+# [.mark] Partie 3, SA-L3a : « Prêt à publier » ajoute six contrôles à la fenêtre Publier (variables, briques, outils bloquent par
+# défaut ; la sortie d'impasse sans issue aussi). Les tests des AUTRES contrôles les éteignent pour rester sur ce qu'ils prouvent.
+LIGNES_DE_PRET = ("variables", "briques", "outils", "sans_effet", "sortie_d_impasse", "deux_webhooks")
+
+
+def sans_les_lignes_de_pret(configurations=None):
+    """Les réglages donnés, avec les six nouveaux contrôles éteints (sauf ceux que le test pose lui-même)."""
+    configurations = dict(configurations or {})
+    publication = dict(configurations.get("publication") or {})
+    controles = dict(publication.get("controles") or {})
+    for cle in LIGNES_DE_PRET:
+        controles.setdefault(cle, "eteint")
+    publication["controles"] = controles
+    configurations["publication"] = publication
+    return configurations

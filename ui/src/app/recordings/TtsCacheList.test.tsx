@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
+
 import TtsCacheList from "./TtsCacheList";
 
 const mocks = vi.hoisted(() => ({
@@ -8,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn(), preview: vi.fn(), invalidate: vi.fn(), clear: vi.fn(),
     toastError: vi.fn(),
 }));
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/lib/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "UTC" }));
 vi.mock("@/client/sdk.gen", () => ({
@@ -98,10 +101,12 @@ describe("TtsCacheList", () => {
     });
 
     it("reports invalidation failure without claiming success or refreshing", async () => {
+        viderNotifications();
         mocks.invalidate.mockResolvedValue({ error: { detail: "Speech cache is temporarily unavailable" } });
         render(<TtsCacheList />);
         fireEvent.click(await screen.findByRole("button", { name: "Invalidate Hello there" }));
-        await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Speech cache is temporarily unavailable"));
+        await waitFor(() => expect(lireNotifications().map((n) => n.detail)).toContain("Speech cache is temporarily unavailable"));
+        expect(lireNotifications().every((n) => n.sorte === "echec")).toBe(true);
         expect(mocks.list).toHaveBeenCalledTimes(1);
     });
 });

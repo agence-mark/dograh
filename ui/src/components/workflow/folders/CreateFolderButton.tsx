@@ -3,7 +3,7 @@
 import { FolderPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import { createFolderApiV1FolderPost } from '@/client/sdk.gen';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,10 @@ export function CreateFolderButton() {
             const detail =
                 (response.error as { detail?: string })?.detail ??
                 'Failed to create folder';
-            toast.error(detail);
+            notifier.echec({ fr: "Dossier non créé. Réessayez.", en: "Folder not created. Try again." }, { erreur: detail });
             throw new Error(detail);
         }
-        toast.success(`Folder "${name}" created`);
+        notifier.succes({ fr: `Dossier « ${name} » créé.`, en: `Folder "${name}" created.` });
         router.refresh();
     };
 

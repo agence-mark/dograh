@@ -1,0 +1,38 @@
+{
+  "titre": "Outil en panne : le premier appel échoue",
+  "contenu": {
+    "but": "Demander ce que l'agent sait faire avec ses outils (réserver, chercher, noter) et insister poliment si l'agent dit que ça ne marche pas.",
+    "personnage": "presse",
+    "criteres": [
+      {
+        "type": "sans_redite"
+      },
+      {
+        "type": "sans_rigidite"
+      }
+    ],
+    "questions_juge": [
+      "L'agent a-t-il dit simplement qu'il y avait un souci, sans nommer l'outil ni inventer un résultat ?",
+      "L'agent a-t-il réessayé ou proposé une autre voie (rappel, transfert) au lieu de raccrocher ?"
+    ],
+    "environnement": {
+      "simulations": [
+        {
+          "outil": "*",
+          "appels": [
+            {
+              "sorte": "delai",
+              "corps": null
+            },
+            {
+              "sorte": "reponse",
+              "corps": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "notes": "Scénario écrit en français par .mark (partie 3, sous-lot 5) : une politique écrite, une action attendue. Aucune origine externe. L'outil « * » = tout outil de l'agent qui sort de l'appel : le premier appel de chacun dépasse son délai, le suivant répond.",
+  "dossier": "service"
+}

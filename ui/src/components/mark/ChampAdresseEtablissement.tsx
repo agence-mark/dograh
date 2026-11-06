@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { getCommunesDuCodePostalApiV1OrganizationsCommunesGet } from "@/client/sdk.gen";
 import type { AdresseEtablissement, CommuneDuCodePostal } from "@/client/types.gen";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "./langue/langue";
 
 /**
@@ -97,7 +98,7 @@ export const ChampAdresseEtablissement = ({
             });
             if (derniereDemande.current !== cp) return;
             if (reponse.error) {
-                setErreurListe(detailFromError(reponse.error, "Could not load the towns for this postal code."));
+                setErreurListe(echecAffiche(reponse.error, ECHECS.communesCodePostal));
                 setCommunes([]);
                 return;
             }
@@ -157,7 +158,7 @@ export const ChampAdresseEtablissement = ({
                     <Label htmlFor={`${id}-commune`} className="text-xs">
                         {t({ en: "Town", fr: "Commune" })}
                     </Label>
-                    <select
+                    <ListeDeroulante
                         id={`${id}-commune`}
                         className="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:opacity-50"
                         disabled={desactive || communes.length === 0}
@@ -179,7 +180,7 @@ export const ChampAdresseEtablissement = ({
                                 {c.nom}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </div>
             </div>
             <div className="space-y-1">

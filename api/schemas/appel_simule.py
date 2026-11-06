@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 # The models the simulated caller and the judge can use (L18: a drop-down list). Mistral only for
 # now (Q1); the « mistral/ » prefix is the one LangWatch Scenario (litellm) expects.
@@ -29,11 +29,10 @@ MODELES_SIMULATEUR = (
     "mistral/mistral-medium-latest",
     "mistral/mistral-large-latest",
 )
-ModeleSimulateur = Literal[
-    "mistral/mistral-small-latest",
-    "mistral/mistral-medium-latest",
-    "mistral/mistral-large-latest",
-]
+# U6 (J1, J2) : tout fournisseur, « fournisseur/modèle » (code agnostique). La liste ci-dessus n'est plus qu'une suggestion
+# de l'écran ; la clé vient de la bibliothèque de clés.
+ModeleSimulateur = str
+SourceCerveau = Literal["cle_api", "claude_code"]
 
 # Generic prompts: how to play a caller on the phone, how to judge a call. Nothing of a trade.
 CONSIGNE_APPELANT = (
@@ -49,6 +48,14 @@ CONSIGNE_JUGE = (
     "conversation est un échec. Explique ton verdict en français, en quelques phrases."
 )
 
+# N3b : le résumé d'un appel (une ou deux phrases) quand l'agent n'a pas de synthèse d'après-appel.
+CONSIGNE_RESUME = (
+    "Tu résumes un appel téléphonique entre un agent vocal et un appelant. Écris une ou deux phrases en français, "
+    "au passé, de vingt-cinq mots au plus chacune : ce que la personne voulait, puis ce qui en est résulté. "
+    "Tu ne t'appuies que sur ce qui a été dit, sans conseil, sans jugement et sans le nom de la personne. "
+    "Texte brut, ni liste ni titre."
+)
+
 PLAFOND_SIMULTANES = 3
 MAX_SCENARIOS = 300
 MAX_CRITERES = 12
@@ -56,9 +63,21 @@ MAX_CHAMPS_ATTENDUS = 40
 
 
 class RoleSimule(BaseModel):
-    modele: ModeleSimulateur = Field(
-        default="mistral/mistral-small-latest", description="Model, from the list."
+    source: SourceCerveau = Field(
+        default="cle_api",
+        description="Where the brain comes from: an API key of the key library, or Claude Code (the person's subscription).",
     )
+    modele: str = Field(
+        default="mistral/mistral-small-latest",
+        min_length=1,
+        max_length=200,
+        description="« provider/model », any provider of the key library.",
+    )
+    format: Literal["openai", "anthropic"] | None = Field(
+        default=None,
+        description="Wire format when the provider is not one the code knows (openai-compatible by default).",
+    )
+    adresse: str = Field(default="", max_length=500, description="Base address of a provider the code does not know.")
     identifiant: str | None = Field(
         default=None,
         max_length=36,
@@ -66,6 +85,18 @@ class RoleSimule(BaseModel):
     )
     consigne: str = Field(min_length=1, max_length=6000, description="Prompt.")
     temperature: float = Field(default=0.3, ge=0, le=1)
+    # Partie 3, lot 12 (SE-23, M-5, M-6) : chaque rôle a son interrupteur (ÉTEINT par défaut : un réglage qui dépense) et son budget
+    # du mois (0 = aucun plafond, comme le plafond du mois du builder).
+    actif: bool = Field(default=False, description="Switch: a switched-off role makes no call to its model.")
+    budget_mois: float = Field(
+        default=0.0, ge=0, le=100_000, description="Monthly budget of this role (price table currency); 0 = no cap."
+    )
+    # Le nom du rôle (« appelant » ou « juge »), posé par ``ReglagesAppelantSimule`` ; jamais écrit ni lu en JSON.
+    _nom: str | None = PrivateAttr(default=None)
+
+    @property
+    def nom(self) -> str | None:
+        return self._nom
 
 
 class VoixSimulee(BaseModel):
@@ -90,6 +121,11 @@ class ReglagesAppelantSimule(BaseModel):
     juge: RoleSimule = Field(
         default_factory=lambda: RoleSimule(consigne=CONSIGNE_JUGE, temperature=0.0)
     )
+    # N3b : le résumé d'appel est un TROISIÈME rôle de la même fenêtre : même interrupteur (éteint), même budget du mois, même compteur.
+    resume: RoleSimule = Field(
+        default_factory=lambda: RoleSimule(consigne=CONSIGNE_RESUME, temperature=0.2),
+        description="Third role: the short summary of a call, when the agent has no after-call summary.",
+    )
     voix: VoixSimulee = Field(default_factory=VoixSimulee)
     simultanes: int = Field(
         default=1,
@@ -104,6 +140,13 @@ class ReglagesAppelantSimule(BaseModel):
         le=200,
         description="Spending cap of one series (Q3), in the price table's currency (USD by default).",
     )
+
+    @model_validator(mode="after")
+    def _nommer_les_roles(self) -> ReglagesAppelantSimule:
+        self.appelant._nom = "appelant"
+        self.juge._nom = "juge"
+        self.resume._nom = "resume"
+        return self
 
 
 class Comportements(BaseModel):
@@ -183,3 +226,21 @@ class BibliothequeScenarios(BaseModel):
         if len(noms) != len(set(noms)):
             raise ValueError("Two scenarios of the same agent share the same name.")
         return self
+
+
+class DepenseDuRole(BaseModel):
+    """Partie 3, lot 12 (SE-23) : ce qu'un rôle a dépensé ce mois-ci, face à son budget."""
+
+    appels: int = 0
+    jetons: int = 0
+    cout: float = 0.0
+    budget_mois: float = 0.0
+    actif: bool = False
+    atteint: bool = False
+
+
+class DepenseDesRoles(BaseModel):
+    mois: str = Field(description="First day of the month (UTC), ISO date.")
+    appelant: DepenseDuRole
+    juge: DepenseDuRole
+    resume: DepenseDuRole = Field(default_factory=DepenseDuRole)

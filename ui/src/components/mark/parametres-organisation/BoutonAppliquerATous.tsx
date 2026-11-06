@@ -14,14 +14,14 @@
  * the organization has a single establishment (nobody to apply it to).
  */
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { appliquerATousLesEtablissementsApiV1OrganizationsEtablissementsIdentifiantAppliquerATousPost } from "@/client/sdk.gen";
 import type { DemandeAppliquerATous, ResultatAppliquerATous } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export type ReglageAppliquable = DemandeAppliquerATous["reglage"];
@@ -75,17 +75,15 @@ export function BoutonAppliquerATous({
         });
         setEnCours(false);
         if (reponse.error || !reponse.data) {
-            setErreur(detailFromError(reponse.error, "Not applied"));
+            setErreur(echecAffiche(reponse.error, ECHECS.etablissementsAppliquerATous));
             return;
         }
         setOuverte(false);
         const n = reponse.data.etablissements?.length ?? 0;
-        toast.success(
-            t({
-                en: `Applied to ${n} other establishment(s).`,
-                fr: `Appliqué aux ${n} autres établissements.`,
-            }),
-        );
+        notifier.succes({
+            en: `Applied to the ${n} other establishments.`,
+            fr: `Appliqué aux ${n} autres établissements.`,
+        });
         await onApplique(reponse.data);
     };
 
@@ -105,7 +103,7 @@ export function BoutonAppliquerATous({
             >
                 {t(APPLIQUER_A_TOUS)}
             </Button>
-            <Dialog open={ouverte} onOpenChange={(o) => (o || enCours ? null : setOuverte(false))}>
+            <Dialog centree open={ouverte} onOpenChange={(o) => (o || enCours ? null : setOuverte(false))}>
                 <DialogContent className="sm:max-w-md" data-testid="modale-appliquer-a-tous">
                     <DialogHeader>
                         <DialogTitle>{t(APPLIQUER_A_TOUS)}</DialogTitle>

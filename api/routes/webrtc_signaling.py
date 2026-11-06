@@ -52,6 +52,7 @@ from api.services.call_concurrency import (
     call_concurrency,
 )
 from api.services.pipecat.run_pipeline import run_pipeline_smallwebrtc
+from api.services.site_mark.flux_public import expediteur_public
 from api.services.pipecat.ws_sender_registry import (
     register_ws_sender,
     unregister_ws_sender,
@@ -423,6 +424,7 @@ class SignalingManager:
         enforce_call_concurrency: bool = False,
         call_concurrency_source: str = "webrtc",
         allow_client_context_vars: bool = True,
+        flux_public: bool = False,
     ):
         """Handle WebSocket connection for signaling."""
         await websocket.accept()
@@ -444,6 +446,7 @@ class SignalingManager:
                     enforce_call_concurrency,
                     call_concurrency_source,
                     allow_client_context_vars,
+                    flux_public,
                 )
         except WebSocketDisconnect:
             logger.info(f"WebSocket disconnected for {connection_id}")
@@ -489,6 +492,7 @@ class SignalingManager:
         enforce_call_concurrency: bool,
         call_concurrency_source: str = "webrtc",
         allow_client_context_vars: bool = True,
+        flux_public: bool = False,
     ):
         """Handle incoming WebSocket messages."""
         msg_type = message.get("type")
@@ -506,11 +510,29 @@ class SignalingManager:
                 enforce_call_concurrency,
                 call_concurrency_source,
                 allow_client_context_vars,
+                flux_public,
             )
         elif msg_type == "ice-candidate":
             await self._handle_ice_candidate(payload, connection_key)
         elif msg_type == "renegotiate":
             await self._handle_renegotiation(ws, payload, connection_key)
+        elif msg_type == "texte-visiteur" and flux_public:
+            # [.mark] U10 / S5 : le texte tapé par le visiteur du widget. Réservé à la signalisation publique
+            # (l'écran de test a son propre chemin) ; la run est celle de la session, jamais une autre.
+            await self._handle_texte_visiteur(ws, payload, workflow_run_id)
+
+    async def _handle_texte_visiteur(self, ws: WebSocket, payload: dict, workflow_run_id: int):
+        """[.mark] U10 / S5 : passe le texte à la porte de la conversation et dit au widget ce qu'il en est."""
+        from api.services.site_mark import texte_visiteur
+
+        porte = texte_visiteur.porte_de(workflow_run_id)
+        code = texte_visiteur.TERMINE
+        if porte is not None:
+            texte = payload.get("texte") if isinstance(payload, dict) else None
+            code = await porte.recevoir(texte)
+        await self._send_json_if_connected(
+            ws, {"type": "texte-visiteur-resultat", "payload": {"ok": code == texte_visiteur.OK, "code": code}}
+        )
 
     async def _handle_offer(
         self,
@@ -524,6 +546,7 @@ class SignalingManager:
         enforce_call_concurrency: bool,
         call_concurrency_source: str = "webrtc",
         allow_client_context_vars: bool = True,
+        flux_public: bool = False,
     ):
         """Handle offer message and create answer with ICE trickling."""
         pc_id = payload.get("pc_id")
@@ -684,7 +707,11 @@ class SignalingManager:
                     if ws.application_state == WebSocketState.CONNECTED:
                         await ws.send_json(message)
 
-                register_ws_sender(workflow_run_id, ws_sender)
+                # [.mark] S1 (D164, D174) : une session publique ne reçoit que la liste blanche, refus par défaut.
+                register_ws_sender(
+                    workflow_run_id,
+                    expediteur_public(ws_sender) if flux_public else ws_sender,
+                )
 
                 # Setup closed handler
                 @pc.event_handler("closed")
@@ -948,4 +975,5 @@ async def public_signaling_websocket(
         # Embed context was already sanitized and persisted during /init.
         # Never let the signaling payload overwrite server-owned run context.
         allow_client_context_vars=False,
+        flux_public=True,
     )

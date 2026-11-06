@@ -20,6 +20,8 @@
  * last tests render the pages themselves.
  */
 
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +29,7 @@ import { resolveWorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { SectionLexiqueMetier } from "./SectionLexiqueMetier";
 import { SectionReglagesPipecat } from "./SectionReglagesPipecat";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const organisation = { stt: { provider: "deepgram", model: "nova-3-general" } };
 
@@ -122,6 +125,8 @@ const offert = (rang: number) =>
     screen.getByRole("switch", { name: `The business offers it ${rang}` }).getAttribute("aria-checked");
 
 beforeEach(() => {
+
+  viderNotifications();
     toastMock.success.mockClear();
     toastMock.error.mockClear();
     sdk.getLexiqueApiV1OrganizationsLexiqueGet.mockReset();
@@ -236,7 +241,7 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
             error: { detail: "The trade vocabulary saved for this organization cannot be read." },
         });
         render(<SectionLexiqueMetier />);
-        await screen.findByText(/cannot be read/i);
+        await screen.findByText(phraseAttendue(ECHECS.lexiqueLire));
         expect(document.body.textContent).toMatch(/Saving is disabled/i);
         // Ni ouvrir la modale, ni importer : les deux mènent à un remplacement.
         expect(
@@ -264,7 +269,8 @@ describe("Carte « Trade vocabulary » des réglages de la plateforme", () => {
         await waitFor(() =>
             expect(sdk.importLexiqueApiV1OrganizationsLexiqueImportPost).toHaveBeenCalled(),
         );
-        expect(toastMock.success).toHaveBeenCalledWith("27 added, 3 already there");
+        expect(lireNotifications().map((n) => n.texte.en)).toContain("27 added, 3 already there.");
+        expect(lireNotifications().map((n) => n.texte.fr)).toContain("27 ajoutés, 3 déjà présents.");
         // The screen reads the vocabulary again: the import is the server's answer.
         expect(sdk.getLexiqueApiV1OrganizationsLexiqueGet.mock.calls.length).toBeGreaterThan(1);
     });
@@ -611,7 +617,11 @@ describe("Les deux cases « Listen for it » et « The business offers it »", (
 });
 
 // The card really MOUNTED on the Platform Settings page, with its two boxes and its budget.
-const { default: PageReglagesPlateforme } = await import("@/app/settings/page");
+// U2 bis : les enregistrements et le cache de la voix (sous-onglet « Écoute et sons ») ont leur propre test.
+vi.mock("@/components/mark/entreprise/SonsEtCacheVoix", () => ({ SonsEtCacheVoix: () => null }));
+
+const { default: PageReglagesPlateforme } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
+const { ouvrirOnglet } = await import("@/components/mark/parametres-organisation/toutes-les-rubriques");
 
 describe("[.mark] le lexique, sur la page des réglages de la plateforme", () => {
     beforeEach(() => {
@@ -621,18 +631,12 @@ describe("[.mark] le lexique, sur la page des réglages de la plateforme", () =>
 
     it("porte les deux cases et le budget", async () => {
         render(<PageReglagesPlateforme />);
-        // Depuis la réorganisation de l'écran (d0bc5376), la carte vit dans le
-        // thème « écoute », fermé par défaut.
-        const entete = await waitFor(() => {
-            const bouton = document.querySelector('[data-theme="ecoute"] > button[aria-expanded]');
-            if (!bouton) throw new Error("thème écoute absent");
-            return bouton as HTMLButtonElement;
-        });
-        if (entete.getAttribute("aria-expanded") === "false") fireEvent.click(entete);
+        ouvrirOnglet("ecoute");
+        // Écoute et sons est posée à plat dans son sous-onglet (forme de la maquette) : le lexique est un tableau, un
+        // clic sur un terme ouvre sa fenêtre, qui porte les deux cases.
         await screen.findByText(/212 \/ 500 tokens \(Deepgram\)/);
-        fireEvent.click(await screen.findByRole("button", { name: /open vocabulary/i }));
-        await screen.findByLabelText("Term 1");
-        expect(screen.getByRole("switch", { name: "Listen for it 1" })).toBeTruthy();
-        expect(screen.getByRole("switch", { name: "The business offers it 1" })).toBeTruthy();
+        fireEvent.click(await screen.findByText("Edilkamin"));
+        expect(await screen.findByRole("switch", { name: /listen for it/i })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: /the business offers it/i })).toBeTruthy();
     });
 });

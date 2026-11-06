@@ -34,6 +34,8 @@ from loguru import logger
 
 from api.constants import REDIS_URL
 from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
+from api.db.protection_principale import PrincipaleProtegee
+from api.services.builder.stock import ConflitDEcriture
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -77,6 +79,14 @@ async def lifespan(app: FastAPI):
         )
 
         call_event_delivery.start()
+
+        # [.mark] builder partie 2, U5: a conversation left "en_cours" by a restart has no task behind it any more.
+        try:
+            from api.services.builder import fil as builder_fil
+
+            await builder_fil.au_demarrage()
+        except Exception as erreur:  # noqa: BLE001 -- fail-open: the builder never stops the server from starting
+            logger.warning(f"[builder] stopped conversations not marked at startup: {erreur!r}")
 
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
@@ -125,6 +135,20 @@ async def handle_mps_unavailable_error(
         status_code=503,
         content={"detail": MPS_UNAVAILABLE_PUBLIC_MESSAGE},
     )
+
+
+@app.exception_handler(ConflitDEcriture)
+async def handle_conflit_d_ecriture(_request: Request, exc: ConflitDEcriture) -> JSONResponse:
+    """[.mark] Builder, revue R6 : une ligne qui bouge sans cesse est un conflit (409), jamais une panne (500), sur toute route."""
+
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+@app.exception_handler(PrincipaleProtegee)
+async def handle_principale_protegee(_request: Request, exc: PrincipaleProtegee) -> JSONResponse:
+    """[.mark] Partie 3, SA-L3c : la branche principale protégée refuse toute écriture de son brouillon (409, sur toute route)."""
+
+    return JSONResponse(status_code=409, content={"detail": str(exc), "code": exc.code})
 
 
 # Configure CORS.

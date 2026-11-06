@@ -1,33 +1,32 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Globe } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Globe, PhoneIncoming, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
-import { toast } from 'sonner';
 
 import { downloadUsageRunsReportApiV1OrganizationsUsageRunsReportGet, getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet, getPreferencesApiV1OrganizationsPreferencesGet, getUsageHistoryApiV1OrganizationsUsageRunsGet, getWorkflowsSummaryApiV1WorkflowSummaryGet, savePreferencesApiV1OrganizationsPreferencesPut } from '@/client/sdk.gen';
-import type { DailyUsageBreakdownResponse, OrganizationPreferences, UsageHistoryResponse, WorkflowRunUsageResponse, WorkflowSummaryResponse } from '@/client/types.gen';
+import type { DailyUsageBreakdownResponse, OrganizationPreferences, UsageHistoryResponse, WorkflowSummaryResponse } from '@/client/types.gen';
 import { CallTypeCell } from '@/components/CallTypeCell';
 import { DailyUsageTable } from '@/components/DailyUsageTable';
 import { FilterBuilder } from '@/components/filters/FilterBuilder';
+import { useLangue } from '@/components/mark/langue/langue';
+import { notifier } from "@/components/mark/notifications";
+import { EtatVide } from '@/components/mark/studio/etat-vide';
+import { NoteJuge } from '@/components/mark/studio/marques';
+import { BarrePagination } from '@/components/mark/studio/pagination';
+import { PageStudio } from '@/components/mark/studio/shell-studio';
+import { Cellule, Ligne, Tableau } from '@/components/mark/studio/tableau';
+import { TitrePage } from '@/components/mark/studio/titre-page';
 import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { useUserConfig } from '@/context/UserConfigContext';
 import { useDispositionCodes } from '@/hooks/useDispositionCodes';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime, getLocalTimezone } from '@/lib/dateTime';
+import { getLocalTimezone } from '@/lib/dateTime';
+import { DateRelative } from '@/components/mark/studio/date-relative';
 import { usageFilterAttributes, withDispositionCodeOptions } from '@/lib/filterAttributes';
 import { decodeFiltersFromURL, encodeFiltersToURL } from '@/lib/filters';
 import type { ActiveFilter, DateRangeValue, FilterAttribute, NumberFilterOption } from '@/types/filters';
@@ -64,12 +63,14 @@ const buildUsageFilterAttributes = (
 export default function UsagePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t, langue } = useLangue();
     const { organizationPricing } = useUserConfig();
     const auth = useAuth();
 
     // Usage history state
     const [usageHistory, setUsageHistory] = useState<UsageHistoryResponse | null>(null);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [historyFailed, setHistoryFailed] = useState(false);
     const [currentPage, setCurrentPage] = useState(() => {
         const pageParam = searchParams.get('page');
         return pageParam ? parseInt(pageParam, 10) : 1;
@@ -84,6 +85,12 @@ export default function UsagePage() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
         return searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
     });
+    // [.mark] C4 : recherche dans les transcriptions (3 lettres au moins, envoyée après une courte pause). `recherche` est ce
+    // qu'on tape, `rechercheAppliquee` ce qui part au serveur (et dans l'adresse).
+    const [recherche, setRecherche] = useState(() => searchParams.get('q') ?? '');
+    const [rechercheAppliquee, setRechercheAppliquee] = useState(() => searchParams.get('q') ?? '');
+    const rechercheRef = useRef(rechercheAppliquee);
+    rechercheRef.current = rechercheAppliquee;
     const [isDownloadingReport, setIsDownloadingReport] = useState(false);
     const [agentFilterOptions, setAgentFilterOptions] = useState<NumberFilterOption[] | null>(null);
     const [isLoadingAgentFilterOptions, setIsLoadingAgentFilterOptions] = useState(false);
@@ -167,16 +174,19 @@ export default function UsagePage() {
                     page,
                     limit: 50,
                     ...buildUsageQueryParams(filters),
+                    ...(rechercheRef.current && { q: rechercheRef.current }),
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
                 },
             });
 
+            setHistoryFailed(Boolean(response.error) || !response.data);
             if (response.data) {
                 setUsageHistory(response.data);
             }
         } catch (error) {
             console.error('Failed to fetch usage history:', error);
+            setHistoryFailed(true);
         } finally {
             setIsLoadingHistory(false);
         }
@@ -271,11 +281,11 @@ export default function UsagePage() {
                 a.remove();
                 window.URL.revokeObjectURL(url);
             } else {
-                toast.error('Failed to download report');
+                notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
             }
         } catch (error) {
             console.error('Failed to download usage report:', error);
-            toast.error('Failed to download report');
+            notifier.echec({ fr: "Rapport non téléchargé. Réessayez.", en: "Report not downloaded. Try again." });
         } finally {
             setIsDownloadingReport(false);
         }
@@ -337,12 +347,26 @@ export default function UsagePage() {
         });
     }, [availableUsageFilterAttributes]);
 
+    // La recherche part 400 ms après la dernière frappe, à partir de 3 lettres ; vider la case efface la recherche.
+    useEffect(() => {
+        const terme = recherche.trim();
+        if (terme === rechercheAppliquee || (terme.length > 0 && terme.length < 3)) return;
+        const minuteur = setTimeout(() => {
+            rechercheRef.current = terme;
+            setRechercheAppliquee(terme);
+            setCurrentPage(1);
+            updateUrlParams({ page: 1, filters: appliedFilters, sortBy, sortOrder });
+        }, 400);
+        return () => clearTimeout(minuteur);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recherche]);
+
     // Initial load - fetch when auth becomes available
     useEffect(() => {
         if (auth.isAuthenticated) {
             fetchUsageHistory(currentPage, appliedFilters, sortBy, sortOrder);
         }
-    }, [auth.isAuthenticated, currentPage, appliedFilters, sortBy, sortOrder, fetchUsageHistory]);
+    }, [auth.isAuthenticated, currentPage, appliedFilters, sortBy, sortOrder, rechercheAppliquee, fetchUsageHistory]);
 
     // Fetch daily usage when organizationPricing becomes available
     useEffect(() => {
@@ -362,6 +386,10 @@ export default function UsagePage() {
 
         if (params.page !== undefined) {
             newParams.set('page', params.page.toString());
+        }
+
+        if (rechercheRef.current) {
+            newParams.set('q', rechercheRef.current);
         }
 
         if (params.sortBy) {
@@ -422,11 +450,6 @@ export default function UsagePage() {
         updateUrlParams({ page: 1, filters: appliedFilters, sortBy: field, sortOrder: newSortOrder });
     }, [sortBy, sortOrder, appliedFilters, updateUrlParams]);
 
-    // Handle row click to navigate to workflow run
-    const handleRowClick = (run: WorkflowRunUsageResponse) => {
-        router.push(`/workflow/${run.workflow_id}/run/${run.id}`);
-    };
-
     const timezoneValue = typeof selectedTimezone === 'string' ? selectedTimezone : selectedTimezone.value;
     const effectiveTimezone = timezoneValue || localTimezone;
 
@@ -439,282 +462,258 @@ export default function UsagePage() {
         return `${minutes}m ${remainingSeconds}s`;
     };
 
+    const lignes = usageHistory?.runs ?? [];
+    const avecCout = Boolean(organizationPricing?.price_per_second_usd);
+    // Les en-têtes « Durée », « Version » et « Note » trient : la flèche dit le sens courant.
+    const enteteTriable = (champ: string, titre: string) => (
+        <button type="button" className="inline-flex cursor-pointer items-center gap-1 hover:font-semibold" onClick={() => handleSort(champ)}>
+            {titre}
+            {sortBy === champ ? (
+                sortOrder === 'asc' ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />
+            ) : (
+                <ArrowUpDown className="size-3.5" />
+            )}
+        </button>
+    );
+    const enteteDuree = enteteTriable('duration', t({ en: 'Duration', fr: 'Durée' }));
+    const canaux: Record<string, { en: string; fr: string }> = {
+        site: { en: 'Site', fr: 'Site' },
+        telephony: { en: 'Phone', fr: 'Téléphone' },
+        web: { en: 'Web', fr: 'Web' },
+        chat: { en: 'Chat', fr: 'Écrit' },
+        simulated: { en: 'Simulated', fr: 'Simulé' },
+    };
+
     return (
-        <div className="container mx-auto p-6 space-y-6">
-            <div>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-bold mb-2">Agent Runs</h1>
-                        <p className="text-muted-foreground">See all your Agent Runs across all Voice Agents. You can use filters to filter out required Agent Runs.</p>
-                    </div>
-                        <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <div className="w-[300px]">
-                                <TimezoneSelect
-                                    instanceId={timezoneSelectId}
-                                    value={selectedTimezone}
-                                    onChange={handleTimezoneChange}
-                                    isDisabled={savingTimezone || preferencesLoading}
-                                    placeholder={preferencesLoading ? "Loading..." : "Select timezone"}
-                                    styles={{
-                                        control: (base, state) => ({
-                                            ...base,
-                                            minHeight: '36px',
-                                            fontSize: '14px',
-                                            backgroundColor: 'var(--background)',
-                                            borderColor: state.isFocused ? 'var(--ring)' : 'var(--border)',
-                                            boxShadow: state.isFocused ? '0 0 0 2px color-mix(in srgb, var(--ring) 20%, transparent)' : 'none',
-                                            '&:hover': {
-                                                borderColor: 'var(--border)',
-                                            },
-                                        }),
-                                        menu: (base) => ({
-                                            ...base,
-                                            zIndex: 9999,
-                                            backgroundColor: 'var(--popover)',
-                                            border: '1px solid var(--border)',
-                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-                                        }),
-                                        menuList: (base) => ({
-                                            ...base,
-                                            backgroundColor: 'var(--popover)',
-                                            padding: 0,
-                                        }),
-                                        option: (base, state) => ({
-                                            ...base,
-                                            backgroundColor: state.isSelected
-                                                ? 'var(--accent)'
-                                                : state.isFocused
-                                                ? 'var(--accent)'
-                                                : 'var(--popover)',
-                                            color: 'var(--foreground)',
-                                            cursor: 'pointer',
-                                            '&:active': {
-                                                backgroundColor: 'var(--accent)',
-                                            },
-                                        }),
-                                        singleValue: (base) => ({
-                                            ...base,
-                                            color: 'var(--foreground)',
-                                        }),
-                                        input: (base) => ({
-                                            ...base,
-                                            color: 'var(--foreground)',
-                                        }),
-                                        placeholder: (base) => ({
-                                            ...base,
-                                            color: 'var(--muted-foreground)',
-                                        }),
-                                        indicatorSeparator: (base) => ({
-                                            ...base,
-                                            backgroundColor: 'var(--border)',
-                                        }),
-                                        dropdownIndicator: (base) => ({
-                                            ...base,
-                                            color: 'var(--muted-foreground)',
-                                            '&:hover': {
-                                                color: 'var(--foreground)',
-                                            },
-                                        }),
-                                    }}
-                                />
-                            </div>
+        <PageStudio>
+            <TitrePage
+                titre={t({ en: 'Conversations', fr: 'Conversations' })}
+                info={t({
+                    en: 'Every call across all the agents, tests included. Use the filters to narrow them down. The search reads the 2,000 most recent calls of the period (the last 30 days unless you set a start date), 3 letters at least.',
+                    fr: "Tous les appels, essais compris, tous les agents confondus. Les filtres resserrent la liste. La recherche lit les 2 000 appels les plus récents de la période (les 30 derniers jours sans date de début), 3 lettres au moins.",
+                })}
+                action={
+                    <div className="flex items-center gap-2">
+                        <Globe className="size-4 text-muted-foreground" aria-hidden />
+                        <div className="w-[300px]">
+                                        <TimezoneSelect
+                                            instanceId={timezoneSelectId}
+                                            value={selectedTimezone}
+                                            onChange={handleTimezoneChange}
+                                            isDisabled={savingTimezone || preferencesLoading}
+                                            placeholder={preferencesLoading ? "Loading..." : "Select timezone"}
+                                            styles={{
+                                                control: (base, state) => ({
+                                                    ...base,
+                                                    minHeight: '36px',
+                                                    fontSize: '14px',
+                                                    backgroundColor: 'var(--background)',
+                                                    borderColor: state.isFocused ? 'var(--ring)' : 'var(--border)',
+                                                    boxShadow: state.isFocused ? '0 0 0 2px color-mix(in srgb, var(--ring) 20%, transparent)' : 'none',
+                                                    '&:hover': {
+                                                        borderColor: 'var(--border)',
+                                                    },
+                                                }),
+                                                menu: (base) => ({
+                                                    ...base,
+                                                    zIndex: 9999,
+                                                    backgroundColor: 'var(--popover)',
+                                                    border: '1px solid var(--border)',
+                                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                                                }),
+                                                menuList: (base) => ({
+                                                    ...base,
+                                                    backgroundColor: 'var(--popover)',
+                                                    padding: 0,
+                                                }),
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    backgroundColor: state.isSelected
+                                                        ? 'var(--accent)'
+                                                        : state.isFocused
+                                                        ? 'var(--accent)'
+                                                        : 'var(--popover)',
+                                                    color: 'var(--foreground)',
+                                                    cursor: 'pointer',
+                                                    '&:active': {
+                                                        backgroundColor: 'var(--accent)',
+                                                    },
+                                                }),
+                                                singleValue: (base) => ({
+                                                    ...base,
+                                                    color: 'var(--foreground)',
+                                                }),
+                                                input: (base) => ({
+                                                    ...base,
+                                                    color: 'var(--foreground)',
+                                                }),
+                                                placeholder: (base) => ({
+                                                    ...base,
+                                                    color: 'var(--muted-foreground)',
+                                                }),
+                                                indicatorSeparator: (base) => ({
+                                                    ...base,
+                                                    backgroundColor: 'var(--border)',
+                                                }),
+                                                dropdownIndicator: (base) => ({
+                                                    ...base,
+                                                    color: 'var(--muted-foreground)',
+                                                    '&:hover': {
+                                                        color: 'var(--foreground)',
+                                                    },
+                                                }),
+                                            }}
+                                        />
                         </div>
                     </div>
-                </div>
+                }
+            />
 
-                {/* Daily Usage Table - Only for paid organizations */}
-                {organizationPricing?.price_per_second_usd && (
-                    <div className="mb-6">
-                        <DailyUsageTable
-                            data={dailyUsage}
-                            isLoading={isLoadingDaily}
-                        />
+            {avecCout && <DailyUsageTable data={dailyUsage} isLoading={isLoadingDaily} />}
+
+            <div className="space-y-3">
+                <div className="relative w-full max-w-72">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                    <Input
+                        value={recherche}
+                        onChange={(e) => setRecherche(e.target.value)}
+                        maxLength={80}
+                        aria-label={t({ en: 'Search in the transcripts', fr: 'Chercher dans les transcriptions' })}
+                        placeholder={t({ en: 'Search a word in the transcripts', fr: 'Chercher un mot dans les transcriptions' })}
+                        className="h-9 border-transparent bg-muted/50 pl-9 shadow-none focus-visible:bg-background"
+                    />
+                </div>
+                <FilterBuilder
+                    availableAttributes={availableUsageFilterAttributes}
+                    activeFilters={activeFilters}
+                    onFiltersChange={handleFiltersChange}
+                    onApplyFilters={handleApplyFilters}
+                    onClearFilters={handleClearFilters}
+                    isExecuting={isExecutingFilters}
+                />
+                {appliedFilters.length > 0 && (
+                    <div className="flex justify-end">
+                        <Button variant="outline" size="sm" onClick={handleDownloadReport} disabled={isDownloadingReport}>
+                            <Download className="size-4" />
+                            {isDownloadingReport
+                                ? t({ en: 'Preparing...', fr: 'Préparation...' })
+                                : t({ en: 'Download filtered results', fr: 'Télécharger les résultats filtrés' })}
+                        </Button>
                     </div>
                 )}
+            </div>
 
-                {/* Filter Builder */}
-                <div className="mb-6 space-y-3">
-                    <FilterBuilder
-                        availableAttributes={availableUsageFilterAttributes}
-                        activeFilters={activeFilters}
-                        onFiltersChange={handleFiltersChange}
-                        onApplyFilters={handleApplyFilters}
-                        onClearFilters={handleClearFilters}
-                        isExecuting={isExecutingFilters}
-                    />
-                    {appliedFilters.length > 0 && (
-                        <div className="flex justify-end">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleDownloadReport}
-                                disabled={isDownloadingReport}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                {isDownloadingReport ? 'Preparing...' : 'Download Filtered Results'}
-                            </Button>
-                        </div>
+            {historyFailed && !isLoadingHistory ? (
+                <EtatVide cas="erreur" reessayer={() => void fetchUsageHistory(currentPage, appliedFilters, sortBy, sortOrder)} />
+            ) : isLoadingHistory && usageHistory === null ? (
+                <EtatVide cas="chargement" />
+            ) : lignes.length > 0 ? (
+                <div className={isLoadingHistory ? 'opacity-60' : undefined}>
+                    <Tableau
+                        colonnes={[
+                            { titre: t({ en: 'When', fr: 'Quand' }) },
+                            { titre: t({ en: 'Agent', fr: 'Agent' }) },
+                            { titre: enteteTriable('version', t({ en: 'Version', fr: 'Version' })) },
+                            { titre: t({ en: 'Caller', fr: 'Client' }) },
+                            { titre: t({ en: 'Reason', fr: 'Motif' }) },
+                            { titre: t({ en: 'Summary', fr: 'Résumé' }) },
+                            { titre: t({ en: 'Channel', fr: 'Canal' }) },
+                            { titre: t({ en: 'Outcome', fr: 'Issue' }) },
+                            { titre: enteteDuree, droite: true },
+                            { titre: t({ en: 'Latency', fr: 'Latence' }), droite: true },
+                            { titre: enteteTriable('judge_note', t({ en: 'Grade', fr: 'Note' })), droite: true },
+                            { titre: t({ en: 'Judged by', fr: 'Jugé par' }) },
+                            ...(avecCout ? [{ titre: t({ en: 'Cost (USD)', fr: 'Coût (USD)' }), droite: true }] : []),
+                            { titre: t({ en: 'Media', fr: 'Médias' }), droite: true },
+                        ]}
+                    >
+                        {lignes.map((run) => (
+                            <Ligne key={run.id} href={`/workflow/${run.workflow_id}/run/${run.id}`}>
+                                <Cellule principale sous={`#${run.id}`}>
+                                    <DateRelative valeur={run.created_at} fuseau={effectiveTimezone} />
+                                </Cellule>
+                                <Cellule>{run.workflow_name || t({ en: 'Unknown', fr: 'Inconnu' })}</Cellule>
+                                <Cellule>{run.version != null ? `v${run.version}` : '-'}</Cellule>
+                                <Cellule sous={run.client ? (run.call_type === 'inbound' ? run.caller_number : run.called_number) || undefined : undefined}>
+                                    {run.client || (run.call_type === 'inbound' ? run.caller_number : run.called_number) || '-'}
+                                </Cellule>
+                                <Cellule>{run.motif || '-'}</Cellule>
+                                <Cellule className="max-w-72 whitespace-normal">
+                                    {/* N3b : la synthèse de l'après-appel réduite à deux phrases, sinon le résumé du modèle ; jamais rien d'inventé. */}
+                                    <span data-resume-appel={run.resume_source ?? "aucun"} title={run.resume ?? undefined} className="line-clamp-2">
+                                        {run.resume || '-'}
+                                    </span>
+                                </Cellule>
+                                <Cellule>
+                                    <span className="inline-flex items-center gap-2">
+                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                        {run.canal && canaux[run.canal] ? t(canaux[run.canal]) : ''}
+                                    </span>
+                                </Cellule>
+                                <Cellule>{run.disposition || '-'}</Cellule>
+                                <Cellule droite>{formatDuration(run.call_duration_seconds)}</Cellule>
+                                <Cellule droite>
+                                    {/* N3a : la latence moyenne d'un tour et le pire tour, rangées à la fin de l'appel ; un appel sans mesure le dit. */}
+                                    {(() => {
+                                        const l = run.latence as { moyenne_ms?: number; pire_ms?: number } | null | undefined;
+                                        return l && typeof l.moyenne_ms === 'number' ? (
+                                            <span data-latence="mesuree" title={`${t({ en: 'worst turn', fr: 'pire tour' })} ${((l.pire_ms ?? l.moyenne_ms) / 1000).toFixed(1)} s`} className="tabular-nums">
+                                                {(l.moyenne_ms / 1000).toFixed(1)} s
+                                            </span>
+                                        ) : (
+                                            <span data-latence="non-mesuree" className="text-muted-foreground">
+                                                {t({ en: 'not measured', fr: 'non mesuré' })}
+                                            </span>
+                                        );
+                                    })()}
+                                </Cellule>
+                                <Cellule droite><NoteJuge note={run.note_juge ?? null} /></Cellule>
+                                <Cellule>{run.juge_par || '-'}</Cellule>
+                                {avecCout && (
+                                    <Cellule droite>
+                                        {run.charge_usd !== undefined && run.charge_usd !== null ? `$${run.charge_usd.toFixed(2)}` : '-'}
+                                    </Cellule>
+                                )}
+                                <Cellule droite>
+                                    {/* Le bouton ouvre l'aperçu : il ne doit pas ouvrir la ligne. */}
+                                    <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
+                                        <MediaPreviewButton
+                                            recordingUrl={run.recording_url}
+                                            transcriptUrl={run.transcript_url}
+                                            runId={run.id}
+                                            onOpenPreview={mediaPreview.openPreview}
+                                        />
+                                    </span>
+                                </Cellule>
+                            </Ligne>
+                        ))}
+                    </Tableau>
+                    {appliedFilters.length > 0 && usageHistory && (
+                        <p className="pt-3 text-sm text-muted-foreground">
+                            {t({ en: 'Total for the filtered period:', fr: 'Total de la période filtrée :' })}{' '}
+                            <span className="font-medium text-foreground">
+                                {usageHistory.total_dograh_tokens.toLocaleString()} Dograh Tokens
+                            </span>
+                            {' · '}
+                            <span className="font-medium text-foreground">{formatDuration(usageHistory.total_duration_seconds)}</span>
+                        </p>
+                    )}
+                    {usageHistory && (
+                        <BarrePagination
+                            total={usageHistory.total_count}
+                            page={currentPage - 1}
+                            parPage={50}
+                            changerPage={(p) => handlePageChange(p + 1)}
+                        />
                     )}
                 </div>
+            ) : appliedFilters.length > 0 || rechercheAppliquee ? (
+                <EtatVide cas="filtre" recherche={rechercheAppliquee} effacer={() => { setRecherche(''); rechercheRef.current = ''; setRechercheAppliquee(''); void handleClearFilters(); }} />
+            ) : (
+                <EtatVide cas="premier" icone={PhoneIncoming} titre={t({ en: 'No call yet', fr: 'Aucun appel encore' })} />
+            )}
 
-                {/* Usage History */}
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-1.5">
-                                <CardTitle>All Runs</CardTitle>
-                                <CardDescription>
-                                    Every agent run across your organization, with usage details
-                                </CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoadingHistory ? (
-                            <div className="animate-pulse space-y-3">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="h-12 bg-muted rounded"></div>
-                                ))}
-                            </div>
-                        ) : usageHistory && usageHistory.runs.length > 0 ? (
-                            <>
-                                <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="bg-muted/50">
-                                                <TableHead className="font-semibold">Run ID</TableHead>
-                                                <TableHead className="font-semibold">Agent Name</TableHead>
-                                                <TableHead className="font-semibold">Call Type</TableHead>
-                                                <TableHead className="font-semibold">Phone Number</TableHead>
-                                                <TableHead className="font-semibold">Disposition</TableHead>
-                                                <TableHead className="font-semibold">Date</TableHead>
-                                                <TableHead
-                                                    className="font-semibold text-right cursor-pointer hover:bg-muted/50 select-none"
-                                                    onClick={() => handleSort('duration')}
-                                                >
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        Duration
-                                                        {sortBy === 'duration' ? (
-                                                            sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                                                        ) : (
-                                                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                                                        )}
-                                                    </div>
-                                                </TableHead>
-                                                {organizationPricing?.price_per_second_usd && (
-                                                    <TableHead className="font-semibold text-right">Cost (USD)</TableHead>
-                                                )}
-                                                <TableHead className="font-semibold">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {usageHistory.runs.map((run) => (
-                                                <TableRow
-                                                    key={run.id}
-                                                >
-                                                    <TableCell
-                                                        className="font-mono text-sm cursor-pointer hover:underline"
-                                                        onClick={() => handleRowClick(run)}
-                                                    >
-                                                        #{run.id}
-                                                    </TableCell>
-                                                    <TableCell>{run.workflow_name || 'Unknown'}</TableCell>
-                                                    <TableCell>
-                                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">
-                                                        {(run.call_type === 'inbound'
-                                                            ? run.caller_number
-                                                            : run.called_number) || '-'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {run.disposition ? (
-                                                            <Badge variant="default">
-                                                                {run.disposition}
-                                                            </Badge>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">-</span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>{formatDateTime(run.created_at, effectiveTimezone)}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatDuration(run.call_duration_seconds)}
-                                                    </TableCell>
-                                                    {organizationPricing?.price_per_second_usd && (
-                                                        <TableCell className="text-right font-medium">
-                                                            {run.charge_usd !== undefined && run.charge_usd !== null
-                                                                ? `$${run.charge_usd.toFixed(2)}`
-                                                                : '-'
-                                                            }
-                                                        </TableCell>
-                                                    )}
-                                                    <TableCell>
-                                                        <MediaPreviewButton
-                                                            recordingUrl={run.recording_url}
-                                                            transcriptUrl={run.transcript_url}
-                                                            runId={run.id}
-                                                            onOpenPreview={mediaPreview.openPreview}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-
-                                {/* Summary */}
-                                {appliedFilters.length > 0 && (
-                                    <div className="mt-4 p-3 bg-muted rounded-md">
-                                        <p className="text-sm text-muted-foreground">
-                                            Total for filtered period: <span className="font-semibold text-foreground">
-                                                {usageHistory.total_dograh_tokens.toLocaleString()} Dograh Tokens
-                                            </span>
-                                            {' • '}
-                                            <span className="font-semibold text-foreground">
-                                                {formatDuration(usageHistory.total_duration_seconds)}
-                                            </span>
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Pagination */}
-                                {usageHistory.total_pages > 1 && (
-                                    <div className="flex items-center justify-between mt-6">
-                                        <p className="text-sm text-muted-foreground">
-                                            Page {usageHistory.page} of {usageHistory.total_pages} ({usageHistory.total_count} total runs)
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                                disabled={currentPage === 1}
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                                Previous
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                                disabled={currentPage === usageHistory.total_pages}
-                                            >
-                                                Next
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <p className="text-center py-8 text-muted-foreground">No runs found</p>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Media Preview Dialog */}
-                {mediaPreview.dialog}
-        </div>
+            {mediaPreview.dialog}
+        </PageStudio>
     );
 }

@@ -62,7 +62,7 @@ def mock_backends(authed_user: MagicMock):
     update_mock = AsyncMock(return_value=_FakeWorkflowModel())
     with (
         patch(
-            "api.mcp_server.tools.save_workflow.authenticate_mcp_request",
+            "api.mcp_server.tools.save_workflow.authenticate_mcp_write",
             AsyncMock(return_value=authed_user),
         ),
         patch(
@@ -368,7 +368,7 @@ wf.edge(start, done, {
 async def test_unknown_workflow_raises_404(authed_user: MagicMock):
     with (
         patch(
-            "api.mcp_server.tools.save_workflow.authenticate_mcp_request",
+            "api.mcp_server.tools.save_workflow.authenticate_mcp_write",
             AsyncMock(return_value=authed_user),
         ),
         patch(

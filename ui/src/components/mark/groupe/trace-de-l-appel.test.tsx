@@ -36,11 +36,12 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-fact
 }));
 vi.mock("@/lib/files", () => ({ getSignedUrl: vi.fn(async () => null), downloadFile: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("next/navigation", () => ({
     useParams: () => ({ workflowId: "34", runId: "967" }),
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
     usePathname: () => "/workflow/34/run/967",
+    // La page lit ?creer_test=<rang> (builder, lot 6) : aucun paramètre ici.
+    useSearchParams: () => new URLSearchParams(),
 }));
 const AUTH = { isAuthenticated: true, loading: false, user: { id: "u-1" } };
 vi.mock("@/lib/auth", () => ({ useAuth: () => AUTH }));
@@ -84,7 +85,7 @@ const monterLaPage = async (gathered: Record<string, unknown>) => {
     });
     const { default: PageDuRun } = await import("@/app/workflow/[workflowId]/run/[runId]/page");
     enFrancais(<PageDuRun />);
-    await waitFor(() => expect(screen.getByTestId("fenetre-du-run")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0));
 };
 
 const texte = (element: Element) => (element.textContent ?? "").replace(/\s+/g, " ");
@@ -228,11 +229,11 @@ describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () =
         expect(screen.queryByText("Agents de l'appel")).toBeNull();
         expect(document.querySelector('[data-carte="agents-de-l-appel"]')).toBeNull();
         // Les autres blocs de la page sont là.
-        expect(screen.getByTestId("fenetre-du-run")).toBeTruthy();
+        expect(screen.getAllByTestId("fenetre-du-run").length).toBeGreaterThan(0);
         expect(screen.getByText("Mesures de l'appel")).toBeTruthy();
     });
 
-    it("compte les étapes visitées dans « Nodes Visited » pour les deux formes", async () => {
+    it("compte les étapes visitées dans « Étapes visitées » pour les deux formes", async () => {
         await monterLaPage({
             nodes_visited: [
                 { agent: "Principal", etape: "Qualification" },
@@ -240,7 +241,7 @@ describe("[.mark] la carte « Agents de l'appel » sur la page d'un appel", () =
             ],
             passations: [{ de: 1, vers: 3, refusee: false }],
         });
-        const metrique = (await screen.findByText("Nodes Visited")).parentElement as HTMLElement;
+        const metrique = (await screen.findByText("Étapes visitées")).parentElement as HTMLElement;
         expect(texte(metrique)).toContain("2");
     });
 });

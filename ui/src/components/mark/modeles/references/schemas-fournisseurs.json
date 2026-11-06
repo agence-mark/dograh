@@ -33,6 +33,10 @@
             "mistral-small-latest",
             "magistral-medium-latest"
           ],
+          "mark_aide": {
+            "en": "Mistral chat model to use.",
+            "fr": "Modèle de conversation Mistral à utiliser."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -40,6 +44,10 @@
           "default": "https://api.eu.mistral.ai/v1",
           "description": "Mistral API endpoint. Defaults to the EU endpoint.",
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "Mistral API endpoint. Defaults to the EU endpoint.",
+            "fr": "Adresse de l'API Mistral. Par défaut, l'adresse européenne."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -51,6 +59,10 @@
         "temperature": {
           "default": 0.1,
           "description": "How much randomness goes into each word. Low keeps answers predictable and on-script; high makes them varied and less reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the value that was hardcoded before this field existed.",
+          "mark_aide": {
+            "en": "How much randomness goes into each word. Low keeps answers predictable and on-script; high makes them varied and less reliable. Mistral recommends 0.0 to 0.7. Defaults to 0.1, the value that was hardcoded before this field existed.",
+            "fr": "Quantité de hasard dans chaque mot. Bas, les réponses restent prévisibles et fidèles au script ; haut, elles varient et deviennent moins fiables. Mistral recommande de 0,0 à 0,7. Vaut 0,1 par défaut, la valeur qui était fixée dans le code avant ce réglage."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Temperature",
@@ -73,6 +85,10 @@
           ],
           "default": null,
           "description": "Fixes the draw: two identical calls give back the same conversation. A laboratory tool for comparing two settings, not a production one. Left empty, each call is drawn afresh.",
+          "mark_aide": {
+            "en": "Fixes the draw: two identical calls give back the same conversation. A laboratory tool for comparing two settings, not a production one. Left empty, each call is drawn afresh.",
+            "fr": "Fige le tirage : deux appels identiques redonnent la même conversation. Un outil de laboratoire pour comparer deux réglages, pas un réglage de production. Vide, chaque appel est tiré à nouveau."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Seed",
@@ -92,6 +108,10 @@
           ],
           "default": null,
           "description": "Longest answer the model may produce, in tokens (a token is roughly three quarters of a word). An answer half as long comes back about twice as fast, which is heard on the phone. WARNING: this ceiling also applies to the out-of-band call that fills in the call report, so a low value can truncate it and leave fields empty. Left empty, the model stops when it has finished.",
+          "mark_aide": {
+            "en": "Longest answer the model may produce, in tokens (a token is roughly three quarters of a word). An answer half as long comes back about twice as fast, which is heard on the phone. WARNING: this ceiling also applies to the out-of-band call that fills in the call report, so a low value can truncate it and leave fields empty. Left empty, the model stops when it has finished.",
+            "fr": "Longueur maximale d'une réponse, en jetons (un jeton vaut à peu près les trois quarts d'un mot). Une réponse deux fois plus courte revient environ deux fois plus vite, et cela s'entend au téléphone. ATTENTION : ce plafond vaut aussi pour l'appel hors conversation qui remplit le compte rendu d'appel : une valeur basse peut le tronquer et laisser des champs vides. Vide, le modèle s'arrête quand il a fini."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Max tokens",
@@ -112,6 +132,10 @@
           ],
           "default": null,
           "description": "Restricts the draw to the most likely words: 0.1 keeps only the top 10% of the probability mass. Acts on the same phenomenon as temperature, so Mistral advises changing one or the other, not both. Above 0 and up to 1.",
+          "mark_aide": {
+            "en": "Restricts the draw to the most likely words: 0.1 keeps only the top 10% of the probability mass. Acts on the same phenomenon as temperature, so Mistral advises changing one or the other, not both. Above 0 and up to 1.",
+            "fr": "Limite le tirage aux mots les plus probables : 0,1 ne garde que les 10 % de probabilité du haut. Agit sur le même phénomène que la température, Mistral conseille donc de régler l'un ou l'autre, pas les deux. Au-dessus de 0 et jusqu'à 1."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Top p",
@@ -132,6 +156,10 @@
           ],
           "default": null,
           "description": "Discourages repeating a word already used often in the answer. From -2 to 2; positive values reduce repetition.",
+          "mark_aide": {
+            "en": "Discourages repeating a word already used often in the answer. From -2 to 2; positive values reduce repetition.",
+            "fr": "Décourage de répéter un mot déjà très employé dans la réponse. De -2 à 2 ; une valeur positive réduit les répétitions."
+          },
           "mark_groupe": "repetition",
           "mark_libelle": {
             "en": "Frequency penalty",
@@ -152,6 +180,10 @@
           ],
           "default": null,
           "description": "Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.",
+          "mark_aide": {
+            "en": "Pushes the model towards subjects it has not brought up yet. From -2 to 2; positive values widen the range of topics.",
+            "fr": "Pousse le modèle vers des sujets qu'il n'a pas encore abordés. De -2 à 2 ; une valeur positive élargit la gamme des sujets."
+          },
           "mark_groupe": "repetition",
           "mark_libelle": {
             "en": "Presence penalty",
@@ -219,6 +251,10 @@
             "gpt-3.5-turbo",
             "openai/gpt-oss-120b:fp4"
           ],
+          "mark_aide": {
+            "en": "OpenAI chat model to use.",
+            "fr": "Modèle de conversation OpenAI à utiliser."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -226,6 +262,10 @@
           "default": "https://api.openai.com/v1",
           "description": "Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "Override only if using an OpenAI-compatible API (e.g. local LLM, proxy).",
+            "fr": "À modifier seulement avec une API compatible OpenAI (modèle local, proxy)."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Base URL",
@@ -241,6 +281,10 @@
             "chat_completions",
             "responses"
           ],
+          "mark_aide": {
+            "en": "Which API of the provider the model is called through. 'chat_completions' is the usual one and the default. 'responses' is the provider's newer API: choose it for a model whose tools only work there (gpt-oss-120b at Scaleway). Everything else stays the same.",
+            "fr": "Quelle API du fournisseur sert à appeler le modèle. « chat_completions » est l'usage courant et le défaut. « responses » est sa nouvelle API : à choisir pour un modèle dont les outils ne marchent que par elle (gpt-oss-120b chez Scaleway). Le reste ne change pas."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "API",
@@ -252,6 +296,10 @@
         "temperature": {
           "default": 0.1,
           "description": "How much randomness goes into each word. Low keeps answers predictable and on-script. Defaults to 0.1, the value that was hardcoded before this field existed.",
+          "mark_aide": {
+            "en": "How much randomness goes into each word. Low keeps answers predictable and on-script. Defaults to 0.1, the value that was hardcoded before this field existed.",
+            "fr": "Quantité de hasard dans chaque mot. Bas, les réponses restent prévisibles et fidèles au script. Vaut 0,1 par défaut, la valeur qui était fixée dans le code avant ce réglage."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Temperature",
@@ -275,6 +323,10 @@
           ],
           "default": null,
           "description": "Restricts the draw to the most likely words. Acts on the same phenomenon as temperature: change one or the other, not both.",
+          "mark_aide": {
+            "en": "Restricts the draw to the most likely words. Acts on the same phenomenon as temperature: change one or the other, not both.",
+            "fr": "Limite le tirage aux mots les plus probables. Agit sur le même phénomène que la température : régler l'un ou l'autre, pas les deux."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Top p",
@@ -294,6 +346,10 @@
           ],
           "default": null,
           "description": "Longest answer the model may produce, in tokens. A guard against a reasoning model that runs away. Left empty, the model stops when it has finished.",
+          "mark_aide": {
+            "en": "Longest answer the model may produce, in tokens. A guard against a reasoning model that runs away. Left empty, the model stops when it has finished.",
+            "fr": "Longueur maximale d'une réponse, en jetons. Garde-fou contre un modèle de raisonnement qui s'emballe. Vide, le modèle s'arrête quand il a fini."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Max tokens",
@@ -313,6 +369,10 @@
           ],
           "default": null,
           "description": "Fixes the draw where the provider honours it: a laboratory tool for comparing two settings. Left empty, each call is drawn afresh.",
+          "mark_aide": {
+            "en": "Fixes the draw where the provider honours it: a laboratory tool for comparing two settings. Left empty, each call is drawn afresh.",
+            "fr": "Fige le tirage chez les fournisseurs qui le respectent : un outil de laboratoire pour comparer deux réglages. Vide, chaque appel est tiré à nouveau."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Seed",
@@ -333,6 +393,10 @@
           ],
           "default": null,
           "description": "Discourages repeating a word already used often. From -2 to 2.",
+          "mark_aide": {
+            "en": "Discourages repeating a word already used often. From -2 to 2.",
+            "fr": "Décourage de répéter un mot déjà très employé. De -2 à 2."
+          },
           "mark_groupe": "repetition",
           "mark_libelle": {
             "en": "Frequency penalty",
@@ -353,6 +417,10 @@
           ],
           "default": null,
           "description": "Pushes the model towards subjects not brought up yet. From -2 to 2.",
+          "mark_aide": {
+            "en": "Pushes the model towards subjects not brought up yet. From -2 to 2.",
+            "fr": "Pousse le modèle vers des sujets pas encore abordés. De -2 à 2."
+          },
           "mark_groupe": "repetition",
           "mark_libelle": {
             "en": "Presence penalty",
@@ -378,6 +446,10 @@
           ],
           "default": null,
           "description": "How long a reasoning model thinks before answering (gpt-oss, GLM, DeepSeek, recent Qwen). Each step up costs seconds before the voice on the phone: 'low' is the setting for a conversation. Left empty, the model's own default (medium for gpt-oss); 'gpt-5' models keep 'minimal'. A model that does not reason may refuse the key.",
+          "mark_aide": {
+            "en": "How long a reasoning model thinks before answering (gpt-oss, GLM, DeepSeek, recent Qwen). Each step up costs seconds before the voice on the phone: 'low' is the setting for a conversation. Left empty, the model's own default (medium for gpt-oss); 'gpt-5' models keep 'minimal'. A model that does not reason may refuse the key.",
+            "fr": "Durée de réflexion d'un modèle de raisonnement avant de répondre (gpt-oss, GLM, DeepSeek, Qwen récent). Chaque cran coûte des secondes avant la voix au téléphone : « low » est le réglage d'une conversation. Vide, le défaut du modèle (medium pour gpt-oss) ; les modèles « gpt-5 » gardent « minimal ». Un modèle qui ne raisonne pas peut refuser ce réglage."
+          },
           "mark_groupe": "generation",
           "mark_libelle": {
             "en": "Reasoning effort",
@@ -388,6 +460,10 @@
         "prompt_cache": {
           "default": false,
           "description": "Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.",
+          "mark_aide": {
+            "en": "Sends the agent's cache key (mark-wf-<agent>) so the provider can reuse the start of the prompt from one turn to the next. It names the agent only, never the caller. Off: no key is sent.",
+            "fr": "Envoie la clé de cache de l'agent (mark-wf-<agent>) pour que le fournisseur réutilise le début du prompt d'un tour à l'autre. Elle nomme l'agent seulement, jamais l'appelant. Éteint : aucune clé n'est envoyée."
+          },
           "mark_groupe": "technique",
           "mark_libelle": {
             "en": "Prompt cache key",
@@ -690,77 +766,77 @@
               "accent": "France",
               "description": "amical, posé",
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Mathieu"
             },
             {
               "accent": "France",
               "description": "articulation précise",
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Celine"
             },
             {
               "accent": "France",
               "description": "chaleureux, vif en conversation",
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Julien"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Olivier"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Elodie"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Camille"
             },
             {
               "accent": "France",
               "description": "parisienne",
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Manon"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Baptiste"
             },
             {
               "accent": "France",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Noemie"
             },
             {
               "accent": "Québec",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "féminin",
               "id": "Genevieve"
             },
             {
               "accent": "Québec",
               "description": null,
               "francais": true,
-              "genre": null,
+              "genre": "masculin",
               "id": "Antoine"
             }
           ],
@@ -1052,6 +1128,312 @@
       ],
       "title": "Soniox",
       "type": "object"
+    },
+    "gradium": {
+      "description": "Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; a session lasts at most 300 seconds, so the product reopens the connection between two turns.",
+      "mark_aide": {
+        "en": "Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; a session lasts at most 300 seconds, so the product reopens the connection between two turns.",
+        "fr": "Voix en continu de Gradium (voix françaises Romane et Gaspard). Facturation à l'usage. Résidence UE des données dès la formule XS, activée par le support de Gradium ; zéro conservation dès la formule S ; une session dure au plus 300 secondes, le produit rouvre donc la connexion entre deux tours."
+      },
+      "properties": {
+        "provider": {
+          "const": "gradium",
+          "default": "gradium",
+          "title": "Provider",
+          "type": "string"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Api Key"
+        },
+        "model": {
+          "allow_custom_input": true,
+          "default": "default",
+          "description": "Gradium text-to-speech model (the provider's current one is 'default').",
+          "examples": [
+            "default"
+          ],
+          "mark_aide": {
+            "en": "Gradium text-to-speech model (the provider's current one is 'default').",
+            "fr": "Modèle de synthèse vocale de Gradium. « default » est le modèle courant du fournisseur."
+          },
+          "title": "Model",
+          "type": "string"
+        },
+        "voice": {
+          "allow_custom_input": true,
+          "default": "jBULVCDhf05tOJN5",
+          "description": "Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.",
+          "examples": [
+            "jBULVCDhf05tOJN5",
+            "iEu63s1rhn_kegTr"
+          ],
+          "mark_aide": {
+            "en": "Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.",
+            "fr": "Identifiant d'une voix de la bibliothèque Gradium. Le menu liste les voix françaises connues du produit (Romane, Gaspard) ; toute autre voix, ou une voix clonée de votre compte, se saisit par son identifiant."
+          },
+          "mark_groupe": "voix",
+          "mark_libelle": {
+            "en": "Voice",
+            "fr": "Voix"
+          },
+          "mark_valeurs": {
+            "iEu63s1rhn_kegTr": {
+              "en": "Gaspard (male voice)",
+              "fr": "Gaspard (voix masculine)"
+            },
+            "jBULVCDhf05tOJN5": {
+              "en": "Romane (female voice)",
+              "fr": "Romane (voix féminine)"
+            }
+          },
+          "title": "Voice",
+          "type": "string"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "maximum": 2.0,
+              "minimum": 0.5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
+          "mark_aide": {
+            "en": "Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).",
+            "fr": "Vitesse en facteur : × 1,2 parle plus vite, × 0,8 plus lentement. Gradium ne connaît pas la vitesse : elle est convertie en « padding_bonus » (−4 × (vitesse − 1), borné à ±4, négatif = plus rapide). Vide : le défaut de Gradium (× 1,0)."
+          },
+          "mark_facteur": true,
+          "mark_groupe": "debit",
+          "mark_libelle": {
+            "en": "Speed (factor)",
+            "fr": "Vitesse (facteur)"
+          },
+          "title": "Speed"
+        },
+        "temp": {
+          "default": 0.7,
+          "description": "Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. Gradium's default is 0.7.",
+          "mark_aide": {
+            "en": "Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. Gradium's default is 0.7.",
+            "fr": "Température de la voix, de 0 à 1,4. 0 est déterministe, plus haut varie davantage. Défaut de Gradium : 0,7."
+          },
+          "mark_groupe": "generation",
+          "mark_libelle": {
+            "en": "Temperature",
+            "fr": "Température"
+          },
+          "maximum": 1.4,
+          "minimum": 0.0,
+          "title": "Temp",
+          "type": "number"
+        },
+        "rewrite_rules": {
+          "default": "fr",
+          "description": "Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; 'none' turns them off. The product's default is 'fr'.",
+          "enum": [
+            "fr",
+            "fr-be",
+            "fr-ch",
+            "en",
+            "de",
+            "es",
+            "pt",
+            "none"
+          ],
+          "examples": [
+            "fr",
+            "fr-be",
+            "fr-ch",
+            "en",
+            "de",
+            "es",
+            "pt",
+            "none"
+          ],
+          "mark_aide": {
+            "en": "Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; 'none' turns them off. The product's default is 'fr'.",
+            "fr": "Réécriture du texte avant la synthèse (nombres, dates, sigles). Une langue active toutes ses règles ; « none » les coupe. Défaut du produit : « fr »."
+          },
+          "mark_groupe": "mise_en_forme",
+          "mark_libelle": {
+            "en": "Text rewriting",
+            "fr": "Réécriture du texte"
+          },
+          "mark_valeurs": {
+            "de": {
+              "en": "German",
+              "fr": "Allemand"
+            },
+            "en": {
+              "en": "English",
+              "fr": "Anglais"
+            },
+            "es": {
+              "en": "Spanish",
+              "fr": "Espagnol"
+            },
+            "fr": {
+              "en": "French",
+              "fr": "Français"
+            },
+            "fr-be": {
+              "en": "French (Belgium)",
+              "fr": "Français (Belgique)"
+            },
+            "fr-ch": {
+              "en": "French (Switzerland)",
+              "fr": "Français (Suisse)"
+            },
+            "none": {
+              "en": "None (no rewriting)",
+              "fr": "Aucune (pas de réécriture)"
+            },
+            "pt": {
+              "en": "Portuguese",
+              "fr": "Portugais"
+            }
+          },
+          "title": "Rewrite Rules",
+          "type": "string"
+        },
+        "pronunciation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
+          "mark_aide": {
+            "en": "Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.",
+            "fr": "Identifiant d'un dictionnaire de prononciation créé dans votre compte Gradium (Studio ou API). Il s'applique à toute la session. Vide : aucun dictionnaire."
+          },
+          "mark_groupe": "vocabulaire",
+          "mark_libelle": {
+            "en": "Pronunciation dictionary",
+            "fr": "Dictionnaire de prononciation"
+          },
+          "title": "Pronunciation Id"
+        },
+        "output_format": {
+          "default": "auto",
+          "description": "Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, 'ulaw_8000' or 'pcm_8000' avoid resampling.",
+          "enum": [
+            "auto",
+            "pcm_8000",
+            "ulaw_8000"
+          ],
+          "examples": [
+            "auto",
+            "pcm_8000",
+            "ulaw_8000"
+          ],
+          "mark_aide": {
+            "en": "Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, 'ulaw_8000' or 'pcm_8000' avoid resampling.",
+            "fr": "Format du son demandé à Gradium. « Automatique » : PCM à la fréquence de la ligne. Au téléphone, « ulaw_8000 » ou « pcm_8000 » évitent de rééchantillonner."
+          },
+          "mark_groupe": "technique",
+          "mark_libelle": {
+            "en": "Audio format",
+            "fr": "Format du son"
+          },
+          "mark_valeurs": {
+            "auto": {
+              "en": "Automatic",
+              "fr": "Automatique"
+            },
+            "pcm_8000": {
+              "en": "PCM 8 kHz",
+              "fr": "PCM 8 kHz"
+            },
+            "ulaw_8000": {
+              "en": "μ-law 8 kHz",
+              "fr": "μ-law 8 kHz"
+            }
+          },
+          "title": "Output Format",
+          "type": "string"
+        },
+        "base_url": {
+          "allow_custom_input": true,
+          "default": "wss://eu.api.gradium.ai/api/speech/tts",
+          "description": "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.",
+          "examples": [
+            "wss://eu.api.gradium.ai/api/speech/tts",
+            "wss://api.gradium.ai/api/speech/tts",
+            "wss://us.api.gradium.ai/api/speech/tts"
+          ],
+          "mark_adresse": true,
+          "mark_aide": {
+            "en": "The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.",
+            "fr": "Adresse Gradium à laquelle le texte dit est envoyé, donc la juridiction qui le traite. Europe par défaut. La garantie de résidence UE ne vaut que pour une organisation inscrite par le support Gradium."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Base URL",
+            "fr": "Adresse du service"
+          },
+          "title": "Base Url",
+          "type": "string"
+        },
+        "region": {
+          "default": "eu",
+          "description": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_aide": {
+            "en": "Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+            "fr": "Où le texte dit est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et elle suit."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Region",
+            "fr": "Région"
+          },
+          "readonly": true,
+          "title": "Region",
+          "type": "string"
+        },
+        "adresse_libre": {
+          "default": false,
+          "description": "Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.",
+          "mark_adresse_libre": true,
+          "mark_aide": {
+            "en": "Accepts any address scheme (wss://, https://, grpc://...) instead of the provider's own check. Only an address with no host is still refused. It is not « Enter Custom Value » above, which only lets you type an address that is not in the list.",
+            "fr": "Accepte tout schéma d'adresse (wss://, https://, grpc://...) au lieu du contrôle propre au fournisseur. Seule une adresse sans hôte reste refusée. Ce n'est pas « Saisir une valeur personnalisée », au-dessus, qui permet seulement de taper une adresse absente de la liste."
+          },
+          "mark_groupe": "hebergement",
+          "mark_libelle": {
+            "en": "Free entry (any address scheme)",
+            "fr": "Saisie libre (tout schéma d'adresse)"
+          },
+          "title": "Adresse Libre",
+          "type": "boolean"
+        }
+      },
+      "provider_docs_url": "https://docs.gradium.ai/guides/text-to-speech",
+      "required": [
+        "api_key"
+      ],
+      "title": "Gradium",
+      "type": "object"
     }
   },
   "stt": {
@@ -1087,6 +1469,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Deepgram STT model.",
+            "fr": "Modèle de transcription Deepgram."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -1177,6 +1563,10 @@
             "zh-CN",
             "zh-TW"
           ],
+          "mark_aide": {
+            "en": "Language code. 'multi' enables Nova-3 auto-detect and omits language hints for Flux multilingual auto-detect.",
+            "fr": "Code de langue. « multi » active la détection automatique de Nova-3 et n'envoie aucun indice de langue pour la détection multilingue de Flux."
+          },
           "mark_groupe": "langue",
           "mark_libelle": {
             "en": "Language",
@@ -1379,6 +1769,10 @@
             "https://api.au.deepgram.com"
           ],
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "The Deepgram endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe and can be changed: upstream defaults it to the global endpoint, .mark defaults it to the EU one. Leaving it empty also sends the audio to Europe.",
+            "fr": "L'adresse Deepgram à laquelle l'audio de l'appelant est envoyé, donc la juridiction qui le traite. Par défaut l'Europe, et modifiable : l'amont met l'adresse mondiale par défaut, .mark met l'européenne. Vide, l'audio part aussi en Europe."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Base URL",
@@ -1404,6 +1798,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Silence, in milliseconds, after which Deepgram declares the speech finished. This is the setting that decides when the agent takes the floor, so it caps the responsiveness of the whole chain: too low and the agent cuts the caller off, too high and it leaves a blank. Deepgram's own default is 10 ms; 100 ms is the value that was hardcoded before this field existed. Deepgram also accepts 'false' to switch endpointing off entirely, which this field does not offer.",
+            "fr": "Silence, en millisecondes, après lequel Deepgram déclare la parole terminée. C'est ce réglage qui décide quand l'agent prend la parole : il plafonne la réactivité de toute la chaîne. Trop bas, l'agent coupe l'appelant ; trop haut, il laisse un blanc. Le défaut de Deepgram est 10 ms ; 100 ms est la valeur qui était fixée dans le code avant ce réglage. Deepgram accepte aussi « false » pour couper entièrement la détection de fin de parole, ce que ce réglage ne propose pas."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Endpointing (ms)",
@@ -1428,6 +1826,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Silence, in milliseconds, after which Deepgram emits an end-of-utterance event. From 1000 to 5000. WARNING: requires interim results to be on; without them Deepgram sends nothing. Left empty, no such event is requested, which is today's behaviour.",
+            "fr": "Silence, en millisecondes, après lequel Deepgram émet un événement de fin d'énoncé. De 1000 à 5000. ATTENTION : exige que les résultats intermédiaires soient allumés ; sans eux Deepgram n'envoie rien. Vide, aucun événement n'est demandé, ce qui est le comportement actuel."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Utterance end (ms)",
@@ -1450,6 +1852,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Sends partial transcriptions as the caller speaks, instead of only the finished sentence. On today by way of the connector's own default, and required by the end-of-utterance setting above.",
+            "fr": "Envoie des transcriptions partielles pendant que l'appelant parle, au lieu de la seule phrase terminée. Allumé aujourd'hui par le défaut du connecteur, et exigé par le réglage de fin d'énoncé ci-dessus."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Interim results",
@@ -1476,6 +1882,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Words to boost, written 'word' or 'word:intensifier'. NOT supported from nova-3 onwards, where Deepgram replaced it with keyterm prompting — which is what the agent's Dictionary already feeds. Only shown when an older model is selected.",
+            "fr": "Mots à renforcer, écrits « mot » ou « mot:intensité ». NON pris en charge à partir de nova-3, où Deepgram l'a remplacé par les mots-clés, ce que le dictionnaire de l'agent alimente déjà. Affiché seulement avec un modèle plus ancien."
+          },
           "mark_groupe": "vocabulaire",
           "mark_libelle": {
             "en": "Keywords",
@@ -1498,6 +1908,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Adds punctuation and capitalisation to the transcript. On today by way of the connector's own default. Required for dictation below to have any effect.",
+            "fr": "Ajoute ponctuation et majuscules à la transcription. Allumé aujourd'hui par le défaut du connecteur. Nécessaire pour que la dictée ci-dessous ait un effet."
+          },
           "mark_groupe": "mise_en_forme",
           "mark_libelle": {
             "en": "Punctuate",
@@ -1520,6 +1934,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Formats dates, times, phone numbers and amounts for readability. Includes the numerals setting below. Off today by way of the connector's own default.",
+            "fr": "Met en forme les dates, heures, numéros de téléphone et montants pour la lisibilité. Inclut le réglage des chiffres ci-dessous. Éteint aujourd'hui par le défaut du connecteur."
+          },
           "mark_groupe": "mise_en_forme",
           "mark_libelle": {
             "en": "Smart format",
@@ -1542,6 +1960,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Writes spoken numbers as digits ('twenty three' becomes '23'). Off today by way of the connector's own default.",
+            "fr": "Écrit les nombres dits en chiffres (« vingt-trois » devient « 23 »). Éteint aujourd'hui par le défaut du connecteur."
+          },
           "mark_groupe": "mise_en_forme",
           "mark_libelle": {
             "en": "Numerals",
@@ -1564,6 +1986,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Turns spoken punctuation commands into characters ('comma' becomes ','). WARNING: English only, and has no effect unless punctuation is on. Off today by way of the connector's own default.",
+            "fr": "Transforme les commandes de ponctuation dites en caractères (« virgule » devient « , »). ATTENTION : anglais seulement, et sans effet si la ponctuation est éteinte. Éteint aujourd'hui par le défaut du connecteur."
+          },
           "mark_groupe": "mise_en_forme",
           "mark_libelle": {
             "en": "Dictation",
@@ -1586,6 +2012,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Replaces or removes coarse language in the transcript. Off is the value that was hardcoded before this field existed: what the caller said reaches the agent as they said it.",
+            "fr": "Remplace ou retire les gros mots de la transcription. Éteint est la valeur qui était fixée dans le code avant ce réglage : ce que l'appelant a dit parvient à l'agent tel quel."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Profanity filter",
@@ -1611,6 +2041,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Removes sensitive information from the transcript before it reaches us. Categories such as pci, pii, phi, numbers, aggressive_numbers, or an individual entity type. WARNING: outside English, only numbers are redacted. Left empty, nothing is redacted, which is today's behaviour.",
+            "fr": "Retire les informations sensibles de la transcription avant qu'elle nous parvienne. Catégories comme pci, pii, phi, numbers, aggressive_numbers, ou un type d'entité précis. ATTENTION : hors de l'anglais, seuls les nombres sont masqués. Vide, rien n'est masqué, ce qui est le comportement actuel."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Redact",
@@ -1636,6 +2070,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Replacement rules, written 'term heard:term written'. Useful for a trade word the model mishears consistently. One rule per entry; the colon separates the two halves.",
+            "fr": "Règles de remplacement, écrites « terme entendu:terme écrit ». Utile pour un mot du métier que le modèle comprend mal de façon constante. Une règle par entrée ; les deux-points séparent les deux moitiés."
+          },
           "mark_groupe": "vocabulaire",
           "mark_libelle": {
             "en": "Replace",
@@ -1661,6 +2099,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Terms Deepgram reports the position and confidence of, without changing the transcript. WARNING: nothing in the agent reads those results today, so this is an observation aid, not a behaviour.",
+            "fr": "Termes dont Deepgram rapporte la position et la confiance, sans changer la transcription. ATTENTION : rien dans l'agent ne lit ces résultats aujourd'hui, c'est donc une aide d'observation, pas un comportement."
+          },
           "mark_groupe": "vocabulaire",
           "mark_libelle": {
             "en": "Search",
@@ -1683,6 +2125,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Labels the transcript by speaker. WARNING: Deepgram marks this parameter deprecated in favour of diarize_model, which the connector does not carry; it still works and routes to the v1 diarizer. On a telephone call the agent and the caller are already on separate channels, so there is little to gain.",
+            "fr": "Étiquette la transcription par locuteur. ATTENTION : Deepgram marque ce paramètre comme obsolète au profit de diarize_model, que le connecteur ne porte pas ; il marche encore et passe par l'ancien module. Au téléphone, l'agent et l'appelant sont déjà sur des canaux séparés : le gain est faible."
+          },
           "mark_groupe": "analyse",
           "mark_libelle": {
             "en": "Diarize",
@@ -1705,6 +2151,10 @@
             "flux-general-en",
             "flux-general-multi"
           ],
+          "mark_aide": {
+            "en": "Marks names, dates, amounts and the like in the transcript. WARNING: nothing in the agent reads those markers today. Off by way of the connector's own default.",
+            "fr": "Repère dans la transcription les noms, dates, montants et autres. ATTENTION : rien dans l'agent ne lit ces repères aujourd'hui. Éteint par le défaut du connecteur."
+          },
           "mark_groupe": "analyse",
           "mark_libelle": {
             "en": "Detect entities",
@@ -1725,6 +2175,10 @@
           ],
           "default": 0.7,
           "description": "Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.",
+          "mark_aide": {
+            "en": "Confidence Flux needs before it declares the turn finished. Low means turns end sooner, so the agent answers faster and cuts in more often; high means it waits for a complete sentence. From 0.5 to 1. Deepgram's default is 0.7, which is also the value that was hardcoded before this field existed.",
+            "fr": "Confiance dont Flux a besoin pour déclarer le tour terminé. Basse, les tours se terminent plus tôt : l'agent répond plus vite et coupe plus souvent ; haute, il attend une phrase complète. De 0,5 à 1. Le défaut de Deepgram est 0,7, aussi la valeur qui était fixée dans le code avant ce réglage."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "EOT threshold",
@@ -1749,6 +2203,10 @@
           ],
           "default": 0.5,
           "description": "Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.",
+          "mark_aide": {
+            "en": "Confidence at which Flux announces the turn is probably about to end, so the answer can be prepared before the caller has actually stopped. From 0.3 to 0.9, and it must stay at or below the threshold above. Deepgram leaves it off by default; 0.5 is the value that was hardcoded before this field existed.",
+            "fr": "Confiance à laquelle Flux annonce que le tour va probablement se terminer, pour préparer la réponse avant que l'appelant ait vraiment fini. De 0,3 à 0,9, et elle doit rester inférieure ou égale au seuil ci-dessus. Deepgram la laisse éteinte par défaut ; 0,5 est la valeur qui était fixée dans le code avant ce réglage."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Eager EOT threshold",
@@ -1773,6 +2231,10 @@
           ],
           "default": 3000,
           "description": "Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.",
+          "mark_aide": {
+            "en": "Silence, in milliseconds, after which Flux finishes the turn whatever its confidence. From 500 to 60000. Deepgram's default is 5000; 3000 is the value that was hardcoded before this field existed.",
+            "fr": "Silence, en millisecondes, après lequel Flux termine le tour quelle que soit sa confiance. De 500 à 60000. Le défaut de Deepgram est 5000 ; 3000 est la valeur qui était fixée dans le code avant ce réglage."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "EOT timeout (ms)",
@@ -1810,6 +2272,10 @@
             "pt",
             "ru"
           ],
+          "mark_aide": {
+            "en": "Languages to bias multilingual detection towards. Only the multilingual Flux model reads them. Left empty, the hint is derived from the language chosen above, which is what happens today; filled in, it replaces that derivation.",
+            "fr": "Langues vers lesquelles orienter la détection multilingue. Seul le modèle Flux multilingue les lit. Vide, l'indice se déduit de la langue choisie plus haut, comme aujourd'hui ; rempli, il remplace cette déduction."
+          },
           "mark_groupe": "langue",
           "mark_libelle": {
             "en": "Language hints",
@@ -1833,6 +2299,10 @@
           ],
           "default": null,
           "description": "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
+          "mark_aide": {
+            "en": "Below this confidence, a finished turn is DROPPED and never reaches the agent, which then hears nothing at all. WARNING: this one is not sent to Deepgram; it is a filter applied on our side to what Deepgram returns. Left empty, nothing is dropped, which is today's behaviour.",
+            "fr": "En dessous de cette confiance, un tour terminé est ÉCARTÉ et n'atteint jamais l'agent, qui n'entend alors rien du tout. ATTENTION : ce réglage n'est pas envoyé à Deepgram ; c'est un filtre appliqué de notre côté à ce que Deepgram rend. Vide, rien n'est écarté, ce qui est le comportement actuel."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Min confidence",
@@ -1847,6 +2317,10 @@
         "region": {
           "default": "api.eu.deepgram.com",
           "description": "The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.",
+          "mark_aide": {
+            "en": "The Deepgram region the caller's audio is processed in. Derived from the endpoint above rather than chosen: change the endpoint and this follows. Defaults to Europe.",
+            "fr": "La région Deepgram où l'audio de l'appelant est traité. Déduite de l'adresse ci-dessus plutôt que choisie : changez l'adresse et celle-ci suit. L'Europe par défaut."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Region",
@@ -1859,6 +2333,10 @@
         "mip_opt_out": {
           "default": true,
           "description": "Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.",
+          "mark_aide": {
+            "en": "Refusal to take part in Deepgram's Model Improvement Program, so no call is used to train their models. Locked on: it is a condition of the offer, not an option. Refusing forfeits a discount, and that is accepted.",
+            "fr": "Refus de participer au programme d'amélioration des modèles de Deepgram : aucun appel ne sert à entraîner leurs modèles. Verrouillé : c'est une condition de l'offre, pas une option. Refuser fait perdre une remise, et c'est accepté."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "MIP opt out",
@@ -1920,6 +2398,10 @@
           "examples": [
             "stt-rt-v5"
           ],
+          "mark_aide": {
+            "en": "Soniox real-time STT model.",
+            "fr": "Modèle de transcription en temps réel Soniox."
+          },
           "title": "Model",
           "type": "string"
         },
@@ -1990,6 +2472,10 @@
             "vi",
             "zh"
           ],
+          "mark_aide": {
+            "en": "ISO 639-1 language code, sent as a language hint. 'multi' sends no hint and lets Soniox auto-detect the language.",
+            "fr": "Code de langue ISO 639-1, envoyé comme indice de langue. « multi » n'envoie aucun indice et laisse Soniox détecter la langue."
+          },
           "mark_groupe": "langue",
           "mark_libelle": {
             "en": "Language",
@@ -2009,6 +2495,10 @@
           ],
           "default": null,
           "description": "Transcribe only in the language above. Left unset, Soniox's own default applies.",
+          "mark_aide": {
+            "en": "Transcribe only in the language above. Left unset, Soniox's own default applies.",
+            "fr": "Ne transcrire que dans la langue ci-dessus. Non réglé, le défaut de Soniox s'applique."
+          },
           "mark_groupe": "langue",
           "mark_libelle": {
             "en": "Only this language",
@@ -2019,6 +2509,10 @@
         "enable_language_identification": {
           "default": false,
           "description": "Tag each word with the language Soniox heard.",
+          "mark_aide": {
+            "en": "Tag each word with the language Soniox heard.",
+            "fr": "Étiquette chaque mot avec la langue que Soniox a entendue."
+          },
           "mark_groupe": "langue",
           "mark_libelle": {
             "en": "Language identification",
@@ -2030,6 +2524,10 @@
         "endpoint_detection": {
           "default": true,
           "description": "On: Soniox decides when the caller has finished, from pauses, intonation and meaning, like Deepgram Flux. Off: the local voice detector ends the turn and Soniox only writes the words; the three settings below then play no part and are hidden.",
+          "mark_aide": {
+            "en": "On: Soniox decides when the caller has finished, from pauses, intonation and meaning, like Deepgram Flux. Off: the local voice detector ends the turn and Soniox only writes the words; the three settings below then play no part and are hidden.",
+            "fr": "Allumé : Soniox décide quand l'appelant a fini, d'après les pauses, l'intonation et le sens, comme Deepgram Flux. Éteint : le détecteur de voix local termine le tour et Soniox ne fait qu'écrire les mots ; les trois réglages ci-dessous ne jouent alors aucun rôle et sont masqués."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Soniox decides the end of turn",
@@ -2051,6 +2549,10 @@
           ],
           "default": null,
           "description": "Longest wait before Soniox closes a turn, in milliseconds. Left unset, Soniox's default applies (2000).",
+          "mark_aide": {
+            "en": "Longest wait before Soniox closes a turn, in milliseconds. Left unset, Soniox's default applies (2000).",
+            "fr": "Attente maximale avant que Soniox ferme un tour, en millisecondes. Non réglé, le défaut de Soniox s'applique (2000)."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "Max end of turn delay (ms)",
@@ -2074,6 +2576,10 @@
           ],
           "default": null,
           "description": "How readily Soniox closes a turn: higher closes sooner. Left unset, Soniox's default applies.",
+          "mark_aide": {
+            "en": "How readily Soniox closes a turn: higher closes sooner. Left unset, Soniox's default applies.",
+            "fr": "Facilité avec laquelle Soniox ferme un tour : plus haut, plus tôt. Non réglé, le défaut de Soniox s'applique."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "End of turn sensitivity",
@@ -2097,6 +2603,10 @@
           ],
           "default": null,
           "description": "Reduces the end-of-turn latency against Soniox's default: higher is faster. Left unset, Soniox's default applies.",
+          "mark_aide": {
+            "en": "Reduces the end-of-turn latency against Soniox's default: higher is faster. Left unset, Soniox's default applies.",
+            "fr": "Réduit la latence de fin de tour par rapport au défaut de Soniox : plus haut, plus rapide. Non réglé, le défaut de Soniox s'applique."
+          },
           "mark_groupe": "fin_de_tour",
           "mark_libelle": {
             "en": "End of turn latency reduction",
@@ -2110,6 +2620,10 @@
         "enable_speaker_diarization": {
           "default": false,
           "description": "Tag each word with the voice that said it.",
+          "mark_aide": {
+            "en": "Tag each word with the voice that said it.",
+            "fr": "Étiquette chaque mot avec la voix qui l'a dit."
+          },
           "mark_groupe": "analyse",
           "mark_libelle": {
             "en": "Diarize",
@@ -2130,6 +2644,10 @@
           ],
           "default": null,
           "description": "What the calls are about, in a few words (trade, products, usual requests): Soniox then recognises the words of the domain better. Sent before the terms of the vocabulary, within the same ceiling. 300 characters at most; left empty, nothing is sent.",
+          "mark_aide": {
+            "en": "What the calls are about, in a few words (trade, products, usual requests): Soniox then recognises the words of the domain better. Sent before the terms of the vocabulary, within the same ceiling. 300 characters at most; left empty, nothing is sent.",
+            "fr": "De quoi parlent les appels, en quelques mots (métier, produits, demandes habituelles) : Soniox reconnaît alors mieux les mots du domaine. Envoyé avant les termes du vocabulaire, dans le même plafond. 300 caractères au plus ; vide, rien n'est envoyé."
+          },
           "mark_groupe": "vocabulaire",
           "mark_libelle": {
             "en": "Domain description",
@@ -2148,6 +2666,10 @@
             "wss://stt-rt.soniox.com/transcribe-websocket"
           ],
           "mark_adresse": true,
+          "mark_aide": {
+            "en": "The Soniox endpoint the caller's audio is sent to, and therefore the jurisdiction that processes it. Defaults to Europe, which Soniox enables per project on request; leaving it empty also sends the audio to Europe.",
+            "fr": "L'adresse Soniox à laquelle l'audio de l'appelant est envoyé, donc la juridiction qui le traite. Par défaut l'Europe, que Soniox active par projet sur demande ; vide, l'audio part aussi en Europe."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Base URL",
@@ -2159,6 +2681,10 @@
         "region": {
           "default": "eu",
           "description": "Where the caller's audio is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+          "mark_aide": {
+            "en": "Where the caller's audio is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.",
+            "fr": "Où l'audio de l'appelant est traité. Déduit de l'adresse ci-dessus plutôt que choisi : changez l'adresse et celui-ci suit."
+          },
           "mark_groupe": "hebergement",
           "mark_libelle": {
             "en": "Region",

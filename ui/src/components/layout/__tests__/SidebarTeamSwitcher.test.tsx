@@ -18,6 +18,7 @@
  * `import ... from "../index.js"` resolves to the same entry module and
  * therefore receives the mocked hooks.
  */
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,16 +34,9 @@ import { TranslationContext } from "../../../../node_modules/@stackframe/stack/d
 import { SidebarTeamSwitcher } from "../SidebarTeamSwitcher";
 
 const reloadAppMock = vi.hoisted(() => vi.fn());
-const toastErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/browserReload", () => ({
   reloadApp: reloadAppMock,
-}));
-
-vi.mock("sonner", () => ({
-  toast: {
-    error: toastErrorMock,
-  },
 }));
 
 // Controls what the faked Stack useUser() returns; tests flip this to null to
@@ -164,7 +158,7 @@ describe("SidebarTeamSwitcher", () => {
   beforeEach(() => {
     stackState.user = makeStackUser();
     reloadAppMock.mockClear();
-    toastErrorMock.mockClear();
+    viderNotifications();
     // React logs boundary-caught render errors; keep test output readable.
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -262,9 +256,9 @@ describe("SidebarTeamSwitcher", () => {
     fireEvent.click(switcher);
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        "Could not switch teams. Please try again."
-      );
+      expect(lireNotifications().map((n) => [n.sorte, n.texte.en])).toEqual([
+        ["echec", "Could not switch team. Try again."],
+      ]);
     });
     expect(screen.queryByRole("status")).toBeNull();
     expect(reloadAppMock).not.toHaveBeenCalled();

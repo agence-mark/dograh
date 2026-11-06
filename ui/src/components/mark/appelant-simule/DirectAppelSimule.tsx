@@ -18,8 +18,8 @@ import { ConversationContainer } from "@/components/workflow/conversation/Conver
 import { ConversationTimeline } from "@/components/workflow/conversation/ConversationTimeline";
 import type { RealtimeFeedbackEvent } from "@/components/workflow/conversation/types";
 import { countConversationMessages } from "@/components/workflow/conversation/utils";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 
 export const INTERVALLE_DIRECT_MS = 1000;
@@ -95,7 +95,7 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
             }
             if (arrete) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Live view unavailable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.appelSimuleDirect));
             } else {
                 const direct = reponse.data as Direct;
                 setErreur(null);
@@ -150,13 +150,13 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
                 <p className="text-xs text-muted-foreground" role="status">
                     {t({
                         en: "Live view truncated (too many events): the full transcript is in the run window at the end.",
-                        fr: "Direct tronqué (trop d'événements) : la transcription complète est dans la fenêtre du run à la fin.",
+                        fr: "Direct tronqué (trop d'événements) : la transcription complète est dans la fenêtre d'appel à la fin.",
                     })}
                 </p>
             )}
             {fini && (
                 <a className="text-xs underline" href={`/workflow/${workflowId}/run/${runId}`} target="_blank" rel="noreferrer">
-                    {t({ en: "Saved transcript and verdict: run window", fr: "Transcription enregistrée et verdict : fenêtre du run" })}
+                    {t({ en: "Saved transcript and verdict: run window", fr: "Transcription enregistrée et verdict : fenêtre d'appel" })}
                 </a>
             )}
         </div>

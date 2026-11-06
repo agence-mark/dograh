@@ -51,6 +51,7 @@ export const RetourAuPrincipal = ({
             libelle={TEXTES.libelle}
             aides={[TEXTES.aide, TEXTES.aide2]}
             disposition="ligne"
+        variante="noeud"
         >
             <div className="flex items-center gap-3">
                 <Link href={`/workflow/${agentPrincipalId}`} target="_blank" className="text-xs underline">

@@ -24,6 +24,11 @@ vi.mock("next/navigation", () => ({
     useRouter: () => ({ refresh: m.refresh, push: m.push, replace: vi.fn(), back: vi.fn() }),
 }));
 vi.mock("@/hooks/useOrganizationTimezone", () => ({ useOrganizationTimezone: () => "Europe/Paris" }));
+// La liste lit aussi les étiquettes des agents (U3, E30) : ici l'organisation n'en a aucune.
+vi.mock("@/lib/auth", () => {
+    const auth = { user: { id: "u" }, loading: false };
+    return { useAuth: () => auth };
+});
 vi.mock("@/client/sdk.gen", async (importOriginal) => {
     const enregistrer = (nom: string, reponse: unknown = { data: {}, error: undefined }) =>
         (options: unknown) => {
@@ -51,11 +56,11 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
         }),
         updateWorkflowStatusApiV1WorkflowWorkflowIdStatusPut: enregistrer("statut"),
         deleteFolderApiV1FolderFolderIdDelete: enregistrer("supprimerDossier"),
+        lireLesEtiquettesApiV1EtiquettesGet: () => Promise.resolve({ data: { etiquettes: [], par_agent: {} }, error: undefined }),
     });
 });
 
 const { AgentFolderView } = await import("@/components/workflow/folders/AgentFolderView");
-const { ModaleCreationAgent } = await import("./ModaleCreationAgent");
 
 const agent = (id: number, name: string, folder_id: number | null): WorkflowListResponse => ({
     id,
@@ -178,7 +183,7 @@ describe("[.mark] la vue d'un groupe", () => {
     it("montre la carte du principal (nom, numéros, fiche) et ses spécialisés dessous avec leur badge", () => {
         const vue = ouvrirLeGroupe();
         expect(within(vue).getAllByText("Principal").length).toBeGreaterThan(0);
-        expect(vue.textContent).toContain("+33 3 44 00 00 00");
+        expect(vue.textContent).toContain("03 44 00 00 00"); // L-5 : affichage à la française, le stockage garde le « +33 »
         expect(vue.textContent).toContain("creil");
         const lignes = within(vue).getAllByRole("link", { name: /^Edit / });
         expect(lignes.map((l) => l.getAttribute("aria-label"))).toEqual(["Edit Principal", "Edit Spécialisé un", "Edit Spécialisé deux"]);
@@ -277,49 +282,4 @@ describe("[.mark] actions d'un sous-dossier", () => {
     });
 });
 
-describe("[.mark] la modale de création d'un agent", () => {
-    const ouvrir = (extra: Partial<Parameters<typeof ModaleCreationAgent>[0]> = {}) => {
-        const props = {
-            ouvert: true,
-            onOuvertChange: vi.fn(),
-            onConstructeur: vi.fn(),
-            onToileVierge: vi.fn(),
-            ...extra,
-        };
-        render(<ModaleCreationAgent {...props} />);
-        return props;
-    };
-
-    it("montre deux cartes : les deux chemins d'aujourd'hui, et le graphe avec agents spécialisés", () => {
-        ouvrir();
-        const modale = screen.getByRole("dialog");
-        expect(modale.getAttribute("data-modale")).toBe("creation-d-agent");
-        expect(modale.querySelectorAll("[data-carte]")).toHaveLength(2);
-        const noeuds = modale.querySelector('[data-carte="graphe-de-noeuds"]') as HTMLElement;
-        expect(within(noeuds).getByText("Node graph")).toBeTruthy();
-        expect(within(noeuds).getByText("Use the agent builder")).toBeTruthy();
-        expect(within(noeuds).getByText("Blank canvas")).toBeTruthy();
-        const groupe = modale.querySelector('[data-carte="graphe-avec-agents-specialises"]') as HTMLElement;
-        expect(within(groupe).getByText("Graph with specialised agents")).toBeTruthy();
-    });
-
-    it("la carte « Graphe de nœuds » garde ses deux chemins", () => {
-        const props = ouvrir();
-        fireEvent.click(screen.getByText("Use the agent builder"));
-        expect(props.onConstructeur).toHaveBeenCalledTimes(1);
-        fireEvent.click(screen.getByText("Blank canvas"));
-        expect(props.onToileVierge).toHaveBeenCalledTimes(1);
-    });
-
-    it("la carte « Graphe avec agents spécialisés » crée le groupe et l'ouvre dans la liste", async () => {
-        const props = ouvrir();
-        const bouton = screen.getByRole("button", { name: "Create the group" }) as HTMLButtonElement;
-        expect(bouton.disabled).toBe(true);
-        fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Accueil du client" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create the group" }));
-        await waitFor(() => expect(m.appels.map((a) => a.nom)).toContain("creerUnGroupe"));
-        expect((m.appels.find((a) => a.nom === "creerUnGroupe")!.options as { body: unknown }).body).toEqual({ name: "Accueil du client", folder_id: null });
-        await waitFor(() => expect(m.push).toHaveBeenCalledWith("/workflow?dossier=8"));
-        expect(props.onOuvertChange).toHaveBeenCalledWith(false);
-    });
-});
+// La fenêtre de création d'un agent (groupe compris) est testée par chemin dans `agent/FenetreCreationAgent.test.tsx` (sous-lot 9).

@@ -1,9 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { getPresignedUploadUrlApiV1S3PresignedUploadUrlPost } from '@/client/sdk.gen';
+import { useLangue } from '@/components/mark/langue/langue';
+import { notifier } from "@/components/mark/notifications";
+import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import logger from '@/lib/logger';
@@ -16,6 +18,7 @@ interface CsvUploadSelectorProps {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: CsvUploadSelectorProps) {
+  const { t } = useLangue();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,13 +29,13 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
     // Validate file type
     if (!file.name.endsWith('.csv')) {
-      toast.error('Please select a CSV file');
+      notifier.echec({ fr: "Choisissez un fichier CSV.", en: "Choose a CSV file." });
       return;
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      toast.error('File size must be less than 10MB');
+      notifier.echec({ fr: "Fichier trop lourd : 10 Mo au maximum.", en: "File too large: 10 MB maximum." });
       return;
     }
 
@@ -74,10 +77,10 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
       // Step 3: Notify parent with file_key
       onFileUploaded(presignedData.file_key, file.name);
-      toast.success(`File uploaded: ${file.name}`);
+      notifier.succes({ fr: `Fichier « ${file.name} » envoyé.`, en: `File "${file.name}" uploaded.` });
     } catch (error) {
       logger.error('Error uploading CSV:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload CSV file');
+      notifier.echec({ fr: "Envoi impossible. Vérifiez le fichier et réessayez.", en: "Upload failed. Check the file and try again." }, { erreur: error, reessayer: () => fileInputRef.current?.click() });
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -94,7 +97,15 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
 
   return (
     <div className="space-y-2">
-      <Label>CSV File</Label>
+      <Label className="flex items-center gap-1.5">
+        CSV File
+        <Info>
+          {t({
+            en: 'Upload a CSV file with contact data. Must include phone_number column. The columns can be accessed as initial_context in the workflow nodes. Max 10MB.',
+            fr: 'Envoyez un fichier CSV avec vos contacts. Il doit contenir une colonne phone_number. Les colonnes sont accessibles dans les nœuds du workflow sous initial_context. 10 Mo max.',
+          })}
+        </Info>
+      </Label>
       <div className="flex items-center gap-4">
         <input
           ref={fileInputRef}
@@ -118,11 +129,6 @@ export default function CsvUploadSelector({ onFileUploaded, selectedFileName }: 
           </div>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Upload a CSV file with contact data. Must include phone_number column.
-        The columns can be accessed as initial_context in the workflow nodes. <br/>
-        Max 10MB.
-      </p>
     </div>
   );
 }

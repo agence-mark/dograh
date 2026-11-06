@@ -1,220 +1,34 @@
-import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
-import { AlertCircle, Pencil, Trash2 } from 'lucide-react';
+import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
+import { Braces, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useWorkflow, useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowStore";
-import { StaticTextWarning, TextOrAudioInput } from "@/components/flow/TextOrAudioInput";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from '@/components/ui/textarea';
+import { quiDecide, type QuiDecide } from "@/components/mark/graphe/conditions-de-porte";
+import { FenetreTransition } from "@/components/mark/graphe/FenetreTransition";
+import { STYLE_TRANSITION, typeDeTransition } from "@/components/mark/graphe/type-de-transition";
+import { useLangue } from "@/components/mark/langue/langue";
 import { cn } from "@/lib/utils";
 
-import { EdgeRecordCondition, FlowEdge, FlowEdgeData, FlowNode } from '../types';
+import { FlowEdge, FlowEdgeData, FlowNode } from '../types';
 type CustomEdge = Edge<{ value: number }, 'custom'>;
-
-
-type RecordConditionMode = 'none' | 'complete' | 'field';
-
-const recordModeOf = (condition?: EdgeRecordCondition): RecordConditionMode =>
-    condition?.etape_complete ? 'complete' : condition?.champ ? 'field' : 'none';
-
-interface EdgeDetailsDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    data?: FlowEdgeData;
-    onSave: (value: FlowEdgeData) => void;
-}
-
-const EdgeDetailsDialog = ({ open, onOpenChange, data, onSave }: EdgeDetailsDialogProps) => {
-    const readOnly = useWorkflowOptional()?.readOnly ?? false;
-    const { recordings } = useWorkflow();
-    const [condition, setCondition] = useState(data?.condition ?? '');
-    const [label, setLabel] = useState(data?.label ?? '');
-    const [transitionSpeech, setTransitionSpeech] = useState(data?.transition_speech ?? '');
-    const [transitionSpeechType, setTransitionSpeechType] = useState<'text' | 'audio'>(data?.transition_speech_type ?? 'text');
-    const [transitionSpeechRecordingId, setTransitionSpeechRecordingId] = useState(data?.transition_speech_recording_id ?? '');
-
-    // [.mark] passages-fiables (lot A): optional condition on the call record, read by the code in the step order.
-    const [recordMode, setRecordMode] = useState<RecordConditionMode>(recordModeOf(data?.condition_sur_la_fiche));
-    const [recordField, setRecordField] = useState(data?.condition_sur_la_fiche?.champ ?? '');
-    const [recordValue, setRecordValue] = useState(data?.condition_sur_la_fiche?.vaut ?? '');
-
-    // Update form state when data changes (e.g., from undo/redo)
-    useEffect(() => {
-        if (open) {
-            setRecordMode(recordModeOf(data?.condition_sur_la_fiche));
-            setRecordField(data?.condition_sur_la_fiche?.champ ?? '');
-            setRecordValue(data?.condition_sur_la_fiche?.vaut ?? '');
-            setCondition(data?.condition ?? '');
-            setLabel(data?.label ?? '');
-            setTransitionSpeech(data?.transition_speech ?? '');
-            setTransitionSpeechType(data?.transition_speech_type ?? 'text');
-            setTransitionSpeechRecordingId(data?.transition_speech_recording_id ?? '');
-        }
-    }, [data, open]);
-
-    const handleSave = useCallback(() => {
-        const recordCondition: EdgeRecordCondition | undefined =
-            recordMode === 'complete'
-                ? { etape_complete: true }
-                : recordMode === 'field' && recordField.trim()
-                  ? { champ: recordField.trim(), vaut: recordValue.trim() || undefined }
-                  : undefined;
-        onSave({
-            condition,
-            label,
-            condition_sur_la_fiche: recordCondition,
-            transition_speech: transitionSpeechType === 'text' ? (transitionSpeech || undefined) : undefined,
-            transition_speech_type: transitionSpeechType,
-            transition_speech_recording_id: transitionSpeechType === 'audio' ? (transitionSpeechRecordingId || undefined) : undefined,
-        });
-        onOpenChange(false);
-    }, [condition, label, recordMode, recordField, recordValue, transitionSpeech, transitionSpeechType, transitionSpeechRecordingId, onSave, onOpenChange]);
-
-    // Handle Cmd+S / Ctrl+S keyboard shortcut to save
-    useEffect(() => {
-        if (!open || readOnly) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                handleSave();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown, true);
-        return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [open, readOnly, handleSave]);
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[85vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Edit Condition</DialogTitle>
-                    {data?.invalid && data.validationMessage && (
-                        <div className="mt-2 flex items-center gap-2 rounded-md bg-muted p-2 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <span>{data.validationMessage}</span>
-                        </div>
-                    )}
-                </DialogHeader>
-                <div className="grid gap-4 py-4 overflow-y-auto">
-                    <div className="grid gap-2">
-                        <Label>Condition Label</Label>
-                        <Label className="text-xs text-muted-foreground">
-                            Enter a short label which helps identify this pathway in logs
-                        </Label>
-                        <Input
-                            type="text"
-                            value={label}
-                            maxLength={64}
-                            onChange={(e) => setLabel(e.target.value)}
-                        />
-                        <div className="text-xs text-muted-foreground">
-                            {label.length}/64 characters
-                        </div>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label>Condition</Label>
-                        <Label className="text-xs text-muted-foreground">
-                            Describe a condition that will be evaluated to determine if this pathway should be taken
-                        </Label>
-                        <Textarea
-                            value={condition}
-                            onChange={(e) => setCondition(e.target.value)}
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label>Condition on the record</Label>
-                        <Label className="text-xs text-muted-foreground">
-                            Optional. On a step where the code decides the transition, the code takes this exit by
-                            itself when the call record allows it: every field of the step gathered, or one field
-                            holding a value (&quot;refusé&quot; for a refusal). Exits are read in the order of the canvas,
-                            the first true one wins.
-                        </Label>
-                        <select
-                            className="border rounded-md p-2 text-sm bg-background"
-                            value={recordMode}
-                            disabled={readOnly}
-                            onChange={(e) => setRecordMode(e.target.value as RecordConditionMode)}
-                        >
-                            <option value="none">No condition</option>
-                            <option value="complete">Step complete (every field gathered)</option>
-                            <option value="field">A field holds a value</option>
-                        </select>
-                        {recordMode === 'field' && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                    type="text"
-                                    value={recordField}
-                                    placeholder="Field name"
-                                    maxLength={200}
-                                    disabled={readOnly}
-                                    onChange={(e) => setRecordField(e.target.value)}
-                                />
-                                <Input
-                                    type="text"
-                                    value={recordValue}
-                                    placeholder="Value (empty: any value)"
-                                    maxLength={500}
-                                    disabled={readOnly}
-                                    onChange={(e) => setRecordValue(e.target.value)}
-                                />
-                            </div>
-                        )}
-                    </div>
-                    <div className="grid gap-2">
-                        <Label>Transition Speech</Label>
-                        <Label className="text-xs text-muted-foreground">
-                            Optional text or audio the assistant will play right before transitioning to the node.
-                            This will not be attached in Conversation Context. Use this as simple filler to reduce latency.
-                        </Label>
-                        <TextOrAudioInput
-                            type={transitionSpeechType}
-                            onTypeChange={setTransitionSpeechType}
-                            recordingId={transitionSpeechRecordingId}
-                            onRecordingIdChange={setTransitionSpeechRecordingId}
-                            recordings={recordings ?? []}
-                        >
-                            <>
-                                <StaticTextWarning />
-                                <Textarea
-                                    value={transitionSpeech}
-                                    placeholder="e.g. Let me transfer you to our billing department..."
-                                    onChange={(e) => setTransitionSpeech(e.target.value)}
-                                />
-                            </>
-                        </TextOrAudioInput>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={readOnly}>
-                            {readOnly ? "Read Only" : "Save"}
-                        </Button>
-                    </div>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
 
 interface CustomEdgeProps extends EdgeProps {
     data: FlowEdgeData;
 }
 
 export default function CustomEdge(props: CustomEdgeProps) {
-    const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style, selected } = props;
+    const { t } = useLangue();
+    const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style, selected, markerEnd } = props;
 
     const { getEdges, setNodes } = useReactFlow<FlowNode, FlowEdge>();
-    const { saveWorkflow } = useWorkflow();
+    const { saveWorkflow, recordings } = useWorkflow();
+    const readOnly = useWorkflowOptional()?.readOnly ?? false;
     const updateEdge = useWorkflowStore((state) => state.updateEdge);
+    const updateNode = useWorkflowStore((state) => state.updateNode);
     const deleteEdge = useWorkflowStore((state) => state.deleteEdge);
+    // [.mark] Sous-lot 21 : l'étape d'où part la liaison (qui y décide), lue dans le magasin du graphe.
+    const noeudSource = useWorkflowStore((state) => state.nodes.find((n) => n.id === source));
     const [open, setOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
@@ -263,18 +77,15 @@ export default function CustomEdge(props: CustomEdgeProps) {
         labelX = sourceX + loopOffsetX;
         labelY = sourceY;
     } else {
-        // Use smoothstep path for orthogonal/elbow edges
-        // borderRadius: 8 gives slightly rounded corners for a clean look
-        // offset: 20 provides spacing before the first bend
-        const [path, lx, ly] = getSmoothStepPath({
+        // [.mark] E36 : liaisons courbes (colonne centrée), la condition au milieu ; seul l'habillage change.
+        const [path, lx, ly] = getBezierPath({
             sourceX,
             sourceY,
             sourcePosition,
             targetX,
             targetY,
             targetPosition,
-            borderRadius: 8,
-            offset: 20,
+            curvature: 0.35,
         });
         edgePath = path;
         labelX = lx;
@@ -310,11 +121,26 @@ export default function CustomEdge(props: CustomEdgeProps) {
         });
     }, [selected, isHovered, source, target, setNodes]);
 
-    const handleSaveEdgeData = useCallback(async (updatedData: FlowEdgeData) => {
+    const handleSaveEdgeData = useCallback(async (updatedData: FlowEdgeData, quiPose?: QuiDecide) => {
+        // [.mark] Sous-lot 21 : la correction « faire décider la fiche » se pose sur l'étape source, avec la liaison.
+        if (quiPose && noeudSource) {
+            updateNode(noeudSource.id, { data: { ...noeudSource.data, qui_decide_du_passage: quiPose } });
+        }
         // Use the workflow store's updateEdge method to properly track history
         updateEdge(id, { data: updatedData });
         await saveWorkflow();
-    }, [id, updateEdge, saveWorkflow]);
+    }, [id, updateEdge, updateNode, noeudSource, saveWorkflow]);
+
+    // [.mark] Partie 3, sous-lot 20 : une couleur par type de transition ; sous-lot 21 : règles, toujours, sinon, et l'indicateur
+    // « le code vérifie » ou « l'IA juge ». Sur une étape où le modèle décide, une condition du code est sans effet : l'icône le dit.
+    const typeTransition = typeDeTransition(data);
+    const style_ = STYLE_TRANSITION[typeTransition];
+    const qui = quiDecide(noeudSource?.data?.qui_decide_du_passage);
+    const inerte = style_.decide !== 'modele' && qui === 'agent';
+    const decide = inerte ? 'modele' : style_.decide;
+    const Icone = decide === 'code' ? Braces : decide === 'modele' ? Sparkles : null;
+    const titre = inerte ? `${t(style_.nom)} · ${t({ en: 'no effect: the model decides on this step', fr: "sans effet : le modèle décide sur cette étape" })}` : t(style_.nom);
+    const autreSinon = getEdges().some((e) => e.source === source && e.id !== id && !!e.data?.condition_sur_la_fiche?.sinon);
 
     const handleDeleteEdge = useCallback(() => {
         deleteEdge(id);
@@ -322,33 +148,22 @@ export default function CustomEdge(props: CustomEdgeProps) {
 
     return (
         <>
-            <g
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                onDoubleClick={() => setOpen(true)}
-            >
+            <g onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} onDoubleClick={() => setOpen(true)}>
                 <BaseEdge
                     id={id}
                     path={edgePath}
+                    markerEnd={markerEnd}
                     style={{
                         ...style,
-                        stroke: selected
-                            ? 'var(--acc)'
-                            : isHovered
-                                ? 'var(--acc)'
-                                : data?.invalid ? 'var(--destructive)' : 'var(--acc-line)',
-                        strokeWidth: selected ? 4 : isHovered ? 3 : 2.5,
-                        filter: selected
-                            ? 'none'
-                            : isHovered
-                                ? 'none'
-                                : 'none',
-                        transition: 'stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease',
+                        stroke: data?.invalid ? 'var(--destructive)' : selected || isHovered ? 'var(--liaison-survol)' : style_.trait,
+                        strokeWidth: 1.5,
+                        strokeDasharray: style_.pointille ? '4 4' : undefined,
+                        transition: 'stroke 0.2s ease',
                     }}
                     interactionWidth={20}
                 />
             </g>
-            {/* Always show label, expand on select/hover */}
+            {/* [.mark] K2 : la condition en pastille sobre de la maquette ; un clic l'ouvre. */}
             <EdgeLabelRenderer>
                 <div
                     style={{
@@ -361,72 +176,35 @@ export default function CustomEdge(props: CustomEdgeProps) {
                     className="nodrag nopan"
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
-                    onDoubleClick={() => setOpen(true)}
                 >
-                    {/* Show full EdgeLabel when selected or hovered, otherwise show simple label */}
-                    {(selected || isHovered) ? (
-                        <div className={cn(
-                            "flex flex-col gap-2 bg-card rounded-lg border min-w-[220px]",
-                            "animate-in fade-in zoom-in duration-200",
-                            data?.invalid
-                                ? "border-destructive shadow-md"
-                                : selected
-                                    ? "border-foreground shadow-md"
-                                    : "border-border shadow-md"
-                        )}>
-                            {/* Header with label */}
-                            <div className={cn(
-                                "flex items-center justify-between px-3 py-2 border-b",
-                                data?.invalid ? "bg-destructive/10 border-destructive/30" : "bg-muted/50 border-border"
-                            )}>
-                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                    Condition
-                                </span>
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-                                        onClick={handleDeleteEdge}
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 p-0 hover:bg-muted text-muted-foreground"
-                                        onClick={() => setOpen(true)}
-                                    >
-                                        <Pencil className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </div>
-                            {/* Content */}
-                            <div className="px-3 pb-3">
-                                <div className="text-sm font-medium text-card-foreground break-words">
-                                    {data?.label || data?.condition || 'Click to set condition'}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        /* Simple label shown by default - amber/orange colored pill style */
-                        <div className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-medium shadow-sm",
-                            "transition-all duration-200",
-                            data?.invalid
-                                ? "bg-destructive text-white"
-                                : "border border-(--acc-fill) bg-(--acc-fill) text-white"
-                        )}>
-                            {data?.label || data?.condition || 'No condition'}
-                        </div>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => setOpen(true)}
+                        data-type-transition={typeTransition}
+                        data-decide={decide}
+                        {...(inerte ? { 'data-sans-effet': '' } : {})}
+                        title={titre}
+                        aria-label={`${data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })} : ${titre}`}
+                        className={cn(
+                            'inline-flex max-w-[220px] cursor-pointer items-center gap-1 truncate rounded-md border px-2 py-0.5 text-[11px] hover:font-semibold hover:text-foreground',
+                            data?.invalid ? 'border-destructive bg-background text-destructive' : style_.pastille,
+                        )}
+                    >
+                        {Icone && <Icone className="size-3 shrink-0" aria-hidden />}
+                        <span className="truncate">{data?.label || data?.condition || t({ en: 'No condition', fr: 'Sans condition' })}</span>
+                    </button>
                 </div>
             </EdgeLabelRenderer>
-            <EdgeDetailsDialog
-                open={open}
-                onOpenChange={setOpen}
+            <FenetreTransition
+                ouverte={open}
+                fermer={() => setOpen(false)}
                 data={data}
+                etape={{ nom: String(noeudSource?.data?.name ?? ''), qui }}
+                autreSinon={autreSinon}
+                enregistrements={recordings ?? []}
+                lecture={readOnly}
                 onSave={handleSaveEdgeData}
+                onDelete={handleDeleteEdge}
             />
         </>
     );

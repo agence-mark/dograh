@@ -2,7 +2,6 @@
 
 import { AudioLines, Check, Pause, Pencil, Play, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import {
     deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete,
@@ -10,16 +9,30 @@ import {
     updateRecordingApiV1WorkflowRecordingsIdPatch,
 } from "@/client/sdk.gen";
 import type { RecordingResponseSchema } from "@/client/types.gen";
+import { useFormeMaquette } from "@/components/mark/ecran/forme-maquette";
+import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { Paginee } from "@/components/mark/studio/pagination";
+import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
+import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dateTime";
 import logger from "@/lib/logger";
 
 export default function RecordingsList({ refreshKey }: { refreshKey?: number }) {
     const organizationTimezone = useOrganizationTimezone();
+    const maquette = useFormeMaquette();
+    const { user, loading: authLoading } = useAuth();
+    const { t } = useLangue();
+    const [fiche, setFiche] = useState<RecordingResponseSchema | null>(null);
     const [recordings, setRecordings] = useState<RecordingResponseSchema[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -47,42 +60,51 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
 
             setRecordings(response.data.recordings);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to fetch recordings");
+            setError(echecAffiche(err, ECHECS.enregistrementsListe));
             logger.error("Error fetching recordings:", err);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
+    // [.mark] K4b : pas de lecture avant que l'authentification soit prête (sinon 401 et erreur affichée jusqu'au rechargement).
     useEffect(() => {
+        if (authLoading || !user) return;
         fetchRecordings();
-    }, [fetchRecordings, refreshKey]);
+    }, [fetchRecordings, refreshKey, authLoading, user]);
 
-    const handleDelete = async (recordingId: string) => {
-        if (!confirm("Are you sure you want to delete this recording?")) return;
-
-        try {
-            const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
-                path: { recording_id: recordingId },
-            });
-
-            if (response.error) {
-                throw new Error("Failed to delete recording");
-            }
-
-            toast.success("Recording deleted");
-            fetchRecordings();
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to delete recording");
-            logger.error("Error deleting recording:", err);
-        }
+    // Suppression différée de 5 s (« Annuler ») : l'enregistrement disparaît de la liste, le serveur n'est appelé
+    // qu'ensuite. Remplace la confirmation avant.
+    const [masques, setMasques] = useState<string[]>([]);
+    const handleDelete = (recordingId: string) => {
+        setMasques((m) => [...m, recordingId]);
+        const remettre = () => setMasques((m) => m.filter((x) => x !== recordingId));
+        notifier.annulable(
+            { fr: "Enregistrement supprimé.", en: "Recording deleted." },
+            {
+                restaurer: remettre,
+                executer: async () => {
+                    try {
+                        const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
+                            path: { recording_id: recordingId },
+                        });
+                        if (response.error) throw response.error;
+                        void Promise.resolve(fetchRecordings()).finally(remettre);
+                    } catch (err) {
+                        remettre();
+                        notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: err });
+                        logger.error("Error deleting recording:", err);
+                    }
+                },
+            },
+        );
     };
 
     const handlePlay = async (rec: RecordingResponseSchema) => {
         try {
             await togglePlayback(rec.recording_id, rec.storage_key, rec.storage_backend);
         } catch {
-            toast.error("Failed to play recording");
+            notifier.echec({ fr: "Lecture impossible. Réessayez.", en: "Could not play the recording. Try again." });
         }
     };
 
@@ -125,15 +147,16 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
                 throw new Error(errData?.detail || "Failed to update recording ID");
             }
 
-            toast.success(`Recording ID updated to "${newId}". All workflow references have been updated.`);
+            notifier.succes({ fr: `Identifiant changé en « ${newId} ». Les agents concernés sont à jour.`, en: `ID changed to "${newId}". Affected agents are up to date.` });
             cancelEditing();
             fetchRecordings();
         } catch (err) {
-            setEditError(err instanceof Error ? err.message : "Failed to update recording ID");
+            setEditError(echecAffiche(err, ECHECS.enregistrementModifier));
         }
     };
 
     const filteredRecordings = recordings.filter((rec) => {
+        if (masques.includes(rec.recording_id)) return false;
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         const filename = (rec.metadata?.original_filename as string) || "";
@@ -143,6 +166,140 @@ export default function RecordingsList({ refreshKey }: { refreshKey?: number }) 
             rec.recording_id.toLowerCase().includes(q)
         );
     });
+
+    // [.mark] K4b : la forme de la maquette (`OngletEcouteSons`) : un tableau nu, un clic ouvre la fenêtre de l'enregistrement.
+    if (maquette) {
+        const renommer = async (rec: RecordingResponseSchema, nouveau: string): Promise<boolean> => {
+            if (nouveau === rec.recording_id) return true;
+            try {
+                const response = await updateRecordingApiV1WorkflowRecordingsIdPatch({ path: { id: rec.id }, body: { recording_id: nouveau } });
+                if (response.error) throw response.error;
+                notifier.succes({ fr: `Identifiant changé en « ${nouveau} ». Les agents concernés sont à jour.`, en: `ID changed to "${nouveau}". Affected agents are up to date.` });
+                fetchRecordings();
+                return true;
+            } catch (err) {
+                notifier.echec({ fr: "Identifiant non changé. Réessayez.", en: "ID not changed. Try again." }, { erreur: err });
+                return false;
+            }
+        };
+        return (
+            <div data-testid="enregistrements" className="mt-6">
+                <div className="flex items-center justify-end gap-2 pt-1 pb-2">
+                    <div className="relative">
+                        <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            aria-label={t({ en: "Search the recordings", fr: "Chercher un enregistrement" })}
+                            placeholder={t({ en: "A file, a transcript, an ID…", fr: "Un fichier, une transcription, un identifiant…" })}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-8 w-64 pl-8"
+                        />
+                    </div>
+                    <Button variant="ghost" size="icon" className="size-8" aria-label={t({ en: "Refresh", fr: "Actualiser" })} disabled={isLoading} onClick={() => { stopPlayback(); fetchRecordings(); }}>
+                        <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                </div>
+                {error ? (
+                    <EtatVide cas="erreur" compact reessayer={fetchRecordings} />
+                ) : isLoading && recordings.length === 0 ? (
+                    <EtatVide cas="chargement" lignes={3} />
+                ) : filteredRecordings.length === 0 ? (
+                    searchQuery ? (
+                        <EtatVide cas="filtre" compact recherche={searchQuery} effacer={() => setSearchQuery("")} />
+                    ) : (
+                        <EtatVide cas="premier" compact icone={AudioLines} titre={t({ en: "No recordings yet", fr: "Aucun enregistrement pour l'instant" })} />
+                    )
+                ) : (
+                    <Paginee liste={filteredRecordings}>
+                        {(page) => (
+                            <Tableau
+                                colonnes={[
+                                    { titre: t({ en: "Recording", fr: "Enregistrement" }) },
+                                    { titre: t({ en: "Transcript", fr: "Transcription" }) },
+                                    { titre: t({ en: "Added", fr: "Ajouté" }), droite: true },
+                                    { titre: "", droite: true },
+                                ]}
+                            >
+                                {page.map((rec) => {
+                                    const filename = (rec.metadata?.original_filename as string) || "";
+                                    return (
+                                        <Ligne key={rec.recording_id} onClick={() => setFiche(rec)}>
+                                            <Cellule principale sous={filename ? <span className="font-mono">{rec.recording_id}</span> : undefined}>
+                                                {filename || <span className="font-mono">{rec.recording_id}</span>}
+                                            </Cellule>
+                                            <Cellule className="max-w-md truncate">{rec.transcript}</Cellule>
+                                            <Cellule droite>{formatDateTime(rec.created_at, organizationTimezone)}</Cellule>
+                                            <td className="pl-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-7"
+                                                    aria-label={t({ en: "Listen", fr: "Écouter" })}
+                                                    onClick={() => handlePlay(rec)}
+                                                >
+                                                    {playingId === rec.recording_id ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                                                </Button>
+                                            </td>
+                                        </Ligne>
+                                    );
+                                })}
+                            </Tableau>
+                        )}
+                    </Paginee>
+                )}
+                {fiche && (
+                    <FenetreChamps
+                        ouverte
+                        fermer={() => setFiche(null)}
+                        titre={(fiche.metadata?.original_filename as string) || fiche.recording_id}
+                        valider={t({ en: "Save", fr: "Enregistrer" })}
+                        pied={
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => {
+                                    const id = fiche.recording_id;
+                                    setFiche(null);
+                                    handleDelete(id);
+                                }}
+                            >
+                                <Trash2 className="size-3.5" />
+                                {t({ en: "Delete", fr: "Supprimer" })}
+                            </Button>
+                        }
+                        sections={[
+                            {
+                                champs: [
+                                    {
+                                        id: "identifiant",
+                                        t: "texte",
+                                        l: t({ en: "ID", fr: "Identifiant" }),
+                                        v: fiche.recording_id,
+                                        info: t({ en: "Letters, digits, hyphens and underscores: what the steps call.", fr: "Lettres, chiffres, tirets et tirets bas : ce que les étapes appellent." }),
+                                    },
+                                    {
+                                        id: "transcription",
+                                        t: "lu",
+                                        l: t({ en: "Transcript", fr: "Transcription" }),
+                                        v: fiche.transcript,
+                                        info: t({ en: "What the file says: the agent keeps it in the call's history.", fr: "Ce que dit le fichier : l'agent la garde dans l'historique de l'appel." }),
+                                    },
+                                ],
+                            },
+                        ]}
+                        verifier={(v) => {
+                            const id = String(v.identifiant ?? "").trim();
+                            if (!id) return { identifiant: t({ en: "ID cannot be empty.", fr: "L'identifiant ne peut pas être vide." }) };
+                            if (!/^[a-zA-Z0-9_-]+$/.test(id)) return { identifiant: t({ en: "Only letters, digits, hyphens and underscores.", fr: "Seulement des lettres, chiffres, tirets et tirets bas." }) };
+                            return null;
+                        }}
+                        onValider={(v) => renommer(fiche, String(v.identifiant).trim())}
+                    />
+                )}
+            </div>
+        );
+    }
 
     if (isLoading && recordings.length === 0) {
         return (

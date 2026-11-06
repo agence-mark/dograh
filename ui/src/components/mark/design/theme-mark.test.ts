@@ -51,23 +51,32 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         expect(css).toMatch(/\[data-slot="sidebar-content"\]::-webkit-scrollbar[^{]*\{[^}]*display:\s*none/);
     });
 
-    it("the 30 px page titles never reach the agent's name in the editor bar (text-base)", () => {
+    it("aucune surcharge de titres, de champs ni de traits d'icônes : ceux de la maquette (K1, 04/11)", () => {
         const css = sansCommentaires(theme());
-        const regles = [...css.matchAll(/([^{}]*\bh1\b[^{}]*)\{[^}]*font-size/g)].map((m) => m[1].trim());
-        expect(regles.length).toBeGreaterThan(0);
-        for (const selecteur of regles) expect(selecteur).toMatch(/\[class~="text-2xl"\]/);
+        expect(css).not.toMatch(/h1[^{}]*\{/);
+        expect(css).not.toMatch(/\[data-slot="input"\][^{]*\{[^}]*height/);
+        expect(css).not.toMatch(/svg\.lucide/);
     });
 
-    it("contrast decisions of 27/09 hold: bordered buttons are filled, dark borders and fields are firmer, node types have colours", () => {
+    it("contrast decisions of 27/09 hold, sauf le bouton à bordure, repris de la maquette (K1): dark borders and fields are firmer, node types have colours", () => {
         const css = sansCommentaires(theme());
         const sombre = css.match(/\.dark\s*\{[^}]*\}/)?.[0] ?? "";
-        expect(sombre).toMatch(/--border:\s*#333333/);
-        expect(sombre).toMatch(/--input:\s*#3a3a3a/);
+        expect(sombre).toMatch(/--border:\s*oklch\(1 0 0 \/ 10%\)/);
+        expect(sombre).toMatch(/--input:\s*oklch\(1 0 0 \/ 15%\)/);
         for (const jeton of ["--node-start", "--node-end", "--node-global"]) expect(css).toMatch(new RegExp(`${jeton}:`));
         const bouton = readFileSync(join(APP, "..", "components", "ui", "button.tsx"), "utf8");
         const outline = bouton.match(/outline:\s*"([^"]*)"/)?.[1] ?? "";
-        expect(outline).toMatch(/(^|\s)bg-primary(\s|$)/);
-        expect(outline).toMatch(/(^|\s)text-primary-foreground(\s|$)/);
+        expect(outline).toMatch(/(^|\s)bg-background(\s|$)/);
+    });
+
+    it("le mode nuit (N4) change le logo .mark et la mention de React Flow, et les deux logos existent", () => {
+        const css = sansCommentaires(theme());
+        expect(css).toMatch(/\.dark img\[src="\/mark-lockup\.svg"\]\s*\{\s*content:\s*url\("\/mark-lockup-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark img\[src="\/mark-symbol\.svg"\]\s*\{\s*content:\s*url\("\/mark-symbol-nuit\.svg"\)/);
+        expect(css).toMatch(/\.dark \.react-flow__attribution\s*\{\s*background-color:\s*var\(--card\)/);
+        for (const nom of ["mark-lockup-nuit.svg", "mark-symbol-nuit.svg"]) {
+            expect(readFileSync(join(APP, "..", "..", "public", nom), "utf8")).not.toMatch(/#0f1c2e|#111a26/);
+        }
     });
 
     it("mark-theme.css writes its rules outside any @layer, so they win over Tailwind (D10)", () => {
@@ -77,8 +86,23 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
     it("the orange call to action is gone: --cta is black in light, off-white in dark (D3)", () => {
         const css = sansCommentaires(theme());
         const bloc = (selecteur: RegExp) => css.match(selecteur)?.[0] ?? "";
-        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0a0a0a/);
-        expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*#f5f5f5/);
+        expect(bloc(/:root\s*\{[^}]*\}/)).toMatch(/--cta:\s*#0f0f10/);
+        expect(bloc(/\.dark\s*\{[^}]*\}/)).toMatch(/--cta:\s*oklch\(0\.922 0 0\)/);
+    });
+
+    it("le mode nuit (N4) déclare chaque jeton du mode clair, et prend ceux de base de la maquette", () => {
+        const css = sansCommentaires(theme());
+        const jetons = (bloc: string) => new Set([...bloc.matchAll(/(--[a-z0-9-]+):/g)].map((m) => m[1]));
+        const clair = jetons(css.match(/:root\s*\{[^}]*\}/g)?.[0] ?? "");
+        const sombre = css.match(/\.dark\s*\{[^}]*\}/)?.[0] ?? "";
+        const declares = jetons(sombre);
+        // --radius ne change pas de thème.
+        const manquants = [...clair].filter((j) => j !== "--radius" && !declares.has(j));
+        expect(manquants).toEqual([]);
+        expect(sombre).toMatch(/--background:\s*oklch\(0\.145 0 0\)/);
+        expect(sombre).toMatch(/--card:\s*oklch\(0\.205 0 0\)/);
+        expect(sombre).toMatch(/--muted:\s*oklch\(0\.269 0 0\)/);
+        expect(sombre).toMatch(/--sidebar:\s*oklch\(0\.205 0 0\)/);
     });
 
     it("the blue accent exists in both themes, and focus follows it (Evan, 27/09)", () => {
@@ -90,10 +114,10 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
             expect(clair).toMatch(new RegExp(`${jeton}:`));
             expect(sombre).toMatch(new RegExp(`${jeton}:`));
         }
-        expect(clair).toMatch(/--acc:\s*#2974ed/);
+        expect(clair).toMatch(/--acc:\s*#3d8fe6/);
         expect(sombre).toMatch(/--acc:\s*#5b97f5/);
-        expect(clair).toMatch(/--ring:\s*#2974ed/);
-        expect(clair).toMatch(/--sidebar-ring:\s*#2974ed/);
+        expect(clair).toMatch(/--ring:\s*#3d8fe6/);
+        expect(clair).toMatch(/--sidebar-ring:\s*#3d8fe6/);
         expect(sombre).toMatch(/--ring:\s*#5b97f5/);
     });
 });

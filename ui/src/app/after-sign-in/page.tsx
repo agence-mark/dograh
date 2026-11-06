@@ -29,7 +29,12 @@ export default async function AfterSignInPage() {
         redirect(redirectUrl);
     }
 
-    // For local provider or if user is not available, check for existing workflows
+    // [.mark] U2 (constat C13) : un compte local arrive sur le builder du Labo, qu'il ait déjà des agents ou non.
+    if (authProvider === 'local') {
+        redirect('/labo');
+    }
+
+    // If the user is not available, check for existing workflows
     logger.debug('[AfterSignInPage] Checking for existing workflows before fallback');
 
     try {

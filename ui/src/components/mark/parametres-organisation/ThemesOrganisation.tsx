@@ -27,7 +27,7 @@ import {
     SlidersHorizontal,
     Users,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import TimezoneSelect, { type ITimezoneOption } from "react-timezone-select";
 
 import type { AdresseEtablissement, OrganizationPreferences } from "@/client/types.gen";
@@ -44,6 +44,7 @@ import { BlocTraducteurs } from "../connecteurs/BlocTraducteurs";
 import { BlocConnexions } from "../connecteurs/ConfigOutilIntegration";
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { ChampReglage } from "../ecran/ChampReglage";
+import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
@@ -57,13 +58,10 @@ import {
 } from "../SectionAnnonceOuverture";
 import { SectionLexiqueMetier } from "../SectionLexiqueMetier";
 import { BlocSecoursPanne } from "./BlocSecoursPanne";
-import { ModaleEtablissements, useResumeEtablissements } from "./ModaleEtablissements";
+import { type Lu, useEtatsDesLignes } from "./etats-des-lignes";
 import { ModaleFenetreDuRun } from "./ModaleFenetreDuRun";
-import { ModalePhrases } from "./ModalePhrases";
-import { ModaleReprise } from "./ModaleReprise";
 import type { EtatPreferences } from "./preferences";
 import type { ThemeOrganisation } from "./references/cas-organisation";
-import { SectionObjets } from "./SectionObjets";
 
 export const THEMES_ORGANISATION: Array<{ id: ThemeOrganisation; titre: Texte; icone: LucideIcon }> = [
     { id: "organisation", titre: { en: "Organization", fr: "Organisation" }, icone: Settings },
@@ -90,6 +88,12 @@ export interface ProprietesThemeOrganisation {
     ouvrir: () => void;
     /** Tells the page this theme's dots (the navigation shows them too). */
     signaler: (id: ThemeOrganisation, modifie: boolean, enErreur: boolean) => void;
+    /** [.mark] U2 bis / U2 (E116) : le thème posé à plat dans un sous-onglet (voir `Theme`). */
+    plat?: boolean;
+    /** [.mark] K4 : posé à plat sans son titre (voir `Theme`). */
+    sansTitre?: boolean;
+    /** [.mark] K1b : le titre que montre la page quand il diffère de celui du thème (« Général » dans Réglages › Organisation). */
+    titre?: Texte;
 }
 
 const CHARGEMENT: Texte = { en: "Loading...", fr: "Chargement..." };
@@ -164,7 +168,7 @@ const stylesFuseau = {
     }),
 };
 
-const PREFERENCES_ENREGISTREES: Texte = { en: "Preferences saved", fr: "Préférences enregistrées" };
+const PREFERENCES_ENREGISTREES: Texte = { en: "Settings saved.", fr: "Réglages enregistrés." };
 const CLES_ORGANISATION = ["test_phone_number", "timezone", "adresses_notification"] as const;
 
 export const ThemeOrganisationGenerale = ({
@@ -173,6 +177,8 @@ export const ThemeOrganisationGenerale = ({
     onBasculer,
     signaler,
     adressesMark = [],
+    plat,
+    titre: titreAffiche,
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[] }) => {
     const { t } = useLangue();
     const idFuseau = useId();
@@ -187,18 +193,34 @@ export const ThemeOrganisationGenerale = ({
         <Theme
             id="organisation"
             icone={Settings}
-            titre={titre("organisation").titre}
+            titre={titreAffiche ?? titre("organisation").titre}
             description={{
                 en: "Organization-wide defaults used by testing and scheduling flows.",
                 fr: "Réglages communs utilisés par les tests et la planification.",
             }}
             resume={[brouillon.timezone, brouillon.test_phone_number || t({ en: "no test number", fr: "pas de numéro de test" })]}
+            lignes={[
+                {
+                    libelle: { en: "Test phone number", fr: "Numéro de test" },
+                    valeur: enregistre.test_phone_number || t({ en: "None", fr: "Aucun" }),
+                },
+                {
+                    libelle: { en: "Notification addresses", fr: "Adresses de notification" },
+                    valeur: (enregistre.adresses_notification ?? []).join(", ") || t({ en: "None", fr: "Aucune" }),
+                },
+                { libelle: { en: "Timezone", fr: "Fuseau horaire" }, valeur: enregistre.timezone || "UTC" },
+                {
+                    libelle: { en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" },
+                    valeur: t({ en: "Prices by model, dated; thresholds of the incidents", fr: "Prix par modèle, datés ; seuils des incidents" }),
+                },
+            ]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={[]}
             enregistrement={{
-                onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
+                onEnregistrer: () => void preferences.enregistrer(brouillon, PREFERENCES_ENREGISTREES),
                 // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
                 // replaces the whole row, sent from the empty defaults it would
                 // clear the mapping, the address and the test number. Dograh's
@@ -261,14 +283,14 @@ export const ThemeOrganisationGenerale = ({
                 </Intertitre>
             )}
             {!preferences.chargement && (
-                <Intertitre id="organisation-couts" titre={{ en: "Run window", fr: "Fenêtre du run" }}>
+                <Intertitre id="organisation-couts" titre={{ en: "Run window", fr: "Fenêtre d'appel" }}>
                     <ChampReglage
                         cle="fenetre_du_run"
-                        libelle={{ en: "Run window: prices and thresholds", fr: "Fenêtre du run : prix et seuils" }}
+                        libelle={{ en: "Run window: prices and thresholds", fr: "Fenêtre d'appel : prix et seuils" }}
                         aides={[
                             {
                                 en: "Prices by provider model, dated, to estimate the cost of each call; and the thresholds of the incidents the run window shows.",
-                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel ; et les seuils des incidents que montre la fenêtre du run.",
+                                fr: "Prix par modèle de fournisseur, datés, pour estimer le coût de chaque appel ; et les seuils des incidents que montre la fenêtre d'appel.",
                             },
                         ]}
                     >
@@ -304,7 +326,11 @@ export const ThemeEtablissementOrganisation = ({
     onBasculer,
     ouvrir,
     signaler,
-}: ProprietesThemeOrganisation & { preferences: EtatPreferences; annonce: EtatAnnonceOuverture }) => {
+    plat,
+}: ProprietesThemeOrganisation & {
+    preferences: EtatPreferences;
+    annonce: EtatAnnonceOuverture;
+}) => {
     const { t } = useLangue();
     const adresseEnregistree = preferences.enregistrees.adresse_etablissement ?? null;
     const [adresse, setAdresse] = useState<AdresseEtablissement | null>(adresseEnregistree);
@@ -343,7 +369,7 @@ export const ThemeEtablissementOrganisation = ({
         // old card's button did on its own.
         const toutes = !modifie;
         if (adresseModifiee || toutes) {
-            const resultat = await preferences.enregistrer({ adresse_etablissement: adresse }, t(PREFERENCES_ENREGISTREES));
+            const resultat = await preferences.enregistrer({ adresse_etablissement: adresse }, PREFERENCES_ENREGISTREES);
             if (resultat.ok) {
                 setAdresseIncomplete(false);
                 setRefusAdresse(null);
@@ -356,28 +382,18 @@ export const ThemeEtablissementOrganisation = ({
     };
 
     const force = annonce.reglages.etat_force ?? null;
-    // [.mark] The establishments (chantier l-agent-travaille, L1): a list to edit, so a modal
-    // that saves itself (E4); it is not part of this theme's draft.
-    const etablissements = useResumeEtablissements();
-    const [modaleEtablissements, setModaleEtablissements] = useState(false);
-    const [modalePhrases, setModalePhrases] = useState(false);
-    // Lot 11: the takeover of the fiches and agents (trial run first), a window of its own.
-    const [modaleReprise, setModaleReprise] = useState(false);
-    const nombre = etablissements.liste?.length ?? 0;
 
     return (
         <Theme
             id="etablissement"
+            plat={plat}
             icone={Building2}
-            titre={titre("etablissement").titre}
+            titre={{ en: "Whole company", fr: "Toute l'entreprise" }}
             description={{
-                en: "One fiche per place, then what applies to the whole company: its address, the announcement when it is closed, and « Close everything ».",
-                fr: "Une fiche par lieu, puis ce qui vaut pour toute l'entreprise : son adresse, l'annonce quand elle est fermée, et « Tout fermer ».",
+                en: "What applies when a call serves no establishment, and « Close everything ».",
+                fr: "Ce qui vaut quand un appel ne sert aucun établissement, et le « Tout fermer ».",
             }}
             resume={[
-                nombre === 0
-                    ? t({ en: "No establishment", fr: "Aucun établissement" })
-                    : `${nombre} ${t(nombre === 1 ? { en: "establishment", fr: "établissement" } : { en: "establishments", fr: "établissements" })}`,
                 adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "No address", fr: "Aucune adresse" }),
                 force === null
                     ? t({ en: "Close everything: off", fr: "Tout fermer : inactif" })
@@ -387,111 +403,17 @@ export const ThemeEtablissementOrganisation = ({
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={erreurs}
+            lignes={[
+                { libelle: { en: "Company address", fr: "Adresse de l'entreprise" }, valeur: adresseEnregistree ? texteAdresse(adresseEnregistree) : t({ en: "none", fr: "aucune" }) },
+                { libelle: { en: "Closed-business announcement", fr: "Annonce de fermeture" }, valeur: annonce.enregistre.annonce_fermeture?.trim() || t({ en: "none", fr: "aucune" }) },
+                { libelle: { en: "Close everything", fr: "Tout fermer" }, valeur: force === null ? t({ en: "no", fr: "non" }) : t({ en: "yes", fr: "oui" }) },
+            ]}
             enregistrement={{
                 onEnregistrer: () => void enregistrer(),
                 enCours: preferences.enCours || preferences.chargement || annonce.enregistrement || annonce.chargement,
                 actifSansModification: true,
             }}
         >
-            <Intertitre
-                id="etablissement-liste"
-                titre={{ en: "Establishments", fr: "Établissements" }}
-                description={{
-                    en: "An agent that chooses a fiche (theme « Business » of the agent) reads its hours, address, announcements, closing and transfer number alone. An agent without a fiche behaves as before.",
-                    fr: "Un agent qui choisit une fiche (thème « Établissement » de l'agent) en lit seuls les horaires, l'adresse, les annonces, la fermeture et le numéro de transfert. Un agent sans fiche se comporte comme avant.",
-                }}
-            >
-                <ChampReglage
-                    cle="etablissements"
-                    libelle={{ en: "Establishments of the organization", fr: "Établissements de l'organisation" }}
-                    aides={[
-                        {
-                            en: "Name, second number, transfer number, address, hours, announcements, immediate closing, appointments and zone; create one by copy.",
-                            fr: "Nom, second numéro, numéro de transfert, adresse, horaires, annonces, fermeture immédiate, rendez-vous et zone ; création possible par copie.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    {etablissements.illisible ? (
-                        <p className="text-sm text-destructive">
-                            {t({ en: "The saved establishments cannot be read.", fr: "Les établissements enregistrés ne peuvent pas être lus." })}
-                        </p>
-                    ) : (
-                        <ul className="space-y-1 text-sm" data-testid="resume-etablissements">
-                            {(etablissements.liste ?? []).map((e) => (
-                                <li key={e.id}>
-                                    <span className="font-medium">{e.nom}</span>{" "}
-                                    <span className="text-muted-foreground">
-                                        {e.etat_force
-                                            ? t({ en: "closing forced", fr: "fermeture forcée" })
-                                            : (e.horaires_ouverture ?? "").trim()
-                                              ? t({ en: "hours set", fr: "horaires renseignés" })
-                                              : t({ en: "no hours", fr: "aucun horaire" })}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => setModaleEtablissements(true)} data-testid="ouvrir-etablissements">
-                        {t({ en: "Edit establishments…", fr: "Modifier les établissements…" })}
-                    </Button>
-                </ChampReglage>
-                <ChampReglage
-                    cle="reprise_des_fiches"
-                    libelle={{ en: "Takeover of the fiches and agents", fr: "Reprise des fiches et des agents" }}
-                    aides={[
-                        {
-                            en: "Writes into each fiche what it used to inherit and attaches each agent to its fiche. A trial run is shown first; nothing is written until you confirm.",
-                            fr: "Écrit dans chaque fiche ce qu'elle héritait et rattache chaque agent à sa fiche. Un essai est montré d'abord ; rien n'est écrit tant que vous ne confirmez pas.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    <Button variant="outline" size="sm" onClick={() => setModaleReprise(true)} data-testid="ouvrir-reprise">
-                        {t({ en: "Take over the fiches…", fr: "Reprendre les fiches…" })}
-                    </Button>
-                </ChampReglage>
-                <ModaleReprise
-                    ouverte={modaleReprise}
-                    onFermer={(ecrit) => {
-                        setModaleReprise(false);
-                        if (ecrit) void etablissements.relire();
-                    }}
-                />
-                <ChampReglage
-                    cle="phrases"
-                    libelle={{ en: "Sentences", fr: "Phrases" }}
-                    aides={[
-                        {
-                            en: "Sentences said word for word, given to the agents as {{variable}}, the same for all or per establishment.",
-                            fr: "Des phrases dites mot pour mot, données aux agents comme {{variable}}, communes ou par établissement.",
-                        },
-                    ]}
-                    disposition="colonne"
-                >
-                    <Button variant="outline" size="sm" onClick={() => setModalePhrases(true)} data-testid="ouvrir-phrases">
-                        {t({ en: "Edit sentences…", fr: "Modifier les phrases…" })}
-                    </Button>
-                </ChampReglage>
-                <ModalePhrases
-                    ouverte={modalePhrases}
-                    onFermer={() => setModalePhrases(false)}
-                    annonceOrganisation={annonce.enregistre}
-                />
-                <ModaleEtablissements
-                    ouverte={modaleEtablissements}
-                    onFermer={(enregistre) => {
-                        setModaleEtablissements(false);
-                        if (enregistre) void etablissements.relire();
-                    }}
-                    adresseOrganisation={adresseEnregistree}
-                    annonceOrganisation={annonce.enregistre}
-                />
-            </Intertitre>
-
-            {/* [.mark] cloture-code, F7 (D116): the agent's objects, next to the fiches and the sentences. */}
-            <SectionObjets etablissements={(etablissements.liste ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
-
             <Intertitre id="etablissement-adresse" titre={{ en: "Address", fr: "Adresse" }}>
                 {preferences.chargement ? (
                     <p className="text-sm text-muted-foreground">{t(CHARGEMENT)}</p>
@@ -548,9 +470,20 @@ export const ThemeEtablissementOrganisation = ({
 // 3. Listening: the trade vocabulary, reused as it is (its own buttons)
 // --------------------------------------------------------------------------- //
 
-export const ThemeEcouteOrganisation = ({ ouvert, onBasculer }: ProprietesThemeOrganisation) => (
+export const ThemeEcouteOrganisation = ({
+    ouvert,
+    onBasculer,
+    plat,
+    sansTitre,
+    sons,
+}: ProprietesThemeOrganisation & {
+    /** [.mark] U2 bis : les enregistrements et le cache de la voix, sous le lexique (sous-onglet « Écoute et sons »). */
+    sons?: ReactNode;
+}) => (
     <Theme
         id="ecoute"
+        plat={plat}
+        sansTitre={sansTitre}
         icone={Ear}
         titre={titre("ecoute").titre}
         description={{
@@ -563,9 +496,8 @@ export const ThemeEcouteOrganisation = ({ ouvert, onBasculer }: ProprietesThemeO
         modifie={false}
         erreurs={[]}
     >
-        <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
-            <SectionLexiqueMetier />
-        </Intertitre>
+        <LexiqueDeLEcoute />
+        {sons}
     </Theme>
 );
 
@@ -580,6 +512,7 @@ export const ThemeIntegrations = ({
     ouvert,
     onBasculer,
     signaler,
+    plat,
 }: ProprietesThemeOrganisation & { preferences: EtatPreferences }) => {
     const { t } = useLangue();
     const [correspondanceOuverte, setCorrespondanceOuverte] = useState(false);
@@ -588,6 +521,16 @@ export const ThemeIntegrations = ({
     const modifie = differe(brouillon, enregistre);
     useSignaler("integrations", modifie, false, signaler);
 
+    const nombreConnexions = connecteurs.etat?.connexions?.length ?? 0;
+    // L-1 : l'état de chaque ligne vient de sa vraie route (jamais « Dans la fenêtre »).
+    const etats = useEtatsDesLignes();
+    const dire = <T,>(lu: Lu<T>, texte: (v: T) => string) => (lu.etat === "lu" ? texte(lu.valeur) : lu.etat === "illisible" ? t({ en: "unreadable", fr: "illisible" }) : t(CHARGEMENT));
+    const agendas = (connecteurs.etat?.connexions ?? []).filter((x) => connecteurs.catalogue?.find((c) => c.integration === x.integration)?.categorie === "Agenda");
+    const valeurAgenda = !connecteurs.etat
+        ? t(CHARGEMENT)
+        : agendas.length === 0
+          ? t({ en: "No calendar connected", fr: "Aucun agenda branché" })
+          : [...new Set(agendas.map((x) => connecteurs.catalogue?.find((c) => c.integration === x.integration)?.libelle ?? x.integration))].join(", ");
     const correspondance = preferences.enregistrees.disposition_mapping ?? {};
     const nombre = Object.keys(correspondance).length;
     const texteNombre =
@@ -613,12 +556,36 @@ export const ThemeIntegrations = ({
                     : t({ en: "No external PBX", fr: "Pas de standard externe" }),
                 brouillon.disposition_mapping_enabled ? t({ en: "Custom disposition codes", fr: "Codes d'issue personnalisés" }) : null,
             ]}
+            lignes={[
+                {
+                    libelle: { en: "External PBX integrations", fr: "Intégrations de standard externe" },
+                    valeur: enregistre.external_pbx_integrations_enabled
+                        ? t({ en: "On", fr: "Actives" })
+                        : t({ en: "Off", fr: "Éteintes" }),
+                },
+                {
+                    libelle: { en: "Your own disposition codes", fr: "Vos propres codes d'issue" },
+                    valeur: enregistre.disposition_mapping_enabled ? texteNombre : t({ en: "Off", fr: "Éteints" }),
+                },
+                {
+                    libelle: { en: "Connected software", fr: "Logiciels connectés" },
+                    valeur: connecteurs.etat
+                        ? t({
+                              en: `${nombreConnexions} connected`,
+                              fr: `${nombreConnexions} connecté${nombreConnexions > 1 ? "s" : ""}`,
+                          })
+                        : t(CHARGEMENT),
+                },
+                { libelle: { en: "Calendar software", fr: "Logiciel d'agenda" }, valeur: valeurAgenda },
+                { libelle: { en: "Outage fallback", fr: "Repli en cas de panne" }, valeur: dire(etats.repli, (r) => (r ? t({ en: "Fallback address set", fr: "Adresse de secours réglée" }) : t({ en: "No fallback address", fr: "Aucune adresse de secours" }))) },
+            ]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={modifie}
             erreurs={[]}
             enregistrement={{
-                onEnregistrer: () => void preferences.enregistrer(brouillon, t(PREFERENCES_ENREGISTREES)),
+                onEnregistrer: () => void preferences.enregistrer(brouillon, PREFERENCES_ENREGISTREES),
                 // ⛔ Asleep while the row is read (review of 26/09, M1): the PUT
                 // replaces the whole row, sent from the empty defaults it would
                 // clear the mapping, the address and the test number. Dograh's
@@ -720,7 +687,7 @@ export const ThemeIntegrations = ({
                             (
                                 await preferences.enregistrer(
                                     { ...brouillon, disposition_mapping },
-                                    t({ en: "Disposition mapping saved", fr: "Correspondance des issues enregistrée" }),
+                                    { en: "Disposition mapping saved.", fr: "Correspondance des issues enregistrée." },
                                 )
                             ).ok
                         }
@@ -744,8 +711,16 @@ const EnSavoirPlus = ({ href }: { href: string }) => {
     );
 };
 
-export const ThemeDeveloppeurs = ({ ouvert, onBasculer }: ProprietesThemeOrganisation) => {
+export const ThemeDeveloppeurs = ({
+    ouvert,
+    onBasculer,
+    plat,
+    suite,
+}: ProprietesThemeOrganisation & { suite?: ReactNode }) => {
     const { t } = useLangue();
+    // L-1 : clés d'API, serveur MCP et traçage disent leur état, lu sur leur route.
+    const etats = useEtatsDesLignes();
+    const dire = <T,>(lu: Lu<T>, texte: (v: T) => string) => (lu.etat === "lu" ? texte(lu.valeur) : lu.etat === "illisible" ? t({ en: "unreadable", fr: "illisible" }) : t(CHARGEMENT));
     return (
         <Theme
             id="developpeurs"
@@ -753,7 +728,13 @@ export const ThemeDeveloppeurs = ({ ouvert, onBasculer }: ProprietesThemeOrganis
             titre={titre("developpeurs").titre}
             description={{ en: "MCP server and call tracing (Langfuse).", fr: "Serveur MCP et traçage des appels (Langfuse)." }}
             resume={[]}
+            lignes={[
+                { libelle: { en: "Dograh API keys", fr: "Clés d'API de Dograh" }, valeur: dire(etats.cles, (n) => (n === 0 ? t({ en: "No key", fr: "Aucune clé" }) : t({ en: `${n} key${n > 1 ? "s" : ""}`, fr: `${n} clé${n > 1 ? "s" : ""}` }))) },
+                { libelle: { en: "MCP server", fr: "Serveur MCP" }, valeur: dire(etats.cles, (n) => (n === 0 ? t({ en: "No API key: it cannot be reached", fr: "Sans clé d'API : injoignable" }) : t({ en: "Ready (API key)", fr: "Prêt (clé d'API)" }))) },
+                { libelle: { en: "Call tracing (Langfuse)", fr: "Traçage des appels (Langfuse)" }, valeur: dire(etats.langfuse, (c) => (c ? t({ en: "Configured", fr: "Configuré" }) : t({ en: "Not configured", fr: "Non configuré" }))) },
+            ]}
             ouvert={ouvert}
+            plat={plat}
             onBasculer={onBasculer}
             modifie={false}
             erreurs={[]}
@@ -778,6 +759,18 @@ export const ThemeDeveloppeurs = ({ ouvert, onBasculer }: ProprietesThemeOrganis
                 </p>
                 <TelemetrySection />
             </Intertitre>
+            {suite}
         </Theme>
+    );
+};
+
+/** [.mark] K4b : en forme de maquette le lexique porte son propre titre (tableau + actions) ; sinon l'intertitre d'avant. */
+const LexiqueDeLEcoute = () => {
+    const maquette = useFormeMaquette();
+    if (maquette) return <SectionLexiqueMetier />;
+    return (
+        <Intertitre id="ecoute-lexique" titre={{ en: "Trade vocabulary", fr: "Lexique métier" }}>
+            <SectionLexiqueMetier />
+        </Intertitre>
     );
 };

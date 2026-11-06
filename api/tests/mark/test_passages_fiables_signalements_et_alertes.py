@@ -319,7 +319,7 @@ async def test_g_le_statut_est_ecrit_dans_annotations_sans_toucher_au_reste(db_s
         inconnu = await client.put(f"/api/v1/tri/{run.id}", json={"identifiant": "agent:9", "statut": "résolu"})
         mauvais = await client.put(f"/api/v1/tri/{run.id}", json={"identifiant": "agent:0", "statut": "supprimé"})
         lignes = (await client.get("/api/v1/tri")).json()["lignes"]
-    assert ecrit.status_code == 200 and ecrit.json() == {"run_id": run.id, "identifiant": "agent:0", "statut": "en cours"}
+    assert ecrit.status_code == 200 and ecrit.json() == {"run_id": run.id, "identifiant": "agent:0", "statut": "en cours", "assigne": None, "origine": None}
     assert inconnu.status_code == 404 and mauvais.status_code == 422
     assert lignes[0]["statut"] == "en cours"
     relu = await db_session.get_workflow_run_by_id(run.id)

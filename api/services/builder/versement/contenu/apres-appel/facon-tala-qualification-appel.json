@@ -1,0 +1,17 @@
+{
+  "titre": "Qualification de l'appel (façon Tala)",
+  "contenu": {
+    "texte": "# Qualification de l'appel après coup (recette façon Tala)\n\nChamps à produire après chaque appel, en plus de la synthèse :\n- titre (une ligne, jamais vide) ;\n- thème (liste fermée de la fiche) ;\n- statut (affaire, hors sujet, erreur) ; priorité (basse, moyenne, haute) ;\n- température du prospect (sans objet, froid, tiède, chaud) ;\n- rappel à faire (oui, non) et numéro de rappel ;\n- état du rendez-vous (aucun, demandé, réservé, annulé) et date prévue ;\n- action suivante (code et libellé, liste fermée) ;\n- faits clés (liste courte) ; signaux de qualification (liste courte).\n\nRègle : le titre et l'action suivante sont toujours remplis ; ce qui n'a pas été dit reste vide, jamais deviné.\nLe 30/10, le compte rendu de Tala a classé un appel d'entretien en « Recrutement » : la liste des thèmes vient de la fiche, pas d'un modèle générique.\n"
+  },
+  "notes": "Lot « façon Tala par motif » (05/11/2026). Écrit par .mark d'après 6 agents générés par Tala dans le compte d'essai d'Evan (500 à 506) et son Builder IA : la méthode, jamais le texte. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan.",
+  "origine": {
+    "source": "Relevé du compte d'essai Tala d'Evan, 05/11/2026 (note propositions-pierre/2026-11-05-note-tala-ce-qu-on-copie.md)",
+    "licence": "méthode observée, texte écrit par .mark",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala",
+    "par-motif"
+  ]
+}

@@ -3,7 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,7 @@ export function MCPSection() {
         2000,
       );
     } catch {
-      toast.error("Failed to copy MCP endpoint");
+      notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
     }
   };
 

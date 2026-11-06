@@ -2,7 +2,7 @@
 
 import { FileText, Upload, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { notifier } from "@/components/mark/notifications";
 
 import {
   getUploadUrlApiV1KnowledgeBaseUploadUrlPost,
@@ -35,12 +35,12 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
   const validateFile = (file: File): boolean => {
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!ACCEPTED_FILE_TYPES.includes(fileExtension)) {
-      toast.error(`Please select a supported file type: ${ACCEPTED_FILE_TYPES.join(', ')}`);
+      notifier.echec({ fr: `Type de fichier non pris en charge. Types admis : ${ACCEPTED_FILE_TYPES.join(', ')}.`, en: `Unsupported file type. Accepted: ${ACCEPTED_FILE_TYPES.join(', ')}.` });
       return false;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      toast.error('File size must be less than 5MB');
+      notifier.echec({ fr: "Fichier trop lourd : 5 Mo au maximum.", en: "File too large: 5 MB maximum." });
       return false;
     }
 
@@ -118,12 +118,12 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       }
 
       setUploadProgress(100);
-      toast.success(`File uploaded: ${selectedFile.name}. Processing started.`);
+      notifier.succes({ fr: `Document « ${selectedFile.name} » envoyé. Analyse en cours.`, en: `Document "${selectedFile.name}" uploaded. Processing.` });
       clearSelectedFile();
       onUploadSuccess();
     } catch (error) {
       logger.error('Error uploading document:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload document');
+      notifier.echec({ fr: "Envoi impossible. Vérifiez le fichier et réessayez.", en: "Upload failed. Check the file and try again." }, { erreur: error, reessayer: () => void uploadFile() });
     } finally {
       setUploading(false);
       setUploadProgress(0);

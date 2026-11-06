@@ -1,6 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+
 import type { FolderResponse, WorkflowListResponse } from '@/client/types.gen';
+import { FiltreEtiquettes } from '@/components/mark/agent/etiquettes/FiltreEtiquettes';
+import { etiquettesDuFiltre, filtrerLesAgents } from '@/components/mark/agent/etiquettes/logique';
+import { useEtiquettes } from '@/components/mark/agent/etiquettes/useEtiquettes';
 import {
     arbreDesDossiers,
     grouperLesAgents,
@@ -37,13 +42,27 @@ interface AgentFolderViewProps {
  * by default at every level. A folder that holds a group shows the group's card (its main agent,
  * its specialised agents beneath), a lone agent keeps its row.
  */
-export function AgentFolderView({ workflows, folders, liens = [], servis = [], dossierOuvertId = null }: AgentFolderViewProps) {
+export function AgentFolderView({ workflows: tous, folders, liens = [], servis = [], dossierOuvertId = null }: AgentFolderViewProps) {
+    // [.mark] U3 (E30): the « Labels » filter of the list, next to the labels each row carries.
+    const { donnees: etiquettes } = useEtiquettes();
+    const [choisies, setChoisies] = useState<string[]>([]);
+    const workflows = filtrerLesAgents(tous, etiquettes?.par_agent, choisies);
+    const filtre = (
+        <div className="mb-4 flex items-center gap-2">
+            <FiltreEtiquettes proposees={etiquettesDuFiltre(etiquettes)} choisies={choisies} onChange={setChoisies} />
+        </div>
+    );
     const noms = new Map(workflows.map((w) => [w.id, w.name]));
     const roles = rolesDesAgents(liens, noms);
 
     // No folders → keep the original flat list (no folder chrome, nowhere to move to).
     if (folders.length === 0) {
-        return <WorkflowTable workflows={workflows} showArchived={false} roles={roles} />;
+        return (
+            <>
+                {filtre}
+                <WorkflowTable workflows={workflows} showArchived={false} roles={roles} etiquettes={etiquettes?.par_agent} />
+            </>
+        );
     }
 
     // Group agents by folder. Agents whose folder_id is null — or points at a
@@ -105,6 +124,7 @@ export function AgentFolderView({ workflows, folders, liens = [], servis = [], d
                 allFolders={folders}
                 defaultOpen={aOuvrir.has(noeud.dossier.id)}
                 roles={roles}
+                etiquettes={etiquettes?.par_agent}
                 groupes={cartes}
             >
                 {noeud.enfants.length > 0 ? noeud.enfants.map(section) : undefined}
@@ -116,6 +136,7 @@ export function AgentFolderView({ workflows, folders, liens = [], servis = [], d
 
     return (
         <div className="space-y-1">
+            {filtre}
             {arbreDesDossiers(folders).map(section)}
             {uncategorized.length > 0 && (
                 <FolderSection
@@ -124,6 +145,7 @@ export function AgentFolderView({ workflows, folders, liens = [], servis = [], d
                     nombre={uncategorized.length}
                     allFolders={folders}
                     roles={roles}
+                    etiquettes={etiquettes?.par_agent}
                     groupes={sansDossier.cartes}
                 />
             )}

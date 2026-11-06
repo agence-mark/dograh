@@ -29,7 +29,6 @@ from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordin
 from api.services.posthog_client import capture_event
 from api.services.equipe.appel import reaffirmer_equipe
 from api.services.pipecat.etat_ouverture import rafraichir_annonce
-from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow_run_artifacts import upload_workflow_run_artifacts
 from api.tasks.arq import enqueue_job
@@ -183,8 +182,22 @@ def register_event_handlers(
                     fetch_result = pre_call_fetch_task.result()
 
                 if fetch_result:
-                    engine._call_context_vars = merge_external_initial_context(
-                        engine._call_context_vars, fetch_result
+                    # [.mark] RA-B R4d : la lecture ne remplace un objet que si l'étape de départ le demande ;
+                    # chaque refus ou remplacement est tracé dans le run (``ordre_d_injection``).
+                    from api.services.workflow.ordre_d_injection import (
+                        fusionner_la_lecture,
+                        noms_demandes,
+                    )
+
+                    _depart = engine.active_agent.workflow.nodes.get(
+                        engine.active_agent.workflow.start_node_id
+                    )
+                    engine._call_context_vars, _ = fusionner_la_lecture(
+                        engine._call_context_vars,
+                        fetch_result,
+                        noms_demandes(
+                            getattr(getattr(_depart, "data", None), "pre_call_fetch_remplace", None)
+                        ),
                     )
                     # [.mark] The fetch may overwrite the opening state, which
                     # the greeting's announcement is derived from. Without this,
@@ -514,6 +527,18 @@ def register_event_handlers(
                 logger.debug(
                     f"Saved {len(feedback_events)} feedback events to workflow run logs"
                 )
+                # [.mark] N3a : la latence par phase, rangée UNE fois à la fin de l'appel, lue du journal que le moteur trace déjà
+                # (``mark-latency-breakdown``). Rien n'est mesuré de plus ; une erreur ici ne touche jamais la fin de l'appel.
+                try:
+                    from api.services.analyse_run.latence_par_phase import resume_de_latence
+
+                    latence = resume_de_latence(feedback_events)
+                    if latence is not None:
+                        await db_client.update_workflow_run(
+                            run_id=workflow_run_id, annotations={"latence": latence}
+                        )
+                except Exception as e:
+                    logger.error(f"Error saving the latency by phase: {e}", exc_info=True)
             except Exception as e:
                 logger.error(f"Error saving realtime feedback logs: {e}", exc_info=True)
         else:

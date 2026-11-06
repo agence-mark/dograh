@@ -22,7 +22,6 @@ vi.mock("@/context/OnboardingContext", () => ({
     useOnboarding: () => ({ markActionCompleted: markActionCompletedMock }),
 }));
 
-vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 vi.mock("@/components/onboarding/OnboardingTooltip", () => ({
@@ -57,7 +56,7 @@ function renderPanel() {
 }
 
 async function startVoiceRun() {
-    const runTest = await screen.findByRole("button", { name: /run test/i });
+    const runTest = await screen.findByRole("button", { name: /start the call/i });
     fireEvent.click(runTest);
     const tester = await screen.findByTestId("voice-tester");
     return tester.textContent;
@@ -90,28 +89,53 @@ describe("WorkflowTesterPanel voice run lifecycle", () => {
         renderPanel();
         await startVoiceRun();
 
-        switchTo(/test chat/i);
+        switchTo(/keyboard/i);
         await waitFor(() => expect(screen.getByTestId("chat-panel")).toBeTruthy());
 
-        switchTo(/test audio/i);
+        switchTo(/browser/i);
 
         await waitFor(() =>
             expect(screen.queryByTestId("voice-tester")).toBeNull(),
         );
-        expect(screen.getByRole("button", { name: /run test/i })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /start the call/i })).toBeTruthy();
     });
 
     it("mints a fresh run on the next test rather than reusing the old one", async () => {
         renderPanel();
         await startVoiceRun();
 
-        switchTo(/test chat/i);
-        switchTo(/test audio/i);
+        switchTo(/keyboard/i);
+        switchTo(/browser/i);
         await waitFor(() =>
             expect(screen.queryByTestId("voice-tester")).toBeNull(),
         );
 
         expect(await startVoiceRun()).toBe("run:630141");
         expect(createRunMock).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("WorkflowTesterPanel keyboard (V1b)", () => {
+    it("closes on Escape when it has a close handler", () => {
+        const onClose = vi.fn();
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={onClose} />);
+        fireEvent.keyDown(screen.getByRole("tab", { name: /browser|navigateur/i }), { key: "Escape" });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves Escape alone when something inside already used it (an open list)", () => {
+        const onClose = vi.fn();
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={onClose} />);
+        const onglet = screen.getByRole("tab", { name: /browser|navigateur/i });
+        const evenement = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        evenement.preventDefault();
+        onglet.dispatchEvent(evenement);
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("moves the focus onto the tab of the mode asked for when it opens from the keyboard", async () => {
+        render(<WorkflowTesterPanel workflowId={10124} disabled={false} disabledReason={null} onClose={vi.fn()} modeDemande={{ mode: "text", cle: 1 }} />);
+        await waitFor(() => expect(document.activeElement?.getAttribute("role")).toBe("tab"));
+        expect(document.activeElement?.getAttribute("data-state")).toBe("active");
     });
 });

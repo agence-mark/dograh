@@ -1,0 +1,231 @@
+"use client";
+
+import { useState } from "react";
+
+import { useLangue } from "@/components/mark/langue/langue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+
+import { Defileur } from "./defileur";
+import { Info } from "./marques";
+
+/**
+ * La fenêtre commune (E55, E71, E73) : en-tête fixe (visuel, titre, ligne grise, onglets), corps blanc sans carte,
+ * pied fixe. Hauteur fixe : changer d'onglet ne fait pas sauter la fenêtre. Une fenêtre ouverte depuis celle-ci
+ * prend la même taille avec la flèche retour : c'est réglé UNE fois, dans `components/ui/dialog.tsx`, jamais ici.
+ */
+export const TAILLE_FENETRE = "sm:max-w-4xl h-[86vh]";
+
+export function FenetreOnglets({
+    fermer,
+    titre,
+    sous,
+    info,
+    visuel,
+    droite,
+    onglets,
+    onglet,
+    changerOnglet,
+    children,
+    pied,
+    valider,
+    onValider,
+    desactiver,
+    etroite,
+    modifie = false,
+    centree = false,
+}: {
+    fermer: () => void;
+    titre: React.ReactNode;
+    sous?: React.ReactNode;
+    /** L-2 : une phrase d'explication se dit dans un « ! » à côté du titre, jamais en ligne sous lui (`sous` reste pour une donnée : un état, un type). */
+    info?: React.ReactNode;
+    visuel?: React.ReactNode;
+    droite?: React.ReactNode;
+    onglets?: string[];
+    onglet?: string;
+    changerOnglet?: (o: string) => void;
+    children: React.ReactNode;
+    pied?: React.ReactNode;
+    /** Libellé du bouton de validation ; `null` = lecture seule, un seul bouton « Fermer ». */
+    valider?: string | null;
+    onValider?: () => void;
+    desactiver?: boolean;
+    /** V2b : la largeur d'une fenêtre de service (maquette : 672 px) au lieu de la grande fenêtre. */
+    etroite?: boolean;
+    /** R3 M4 : la fenêtre porte une saisie non enregistrée ; Échap, clic dehors et « Annuler » demandent avant de la jeter. */
+    modifie?: boolean;
+    /** Une publication, un configurateur : reste au milieu de l'écran (liste des centrées de `07-fenetres-panneau-ou-centrees.md`). */
+    centree?: boolean;
+}) {
+    const { t } = useLangue();
+    const libelle = valider === undefined ? t({ en: "Save", fr: "Enregistrer" }) : valider;
+    const [abandon, setAbandon] = useState(false);
+    const demanderFermeture = () => {
+        if (modifie && libelle !== null) setAbandon(true);
+        else fermer();
+    };
+    return (
+        <Dialog centree={centree} open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
+            <DialogContent
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className={`${etroite ? "sm:max-w-2xl h-[78vh]" : TAILLE_FENETRE} flex flex-col gap-0 overflow-hidden p-0`}
+            >
+                <div className="shrink-0 border-b px-6 pt-5 pr-12">
+                    <div className="flex items-start gap-3 pb-4">
+                        {visuel}
+                        <div className="min-w-0 flex-1">
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                {titre}
+                                {info && <Info>{info}</Info>}
+                            </DialogTitle>
+                            {sous && <p className="mt-0.5 text-sm text-muted-foreground">{sous}</p>}
+                        </div>
+                        {droite}
+                    </div>
+                    {onglets && (
+                        <Defileur interieur="-mb-px">
+                        <div role="tablist" className="flex items-center gap-1">
+                            {onglets.map((o) => (
+                                <button
+                                    key={o}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={onglet === o}
+                                    onClick={() => changerOnglet?.(o)}
+                                    className={`border-b-2 px-3 py-2.5 text-sm ${
+                                        onglet === o
+                                            ? "border-primary font-medium"
+                                            : "border-transparent text-muted-foreground hover:font-medium hover:text-foreground"
+                                    }`}
+                                >
+                                    {o}
+                                </button>
+                            ))}
+                        </div>
+                        </Defileur>
+                    )}
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto bg-background px-6 py-5">{children}</div>
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-3">
+                    {pied && <div className="mr-auto flex items-center gap-2">{pied}</div>}
+                    {libelle === null ? (
+                        <Button onClick={fermer}>{t({ en: "Close", fr: "Fermer" })}</Button>
+                    ) : abandon ? (
+                        <>
+                            <span className="text-sm" role="alert">
+                                {t({ en: "Discard your changes?", fr: "Abandonner vos modifications ?" })}
+                            </span>
+                            <Button variant="outline" className="cursor-pointer" autoFocus onClick={() => setAbandon(false)}>
+                                {t({ en: "Keep editing", fr: "Continuer la saisie" })}
+                            </Button>
+                            <Button variant="destructive" className="cursor-pointer" data-abandonner onClick={fermer}>
+                                {t({ en: "Discard", fr: "Abandonner" })}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="outline" onClick={demanderFermeture}>
+                                {t({ en: "Cancel", fr: "Annuler" })}
+                            </Button>
+                            <Button disabled={desactiver} onClick={() => onValider?.()}>
+                                {libelle}
+                            </Button>
+                        </>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** Une ligne de champ : libellé à gauche, réglage à droite. */
+export function LigneChamp({ libelle, info, children }: { libelle: React.ReactNode; info?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-4 py-3">
+            <p className="flex flex-1 items-center gap-1.5 text-sm font-medium">
+                {libelle}
+                {info && <Info>{info}</Info>}
+            </p>
+            <div className="shrink-0">{children}</div>
+        </div>
+    );
+}
+
+/** Un bloc de champ : libellé au-dessus, réglage dessous. */
+export function BlocChamp({
+    libelle,
+    info,
+    action,
+    children,
+}: {
+    libelle: React.ReactNode;
+    info?: React.ReactNode;
+    action?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="space-y-2 py-3">
+            <div className="flex items-center gap-2">
+                <p className="flex flex-1 items-center gap-1.5 text-sm font-medium">
+                    {libelle}
+                    {info && <Info>{info}</Info>}
+                </p>
+                {action}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+/** Les champs d'une fenêtre sont séparés par un trait, jamais par une carte. */
+export function Champs({ children }: { children: React.ReactNode }) {
+    return <div className="divide-y">{children}</div>;
+}
+
+/** Une section titrée sous une étiquette de groupe grise (E53 ter). */
+export function Section({
+    titre,
+    info,
+    action,
+    children,
+}: {
+    titre: string;
+    info?: React.ReactNode;
+    action?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <section className="pt-6 first:pt-0">
+            <div className="flex items-center gap-2 pb-1">
+                <p className="flex flex-1 items-center gap-1.5 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                    {titre}
+                    {info && <Info>{info}</Info>}
+                </p>
+                {action}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+/** Choix segmenté (deux à quatre options courtes). */
+export function Segmente({ valeur, options, changer }: { valeur: string; options: string[]; changer: (v: string) => void }) {
+    return (
+        <span className="inline-flex rounded-lg bg-muted p-0.5 text-sm">
+            {options.map((o) => (
+                <button
+                    key={o}
+                    type="button"
+                    aria-pressed={valeur === o}
+                    onClick={() => changer(o)}
+                    className={`rounded-md px-3 py-1 whitespace-nowrap ${
+                        valeur === o ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:font-medium"
+                    }`}
+                >
+                    {o}
+                </button>
+            ))}
+        </span>
+    );
+}

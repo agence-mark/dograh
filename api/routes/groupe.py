@@ -6,9 +6,10 @@ d'orchestration (créer, retirer, archiver, publier, lire) vivent ici ; la logiq
 """
 
 import json
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from api.db import db_client
 from api.db.models import UserModel
@@ -34,6 +35,8 @@ class NomRequest(BaseModel):
 class CreerPrincipalRequest(NomRequest):
     # Le dossier dans lequel le groupe prend son sous-dossier (absent : premier niveau).
     folder_id: int | None = None
+    # [.mark] lot M : la recette choisie à la création (identifiant d'une fiche de la bibliothèque) ; vide = le défaut.
+    recette: str | None = None
 
 
 class CreerPrincipalResponse(BaseModel):
@@ -94,6 +97,21 @@ class Refus(BaseModel):
     detail: str
 
 
+class PublierGroupeRequest(BaseModel):
+    """Corps FACULTATIF de ``groupe/publier`` (partie 3, SE-12) : sans corps, tout le groupe comme avant."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    specialises: list[int] | None = Field(
+        default=None,
+        max_length=50,
+        description="Only these specialised agents of the group (one choice per specialist). Omitted: all of them.",
+    )
+    avec_le_principal: bool = Field(
+        default=True, description="Publish the main agent too, last. False when the window has just published it with its own checks."
+    )
+
+
 class PublierGroupeResponse(BaseModel):
     publies: list[AgentPublie] = []
     deja_a_jour: list[int] = []
@@ -129,6 +147,12 @@ async def creer_un_groupe(
 ) -> CreerPrincipalResponse:
     """Crée l'agent principal d'un nouveau groupe et son sous-dossier (carte « Graphe avec
     agents spécialisés » de la modale de création)."""
+    from api.services.builder import recettes
+
+    try:
+        choisie = await recettes.verifier_le_choix(user.selected_organization_id, request.recette)
+    except recettes.ErreurRecette as e:
+        raise HTTPException(status_code=e.statut, detail=str(e))
     try:
         workflow_id, folder_id = await service.creer_principal(
             nom=request.name,
@@ -138,6 +162,7 @@ async def creer_un_groupe(
         )
     except service.GroupeError as e:
         raise _vers_http(e)
+    await recettes.poser_a_la_creation(user.selected_organization_id, workflow_id, choisie, getattr(user, "email", "") or "")
     return CreerPrincipalResponse(workflow_id=workflow_id, folder_id=folder_id)
 
 
@@ -228,7 +253,7 @@ async def completer_le_groupe(
 
 @router.post("/{workflow_id}/groupe/publier")
 async def publier_le_groupe(
-    workflow_id: int, user: UserModel = Depends(get_user)
+    workflow_id: int, demande: Optional[PublierGroupeRequest] = None, user: UserModel = Depends(get_user)
 ) -> PublierGroupeResponse:
     """Publie tout le groupe, agent par agent (spécialisés d'abord, le principal en dernier),
     et s'arrête au premier refus en le disant. Un agent sans brouillon est déjà à jour."""
@@ -238,8 +263,16 @@ async def publier_le_groupe(
         raise HTTPException(
             status_code=404, detail=f"No group found for workflow {workflow_id}"
         )
-    ordre = [(m["id"], m["name"]) for m in groupe["specialises"]]
-    ordre.append((groupe["principal"]["id"], groupe["principal"]["name"]))
+    demande = demande or PublierGroupeRequest()
+    if demande.specialises is not None:
+        # Un choix par spécialiste : un identifiant qui n'est pas un spécialisé de CE groupe est refusé (jamais un autre agent).
+        du_groupe = {m["id"] for m in groupe["specialises"]}
+        inconnus = [i for i in demande.specialises if i not in du_groupe]
+        if inconnus:
+            raise HTTPException(status_code=404, detail=f"Agent {inconnus[0]} is not a specialised agent of this group")
+    ordre = [(m["id"], m["name"]) for m in groupe["specialises"] if demande.specialises is None or m["id"] in demande.specialises]
+    if demande.avec_le_principal:
+        ordre.append((groupe["principal"]["id"], groupe["principal"]["name"]))
 
     reponse = PublierGroupeResponse()
     for agent_id, nom in ordre:

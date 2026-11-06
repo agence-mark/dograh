@@ -22,6 +22,8 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.interventions_du_moteur import CLE_ORDRE_OUTIL_PUIS_PAROLE, intervention_du_service
+
 APPEL, RESULTAT, PAROLE, APPELANT = "appel", "resultat", "parole", "appelant"
 
 
@@ -100,11 +102,14 @@ def remettre_la_parole_apres_l_outil(messages: list) -> list:
         return messages
 
 
-def ordre_outil_puis_parole(params: Any) -> Any:
+def ordre_outil_puis_parole(params: Any, llm: Any = None) -> Any:
     """Les paramètres d'une requête de conversation, l'ordre corrigé : ``messages`` (chat) ou ``input`` (API
     ``responses``). Appelé à la fin de ``build_chat_completion_params`` des services de modèle du fork (Mistral,
     compatibles OpenAI, Responses)."""
     if not isinstance(params, dict):
+        return params
+    # Lot 8 de builder-agent-vocal : l'interrupteur de l'agent, posé sur le service (éteint = la requête part comme enregistrée).
+    if not intervention_du_service(llm, CLE_ORDRE_OUTIL_PUIS_PAROLE):
         return params
     for cle in ("messages", "input"):
         if isinstance(params.get(cle), list):

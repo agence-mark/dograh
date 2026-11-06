@@ -36,6 +36,7 @@ CLE_ARBITRE = "arbitre"
 CLE_DESACCORDS = "desaccords_arbitre"
 CLE_PASSAGES = "passages_par_le_code"
 CLE_DEPASSEMENTS = "depassements_modele"
+CLE_SECURITE = "securite_declenchements"  # écrite par ``securite/marques.noter`` (U3 quinquies)
 CLE_RETENUES = "retenues_verite"  # écrite par ``workflow/verite_des_actions.tracer_une_retenue``
 
 # --- L'agent ---------------------------------------------------------------------------------------------------
@@ -54,6 +55,7 @@ TYPE_DESACCORD = "desaccord"
 TYPE_PASSAGE = "passage_sans_suite"
 TYPE_GARDE_MODELE = "garde_modele"
 TYPE_RETENUE = "retenue_verite"
+TYPE_SECURITE = "securite"
 TYPES_DU_CODE = (
     TYPE_IMPASSE,
     TYPE_PORTE_INCONNUE,
@@ -61,6 +63,7 @@ TYPES_DU_CODE = (
     TYPE_PASSAGE,
     TYPE_GARDE_MODELE,
     TYPE_RETENUE,
+    TYPE_SECURITE,
 )
 
 # Un passage par le code qui a abouti (ou que la personne a rendu sans objet en reparlant) ne mérite aucun tri.
@@ -317,6 +320,17 @@ def lire_les_signalements(contexte: Any) -> list[dict]:
                     "tour": e.get("tour"),
                 }
             )
+        for rang, e in enumerate(_liste(contexte, CLE_SECURITE)):
+            lignes.append(
+                {
+                    "id": f"{TYPE_SECURITE}:{rang}",
+                    "source": SOURCE_CODE,
+                    "type": TYPE_SECURITE,
+                    "motif": " : ".join(x for x in (str(e.get("couche") or ""), str(e.get("nom") or ""), str(e.get("detail") or "")) if x),
+                    "etape": None,
+                    "tour": e.get("tour"),
+                }
+            )
         for rang, e in enumerate(_liste(contexte, CLE_PASSAGES)):
             if e.get("resultat") not in RESULTATS_NORMAUX_D_UN_PASSAGE:
                 lignes.append(
@@ -384,3 +398,24 @@ def statut_d_un_signalement(annotations: Any, identifiant: str) -> str:
         return statut if statut in STATUTS else STATUT_PAR_DEFAUT
     except Exception:  # noqa: BLE001
         return STATUT_PAR_DEFAUT
+
+
+def _entree_du_tri(annotations: Any, identifiant: str) -> dict:
+    tri = annotations.get(CLE_TRI) if isinstance(annotations, dict) else None
+    entree = tri.get(identifiant) if isinstance(tri, dict) else None
+    return entree if isinstance(entree, dict) else {}
+
+
+def assigne_d_un_signalement(annotations: Any, identifiant: str) -> int | None:
+    """[.mark] builder lot 6 : la personne chargée du signalement (identifiant d'utilisateur), ``None`` si personne."""
+    valeur = _entree_du_tri(annotations, identifiant).get("assigne")
+    return valeur if isinstance(valeur, int) and not isinstance(valeur, bool) else None
+
+
+ORIGINES_DE_TRI = ("client", "recette", "code")
+
+
+def origine_d_un_signalement(annotations: Any, identifiant: str) -> str | None:
+    """[.mark] builder lot 6 : l'origine posée par la personne (client, recette, code), ``None`` si pas encore triée."""
+    valeur = _entree_du_tri(annotations, identifiant).get("origine")
+    return valeur if valeur in ORIGINES_DE_TRI else None

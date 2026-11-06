@@ -1,0 +1,17 @@
+{
+  "titre": "Outil d'abord, en silence (façon Gradium)",
+  "contenu": {
+    "texte": "# Outil d'abord\n\nQuand une réponse dépend d'une information ou d'une action, appelle l'outil en premier, sans rien dire, puis parle avec ce qu'il a rendu.\n\n- Pas de « je vais regarder » suivi d'un long silence : l'outil part, puis tu réponds.\n- Si l'outil est lent, une seule phrase d'attente courte, propre à l'outil.\n- Ne décris jamais ce que tu vas faire à la place de le faire."
+  },
+  "notes": "À comparer avec les conditions façon Tala (outil appelé dans la réponse même) : proche, pas identique. À garder à côté, jamais en remplacement. Candidat jusqu'au banc N × 3 et au casque ; le passage en Recette est un clic d'Evan. Écrit par .mark, adapté à l'accueil téléphonique d'une PME.",
+  "origine": {
+    "source": "Démo Gradbot « restaurant_ordering » (gradium-ai/gradbot, commit db64d770), lue le 05/11/2026 ; note propositions-pierre/2026-11-05-note-gradium-voix-et-prompts.md",
+    "licence": "MIT ou Apache 2.0 (méthode observée, texte écrit par .mark)",
+    "date": "2026-11-05"
+  },
+  "dossier": "facon-gradium",
+  "etiquettes": [
+    "facon-gradium",
+    "outils"
+  ]
+}

@@ -19,10 +19,9 @@
  * the theme is what it was. A specialised agent (`agent_principal_id`) has no menu: it serves the
  * establishment of the call.
  */
-import { Building2 } from "lucide-react";
+import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
     AnswerSupervisorFields,
@@ -32,12 +31,15 @@ import {
 import { getEtablissementsApiV1OrganizationsEtablissementsGet } from "@/client/sdk.gen";
 import type { AdresseEtablissement, Etablissement } from "@/client/types.gen";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgConfig } from "@/context/OrgConfigContext";
-import { detailFromError } from "@/lib/apiError";
+import { phraseEchec } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useAuth } from "@/lib/auth";
 import {
     DEFAULT_VOICEMAIL_DETECTION_CONFIGURATION,
@@ -51,7 +53,7 @@ import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
 import { memeAdresse, texteAdresse } from "../SectionAdresseEtablissement";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
-import { RAPPEL_PUBLICATION_TEXTE, useEnregistrementTheme } from "./enregistrement";
+import { useEnregistrementTheme } from "./enregistrement";
 import { EtablissementsServis, NumerosDeLagent, useEtablissementsDeLagent } from "./EtablissementsServis";
 import { erreursPanne, lirePanne, SectionPanneAgent } from "./SectionPanneAgent";
 import { nommerErreurs, type ProprietesThemeAgent, useEtatTheme, useRevelation } from "./theme-commun";
@@ -251,11 +253,11 @@ export const ThemeEtablissement = ({
         setErreurAdresse(null);
         try {
             await onSave({ ...resolue, adresse_etablissement: null }, workflowName);
-            toast.success(`${t({ en: "Business address saved.", fr: "Adresse enregistrée." })} ${t(RAPPEL_PUBLICATION_TEXTE)}`);
+            notifier.succes({ fr: "Adresse enregistrée.", en: "Address saved." }, { publier: true });
         } catch (e) {
-            const message = e instanceof Error && e.message ? e.message : detailFromError(e, "Business address not saved.");
+            const message = phraseEchec(e, ECHECS.adresseEnregistrer);
             setErreurAdresse(message);
-            toast.error(`${t({ en: "Business address not saved:", fr: "Adresse non enregistrée :" })} ${message}`);
+            notifier.echec({ fr: `Adresse non enregistrée : ${message}.`, en: `Address not saved: ${message}.` }, { erreur: e });
         } finally {
             setRetourOrganisation(false);
         }
@@ -264,7 +266,7 @@ export const ThemeEtablissement = ({
     return (
         <Theme
             id={ID_THEME_ETABLISSEMENT}
-            icone={Building2}
+            icone={MapPin}
             titre={TITRE_ETABLISSEMENT}
             description={{ en: "Hours, address and voicemail of this agent.", fr: "Horaires, adresse et messagerie vocale de cet agent." }}
             resume={[
@@ -332,7 +334,7 @@ export const ThemeEtablissement = ({
                         {fiches === null ? (
                             <p className="text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
                         ) : (
-                            <select
+                            <ListeDeroulante
                                 id="etablissement_id"
                                 className="rounded border border-border bg-background px-2 py-1 text-sm"
                                 value={fiche}
@@ -347,7 +349,7 @@ export const ThemeEtablissement = ({
                                         {e.nom}
                                     </option>
                                 ))}
-                            </select>
+                            </ListeDeroulante>
                         )}
                         {fichesIllisibles && (
                             <p className="text-xs text-destructive">

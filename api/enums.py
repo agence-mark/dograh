@@ -241,6 +241,9 @@ class OrganizationConfigurationKey(Enum):
     # l-agent-collegue, L4, H2): the calendar software of the planner. Same free-text key,
     # no migration. Format: api/schemas/traducteurs.py
     TRADUCTEURS = "TRADUCTEURS"
+    # [.mark] The integrations .mark proposes to a client, waiting for him to authorize them
+    # (builder partie 2, U3 sexies point 9, E77). Same free-text key, no migration.
+    PROPOSITIONS_CONNECTEURS = "PROPOSITIONS_CONNECTEURS"
     # [.mark] The caller's verification of an organization (chantier l-agent-collegue, L6, V2):
     # factors, control fields, levels by kind of data, where records are read. Same free-text
     # key, no migration. Format: api/schemas/verification.py
@@ -250,6 +253,14 @@ class OrganizationConfigurationKey(Enum):
     # their ceiling live in the client's database, 019). Same free-text key, no migration.
     # Format: api/services/objets_agent/stockage.py
     OBJETS_AGENT_NOMS = "OBJETS_AGENT_NOMS"
+    # [.mark] builder partie 2, U2: the space of an organization. MARK_ESPACE = {"espace": "labo"} marks THE Labo
+    # (one holder, the only source; MARK_BIBLIOTHEQUE_ORGANISATION_ID is only the fallback); MARK_NOM_AFFICHAGE =
+    # {"nom": "..."} is the name shown (otherwise provider_id). Free-text keys of the same table, no migration.
+    MARK_ESPACE = "MARK_ESPACE"
+    MARK_NOM_AFFICHAGE = "MARK_NOM_AFFICHAGE"
+    # [.mark] builder partie 2, U3 (E30): the labels of the agents, {"etiquettes": [...], "agents": {"<id>": [...]}}.
+    # Free-text key of the same table, no migration. Format: api/services/etiquettes/stockage.py
+    MARK_ETIQUETTES = "MARK_ETIQUETTES"
 
 
 class UserConfigurationKey(Enum):

@@ -23,7 +23,8 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
 3. **l'arbitre** (``decideur_de_fin_de_tour.arbitre_avant_la_requete``, décision d'Evan du 29/10) : sur une étape où il
    est allumé, la requête attend sa décision sur la parole de la personne (au plus le délai de l'étape) ; sûre et ≠
    « rester » : même passage que l'option 2, l'étape d'arrivée répond directement. Au-delà du délai, la requête part
-   sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ;
+   sans lui. Seule attente ajoutée à la réponse par l'arbitre, mesurée (``attente``) ; puis, sous-lot 21, **la porte
+   « sinon »** (``passage_sur_la_fiche.sinon_avant_la_requete``) quand rien n'a passé sur cette parole ;
 4. **l'état de la fiche dans l'instruction système** (``fiche_dans_le_systeme``, D4 du figeage v12, case de l'agent,
    éteinte par défaut) : rangé en dernier dans l'instruction système du service, recalculé à chaque requête, après les
    passages ci-dessus ;
@@ -64,10 +65,13 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     try:
         if passage._derniere_parole_de_la_personne(trame.context):
             passage.oublier_la_porte_prise_avant(moteur)
-        if not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart) and not (
-            await passage.fiche_deja_vraie_avant_la_requete(moteur, llm, trame.context, depart=depart)
+        if (
+            not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart)
+            and not await passage.fiche_deja_vraie_avant_la_requete(moteur, llm, trame.context, depart=depart)
+            and not await decideur.arbitre_avant_la_requete(moteur, llm, trame.context, depart=depart)
         ):
-            await decideur.arbitre_avant_la_requete(moteur, llm, trame.context, depart=depart)
+            # Sous-lot 21 : rien n'a passé sur cette parole, la porte « sinon » de l'étape (s'il y en a une).
+            await passage.sinon_avant_la_requete(moteur, llm, trame.context, depart=depart)
     except asyncio.CancelledError:
         raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
@@ -90,6 +94,20 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[cerveau] case « outil écrit » non posée : {erreur!r}")
     copie = passage.contexte_avec_la_notice(moteur, trame.context)
+    # [.mark] U3 quinquies, couche 3 : lit la parole de la personne en parallèle, pose le rappel du résultat d'avant (jamais attendu).
+    from api.services.securite import ecoute as ecoute_securite
+
+    rappel = ecoute_securite.contexte_avec_le_rappel(moteur, copie if copie is not None else trame.context)
+    if rappel is not None:
+        copie = rappel
+    # [.mark] L3e : le garde-fou urgence (mots et tournures, aucun appel de modèle), sur la parole de la personne.
+    from api.services.securite import urgence as garde_urgence
+
+    notice_urgence = await garde_urgence.surveiller(moteur, trame.context)
+    if notice_urgence:
+        avec_la_notice = garde_urgence.contexte_avec_la_notice(copie if copie is not None else trame.context, notice_urgence)
+        if avec_la_notice is not None:
+            copie = avec_la_notice
     if copie is None:
         return trame
     return LLMContextFrame(context=copie, speculation=trame.speculation)
@@ -126,8 +144,11 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         from api.services.pipecat.texte_du_cerveau import case_outil_ecrit
         from api.services.workflow.fiche_dans_le_systeme import case_allumee
 
+        from api.services.securite.ecoute import ecoute_allumee
+        from api.services.securite.urgence import urgence_allumee
+
         if moteur is None or llm is None or not (
-            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur)
+            agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur) or ecoute_allumee(agent) or urgence_allumee(agent)
         ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"

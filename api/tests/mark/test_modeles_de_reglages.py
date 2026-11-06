@@ -111,7 +111,7 @@ CONFIG_B = {
 
 
 @pytest.fixture
-async def monde(db_session, async_session):
+async def monde(db_session, async_session, monkeypatch):
     """Two organizations, each with a user; A holds an agent with its settings, B two agents."""
     async def _organisation(nom):
         org = OrganizationModel(provider_id=f"org-modeles-{nom}")
@@ -130,8 +130,17 @@ async def monde(db_session, async_session):
         await db_session.publish_workflow_draft(workflow.id)
         return workflow
 
+    # SA-L3c : ces tests éprouvent les modèles, pas la protection de la principale d'un client en ligne (``test_principale_protegee.py``).
+    async def _jamais_protegee(_session, _workflow_id):
+        return False
+
+    monkeypatch.setattr("api.db.protection_principale.est_protegee", _jamais_protegee)
     org_a, user_a = await _organisation("a")
     org_b, user_b = await _organisation("b")
+    # D1 (E45): the templates live in the library, which belongs to the .mark organization (here: A).
+    monkeypatch.setenv("MARK_BIBLIOTHEQUE_ORGANISATION_ID", str(org_a.id))
+    # RA-A (R2): writing a template is a gesture of the .mark team, from the Labo: A is of the team, B is a client.
+    await db_session.add_user_to_organization(user_a.id, org_a.id)
     agent_a = await _agent(user_a, org_a, "Agent A", CONFIG_A)
     agent_b = await _agent(user_b, org_b, "Agent B", CONFIG_B)
     agent_b2 = await _agent(user_b, org_b, "Agent B2", {})
@@ -140,6 +149,17 @@ async def monde(db_session, async_session):
         org_a=org_a, user_a=user_a, org_b=org_b, user_b=user_b,
         agent_a=agent_a, agent_a2=agent_a2, agent_b=agent_b, agent_b2=agent_b2,
     )
+
+
+@pytest.fixture(autouse=True)
+def _sans_le_droit_d_equipe(monkeypatch):
+    """RA-A (R2): the droit d'équipe of the five write routes is proved in ``test_ra_a_r2_modeles_droit_equipe.py``.
+    This file proves the isolation between organizations, with B acting from its own space: the guard is lifted here."""
+
+    async def _libre(user):
+        return None
+
+    monkeypatch.setattr("api.routes.modeles_reglages._exiger_l_equipe", _libre)
 
 
 async def _creer(client, nom, workflow_id):
@@ -366,7 +386,9 @@ async def test_ni_le_modele_ni_le_fichier_ni_la_ligne_ne_portent_une_cle(monde, 
         modele = await _creer(client, "Sans cle", monde.agent_a.id)
         brut_fichier = (await client.get(f"{ROUTE}/{modele['id']}/export")).text
         brut_liste = (await client.get(ROUTE)).text
-    ligne = await db_session.get_configuration(monde.org_a.id, OrganizationConfigurationKey.MODELES_REGLAGES.value)
+    # The row the template is stored in (the library's), as the database holds it.
+    ligne = await db_session.get_configuration(monde.org_a.id, f"MARK_BIBLIO:modeles-reglages:{modele['id']}")
+    assert ligne is not None
     for texte in (brut_fichier, brut_liste, json.dumps(ligne.value)):
         assert CLE_SECRETE_A not in texte
         assert "api_key" not in texte
@@ -480,35 +502,37 @@ async def test_aller_retour_export_import_donne_les_memes_valeurs(monde, test_cl
     async with test_client_factory(monde.user_b) as client_b:
         premier = await client_b.post(f"{ROUTE}/import", json=fichier)
         second = await client_b.post(f"{ROUTE}/import", json=fichier)
-        assert premier.json()["nom"] == "Aller" and second.json()["nom"] == "Aller (2)"
+        # The library is shared: the template already carries the name « Aller », the file takes the next free one.
+        assert premier.json()["nom"] == "Aller (2)" and second.json()["nom"] == "Aller (3)"
         assert premier.json()["origine"] is None, "the origin of a file is another organization's agent"
         retour = (await client_b.get(f"{ROUTE}/{premier.json()['id']}/export")).json()
     assert retour["valeurs"] == fichier["valeurs"]
 
 
 # --------------------------------------------------------------------------- #
-# 6. One organization never sees another's templates (M1)
+# 6. The templates are the library's; the AGENTS stay each organization's (M1, D1)
 # --------------------------------------------------------------------------- #
 
 
-async def test_cloisonnement_entre_organisations(monde, test_client_factory, db_session):
+async def test_les_modeles_sont_ceux_de_la_bibliotheque_les_agents_restent_cloisonnes(monde, test_client_factory, db_session):
     async with test_client_factory(monde.user_a) as client_a:
-        modele = await _creer(client_a, "Prive a A", monde.agent_a.id)
+        modele = await _creer(client_a, "Partage", monde.agent_a.id)
     async with test_client_factory(monde.user_b) as client_b:
-        assert (await client_b.get(ROUTE)).json()["modeles"] == []
-        assert (await client_b.get(f"{ROUTE}/{modele['id']}/export")).status_code == 404
-        assert (await client_b.patch(f"{ROUTE}/{modele['id']}", json={"nom": "Pris"})).status_code == 404
-        assert (await client_b.delete(f"{ROUTE}/{modele['id']}")).status_code == 404
-        corps = {"workflow_id": monde.agent_b.id, "sections": ["tour"]}
-        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=corps)).status_code == 404
-        # B cannot freeze or set A's agent either.
+        # The library is shared: B reads and exports the template...
+        assert [m["nom"] for m in (await client_b.get(ROUTE)).json()["modeles"]] == ["Partage"]
+        assert (await client_b.get(f"{ROUTE}/{modele['id']}/export")).status_code == 200
+        # ... and applies it to ITS OWN agent...
+        ok = {"workflow_id": monde.agent_b.id, "sections": ["tour"], "a_blanc": True}
+        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=ok)).status_code == 200
+        # ... but never freezes, sets or reads the mention of A's agent.
         assert (await client_b.post(ROUTE, json={"nom": "Vol", "workflow_id": monde.agent_a.id})).status_code == 404
+        vol = {"workflow_id": monde.agent_a.id, "sections": ["tour"]}
+        assert (await client_b.post(f"{ROUTE}/{modele['id']}/appliquer", json=vol)).status_code == 404
         assert (await client_b.get(f"{ROUTE}/agent/{monde.agent_a.id}")).status_code == 404
     async with test_client_factory(monde.user_a) as client_a:
         pris = {"workflow_id": monde.agent_b.id, "sections": ["tour"]}
         assert (await client_a.post(f"{ROUTE}/{modele['id']}/appliquer", json=pris)).status_code == 404
-        # A's row is intact.
-        assert [m["nom"] for m in (await client_a.get(ROUTE)).json()["modeles"]] == ["Prive a A"]
+        assert [m["nom"] for m in (await client_a.get(ROUTE)).json()["modeles"]] == ["Partage"]
     assert await db_session.get_draft_version(monde.agent_b.id) is None, "nothing was written on B's agent"
 
 
@@ -581,7 +605,8 @@ def test_un_cerveau_propre_garde_les_cles_qui_suivent_le_cerveau():
     # Every section is made of common settings: all greyed with the brain attached, the ones holding only
     # brain-following settings are not once it is detached.
     assert sections_reglees_par_le_principal({"agent_principal_id": 7}) == SECTIONS_AVEC_REGLAGES
-    assert "tour" not in sections_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
+    # (``relance_apres_outil`` suit le cerveau ; depuis le lot 8 de builder-agent-vocal elle vit dans « Interventions du moteur ».)
+    assert "interventions" not in sections_reglees_par_le_principal({"agent_principal_id": 7, "cerveau_propre": True})
 
 
 async def test_appliquer_a_un_specialise_n_ecrit_aucune_cle_commune(monde, test_client_factory, db_session):
@@ -608,3 +633,39 @@ async def test_appliquer_a_un_specialise_n_ecrit_aucune_cle_commune(monde, test_
     assert resultat["non_appliquees"] and {r["raison"] for r in resultat["non_appliquees"]} == {"reglee-par-le-principal"}
     apres = await _active(db_session, monde.agent_a2.id)
     assert apres == avant, "nothing common was written on the specialised agent"
+
+
+def test_un_ancien_modele_applique_sur_tour_ou_rythme_pose_encore_les_deux_reglages_deplaces():
+    valeurs = {"relance_apres_outil": True, "laisser_la_parole": False}
+    nouveau, resultat = calculer_l_application(valeurs, ["tour", "rythme"], {})
+    assert nouveau["relance_apres_outil"] is True and nouveau["laisser_la_parole"] is False
+    assert {"relance_apres_outil", "laisser_la_parole"} <= set(resultat.posees)
+    # appliqué sur « tour » seul : seul celui de « tour » est posé
+    seul, _ = calculer_l_application(valeurs, ["tour"], {})
+    assert "relance_apres_outil" in seul and "laisser_la_parole" not in seul
+
+
+async def test_la_mention_du_modele_est_gardee_par_branche_et_la_principale_garde_la_sienne(monde, test_client_factory, db_session):
+    """SA-L3d (audit 12 § 2) : le modèle appliqué (et sa version) se décide PAR BRANCHE. Appliquer sur une branche écrit la mention de
+    cette branche ; la principale, elle, ne bouge pas (et inversement)."""
+    from api.db import branche_ouverte
+    from api.services.modeles_reglages import service as modeles
+
+    agent = monde.agent_a2
+    branche, _ = await db_session.creer_une_branche(monde.org_a.id, agent.id, "Essai", depuis_definition_id=None, user_id=monde.user_a.id)
+    try:
+        async with test_client_factory(monde.user_a) as client:
+            modele = await _creer(client, "Par branche", monde.agent_a.id)
+            branche_ouverte.ouvrir(branche.id, monde.user_a.id)
+            applique = await client.post(
+                f"{ROUTE}/{modele['id']}/appliquer", json={"workflow_id": agent.id, "sections": ["tour"]}
+            )
+            assert applique.status_code == 200, applique.text
+            sur_la_branche = (await client.get(f"{ROUTE}/agent/{agent.id}")).json()["mention"]
+            assert sur_la_branche["nom"] == "Par branche"
+            branche_ouverte.ouvrir(None, None)
+            assert (await client.get(f"{ROUTE}/agent/{agent.id}")).json()["mention"] is None  # la principale n'a rien reçu
+        stock = await modeles.lire_le_stock(monde.org_a.id)
+        assert f"{agent.id}:{branche.id}" in stock.applications and str(agent.id) not in stock.applications
+    finally:
+        branche_ouverte.ouvrir(None, None)

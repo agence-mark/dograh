@@ -13,17 +13,20 @@
  * A block the server could not compute says "unavailable"; data the run does not hold says
  * "not captured". Never an empty card (R1).
  */
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Timer } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { getWorkflowRunAnalyseApiV1WorkflowWorkflowIdRunsRunIdAnalyseGet } from "@/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { detailFromError } from "@/lib/apiError";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { useAuth } from "@/lib/auth";
 import { getSignedUrl } from "@/lib/files";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 import { SectionApresAppel } from "./SectionApresAppel";
 import type {
     AnalyseDuRun,
@@ -42,6 +45,8 @@ import type {
     Resume,
     Simulation,
     TourDeLatence,
+    LatenceParPhase,
+    PhaseDeLatence,
 } from "./types";
 
 /** « 2026-10-01 » → « 01/10 ». */
@@ -99,13 +104,6 @@ const BRIQUES: Record<string, Texte> = {
     voice: { en: "Voice", fr: "Voix" },
 };
 
-const CANAUX: Record<string, Texte> = {
-    browser: { en: "browser", fr: "navigateur" },
-    keyboard: { en: "keyboard", fr: "clavier" },
-    phone: { en: "phone", fr: "téléphone" },
-    simulated: { en: "simulated caller", fr: "appelant simulé" },
-};
-
 function EtatDuBloc({ bloc }: { bloc: Bloc }) {
     const { t } = useLangue();
     if (bloc.status === "unavailable") {
@@ -115,6 +113,14 @@ function EtatDuBloc({ bloc }: { bloc: Bloc }) {
                     en: "Unavailable: the server could not compute this block for this run.",
                     fr: "Indisponible : le serveur n'a pas pu calculer ce bloc pour ce run.",
                 })}
+            </p>
+        );
+    }
+    if (bloc.reason === "no_measured_turn") {
+        // N3a : un appel sans tour mesuré (ancien appel, appel écrit) le dit, jamais « 0 ms ».
+        return (
+            <p className="text-sm text-muted-foreground" data-testid="non-mesure">
+                {t({ en: "Not measured for this run.", fr: "Non mesuré pour ce run." })}
             </p>
         );
     }
@@ -143,57 +149,64 @@ function Section({
     const { t } = useLangue();
     const [ouvert, setOuvert] = useState(ouverte);
     return (
-        <Card className="border-border" data-testid={testId}>
+        <section className="border-b border-border last:border-0" data-testid={testId}>
             <Collapsible open={ouvert} onOpenChange={setOuvert}>
-                <CardHeader className="pb-3">
-                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-4 text-left">
-                        <CardTitle className="text-lg">{t(titre)}</CardTitle>
-                        <span className="flex items-center gap-3 text-sm text-muted-foreground">
-                            {bloc.status === "ok" ? resume : null}
-                            <ChevronDown className={cn("h-4 w-4 transition-transform", ouvert && "rotate-180")} />
-                        </span>
-                    </CollapsibleTrigger>
-                </CardHeader>
+                <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 py-3 text-left">
+                    <h3 className="text-base font-semibold">{t(titre)}</h3>
+                    <span className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {bloc.status === "ok" ? resume : null}
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", ouvert && "rotate-180")} />
+                    </span>
+                </CollapsibleTrigger>
                 <CollapsibleContent>
-                    <CardContent>{bloc.status === "ok" ? children : <EtatDuBloc bloc={bloc} />}</CardContent>
+                    <div className="pb-4">{bloc.status === "ok" ? children : <EtatDuBloc bloc={bloc} />}</div>
                 </CollapsibleContent>
             </Collapsible>
-        </Card>
+        </section>
     );
 }
 
+/** Une ligne « libellé · valeur » de la maquette : tableau nu, trait fin entre les lignes, jamais de cadre. */
+export function LigneNue({ libelle, children, testId, etroit }: { libelle: ReactNode; children: ReactNode; testId?: string; etroit?: boolean }) {
+    return (
+        <div className="flex gap-4 py-2.5 text-sm" data-testid={testId}>
+            <span className={cn("shrink-0 text-muted-foreground", etroit ? "w-28" : "w-44")}>{libelle}</span>
+            <span className="min-w-0 flex-1">{children}</span>
+        </div>
+    );
+}
+
+/** Le résumé de l'appel, nu (sans carte) : ce que l'en-tête ne dit pas déjà. Les précisions vont dans un « ! ». */
 function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incidents }) {
     const { t } = useLangue();
     if (resume.status !== "ok") return <EtatDuBloc bloc={resume} />;
     const nombre = resume.incident_count ?? 0;
+    const versionLue = resume.version && resume.version.status !== "not_captured" ? resume.version : null;
     return (
-        <div className="space-y-2 text-sm" data-testid="fenetre-resume">
-            <p>
-                {t({ en: "Channel", fr: "Canal" })} : {t(CANAUX[resume.channel ?? "phone"] ?? CANAUX.phone)} ·{" "}
-                {t({ en: "Duration", fr: "Durée" })} : {secondes(resume.duration_secs)} ·{" "}
-                {t({ en: "Agent version", fr: "Version de l'agent" })} : <code>{resume.definition_id ?? "–"}</code> ·{" "}
-                {t({ en: "Outcome", fr: "Issue" })} : <code>{resume.disposition ?? "–"}</code>
-            </p>
-            <p className="text-muted-foreground" data-testid="fenetre-version">
-                {resume.version && resume.version.status !== "not_captured" ? (
+        <div className="divide-y divide-border" data-testid="fenetre-resume">
+            <LigneNue etroit libelle={t({ en: "Code", fr: "Code" })} testId="fenetre-version">
+                {versionLue ? (
                     <>
-                        {t({ en: "Code", fr: "Code" })} : <code>{resume.version.app_version ?? "–"}</code> ·{" "}
-                        {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
-                        <code>{resume.version.commit ? resume.version.commit.slice(0, 8) : "–"}</code> ·{" "}
-                        {t({ en: "agent version", fr: "version de l'agent" })} :{" "}
-                        <code>{resume.version.version_number ?? "–"}</code> (<code>{resume.version.definition_status ?? "–"}</code>)
+                        <code>{versionLue.app_version ?? "–"}</code> · {t({ en: "deployed commit", fr: "commit déployé" })} :{" "}
+                        <code>{versionLue.commit ? versionLue.commit.slice(0, 8) : "–"}</code> ·{" "}
+                        {t({ en: "agent version", fr: "version de l'agent" })} : <code>{versionLue.version_number ?? "–"}</code> (
+                        <code>{versionLue.definition_status ?? "–"}</code>)
                     </>
                 ) : (
-                    t({
-                        en: "Code version: not captured (run older than this capture).",
-                        fr: "Version du code : non captée (run antérieur à cette capture).",
-                    })
+                    <span className="inline-flex items-center gap-2 text-muted-foreground">
+                        –
+                        <Info>
+                            {t({
+                                en: "Code version not captured: the run is older than this capture.",
+                                fr: "Version du code non captée : l'appel est antérieur à cette capture.",
+                            })}
+                        </Info>
+                    </span>
                 )}
-            </p>
-            <p data-testid="fenetre-cout">
+            </LigneNue>
+            <LigneNue etroit libelle={t({ en: "Estimated cost", fr: "Coût estimé" })} testId="fenetre-cout">
                 {resume.cost?.status === "ok" ? (
                     <>
-                        {t({ en: "Estimated cost", fr: "Coût estimé" })} :{" "}
                         <strong>
                             {resume.cost.total?.toFixed(4)} {resume.cost.currency}
                         </strong>{" "}
@@ -209,21 +222,26 @@ function BlocResume({ resume, incidents }: { resume: Resume; incidents: Incident
                             : ""}
                     </>
                 ) : (
-                    <span className="text-muted-foreground">
-                        {t({
-                            en: "Estimated cost: not captured (no price table in the organization settings, or no consumption recorded).",
-                            fr: "Coût estimé : non capté (pas de table des prix dans les paramètres de l'organisation, ou aucune consommation enregistrée).",
-                        })}
+                    <span className="inline-flex items-center gap-2 text-muted-foreground">
+                        {t({ en: "not captured", fr: "non capté" })}
+                        <Info>
+                            {t({
+                                en: "No price table in the organization settings, or no consumption recorded.",
+                                fr: "Pas de table des prix dans les paramètres de l'organisation, ou aucune consommation enregistrée.",
+                            })}
+                        </Info>
                     </span>
                 )}
-            </p>
+            </LigneNue>
             {nombre > 0 && incidents.status === "ok" && (
-                <p className="font-medium text-destructive" role="alert">
-                    {t({
-                        en: `${nombre} incident(s) on this call: see Incidents.`,
-                        fr: `${nombre} incident(s) sur cet appel : voir Incidents.`,
-                    })}
-                </p>
+                <LigneNue etroit libelle={t({ en: "Incidents", fr: "Incidents" })}>
+                    <span className="font-medium text-destructive" role="alert">
+                        {t({
+                            en: `${nombre} incident(s) on this call: see Incidents.`,
+                            fr: `${nombre} incident(s) sur cet appel : voir Incidents.`,
+                        })}
+                    </span>
+                </LigneNue>
             )}
         </div>
     );
@@ -397,6 +415,70 @@ function BlocChronometre({ chrono }: { chrono: Chronometre }) {
                     </tbody>
                 </table>
             </div>
+        </div>
+    );
+}
+
+const PHASES_DE_LATENCE: { cle: PhaseDeLatence; titre: Texte }[] = [
+    { cle: "transcription", titre: { en: "Transcription", fr: "Transcription" } },
+    { cle: "modele", titre: { en: "Model", fr: "Modèle" } },
+    { cle: "outils", titre: { en: "Tools", fr: "Outils" } },
+    { cle: "voix", titre: { en: "Voice", fr: "Voix" } },
+];
+
+const duree = (ms: number | null | undefined) => (typeof ms === "number" ? `${Math.round(ms)} ms` : "–");
+
+/** N3a : par appel et par étape, la moyenne et le pire cas de chaque phase d'un tour, puis chaque tour. Une phase sans mesure est « – », jamais 0. */
+function BlocLatenceParPhase({ latence }: { latence: LatenceParPhase }) {
+    const { t } = useLangue();
+    const resume = latence.resume;
+    if (!resume) return null;
+    const lignes: { nom: string; bloc: typeof resume }[] = [
+        { nom: t({ en: "Whole call", fr: "Tout l'appel" }), bloc: resume },
+        ...Object.entries(resume.par_etape).map(([nom, bloc]) => ({ nom, bloc: bloc as typeof resume })),
+    ];
+    return (
+        <div className="space-y-4 text-sm" data-testid="latence-par-phase">
+            <p className="text-xs text-muted-foreground">
+                {t({
+                    en: "Per turn, how long each part took: transcription, model, tools, voice. Average and worst turn, for the whole call and for each step.",
+                    fr: "Par tour, le temps de chaque partie : transcription, modèle, outils, voix. Moyenne et pire tour, pour tout l'appel et pour chaque étape.",
+                })}
+            </p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="py-1 pr-3 font-medium">{t({ en: "Step", fr: "Étape" })}</th>
+                            {PHASES_DE_LATENCE.map((p) => (
+                                <th key={p.cle} className="py-1 pr-3 font-medium">
+                                    {t(p.titre)}
+                                </th>
+                            ))}
+                            <th className="py-1 pr-3 font-medium">{t({ en: "Total", fr: "Total" })}</th>
+                            <th className="py-1 font-medium">{t({ en: "Turns", fr: "Tours" })}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {lignes.map(({ nom, bloc }) => (
+                            <tr key={nom} data-testid="latence-etape" className="border-b border-border last:border-0">
+                                <td className="py-1 pr-3">{nom}</td>
+                                {PHASES_DE_LATENCE.map((p) => {
+                                    const x = bloc.phases[p.cle];
+                                    return (
+                                        <td key={p.cle} className="py-1 pr-3 tabular-nums" title={x ? `${t({ en: "worst", fr: "pire" })} ${duree(x.pire_ms)}` : undefined}>
+                                            {x ? `${duree(x.moyenne_ms)} · ${duree(x.pire_ms)}` : "–"}
+                                        </td>
+                                    );
+                                })}
+                                <td className="py-1 pr-3 font-medium tabular-nums">{`${duree(bloc.total.moyenne_ms)} · ${duree(bloc.total.pire_ms)}`}</td>
+                                <td className="py-1 tabular-nums">{bloc.tours}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <p className="text-xs text-muted-foreground">{t({ en: "Each cell: average · worst turn.", fr: "Chaque case : moyenne · pire tour." })}</p>
         </div>
     );
 }
@@ -665,7 +747,22 @@ function BlocParcours({ parcours }: { parcours: Parcours }) {
     );
 }
 
-function BlocConversation({ conversation, recordingKey }: { conversation: Conversation; recordingKey?: string | null }) {
+/** Les lignes d'une conversation, à la forme de la maquette : qui · étape, la latence à droite, le texte dessous. */
+function BlocConversation({
+    conversation,
+    recordingKey,
+    latence,
+    choisi,
+    onChoisir,
+    incidents,
+}: {
+    conversation: Conversation;
+    recordingKey?: string | null;
+    latence?: Latence;
+    choisi?: number | null;
+    onChoisir?: (tour: number | null) => void;
+    incidents?: Incidents;
+}) {
     const { t } = useLangue();
     const audio = useRef<HTMLAudioElement>(null);
     const [adresse, setAdresse] = useState<string | null>(null);
@@ -682,18 +779,14 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
         lecteur.currentTime = Math.max(0, debut);
         await lecteur.play().catch(() => undefined);
     };
+    const lignes = conversation.lines ?? [];
+    const tourDeLatence = (tour: number | null) => (tour == null ? undefined : latence?.turns?.find((x) => x.turn === tour));
+    const faute = (tour: number | null) =>
+        tour != null && (incidents?.items ?? []).some((i) => i.turn === tour && i.fatal);
     return (
-        <div className="space-y-2 text-sm">
-            <p className="text-xs text-muted-foreground">
-                {recordingKey
-                    ? t({
-                          en: "Click a line to play the recording from there (approximate: the clock starts at the first event of the run).",
-                          fr: "Cliquez une ligne pour écouter l'enregistrement à partir de là (approximatif : l'horloge part du premier événement du run).",
-                      })
-                    : t({ en: "No recording for this run.", fr: "Aucun enregistrement pour ce run." })}
-            </p>
+        <div className="text-sm">
             {(conversation.marks ?? []).length > 0 && (
-                <ul className="space-y-1" data-testid="marques-de-conversation">
+                <ul className="space-y-1 pb-3" data-testid="marques-de-conversation">
                     {(conversation.marks ?? []).map((m, i) => (
                         <li key={i} className="text-muted-foreground">
                             {m.at_secs == null ? "–" : `${m.at_secs.toFixed(1)} s`} · {t({ en: "Turn", fr: "Tour" })}{" "}
@@ -702,29 +795,223 @@ function BlocConversation({ conversation, recordingKey }: { conversation: Conver
                     ))}
                 </ul>
             )}
-            <audio ref={audio} controls={Boolean(adresse)} className={cn("w-full", !adresse && "hidden")} />
-            <ul className="space-y-1">
-                {(conversation.lines ?? []).map((ligne, i) => (
-                    <li key={i}>
-                        <button
-                            type="button"
-                            data-testid="ligne-de-conversation"
-                            className="grid w-full grid-cols-[4rem_5rem_1fr] gap-2 rounded px-1 text-left hover:bg-muted"
-                            onClick={() => ecouter(ligne.start_secs)}
-                        >
-                            <span className="text-muted-foreground">
-                                {ligne.start_secs == null ? "–" : `${ligne.start_secs.toFixed(1)} s`}
-                            </span>
-                            <span className="font-medium">
-                                {ligne.speaker === "caller"
-                                    ? t({ en: "Caller", fr: "Appelant" })
-                                    : t({ en: "Agent", fr: "Agent" })}
-                            </span>
-                            <span>{ligne.text}</span>
-                        </button>
-                    </li>
-                ))}
+            <audio ref={audio} controls={Boolean(adresse)} className={cn("mb-3 w-full", !adresse && "hidden")} />
+            <ul className="divide-y divide-border">
+                {lignes.map((ligne, i) => {
+                    const tour = tourDeLatence(ligne.turn);
+                    const lente = Boolean(tour?.slow);
+                    const choisie = choisi != null && ligne.turn === choisi;
+                    return (
+                        <li key={i}>
+                            <button
+                                type="button"
+                                data-testid="ligne-de-conversation"
+                                aria-pressed={choisie}
+                                title={
+                                    recordingKey
+                                        ? t({
+                                              en: "Select the turn, play the recording from here",
+                                              fr: "Choisir ce tour, écouter l'enregistrement à partir d'ici",
+                                          })
+                                        : undefined
+                                }
+                                className={cn(
+                                    "w-full cursor-pointer px-3 py-3 text-left hover:bg-muted/40",
+                                    choisie && "bg-(--acc-soft) hover:bg-(--acc-soft)",
+                                    faute(ligne.turn) && "border-l-2 border-destructive",
+                                )}
+                                onClick={() => {
+                                    onChoisir?.(ligne.turn);
+                                    void ecouter(ligne.start_secs);
+                                }}
+                            >
+                                <span className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span
+                                        className={cn(
+                                            "font-medium",
+                                            ligne.speaker === "agent" ? "text-(--acc-text)" : "text-foreground",
+                                        )}
+                                    >
+                                        {ligne.speaker === "caller"
+                                            ? t({ en: "Caller", fr: "Appelant" })
+                                            : t({ en: "Agent", fr: "Agent" })}
+                                    </span>
+                                    {tour?.step && <span>· {tour.step}</span>}
+                                    {ligne.start_secs != null && (
+                                        <span className="tabular-nums">· {ligne.start_secs.toFixed(1)} s</span>
+                                    )}
+                                    {ligne.speaker === "agent" && tour?.measured && tour.silence_secs != null && (
+                                        <span
+                                            className={cn(
+                                                "ml-auto flex items-center gap-1 tabular-nums",
+                                                lente && "text-(--marque-danger-texte)",
+                                            )}
+                                        >
+                                            <Timer className="size-3" /> {tour.silence_secs.toFixed(2)} s
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="block text-sm text-foreground">{ligne.text}</span>
+                            </button>
+                        </li>
+                    );
+                })}
             </ul>
+        </div>
+    );
+}
+
+const ETAPES_DU_TOUR: { cle: keyof EtapesDuTour; titre: Texte }[] = [
+    { cle: "turn_closed", titre: { en: "End-of-turn wait", fr: "Attente de fin de tour" } },
+    { cle: "request_sent", titre: { en: "Request sent", fr: "Requête partie" } },
+    { cle: "first_model_word", titre: { en: "First model word", fr: "Premier mot du modèle" } },
+    { cle: "first_sentence", titre: { en: "First sentence", fr: "Première phrase" } },
+    { cle: "sent_to_voice", titre: { en: "Sent to the voice", fr: "Envoi à la voix" } },
+    { cle: "first_sound", titre: { en: "First sound", fr: "Premier son" } },
+];
+
+/** La durée de chaque étape d'un tour : l'écart entre deux jalons du chronomètre (les jalons sont comptés depuis le dernier mot de l'appelant). */
+export function etapesDuTour(jalons: EtapesDuTour): { cle: keyof EtapesDuTour; secs: number | null }[] {
+    let precedent = 0;
+    return ETAPES_DU_TOUR.map(({ cle }) => {
+        const valeur = jalons[cle];
+        if (typeof valeur !== "number") return { cle, secs: null };
+        const secs = Math.max(0, valeur - precedent);
+        precedent = valeur;
+        return { cle, secs };
+    });
+}
+
+/** Un bloc de la colonne de droite : cadre léger de la maquette, titre, lignes. */
+function BlocDeColonne({ titre, children, testId }: { titre: ReactNode; children: ReactNode; testId: string }) {
+    return (
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm" data-testid={testId}>
+            <p className="font-medium">{titre}</p>
+            {children}
+        </div>
+    );
+}
+
+type TourDeChrono = NonNullable<Chronometre["turns"]>[number];
+
+function BlocDuTour({ chrono }: { chrono: TourDeChrono }) {
+    const { t } = useLangue();
+    const etapes = etapesDuTour(chrono.stages);
+    const plafond = Math.max(0.5, ...etapes.map((e) => e.secs ?? 0));
+    return (
+        <BlocDeColonne titre={t({ en: "This turn, step by step", fr: "Ce tour, étape par étape" })} testId="colonne-tour">
+            {chrono.measured ? (
+                etapes.map((e) => (
+                    <div key={e.cle} className="flex items-center gap-2">
+                        <span className="flex-1 text-muted-foreground">
+                            {t(ETAPES_DU_TOUR.find((x) => x.cle === e.cle)!.titre)}
+                        </span>
+                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                            <div
+                                className="h-full bg-(--acc)"
+                                style={{ width: `${Math.min(100, ((e.secs ?? 0) / plafond) * 100)}%` }}
+                            />
+                        </div>
+                        <span className="w-14 text-right tabular-nums">{e.secs == null ? "–" : secondes(e.secs)}</span>
+                    </div>
+                ))
+            ) : (
+                <p className="text-muted-foreground">
+                    {t({ en: "not measured", fr: "non mesuré" })} :{" "}
+                    {t(RAISONS[chrono.not_measured_reason ?? ""] ?? { en: "unknown", fr: "inconnu" })}
+                </p>
+            )}
+        </BlocDeColonne>
+    );
+}
+
+function BlocFicheDeColonne({ fiche }: { fiche: Fiche }) {
+    const { t } = useLangue();
+    const champs = (fiche.fields ?? []).filter((c) => !c.empty);
+    if (fiche.status !== "ok" || champs.length === 0) return null;
+    return (
+        <BlocDeColonne titre={t({ en: "Call record", fr: "Fiche de l'appel" })} testId="colonne-fiche">
+            {champs.map((c) => (
+                <div key={c.name} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 truncate text-muted-foreground" title={c.name}>
+                        {c.name}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words">{texteDeValeur(c.value)}</span>
+                    <span className="text-xs text-(--marque-succes-texte)">
+                        {c.sure === false ? t({ en: "To confirm", fr: "À confirmer" }) : (c.source ?? "")}
+                    </span>
+                </div>
+            ))}
+        </BlocDeColonne>
+    );
+}
+
+/**
+ * [.mark] V1b : l'onglet Transcription de la page d'une conversation, à la forme de la maquette : la transcription à
+ * gauche, à droite « Ce tour, étape par étape » (le tour choisi dans la transcription), la fiche de l'appel et
+ * l'après-appel.
+ */
+export function VueTranscription({
+    workflowId,
+    runId,
+    recordingKey,
+    lue,
+    avant,
+}: {
+    workflowId: number;
+    runId: number;
+    recordingKey?: string | null;
+    lue: { analyse: AnalyseDuRun | null; erreur: string | null };
+    /** Ce que la page met au-dessus de la transcription (créer un test, téléchargements). */
+    avant?: ReactNode;
+}) {
+    const { t } = useLangue();
+    const { analyse, erreur } = lue;
+    const [choisi, setChoisi] = useState<number | null | undefined>(undefined);
+    if (erreur)
+        return (
+            <p className="text-sm text-destructive" role="alert" data-testid="fenetre-du-run">
+                {t({ en: "Run analysis unavailable", fr: "Analyse du run indisponible" })} : {erreur}
+            </p>
+        );
+    if (!analyse)
+        return (
+            <p className="text-sm text-muted-foreground" data-testid="fenetre-du-run-chargement">
+                {t({ en: "Loading the run analysis…", fr: "Chargement de l'analyse du run…" })}
+            </p>
+        );
+    // Par défaut : le tour le plus lent (là où l'on regarde en premier), sinon le premier tour mesuré.
+    const tours = analyse.latency.turns ?? [];
+    const parDefaut = tours.find((x) => x.slow)?.turn ?? tours.find((x) => x.measured)?.turn ?? null;
+    const tourChoisi = choisi === undefined ? parDefaut : choisi;
+    const chrono = tourChoisi == null ? undefined : analyse.chrono?.turns?.find((x) => x.turn === tourChoisi);
+    return (
+        <div className="grid gap-10 lg:grid-cols-[1fr_360px]" data-testid="vue-transcription">
+            <div className="min-w-0 space-y-4">
+                {avant}
+                <p className="text-base font-semibold">{t({ en: "Transcript", fr: "Transcription" })}</p>
+                {analyse.conversation.status === "ok" ? (
+                    <BlocConversation
+                        conversation={analyse.conversation}
+                        recordingKey={recordingKey}
+                        latence={analyse.latency}
+                        choisi={tourChoisi}
+                        onChoisir={setChoisi}
+                        incidents={analyse.incidents}
+                    />
+                ) : (
+                    <EtatDuBloc bloc={analyse.conversation} />
+                )}
+            </div>
+            <div className="space-y-4" data-testid="colonne-de-droite">
+                <section data-testid="bloc-summary">
+                    <p className="pb-1 font-medium">{t({ en: "Summary", fr: "Résumé" })}</p>
+                    <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
+                </section>
+                {chrono && <BlocDuTour chrono={chrono} />}
+                <BlocFicheDeColonne fiche={analyse.record} />
+                <SectionApresAppel workflowId={workflowId} runId={runId} />
+            </div>
         </div>
     );
 }
@@ -830,20 +1117,32 @@ function BlocSimulation({ simulation }: { simulation: Simulation }) {
     );
 }
 
-export function FenetreDuRun({
-    workflowId,
-    runId,
-    recordingKey,
-}: {
-    workflowId: number;
-    runId: number;
-    recordingKey?: string | null;
-}) {
-    const { t } = useLangue();
+/** Les blocs de la fenêtre du run, nommés pour que la page d'une conversation les range dans ses onglets (U3). */
+export type BlocDuRun =
+    | "simulation"
+    | "resume"
+    | "apres-appel"
+    | "latence"
+    | "latence-par-phase"
+    | "chrono"
+    | "reseau"
+    | "fournisseurs"
+    | "modules"
+    | "fiche"
+    | "parcours"
+    | "conversation"
+    | "incidents";
+
+/** L'analyse du run (`GET /workflow/{id}/runs/{run}/analyse`), lue une fois : plusieurs onglets la partagent. */
+export function useAnalyseDuRun(workflowId: number, runId: number, actif = true) {
     const [analyse, setAnalyse] = useState<AnalyseDuRun | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
+    // K2b : la lecture attend que l'authentification soit prête (sinon la requête part sans jeton : « Authorization header required »).
+    const { loading: authEnCours, user } = useAuth();
+    const pret = !authEnCours && !!user;
 
     useEffect(() => {
+        if (!actif || !pret) return;
         let annule = false;
         (async () => {
             try {
@@ -852,18 +1151,41 @@ export function FenetreDuRun({
                 });
                 if (annule) return;
                 if (reponse.error) {
-                    setErreur(detailFromError(reponse.error, "Analysis failed"));
+                    setErreur(echecAffiche(reponse.error, ECHECS.appelAnalyse));
                     return;
                 }
                 setAnalyse(reponse.data as unknown as AnalyseDuRun);
             } catch (e) {
-                if (!annule) setErreur(detailFromError(e, "Analysis failed"));
+                if (!annule) setErreur(echecAffiche(e, ECHECS.appelAnalyse));
             }
         })();
         return () => {
             annule = true;
         };
-    }, [workflowId, runId]);
+    }, [workflowId, runId, actif, pret]);
+
+    return { analyse, erreur };
+}
+
+export function FenetreDuRun({
+    workflowId,
+    runId,
+    recordingKey,
+    blocs,
+    lue,
+}: {
+    workflowId: number;
+    runId: number;
+    recordingKey?: string | null;
+    /** Seulement ces blocs (U3 : un onglet de la conversation). Absent = tous, comme avant. */
+    blocs?: BlocDuRun[];
+    /** L'analyse déjà lue par la page (évite une seconde lecture quand plusieurs onglets montrent des blocs). */
+    lue?: { analyse: AnalyseDuRun | null; erreur: string | null };
+}) {
+    const { t } = useLangue();
+    const propre = useAnalyseDuRun(workflowId, runId, !lue);
+    const { analyse, erreur } = lue ?? propre;
+    const voir = (bloc: BlocDuRun) => !blocs || blocs.includes(bloc);
 
     if (erreur)
         return (
@@ -883,7 +1205,7 @@ export function FenetreDuRun({
     const stats = analyse.latency.stats;
     return (
         <div className="space-y-4" data-testid="fenetre-du-run">
-            {analyse.simulation ? (
+            {voir("simulation") && analyse.simulation ? (
                 <Section
                     titre={{ en: "Simulation", fr: "Simulation" }}
                     bloc={{ status: "ok" }}
@@ -900,73 +1222,107 @@ export function FenetreDuRun({
                     <BlocSimulation simulation={analyse.simulation} />
                 </Section>
             ) : null}
-            <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
-                <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
-            </Section>
+            {voir("resume") && (
+                <Section titre={{ en: "Summary", fr: "Résumé" }} bloc={analyse.summary} ouverte testId="bloc-summary">
+                    <BlocResume resume={analyse.summary} incidents={analyse.incidents} />
+                </Section>
+            )}
             {/* [.mark] l-agent-travaille, L4 (A9): shown only when the agent uses the after-call. */}
-            <SectionApresAppel workflowId={workflowId} runId={runId} />
-            <Section
-                titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
-                bloc={analyse.latency}
-                ouverte
-                testId="bloc-latency"
-                resume={
-                    stats
-                        ? t({
-                              en: `median ${secondes(stats.median_silence_secs)}`,
-                              fr: `médiane ${secondes(stats.median_silence_secs)}`,
-                          })
-                        : null
-                }
-            >
-                <BlocLatence latence={analyse.latency} />
-            </Section>
-            <Section
-                titre={{ en: "Turn stopwatch", fr: "Chronomètre par tour" }}
-                bloc={analyse.chrono ?? { status: "not_captured" }}
-                testId="bloc-chrono"
-                resume={t({
-                    en: `M2 median ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
-                    fr: `M2 médiane ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
-                })}
-            >
-                {analyse.chrono && <BlocChronometre chrono={analyse.chrono} />}
-            </Section>
-            <Section
-                titre={{ en: "Connections and network", fr: "Connexions et réseau" }}
-                bloc={analyse.network ?? { status: "not_captured" }}
-                testId="bloc-network"
-            >
-                {analyse.network && <BlocReseau reseau={analyse.network} />}
-            </Section>
-            <Section titre={{ en: "Providers", fr: "Fournisseurs" }} bloc={analyse.providers} testId="bloc-providers">
-                <BlocFournisseurs fournisseurs={analyse.providers} />
-            </Section>
-            <Section
-                titre={{ en: "Reading modules", fr: "Modules de lecture" }}
-                bloc={analyse.reading_modules}
-                testId="bloc-reading-modules"
-                resume={`${analyse.reading_modules.items?.length ?? 0}`}
-            >
-                <BlocModules modules={analyse.reading_modules} />
-            </Section>
-            <Section titre={{ en: "Record", fr: "Fiche" }} bloc={analyse.record} testId="bloc-record">
-                <BlocFiche fiche={analyse.record} />
-            </Section>
-            <Section titre={{ en: "Path", fr: "Parcours" }} bloc={analyse.path} testId="bloc-path">
-                <BlocParcours parcours={analyse.path} />
-            </Section>
-            <Section titre={{ en: "Conversation", fr: "Conversation" }} bloc={analyse.conversation} testId="bloc-conversation">
-                <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} />
-            </Section>
-            <Section
-                titre={{ en: "Incidents", fr: "Incidents" }}
-                bloc={analyse.incidents}
-                testId="bloc-incidents"
-                resume={`${analyse.incidents.items?.length ?? 0}`}
-            >
-                <BlocIncidents incidents={analyse.incidents} />
-            </Section>
+            {voir("apres-appel") && <SectionApresAppel workflowId={workflowId} runId={runId} />}
+            {voir("latence") && (
+                <Section
+                    titre={{ en: "Latency, turn by turn", fr: "Latence, tour par tour" }}
+                    bloc={analyse.latency}
+                    ouverte
+                    testId="bloc-latency"
+                    resume={
+                        stats
+                            ? t({
+                                  en: `median ${secondes(stats.median_silence_secs)}`,
+                                  fr: `médiane ${secondes(stats.median_silence_secs)}`,
+                              })
+                            : null
+                    }
+                >
+                    <BlocLatence latence={analyse.latency} />
+                </Section>
+            )}
+            {voir("latence-par-phase") && (
+                <Section
+                    titre={{ en: "Latency by phase", fr: "Latence par phase" }}
+                    bloc={analyse.latence_par_phase ?? { status: "not_captured" }}
+                    testId="bloc-latence-par-phase"
+                    resume={
+                        analyse.latence_par_phase?.resume
+                            ? `${t({ en: "average", fr: "moyenne" })} ${duree(analyse.latence_par_phase.resume.total.moyenne_ms)}`
+                            : null
+                    }
+                >
+                    {analyse.latence_par_phase && <BlocLatenceParPhase latence={analyse.latence_par_phase} />}
+                </Section>
+            )}
+            {voir("chrono") && (
+                <Section
+                    titre={{ en: "Turn stopwatch", fr: "Chronomètre par tour" }}
+                    bloc={analyse.chrono ?? { status: "not_captured" }}
+                    testId="bloc-chrono"
+                    resume={t({
+                        en: `M2 median ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                        fr: `M2 médiane ${secondes(analyse.chrono?.controls?.m2_median_secs)}`,
+                    })}
+                >
+                    {analyse.chrono && <BlocChronometre chrono={analyse.chrono} />}
+                </Section>
+            )}
+            {voir("reseau") && (
+                <Section
+                    titre={{ en: "Connections and network", fr: "Connexions et réseau" }}
+                    bloc={analyse.network ?? { status: "not_captured" }}
+                    testId="bloc-network"
+                >
+                    {analyse.network && <BlocReseau reseau={analyse.network} />}
+                </Section>
+            )}
+            {voir("fournisseurs") && (
+                <Section titre={{ en: "Providers", fr: "Fournisseurs" }} bloc={analyse.providers} testId="bloc-providers">
+                    <BlocFournisseurs fournisseurs={analyse.providers} />
+                </Section>
+            )}
+            {voir("modules") && (
+                <Section
+                    titre={{ en: "Reading modules", fr: "Modules de lecture" }}
+                    bloc={analyse.reading_modules}
+                    testId="bloc-reading-modules"
+                    resume={`${analyse.reading_modules.items?.length ?? 0}`}
+                >
+                    <BlocModules modules={analyse.reading_modules} />
+                </Section>
+            )}
+            {voir("fiche") && (
+                <Section titre={{ en: "Record", fr: "Fiche" }} bloc={analyse.record} testId="bloc-record">
+                    <BlocFiche fiche={analyse.record} />
+                </Section>
+            )}
+            {voir("parcours") && (
+                <Section titre={{ en: "Path", fr: "Parcours" }} bloc={analyse.path} testId="bloc-path">
+                    <BlocParcours parcours={analyse.path} />
+                </Section>
+            )}
+            {voir("conversation") && (
+                <Section titre={{ en: "Conversation", fr: "Conversation" }} bloc={analyse.conversation} testId="bloc-conversation">
+                    <BlocConversation conversation={analyse.conversation} recordingKey={recordingKey} latence={analyse.latency} incidents={analyse.incidents} />
+                </Section>
+            )}
+            {voir("incidents") && (
+                <Section
+                    titre={{ en: "Incidents", fr: "Incidents" }}
+                    bloc={analyse.incidents}
+                    testId="bloc-incidents"
+                    resume={`${analyse.incidents.items?.length ?? 0}`}
+                >
+                    <BlocIncidents incidents={analyse.incidents} />
+                </Section>
+            )}
         </div>
     );
 }

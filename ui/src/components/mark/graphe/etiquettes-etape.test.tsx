@@ -17,6 +17,9 @@ import { NodeEditForm } from "@/components/flow/renderer/NodeEditForm";
 import { ecrireEtiquettes, lireEtiquettes } from "./EtiquettesEtape";
 import specs from "./specs-premiere-replique.json";
 
+// Le catalogue des variables (`useCatalogueVariables`) lit l'utilisateur connecté : le test le fournit, sans toucher au code.
+vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false, getAccessToken: async () => "t" }) }));
+
 const CHAMPS = ["immatriculation", "kilometrage", "commune_garage"];
 const CONTEXTE = { tools: [], documents: [], recordings: [], champsFiche: CHAMPS };
 const spec = (specs as Record<string, unknown>).agentNode as NodeSpec;

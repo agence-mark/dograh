@@ -3,11 +3,13 @@ import { useEffect, useId, useState } from "react";
 import { listRecordingsApiV1WorkflowRecordingsGet } from "@/client/sdk.gen";
 import type { RecordingResponseSchema } from "@/client/types.gen";
 import { RecordingSelect } from "@/components/flow/TextOrAudioInput";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 import type { AnswerMessage, AnswerSupervisorSettings } from "@/types/workflow-configurations";
 
@@ -40,7 +42,7 @@ function MessageField({ label, value = {}, onChange, recordings }: {
     return <fieldset className="space-y-2 rounded-md border p-3">
         <legend className="px-1 text-sm font-medium">{label}</legend>
         <Label htmlFor={`${id}-format`}>Message format</Label>
-        <select id={`${id}-format`} className={selectClass} value={audio ? "audio" : "text"}
+        <ListeDeroulante id={`${id}-format`} className={selectClass} value={audio ? "audio" : "text"}
             onChange={e => {
                 setAudio(e.target.value === "audio");
                 if (e.target.value === "text") onChange({ text: value.text || "" });
@@ -48,7 +50,7 @@ function MessageField({ label, value = {}, onChange, recordings }: {
             }}>
             <option value="text">Text</option>
             <option value="audio">Recording</option>
-        </select>
+        </ListeDeroulante>
         {audio ? <RecordingSelect value={selected ? String(selected) : ""} recordings={recordings}
             onChange={pk => onChange({ recording_pk: pk ? Number(pk) : undefined })} />
             : <>
@@ -76,7 +78,7 @@ export function AnswerSupervisorFields({ value, onChange }: {
         listRecordingsApiV1WorkflowRecordingsGet({ query: {} }).then(response => {
             if (cancelled) return;
             if (response.error || !response.data) {
-                setError(detailFromError(response.error, "Could not load recordings."));
+                setError(echecAffiche(response.error, ECHECS.enregistrementsListe));
                 return;
             }
             setRecordings(response.data.recordings);

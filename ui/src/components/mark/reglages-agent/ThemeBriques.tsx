@@ -10,10 +10,10 @@
  * dialog (D4) -- or, switch off, our per-service override. This theme keeps
  * the buttons of what it contains (convention E6): each already saves at once.
  */
-import { Cpu, Loader2 } from "lucide-react";
+import { Blocks, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import type {
     ModelConfigurationPricingResponse,
@@ -37,6 +37,7 @@ import { useLangue } from "../langue/langue";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { GardeDuModele } from "./GardeDuModele";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
+import { TailleDuCerveau } from "./TailleDuCerveau";
 import { TravailEnArrierePlan } from "./TravailEnArrierePlan";
 
 export const ID_THEME_BRIQUES = "briques";
@@ -97,13 +98,7 @@ export const ThemeBriques = ({
         setChangementDeCerveau(true);
         try {
             await onSave({ ...resolue, cerveau_propre: coche }, workflowName);
-            toast.success(
-                `${
-                    coche
-                        ? t({ en: "Own brain: this agent sets its own.", fr: "Cerveau propre : cet agent règle le sien." })
-                        : t({ en: "Brain set on the main agent again.", fr: "Cerveau réglé sur l'agent principal de nouveau." })
-                } ${rappel}`,
-            );
+            notifier.succes(coche ? { fr: "Cerveau propre : cet agent règle le sien.", en: "Own brain: this agent sets its own." } : { fr: "Cerveau hérité de l'organisation.", en: "Brain inherited from the organization." }, { publier: true });
         } finally {
             setChangementDeCerveau(false);
         }
@@ -122,7 +117,7 @@ export const ThemeBriques = ({
         const nextConfigurations = withoutModelConfigurationOverrides(resolue);
         nextConfigurations.model_configuration_v2_override = configuration;
         await onSave(nextConfigurations, workflowName);
-        toast.success(`${t({ en: "Model override saved.", fr: "Configuration propre à l'agent enregistrée." })} ${rappel}`);
+        notifier.succes({ fr: "Cerveau de l'agent enregistré.", en: "Agent brain saved." }, { publier: true });
     };
 
     const removeV2Override = async () => {
@@ -130,7 +125,7 @@ export const ThemeBriques = ({
         try {
             await onSave(withoutModelConfigurationOverrides(resolue), workflowName);
             setOverrideEnabled(false);
-            toast.success(`${t({ en: "Organization model configuration saved.", fr: "Configuration de l'organisation enregistrée." })} ${rappel}`);
+            notifier.succes({ fr: "Cerveau de l'organisation enregistré.", en: "Organization brain saved." }, { publier: true });
         } finally {
             setIsRemovingOverride(false);
         }
@@ -139,7 +134,7 @@ export const ThemeBriques = ({
     return (
         <Theme
             id={ID_THEME_BRIQUES}
-            icone={Cpu}
+            icone={Blocks}
             titre={TITRE_BRIQUES}
             description={{ en: "The brain, transcription and voice of this agent.", fr: "Le cerveau, la transcription et la voix de cet agent." }}
             resume={[
@@ -195,6 +190,10 @@ export const ThemeBriques = ({
             {/* [.mark] fiabilite-orchestration, lot 4 (F20, F26): the guard and the fallback brain, under the brain. */}
             <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
                 <GardeDuModele resolue={resolue} workflowName={workflowName} onSave={onSave} />
+            </ZoneCommune>
+            {/* [.mark] Lot « façon Tala par motif » (T3): the thresholds that follow the brain, empty = none. */}
+            <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>
+                <TailleDuCerveau resolue={resolue} workflowName={workflowName} onSave={onSave} />
             </ZoneCommune>
             {/* [.mark] Lot 4 d'orchestrateur-trois-cerveaux (D13): the background brain, next to « Own brain ». */}
             <ZoneCommune lecture={specialise && !cerveauPropre} bandeau={false}>

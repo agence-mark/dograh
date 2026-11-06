@@ -27,3 +27,23 @@ def _aucune_tache_de_fond_ne_survit():
         for tache in list(registre):
             if not tache.done():
                 tache.cancel()
+
+    # [.mark] builder partie 2, U5: the chat's background work (a dict of tasks, not a set).
+    from api.services.builder import fil as builder_fil
+
+    for tache in list(builder_fil._TACHES.values()):
+        if not tache.done():
+            tache.cancel()
+
+
+@pytest.fixture(autouse=True)
+def _sources_des_cerveaux_sur_cle_api_par_defaut(monkeypatch):
+    """U12 : en production tout est sur Claude Code au départ ; les tests des autres lots jouent leurs cerveaux sur clé (un faux cerveau,
+    aucun appel). Les tests de la source par défaut (``test_sources_u12``) remettent la vraie valeur."""
+    from api.services import sources_cerveaux
+
+    monkeypatch.setattr(sources_cerveaux, "DEFAUT", "cle_api")
+
+
+# [.mark] builder-agent-vocal : la fixture ``monde`` (base en mémoire) est offerte à tous les tests du builder.
+from api.tests.mark.builder_commun import monde  # noqa: E402, F401

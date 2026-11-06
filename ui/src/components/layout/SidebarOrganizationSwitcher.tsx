@@ -9,7 +9,7 @@
 // it are in api/services/organization_membership.py.
 import { Building2, Check, Loader2, Plus } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import SpinLoader from "@/components/SpinLoader";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,7 @@ function SidebarOrganizationSwitcherContent({
       reloadApp();
     } catch (error) {
       logger.error("Failed to switch organization", error);
-      toast.error("Could not switch organization. Please try again.");
+      notifier.echec({ fr: "Changement impossible. Réessayez.", en: "Could not switch organization. Try again." }, { erreur: error });
       setIsSwitching(false);
     }
   };
@@ -198,16 +198,14 @@ function CreateOrganizationDialog({
       reloadApp();
     } catch (error) {
       logger.error("Failed to create organization", error);
-      toast.error(
-        error instanceof Error ? error.message : "Could not create the organization",
-      );
+      notifier.echec({ fr: "Organisation non créée. Réessayez.", en: "Organization not created. Try again." }, { erreur: error });
       setIsSaving(false);
       await onCreated();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog centree open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New organization</DialogTitle>

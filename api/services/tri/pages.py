@@ -24,14 +24,29 @@ def _en_tete(ligne: dict) -> dict:
     }
 
 
-def lignes_de_tri(runs: list[dict], statut: str | None = None) -> list[dict]:
-    """Une ligne par signalement (agent ou code), avec son statut de tri. ``statut`` : ne garde que celui-là."""
+def lignes_de_tri(runs: list[dict], statut: str | None = None, origine: str | None = None) -> list[dict]:
+    """Une ligne par signalement (agent ou code), avec son statut de tri. ``statut`` : ne garde que celui-là.
+    [.mark] builder lot 6 : l'assigné, l'origine posée et l'origine suggérée ; ``origine`` filtre sur l'origine EFFECTIVE
+    (posée, sinon suggérée) : le tri par origine."""
+    from api.services.builder.tests_agent.boucle import origine_suggeree
+
     sortie = []
     for run in runs:
         for s in donnees.lire_les_signalements(run["extrait"]):
             etat = donnees.statut_d_un_signalement(run["annotations"], s["id"])
-            if statut is None or etat == statut:
-                sortie.append({**_en_tete(run), **s, "statut": etat})
+            posee = donnees.origine_d_un_signalement(run["annotations"], s["id"])
+            suggeree = origine_suggeree(s)
+            if (statut is None or etat == statut) and (origine is None or (posee or suggeree) == origine):
+                sortie.append(
+                    {
+                        **_en_tete(run),
+                        **s,
+                        "statut": etat,
+                        "assigne": donnees.assigne_d_un_signalement(run["annotations"], s["id"]),
+                        "origine": posee,
+                        "origine_suggeree": suggeree,
+                    }
+                )
     return sortie
 
 

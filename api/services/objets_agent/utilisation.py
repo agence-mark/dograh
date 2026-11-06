@@ -50,7 +50,7 @@ async def _agents_publies(organization_id: int) -> list[tuple[int, str, str]]:
     from api.services.groupe.agents_servis import _statut, _version_publiee
 
     sortie = []
-    for workflow in await db_client.list_workflows_for_model_configuration_migration(organization_id):
+    for workflow in await db_client.list_workflows_with_published_versions(organization_id):
         if _statut(workflow.status) != "active":
             continue
         publiee = _version_publiee(workflow)

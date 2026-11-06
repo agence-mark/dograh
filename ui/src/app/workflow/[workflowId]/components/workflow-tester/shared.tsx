@@ -3,6 +3,7 @@
 import { AlertCircle, MessageSquareText } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,19 +29,16 @@ export function EmptyState({
 }: {
     icon: ReactNode;
     title: string;
-    description: string;
+    description?: string;
     action?: ReactNode;
 }) {
+    // [.mark] K2 : l'état au repos de la maquette (`panneau-essai.tsx`) : l'icône, une ligne, le bouton, au centre.
     return (
-        <div className="flex flex-1 flex-col justify-center rounded-xl border border-border/70 bg-background px-5 py-6 text-left">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                {icon}
-            </div>
-            <div className="mt-4 space-y-1.5">
-                <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-                <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-            </div>
-            {action ? <div className="mt-5">{action}</div> : null}
+        <div className="space-y-3 py-10 text-center">
+            <div className="mx-auto flex size-8 items-center justify-center text-muted-foreground [&>*]:size-8">{icon}</div>
+            <p className="text-sm">{title}</p>
+            {description ? <p className="text-sm leading-6 text-muted-foreground">{description}</p> : null}
+            {action ? <div>{action}</div> : null}
         </div>
     );
 }
@@ -52,13 +50,14 @@ export function ChatModeToggle({
     value: "manual" | "simulated";
     onChange: (next: "manual" | "simulated") => void;
 }) {
+    const { t } = useLangue();
     const options: Array<{ id: "manual" | "simulated"; label: string }> = [
-        { id: "manual", label: "Manual" },
-        { id: "simulated", label: "Simulated" },
+        { id: "manual", label: t({ en: "Manual", fr: "Manuel" }) },
+        { id: "simulated", label: t({ en: "Simulated", fr: "Simulé" }) },
     ];
 
     return (
-        <div className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 p-0.5">
+        <div className="inline-flex rounded-md border p-0.5 text-xs">
             {options.map((option) => {
                 const active = option.id === value;
                 return (
@@ -67,10 +66,8 @@ export function ChatModeToggle({
                         type="button"
                         onClick={() => onChange(option.id)}
                         className={cn(
-                            "rounded-[5px] px-2.5 py-1 text-xs font-medium transition",
-                            active
-                                ? "bg-background text-foreground shadow-xs"
-                                : "text-muted-foreground hover:text-foreground",
+                            "cursor-pointer rounded px-2 py-0.5",
+                            active ? "bg-foreground text-background" : "text-muted-foreground hover:font-medium hover:text-foreground",
                         )}
                     >
                         {option.label}

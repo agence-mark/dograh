@@ -8,7 +8,7 @@
  */
 import { Check, Folder as FolderIcon, FolderInput, FolderPlus, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { createFolderApiV1FolderPost, moveFolderApiV1FolderFolderIdParentPut } from "@/client/sdk.gen";
 import type { FolderResponse } from "@/client/types.gen";
@@ -20,7 +20,6 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 import { DialogueNom } from "./DialogueNom";
@@ -65,13 +64,19 @@ export const ActionsSousDossier = ({
                 body: { parent_id: parentId },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echecDeplacement)));
+                notifier.echec({ fr: "Déplacement impossible. Réessayez.", en: "Could not move. Try again." }, { erreur: reponse.error });
                 return;
             }
-            toast.success(t(TEXTES.deplace));
+            notifier.reversible({ fr: "Dossier déplacé.", en: "Folder moved." }, async () => {
+                await moveFolderApiV1FolderFolderIdParentPut({
+                    path: { folder_id: dossier.id },
+                    body: { parent_id: dossier.parent_id ?? null },
+                });
+                router.refresh();
+            });
             router.refresh();
         } catch {
-            toast.error(t(TEXTES.echecDeplacement));
+            notifier.echec({ fr: "Déplacement impossible. Réessayez.", en: "Could not move. Try again." });
         }
     };
 
@@ -143,13 +148,13 @@ export const DialogueNouveauSousDossier = ({
                 try {
                     const reponse = await createFolderApiV1FolderPost({ body: { name: nom, parent_id: parentId } });
                     if (reponse.error) {
-                        toast.error(detailFromError(reponse.error, t(TEXTES.echecCreation)));
+                        notifier.echec({ fr: "Sous-dossier non créé. Réessayez.", en: "Subfolder not created. Try again." }, { erreur: reponse.error });
                         throw new Error("creation");
                     }
-                    toast.success(t(TEXTES.cree));
+                    notifier.succes({ fr: "Sous-dossier créé.", en: "Subfolder created." });
                     router.refresh();
                 } catch (erreur) {
-                    if (!(erreur instanceof Error && erreur.message === "creation")) toast.error(t(TEXTES.echecCreation));
+                    if (!(erreur instanceof Error && erreur.message === "creation")) notifier.echec({ fr: "Sous-dossier non créé. Réessayez.", en: "Subfolder not created. Try again." });
                     throw erreur;
                 }
             }}

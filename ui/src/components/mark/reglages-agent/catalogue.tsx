@@ -14,18 +14,20 @@
  * whole number for the prompt count, nothing for an empty optional field…).
  * The English texts are the sections' own; the French ones are the mockup's.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 
 import { ChampEtiquettes } from "@/components/mark/ChampEtiquettes";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
-import { attributDeLongueur, attributsDeBorne, NOMBRE_MAX_ELEMENTS, texteHorsBornes } from "../bornes-reglages";
-import { ChampReglage, texteBornes } from "../ecran/ChampReglage";
+import { attributDeLongueur, attributsDeBorne, BORNES, NOMBRE_MAX_ELEMENTS, texteHorsBornes } from "../bornes-reglages";
+import { ChampReglage, ContexteLigneMaquette, decouperUnite, texteBornes } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
+import { Curseur } from "@/components/ui/curseur";
 
 type Lecture = "decimal" | "decimalPositif" | "entier" | "entierPositif";
 
@@ -246,8 +248,8 @@ export const CATALOGUE = {
         libelle: { en: "Pause before the agent answers (seconds)", fr: "Pause avant que l'agent réponde (secondes)" },
         aides: [
             {
-                en: "How long the caller may pause without losing the floor. Pipecat's own value, 0.6 s, applied until now.",
-                fr: "Combien de temps l'appelant peut marquer une pause sans perdre la parole. Valeur de Pipecat, 0,6 s, appliquée jusqu'ici.",
+                en: "How long the caller may pause without losing the floor. Default: 0.6 s.",
+                fr: "Combien de temps l'appelant peut marquer une pause sans perdre la parole. Défaut : 0,6 s.",
             },
         ],
     }),
@@ -299,13 +301,13 @@ export const CATALOGUE = {
     }),
     relance_apres_outil: d({
         type: "interrupteur",
-        libelle: { en: "Always reply after a tool", fr: "Toujours répondre après un outil" },
+        libelle: { en: "Reply after a tool that ends early", fr: "Répondre après un outil qui finit trop tôt" },
         aides: [
             {
-                en: "When a tool (taking a note, a transition) finishes before the caller's turn has fully closed, the agent's reply is kept and sent once the turn closes. Off, Pipecat drops it and the agent stays silent until the caller speaks again (Pipecat ticket 5960, seen on a real call).",
-                fr: "Quand un outil (une prise de notes, une porte) finit avant que le tour de l'appelant soit tout à fait fermé, la réponse de l'agent est gardée et envoyée à la fermeture du tour. Éteint, Pipecat la perd et l'agent se tait jusqu'à ce que l'appelant reparle (ticket Pipecat 5960, constaté sur un vrai appel).",
+                en: "When a tool (taking a note, a transition) finishes before the caller's turn has fully closed, the agent's reply is kept and sent once the turn closes. Off, the reply is lost and the agent stays silent until the caller speaks again. Only this case: a tool that ends after the turn closed was never a problem.",
+                fr: "Quand un outil (une prise de notes, une porte) finit avant que le tour de l'appelant soit tout à fait fermé, la réponse de l'agent est gardée et envoyée à la fermeture du tour. Éteint, la réponse est perdue et l'agent se tait jusqu'à ce que l'appelant reparle. Seulement ce cas : un outil qui finit après la fermeture du tour n'a jamais posé de problème.",
             },
-            { en: "Off until now. No effect in realtime mode.", fr: "Éteint jusqu'ici. Sans effet en mode temps réel." },
+            { en: "Off by default. No effect in realtime mode.", fr: "Éteint par défaut. Sans effet en mode temps réel." },
         ],
     }),
     // [.mark] Lot 3 of cloture-code-avant-migration (Pipecat 1.12): the empty user turn.
@@ -326,12 +328,12 @@ export const CATALOGUE = {
     mute_until_first_bot_complete: d({
         type: "interrupteur",
         libelle: { en: "During the opening sentence", fr: "Pendant la phrase d'accueil" },
-        aides: [{ en: "Keeps a greeting from being cut in half by a hello. On until now.", fr: "Évite qu'un « allô » coupe l'accueil en deux. Allumé jusqu'ici." }],
+        aides: [{ en: "Keeps a greeting from being cut in half by a hello. On by default.", fr: "Évite qu'un « allô » coupe l'accueil en deux. Allumé par défaut." }],
     }),
     mute_during_function_call: d({
         type: "interrupteur",
         libelle: { en: "While the agent is running a tool", fr: "Pendant qu'un outil tourne" },
-        aides: [{ en: "A transfer or a lookup is not interrupted halfway through. On until now.", fr: "Un transfert ou une recherche n'est pas interrompu à moitié. Allumé jusqu'ici." }],
+        aides: [{ en: "A transfer or a lookup is not interrupted halfway through. On by default.", fr: "Un transfert ou une recherche n'est pas interrompu à moitié. Allumé par défaut." }],
     }),
     mute_engine_callback: d({
         type: "interrupteur",
@@ -341,7 +343,7 @@ export const CATALOGUE = {
     mute_first_speech: d({
         type: "interrupteur",
         libelle: { en: "During the agent's very first utterance", fr: "Pendant la toute première réplique de l'agent" },
-        aides: [{ en: "Narrower than the first one above. Never used until now.", fr: "Plus étroit que le premier ci-dessus. Jamais utilisé jusqu'ici." }],
+        aides: [{ en: "Narrower than the first one above: only the very first sentence. Off by default.", fr: "Plus étroit que le premier ci-dessus : seulement la toute première phrase. Éteint par défaut." }],
     }),
     mute_always: d({
         type: "interrupteur",
@@ -358,8 +360,8 @@ export const CATALOGUE = {
         libelle: { en: "Caller can cut the greeting", fr: "L'appelant peut couper l'accueil" },
         aides: [
             {
-                en: "Off until now: the greeting is always heard to the end. On: the \"During the opening sentence\" protection is lifted for this agent, and the greeting stops once the caller has said the number of words below.",
-                fr: "Éteint jusqu'ici : l'accueil est toujours entendu jusqu'au bout. Allumé : la protection « Pendant la phrase d'accueil » est levée pour cet agent, et l'accueil s'arrête dès que l'appelant a dit le nombre de mots ci-dessous.",
+                en: "Off by default: the greeting is always heard to the end. On: the \"During the opening sentence\" protection is lifted for this agent, and the greeting stops once the caller has said the number of words below.",
+                fr: "Éteint par défaut : l'accueil est toujours entendu jusqu'au bout. Allumé : la protection « Pendant la phrase d'accueil » est levée pour cet agent, et l'accueil s'arrête dès que l'appelant a dit le nombre de mots ci-dessous.",
             },
         ],
     }),
@@ -485,8 +487,8 @@ export const CATALOGUE = {
         libelle: { en: "Add silence after the agent speaks", fr: "Ajouter un silence après que l'agent parle" },
         aides: [
             {
-                en: "Useful where a phone line clips the last syllable. ⚠ Off until now, which is why the duration below changed nothing.",
-                fr: "Utile quand une ligne téléphonique mange la dernière syllabe. ⚠️ Éteint jusqu'ici, ce qui explique que la durée ci-dessous ne changeait rien.",
+                en: "Useful where a phone line clips the last syllable. Off by default: the duration below only counts once this is on.",
+                fr: "Utile quand une ligne téléphonique mange la dernière syllabe. Éteint par défaut : la durée ci-dessous ne compte qu'une fois ceci allumé.",
             },
         ],
     }),
@@ -495,14 +497,32 @@ export const CATALOGUE = {
         pas: "0.1",
         lecture: "decimalPositif",
         libelle: { en: "How long that silence lasts (seconds)", fr: "Durée de ce silence (secondes)" },
+        aides: [
+            {
+                en: "Length of the silence added after each sentence, in seconds. It only counts when « Add silence after the agent speaks » is on.",
+                fr: "Durée du silence ajouté après chaque phrase de l'agent, en secondes. Elle ne compte que si « Ajouter un silence après que l'agent parle » est allumé.",
+            },
+        ],
     }),
     interdire_nom_appelant: d({
         type: "interrupteur",
         libelle: { en: "Never say the caller's name", fr: "Ne jamais dire le nom de l'appelant" },
+        aides: [
+            {
+                en: "The agent never speaks the caller's name, even if it knows it. Applied by the code, line by line, on what the agent is about to say.",
+                fr: "L'agent ne prononce jamais le nom de l'appelant, même s'il le connaît. Appliqué par le code, ligne par ligne, sur ce que l'agent va dire.",
+            },
+        ],
     }),
     interdire_civilite_appelant: d({
         type: "interrupteur",
         libelle: { en: "Never say Monsieur, Madame or Mademoiselle", fr: "Ne jamais dire Monsieur, Madame ou Mademoiselle" },
+        aides: [
+            {
+                en: "The agent never uses a title to address the caller. Applied by the code, line by line, on what the agent is about to say.",
+                fr: "L'agent n'emploie jamais de civilité pour s'adresser à l'appelant. Appliqué par le code, ligne par ligne, sur ce que l'agent va dire.",
+            },
+        ],
     }),
     // Plan postscriptum-note-d-abord (C10, Q4): off by default.
     relecture_des_numeros: d({
@@ -579,6 +599,107 @@ export const CATALOGUE = {
             {
                 en: "When the caller asks for a moment (to look something up or check), the arbiter recognises it on their words and the code grants the wait; the agent answers as usual, no tool is offered to it. During that wait the silence reminder is replaced by a gentle sentence (cause « The caller is taking their time » in the Phrases theme, with its own delay, 45 s by default) and the call is never hung up on silence. The caller speaking again lifts the wait. Off: the question is not asked.",
                 fr: "Quand l'appelant demande un moment (chercher, vérifier), l'arbitre le reconnaît sur sa parole et le code accorde l'attente ; l'agent répond normalement, aucun outil ne lui est offert. Pendant cette attente, la relance de silence est remplacée par une phrase douce (motif « L'appelant prend son temps » du thème Phrases, avec son propre délai, 45 s par défaut) et l'appel n'est jamais raccroché pour silence. L'appelant qui reparle lève l'attente. Éteint : la question n'est pas posée.",
+            },
+        ],
+    }),
+    // [.mark] builder-agent-vocal, lot 8: the engine's interventions. All ON by default (an agent without the key is on).
+    moteur_sorties_de_l_etape: d({
+        type: "interrupteur",
+        libelle: { en: "Name the first missing thing behind each exit", fr: "Nommer la première chose qui manque derrière chaque sortie" },
+        aides: [
+            {
+                en: "For each exit of the step, a line tells the model the first thing still missing in the arrival step: the code picks the next question, the model words it. Needs « Show what is known and what is expected » (Call data). Off: those lines are not written.",
+                fr: "Pour chaque sortie de l'étape, une ligne dit au modèle la première chose qui manque encore dans l'étape d'arrivée : le code choisit la question suivante, le modèle la formule. Demande « Montrer ce qui est connu et ce qui est attendu » (Données de l'appel). Éteint : ces lignes ne sont pas écrites.",
+            },
+        ],
+    }),
+    moteur_sortie_d_impasse: d({
+        type: "interrupteur",
+        libelle: { en: "Dead-end guard", fr: "Garde-fou d'impasse" },
+        aides: [
+            {
+                en: "Counts the signs of a conversation going round in circles (a sentence repeated, the same request sent again, three turns with nothing new, a third entry in a step), shows the model its two notices, then at the third time says the dead-end sentence and changes step. Off: nothing is counted, shown or done.",
+                fr: "Compte les signes d'une conversation qui tourne en rond (réplique redite, même demande renvoyée, trois tours sans rien de nouveau, troisième entrée dans une étape), montre au modèle ses deux notices, puis au troisième temps dit la phrase d'impasse et change d'étape. Éteint : rien n'est compté, montré ni fait.",
+            },
+        ],
+    }),
+    moteur_parole_avant_outil: d({
+        type: "interrupteur",
+        libelle: { en: "Do not wake the model after an instant tool that already spoke", fr: "Ne pas relancer le modèle après un outil instantané déjà annoncé" },
+        aides: [
+            {
+                en: "A tool that returns at once does not wake the model again when the same answer had already spoken before calling it. Off: the model is always woken after such a tool and may repeat its sentence.",
+                fr: "Un outil qui rend tout de suite ne relance pas le modèle quand la même réponse avait déjà parlé avant de l'appeler. Éteint : le modèle est toujours relancé après un tel outil et peut redire sa phrase.",
+            },
+        ],
+    }),
+    moteur_main_passee: d({
+        type: "interrupteur",
+        libelle: { en: "Silence the agent that passed the call on", fr: "Faire taire l'agent qui a passé la main" },
+        aides: [
+            {
+                en: "Around a handover: the agent that passed the call on no longer answers, and a request that ends on the assistant's own words gets the handover note. Off: neither. ⚠️ The previous agent may then speak over the new one, and the provider may refuse the request. Groups of agents.",
+                fr: "Autour d'une passation : l'agent qui a passé la main ne répond plus, et une requête qui finit par les paroles de l'assistant reçoit la note de passation. Éteint : ni l'un ni l'autre. ⚠️ L'ancien agent peut alors parler par-dessus le nouveau, et le fournisseur peut refuser la requête. Groupes d'agents.",
+            },
+        ],
+    }),
+    moteur_ordre_outil_puis_parole: d({
+        type: "interrupteur",
+        libelle: { en: "Put the spoken sentence after the tool result", fr: "Remettre la phrase dite après le résultat de l'outil" },
+        aides: [
+            {
+                en: "In the copy of the request sent to the model, the sentence said before a tool is moved after the tool's result, so the caller's words never follow a tool result directly. Off: the order is sent as recorded; some providers refuse it (error 400).",
+                fr: "Dans la copie de la requête envoyée au modèle, la phrase dite avant un outil est replacée après le résultat de l'outil, pour que la parole de l'appelant ne suive jamais directement un résultat d'outil. Éteint : l'ordre est envoyé tel qu'enregistré ; certains fournisseurs le refusent (erreur 400).",
+            },
+        ],
+    }),
+    moteur_compte_rendu_de_phrase: d({
+        type: "interrupteur",
+        libelle: { en: "Report to the model after a sentence of the code", fr: "Compte rendu au modèle après une phrase du code" },
+        aides: [
+            {
+                en: "After a sentence said by the code, the model receives a short report in French in the tool result (what happened, what the caller heard, what is noted, what is no longer possible). Off: no report. ⚠️ Without it the model may repeat the sentence the caller has just heard.",
+                fr: "Après une phrase dite par le code, le modèle reçoit dans le résultat de l'outil un court compte rendu en français (ce qui s'est passé, ce que l'appelant a entendu, ce qui est noté, ce qui n'est plus possible). Éteint : aucun compte rendu. ⚠️ Sans lui, le modèle peut redire la phrase que l'appelant vient d'entendre.",
+            },
+        ],
+    }),
+    moteur_phrases_coupees: d({
+        type: "interrupteur",
+        libelle: { en: "Rewrite a cut sentence for the model", fr: "Réécrire pour le modèle une phrase coupée" },
+        aides: [
+            {
+                en: "When the caller cut off a sentence said by the code, the request sent to the model says what was actually heard. Off: the request carries the whole sentence. Phone only (nothing is cut on the keyboard).",
+                fr: "Quand l'appelant a coupé une phrase dite par le code, la requête envoyée au modèle dit ce qui a réellement été entendu. Éteint : la requête porte la phrase entière. Téléphone seulement (rien ne se coupe au clavier).",
+            },
+        ],
+    }),
+    moteur_replique_inachevee: d({
+        type: "interrupteur",
+        libelle: { en: "Hold back an unfinished reply", fr: "Retenir une réplique inachevée" },
+        aides: [
+            {
+                en: "Clerk mode with transitions in the reply. A reply that ends in the middle of a sentence is not spoken to its end nor kept, and the model answers once more. Off: the reply is spoken as it stands.",
+                fr: "Mode greffier avec les portes dans la réponse. Une réponse qui s'arrête en pleine phrase n'est ni dite jusqu'au bout ni gardée, et le modèle répond une fois de plus. Éteint : la réponse est dite telle quelle.",
+            },
+        ],
+    }),
+    moteur_reponse_muette: d({
+        type: "interrupteur",
+        libelle: { en: "Ask again after a silent reply", fr: "Relancer après une réponse muette" },
+        aides: [
+            {
+                en: "Clerk mode with transitions in the reply. A reply with no sentence and no transition (only a note, for instance) makes the model answer once more. Off: the turn stays silent.",
+                fr: "Mode greffier avec les portes dans la réponse. Une réponse sans phrase ni porte (une note seule, par exemple) fait répondre le modèle une fois de plus. Éteint : le tour reste muet.",
+            },
+        ],
+    }),
+    moteur_notes_de_passation: d({
+        type: "interrupteur",
+        libelle: { en: "Write the handover notes", fr: "Écrire les notes de passation" },
+        aides: [
+            {
+                en: "Groups of agents. The code writes a handover note in the prompt of the step that opens (the main agent's return, the colleague's first step). Off: the prompt is left as written. ⚠️ The colleague then no longer knows what is already noted.",
+                fr: "Groupes d'agents. Le code écrit une note de passation dans le prompt de l'étape qui s'ouvre (retour de l'agent principal, première étape du collègue). Éteint : le prompt reste tel qu'écrit. ⚠️ Le collègue ne sait alors plus ce qui est déjà noté.",
             },
         ],
     }),
@@ -701,6 +822,8 @@ export const Reglage = ({
     apres?: ReactNode;
 }) => {
     const definition: Definition = CATALOGUE[cle];
+    const { t } = useLangue();
+    const dansFenetre = useContext(ContexteLigneMaquette);
     const erreur = erreurDuReglage(cle, valeur);
     const commun = {
         cle,
@@ -721,35 +844,86 @@ export const Reglage = ({
         }
         case "nombre": {
             const facultatif = definition.facultatif;
+            const borne = BORNES[cle];
+            const unite = decouperUnite(t(definition.libelle)).unite;
+            const champ = (
+                <Input
+                    id={cle}
+                    type="number"
+                    step={definition.pas}
+                    disabled={desactive}
+                    placeholder={facultatif?.indication}
+                    {...attributsDeBorne(cle)}
+                    aria-invalid={erreur ? true : undefined}
+                    value={facultatif ? ((valeur as number | null) ?? "") : (valeur as number)}
+                    onChange={(e) => {
+                        const brut = e.target.value;
+                        if (facultatif && brut === "") {
+                            onChange(null);
+                            return;
+                        }
+                        const lu = lire(brut, definition.lecture);
+                        if (lu !== undefined) onChange(lu);
+                    }}
+                    className={dansFenetre ? "h-8 w-20 border-transparent bg-transparent px-1 text-right text-lg font-semibold tabular-nums shadow-none md:text-lg" : undefined}
+                />
+            );
+            if (!dansFenetre) {
+                return (
+                    <ChampReglage {...commun} idControle={cle} bornes={texteBornes(cle, Boolean(facultatif))}>
+                        {champ}
+                        {apres}
+                    </ChampReglage>
+                );
+            }
+            // K3 (maquette `Reglage`, nombre borné) : la valeur en grand à droite avec son unité, un curseur dessous.
+            const pas = Number(definition.pas) || 1;
+            const courant = typeof valeur === "number" ? valeur : (borne?.min ?? 0);
             return (
-                <ChampReglage {...commun} idControle={cle} bornes={texteBornes(cle, Boolean(facultatif))}>
-                    <Input
-                        id={cle}
-                        type="number"
-                        step={definition.pas}
-                        disabled={desactive}
-                        placeholder={facultatif?.indication}
-                        {...attributsDeBorne(cle)}
-                        aria-invalid={erreur ? true : undefined}
-                        value={facultatif ? ((valeur as number | null) ?? "") : (valeur as number)}
-                        onChange={(e) => {
-                            const brut = e.target.value;
-                            if (facultatif && brut === "") {
-                                onChange(null);
-                                return;
-                            }
-                            const lu = lire(brut, definition.lecture);
-                            if (lu !== undefined) onChange(lu);
-                        }}
-                    />
-                    {apres}
+                <ChampReglage
+                    {...commun}
+                    idControle={cle}
+                    bornes={texteBornes(cle, Boolean(facultatif))}
+                    disposition="ligne"
+                    sous={
+                        <>
+                            {borne && (
+                                <div className="pt-1">
+                                    <Curseur
+                                        aria-label={t(definition.libelle)}
+                                        min={borne.min}
+                                        max={borne.max}
+                                        step={pas}
+                                        value={Math.min(Math.max(courant, borne.min), borne.max)}
+                                        disabled={desactive}
+                                        onChange={(e) => onChange(Number(e.target.value))}
+                                        className="w-full"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                        <span>{borne.min}</span>
+                                        <span>{borne.max}</span>
+                                    </div>
+                                </div>
+                            )}
+                            {apres}
+                        </>
+                    }
+                >
+                    <span className="inline-flex items-center">
+                        {champ}
+                        {unite && <span className="ml-0.5 text-xs text-muted-foreground">{unite}</span>}
+                    </span>
                 </ChampReglage>
             );
         }
         case "choix":
             return (
                 <ChampReglage {...commun} idControle={cle}>
-                    <OptionsTraduites cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} />
+                    {dansFenetre && definition.options.length <= 3 ? (
+                        <Segments cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} desactive={desactive} />
+                    ) : (
+                        <OptionsTraduites cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} />
+                    )}
                 </ChampReglage>
             );
         case "texte":
@@ -789,6 +963,44 @@ export const Reglage = ({
                 </ChampReglage>
             );
     }
+};
+
+/** K3 (maquette `Reglage`, choix court) : des segments dans une pastille grise, le choisi en blanc. */
+export const Segments = ({
+    cle,
+    valeur,
+    options,
+    onChange,
+    desactive,
+}: {
+    cle: string;
+    valeur: string;
+    options: Array<{ valeur: string; libelle: Texte }>;
+    onChange: (valeur: unknown) => void;
+    desactive: boolean;
+}) => {
+    const { t } = useLangue();
+    return (
+        <div id={cle} role="radiogroup" className="inline-flex rounded-xl bg-muted p-1">
+            {options.map((option) => (
+                <button
+                    key={option.valeur}
+                    type="button"
+                    role="radio"
+                    data-valeur={option.valeur}
+                    aria-checked={valeur === option.valeur}
+                    disabled={desactive}
+                    onClick={() => onChange(option.valeur)}
+                    className={cn(
+                        "cursor-pointer rounded-lg px-3 py-1.5 text-sm hover:font-medium",
+                        valeur === option.valeur ? "bg-background font-medium shadow-sm" : "text-muted-foreground",
+                    )}
+                >
+                    {t(option.libelle)}
+                </button>
+            ))}
+        </div>
+    );
 };
 
 const OptionsTraduites = ({

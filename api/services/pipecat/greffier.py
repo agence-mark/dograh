@@ -236,7 +236,9 @@ def date_du_jour(maintenant: datetime | None = None) -> str:
     serveur (« Nous sommes le mercredi 14 octobre 2026. »). Sans elle, le greffier
     écrivait « octobre 2022 » pour « l'an dernier », refusé par le code à chaque tour
     (run 1175). Le calcul reste au modèle : on ne lui donne que le jour."""
-    jour = (maintenant or datetime.now(FUSEAU)).astimezone(FUSEAU)
+    from api.utils.template_renderer import maintenant as horloge  # [.mark] sous-lot 5 : l'horloge simulée d'un test
+
+    jour = (maintenant or horloge(FUSEAU)).astimezone(FUSEAU)
     quantieme = "1er" if jour.day == 1 else str(jour.day)
     return (
         f"Nous sommes le {_JOURS[jour.weekday()]} {quantieme} "

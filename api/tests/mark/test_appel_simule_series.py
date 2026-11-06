@@ -53,8 +53,8 @@ def _scenario(i="s1", workflow_id=34, **champs):
 
 def _reglages(**champs):
     return ReglagesAppelantSimule(
-        appelant=RoleSimule(consigne="Consigne générale.", identifiant="cle-mistral"),
-        juge=RoleSimule(consigne="Juge.", identifiant="cle-mistral"),
+        appelant=RoleSimule(consigne="Consigne générale.", identifiant="cle-mistral", actif=True),
+        juge=RoleSimule(consigne="Juge.", identifiant="cle-mistral", actif=True),
         voix=VoixSimulee(voix="voix-fr", identifiant="cle-eleven"),
         **champs,
     )
@@ -119,6 +119,8 @@ def base():
     redis = RedisFactice()
     file = AsyncMock()
     prix = AsyncMock(return_value=TABLE_DU_SIMULATEUR)
+    from api.services.builder.cerveau import budget_roles
+
     with (
         patch.object(stockage, "db_client", db),
         patch.object(moteur, "db_client", db),
@@ -126,6 +128,13 @@ def base():
         patch.object(moteur, "_client_redis", AsyncMock(return_value=redis)),
         patch.object(moteur, "lire_reglages_fenetre", prix),
         patch("api.tasks.arq.enqueue_job", file),
+        # [.mark] La dépense du mois des rôles (lot 12) lit la vraie base : ici une doublure, comme le reste de ``db``. Sinon le
+        # test emprunte une connexion du moteur ouverte sur la boucle d'un test précédent (CI 42147886073, « different loop »).
+        # Le budget a ses propres tests (``test_budget_roles*``).
+        patch(
+            "api.services.builder.cerveau.budget_roles.depense_du_mois",
+            AsyncMock(side_effect=lambda _org: {r: {"appels": 0, "jetons": 0, "cout": 0.0} for r in budget_roles.ROLES}),
+        ),
     ):
         yield SimpleNamespace(
             db=db, redis=redis, file=file, configurations=configurations, prix=prix
@@ -449,10 +458,10 @@ async def test_une_seule_serie_a_la_fois(base):
         ),
         (
             _reglages().model_copy(
-                update={"appelant": RoleSimule(consigne="c", identifiant="autre")}
+                update={"appelant": RoleSimule(consigne="c", identifiant="autre", actif=True)}
             ),
             ["s1"],
-            "same model key",
+            "model key",  # lot 12 (M-5) : chaque rôle a sa clé, la clé introuvable de l'appelant se nomme
         ),
     ],
 )
@@ -713,7 +722,15 @@ def test_le_bloc_simulation_ne_montre_jamais_l_empreinte_du_jeton():
 
 
 @pytest.fixture
-def ecran(base):
+def ecran(base, monkeypatch):
+    # [.mark] U12 (1caf20a0) : les routes écrivent et relisent aussi la source des cerveaux (configuration de l'organisation) ;
+    # ses propres tests (``test_sources_u12``) la jouent, ici elle ne touche pas la base.
+    from unittest.mock import AsyncMock
+
+    from api.services import sources_cerveaux
+
+    monkeypatch.setattr(sources_cerveaux, "ecrire_depuis_les_roles", AsyncMock(return_value=None))
+    monkeypatch.setattr(sources_cerveaux, "surcharger_les_roles", AsyncMock(side_effect=lambda _org, reglages: reglages))
     app = FastAPI()
     app.include_router(route.router)
     app.dependency_overrides[get_user_with_selected_organization] = lambda: (

@@ -2,13 +2,15 @@
 
 import { FileText, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 import {
   deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete,
   listDocumentsApiV1KnowledgeBaseDocumentsGet,
 } from '@/client/sdk.gen';
 import type { DocumentResponseSchema } from '@/client/types.gen';
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +51,7 @@ export default function DocumentList({ refreshTrigger }: DocumentListProps) {
 
       setDocuments(response.data.documents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch documents');
+      setError(echecAffiche(err, ECHECS.documentsListe));
       logger.error('Error fetching documents:', err);
     } finally {
       setIsLoading(false);
@@ -77,26 +79,31 @@ export default function DocumentList({ refreshTrigger }: DocumentListProps) {
     return () => clearInterval(pollInterval);
   }, [documents, fetchDocuments]);
 
-  const handleDelete = async (documentUuid: string, filename: string) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
-
-    try {
-      const response = await deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete({
-        path: {
-          document_uuid: documentUuid,
+  // Suppression différée de 5 s (« Annuler ») : le document disparaît tout de suite de la liste, le serveur n'est
+  // appelé qu'ensuite. Remplace la confirmation avant.
+  const [masques, setMasques] = useState<string[]>([]);
+  const handleDelete = (documentUuid: string, filename: string) => {
+    setMasques((m) => [...m, documentUuid]);
+    const remettre = () => setMasques((m) => m.filter((x) => x !== documentUuid));
+    notifier.annulable(
+      { fr: `Document « ${filename} » supprimé.`, en: `Document "${filename}" deleted.` },
+      {
+        restaurer: remettre,
+        executer: async () => {
+          try {
+            const response = await deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete({
+              path: { document_uuid: documentUuid },
+            });
+            if (response.error) throw response.error;
+            fetchDocuments().finally(remettre);
+          } catch (err) {
+            remettre();
+            notifier.echec({ fr: "Suppression impossible. Réessayez.", en: "Could not delete. Try again." }, { erreur: err });
+            logger.error('Error deleting document:', err);
+          }
         },
-      });
-
-      if (response.error) {
-        throw new Error('Failed to delete document');
-      }
-
-      toast.success(`Deleted "${filename}"`);
-      fetchDocuments();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete document');
-      logger.error('Error deleting document:', err);
-    }
+      },
+    );
   };
 
   const isBusy = (doc: DocumentResponseSchema) =>
@@ -144,7 +151,7 @@ export default function DocumentList({ refreshTrigger }: DocumentListProps) {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
-  const filteredDocuments = documents.filter((doc) =>
+  const filteredDocuments = documents.filter((doc) => !masques.includes(doc.document_uuid)).filter((doc) =>
     doc.filename.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

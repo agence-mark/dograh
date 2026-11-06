@@ -65,7 +65,7 @@ async def test_mcp_create_tool_creates_reusable_tool(authed_user: MagicMock):
 
     with (
         patch(
-            "api.mcp_server.tools.tool_creation.authenticate_mcp_request",
+            "api.mcp_server.tools.tool_creation.authenticate_mcp_write",
             AsyncMock(return_value=authed_user),
         ),
         patch(
@@ -93,7 +93,7 @@ async def test_mcp_create_tool_rejects_unknown_credential(authed_user: MagicMock
 
     with (
         patch(
-            "api.mcp_server.tools.tool_creation.authenticate_mcp_request",
+            "api.mcp_server.tools.tool_creation.authenticate_mcp_write",
             AsyncMock(return_value=authed_user),
         ),
         patch(

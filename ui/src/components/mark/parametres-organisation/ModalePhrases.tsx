@@ -14,13 +14,14 @@
  */
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import {
     getPhrasesApiV1OrganizationsPhrasesGet,
     savePhrasesApiV1OrganizationsPhrasesPut,
 } from "@/client/sdk.gen";
 import type { Phrase, ReglagesAnnonceOuverture } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -32,8 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const PHRASES_ENREGISTREES: Texte = { en: "Sentences saved", fr: "Phrases enregistrées" };
@@ -153,7 +154,7 @@ export function ModalePhrases({
         void (async () => {
             const reponse = await getPhrasesApiV1OrganizationsPhrasesGet();
             if (reponse.error || !reponse.data) {
-                setErreur(detailFromError(reponse.error, "Sentences unreadable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.phrasesLire));
                 return;
             }
             setListe(reponse.data.phrases ?? []);
@@ -181,10 +182,10 @@ export function ModalePhrases({
         const reponse = await savePhrasesApiV1OrganizationsPhrasesPut({ body: charge_utile_phrases(liste) });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Sentences not saved"));
+            setErreur(echecAffiche(reponse.error, ECHECS.phrasesEnregistrer));
             return;
         }
-        toast.success(t(PHRASES_ENREGISTREES));
+        notifier.succes({ fr: "Phrases enregistrées.", en: "Phrases saved." });
         onFermer(true);
     };
 
@@ -241,7 +242,7 @@ export function ModalePhrases({
                                         className="font-mono"
                                         onChange={(e) => modifier(i, { variable: e.target.value })}
                                     />
-                                    <select
+                                    <ListeDeroulante
                                         aria-label={t({ en: "Level", fr: "Niveau" })}
                                         className="rounded border border-border bg-background px-2 py-1 text-sm"
                                         value={p.niveau ?? "organisation"}
@@ -249,7 +250,7 @@ export function ModalePhrases({
                                     >
                                         <option value="organisation">{t({ en: "Organization", fr: "Organisation" })}</option>
                                         <option value="etablissement">{t({ en: "Establishment", fr: "Établissement" })}</option>
-                                    </select>
+                                    </ListeDeroulante>
                                     <Button
                                         variant="ghost"
                                         size="icon"

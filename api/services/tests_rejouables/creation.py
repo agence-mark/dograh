@@ -182,7 +182,9 @@ async def creer_depuis_un_run(
 ) -> TestRejouable:
     """Lit le run (organisation vérifiée) et rend le test. Ne modifie rien en base."""
     valider_critere(critere)
-    run, organisation_du_run = await db_client.get_workflow_run_with_context(run_id)
+    run, organisation_du_run = await db_client.get_workflow_run_with_context(
+        run_id, organization_id=organisation_id
+    )
     # Un run d'une autre organisation est traité comme introuvable (pas de fuite d'existence).
     if run is None or organisation_du_run != organisation_id:
         raise ErreurTestRejouable(
@@ -204,3 +206,26 @@ async def creer_depuis_un_run(
         replique=coupe["replique"],
         critere=critere,
     )
+
+
+async def lire_la_conversation(run_id: int, organisation_id: int) -> dict[str, Any]:
+    """[.mark] sous-lot 5 : la conversation ENTIÈRE d'un run (organisation vérifiée), pour en faire un test. Ne modifie rien.
+
+    Rend ``lignes`` ([("moi"|"agent", texte)] dans l'ordre, deux paroles de suite du même côté n'en font qu'une), ``outils`` (les noms
+    d'outils appelés par l'agent, dans l'ordre), ``issue`` (la fin d'appel notée) et ``agent_id``."""
+    run, organisation_du_run = await db_client.get_workflow_run_with_context(run_id, organization_id=organisation_id)
+    if run is None or organisation_du_run != organisation_id:
+        raise ErreurTestRejouable(f"run {run_id} introuvable dans l'organisation {organisation_id}")
+    journal = (run.logs or {}).get("realtime_feedback_events") or []
+    if not journal:
+        raise ErreurTestRejouable(f"run {run_id} : aucun journal de conversation à rejouer")
+    lignes = [("moi" if e[1] == "user" else "agent", e[2]) for e in _suite_du_journal(journal) if e[0] == "msg"]
+    if not any(r == "moi" for r, _ in lignes):
+        raise ErreurTestRejouable(f"run {run_id} : la personne n'a rien dit, il n'y a pas de conversation à rejouer")
+    outils = [
+        str((ev.get("payload") or {}).get("function_name"))
+        for ev in sorted(journal, key=realtime_feedback_event_sort_key)
+        if ev.get("type") == "rtf-function-call-start" and (ev.get("payload") or {}).get("function_name")
+    ]
+    fiche = run.gathered_context or {}
+    return {"lignes": lignes, "outils": outils, "issue": fiche.get("call_disposition"), "agent_id": run.workflow_id, "fiche": dict(fiche)}

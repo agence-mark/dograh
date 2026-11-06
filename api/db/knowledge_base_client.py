@@ -124,6 +124,24 @@ class KnowledgeBaseClient(BaseDBClient):
             result = await session.execute(query)
             return result.scalar_one_or_none()
 
+    async def get_documents_by_uuids(
+        self,
+        document_uuids: List[str],
+        organization_id: int,
+    ) -> List[KnowledgeBaseDocumentModel]:
+        """[.mark] Lot 8 (étiquettes des prompts) : les documents actifs cités, en UNE lecture, filtrés par organisation."""
+        if not document_uuids:
+            return []
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(KnowledgeBaseDocumentModel).where(
+                    KnowledgeBaseDocumentModel.document_uuid.in_(document_uuids),
+                    KnowledgeBaseDocumentModel.organization_id == organization_id,
+                    KnowledgeBaseDocumentModel.is_active == True,
+                )
+            )
+            return list(result.scalars().all())
+
     async def get_document_by_hash(
         self,
         file_hash: str,
@@ -572,6 +590,61 @@ class KnowledgeBaseClient(BaseDBClient):
                     file_hash=file_hash,
                     file_size_bytes=file_size_bytes,
                 )
+            )
+            await session.commit()
+
+    async def claim_document_for_file_replacement(
+        self,
+        document_uuid: str,
+        organization_id: int,
+        filename: str,
+        s3_key: str,
+    ) -> tuple[KnowledgeBaseDocumentModel, dict] | None:
+        """[.mark] U10: put a NEW file under an existing document (same uuid, same id, so every agent that
+        consults it keeps its link). Atomic: only while no job is queued or running. The live version
+        (``full_text`` / chunks) is untouched until the new file is processed with success.
+        Returns ``(document, previous)``, ``previous`` being what ``restore_document_after_failed_replacement``
+        needs; ``None`` when the document is unknown (for this organization) or busy."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(KnowledgeBaseDocumentModel)
+                .where(
+                    KnowledgeBaseDocumentModel.document_uuid == document_uuid,
+                    KnowledgeBaseDocumentModel.organization_id == organization_id,
+                    KnowledgeBaseDocumentModel.is_active == True,
+                    KnowledgeBaseDocumentModel.processing_status.not_in(("pending", "processing")),
+                )
+                .with_for_update()
+            )
+            document = result.scalar_one_or_none()
+            if document is None:
+                return None
+            previous = {
+                "filename": document.filename,
+                "custom_metadata": dict(document.custom_metadata or {}),
+                "processing_status": document.processing_status,
+                "processing_error": document.processing_error,
+            }
+            document.filename = filename
+            document.custom_metadata = {**previous["custom_metadata"], "s3_key": s3_key}
+            document.processing_status = "pending"
+            document.processing_error = None
+            await session.commit()
+            await session.refresh(document)
+            return document, previous
+
+    async def restore_document_after_failed_replacement(
+        self, document_id: int, organization_id: int, previous: dict
+    ) -> None:
+        """Undo ``claim_document_for_file_replacement`` when the new file could not be queued."""
+        async with self.async_session() as session:
+            await session.execute(
+                update(KnowledgeBaseDocumentModel)
+                .where(
+                    KnowledgeBaseDocumentModel.id == document_id,
+                    KnowledgeBaseDocumentModel.organization_id == organization_id,
+                )
+                .values(**previous)
             )
             await session.commit()
 

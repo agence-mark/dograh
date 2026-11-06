@@ -6,6 +6,7 @@ import type { AnswerSupervisorSettings } from "@/types/workflow-configurations";
 
 import { AnswerSupervisorFields } from "./AnswerSupervisorFields";
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: null, loading: false }) }));
 
 function Harness({ initial = {} }: { initial?: AnswerSupervisorSettings }) {

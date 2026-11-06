@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
 
 import { getWorkflowsSummaryApiV1WorkflowSummaryGet, getWorkflowVersionSummariesApiV1WorkflowWorkflowIdVersionSummariesGet } from '@/client/sdk.gen';
 import type { TrafficVariantRequest, WorkflowSummaryResponse, WorkflowVersionSummaryResponse } from '@/client/types.gen';
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { ECHECS } from '@/components/mark/notifications/phrases-echec';
+import { Info } from '@/components/mark/studio/marques';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +46,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         setAgentsLoading(true);
         getWorkflowsSummaryApiV1WorkflowSummaryGet({ query: { status: 'active,archived' } }).then(response => {
             if (cancelled) return;
-            if (response.error) setAgentError(detailFromError(response.error, 'Failed to load agents'));
+            if (response.error) setAgentError(echecAffiche(response.error, ECHECS.agentsListe));
             else setAgents(response.data ?? []);
         }).catch(() => { if (!cancelled) setAgentError('Failed to load agents'); })
             .finally(() => { if (!cancelled) setAgentsLoading(false); });
@@ -61,7 +64,7 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         })).then(entries => {
             if (!cancelled) setVersions(Object.fromEntries(entries));
         }).catch(error => {
-            if (!cancelled) setVersionError(error instanceof Error ? error.message : 'Failed to load versions');
+            if (!cancelled) setVersionError(echecAffiche(error, ECHECS.agentVersionsResume));
         });
         return () => { cancelled = true; };
     }, [ids, loading, user, retry]);
@@ -72,8 +75,14 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
     const splitEvenly = () => onChange(value.map((v, index) => ({ ...v, weight: Math.floor(100 / value.length) + (index < 100 % value.length ? 1 : 0) })));
 
     return <fieldset className="space-y-3" disabled={disabled}>
-        <legend className="text-sm font-medium mb-3">Agents &amp; traffic split</legend>
-        {value.map((variant, index) => <div key={index} className="rounded-md border p-3 space-y-3">
+        <legend className="mb-3 flex items-center gap-1.5 text-sm font-medium">
+            Agents &amp; traffic split
+            <Info>
+                Any listed version can receive traffic. Choose a numbered version to keep it fixed; “Latest published” follows new releases. Percentages are approximate.
+                {editing && ' Changes apply from the next batch, including retries. Changing weights, agents, or versions can move contacts between variants. Live calls keep their original version.'}
+            </Info>
+        </legend>
+        {value.map((variant, index) => <div key={index} className="space-y-3 border-t pt-3 first:border-t-0 first:pt-0">
             <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="space-y-2">
                     <Label htmlFor={`split-agent-${index}`}>Agent {index + 1}</Label>
@@ -110,7 +119,5 @@ export default function TrafficSplitEditor({ value, onChange, disabled = false, 
         </div>
         {(agentError || versionError) && <div role="alert" className="text-sm text-destructive">{agentError || versionError} <Button type="button" variant="link" onClick={() => setRetry(r => r + 1)}>Retry</Button></div>}
         {validationError && <p className="text-sm text-destructive" aria-live="polite">{validationError}</p>}
-        <p className="text-sm text-muted-foreground">Any listed version can receive traffic. Choose a numbered version to keep it fixed; “Latest published” follows new releases. Percentages are approximate.</p>
-        {editing && <p className="text-sm text-muted-foreground">Changes apply from the next batch, including retries. Changing weights, agents, or versions can move contacts between variants. Live calls keep their original version.</p>}
     </fieldset>;
 }

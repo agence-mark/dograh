@@ -6,11 +6,12 @@
  * Management » (General, rebuilt, D6 option B) and our idle prompts and
  * silent-agent hang-up (Speech Tuning), which were two cards for one subject.
  */
-import { Clock } from "lucide-react";
+import { Timer } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
-import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
+import { attributsDeBorne, texteHorsBornes } from "../bornes-reglages";
+import { bornesDe, ChampReglage, texteBornes } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { useLangue } from "../langue/langue";
@@ -18,6 +19,12 @@ import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./cata
 import { useEnregistrementTheme } from "./enregistrement";
 import { MOTIF_SILENCE } from "./phrases/modele";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
+
+/** The limit of a call: the default, the ceiling the server holds, and what happens at the limit. */
+export const AIDE_DUREE_MAXIMALE = {
+    en: "Default: 600 s (10 minutes). The ceiling is 1,200 s (20 minutes): the server refuses more. At the limit the call is ended, even in the middle of a sentence.",
+    fr: "Défaut : 600 s (10 minutes). Le plafond est de 1 200 s (20 minutes) : le serveur refuse plus. À la limite, l'appel est terminé, même au milieu d'une phrase.",
+};
 
 export const ID_THEME_RYTHME = "rythme";
 export const TITRE_RYTHME = { en: "Call pacing", fr: "Rythme de l'appel" };
@@ -27,7 +34,7 @@ export const CLES_RYTHME_MARK = [
     "user_idle_max_prompts",
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
-    "laisser_la_parole",
+    // (``laisser_la_parole`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
 ] as const satisfies readonly CleCatalogue[];
 
 const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => ({
@@ -43,7 +50,14 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
     const maj = (cle: keyof typeof brouillon) => (valeur: unknown) => setBrouillon((avant) => ({ ...avant, [cle]: valeur }));
 
     const modifie = differe(brouillon, enregistre);
-    const erreurs = erreursDuCatalogue(CLES_RYTHME_MARK, brouillon);
+    // [.mark] RA-B R5 : la durée maximale est contrôlée avec la borne du serveur (jamais d'enregistrement refusé en 422).
+    const erreurDuree = texteHorsBornes("max_call_duration", brouillon.max_call_duration);
+    const erreurs = [
+        ...erreursDuCatalogue(CLES_RYTHME_MARK, brouillon),
+        ...(erreurDuree
+            ? [{ cle: "max_call_duration", libelle: { en: "Max Call Duration (seconds)", fr: "Durée maximale de l'appel (secondes)" }, message: erreurDuree }]
+            : []),
+    ];
     useEtatTheme(ID_THEME_RYTHME, modifie, erreurs.length > 0);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -56,7 +70,9 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
 
     const entierPositif = (cle: "max_user_idle_timeout" | "max_call_duration") => (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value);
-        if (!isNaN(value) && value > 0) maj(cle)(value);
+        // [.mark] lot R (partie 3, C11) : 0 est permis pour la relance du silence (= jamais de relance : l'appelant réfléchit).
+        const plancher = cle === "max_user_idle_timeout" ? 0 : 1;
+        if (!isNaN(value) && value >= plancher) maj(cle)(value);
     };
 
     // [.mark] correctifs-apres-banc-v4, lot 5 (décision 1): the number of prompts and the goodbye are read from the rule
@@ -88,11 +104,13 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
     return (
         <Theme
             id={ID_THEME_RYTHME}
-            icone={Clock}
+            icone={Timer}
             titre={TITRE_RYTHME}
             description={{ en: "Caller silences, idle prompts, hang-up and duration.", fr: "Silences de l'appelant, relances, raccrochage et durée." }}
             resume={[
-                `${t({ en: "Prompt after", fr: "Relance après" })} ${brouillon.max_user_idle_timeout} s`,
+                brouillon.max_user_idle_timeout === 0
+                    ? t({ en: "No prompt", fr: "Aucune relance" })
+                    : `${t({ en: "Prompt after", fr: "Relance après" })} ${brouillon.max_user_idle_timeout} s`,
                 `${brouillon.user_idle_max_prompts} ${t({ en: "prompt(s)", fr: "relance(s)" })}`,
                 `${t({ en: "Max duration", fr: "Durée max" })} ${Math.round(brouillon.max_call_duration / 60)} min`,
             ]}
@@ -114,13 +132,19 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                     cle="max_user_idle_timeout"
                     idControle="max_user_idle_timeout"
                     libelle={{ en: "Max User Idle Timeout (seconds)", fr: "Silence avant de relancer (secondes)" }}
-                    aides={[{ en: "Default: 10 seconds", fr: "Défaut : 10 secondes." }]}
-                    bornes={bornesDe(1)}
+                    aides={[
+                        { en: "Default: 10 seconds", fr: "Défaut : 10 secondes." },
+                        {
+                            en: "0 means never prompt: for a caller who needs time to think (an order, a rental).",
+                            fr: "0 : ne jamais relancer, pour un appelant qui a besoin de réfléchir (commande, location).",
+                        },
+                    ]}
+                    bornes={bornesDe(0)}
                 >
                     <Input
                         id="max_user_idle_timeout"
                         type="number"
-                        min="1"
+                        min="0"
                         value={brouillon.max_user_idle_timeout}
                         onChange={entierPositif("max_user_idle_timeout")}
                     />
@@ -130,7 +154,6 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                 {lienSilence(silencePoseLesRelances, String(regleDuSilence?.max_par_attente ?? ""))}
                 <Reglage cle="user_idle_goodbye_prompt" valeur={brouillon.user_idle_goodbye_prompt} onChange={maj("user_idle_goodbye_prompt")} />
                 {lienSilence(silencePoseLAuRevoir, regleDuSilence?.ensuite?.phrases?.[0] ?? regleDuSilence?.ensuite?.action ?? "")}
-                <Reglage cle="laisser_la_parole" valeur={brouillon.laisser_la_parole} onChange={maj("laisser_la_parole")} />
             </Intertitre>
 
             <Intertitre id="rythme-fin" titre={{ en: "End of call", fr: "Fin d'appel" }}>
@@ -139,12 +162,14 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                     cle="max_call_duration"
                     idControle="max_call_duration"
                     libelle={{ en: "Max Call Duration (seconds)", fr: "Durée maximale de l'appel (secondes)" }}
-                    aides={[{ en: "Default: 600 (10 minutes)", fr: "Défaut : 600 (10 minutes)." }]}
-                    bornes={bornesDe(1)}
+                    aides={[AIDE_DUREE_MAXIMALE]}
+                    bornes={texteBornes("max_call_duration")}
+                    erreur={erreurDuree}
                 >
                     <Input
                         id="max_call_duration"
                         type="number"
+                        {...attributsDeBorne("max_call_duration")}
                         min="1"
                         value={brouillon.max_call_duration}
                         onChange={entierPositif("max_call_duration")}

@@ -15,9 +15,9 @@
  * ⛔ Les sections sont celles que le serveur envoie, nommees comme les themes de l'ecran : une section nouvelle cote
  * serveur sans titre ici s'affiche sous son identifiant (le test le releve).
  */
-import { Download, FileUp, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileUp, Layers, Pencil, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     appliquerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdAppliquerPost,
@@ -38,19 +38,22 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../../langue/langue";
+import { Info } from "../../studio/marques";
 import { CadreModale } from "../phrases/cadre";
 import { TITRE_AGENT } from "../ThemeAgent";
 import { TITRE_BRIQUES } from "../ThemeBriques";
 import { TITRE_DONNEES } from "../ThemeDonnees";
 import { TITRE_ECOUTE } from "../ThemeEcoute";
 import { TITRE_ETABLISSEMENT } from "../ThemeEtablissement";
+import { TITRE_INTERVENTIONS } from "../ThemeInterventions";
 import { TITRE_MODULES } from "../ThemeModules";
 import { TITRE_RYTHME } from "../ThemeRythme";
 import { TITRE_TOUR } from "../ThemeTourDeParole";
 import { TITRE_VOIX } from "../ThemeVoix";
+import { MarqueStatut } from "./marque-statut";
 
 /** Les sections d'un modele : l'identifiant du theme de l'ecran et son titre (`classement.py`, `SECTIONS`). */
 export const TITRES_DES_SECTIONS: Record<string, Texte> = {
@@ -64,9 +67,23 @@ export const TITRES_DES_SECTIONS: Record<string, Texte> = {
     rythme: TITRE_RYTHME,
     donnees: TITRE_DONNEES,
     etablissement: TITRE_ETABLISSEMENT,
+    // builder-agent-vocal, lot 8: what the engine does in the conversation.
+    interventions: TITRE_INTERVENTIONS,
 };
 
 const TITRE: Texte = { en: "Settings templates", fr: "Modèles de réglages" };
+
+/**
+ * [.mark] U4 (E45 A) : le menu « Modèle ▾ » de l'onglet Réglages. Trois gestes, une seule fenêtre :
+ * appliquer un modèle (la liste, avec « Appliquer »), enregistrer les réglages actifs comme modèle (le nom), gérer les modèles
+ * (tout : renommer, exporter, supprimer, importer).
+ */
+export type ModeModeles = "appliquer" | "enregistrer" | "gerer";
+const ENTREES_DU_MENU: Array<{ mode: ModeModeles; texte: Texte; icone: typeof Layers }> = [
+    { mode: "appliquer", texte: { en: "Apply a template…", fr: "Appliquer un modèle…" }, icone: Layers },
+    { mode: "enregistrer", texte: { en: "Save as a template…", fr: "Enregistrer comme modèle…" }, icone: Save },
+    { mode: "gerer", texte: { en: "Manage templates", fr: "Gérer les modèles" }, icone: Pencil },
+];
 
 type Vue = { type: "liste" } | { type: "appliquer"; modele: ResumeDuModele };
 
@@ -94,34 +111,99 @@ export const BoutonModeles = ({
     /** Une fois un modele applique, la page se recharge pour montrer les nouvelles valeurs (M11). */
     apresApplication?: () => void;
 }) => {
-    const { t } = useLangue();
-    const [ouvert, setOuvert] = useState(false);
+    const { t, langue } = useLangue();
+    const [mode, setMode] = useState<ModeModeles | null>(null);
+    const [menu, setMenu] = useState(false);
+    // [.mark] K3 (maquette `MenuModele`) : « Modèle : <dernier modèle appliqué> ⌄ », puis un « ! » qui dit ce que c'est.
+    const [mention, setMention] = useState<MentionApplication | null>(null);
+    useEffect(() => {
+        let annule = false;
+        (async () => {
+            try {
+                const derniere = await mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet({ path: { workflow_id: workflowId } });
+                if (!annule) setMention(derniere.data?.mention ?? null);
+            } catch {
+                /* le nom du dernier modèle est un confort : le menu marche sans lui */
+            }
+        })();
+        return () => {
+            annule = true;
+        };
+    }, [workflowId]);
+    const dateMention = mention ? new Date(mention.applique_le).toLocaleDateString(langue === "fr" ? "fr-FR" : "en-GB", { day: "2-digit", month: "2-digit" }) : "";
     return (
-        <>
-            <Button type="button" variant="outline" size="sm" data-bouton-modeles onClick={() => setOuvert(true)}>
-                <LayoutTemplate className="mr-1.5 h-4 w-4" />
-                {t(TITRE)}
-            </Button>
-            {ouvert && (
+        <div className="relative flex items-center gap-1.5 text-sm text-muted-foreground">
+            {t({ en: "Template:", fr: "Modèle :" })}
+            <button
+                type="button"
+                data-bouton-modeles
+                aria-haspopup="menu"
+                aria-expanded={menu}
+                onClick={() => setMenu((v) => !v)}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-foreground hover:bg-muted hover:font-medium"
+            >
+                {mention ? mention.nom : t({ en: "None applied", fr: "Aucun appliqué" })}
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+            </button>
+            <Info>
+                {mention
+                    ? t({
+                          en: `Last template applied to this agent, on ${dateMention}: a copy, not a link. Settings changed afterwards stay the agent's own; editing or deleting the template does not change this agent.`,
+                          fr: `Dernier modèle appliqué à cet agent, le ${dateMention} : une copie, pas un lien. Les réglages changés ensuite restent propres à l'agent ; modifier ou supprimer le modèle ne change pas cet agent.`,
+                      })
+                    : t({
+                          en: "No template applied to this agent yet. A template is a copy of settings, not a link.",
+                          fr: "Aucun modèle appliqué à cet agent pour l'instant. Un modèle est une copie de réglages, pas un lien.",
+                      })}
+            </Info>
+            {menu && (
+                <>
+                    <div className="fixed inset-0 z-40" aria-hidden onClick={() => setMenu(false)} />
+                    <div role="menu" className="absolute top-full left-12 z-50 mt-1 w-64 rounded-md border bg-popover p-1 text-foreground shadow-md" data-menu-modeles>
+                        {ENTREES_DU_MENU.map((entree) => (
+                            <div key={entree.mode}>
+                                {entree.mode === "gerer" && <div role="separator" className="-mx-1 my-1 h-px bg-border" />}
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-entree-modeles={entree.mode}
+                                    className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted hover:font-medium"
+                                    onClick={() => {
+                                        setMenu(false);
+                                        setMode(entree.mode);
+                                    }}
+                                >
+                                    <entree.icone className="size-4" />
+                                    {t(entree.texte)}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+            {mode && (
                 <ModaleModeles
                     workflowId={workflowId}
                     modifie={modifie}
+                    mode={mode}
                     apresApplication={apresApplication}
-                    onFermer={() => setOuvert(false)}
+                    onFermer={() => setMode(null)}
                 />
             )}
-        </>
+        </div>
     );
 };
 
 export const ModaleModeles = ({
     workflowId,
     modifie,
+    mode = "gerer",
     apresApplication,
     onFermer,
 }: {
     workflowId: number;
     modifie: boolean;
+    mode?: ModeModeles;
     apresApplication: () => void;
     onFermer: () => void;
 }) => {
@@ -144,7 +226,7 @@ export const ModaleModeles = ({
             mentionDeLagentApiV1OrganizationsModelesDeReglagesAgentWorkflowIdGet({ path: { workflow_id: workflowId } }),
         ]);
         if (modeles.error || !modeles.data) {
-            setErreur(detailFromError(modeles.error, t({ en: "The templates could not be read.", fr: "Les modèles n'ont pas pu être lus." })));
+            setErreur(echecAffiche(modeles.error, ECHECS.modelesListe));
             return;
         }
         setErreur(null);
@@ -166,14 +248,14 @@ export const ModaleModeles = ({
         try {
             const reponse = await action();
             if (reponse?.error) {
-                toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+                notifier.echec({ fr: "Modèle non enregistré. Réessayez.", en: "Template not saved. Try again." }, { erreur: reponse.error });
                 return false;
             }
-            if (succes) toast.success(succes);
+            if (succes) notifier.succes({ fr: "Modèle enregistré.", en: "Template saved." });
             await charger();
             return true;
         } catch {
-            toast.error(t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
+            notifier.echec({ fr: "Pas de réponse du serveur. Réessayez.", en: "No answer from the server. Try again." });
             return false;
         } finally {
             setEnCours(false);
@@ -198,6 +280,7 @@ export const ModaleModeles = ({
 
     const supprimer = async (id: string) => {
         const fait = await geste(
+            // suppression-confirmee : bouton « Confirmer » (data-confirmer-suppression) avant `supprimer`.
             () => supprimerUnModeleApiV1OrganizationsModelesDeReglagesModeleIdDelete({ path: { modele_id: id } }),
             t({ en: "Template deleted. The agents already set keep their settings.", fr: "Modèle supprimé. Les agents déjà réglés gardent leurs réglages." }),
         );
@@ -223,7 +306,7 @@ export const ModaleModeles = ({
         try {
             corps = JSON.parse(await lireFichier(fichier));
         } catch {
-            toast.error(t({ en: "This file is not a settings template.", fr: "Ce fichier n'est pas un modèle de réglages." }));
+            notifier.echec({ fr: "Ce fichier n'est pas un modèle de réglages.", en: "This file is not a settings template." });
             return;
         }
         await geste(
@@ -265,7 +348,7 @@ export const ModaleModeles = ({
             onFermer={onFermer}
             pied={
                 <>
-                    <code className="text-[11px] text-muted-foreground">MODELES_REGLAGES</code>
+                    <code className="text-[11px] text-muted-foreground">modeles-reglages</code>
                     <Button type="button" variant="outline" onClick={onFermer}>
                         {t({ en: "Close", fr: "Fermer" })}
                     </Button>
@@ -302,6 +385,7 @@ export const ModaleModeles = ({
                     </p>
                 )}
 
+                {mode !== "appliquer" && (
                 <section className="space-y-2">
                     <h3 className="text-sm font-semibold">{t({ en: "Create from the active settings", fr: "Créer depuis les réglages actifs" })}</h3>
                     <div className="flex gap-2">
@@ -317,11 +401,21 @@ export const ModaleModeles = ({
                         </Button>
                     </div>
                 </section>
+                )}
 
+                {mode !== "enregistrer" && (
                 <section className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold">{t({ en: "Templates of this organization", fr: "Modèles de cette organisation" })}</h3>
-                        <div>
+                        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                            {t({ en: "Templates of the library", fr: "Modèles de la bibliothèque" })}
+                            <Info>
+                                {t({
+                                    en: "The templates are the library's, shared by every space. Their status (candidate, proven, rejected) is set from the library.",
+                                    fr: "Les modèles sont ceux de la bibliothèque, partagés par tous les espaces. Leur statut (candidat, éprouvé, rejeté) se règle depuis la bibliothèque.",
+                                })}
+                            </Info>
+                        </h3>
+                        <div hidden={mode === "appliquer"}>
                             <input
                                 ref={fichierImport}
                                 type="file"
@@ -362,7 +456,10 @@ export const ModaleModeles = ({
                                 ) : (
                                     <div className="flex flex-wrap items-start justify-between gap-2">
                                         <div className="min-w-0 space-y-0.5">
-                                            <p className="truncate text-sm font-medium">{modele.nom}</p>
+                                            <p className="flex items-center gap-2 truncate text-sm font-medium">
+                                                {modele.nom}
+                                                <MarqueStatut statut={modele.statut ?? "candidat"} />
+                                            </p>
                                             <p className="text-xs text-muted-foreground">
                                                 {date(modele.cree_le)} · {origine(modele, t)} · {modele.nombre_de_reglages}{" "}
                                                 {t({ en: "settings", fr: "réglages" })}
@@ -421,6 +518,7 @@ export const ModaleModeles = ({
                         ))}
                     </ul>
                 </section>
+                )}
             </div>
         </CadreModale>
     );
@@ -478,7 +576,7 @@ const VueApplication = ({
                 body: { workflow_id: workflowId, sections: cochees, a_blanc: true },
             });
             if (annule) return;
-            if (reponse.error || !reponse.data) setRefus(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+            if (reponse.error || !reponse.data) setRefus(echecAffiche(reponse.error, ECHECS.modeleAppliquer));
             else setApercu(reponse.data);
         })();
         return () => {
@@ -497,13 +595,13 @@ const VueApplication = ({
                 body: { workflow_id: workflowId, sections: cochees, a_blanc: false },
             });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t({ en: "The server refused.", fr: "Le serveur a refusé." })));
+                notifier.echec({ fr: "Modèle non appliqué. Réessayez.", en: "Template not applied. Try again." }, { erreur: reponse.error });
                 return;
             }
-            toast.success(t({ en: "Template applied to the draft.", fr: "Modèle appliqué au brouillon." }));
+            notifier.succes({ fr: "Modèle appliqué au brouillon.", en: "Template applied to the draft." });
             onFait();
         } catch {
-            toast.error(t({ en: "The server did not answer.", fr: "Le serveur n'a pas répondu." }));
+            notifier.echec({ fr: "Pas de réponse du serveur. Réessayez.", en: "No answer from the server. Try again." });
         } finally {
             setEnCours(false);
         }

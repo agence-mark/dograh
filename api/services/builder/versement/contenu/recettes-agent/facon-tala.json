@@ -1,0 +1,281 @@
+{
+  "titre": "Façon Tala",
+  "contenu": {
+    "nom": "Façon Tala",
+    "quand": "Un groupe avec un accueil et un spécialiste par motif d'appel, prompts au moule d'étape (« fait accompli, au lieu de »). Recette de départ.",
+    "quand_en": "A group with a greeter and one specialist per call reason, prompts written to the step template (\"done fact, instead of\"). Starting recipe.",
+    "defaut_de_depart": true,
+    "methode_de_construction": "Tu construis uniquement avec les pièces de cette recette (prompt général, étapes au moule, conditions de passage), jamais avec celles d'une autre recette. Les moules se remplissent, ils ne se réécrivent pas.",
+    "pieces": [
+      {
+        "famille": "conditions-passage",
+        "slug": "facon-tala-fait-accompli",
+        "role": "Conditions « fait accompli, au lieu de » (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-accueil",
+        "role": "Accueil (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-collecte",
+        "role": "Étape de collecte (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-fin",
+        "role": "Fin d'appel (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-recapitulatif",
+        "role": "Récapitulatif (façon Tala)"
+      },
+      {
+        "famille": "personas",
+        "slug": "facon-tala-persona",
+        "role": "Persona type (façon Tala)"
+      },
+      {
+        "famille": "phrases-fixes",
+        "slug": "facon-tala-phrases-fixes",
+        "role": "Phrases fixes (façon Tala)"
+      },
+      {
+        "famille": "prompt-general",
+        "slug": "facon-tala-telephone",
+        "role": "Prompt général, téléphone (façon Tala)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-tala-interdits-mesures",
+        "role": "Interdits de rédaction mesurés (façon Tala)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-tala-methode",
+        "role": "Méthode de rédaction (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-accueil-sortant",
+        "role": "Accueil sortant et disponibilité (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-orientation",
+        "role": "Orientation entre motifs (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-securite-d-abord",
+        "role": "Sécurité ou urgence d'abord (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-conseiller-horaires",
+        "role": "Conseiller : horaires, transfert, sinon message (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-opposition-sortante",
+        "role": "Opposition (« ne plus m'appeler ») (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-recapitulatif-motif",
+        "role": "Récapitulatif d'un motif (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-identifier-appelant",
+        "role": "Identifier l'appelant (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-porte-identification",
+        "role": "Porte d'identification (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-suivi-dossier",
+        "role": "Suivi de dossier (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-suivi-commande",
+        "role": "Suivi de commande (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-facture-solde",
+        "role": "Facture, solde, échéance (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-suivi-ticket",
+        "role": "Suivi d'un ticket de service après-vente (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-retrouver-rendez-vous",
+        "role": "Retrouver ou confirmer un rendez-vous (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-questions-pratiques",
+        "role": "Questions pratiques (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-creer-demande",
+        "role": "Créer une demande, un prospect, un devis (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-reclamation",
+        "role": "Réclamation, contestation (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-prendre-rendez-vous",
+        "role": "Prendre un rendez-vous (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-deplacer-annuler",
+        "role": "Déplacer ou annuler un rendez-vous (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-lien-paiement",
+        "role": "Lien de paiement par message (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-promesse-paiement",
+        "role": "Promesse de paiement, acompte (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-changer-commande",
+        "role": "Changer une information sur une commande (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-qualifier-prospect",
+        "role": "Qualifier un prospect (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-enquete-satisfaction",
+        "role": "Enquête de satisfaction (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-confirmation-veille",
+        "role": "Confirmation la veille (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-rappel-echeance",
+        "role": "Rappel d'échéance (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-mettre-a-jour-fiche",
+        "role": "Mettre à jour une fiche (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-agenda-par-personne",
+        "role": "Agenda par personne (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-relance-devis",
+        "role": "Relance d'un devis non signé (façon Tala)"
+      },
+      {
+        "famille": "moules-etape",
+        "slug": "facon-tala-prise-de-commande",
+        "role": "Prise de commande (façon Tala)"
+      },
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-tala-gabarit-outil",
+        "role": "Gabarit d'outil (façon Tala)"
+      },
+      {
+        "famille": "modeles-outils",
+        "slug": "facon-tala-regles-par-famille",
+        "role": "Règles par famille d'outil (façon Tala)"
+      },
+      {
+        "famille": "conditions-passage",
+        "slug": "facon-tala-conditions-types",
+        "role": "Conditions types façon Tala (catalogue)"
+      },
+      {
+        "famille": "prompt-general",
+        "slug": "facon-tala-telephone-sortant",
+        "role": "Prompt général, téléphone sortant (façon Tala)"
+      },
+      {
+        "famille": "controles-avant-publication",
+        "slug": "facon-tala-controles-redaction",
+        "role": "Contrôles de rédaction (façon Tala)"
+      },
+      {
+        "famille": "phrases-fixes",
+        "slug": "facon-tala-phrases-plateforme",
+        "role": "Phrases de plateforme et de transfert (façon Tala)"
+      },
+      {
+        "famille": "apres-appel",
+        "slug": "facon-tala-qualification-appel",
+        "role": "Qualification de l'appel (façon Tala)"
+      },
+      {
+        "famille": "questionnaire-audit",
+        "slug": "facon-tala-questions-par-trous",
+        "role": "Questions par trous, entrant et sortant (façon Tala)"
+      },
+      {
+        "famille": "regles-redaction",
+        "slug": "facon-tala-ecrire-par-motif",
+        "role": "Écrire une étape par motif (façon Tala)"
+      }
+    ],
+    "tests": [
+      "capture-adresse",
+      "capture-correction-a-la-relecture",
+      "capture-nom-epele",
+      "capture-numero-par-paires",
+      "capture-refus-de-donner",
+      "capture-tout-d-un-coup",
+      "correction-au-recapitulatif",
+      "demande-d-un-humain",
+      "demande-hors-perimetre",
+      "demarchage",
+      "entreprise-fermee",
+      "rdv-cas-normal",
+      "tala-annuler-propose-deplacer",
+      "tala-change-d-avis",
+      "tala-ecriture-confirmee",
+      "tala-identification-avant-info",
+      "tala-lecture-introuvable",
+      "tala-montant-du-logiciel",
+      "tala-opposition-sortante",
+      "tala-tiers-sans-montant",
+      "urgence-prioritaire"
+    ],
+    "capacites": []
+  },
+  "notes": "Pièces existantes inchangées (lot M, 04/11) ; ajout du lot « façon Tala par motif » du 05/11 en Candidat (moules par motif, gabarit d'outil, conditions types, prompt sortant, contrôles de rédaction, scénarios).",
+  "dossier": "facon-tala",
+  "etiquettes": [
+    "facon-tala"
+  ]
+}

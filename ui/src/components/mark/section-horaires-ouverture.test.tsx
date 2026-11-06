@@ -48,6 +48,9 @@ const champ = () => document.getElementById("horaires_ouverture") as HTMLTextAre
 const enregistrer = () =>
     fireEvent.click(screen.getByRole("button", { name: /save opening hours/i }));
 
+/** Ce que `saveWorkflowConfigurations` lève sur une faute de champ (422) : l'erreur porte la liste `detail`. */
+const faute = (messages: string[]) => Object.assign(new Error(messages.join("\n")), { detail: messages.map((msg) => ({ msg })) });
+
 describe("[.mark] Opening Hours card", () => {
     it("is empty by default, with the Save button asleep", () => {
         ouvrir(null);
@@ -101,7 +104,7 @@ describe("[.mark] Opening Hours card", () => {
         // What `saveWorkflowConfigurations` throws on a 422 from the validator.
         const onSave = vi
             .fn()
-            .mockRejectedValue(new Error("Value error, ligne 2 : heure impossible « 25:00 »"));
+            .mockRejectedValue(faute(["Value error, ligne 2 : heure impossible « 25:00 »"]));
         ouvrir(null, onSave);
         fireEvent.change(champ(), {
             target: { value: "lundi : fermé\nmardi : 10:00-25:00" },
@@ -116,7 +119,7 @@ describe("[.mark] Opening Hours card", () => {
     it("strips the prefix on every line when several refusals are joined", async () => {
         const onSave = vi
             .fn()
-            .mockRejectedValue(new Error("Value error, ligne 1 : x\nValue error, ligne 3 : y"));
+            .mockRejectedValue(faute(["Value error, ligne 1 : x", "Value error, ligne 3 : y"]));
         ouvrir(null, onSave);
         fireEvent.change(champ(), { target: { value: "lundi 10:00" } });
         enregistrer();
@@ -124,8 +127,17 @@ describe("[.mark] Opening Hours card", () => {
         expect(alerte.textContent).toBe("ligne 1 : x\nligne 3 : y");
     });
 
+    it("never shows the raw text of a server error that is not a field fault (revue de contrôle, point 2)", async () => {
+        const onSave = vi.fn().mockRejectedValue(new Error("psycopg2.errors.UniqueViolation: secret internal text"));
+        ouvrir(null, onSave);
+        fireEvent.change(champ(), { target: { value: "lundi 10:00" } });
+        enregistrer();
+        const alerte = await screen.findByRole("alert");
+        expect(alerte.textContent).not.toMatch(/psycopg2|secret internal/);
+    });
+
     it("clears the refusal as soon as the entry is edited", async () => {
-        const onSave = vi.fn().mockRejectedValue(new Error("Value error, ligne 1 : x"));
+        const onSave = vi.fn().mockRejectedValue(faute(["Value error, ligne 1 : x"]));
         ouvrir(null, onSave);
         fireEvent.change(champ(), { target: { value: "lundi 10:00" } });
         enregistrer();

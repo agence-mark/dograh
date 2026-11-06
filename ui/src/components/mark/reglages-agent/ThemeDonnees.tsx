@@ -11,7 +11,7 @@
  * (convention E4); what they send is what « General » sent: the mappings as
  * typed, the lead fields trimmed.
  */
-import { ClipboardList, Plus, Trash2Icon } from "lucide-react";
+import { NotebookPen, Plus, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -535,7 +535,7 @@ export const ThemeDonnees = ({
     return (
         <Theme
             id={ID_THEME_DONNEES}
-            icone={ClipboardList}
+            icone={NotebookPen}
             titre={TITRE_DONNEES}
             description={{ en: "What the agent writes down, and what is kept or passed on.", fr: "Ce que l'agent note, et ce qui est conservé ou transmis." }}
             resume={[
@@ -578,6 +578,117 @@ export const ThemeDonnees = ({
                 >
                     <Switch id="fiche_au_fil_de_leau" checked={ficheActive} onCheckedChange={setFicheActive} />
                 </ChampReglage>
+                {/* fiabilite-orchestration, lot 2 (F19): one box, where « Known » was; every note-taking mode.
+                    It writes both keys: the wrapper names the second one for the inventory. */}
+                {ficheActive && (
+                    <div data-reglage="etiquettes_des_etapes">
+                        <ChampReglage
+                        cle="fiche_deja_connu"
+                        idControle="fiche_deja_connu"
+                        libelle={{
+                            en: "Show the model what is known and what is expected",
+                            fr: "Montrer au modèle ce qui est connu et ce qui est attendu",
+                        }}
+                        aides={[
+                            {
+                                en: "Right before the caller's last words, two short lines name the record fields: « Still expected: phone number, address. » (the fields of the step's list still empty, in its order) and « Known: name, first name. » (those already known). Names only, never the values. The step's tools and the background hand-off wait until its list is complete. The list of each step is set in the step's panel, in the order wanted. Off, nothing is shown and nothing waits.",
+                                fr: "Juste avant la dernière parole de l'appelant, deux lignes courtes nomment les champs de la fiche : « Encore attendu : numéro, adresse. » (les champs de la liste de l'étape encore vides, dans son ordre) et « Déjà connu : nom, prénom. » (ceux déjà connus). Les noms seulement, jamais les valeurs. Les outils de l'étape et le travail confié attendent que sa liste soit complète. La liste de chaque étape se règle dans le panneau de l'étape, dans l'ordre voulu. Éteint, rien n'est montré et rien n'attend.",
+                            },
+                        ]}
+                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
+                        disposition="ligne"
+                    >
+                        <Switch id="fiche_deja_connu" checked={connuEtAttendu} onCheckedChange={setConnuEtAttendu} />
+                        </ChampReglage>
+                    </div>
+                )}
+                {/* figeage-v12 (D4): where the model reads the record, next to what it shows. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
+                )}
+                {/* agent-facon-tala (C8): the short form of what the model reads about the record. */}
+                {ficheActive && (
+                    <Reglage cle="fiche_forme_courte" valeur={ficheCourte} onChange={(v) => setFicheCourte(Boolean(v))} />
+                )}
+                <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
+                    <EditeurChampsFiche
+                        actif={ficheActive}
+                        champs={champs}
+                        onChange={setChamps}
+                        postScriptum={modeDeNote === "post_scriptum"}
+                        reconnaissance={{
+                            commune: resolue.variables_commune,
+                            telephone: resolue.variables_telephone,
+                            code_postal: resolue.variables_code_postal,
+                            courriel: resolue.variables_courriel,
+                        }}
+                    />
+                </div>
+            </Intertitre>
+
+
+            <Intertitre id="donnees-issue" titre={{ en: "Call disposition", fr: "Issue de l'appel" }}>
+                <div id="reglage-call_dispositions" data-reglage="call_dispositions">
+                    <CallDispositionEditor rows={lignesIssues} onChange={setLignesIssues} defaultDispositions={issuesParDefaut} />
+                </div>
+            </Intertitre>
+
+            <Intertitre
+                id="donnees-transcription"
+                titre={{ en: "Transcript", fr: "Transcription horodatée" }}
+                description={{
+                    en: "Include start and stop timestamps for each speaker in the uploaded transcript.",
+                    fr: "Ajoute l'heure de début et de fin de chaque réplique dans la transcription envoyée.",
+                }}
+            >
+                <ChampReglage
+                    cle="transcript_configuration.include_end_timestamps"
+                    idControle="transcript-end-timestamps-enabled"
+                    libelle={{ en: "Enhanced Timestamped Transcript", fr: "Transcription horodatée enrichie" }}
+                    aides={[
+                        {
+                            en: "On: each line of the transcript carries its start and end time. Off: the start time only. Applies to the transcript kept with the call.",
+                            fr: "Allumé : chaque réplique porte son heure de début et son heure de fin. Éteint : l'heure de début seulement. Vaut pour la transcription gardée avec l'appel.",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="transcript-end-timestamps-enabled" checked={horodatee} onCheckedChange={setHorodatee} />
+                </ChampReglage>
+                <div className="rounded-md border bg-muted/20 p-3">
+                    <pre className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                        {`[2026-07-06T10:00:00.000Z -> 2026-07-06T10:00:04.800Z] assistant: Can you confirm your date of birth?
+[2026-07-06T10:00:06.200Z -> 2026-07-06T10:00:08.700Z] user: January fifth, nineteen ninety.`}
+                    </pre>
+                </div>
+            </Intertitre>
+
+            <Intertitre id="donnees-compaction" titre={{ en: "Context Compaction", fr: "Compaction du contexte" }}>
+                <ChampReglage
+                    cle="context_compaction_enabled"
+                    idControle="context-compaction-enabled"
+                    libelle={{ en: "Enable Context Compaction", fr: "Activer la compaction du contexte" }}
+                    aides={[
+                        {
+                            en: "Automatically summarize conversation context when transitioning between nodes. Not applicable in Realtime mode - the speech-to-speech service manages its own conversation state and this setting is ignored.",
+                            fr: "Résume automatiquement le contexte de la conversation au passage d'une étape à l'autre. Sans objet en mode temps réel : le service parole à parole gère son propre état et ce réglage y est ignoré.",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="context-compaction-enabled" checked={compaction} onCheckedChange={setCompaction} />
+                </ChampReglage>
+            </Intertitre>
+
+            {/* [.mark] N2 : « Passages », ce que le code fait quand l'agent change d'étape ou de voix : prise de notes, portes, greffier, arbitre, transfert garanti. */}
+            <Intertitre
+                id="donnees-passages"
+                titre={{ en: "Passages", fr: "Passages" }}
+                description={{
+                    en: "How the agent notes, takes a transition and hands over: note-taking mode, transitions, clerk, arbiter, guaranteed transfer.",
+                    fr: "Comment l'agent prend ses notes, prend une porte et passe la main : mode de prise de notes, portes, greffier, arbitre, transfert garanti.",
+                }}
+            >
                 {/* Plan mode-prise-de-notes (D1, D2): shown only with the record on, the same
                     condition as in the code (no record, no note-taking mode). */}
                 {ficheActive && (
@@ -638,38 +749,6 @@ export const ThemeDonnees = ({
                             </SelectContent>
                         </Select>
                     </ChampReglage>
-                )}
-                {/* fiabilite-orchestration, lot 2 (F19): one box, where « Known » was; every note-taking mode.
-                    It writes both keys: the wrapper names the second one for the inventory. */}
-                {ficheActive && (
-                    <div data-reglage="etiquettes_des_etapes">
-                        <ChampReglage
-                        cle="fiche_deja_connu"
-                        idControle="fiche_deja_connu"
-                        libelle={{
-                            en: "Show the model what is known and what is expected",
-                            fr: "Montrer au modèle ce qui est connu et ce qui est attendu",
-                        }}
-                        aides={[
-                            {
-                                en: "Right before the caller's last words, two short lines name the record fields: « Still expected: phone number, address. » (the fields of the step's list still empty, in its order) and « Known: name, first name. » (those already known). Names only, never the values. The step's tools and the background hand-off wait until its list is complete. The list of each step is set in the step's panel, in the order wanted. Off, nothing is shown and nothing waits.",
-                                fr: "Juste avant la dernière parole de l'appelant, deux lignes courtes nomment les champs de la fiche : « Encore attendu : numéro, adresse. » (les champs de la liste de l'étape encore vides, dans son ordre) et « Déjà connu : nom, prénom. » (ceux déjà connus). Les noms seulement, jamais les valeurs. Les outils de l'étape et le travail confié attendent que sa liste soit complète. La liste de chaque étape se règle dans le panneau de l'étape, dans l'ordre voulu. Éteint, rien n'est montré et rien n'attend.",
-                            },
-                        ]}
-                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
-                        disposition="ligne"
-                    >
-                        <Switch id="fiche_deja_connu" checked={connuEtAttendu} onCheckedChange={setConnuEtAttendu} />
-                        </ChampReglage>
-                    </div>
-                )}
-                {/* figeage-v12 (D4): where the model reads the record, next to what it shows. */}
-                {ficheActive && (
-                    <Reglage cle="fiche_dans_le_systeme" valeur={ficheSysteme} onChange={(v) => setFicheSysteme(Boolean(v))} />
-                )}
-                {/* agent-facon-tala (C8): the short form of what the model reads about the record. */}
-                {ficheActive && (
-                    <Reglage cle="fiche_forme_courte" valeur={ficheCourte} onChange={(v) => setFicheCourte(Boolean(v))} />
                 )}
                 {/* agent-facon-tala (C1): independent of the record, so outside the record condition. */}
                 {/* agent-facon-tala (C3 bis): independent of the record. */}
@@ -822,20 +901,6 @@ export const ThemeDonnees = ({
                         </Button>
                     </div>
                 </ChampReglage>
-                <div id="reglage-fiche_champs" data-reglage="fiche_champs" className="space-y-2">
-                    <EditeurChampsFiche
-                        actif={ficheActive}
-                        champs={champs}
-                        onChange={setChamps}
-                        postScriptum={modeDeNote === "post_scriptum"}
-                        reconnaissance={{
-                            commune: resolue.variables_commune,
-                            telephone: resolue.variables_telephone,
-                            code_postal: resolue.variables_code_postal,
-                            courriel: resolue.variables_courriel,
-                        }}
-                    />
-                </div>
             </Intertitre>
 
             {/* passages-fiables, lots F and G: the agent flags what it cannot settle; the alerts leave by mail. */}
@@ -851,57 +916,11 @@ export const ThemeDonnees = ({
                 <Reglage cle="alertes_par_mail" valeur={alertesMail} onChange={(v) => setAlertesMail(Boolean(v))} />
             </Intertitre>
 
-            <Intertitre id="donnees-issue" titre={{ en: "Call disposition", fr: "Issue de l'appel" }}>
-                <div id="reglage-call_dispositions" data-reglage="call_dispositions">
-                    <CallDispositionEditor rows={lignesIssues} onChange={setLignesIssues} defaultDispositions={issuesParDefaut} />
-                </div>
-            </Intertitre>
-
             {/* [.mark] Chantier l-agent-travaille, L4 (A6). */}
             <Intertitre id="donnees-apres-appel" titre={{ en: "After the call", fr: "Après l'appel" }}>
                 <SectionApresAppelAgent valeur={apresAppel} onChange={setApresAppel} workflowId={workflowId} champsFiche={champs.map((c) => c.nom)} />
             </Intertitre>
 
-            <Intertitre
-                id="donnees-transcription"
-                titre={{ en: "Transcript", fr: "Transcription horodatée" }}
-                description={{
-                    en: "Include start and stop timestamps for each speaker in the uploaded transcript.",
-                    fr: "Ajoute l'heure de début et de fin de chaque réplique dans la transcription envoyée.",
-                }}
-            >
-                <ChampReglage
-                    cle="transcript_configuration.include_end_timestamps"
-                    idControle="transcript-end-timestamps-enabled"
-                    libelle={{ en: "Enhanced Timestamped Transcript", fr: "Transcription horodatée enrichie" }}
-                    disposition="ligne"
-                >
-                    <Switch id="transcript-end-timestamps-enabled" checked={horodatee} onCheckedChange={setHorodatee} />
-                </ChampReglage>
-                <div className="rounded-md border bg-muted/20 p-3">
-                    <pre className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                        {`[2026-07-06T10:00:00.000Z -> 2026-07-06T10:00:04.800Z] assistant: Can you confirm your date of birth?
-[2026-07-06T10:00:06.200Z -> 2026-07-06T10:00:08.700Z] user: January fifth, nineteen ninety.`}
-                    </pre>
-                </div>
-            </Intertitre>
-
-            <Intertitre id="donnees-compaction" titre={{ en: "Context Compaction", fr: "Compaction du contexte" }}>
-                <ChampReglage
-                    cle="context_compaction_enabled"
-                    idControle="context-compaction-enabled"
-                    libelle={{ en: "Enable Context Compaction", fr: "Activer la compaction du contexte" }}
-                    aides={[
-                        {
-                            en: "Automatically summarize conversation context when transitioning between nodes. Not applicable in Realtime mode - the speech-to-speech service manages its own conversation state and this setting is ignored.",
-                            fr: "Résume automatiquement le contexte de la conversation au passage d'une étape à l'autre. Sans objet en mode temps réel : le service parole à parole gère son propre état et ce réglage y est ignoré.",
-                        },
-                    ]}
-                    disposition="ligne"
-                >
-                    <Switch id="context-compaction-enabled" checked={compaction} onCheckedChange={setCompaction} />
-                </ChampReglage>
-            </Intertitre>
 
             {externalPbxIntegrationsEnabled ? (
                 <Intertitre
@@ -912,7 +931,16 @@ export const ThemeDonnees = ({
                         fr: "Recopie, si besoin, les valeurs recueillies dans les champs du standard avant un transfert ou un raccrochage.",
                     }}
                 >
-                    <ChampReglage cle="external_pbx_field_mappings" libelle={{ en: "Field Mappings", fr: "Correspondance des champs" }}>
+                    <ChampReglage
+                        cle="external_pbx_field_mappings"
+                        libelle={{ en: "Field Mappings", fr: "Correspondance des champs" }}
+                        aides={[
+                            {
+                                en: "Which value gathered during the call goes into which field of the external PBX, copied just before a transfer or a hang-up.",
+                                fr: "Quelle valeur recueillie pendant l'appel va dans quel champ du standard externe, recopiée juste avant un transfert ou un raccrochage.",
+                            },
+                        ]}
+                    >
                         <div className="flex items-center justify-between gap-3 rounded border p-3 text-sm">
                             <span>
                                 {correspondances.length} {t({ en: "mappings", fr: "correspondances" })}

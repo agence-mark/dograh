@@ -76,7 +76,9 @@ async def _contexte(ctx) -> tuple[ReglagesVerification, Any]:
 
     if not ctx.organization_id or not ctx.run_id:
         raise Indisponible("no organization or no run")
-    run, organisation = await db_client.get_workflow_run_with_context(ctx.run_id)
+    run, organisation = await db_client.get_workflow_run_with_context(
+        ctx.run_id, organization_id=ctx.organization_id
+    )
     if run is None or organisation != ctx.organization_id:
         raise Indisponible("run of another organization")
     definition = getattr(run, "definition", None)

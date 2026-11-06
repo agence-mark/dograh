@@ -51,6 +51,7 @@ env:
   # Figés pour les deux passages. À relever ensemble, jamais l'un sans l'autre.
   PYTEST_VERSION: "9.1.1"
   PYTEST_ASYNCIO_VERSION: "1.4.0"
+  PYTEST_TIMEOUT_VERSION: "2.4.0"  # [.mark] délai par test : un test bloqué échoue avec sa pile, la suite continue
   # D4 : le runner a 16 Go, la suite tient en 1,3 Go.
   MARK_SONDE_PLAFOND_MO: "6144"
 
@@ -125,7 +126,8 @@ jobs:
     name: Suite (${{ matrix.passage }})
     needs: cadrage
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # [.mark] Builder partie 2 : 45 min coupaient la branche (beaucoup plus de tests que la base) avant son rapport.
+    timeout-minutes: 180  # [.mark] partie 3 : la suite de la branche dépasse 85 min (≈ 12 600 tests)
     strategy:
       fail-fast: false
       matrix:
@@ -213,14 +215,15 @@ jobs:
 
       - name: Figer pytest (identique pour les deux passages)
         run: |
-          python -m pip install --quiet "pytest==${PYTEST_VERSION}" "pytest-asyncio==${PYTEST_ASYNCIO_VERSION}"
-          python -m pip list 2>/dev/null | grep -i -E '^(pytest|pytest-asyncio) '
+          python -m pip install --quiet "pytest==${PYTEST_VERSION}" "pytest-asyncio==${PYTEST_ASYNCIO_VERSION}" "pytest-timeout==${PYTEST_TIMEOUT_VERSION}"
+          python -m pip list 2>/dev/null | grep -i -E '^(pytest|pytest-asyncio|pytest-timeout) '
 
       # Le code de sortie de pytest est écrit dans un fichier et l'étape rend toujours 0 : la
       # décision appartient au job `comparer`, qui relit les trois fichiers (R7). Sans `-x`,
       # `--continue-on-collection-errors` : un fichier qui n'importe plus ressort comme un test
       # rouge nommé, au lieu d'interrompre toute la suite.
       - name: Run pytest
+        timeout-minutes: 165
         working-directory: ${{ matrix.passage == 'base' && 'base' || '.' }}/api
         run: |
           rapports="$GITHUB_WORKSPACE/rapports/${{ matrix.passage }}"
@@ -232,9 +235,30 @@ jobs:
           export PYTHONPATH="$racine:$RUNNER_TEMP/outils-mark"
           export MARK_SONDE_FICHIER="$rapports/sonde-memoire.json"
           set +e
-          pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
-            --junitxml="$rapports/junit.xml"
+          # [.mark] Builder partie 2, C5 : un test qui depasse 120 s ecrit la pile de chaque fil dans le journal (sans
+          # arreter la suite) ; un depassement de la limite du job dit alors QUEL test bloquait. Les 25 plus lents aussi.
+          # [.mark] Arrêt propre à 85 min (SIGINT) : pytest écrit alors son rapport et les plus lents au lieu d'être tué par la
+          # limite du job sans rien laisser.
+          # [.mark] Partie 3, P0 : le run 41837463461 a ignoré l'arrêt SIGINT et tourné jusqu'à la limite du job, qui n'a
+          # rien gardé (ni rapport, ni journal). La suite ne se fige ni sous Windows ni sous Linux (Docker, mêmes options) :
+          # le blocage tient à l'environnement de GitHub. Désormais : arrêt forcé 5 min après l'arrêt doux (le job finit
+          # toujours avant sa limite et téléverse ses rapports), et la sortie de pytest (piles du délai par test comprises)
+          # est écrite dans le rapport : un blocage est NOMMÉ au lieu d'annuler le passage.
+          # [.mark] Partie 3, fin : le run 42125514281 a encore tourné 3 h sans rapport. Cause : `| tee` attend la fermeture
+          # du tuyau, que gardent ouvert les processus enfants de pytest après l'arrêt forcé. Désormais pytest écrit
+          # directement dans le fichier, dans son propre groupe de processus (`setsid`), et le groupe ENTIER est tué à
+          # l'échéance ; l'étape a sa propre limite, sous celle du job, pour que les rapports partent toujours.
+          setsid pytest tests/ -p sonde_memoire -p no:cacheprovider --continue-on-collection-errors \
+            -o faulthandler_timeout=120 --durations=25 --timeout=600 --timeout-method=signal \
+            --junitxml="$rapports/junit.xml" > "$rapports/pytest.log" 2>&1 < /dev/null &
+          pid=$!
+          ( sleep 9000; echo "[.mark] 150 min : arrêt doux (SIGINT)" >> "$rapports/pytest.log"; kill -INT -- -$pid
+            sleep 300; echo "[.mark] arrêt forcé du groupe" >> "$rapports/pytest.log"; kill -KILL -- -$pid ) > /dev/null 2>&1 &
+          garde=$!
+          wait $pid
           code=$?
+          pkill -P $garde 2>/dev/null; kill $garde 2>/dev/null
+          tail -n 150 "$rapports/pytest.log"
           set -e
           echo "$code" > "$rapports/code-sortie.txt"
           echo "pytest a rendu le code $code"

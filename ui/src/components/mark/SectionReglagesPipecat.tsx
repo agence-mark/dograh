@@ -2,7 +2,7 @@
 
 import { SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -345,18 +345,14 @@ export const SectionReglagesPipecat = ({
                 },
                 workflowName,
             );
-            toast.success(`Speech tuning saved. ${RAPPEL_PUBLICATION}`);
+            notifier.succes({ fr: "Réglages de la voix enregistrés.", en: "Voice tuning saved." }, { publier: true });
         } catch (error) {
             // Upstream sections swallow this (settings/page.tsx:477, :1079,
             // :1279). Ours does not: these are the only settings on the screen
             // with bounds this tight, and a save that fails in silence is the
             // same family of defect as a setting nobody can see.
             console.error("Failed to save speech tuning:", error);
-            toast.error(
-                error instanceof Error && error.message
-                    ? `Speech tuning not saved: ${error.message}`
-                    : "Speech tuning not saved. Check the values and try again.",
-            );
+            notifier.echec({ fr: "Réglages de la voix non enregistrés. Réessayez.", en: "Voice tuning not saved. Try again." }, { erreur: error });
         } finally {
             setIsSaving(false);
         }

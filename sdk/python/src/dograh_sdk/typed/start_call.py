@@ -121,6 +121,15 @@ class StartCall(TypedNode):
     Default 0.8.
     """
 
+    passation_par_le_code: Optional[bool] = None
+    """
+    When the call arrives on this step (an exit taken on the record, or
+    written by the agent) and the step carries a single hand-over to a
+    colleague, the code hands the call over at once, with the tool's
+    announcement, instead of asking the agent's model one more time. Off by
+    default.
+    """
+
     allow_interrupt: bool = False
     """
     When true, the user can interrupt the agent mid-utterance.
@@ -186,5 +195,12 @@ class StartCall(TypedNode):
     pre_call_fetch_credential_uuid: Optional[str] = None
     """
     Optional credential attached to the pre-call request.
+    """
+
+    pre_call_fetch_remplace: Optional[str] = None
+    """
+    Names of agent objects (comma-separated) that the pre-call lookup is
+    allowed to replace. Empty = the lookup never replaces an agent object;
+    each replacement is traced in the run.
     """
 

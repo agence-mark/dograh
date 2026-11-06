@@ -1,5 +1,6 @@
 import { Loader2, Mic, Pause, Play, Square, Trash2Icon, Upload, X } from "lucide-react";
-import posthog from "posthog-js";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -29,9 +30,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { LANGUAGE_DISPLAY_NAMES } from "@/constants/languages";
-import { PostHogEvent } from "@/constants/posthog-events";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
+import { notifier } from "@/components/mark/notifications";
 
 interface RecordingsDialogProps {
     open: boolean;
@@ -332,9 +333,7 @@ export const RecordingsDialog = ({
             if (fileInputRef.current) fileInputRef.current.value = "";
             await fetchRecordings();
         } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Failed to upload recordings"
-            );
+            setError(echecAffiche(err, ECHECS.enregistrementCreer));
         } finally {
             setUploading(false);
         }
@@ -342,10 +341,12 @@ export const RecordingsDialog = ({
 
     const handleDelete = async (recordingId: string) => {
         try {
-            await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
+            const response = await deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete({
                 path: { recording_id: recordingId },
             });
+            if (response.error) throw response.error;
             await fetchRecordings();
+            notifier.succes({ fr: "Enregistrement supprimé.", en: "Recording deleted." });
         } catch {
             setError("Failed to delete recording");
         }
@@ -354,10 +355,6 @@ export const RecordingsDialog = ({
     const handlePlay = async (rec: RecordingResponseSchema) => {
         try {
             await togglePlayback(rec.recording_id, rec.storage_key, rec.storage_backend);
-            posthog.capture(PostHogEvent.RECORDING_PLAYED, {
-                recording_id: rec.recording_id,
-                source: 'recordings_dialog',
-            });
         } catch {
             setError("Failed to play recording");
         }

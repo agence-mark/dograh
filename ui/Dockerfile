@@ -43,9 +43,6 @@ COPY ui/src ./src
 # Set build-time environment variables (needed for Next.js build)
 ENV NEXT_PUBLIC_NODE_ENV="oss"
 ENV NEXT_TELEMETRY_DISABLED="1"
-# [.mark] Le widget de messagerie de Dograh (Chatwoot) est retiré de l'image : sans ces deux variables
-# NEXT_PUBLIC_CHATWOOT_*, aucun widget ne se charge (ChatwootWidget.tsx sort sans bruit). Amont :
-# ENV NEXT_PUBLIC_CHATWOOT_URL / NEXT_PUBLIC_CHATWOOT_TOKEN.
 ENV BACKEND_URL="http://api:8000"
 
 # Build the application with standalone mode

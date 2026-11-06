@@ -467,6 +467,19 @@ class WorkflowDefinitionModel(Base):
         JSON, nullable=False, default=dict, server_default=text("'{}'::json")
     )
 
+    # [.mark] Partie 3, SA-L3b (branches d'agent) : la branche de cette version ou de ce brouillon. NULL = la branche
+    # principale (toutes les versions d'avant, jamais réécrites). La clé étrangère vers ``workflow_branches`` est posée par la
+    # migration ``c7a2e9d4b1f6`` (pas déclarée ici : ``models_builder`` porte la table). ``draft_owner_id`` : à qui est le
+    # brouillon d'une branche (un brouillon par personne et par branche) ; NULL = brouillon partagé de la principale.
+    branch_id = Column(Integer, nullable=True, index=True)
+    draft_owner_id = Column(Integer, nullable=True)
+
+    # [.mark] Partie 3, SA-L3d (décision 21) : la version de chaque outil que cette version d'agent (ou ce brouillon) joue,
+    # ``{tool_uuid: numéro}``. Une version PUBLIÉE les porte toutes (écrites à la publication) ; un brouillon peut en omettre
+    # (un outil tout juste ajouté suit alors la version courante jusqu'à la publication). NULL = rien d'épinglé (agent sans
+    # outil, ou version d'avant la migration sans outil). Un agent ne suit JAMAIS seul une nouvelle version d'outil.
+    outils_epingles = Column(JSON, nullable=True)
+
     # Table constraints and indexes — unique hash constraint removed (no more dedup)
     __table_args__ = (
         Index("ix_workflow_definitions_workflow_status", "workflow_id", "status"),
@@ -657,6 +670,8 @@ class WorkflowRunModel(Base):
     gathered_context = Column(JSON, nullable=False, default=dict)
     logs = Column(JSON, nullable=False, default=dict, server_default=text("'{}'::json"))
     annotations = Column(JSON, nullable=False, default=dict)
+    # [.mark] C4 : note sur 5 du juge pour cet appel (nulle tant qu'il n'est pas jugé).
+    note_juge = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     campaign = relationship("CampaignModel")
@@ -685,6 +700,15 @@ class WorkflowRunModel(Base):
         ),
         Index("idx_workflow_runs_workflow_id", "workflow_id"),
         Index("idx_workflow_runs_campaign_id", "campaign_id"),
+        # [.mark] C4 : filtres et tris de la liste des appels.
+        Index("idx_workflow_runs_definition_id", "definition_id"),
+        Index("idx_workflow_runs_workflow_created", "workflow_id", "created_at"),
+        Index(
+            "idx_workflow_runs_note_juge",
+            "workflow_id",
+            "note_juge",
+            postgresql_where=text("note_juge IS NOT NULL"),
+        ),
     )
 
 
@@ -970,6 +994,12 @@ class EmbedTokenModel(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     updated_at = Column(DateTime(timezone=True), nullable=True)
+    # [.mark] Widget public (builder partie 2, U10) : le site qui regroupe les jetons d'un même site (facultatif)
+    # et les réglages posés par .mark (plafonds, durée maximale, limite par adresse).
+    site_id = Column(
+        Integer, ForeignKey("mark_embed_sites.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    reglages_mark = Column(JSON, nullable=True)
 
     # Relationships
     workflow = relationship("WorkflowModel")
@@ -1275,6 +1305,11 @@ class ToolModel(Base):
     # Structure depends on category:
     # - http_api: {"schema_version": 1, "type": "http_api", "config": {...}}
     definition = Column(JSON, nullable=False, default=dict)
+
+    # [.mark] Partie 3, SA-L3d (décision 21) : le numéro de la version courante de l'outil (le contenu ci-dessus). Chaque
+    # enregistrement qui change ce que l'agent voit (nom, description, définition) range l'ancien contenu et ajoute une version
+    # dans ``tool_versions`` ; les agents restent sur la version figée par leur version publiée.
+    version_courante = Column(Integer, nullable=False, default=1, server_default=text("1"))
 
     # Audit fields
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)

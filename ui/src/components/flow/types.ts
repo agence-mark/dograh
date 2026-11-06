@@ -18,6 +18,10 @@ export type FlowNodeData = {
     selected_through_edge?: boolean;
     hovered_through_edge?: boolean;
     runtime_active?: boolean;
+    /** [.mark] Sous-lot 20 : part des appels lus qui ont traversé l'étape (posée à l'affichage, jamais enregistrée). */
+    stats_part?: number;
+    /** N3a : la latence de l'étape sur les appels lus (moyenne pondérée et pire tour, en ms), quand elle a été mesurée. */
+    stats_latence?: { moyenne_ms: number; pire_ms: number };
     allow_interrupt?: boolean;
     extraction_enabled?: boolean;
     extraction_prompt?: string;
@@ -32,6 +36,7 @@ export type FlowNodeData = {
     pre_call_fetch_mode?: 'disabled' | 'always' | 'inbound' | 'outbound';
     pre_call_fetch_url?: string;
     pre_call_fetch_credential_uuid?: string;
+    pre_call_fetch_remplace?: string;
     // Trigger node specific
     trigger_path?: string;
     // Webhook node specific
@@ -80,12 +85,27 @@ export type EdgeRecordCondition = {
     etape_complete?: boolean;
     champ?: string;
     vaut?: string;
+    /** [.mark] Partie 3, sous-lot 21 : la même condition, étendue (`components/mark/graphe/conditions-de-porte.ts`). */
+    regles?: RegleDePorte[];
+    combien?: 'toutes' | 'au_moins_une';
+    sinon?: boolean;
+    toujours?: boolean;
+};
+
+/** [.mark] Sous-lot 21 : une règle de la condition d'une porte (source, champ, comparaison, valeur). */
+export type RegleDePorte = {
+    source: 'fiche' | 'etape' | 'outil' | 'heure' | 'etablissement' | 'variable';
+    champ?: string;
+    comparaison: string;
+    valeur?: string;
 };
 
 export type FlowEdgeData = {
     condition: string;
     label: string;
     condition_sur_la_fiche?: EdgeRecordCondition;
+    /** [.mark] L6+ : l'identifiant stable de la porte (le nom de la fonction), gardé quand on renomme le libellé. */
+    identifiant?: string;
     transition_speech?: string;
     transition_speech_type?: 'text' | 'audio';
     transition_speech_recording_id?: string;

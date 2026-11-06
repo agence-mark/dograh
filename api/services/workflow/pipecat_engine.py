@@ -20,6 +20,7 @@ from pipecat.frames.frames import (
     EndFrame,
     FunctionCallFromLLM,
     FunctionCallResultProperties,
+    LLMMessagesAppendFrame,
     LLMRunFrame,
     SpeechBoundaryFrame,
 )
@@ -66,6 +67,7 @@ from api.services.groupe.postes import memoire_du_processus_mo
 from api.services.groupe.prechauffage import precharge_de, prechauffer_les_cibles
 from api.services.equipe.transferts_humains import un_renvoi_a_echoue
 from api.services.phrases.catalogue import MISE_EN_RELATION
+from api.services.interventions_du_moteur import CLE_NOTES_DE_PASSATION, intervention_de_l_appel
 from api.services.groupe.reglages_passation import (
     LIGNE_RENVOI_DEJA_ECHOUE,
     prechauffage_actif,
@@ -78,9 +80,11 @@ from api.errors.failure import (
     log_failure,
 )
 from api.schemas.workflow_configurations import CallDispositionOption
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.services.pipecat.audio_playback import play_audio
 from api.services.pipecat.call_monitor_processor import CallMonitorProcessor
 from api.services.pipecat.greeting import GreetingController
+from api.services.securite import annonce_ia
 from api.services.pipecat.speech_playback import (
     PlaybackOutcome,
     SpeechPlayback,
@@ -573,6 +577,11 @@ class PipecatEngine:
             # Open persistent MCP server sessions for this call (degrades on failure)
             await self._open_mcp_sessions()
 
+            # [.mark] Lots 8 et 22 : la table des étiquettes de l'agent d'accueil (l'accueil peut en citer).
+            from api.services.etiquettes_prompt import moteur as etiquettes
+
+            await etiquettes.preparer(self, self.active_agent.workflow)
+
             # Helper that encapsulates context summarization
             if self._context_compaction_enabled:
                 self._context_summarization_manager = ContextSummarizationManager(self)
@@ -605,7 +614,11 @@ class PipecatEngine:
     def _format_prompt(self, prompt: str) -> str:
         """Delegate prompt formatting to the shared workflow.utils implementation."""
 
-        return render_template(prompt, self._call_context_vars)
+        # [.mark] Lots 8 et 22 : les étiquettes d'objets ({{outil:…}}, {{bloc:…}}…) sont résolues AVANT le moteur des
+        # variables, jamais par un second moteur (``services/etiquettes_prompt``). Un texte sans étiquette est inchangé.
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        return render_template(etiquettes.rendre(self, prompt), self._call_context_vars)
 
     async def _create_transition_func(
         self,
@@ -628,6 +641,30 @@ class PipecatEngine:
             logger.info(f"Arguments: {function_call_params.arguments}")
 
             try:
+                # [.mark] RA-B R4a (audit 01 A2) : une condition écrite sur la fiche ferme la porte au
+                # modèle quand la fiche décide ; rien ne bouge, il le sait et reste sur l'étape.
+                fermee = self.porte_fermee_par_la_fiche(name, transition_to_node, agent)
+                if fermee is not None:
+                    suivi = self._suivi_de(agent)
+                    relance = (
+                        suivi.relance(function_call_params.tool_call_id)
+                        if suivi is not None
+                        else None
+                    )
+                    await function_call_params.result_callback(
+                        {
+                            "status": "closed",
+                            "message": (
+                                "Cette porte est fermée : la fiche de l'appel ne remplit pas sa condition. "
+                                "Reste sur cette étape et continue avec l'appelant."
+                            ),
+                        },
+                        properties=None
+                        if relance is None
+                        else FunctionCallResultProperties(run_llm=relance),
+                    )
+                    return
+
                 # Perform variable extraction before transitioning to new node
                 await self._perform_variable_extraction_if_needed(
                     self.active_agent.current_node,
@@ -749,6 +786,41 @@ class PipecatEngine:
 
         return agent.bind_tool(self, transition_func, is_node_transition=True)
 
+    def porte_fermee_par_la_fiche(
+        self, nom: str, cible: str | None = None, agent: AgentRuntime | None = None
+    ) -> dict | None:
+        """[.mark] RA-B R4a (audit 01 A2) : la porte ``nom`` de l'étape en cours porte-t-elle une condition ÉCRITE sur la
+        fiche, fausse aujourd'hui, sur une étape où la fiche décide ? Rend la condition lue (et laisse une ligne dans
+        ``passages_par_le_code``), sinon ``None``. Étape en mode ``agent`` : rien n'est lu. Une porte sans condition
+        écrite n'est jamais fermée. ⛔ Ne lève jamais (dans le doute : ouverte)."""
+        try:
+            from api.services.workflow import passage_sur_la_fiche as passage
+
+            noeud = (agent or self.active_agent).current_node
+            # [.mark] Sous-lot 21 : la même lecture pour toutes les conditions (règles, « toujours », « sinon »), dans
+            # ``passage_sur_la_fiche.porte_fermee`` ; la forme d'avant se lit comme avant.
+            for arete in getattr(noeud, "out_edges", None) or ():
+                if arete.get_function_name() != nom:
+                    continue
+                if cible is not None and arete.target != cible:
+                    continue
+                lecture = passage.porte_fermee(self, noeud, arete)
+                if lecture is None:
+                    return None
+                passage.tracer(
+                    self,
+                    raison=passage.RAISON_FICHE,
+                    resultat="fermee",
+                    porte=nom,
+                    vers=self.active_agent.workflow.nodes[arete.target].name,
+                    condition=lecture,
+                )
+                return lecture
+            return None
+        except Exception as e:  # noqa: BLE001 -- une lecture de condition ne coûte jamais l'appel
+            logger.warning(f"[porte] condition illisible, la porte reste ouverte : {e!r}")
+            return None
+
     # --- [.mark] Plan porte-parlee (lot 4) : la porte écrite dans la réponse ---
 
     def _porte_de_l_etape(self, nom: str):
@@ -836,6 +908,7 @@ class PipecatEngine:
         relancer: bool = False,
         fin_demandee: bool = False,
         au_revoir_dit: bool = False,
+        choisie_par_le_code: bool = False,
     ) -> str:
         """D6 : la porte ``nom`` écrite par le modèle, prise à la fin de sa réponse
         (interruption comprise), comme ``_create_transition_func`` mais sans
@@ -852,13 +925,19 @@ class PipecatEngine:
         collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
         mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
-        Rend l'état pour la trace : ``prise``, ``inconnue`` ou ``echec``.
+        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ;
+        une porte du modèle dont la condition sur la fiche est fausse n'est pas prise (``fermee``).
+
+        Rend l'état pour la trace : ``prise``, ``inconnue``, ``fermee`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
         agent = self.active_agent
         arete = self._porte_de_l_etape(nom)
         if arete is None:
             logger.warning(f"[porte] « {nom} » n'est pas une porte de l'étape : rien")
             return "inconnue"
+        if not choisie_par_le_code and self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
+            logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
+            return "fermee"
         try:
             logger.info(f"[porte] porte écrite prise : {nom} -> {arete.target}")
             # [.mark] Lot 7 (K1) : une porte réécrite vers l'étape de retour laisse sa trace.
@@ -947,6 +1026,10 @@ class PipecatEngine:
                     agent, principal, fin_demandee=fin_voulue, au_revoir_dit=au_revoir_dit
                 ):
                     return "prise"
+            # [.mark] Builder partie 3, lot P (P3) : l'étape d'arrivée est réglée « passation par le code » (éteint par
+            # défaut) : le code passe la main tout de suite, sans redemander une réponse au modèle de l'accueil.
+            if not fin and await self._passation_par_le_code(agent, arete.target):
+                return "prise"
             if phrase_figee is not None:
                 self._mute_pipeline = True
                 self._tache_du_groupe(
@@ -1007,6 +1090,58 @@ class PipecatEngine:
         except Exception as e:  # noqa: BLE001 -- une porte ne coûte jamais l'appel
             logger.error(f"[porte] porte écrite « {nom} » en échec : {e!r}")
             return "echec"
+
+    async def _passation_par_le_code(self, agent: AgentRuntime, cible: str) -> bool:
+        """[.mark] Builder partie 3, lot P (P3) : une passe de moins. L'étape ``cible`` est réglée
+        ``passation_par_le_code`` et porte UNE seule passation vers un collègue : le code l'appelle lui-même, par le
+        gestionnaire de l'outil (mêmes refus, même annonce, même trace), au lieu de relancer le modèle pour qu'il le
+        fasse. Rend ``True`` si la passation est partie ; ``False`` (réglage éteint, aucun ou plusieurs outils de
+        passation, refus, passation déjà en cours) : le comportement d'avant suit. ⛔ Ne lève jamais."""
+        try:
+            noeud = agent.workflow.nodes.get(cible)
+            if getattr(getattr(noeud, "data", None), "passation_par_le_code", None) is not True:
+                return False
+            if not self.agent_transfer_enabled or self.transfer_coordinator.in_progress:
+                return False
+            uuids = list(getattr(noeud, "tool_uuids", None) or [])
+            organisation = await self._get_organization_id() if uuids else None
+            outils = await self.lire_outils(uuids, organisation) if organisation else []
+            passations = [o for o in outils if o.category == ToolCategory.TRANSFER_AGENT.value]
+            if len(passations) != 1:
+                logger.info(
+                    f"[passation] « {getattr(noeud, 'name', cible)} » : {len(passations)} outil(s) de passation, "
+                    "le code ne choisit pas : le modèle reparle"
+                )
+                return False
+            outil = passations[0]
+            from types import SimpleNamespace
+
+            from api.services.workflow.tools.custom_tool import tool_to_function_schema
+
+            nom = tool_to_function_schema(outil)["function"]["name"]
+            gestionnaire = self._custom_tool_manager or CustomToolManager(self, agent)
+            issue: dict = {}
+
+            async def rappel(resultat, properties=None) -> None:
+                if isinstance(resultat, dict):
+                    issue.update(resultat)
+                # Comme un vrai résultat d'outil : la passation attend que le contexte soit prêt.
+                pret = getattr(properties, "on_context_updated", None)
+                if pret is not None:
+                    await pret()
+
+            await gestionnaire._create_transfer_agent_handler(outil, nom)(
+                SimpleNamespace(arguments={}, result_callback=rappel, function_name=nom, tool_call_id=None)
+            )
+            partie = issue.get("status") == "transferring"
+            logger.info(
+                f"[passation] « {getattr(noeud, 'name', cible)} » : passation par le code "
+                f"{'partie' if partie else 'refusée (' + str(issue.get('reason')) + ')'}"
+            )
+            return partie
+        except Exception as e:  # noqa: BLE001 -- le modèle garde la main
+            logger.error(f"[passation] passation par le code en échec : {e!r}")
+            return False
 
     # --- [.mark] Lot E de greffier-conversation (C4, D6) : le transfert garanti ---
 
@@ -1389,7 +1524,7 @@ class PipecatEngine:
             )
             return (
                 await self.prendre_porte_ecrite(
-                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True
+                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
                 )
                 == "prise"
             )
@@ -1634,6 +1769,15 @@ class PipecatEngine:
                     for key, value in extracted_data.items()
                     if key in requested_names
                 }
+                # [.mark] RA-B R4b (audit 02 B1) : pour un agent qui ne porte pas la fiche (spécialiste, agent
+                # reçu par transfert), l'extraction ne remplace jamais une valeur SÛRE d'un champ de la fiche.
+                protegees = self._valeurs_sures_de_la_fiche(extracted_data)
+                if protegees:
+                    logger.warning(
+                        f"Variable extraction for node {node.name}: valeur sûre de la fiche gardée pour "
+                        f"{sorted(protegees)}"
+                    )
+                    extracted_data = {k: v for k, v in extracted_data.items() if k not in protegees}
                 # Extraction variable names are author-supplied and nothing
                 # validates them against the keys the engine owns. Let one
                 # through and it would desynchronise the call's outcome:
@@ -1742,6 +1886,26 @@ class PipecatEngine:
             self.active_agent.current_node,
             run_in_background=False,
         )
+
+    def _valeurs_sures_de_la_fiche(self, noms) -> set[str]:
+        """[.mark] RA-B R4b : parmi ``noms``, les champs de la fiche qui ont déjà une valeur vérifiée (``sure``) et non
+        vide. ⛔ Ne lève jamais (dans le doute : aucun)."""
+        try:
+            if self._fiche is None:
+                return set()
+            champs = {c.nom for c in self._fiche.champs}
+            etat = self._gathered_context.get("fiche_etat") or {}
+            return {
+                n
+                for n in noms
+                if n in champs
+                and isinstance(etat.get(n), dict)
+                and etat[n].get("sure") is True
+                and self._gathered_context.get(n) not in (None, "", [], {})
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[extraction] valeurs sûres illisibles : {e!r}")
+            return set()
 
     def _fiche_sur_l_agent_actif(self) -> bool:
         """[.mark] La fiche vaut pour l'agent dont le modèle la porte.
@@ -2230,6 +2394,11 @@ class PipecatEngine:
         note = self._note_de_passation(agent, node)
         if note:
             texte = f"{texte}\n\n{note}"
+        # [.mark] U3 quinquies (E68) : les consignes de sécurité, à la toute fin du prompt, au téléphone comme au clavier
+        # (ce composeur est celui des deux). Aucun bloc tant qu'aucun interrupteur n'est allumé.
+        from api.services.securite.consignes import ajouter_au_prompt as _avec_la_securite
+
+        texte = _avec_la_securite(texte, getattr(agent, "reglages", None) or self.__dict__.get("reglages_appel"))
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:
@@ -2256,6 +2425,9 @@ class PipecatEngine:
         clavier, chaque tour refait le moteur). ⛔ Ne lève jamais."""
         try:
             if node.is_end or not est_un_groupe(self.__dict__.get("reglages_appel")):
+                return None
+            # Lot 8 de builder-agent-vocal : interrupteur éteint = le prompt de l'étape reste tel qu'écrit.
+            if not intervention_de_l_appel(self, CLE_NOTES_DE_PASSATION):
                 return None
             gathered = self.__dict__.get("_gathered_context")
             if not isinstance(gathered, dict):
@@ -2340,6 +2512,10 @@ class PipecatEngine:
             return
 
         node = self.active_agent.workflow.nodes[node_id]
+        # [.mark] Lots 8 et 22 : la table des objets cités par le graphe de l'agent qui joue, lue une fois.
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        await etiquettes.preparer(self, self.active_agent.workflow)
 
         logger.debug(
             f"Executing node: name: {node.name} allow_interrupt: {node.allow_interrupt} is_end: {node.is_end}"
@@ -2504,6 +2680,14 @@ class PipecatEngine:
 
         if previous_node_id != node_id:
             greeting_info = self.get_node_greeting(node_id)
+            # [.mark] L3e : « vous parlez à une IA », en tête de l'appel, une fois, impossible à éteindre (``securite/annonce_ia``).
+            annonce = annonce_ia.a_dire(self, greeting_info)
+            if annonce:
+                reunie = annonce_ia.avec_l_accueil(annonce, greeting_info)
+                if reunie is not None:
+                    greeting_info = reunie
+                else:
+                    await annonce_ia.dire_a_part(self, annonce, mute_user=mute_user)
             if greeting_info:
                 greeting_type, greeting_value = greeting_info
                 if (
@@ -3090,6 +3274,24 @@ class PipecatEngine:
         return (
             self.answer_supervisor is None or not self.answer_supervisor.blocks_workflow
         )
+
+    async def injecter_texte_visiteur(self, texte: str) -> bool:
+        """[.mark] U10 / S5 : le texte tapé par le visiteur du widget entre comme un tour de l'utilisateur.
+
+        Sur le modèle de ``_handle_send_text`` de Pipecat : si l'agent parle, on l'interrompt et on vide le circuit
+        AVANT d'ajouter le message (sinon l'ajout dépasse la validation de la réponse interrompue), puis le modèle
+        répond. Rend ``False`` sans rien faire quand l'appel est fini ou pas encore monté. Ne lève pas pour cela."""
+        if self._call_disposed or self.call_worker is None or self._answer_user_aggregator is None:
+            return False
+        if self.call_monitor.bot_speaking:
+            await self._answer_user_aggregator.broadcast_interruption()
+            await self.drain_call_pipeline()
+            if self._call_disposed:
+                return False
+        await self.active_agent.queue_frame(
+            LLMMessagesAppendFrame(messages=[{"role": "user", "content": texte}], run_llm=True)
+        )
+        return True
 
     async def interrupt_screening_reply(self) -> bool:
         """Stop screening playback before greeting the human who picked up."""
@@ -3730,7 +3932,18 @@ class PipecatEngine:
             from api.services.panne.garde_modele import garder_l_agent
 
             await garder_l_agent(self, runtime)
+            # [.mark] Builder partie 3, lot P (A2 d'Evan) : les sessions MCP de ses outils s'ouvrent ICI, au décroché,
+            # et plus à chaque passation (``prepare_agent`` ne rouvre rien quand elles existent). Fermées avec lui
+            # (``close_mcp_sessions`` lit aussi la réserve). Un échec les laisse fermées : la passation les ouvrira.
+            try:
+                await self._open_mcp_sessions(runtime)
+            except Exception as e:  # noqa: BLE001 -- la réserve reste utilisable : la passation ouvrira les sessions
+                logger.warning(f"[prechauffage] sessions MCP de l'agent {workflow_id} non ouvertes à l'avance : {e!r}")
             if self.is_call_disposed():
+                try:
+                    await runtime.close_mcp_sessions()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"[prechauffage] sessions MCP non fermées : {e!r}")
                 return
             precharge.prets[workflow_id] = runtime
             logger.info(
@@ -3742,6 +3955,16 @@ class PipecatEngine:
             logger.warning(f"[prechauffage] agent {workflow_id} non construit à l'avance : {e!r}")
         finally:
             en_construction.discard(workflow_id)
+
+    def collegue_en_reserve(self, workflow_id: int) -> bool:
+        """[.mark] Builder partie 3, lot P (P2) : ``workflow_id`` attend-il, construit et utilisable, dans la réserve ?
+        Ne le prend pas. ⛔ Ne lève jamais."""
+        try:
+            precharge = precharge_de(self)
+            runtime = precharge.prets.get(workflow_id) if precharge is not None else None
+            return bool(runtime is not None and not runtime.error and runtime.is_running)
+        except Exception:  # noqa: BLE001
+            return False
 
     def _prendre_dans_la_reserve(self, workflow_id: int) -> Optional[AgentRuntime]:
         """[.mark] Lot 3 (F5) : le collègue construit à l'avance, s'il est encore utilisable ; il
@@ -3796,10 +4019,14 @@ class PipecatEngine:
     async def lire_outils(self, uuids, organization_id: int) -> list:
         """Les outils d'un ensemble d'étapes : lus dans le cache de l'appel quand le
         préchauffage les a déjà chargés, sinon en base comme avant."""
+        # [.mark] SA-L3d (décision 21) : les versions d'outils figées par la version d'agent qui joue (l'agent actif).
+        versions = getattr(getattr(self.active_agent, "workflow", None), "outils_epingles", None)
         precharge = precharge_de(self)
         if precharge is None:
+            if versions:
+                return await db_client.get_tools_by_uuids(list(uuids), organization_id, versions=versions)
             return await db_client.get_tools_by_uuids(list(uuids), organization_id)
-        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids)
+        return await precharge.outils(uuids, organization_id, db_client.get_tools_by_uuids, versions)
 
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""
@@ -3809,6 +4036,21 @@ class PipecatEngine:
         """[.mark] Lot 3 (D7) : la route locale de la parole dictée pendant l'attente d'une
         passation (``AgentBridgeProcessor.dire_en_local``)."""
         self._parole_locale = queue_frame
+
+    async def attendre_le_passage_de_la_parole(self, speech, timeout: float = 2.0) -> bool:
+        """[.mark] Builder partie 3, lot P (P2) : la parole ``speech`` (dite par l'agent qui a la main) a-t-elle passé
+        ENTIÈRE le pont de l'appel, vers la voix ? Ce qui arrive ensuite à la voix sera dit après elle, sans attendre
+        qu'elle soit jouée. ``False`` (pont inconnu, délai passé) : l'appelant attend la fin de la parole, comme avant.
+        ⛔ Ne lève jamais."""
+        try:
+            pont = getattr(self.__dict__.get("_parole_locale"), "__self__", None)
+            attendre = getattr(pont, "attendre_le_passage_de", None)
+            if attendre is None or speech is None:
+                return False
+            return await attendre(speech.id, timeout) is True
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[transfer] passage de la parole non suivi : {e!r}")
+            return False
 
     def set_transport_output(self, transport_output) -> None:
         """Set the transport output processor for direct audio playback.
@@ -3960,20 +4202,35 @@ class PipecatEngine:
                         credential = await db_client.get_credential_by_uuid(
                             cfg["credential_uuid"], organization_id
                         )
+                        if credential is not None and est_la_cle_du_cerveau(credential):
+                            # [.mark] Builder, revue R2 : la clé du cerveau du builder ne sert à aucun outil MCP.
+                            logger.warning(f"Skipping MCP tool '{tool.name}': reserved credential")
+                            continue
                     except Exception as e:
                         logger.warning(
                             f"MCP tool '{tool.name}': credential fetch failed: {e}"
                         )
                         continue
 
+                # [.mark] U3 sexies point 6 : transport, en-têtes libres, réglage par outil.
+                from api.services.outils_mark import mcp as mcp_mark
+
+                try:
+                    entetes_ext = await mcp_mark.entetes_du_serveur(cfg, organization_id)
+                except Exception as e:
+                    logger.warning(f"MCP tool '{tool.name}': headers unreadable: {e}")
+                    continue
                 session = McpToolSession(
                     tool_uuid=tool.tool_uuid,
                     tool_name=tool.name,
                     url=cfg["url"],
                     credential=credential,
-                    tools_filter=cfg["tools_filter"],
+                    tools_filter=mcp_mark.filtre_effectif(cfg, (tool.definition or {}).get("config", {})),
                     timeout_secs=cfg["timeout_secs"],
                     sse_read_timeout_secs=cfg["sse_read_timeout_secs"],
+                    transport=cfg.get("transport", "streamable_http"),
+                    extra_headers=entetes_ext,
+                    reglages_outils=cfg.get("reglages_outils") or {},
                 )
                 agent.mcp_sessions[tool.tool_uuid] = session
                 await session.start_managed()
@@ -3995,9 +4252,18 @@ class PipecatEngine:
 
     async def close_mcp_sessions(self) -> None:
         """Release connection owners, including on early call startup failure."""
-        for agent in [self.active_agent, self.pending_agent, *self._retired_agents]:
+        agents = [self.active_agent, self.pending_agent, *self._retired_agents]
+        for agent in agents:
             if agent is not None:
                 await agent.close_mcp_sessions()
+        # [.mark] Lot P (A2) : les collègues restés dans la réserve ont ouvert leurs sessions MCP au décroché.
+        for agent in list(getattr(precharge_de(self), "prets", {}).values()):
+            if any(agent is a for a in agents):
+                continue
+            try:
+                await agent.close_mcp_sessions()
+            except Exception as e:  # noqa: BLE001 -- la fin d'appel va jusqu'au bout
+                logger.warning(f"[prechauffage] sessions MCP d'un collègue de la réserve non fermées : {e!r}")
 
     async def cleanup(self):
         """Clean up engine resources on disconnect.

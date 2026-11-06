@@ -13,19 +13,19 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import { creerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePost } from "@/client/sdk.gen";
 import type { FolderResponse, WorkflowListResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { detailFromError } from "@/lib/apiError";
 
 import { WorkflowTable } from "../../workflow/WorkflowTable";
 import { type Texte, useLangue } from "../langue/langue";
 import type { RoleAffiche } from "./BadgeGroupe";
 import { DialogueNom } from "./DialogueNom";
 import { BoutonPublierLeGroupe } from "./PublierLeGroupe";
+import { formaterNumero } from "@/lib/numero";
 
 const TEXTES = {
     groupe: { en: "Group", fr: "Groupe" },
@@ -78,13 +78,13 @@ export const VueGroupe = ({
                 body: { name: nom },
             });
             if (reponse.error) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Groupe non créé. Réessayez.", en: "Group not created. Try again." }, { erreur: reponse.error });
                 throw new Error("creation");
             }
-            toast.success(t(TEXTES.cree));
+            notifier.succes({ fr: "Groupe créé.", en: "Group created." });
             router.refresh();
         } catch (erreur) {
-            if (!(erreur instanceof Error && erreur.message === "creation")) toast.error(t(TEXTES.echec));
+            if (!(erreur instanceof Error && erreur.message === "creation")) notifier.echec({ fr: "Groupe non créé. Réessayez.", en: "Group not created. Try again." });
             throw erreur;
         }
     };
@@ -102,7 +102,7 @@ export const VueGroupe = ({
                         </p>
                         <p className="text-xs text-muted-foreground">
                             {t(TEXTES.numeros)} :{" "}
-                            {info && info.numeros.length > 0 ? info.numeros.join(", ") : t(TEXTES.aucunNumero)}
+                            {info && info.numeros.length > 0 ? info.numeros.map(formaterNumero).join(", ") : t(TEXTES.aucunNumero)}
                             {" · "}
                             {t(TEXTES.fiche)} : {info?.etablissementId ?? t(TEXTES.aucuneFiche)}
                         </p>

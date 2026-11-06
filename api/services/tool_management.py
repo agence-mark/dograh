@@ -13,6 +13,8 @@ from typing import Any, Optional
 from loguru import logger
 
 from api.db import db_client
+from api.services.builder.cerveau.marque import REFUS as REFUS_CLE_RESERVEE
+from api.services.builder.cerveau.marque import est_la_cle_du_cerveau
 from api.db.models import UserModel
 from api.enums import PostHogEvent, ToolCategory
 from api.schemas.tool import (
@@ -85,6 +87,10 @@ def _credential_uuids_from_definition(definition: dict[str, Any]) -> list[str]:
             resolver_credential_uuid = resolver.get("credential_uuid")
             if isinstance(resolver_credential_uuid, str) and resolver_credential_uuid:
                 credential_uuids.append(resolver_credential_uuid)
+        # [.mark] U3 sexies : un en-tête secret nomme un identifiant, qui doit être celui de l'organisation.
+        for entete in config.get("en_tetes_ext") or []:
+            if isinstance(entete, dict) and entete.get("sorte") == "secret" and isinstance(entete.get("identifiant_uuid"), str):
+                credential_uuids.append(entete["identifiant_uuid"])
 
     return list(dict.fromkeys(credential_uuids))
 
@@ -115,6 +121,9 @@ async def validate_tool_references(
         credential = await db_client.get_credential_by_uuid(
             credential_uuid, organization_id
         )
+        if credential is not None and est_la_cle_du_cerveau(credential):
+            # [.mark] Builder, revue R2 : la clé du cerveau du builder n'est attachée à aucun outil.
+            raise ToolManagementError("credential_reserved", REFUS_CLE_RESERVEE, status_code=403)
         if not credential:
             raise ToolManagementError(
                 "credential_not_found",
@@ -142,6 +151,13 @@ async def validate_tool_references(
             )
 
 
+async def _entetes_mcp(cfg: dict[str, Any], organization_id: int) -> Optional[dict[str, str]]:
+    """[.mark] U3 sexies point 6 : les en-têtes libres du serveur (secrets lus chez l'organisation)."""
+    from api.services.outils_mark.mcp import entetes_du_serveur
+
+    return await entetes_du_serveur(cfg, organization_id) or None
+
+
 async def populate_discovered_tools(
     definition: dict[str, Any], *, organization_id: int
 ) -> dict[str, Any]:
@@ -166,6 +182,8 @@ async def populate_discovered_tools(
                 credential=credential,
                 timeout_secs=cfg["timeout_secs"],
                 sse_read_timeout_secs=cfg["sse_read_timeout_secs"],
+                transport=cfg.get("transport", "streamable_http"),
+                extra_headers=await _entetes_mcp(cfg, organization_id),
             )
         except BaseException as e:  # noqa: BLE001
             logger.warning(f"MCP discovery failed; caching empty list: {e}")
@@ -265,6 +283,8 @@ async def refresh_mcp_tool_for_user(
             credential=credential,
             timeout_secs=cfg["timeout_secs"],
             sse_read_timeout_secs=cfg["sse_read_timeout_secs"],
+            transport=cfg.get("transport", "streamable_http"),
+            extra_headers=await _entetes_mcp(cfg, user.selected_organization_id),
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"MCP refresh discovery failed: {e}")
@@ -283,6 +303,7 @@ async def refresh_mcp_tool_for_user(
         tool_uuid=tool_uuid,
         organization_id=user.selected_organization_id,
         definition=new_def,
+        user_id=user.id,
     )
     return McpRefreshResponse(
         tool_uuid=tool_uuid, discovered_tools=discovered, error=None

@@ -13,17 +13,19 @@ from __future__ import annotations
 
 from api.services.analyse_run.analyse import analyser_run
 from api.services.analyse_run.cout import lire_reglages_fenetre
+from api.services.analyse_run.latence_par_phase import latence_des_tours, resume_de_latence
 from api.services.appel_simule.entree import CLE_EXTRA
 from api.services.workflow.fiche_au_fil_de_leau import CLE_CHAMPS
-from api.services.workflow.workflow_graph import transition_tool_name
+from api.services.workflow.workflow_graph import nom_de_porte
 
 
 def _portes(definition) -> set[str] | None:
     if definition is None:
         return None
     aretes = (definition.workflow_json or {}).get("edges") or []
+    # [.mark] L6+ : le nom de la porte (identifiant stable, sinon libellé), celui que les traces portent.
     return {
-        transition_tool_name(label)
+        nom_de_porte(arete.get("data") or {})
         for arete in aretes
         if isinstance(arete, dict)
         and isinstance(label := (arete.get("data") or {}).get("label"), str)
@@ -67,6 +69,14 @@ async def analyser_le_run(run, organization_id: int) -> dict:
         portes=_portes(definition),
         champs_fiche=_champs_fiche(definition),
         reglages_fenetre=await lire_reglages_fenetre(organization_id),
+    )
+    # [.mark] N3a : la latence par phase (transcription, modèle, outils, voix), lue du journal du run ; ``None`` = « non mesuré ».
+    evenements = ((run.logs or {}).get("realtime_feedback_events")) or []
+    resume_latence = resume_de_latence(evenements)
+    analyse["latence_par_phase"] = (
+        {"status": "ok", "resume": resume_latence, "tours": latence_des_tours(evenements)}
+        if resume_latence is not None
+        else {"status": "not_captured", "reason": "no_measured_turn"}
     )
     simulation = bloc_simulation(run)
     if simulation is not None:

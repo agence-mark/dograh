@@ -1,10 +1,8 @@
 "use client";
 
-import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ITimezoneOption } from 'react-timezone-select';
-import { toast } from 'sonner';
 
 import {
     getCampaignApiV1CampaignCampaignIdGet,
@@ -13,18 +11,42 @@ import {
     updateCampaignApiV1CampaignCampaignIdPatch
 } from '@/client/sdk.gen';
 import type { CampaignResponse, TrafficVariantRequest } from '@/client/types.gen';
+import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { useLangue } from "@/components/mark/langue/langue";
+import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { useBaseEspace } from "@/components/mark/studio/base-espace";
+import { PageStudio } from "@/components/mark/studio/shell-studio";
+import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesContext } from '@/context/UnsavedChangesContext';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
 
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../../CampaignAdvancedSettings';
 import TrafficSplitEditor, { trafficSplitError } from '../../TrafficSplitEditor';
 
+type Erreurs = Partial<Record<'nom' | 'repartition' | 'simultanes' | 'cadence' | 'plages', string>>;
+
+/** Quitter la page avec des changements non enregistrés : on prévient. */
 export default function EditCampaignPage() {
+    return (
+        <UnsavedChangesProvider>
+            <FormulaireCampagne />
+        </UnsavedChangesProvider>
+    );
+}
+
+function FormulaireCampagne() {
+    const { t } = useLangue();
+    const base = useBaseEspace();
+    const [touche, setTouche] = useState(false);
+    const [erreurs, setErreurs] = useState<Erreurs>({});
+    const effacer = (cle: keyof Erreurs) => setErreurs((x) => (cle in x ? { ...x, [cle]: undefined } : x));
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const router = useRouter();
     const params = useParams();
@@ -161,7 +183,7 @@ export default function EditCampaignPage() {
             }
         } catch (error) {
             console.error('Failed to fetch campaign:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to load campaign');
+            notifier.echec({ fr: "Campagne illisible. Rechargez la page.", en: "Could not load the campaign. Reload the page." }, { erreur: error });
             router.replace(`/campaigns/${campaignId}`);
         } finally {
             setIsLoading(false);
@@ -182,43 +204,31 @@ export default function EditCampaignPage() {
         e.preventDefault();
         setSubmitError(null);
 
-        if (!campaignName.trim()) {
-            toast.error('Campaign name is required');
-            return;
-        }
-
-        const splitError = trafficSplitError(variants);
-        if (splitChanged && splitError) {
-            toast.error(splitError);
-            return;
-        }
+        const fautes: Erreurs = {};
+        if (!campaignName.trim()) fautes.nom = t({ fr: "Donnez un nom à la campagne.", en: "Give the campaign a name." });
+        if (splitChanged && trafficSplitError(variants)) fautes.repartition = t({ fr: "Corrigez la répartition du trafic.", en: "Fix the traffic split." });
 
         const maxConcurrencyValue = maxConcurrency ? Number(maxConcurrency) : null;
         if (maxConcurrencyValue !== null && (
             !Number.isInteger(maxConcurrencyValue) || maxConcurrencyValue < 1 || maxConcurrencyValue > effectiveLimit
         )) {
-            toast.error(`Max concurrent calls must be between 1 and your organization limit (${effectiveLimit})`);
-            return;
+            fautes.simultanes = t({ fr: `Appels simultanés : entre 1 et ${effectiveLimit}.`, en: `Concurrent calls: between 1 and ${effectiveLimit}.` });
         }
         const dialRate = Number(rateLimitPerSecond);
         if (!Number.isInteger(dialRate) || dialRate < 1 || dialRate > orgConcurrentLimit) {
-            toast.error(`Calls started per second must be between 1 and ${orgConcurrentLimit}`);
-            return;
+            fautes.cadence = t({ fr: `Appels par seconde : entre 1 et ${orgConcurrentLimit}.`, en: `Calls per second: between 1 and ${orgConcurrentLimit}.` });
         }
 
         // Validate schedule slots if enabled
         if (scheduleEnabled) {
             if (timeSlots.length === 0) {
-                toast.error('Add at least one time slot');
-                return;
-            }
-            for (const slot of timeSlots) {
-                if (slot.start_time >= slot.end_time) {
-                    toast.error('Start time must be before end time for each slot');
-                    return;
-                }
+                fautes.plages = t({ fr: "Ajoutez au moins une plage horaire.", en: "Add at least one time slot." });
+            } else if (timeSlots.some((slot) => slot.start_time >= slot.end_time)) {
+                fautes.plages = t({ fr: "Chaque plage doit finir après son début.", en: "Each slot must end after it starts." });
             }
         }
+        setErreurs(fautes);
+        if (Object.keys(fautes).length > 0) return;
 
         setIsSubmitting(true);
 
@@ -270,98 +280,91 @@ export default function EditCampaignPage() {
             });
 
             if (response.error) {
-                const errorMessage = detailFromError(response.error, 'Failed to update campaign');
-                setSubmitError(errorMessage);
-                toast.error(errorMessage);
+                setSubmitError(echecAffiche(response.error, { fr: "Campagne non modifiée. Vérifiez les réglages et réessayez.", en: "Campaign not updated. Check the settings and try again." }));
                 return;
             }
 
             if (response.data) {
-                toast.success('Campaign updated successfully');
-                router.push(`/campaigns/${campaignId}`);
+                notifier.succes({ fr: "Campagne modifiée.", en: "Campaign updated." });
+                router.push(`${base}/campagnes/${campaignId}`);
             }
         } catch (error) {
             console.error('Failed to update campaign:', error);
             const errorMessage = 'Failed to update campaign';
             setSubmitError(errorMessage);
-            toast.error(errorMessage);
+            notifier.echec({ fr: "Campagne non modifiée. Réessayez dans un instant.", en: "Campaign not updated. Try again in a moment." }, { erreur: errorMessage });
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    // Quitter avec un brouillon : le garde de l'application demande confirmation d'abord.
+    const { confirmNavigate } = useUnsavedChangesContext();
     const handleBack = () => {
-        router.push(`/campaigns/${campaignId}`);
+        confirmNavigate(() => router.push(`${base}/campagnes/${campaignId}`));
     };
+
+    // Quitter avec des changements non enregistrés : le garde de l'application prévient.
+    useUnsavedChanges('campagne', touche || splitChanged);
 
     if (isLoading) {
         return (
-            <div className="container mx-auto p-6 space-y-6 max-w-2xl">
-                <div className="animate-pulse">
-                    <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
-                    <div className="h-64 bg-muted rounded"></div>
-                </div>
-            </div>
+            <PageStudio>
+                <EtatVide cas="chargement" />
+            </PageStudio>
         );
     }
 
     if (!campaign) {
         return (
-            <div className="container mx-auto p-6 space-y-6 max-w-2xl">
-                <p className="text-center text-muted-foreground">Campaign not found</p>
-            </div>
+            <PageStudio>
+                <EtatVide cas="erreur" />
+            </PageStudio>
         );
     }
 
     return (
-        <div className="container mx-auto p-6 pb-12 space-y-6 max-w-2xl">
-            <div>
-                <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    className="mb-4"
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Campaign
-                </Button>
-                <h1 className="text-3xl font-bold mb-2">Edit Campaign</h1>
-                <p className="text-muted-foreground">Modify campaign settings</p>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Campaign Settings</CardTitle>
-                    <CardDescription>
-                        Update name, concurrency, retry, and schedule configuration
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+        <PageStudio>
+            <div className="mx-auto max-w-2xl space-y-8">
+                <TitrePage
+                    retour={{ href: `${base}/campagnes/${campaignId}`, libelle: t({ en: `Back to ${campaign.name}`, fr: `Retour à ${campaign.name}` }) }}
+                    titre={t({ en: 'Edit the campaign', fr: 'Modifier la campagne' })}
+                    info={t({ en: 'Update name, concurrency, retry, and schedule configuration', fr: "Nom, appels simultanés, nouvelles tentatives et plages horaires" })}
+                />
+                <form onSubmit={handleSubmit} onChange={() => setTouche(true)} className="space-y-6">
                         {/* Campaign Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="campaign-name">Campaign Name</Label>
+                            <Label htmlFor="campaign-name">{t({ en: 'Campaign name', fr: 'Nom de la campagne' })}</Label>
                             <Input
                                 id="campaign-name"
-                                placeholder="Enter campaign name"
+                                placeholder={t({ en: 'Campaign name', fr: 'Nom de la campagne' })}
                                 value={campaignName}
-                                onChange={(e) => setCampaignName(e.target.value)}
+                                onChange={(e) => {
+                                    setCampaignName(e.target.value);
+                                    effacer('nom');
+                                }}
                                 maxLength={255}
                                 required
+                                aria-invalid={!!erreurs.nom}
+                                aria-describedby={erreurs.nom ? 'campaign-name-erreur' : undefined}
                             />
+                            <ErreurChamp id="campaign-name-erreur">{erreurs.nom}</ErreurChamp>
                         </div>
 
                         <Separator />
 
-                        <TrafficSplitEditor value={variants} onChange={value => { setVariants(value); setSplitChanged(true); }} disabled={isSubmitting} editing />
+                        <TrafficSplitEditor value={variants} onChange={value => { setVariants(value); setSplitChanged(true); effacer('repartition'); }} disabled={isSubmitting} editing />
+                        <ErreurChamp>{erreurs.repartition}</ErreurChamp>
 
                         <CampaignAdvancedSettings
                             maxConcurrency={maxConcurrency}
-                            onMaxConcurrencyChange={setMaxConcurrency}
+                            onMaxConcurrencyChange={(v) => { setMaxConcurrency(v); effacer('simultanes'); }}
+                            erreurs={erreurs}
                             effectiveLimit={effectiveLimit}
                             orgConcurrentLimit={orgConcurrentLimit}
                             fromNumbersCount={fromNumbersCount}
                             rateLimitPerSecond={rateLimitPerSecond}
-                            onRateLimitPerSecondChange={setRateLimitPerSecond}
+                            onRateLimitPerSecondChange={(v) => { setRateLimitPerSecond(v); effacer('cadence'); }}
                             outboundBlockedReason={outboundBlockedReason}
                             retryEnabled={retryEnabled}
                             onRetryEnabledChange={setRetryEnabled}
@@ -380,7 +383,7 @@ export default function EditCampaignPage() {
                             scheduleTimezone={scheduleTimezone}
                             onScheduleTimezoneChange={setScheduleTimezone}
                             timeSlots={timeSlots}
-                            onTimeSlotsChange={setTimeSlots}
+                            onTimeSlotsChange={(v) => { setTimeSlots(v); effacer('plages'); }}
                             circuitBreakerEnabled={circuitBreakerEnabled}
                             onCircuitBreakerEnabledChange={setCircuitBreakerEnabled}
                             circuitBreakerFailureThreshold={circuitBreakerFailureThreshold}
@@ -392,7 +395,7 @@ export default function EditCampaignPage() {
                         />
 
                         {submitError && (
-                            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                            <div role="alert" className="text-sm text-destructive">
                                 {submitError}
                             </div>
                         )}
@@ -402,7 +405,7 @@ export default function EditCampaignPage() {
                                 type="submit"
                                 disabled={isSubmitting || !campaignName.trim()}
                             >
-                                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                                {isSubmitting ? t({ en: 'Saving...', fr: 'Enregistrement...' }) : t({ en: 'Save', fr: 'Enregistrer' })}
                             </Button>
                             <Button
                                 type="button"
@@ -410,12 +413,11 @@ export default function EditCampaignPage() {
                                 onClick={handleBack}
                                 disabled={isSubmitting}
                             >
-                                Cancel
+                                {t({ en: 'Cancel', fr: 'Annuler' })}
                             </Button>
                         </div>
                     </form>
-                </CardContent>
-            </Card>
-        </div>
+            </div>
+        </PageStudio>
     );
 }

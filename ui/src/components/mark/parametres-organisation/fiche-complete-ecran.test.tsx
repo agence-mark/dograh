@@ -9,9 +9,11 @@
  *   - « Create by copy » (F2): the request, the list read again, the notice of what was not copied, refused while
  *     something waits to be saved;
  *   - the takeover: the trial run first, written only on the second click, what it cannot decide listed apart;
- *   - the places of a person: boxes, none ticked = the whole company (M5), both fields emptied;
+ *   (the places of a person (M5) : prouvés sur la fenêtre d'une personne, `entreprise/inventaire-fenetres.test.tsx`;)
  *   - the test window: the choice of the establishment only for an agent without a fiche (C8).
  */
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { phraseAttendue } from "@/components/mark/notifications/texte-attendu";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +22,6 @@ import { ChoixEtablissementEssai } from "../etablissements/ChoixEtablissementEss
 import { FournisseurLangue } from "../langue/langue";
 import { ModaleEtablissements } from "./ModaleEtablissements";
 import { ModaleReprise } from "./ModaleReprise";
-import { charge_utile_equipe, lieuxDe, ThemeEquipe } from "./ThemeEquipe";
 
 const m = vi.hoisted(() => ({
     get: vi.fn(),
@@ -35,6 +36,7 @@ const m = vi.hoisted(() => ({
     ordre: [] as string[],
 }));
 
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("@/client/sdk.gen", async (importOriginal) => (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
     getEtablissementsApiV1OrganizationsEtablissementsGet: m.get,
     saveEtablissementsApiV1OrganizationsEtablissementsPut: m.save,
@@ -131,22 +133,30 @@ const ouvrir = async (onFermer = vi.fn()) => {
 };
 const reglage = (cle: string) => document.querySelector(`[data-reglage="${cle}"]`);
 const enregistrer = () => screen.getByTestId("enregistrer-etablissements");
+// Radix (la liste du design system) lit ces deux méthodes que jsdom n'a pas.
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.scrollIntoView = vi.fn();
+// [.mark] K4 : l'état forcé est une liste du design system (plus un <select>) : on l'ouvre et on choisit une option.
+const etatForce = () => screen.getByTestId("champ-etat-force").querySelector('[role="combobox"]') as HTMLElement;
+const choisirEtat = async (nom: RegExp) => {
+    fireEvent.pointerDown(etatForce(), { button: 0, ctrlKey: false });
+    fireEvent.click(etatForce());
+    fireEvent.click(await screen.findByRole("option", { name: nom }));
+};
 
 describe("[.mark] the fiche's immediate closing (C5)", () => {
     it("is drawn with its default, and found in the window", async () => {
         await ouvrir();
-        expect(document.getElementById("fiche-fermeture")).not.toBeNull();
-        expect(reglage("fiche.etat_force")).not.toBeNull();
-        expect(reglage("fiche.etat_force")?.textContent).toContain("Default: computed from the hours");
-        expect((document.getElementById("fiche-etat-force") as HTMLSelectElement).value).toBe("");
+        expect(screen.getByTestId("champ-etat-force")).not.toBeNull();
+        expect(etatForce().textContent).toContain("Computed from the opening hours");
         // The date only means something with a state (the server refuses it alone): not drawn without one.
-        expect(reglage("fiche.etat_force_jusqu_a")).toBeNull();
+        expect(document.getElementById("fiche-etat-force-jusqua")).toBeNull();
     });
 
     it("sends the state and its end, and clears both when it goes back to computed", async () => {
         await ouvrir();
-        fireEvent.change(document.getElementById("fiche-etat-force")!, { target: { value: "FERME" } });
-        expect(reglage("fiche.etat_force_jusqu_a")).not.toBeNull();
+        await choisirEtat(/Forced: closed/i);
+        expect(document.getElementById("fiche-etat-force-jusqua")).not.toBeNull();
         fireEvent.change(document.getElementById("fiche-etat-force-jusqua")!, { target: { value: "2026-12-26T09:00" } });
         fireEvent.click(enregistrer());
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
@@ -157,7 +167,7 @@ describe("[.mark] the fiche's immediate closing (C5)", () => {
         m.get.mockResolvedValue(catalogue({ ...CREIL, etat_force: "FERME", etat_force_jusqu_a: "2026-12-26T09:00:00" }));
         await ouvrir();
         expect((document.getElementById("fiche-etat-force-jusqua") as HTMLInputElement).value).toBe("2026-12-26T09:00");
-        fireEvent.change(document.getElementById("fiche-etat-force")!, { target: { value: "" } });
+        await choisirEtat(/Computed from the opening hours/i);
         fireEvent.click(enregistrer());
         await waitFor(() => expect(m.save).toHaveBeenCalledTimes(1));
         expect(m.save.mock.calls[0][0].body.etablissements[0]).toMatchObject({ etat_force: null, etat_force_jusqu_a: null });
@@ -242,7 +252,8 @@ describe("[.mark] the fiche's appointments and zone (M2)", () => {
         const onFermer = await ouvrir();
         fireEvent.change(document.getElementById("fiche-rdv-creil-plages")!, { target: { value: "n'importe quoi" } });
         fireEvent.click(enregistrer());
-        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toContain("heure illisible"));
+        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).toMatch(phraseAttendue(ECHECS.rendezVousEnregistrer)));
+        await waitFor(() => expect(screen.getByTestId("erreur-etablissements").textContent).not.toContain("heure illisible"));
         expect(screen.getByTestId("erreur-etablissements").textContent).toContain("Establishments saved, but the appointments and zone were not");
         expect(onFermer).not.toHaveBeenCalled();
         // The fiches ARE saved: closing tells the caller to read the list again.
@@ -299,7 +310,8 @@ describe("[.mark] « Create by copy » (F2)", () => {
         fireEvent.click(screen.getByTestId("creer-par-copie"));
         fireEvent.change(document.getElementById("copie-nom")!, { target: { value: "Senlis" } });
         fireEvent.click(screen.getByTestId("copier-la-fiche"));
-        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toContain("already belongs"));
+        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).toMatch(phraseAttendue(ECHECS.etablissementCopier)));
+        await waitFor(() => expect(screen.getByTestId("erreur-copie-fiche").textContent).not.toContain("already belongs"));
     });
 
     it("is refused while something waits to be saved (the copy is written at once)", async () => {
@@ -369,66 +381,8 @@ describe("[.mark] the takeover of the fiches and agents", () => {
                 <ModaleReprise ouverte onFermer={vi.fn()} />
             </FournisseurLangue>,
         );
-        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toContain("Nothing was changed"));
-    });
-});
-
-describe("[.mark] the places of a person (M5)", () => {
-    const rendre = () => {
-        window.localStorage.setItem("mark.langue", "en");
-        m.get.mockResolvedValue(catalogue(CREIL, SENLIS));
-        render(
-            <FournisseurLangue>
-                <ThemeEquipe ouvert onBasculer={() => {}} ouvrir={() => {}} signaler={vi.fn()} baseRattachee />
-            </FournisseurLangue>,
-        );
-        fireEvent.click(screen.getByTestId("ouvrir-equipe"));
-    };
-
-    it("draws one box per fiche, ticked as the person's places, none ticked = the whole company", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil", "senlis"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        const cases = [...lieux.querySelectorAll("input")] as HTMLInputElement[];
-        expect(cases.map((c) => c.checked)).toEqual([true, true]);
-        expect(lieux.textContent).toContain("Magasin de Creil");
-        fireEvent.click(cases[0]);
-        fireEvent.click(cases[1]);
-        expect(lieux.textContent).toContain("None ticked: the whole company.");
-    });
-
-    it("sends the list and empties both fields to put a person back on the whole company", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil", "senlis"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        // Untick Creil: the list is Senlis alone, the legacy field mirrors its first.
-        fireEvent.click(lieux.querySelectorAll("input")[0]);
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        expect(m.saveEquipe.mock.calls[0][0].body.personnes[0]).toMatchObject({ etablissements: ["senlis"], etablissement: "senlis" });
-    });
-
-    it("empties both fields when no box is ticked", async () => {
-        m.equipe.mockResolvedValue({ data: { personnes: [{ cle: "p1", prenom: "Alice", etablissement: "creil", etablissements: ["creil"], actif: true }], sujets: [] } });
-        rendre();
-        await screen.findByDisplayValue("Alice");
-        const lieux = await screen.findByTestId("lieux-p1");
-        fireEvent.click(lieux.querySelectorAll("input")[0]);
-        fireEvent.click(screen.getByTestId("enregistrer-equipe"));
-        await waitFor(() => expect(m.saveEquipe).toHaveBeenCalledTimes(1));
-        const personne = m.saveEquipe.mock.calls[0][0].body.personnes[0];
-        expect(personne.etablissements).toEqual([]);
-        expect(personne.etablissement).toBeNull();
-    });
-
-    it("reads an older answer (a single place) as a list", () => {
-        expect(lieuxDe({ etablissement: "creil" })).toEqual(["creil"]);
-        expect(lieuxDe({ etablissement: null })).toEqual([]);
-        expect(lieuxDe({ etablissement: "creil", etablissements: [] })).toEqual([]);
-        const charge = charge_utile_equipe({ personnes: [{ cle: "p1", prenom: "A", etablissement: "creil" }], sujets: [] });
-        expect(charge.personnes?.[0]).toMatchObject({ etablissements: ["creil"], etablissement: "creil" });
+        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).toMatch(phraseAttendue(ECHECS.fichesReprise)));
+        await waitFor(() => expect(screen.getByTestId("erreur-reprise").textContent).not.toContain("Nothing was changed"));
     });
 });
 

@@ -17,6 +17,8 @@ import {
     saveScenariosSimulesApiV1AppelSimuleAgentsWorkflowIdScenariosPut,
 } from "@/client";
 import type { Comportements, ScenarioSimule } from "@/client/types.gen";
+import { notifier } from "@/components/mark/notifications";
+import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -28,8 +30,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { detailFromError } from "@/lib/apiError";
-
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
 
 export const COMPORTEMENTS: { champ: keyof Comportements; libelle: Texte }[] = [
@@ -248,7 +250,7 @@ function EditeurScenario({
                 </label>
                 <label className="space-y-1 text-xs text-muted-foreground">
                     <span>{t({ en: "If the agent transfers the call", fr: "Si l'agent renvoie l'appel" })}</span>
-                    <select
+                    <ListeDeroulante
                         className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
                         value={scenario.renvoi ?? "refuse"}
                         onChange={(e) => onChange({ renvoi: e.target.value as ScenarioSimule["renvoi"] })}
@@ -259,7 +261,7 @@ function EditeurScenario({
                                 {t(r.libelle)}
                             </option>
                         ))}
-                    </select>
+                    </ListeDeroulante>
                 </label>
             </div>
         </div>
@@ -293,7 +295,7 @@ export function ModaleScenarios({
             });
             if (annule) return;
             if (reponse.error) {
-                setErreur(detailFromError(reponse.error, "Scenario library unreadable"));
+                setErreur(echecAffiche(reponse.error, ECHECS.scenariosListe));
                 return;
             }
             setBrouillon((reponse.data as ScenarioSimule[]) ?? []);
@@ -322,9 +324,10 @@ export function ModaleScenarios({
         });
         setEnCours(false);
         if (reponse.error) {
-            setErreur(detailFromError(reponse.error, "Scenarios not saved"));
+            setErreur(echecAffiche(reponse.error, ECHECS.scenariosEnregistrer));
             return;
         }
+        notifier.succes({ fr: "Scénarios enregistrés.", en: "Scenarios saved." });
         onFermer(true);
     };
 

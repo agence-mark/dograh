@@ -75,6 +75,9 @@ CLES_SUIVENT_LE_CERVEAU = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
+    # Lot « façon Tala par motif » (T3) : la taille que le cerveau supporte suit le cerveau.
+    "cerveau_plafond_prompt",
+    "cerveau_poids_max",
 )
 
 # Thème 1 (Agent), partie commune : les réglages du groupe et ceux qui suivent le cerveau.
@@ -88,6 +91,8 @@ CLES_THEME_AGENT: tuple[str, ...] = (
     "filet_de_fin",
     "reflexion_de_relance",
     "trace_requetes_modele",
+    # U3 quinquies (B2) : la sécurité de la conversation vaut pour tout le groupe ; un spécialisé ne la perd jamais.
+    "securite_conversation",
 )
 
 CLES_THEME_BRIQUES: tuple[str, ...] = (
@@ -103,6 +108,8 @@ CLES_THEME_BRIQUES: tuple[str, ...] = (
     "delai_garde_modele_s",
     "cerveau_de_repli",
     "travail_llm_repli",
+    "cerveau_plafond_prompt",
+    "cerveau_poids_max",
 )
 
 CLES_THEME_ECOUTE: tuple[str, ...] = (
@@ -146,7 +153,7 @@ CLES_THEME_TOUR: tuple[str, ...] = (
     "turn_start_use_interim",
     "mute_until_first_bot_complete",
     "mute_during_function_call",
-    "relance_apres_outil",
+    # (``relance_apres_outil`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
     # Lot 3 de cloture-code (Pipecat 1.12) : la relance d'un tour vide.
     "relance_tour_vide",
     "mute_engine_callback",
@@ -188,8 +195,26 @@ CLES_THEME_RYTHME: tuple[str, ...] = (
     "user_idle_max_prompts",
     "user_idle_goodbye_prompt",
     "raccrochage_silence_agent_s",
-    "laisser_la_parole",
+    # (``laisser_la_parole`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
     "max_call_duration",
+)
+
+# Lot 8 de builder-agent-vocal : « Interventions du moteur », ce que NOTRE code fait dans la conversation (les dix
+# interrupteurs nouveaux, allumés par défaut, et deux réglages venus d'autres thèmes : un réglage, un seul endroit).
+CLES_THEME_INTERVENTIONS: tuple[str, ...] = (
+    "relance_apres_outil",
+    "laisser_la_parole",
+    # (écrites une à une : le test de l'écran lit ce fichier ; un test serveur les compare à ``CLES_DES_INTERVENTIONS``)
+    "moteur_sorties_de_l_etape",
+    "moteur_sortie_d_impasse",
+    "moteur_parole_avant_outil",
+    "moteur_main_passee",
+    "moteur_ordre_outil_puis_parole",
+    "moteur_compte_rendu_de_phrase",
+    "moteur_phrases_coupees",
+    "moteur_replique_inachevee",
+    "moteur_reponse_muette",
+    "moteur_notes_de_passation",
 )
 
 CLES_THEME_DONNEES: tuple[str, ...] = (
@@ -238,6 +263,7 @@ CLES_COMMUNES: tuple[str, ...] = (
     *CLES_THEME_RYTHME,
     *CLES_THEME_DONNEES,
     *CLES_THEME_ETABLISSEMENT,
+    *CLES_THEME_INTERVENTIONS,
 )
 
 # Ce qui reste à chaque agent : son graphe et ce qui ne vaut que pour lui. La fiche
@@ -245,6 +271,9 @@ CLES_COMMUNES: tuple[str, ...] = (
 # l'appel (thème 8 « celui de l'appel »), jamais une copie de celle du principal.
 CLES_PROPRES: tuple[str, ...] = (
     "generer_schema_parcours",
+    # builder partie 2 (G2, U11) : contrôles avant publication et déploiement progressif, propres à chaque
+    # agent (chacun publie ses propres versions).
+    "publication",
     "text_chat_inactivity_timeout_seconds",
     "etablissement_id",
     "horaires_ouverture",

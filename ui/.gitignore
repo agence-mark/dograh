@@ -42,3 +42,6 @@ next-env.d.ts
 
 .env
 .env.local
+# [.mark] schema ecrit sans serveur (scripts/mark/generer_openapi.py), jamais commite
+/openapi.json
+

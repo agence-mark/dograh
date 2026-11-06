@@ -18,10 +18,9 @@ import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BoutonDupliquerAgent } from "./BoutonDupliquerAgent";
+import { lireNotifications, viderNotifications } from "@/components/mark/notifications";
 
 const dupliquer = vi.fn();
-const erreurs: string[] = [];
-const succes: string[] = [];
 
 vi.mock("@/client", () => ({
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost: (
@@ -29,18 +28,12 @@ vi.mock("@/client", () => ({
     ) => dupliquer(...args),
 }));
 
-vi.mock("sonner", () => ({
-    toast: {
-        error: (m: string) => erreurs.push(m),
-        success: (m: string) => succes.push(m),
-    },
-}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 describe("Bouton Dupliquer", () => {
     beforeEach(() => {
         dupliquer.mockReset();
-        erreurs.length = 0;
-        succes.length = 0;
+        viderNotifications();
     });
 
     it("appelle la route avec l'identifiant de l'agent", async () => {
@@ -63,7 +56,7 @@ describe("Bouton Dupliquer", () => {
         fireEvent.click(screen.getByRole("button", { name: /duplicate/i }));
 
         return waitFor(() =>
-            expect(succes.join(" ")).toMatch(/at the root of the list/i),
+            expect(lireNotifications().map((n) => n.texte.en).join(" ")).toMatch(/at the root of the list/i),
         );
     });
 
@@ -90,8 +83,8 @@ describe("Bouton Dupliquer", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /duplicate/i }));
 
-        await waitFor(() => expect(erreurs.length).toBe(1));
-        expect(succes).toEqual([]);
+        await waitFor(() => expect(lireNotifications().filter((n) => n.sorte === "echec")).toHaveLength(1));
+        expect(lireNotifications().some((n) => n.sorte === "succes")).toBe(false);
         expect(onDuplique).not.toHaveBeenCalled();
     });
 

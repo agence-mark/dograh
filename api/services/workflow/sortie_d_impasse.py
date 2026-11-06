@@ -44,6 +44,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.fiche.traces import CLE_TOUR
+from api.services.interventions_du_moteur import CLE_SORTIE_D_IMPASSE, intervention_du_moteur
 
 CLE_IMPASSE = "impasse"
 
@@ -103,6 +104,9 @@ def _etat(moteur: Any) -> dict | None:
     """L'état du garde-fou, rangé dans la fiche de l'appel. ``None`` sans fiche."""
     fiche = _fiche(moteur)
     if fiche is None:
+        return None
+    # Lot 8 de builder-agent-vocal : interrupteur éteint = rien n'est compté, montré ni fait (point d'entrée unique).
+    if not intervention_du_moteur(moteur, CLE_SORTIE_D_IMPASSE):
         return None
     etat = fiche.get(CLE_IMPASSE)
     if not isinstance(etat, dict):

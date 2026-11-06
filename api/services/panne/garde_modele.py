@@ -5,8 +5,7 @@ Au 1463, rien n'a réagi pendant 12,6 s : le délai de garde du modèle n'exista
 
 - le **délai de garde** (``delai_garde_modele_s``, 4 s, réglé dans Models sous le cerveau) s'arme
   **pour tous**, sur le service de la conversation, de chaque collègue et du cerveau de fond, mode
-  panne allumé ou non (un agent qui avait réglé ``panne.delai_modele_s`` garde sa valeur tant qu'il
-  n'a pas la nouvelle) ;
+  panne allumé ou non ;
 - au **premier** dépassement : la phrase du motif « le modèle tarde » (thème Phrases, « Un instant,
   s'il vous plaît. » par défaut) puis une nouvelle tentative, **chez le cerveau de repli** s'il est
   réglé, sinon chez le même ; au **deuxième** d'affilée : la panne comme avant si le mode panne est
@@ -40,18 +39,13 @@ TENTATIVES_SANS_PANNE = 3
 
 
 def delai_de_garde(run_configs: dict | None) -> float:
-    """Le délai de garde de l'agent : le réglage de Models, sinon l'ancien réglage du mode panne,
-    sinon 4 s. ⛔ Ne lève jamais."""
+    """Le délai de garde de l'agent : le réglage de Models, sinon 4 s. (RA-B R5 : l'ancien réglage caché du mode panne
+    est retiré ; ``scripts/mark/retirer_delai_modele_panne.py`` l'a reporté dans le réglage de Models.) ⛔ Ne lève jamais."""
     try:
         reglages = run_configs or {}
         valeur = reglages.get(CLE_DELAI)
         if isinstance(valeur, (int, float)) and not isinstance(valeur, bool) and valeur > 0:
             return float(valeur)
-        panne = reglages.get("panne")
-        if isinstance(panne, dict):
-            ancien = panne.get("delai_modele_s")
-            if isinstance(ancien, (int, float)) and not isinstance(ancien, bool) and ancien > 0:
-                return float(ancien)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[garde] délai de garde illisible : {erreur!r}")
     return DELAI_PAR_DEFAUT_S

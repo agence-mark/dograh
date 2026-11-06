@@ -29,6 +29,7 @@ from api.services.tests_rejouables.modele import (
     lire_test,
     refuser_si_protege,
 )
+from api.services.tests_rejouables.environnement import contexte_initial, fiche_du_rejeu, horloge
 from api.services.tests_rejouables.simulation import CLE_NOTES, CLE_REJEU
 from api.services.workflow.run_creation import (
     definition_to_run,
@@ -110,7 +111,7 @@ def _point_de_reprise(test: TestRejouable, etape_id: str | None) -> dict[str, An
         "anchor_turn_id": "turn_restaure",
         "current_node_id": etape_id,
         "messages": _serialize_text_chat_checkpoint_messages(messages),
-        "gathered_context": {**test.fiche, CLE_REJEU: True},
+        "gathered_context": {**test.fiche, CLE_REJEU: True, **fiche_du_rejeu(test.environnement)},
         "tool_state": {},
     }
 
@@ -145,7 +146,7 @@ async def _un_essai(
         entrees = await prepare_workflow_run_inputs(
             db_client,
             workflow,
-            initial_context={},
+            initial_context=contexte_initial(test.environnement),
             use_draft=True,
             include_template_context=True,
         )
@@ -156,7 +157,7 @@ async def _un_essai(
             user_id=workflow.user_id,
             initial_context=entrees.initial_context,
             # CLE_REJEU : les outils sortants de la copie ne partent pas (voir ``simulation.py``).
-            gathered_context={**test.fiche, CLE_REJEU: True},
+            gathered_context={**test.fiche, CLE_REJEU: True, **fiche_du_rejeu(test.environnement)},
             organization_id=workflow.organization_id,
             definition_id=entrees.definition_id,
             use_draft=entrees.use_draft,
@@ -192,9 +193,10 @@ async def _un_essai(
             user_text=test.replique,
             expected_revision=session.revision,
         )
-        session = await execute_pending_text_chat_turn(
-            workflow_id=workflow.id, run_id=run_id, text_session=session
-        )
+        with horloge(test.environnement):  # [.mark] sous-lot 5 : la date et l'heure de l'appel fixées par le test
+            session = await execute_pending_text_chat_turn(
+                workflow_id=workflow.id, run_id=run_id, text_session=session
+            )
         tour = (session.session_data or {}).get("turns", [])[-1]
         obs = _observer(tour, noeuds)
         reussi, detail = evaluer(test.critere, obs)

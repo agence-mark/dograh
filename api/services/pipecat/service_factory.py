@@ -23,6 +23,11 @@ from api.services.configuration.options import (
     DEEPGRAM_KEYTERM_MODELS,
     GOOGLE_VERTEX_DEFAULT_LOCATION,
 )
+# [.mark] Lot GT (builder partie 3) : la voix Gradium.
+from api.services.pipecat.gradium_voix import (
+    MarkGradiumTTSService,
+    reglages_gradium_voix,
+)
 from api.services.configuration.registry import (
     DEEPGRAM_FLUX_FIELDS,
     DEEPGRAM_STT_FIELDS,
@@ -648,7 +653,7 @@ class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModele
                 "prompt_cache_key": self._prompt_cache_key,
             }
         # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
-        return ordre_outil_puis_parole(params)
+        return ordre_outil_puis_parole(params, self)
 
 
 class DograhOpenAILLMService(
@@ -688,7 +693,7 @@ class DograhOpenAILLMService(
         # part avec la réflexion de secours de l'agent.
         params = self._mark_appliquer_le_secours(params)
         # [.mark] ordre-outil-puis-parole (20/10) : jamais l'appelant juste après un résultat d'outil.
-        return ordre_outil_puis_parole(params)
+        return ordre_outil_puis_parole(params, self)
 
 
 def cle_de_cache(workflow_id: int) -> str:
@@ -1791,6 +1796,31 @@ def create_tts_service(
             skip_aggregator_types=["recording_router", "recording"],
             **voix,
         )
+    elif user_config.tts.provider == ServiceProviders.GRADIUM.value:
+        # [.mark] Lot GT (builder partie 3). `reglages_gradium_voix` est LA fonction que lisent aussi l'estampille
+        # et les tests : l'ecran, la requete et la fiche d'appel ne peuvent pas se contredire. Le service est la
+        # sous-classe du fork (format du telephone, `json_config` en objet, sessions de 300 s), jamais une copie.
+        reglages = reglages_gradium_voix(
+            user_config.tts, audio_config.transport_out_sample_rate
+        )
+        adresse = reglages["base_url"]
+        _validate_runtime_service_url(adresse, "base_url")
+        json_config = {"temp": reglages["temp"], "rewrite_rules": reglages["rewrite_rules"]}
+        if "padding_bonus" in reglages:
+            json_config["padding_bonus"] = reglages["padding_bonus"]
+        return MarkGradiumTTSService(
+            api_key=user_config.tts.api_key,
+            url=adresse,
+            output_format=reglages["output_format"],
+            sample_rate=reglages["sample_rate"],
+            reglages_json=json_config,
+            pronunciation_id=reglages.get("pronunciation_id"),
+            settings=MarkGradiumTTSService.Settings(
+                model=reglages["model"], voice=reglages["voice"]
+            ),
+            skip_aggregator_types=["recording_router", "recording"],
+            **voix,
+        )
     elif user_config.tts.provider == ServiceProviders.LMNT.value:
         raise ValueError(
             "LMNT is no longer available. Please select another TTS provider."
@@ -2124,7 +2154,19 @@ def stamp_voice_settings(
     if tts_config is None:
         return runtime_configuration
     reglages = {}
-    if getattr(tts_config, "provider", None) == ServiceProviders.SONIOX.value:
+    if getattr(tts_config, "provider", None) == ServiceProviders.GRADIUM.value:
+        # [.mark] Lot GT : lu par la MEME fonction que la requete (voir la branche de `create_tts_service`).
+        demandes = reglages_gradium_voix(tts_config)
+        reglages.update(
+            {
+                champ: demandes[champ]
+                for champ in ("voice", "temp", "rewrite_rules", "padding_bonus", "pronunciation_id")
+                if champ in demandes
+            }
+        )
+        reglages["endpoint"] = demandes["base_url"]
+        reglages["output_format"] = getattr(tts_config, "output_format", None) or "auto"
+    elif getattr(tts_config, "provider", None) == ServiceProviders.SONIOX.value:
         # [.mark] Voix-soniox, lot 4 : fournisseur (deja estampille par l'appelant), adresse appelee et
         # reglages, lus par la MEME fonction que celle qui construit la requete (jamais recalcules a
         # part : une voix videe est estampillee « Mathieu », celle qui est jouee).

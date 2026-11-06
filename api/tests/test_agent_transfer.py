@@ -265,6 +265,8 @@ class TransferHarness:
             call_context_vars={},
             workflow_run_id=1,
         )
+        # [.mark] L3e : l'appel de ce banc est déjà en cours (l'annonce « vous parlez à une IA » a été dite à son ouverture).
+        self.engine._annonce_ia_faite = True
 
         user, assistant = LLMContextAggregatorPair(
             context,

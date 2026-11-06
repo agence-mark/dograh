@@ -1,6 +1,6 @@
 import { Check, ChevronDown, Copy, ExternalLink, Loader2, MessageCircle, Mic, Plus, Rocket, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { notifier } from "@/components/mark/notifications";
 
 import {
     createOrUpdateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenPost,
@@ -8,6 +8,7 @@ import {
     getEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenGet,
 } from "@/client/sdk.gen";
 import type { TextChatInactivityTimeoutConstraints, WidgetTexts } from "@/client/types.gen";
+import { PanneauSite } from "@/components/mark/site/PanneauSite";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
@@ -337,7 +338,7 @@ export function EmbedDialog({
 
     const handleSave = async () => {
         if (isEnabled && widgetType === "chat" && !textChatInactivityIsValid) {
-            toast.error(textChatInactivityValidationMessage);
+            // La faute se lit déjà sous le champ du délai (et le bouton est grisé) : pas de notification en plus.
             return;
         }
 
@@ -404,15 +405,11 @@ export function EmbedDialog({
                 }
             }
 
-            toast.success(
-                "Widget configuration saved. Publish the agent to apply the changes.",
-            );
+            notifier.succes({ fr: "Widget enregistré.", en: "Widget saved." }, { publier: workflowId });
             // Don't close modal after saving - let user copy the embed code
         } catch (error) {
             console.error("Failed to save embed token:", error);
-            toast.error(
-                error instanceof Error ? error.message : "Failed to save widget configuration",
-            );
+            notifier.echec({ fr: "Widget non enregistré. Réessayez.", en: "Widget not saved. Try again." }, { erreur: error });
         } finally {
             setSaving(false);
         }
@@ -424,7 +421,7 @@ export function EmbedDialog({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error("Failed to copy embed code");
+            notifier.echec({ fr: "Copie impossible. Sélectionnez le code à la main.", en: "Could not copy. Select the code by hand." });
         }
     };
 
@@ -476,6 +473,9 @@ export function EmbedDialog({
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* [.mark] U10 / S2 : canal, site, chemins, apparence et réglages .mark d'un agent de site */}
+                        <PanneauSite workflowId={workflowId} />
+                        <Separator />
                         {/* Enable/Disable Toggle */}
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">

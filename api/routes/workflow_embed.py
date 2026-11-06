@@ -88,6 +88,18 @@ async def create_or_update_embed_token(
     if embed_request.expires_in_days:
         expires_at = datetime.now(UTC) + timedelta(days=embed_request.expires_in_days)
 
+    # [.mark] U10 / S2 (D153) : un jeton d'intégration se crée sur un agent de SITE. Un agent qui a déjà son jeton
+    # le garde (zéro perte : l'ancien script par jeton marche toujours) ; on n'en crée pas pour un agent téléphonique.
+    if not existing_tokens:
+        from api.routes.agents_site import _canal_de_lagent
+        from api.services.site_mark.canal import refus_jeton_sur_agent
+
+        refus = refus_jeton_sur_agent(
+            await _canal_de_lagent(workflow, user.selected_organization_id, brouillon=True)
+        )
+        if refus:
+            raise HTTPException(status_code=409, detail=refus)
+
     if existing_tokens:
         # Update the existing token (reactivate if needed)
         token = await db_client.update_embed_token(

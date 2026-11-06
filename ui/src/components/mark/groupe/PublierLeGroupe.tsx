@@ -11,14 +11,15 @@
  *   après la publication de l'agent.
  */
 import { Rocket } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
+import { notifier } from "@/components/mark/notifications";
 
 import { publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost } from "@/client/sdk.gen";
 import type { PublierGroupeResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { detailFromError } from "@/lib/apiError";
 
 import { type Texte, useLangue } from "../langue/langue";
 
@@ -40,26 +41,35 @@ const TEXTES = {
 /** Joue la publication du groupe et dit le résultat ; rend la réponse (ou null si la route a échoué). */
 export const usePublierLeGroupe = () => {
     const { t } = useLangue();
+    const router = useRouter();
     const [enCours, setEnCours] = useState(false);
-    const publier = async (principalId: number): Promise<PublierGroupeResponse | null> => {
+    // [.mark] Partie 3 (SE-12) : `choix` = les seuls spécialistes à publier (un choix par spécialiste), le principal restant à part
+    // quand `avecLePrincipal` est faux (la fenêtre Publier vient de le publier avec ses propres contrôles). Sans choix : tout le groupe.
+    const publier = async (
+        principalId: number,
+        choix?: { specialises: number[]; avecLePrincipal: boolean },
+    ): Promise<PublierGroupeResponse | null> => {
         setEnCours(true);
         try {
-            const reponse = await publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost({ path: { workflow_id: principalId } });
+            const reponse = await publierLeGroupeApiV1WorkflowWorkflowIdGroupePublierPost({
+                path: { workflow_id: principalId },
+                ...(choix ? { body: { specialises: choix.specialises, avec_le_principal: choix.avecLePrincipal } } : {}),
+            });
             if (reponse.error || !reponse.data) {
-                toast.error(detailFromError(reponse.error, t(TEXTES.echec)));
+                notifier.echec({ fr: "Groupe non publié. Réessayez.", en: "Group not published. Try again." }, { erreur: reponse.error });
                 return null;
             }
             const corps = reponse.data;
             if (corps.refus) {
-                toast.error(`${t(TEXTES.refus)} ${corps.refus.name} : ${corps.refus.detail}`);
+                notifier.echec({ fr: `Publication refusée pour « ${corps.refus.name} » : ${corps.refus.detail}.`, en: `Publication refused for "${corps.refus.name}": ${corps.refus.detail}.` }, { bouton: { libelle: { fr: "Ouvrir l'agent", en: "Open the agent" }, action: () => router.push(adresseOnglet(corps.refus!.id, "parcours")) } });
             } else if ((corps.publies ?? []).length === 0) {
-                toast.success(t(TEXTES.aJour));
+                notifier.information({ fr: "Le groupe est déjà à jour.", en: "The group is already up to date." });
             } else {
-                toast.success(`${t(TEXTES.ok)} : ${(corps.publies ?? []).map((p) => p.name).join(", ")}`);
+                notifier.succes({ fr: `Publié : ${(corps.publies ?? []).map((p) => p.name).join(", ")}.`, en: `Published: ${(corps.publies ?? []).map((p) => p.name).join(", ")}.` });
             }
             return corps;
         } catch {
-            toast.error(t(TEXTES.echec));
+            notifier.echec({ fr: "Groupe non publié. Réessayez.", en: "Group not published. Try again." });
             return null;
         } finally {
             setEnCours(false);
@@ -99,7 +109,7 @@ export const ProposerLaPublicationDuGroupe = ({
     const { t } = useLangue();
     const { enCours, publier } = usePublierLeGroupe();
     return (
-        <Dialog open={ouvert} onOpenChange={onOuvertChange}>
+        <Dialog centree open={ouvert} onOpenChange={onOuvertChange}>
             <DialogContent className="sm:max-w-md" data-modale="publier-le-groupe">
                 <DialogHeader>
                     <DialogTitle>{t(TEXTES.titreProposition)}</DialogTitle>
