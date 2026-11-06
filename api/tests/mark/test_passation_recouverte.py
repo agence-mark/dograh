@@ -175,6 +175,9 @@ async def test_r1_la_requete_du_collegue_part_pendant_l_annonce_et_il_parle_apre
         # Ni musique ni durée minimale vers un collègue de la réserve.
         assert sonneries == []
         assert paroles and await asyncio.wait_for(paroles[0].wait(), 10)
+        # La fin de l'annonce est datée par une tâche à part (``_mesurer_la_fin_de_l_annonce``) : on l'attend avant de
+        # lire l'enregistrement (CI 42162519092, lu un tour de boucle trop tôt).
+        await asyncio.wait_for(coordinateur._suivi_annonce, 10)
         enregistrement = coordinateur.completed[-1]
         assert enregistrement["installation"] == "reserve"
         # Le collègue a pris la main (et sa requête est partie) avant la fin de l'annonce.
