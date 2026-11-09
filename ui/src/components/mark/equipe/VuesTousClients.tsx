@@ -6,13 +6,17 @@
  * Lecture seule : les deux listes (appels, conversations du builder) viennent de `GET /vues-equipe/...`, qui ne montre que les clients
  * que le rôle du compte ouvre. Une ligne mène chez le client (là où l'on agit). Requêtes partagées avec le reste de la page : une par liste.
  */
-import { MessageSquare, Phone } from "lucide-react";
+import { ChevronRight, MessageSquare, Phone, Search } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { chatDeTousLesClientsApiV1VuesEquipeChatGet, conversationsDeTousLesClientsApiV1VuesEquipeConversationsGet } from "@/client";
 import type { ConversationsEquipeResponse, FilsEquipe } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
+import { EnDirect, MarqueClaudeCode } from "@/components/mark/sources/marques";
+import { Pastille } from "@/components/mark/studio/marques";
+import { Input } from "@/components/ui/input";
 import { DateRelative } from "@/components/mark/studio/date-relative";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { espaceDe } from "@/components/mark/studio/navigation-studio";
@@ -38,6 +42,7 @@ const T = {
     changements: { en: "Changes", fr: "Changements" },
     aucunAppel: { en: "No call yet", fr: "Aucun appel encore" },
     aucunChat: { en: "No chat yet", fr: "Aucun chat encore" },
+    rechercher: { en: "Search a chat", fr: "Rechercher un chat" },
     termine: { en: "Done", fr: "Terminée" },
     enCours: { en: "Ongoing", fr: "En cours" },
     precedent: { en: "Previous", fr: "Précédent" },
@@ -116,6 +121,7 @@ export function ConversationsTousClients() {
 /** Le Chat du Labo : les conversations du builder de tous les clients ouverts (lecture seule ; on les ouvre chez le client). */
 export function ChatTousClients() {
     const { t } = useLangue();
+    const [q, setQ] = useState("");
     const { charge, decalage, setDecalage, recharger } = usePage<FilsEquipe>((d) =>
         chatDeTousLesClientsApiV1VuesEquipeChatGet({ query: { limit: PAR_PAGE, offset: d } }),
     );
@@ -124,20 +130,40 @@ export function ChatTousClients() {
     if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={() => void recharger()} />;
     const { fils, total } = charge.donnees;
     if (fils.length === 0) return <EtatVide cas="premier" icone={MessageSquare} titre={t(T.aucunChat)} />;
+    const vus = fils.filter((f) => `${f.titre} ${f.organization_nom}`.toLowerCase().includes(q.toLowerCase()));
     return (
         <>
-            <Tableau colonnes={[{ titre: t(T.client) }, { titre: t(T.titre) }, { titre: t(T.changements), droite: true }, { titre: t(T.quand), droite: true }]}>
-                {fils.map((f) => (
-                    <Ligne key={f.id} href={`/clients/${f.organization_id}/chat/${f.id}`}>
-                        <Cellule principale>{f.organization_nom}</Cellule>
-                        <Cellule>{f.titre}</Cellule>
-                        <Cellule droite>{f.changements > 0 ? f.changements : ""}</Cellule>
-                        <Cellule droite>
-                            <DateRelative valeur={f.modifie_le as string} />
-                        </Cellule>
-                    </Ligne>
-                ))}
-            </Tableau>
+            {/* Clôture D2 (É6) : la forme de la maquette : une recherche, une liste nue (titre, client, marque « Claude Code · prénom » et « En direct »,
+                pastille rouge des changements, quand, flèche). Lecture seule : une ligne mène chez le client, où l'on agit. */}
+            <div className="relative mb-3 w-full max-w-72">
+                <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} aria-label={t(T.rechercher)} placeholder={t(T.rechercher)} className="h-9 border-transparent bg-muted/50 pl-8 shadow-none" />
+            </div>
+            {vus.length === 0 ? (
+                <EtatVide cas="filtre" recherche={q} effacer={() => setQ("")} />
+            ) : (
+                <ul className="divide-y border-y" data-testid="chat-tous-clients">
+                    {vus.map((f) => (
+                        <li key={f.id}>
+                            <Link href={`/clients/${f.organization_id}/chat/${f.id}`} className="flex cursor-pointer items-center gap-3 px-1 py-3.5 hover:bg-muted/40 hover:font-semibold">
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-medium">{f.titre}</span>
+                                    <span className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
+                                        {f.organization_nom}
+                                        {f.genre === "claude_code" && <MarqueClaudeCode par={f.auteur} />}
+                                        {f.genre === "claude_code" && f.etat === "en_cours" && <EnDirect />}
+                                    </span>
+                                </span>
+                                {f.changements > 0 && <Pastille n={f.changements} urgent />}
+                                <span className="text-xs font-normal text-muted-foreground">
+                                    <DateRelative valeur={f.modifie_le as string} />
+                                </span>
+                                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
             <Pagination decalage={decalage} total={total} aller={setDecalage} />
         </>
     );

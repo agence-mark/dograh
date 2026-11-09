@@ -46,7 +46,7 @@ afterEach(() => {
 
 const STATS = { executions: 0, reussies: 0, echecs: 0, reussite: null, duree_mediane_ms: null, jours: 30, page: 0, par_page: 25, total_executions: 0, dernieres_executions: [], agents: [{ agent_id: 7, agent: "Accueil Tilleuls", etapes: ["Accueil", "Urgence"] }] };
 
-const monter = (outil = TRANSFERT) => {
+const monter = (outil: typeof TRANSFERT | typeof FIN = TRANSFERT) => {
     m.stats.mockResolvedValue({ data: STATS });
     m.lireAgent.mockResolvedValue({ data: { id: 7, name: "Accueil Tilleuls", workflow_configurations: { fiche_au_fil_de_leau: true, fiche_champs: ["nom"] } } });
     m.maj.mockResolvedValue({ data: outil });

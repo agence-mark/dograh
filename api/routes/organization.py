@@ -1196,6 +1196,9 @@ async def list_telephony_configurations(user: UserModel = Depends(get_user)):
                 outbound_blocked_reason=(
                     checklist.outbound_blocked_reason if checklist else None
                 ),
+                outbound_blocked_step=(
+                    checklist.outbound_blocked_step if checklist else None
+                ),
                 created_at=row.created_at,
                 updated_at=row.updated_at,
             )

@@ -5,7 +5,7 @@
  * builder » de la bibliothèque, les 4 plus utilisés hors Rejeté). Un clic remplit la saisie (modifiable) ; la saisie demande ce
  * qui manque (un agent, des fichiers texte) et « Envoyer » reste grisé, raison au survol, tant qu'il manque quelque chose.
  */
-import { ArrowUp, AtSign, Bot, FileText, FlaskConical, Paperclip, Settings2, Slash, Sparkles, Wrench, X } from "lucide-react";
+import { ArrowUp, AtSign, Bot, FileText, FlaskConical, Paperclip, Settings2, Slash, Sparkles, WandSparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -69,7 +69,7 @@ const T = {
     echec: { en: "The conversation could not be opened.", fr: "La conversation n'a pas pu être ouverte." },
 } satisfies Record<string, Texte>;
 
-const ICONES = { agent: Bot, amelioration: Wrench, test: FlaskConical, fichier: FileText, etincelle: Sparkles } as const;
+const ICONES = { agent: Bot, amelioration: WandSparkles, test: FlaskConical, fichier: FileText, etincelle: Sparkles } as const;
 const TAILLE_FICHIERS_MAX = 100_000;
 
 type Agent = { id: number; name: string };

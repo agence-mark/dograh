@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
     source: "cle_api" as string,
     agents: [] as { id: number; name: string }[],
     etapes: [] as { id: string; etat: string; niveau: string }[],
+    prenom: null as string | null,
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/labo", useRouter: () => ({ push: m.push }), useParams: () => ({}) }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => m.session }));
@@ -43,6 +44,7 @@ vi.mock("@/client", () => ({
 vi.mock("@/client/sdk.gen", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
     lireLaPreparationApiV1WorkflowWorkflowIdPreparationGet: vi.fn(async () => ({ data: { etapes: m.etapes } })),
+    monProfilApiV1EquipeMarkMoiGet: vi.fn(async () => ({ data: { prenom: m.prenom } })),
 }));
 
 import * as client from "@/client";
@@ -56,6 +58,7 @@ afterEach(() => {
     m.agents = [];
     m.etapes = [];
     m.source = "cle_api";
+    m.prenom = null;
     m.push.mockClear();
     vi.mocked(client.ouvrirUnFilApiV1BuilderFilsPost).mockClear();
 });
@@ -65,6 +68,18 @@ async function accueil() {
     render(<PageAccueil />);
     await screen.findByText(/un-modele/);
 }
+
+describe("la salutation (É2, clôture D2)", () => {
+    it("dit « Hello Evan, » (« Bonjour Evan, » en français) quand le compte a un prénom, rien de plus sinon", async () => {
+        m.prenom = "Evan";
+        await accueil();
+        expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("Hello Evan, what do we build?");
+        cleanup();
+        m.prenom = null;
+        await accueil();
+        expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("Hello, what do we build?");
+    });
+});
 
 describe("la barre de la saisie", () => {
     it("porte Joindre, @, /, le mode du chat et le modèle en pastille", async () => {

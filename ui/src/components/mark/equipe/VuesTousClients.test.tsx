@@ -13,6 +13,7 @@ vi.mock("@/client", () => ({
     chatDeTousLesClientsApiV1VuesEquipeChatGet: (o: unknown) => m.chat(o),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: (() => { const s = { user: { id: "u" }, loading: false }; return () => s; })() }));
+vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }), usePathname: () => "/labo/conversations" }));
 
 const { ChatTousClients, ConversationsTousClients } = await import("./VuesTousClients");
@@ -61,12 +62,23 @@ describe("Conversations, tous clients", () => {
 });
 
 describe("Chat du Labo, tous clients", () => {
+    it("cherche dans les titres et les clients, et dit la marque de Claude Code", async () => {
+        m.chat.mockResolvedValue({ data: { fils: [FIL, { ...FIL, id: 10, titre: "Corrige l'accueil", organization_nom: "Atelier", genre: "claude_code", auteur: "Evan", etat: "en_cours" }], total: 2, limit: 25, offset: 0 } });
+        monter(<ChatTousClients />);
+        await screen.findByText("Corrige l'accueil");
+        expect(screen.getByText(/Claude Code/)).toBeTruthy();
+        fireEvent.change(screen.getByRole("textbox", { name: "Rechercher un chat" }), { target: { value: "atelier" } });
+        expect(screen.queryByText("Ajoute les horaires")).toBeNull();
+        expect(screen.getByText("Corrige l'accueil")).toBeTruthy();
+    });
+
     it("liste les conversations du builder avec leur client, et la page suivante lit le décalage suivant", async () => {
         monter(<ChatTousClients />);
-        const ligne = (await screen.findByText("Ajoute les horaires")).closest("tr")!;
+        // Clôture D2 (É6) : une liste nue (plus un tableau) : titre, client, quand ; la ligne est un lien chez le client.
+        const ligne = (await screen.findByText("Ajoute les horaires")).closest("a")!;
         expect(ligne.textContent).toContain("Plomberie Garnier");
-        fireEvent.click(ligne);
-        expect(m.push).toHaveBeenCalledWith("/clients/41/chat/9");
+        expect(ligne.getAttribute("href")).toBe("/clients/41/chat/9");
+        expect(document.querySelector("table")).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
         await waitFor(() => expect(m.chat).toHaveBeenLastCalledWith({ query: { limit: 25, offset: 25 } }));
     });

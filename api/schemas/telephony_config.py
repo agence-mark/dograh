@@ -108,6 +108,8 @@ class TelephonyConfigurationListItem(BaseModel):
     # are ready as soon as their credentials are stored, hence the default.
     is_ready_for_outbound: bool = True
     outbound_blocked_reason: str | None = None
+    # [.mark] The key of the blocking step, so the screen says it in both languages (clôture D2).
+    outbound_blocked_step: str | None = None
     created_at: datetime
     updated_at: datetime
 
