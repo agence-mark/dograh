@@ -201,11 +201,11 @@ export function ShellStudio({
                                     </span>
                                 ))}
                             </nav>
-                            <div className={`min-w-0 items-center self-stretch ${milieu || personnalisee ? "flex flex-1" : "hidden"}`}>
+                            <div className={`min-w-0 items-center self-stretch overflow-hidden ${milieu || personnalisee ? "flex flex-1" : "hidden"}`}>
                                 {milieu}
                                 <div ref={setElMilieu} className="contents" />
                             </div>
-                            <div data-barre-actions="" className="flex items-center gap-2">
+                            <div data-barre-actions="" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
                                 {actions}
                                 <div ref={setElActions} className="contents" />
                             </div>

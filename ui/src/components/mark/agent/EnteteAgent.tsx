@@ -48,7 +48,7 @@ export function EnteteAgent({ agentId, onglet, nom, actions, fil }: { agentId: n
                         <span className="truncate font-medium">{fil}</span>
                     </nav>
                 ) : (
-                    <span className="truncate text-sm font-medium" data-nom-agent>
+                    <span className="min-w-0 truncate text-sm font-medium" data-nom-agent>
                         {nom}
                     </span>
                 )}
