@@ -7,7 +7,7 @@
 Toute lecture est bornée à l'organisation de l'appelant : l'agent d'une autre organisation répond 404.
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -86,6 +86,11 @@ class JugeDesVraisAppels(BaseModel):
     part: int | None = Field(default=None, ge=1, le=100, description="Share of the real calls judged, 1 to 100 %.")
     duree_min_s: int | None = Field(default=None, ge=0, le=600, description="Calls shorter than this are not judged (0 = no minimum).")
     repondeurs_exclus: bool | None = Field(default=None, description="Calls that ended on an answering machine are not judged.")
+    vecu_eteints: list[Literal["frustration", "blanc", "gene_machine", "ecoute", "boucle"]] | None = Field(
+        default=None,
+        max_length=5,
+        description="The caller-experience criteria this judge does NOT look at (none: all five are judged). Absent on write: unchanged.",
+    )
     etat_du_juge: str | None = None
 
 
@@ -118,5 +123,6 @@ async def regler_le_juge_des_vrais_appels(
         part=requete.part,
         duree_min_s=requete.duree_min_s,
         repondeurs_exclus=requete.repondeurs_exclus,
+        vecu_eteints=requete.vecu_eteints,
     )
     return await _vue_du_juge(user.selected_organization_id, workflow_id)

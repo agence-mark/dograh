@@ -27,12 +27,24 @@ class ReglagesTri:
     part: int = 100
     duree_min_s: int = 0
     repondeurs_exclus: bool = False
+    # Clôture, lot C : les critères du vécu que ce juge ne regarde PAS (tous regardés par défaut, comme avant).
+    vecu_eteints: tuple[str, ...] = ()
 
 
 def _entier(valeur: Any, defaut: int, bas: int, haut: int) -> int:
     if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
         return defaut
     return max(bas, min(haut, int(valeur)))
+
+
+def vecu_eteints_de(brut: Any) -> tuple[str, ...]:
+    """Les identifiants connus d'une liste (l'ordre des critères, sans doublon) ; un identifiant inconnu ou une valeur illisible est ignoré."""
+    from api.services.juge.verdicts import IDS_DU_VECU
+
+    if not isinstance(brut, (list, tuple)):
+        return ()
+    demandes = {x for x in brut if isinstance(x, str)}
+    return tuple(i for i in IDS_DU_VECU if i in demandes)
 
 
 def lire(ligne: dict | None) -> ReglagesTri:
@@ -42,6 +54,7 @@ def lire(ligne: dict | None) -> ReglagesTri:
         part=_entier(ligne.get("part"), 100, 1, 100),
         duree_min_s=_entier(ligne.get("duree_min_s"), 0, 0, DUREE_MIN_MAX_S),
         repondeurs_exclus=ligne.get("repondeurs_exclus") is True,
+        vecu_eteints=vecu_eteints_de(ligne.get("vecu_eteints")),
     )
 
 

@@ -271,6 +271,8 @@ CLES_COMMUNES: tuple[str, ...] = (
 # l'appel (thème 8 « celui de l'appel »), jamais une copie de celle du principal.
 CLES_PROPRES: tuple[str, ...] = (
     "generer_schema_parcours",
+    # Clôture, lot C : chaque agent a son propre graphe, donc sa propre règle de dessin.
+    "empecher_boucles",
     # builder partie 2 (G2, U11) : contrôles avant publication et déploiement progressif, propres à chaque
     # agent (chacun publie ses propres versions).
     "publication",

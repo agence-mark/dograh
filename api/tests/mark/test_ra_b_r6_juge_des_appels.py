@@ -63,7 +63,7 @@ async def test_le_reglage_se_range_par_agent_et_garde_ce_qu_on_ne_touche_pas(mon
     await file.regler(ORG_CLIENT, AGENT, True, part=40, duree_min_s=8)
     await file.regler(ORG_CLIENT, AGENT, True, repondeurs_exclus=True)
     lu = await file.lire_reglages(ORG_CLIENT, AGENT)
-    assert lu == {"actif": True, "part": 40, "duree_min_s": 8, "repondeurs_exclus": True}
+    assert lu == {"actif": True, "part": 40, "duree_min_s": 8, "repondeurs_exclus": True, "vecu_eteints": []}
     assert await file.juge_des_vrais_appels(ORG_CLIENT, AGENT) is True
 
 
