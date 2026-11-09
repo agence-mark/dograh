@@ -10,7 +10,11 @@ from api.utils.api_key import generate_api_key, hash_api_key
 
 class APIKeyClient(BaseDBClient):
     async def create_api_key(
-        self, organization_id: int, name: str, created_by: Optional[int] = None
+        self,
+        organization_id: int,
+        name: str,
+        created_by: Optional[int] = None,
+        role_id: Optional[int] = None,
     ) -> tuple[APIKeyModel, str]:
         """Create a new API key for an organization.
 
@@ -28,6 +32,7 @@ class APIKeyClient(BaseDBClient):
                 key_prefix=key_prefix,
                 created_by=created_by,
                 is_active=True,
+                role_id=role_id,
             )
             session.add(api_key)
             await session.commit()
@@ -106,3 +111,61 @@ class APIKeyClient(BaseDBClient):
             )
             await session.commit()
             return result.rowcount > 0
+
+    async def get_api_key_by_id(
+        self, organization_id: int, api_key_id: int
+    ) -> Optional[APIKeyModel]:
+        """[.mark] Une clé de CETTE organisation (le filtre est dans la requête), active ou non."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(APIKeyModel).where(
+                    APIKeyModel.id == api_key_id,
+                    APIKeyModel.organization_id == organization_id,
+                )
+            )
+            return result.scalars().first()
+
+    async def set_api_key_role(
+        self, organization_id: int, api_key_id: int, role_id: Optional[int]
+    ) -> bool:
+        """[.mark] Clôture, lot A (D21) : change le rôle que la clé porte (le filtre par organisation est dans la requête)."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                APIKeyModel.__table__.update()
+                .where(
+                    APIKeyModel.id == api_key_id,
+                    APIKeyModel.organization_id == organization_id,
+                )
+                .values(role_id=role_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def set_api_key_active(
+        self, organization_id: int, api_key_id: int, active: bool
+    ) -> bool:
+        """[.mark] Suspend (``False``) ou rétablit (``True``) une clé non révoquée ; une clé révoquée (archivée) ne se rétablit pas ici."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                APIKeyModel.__table__.update()
+                .where(
+                    APIKeyModel.id == api_key_id,
+                    APIKeyModel.organization_id == organization_id,
+                    APIKeyModel.archived_at.is_(None),
+                )
+                .values(is_active=active)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def count_api_keys_with_role(self, role_id: int) -> int:
+        """[.mark] Combien de clés (révoquées exclues) portent ce rôle : un rôle utilisé par une clé ne se supprime pas."""
+        from sqlalchemy import func
+
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(func.count())
+                .select_from(APIKeyModel)
+                .where(APIKeyModel.role_id == role_id, APIKeyModel.archived_at.is_(None))
+            )
+            return int(result.scalar_one())

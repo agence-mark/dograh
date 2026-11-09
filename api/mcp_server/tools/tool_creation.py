@@ -50,7 +50,7 @@ async def create_tool(request: CreateToolRequest) -> dict[str, Any]:
     - `create_failed` — unexpected persistence or backend failure; retry once,
       then surface the error.
     """
-    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
+    user = await authenticate_mcp_write("create_tool")  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     try:
         parsed_request = CreateToolRequest.model_validate(request)

@@ -16,7 +16,7 @@ async def list_workflows(status: str | None = "active") -> list[dict]:
     metadata. Defaults to active agents; pass `status="archived"` to
     list archived agents, or `status=None` to list all.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("list_workflows")
     workflows = await db_client.get_all_workflows_for_listing(
         organization_id=user.selected_organization_id,
         status=status,
@@ -39,7 +39,7 @@ async def get_workflow(workflow_id: int) -> dict:
     Output shape:
         {"id": int, "name": str, "status": str, "version": "draft" | "published" | "legacy", "version_number": int | None, "code": "<TS source>"}
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("get_workflow")
     workflow = await db_client.get_workflow(
         workflow_id, organization_id=user.selected_organization_id
     )

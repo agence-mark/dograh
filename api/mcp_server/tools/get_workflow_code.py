@@ -32,7 +32,7 @@ async def get_workflow_code(workflow_id: int) -> dict[str, Any]:
 
     The LLM edits `code`, then calls `save_workflow(workflow_id, code)`.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("get_workflow_code")
 
     workflow = await db_client.get_workflow(
         workflow_id, organization_id=user.selected_organization_id

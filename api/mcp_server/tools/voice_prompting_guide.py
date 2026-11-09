@@ -65,7 +65,7 @@ async def get_voice_prompting_guide(
     topic="common_guidelines" before writing or revising a globalNode so the
     template content is actually read. Do not pull every topic.
     """
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("get_voice_prompting_guide")
     resultat = await _guide_de_l_amont(stage, topic, node_type)
     # [.mark] Nos règles de rédaction d'abord (bibliothèque), le guide de l'amont en second.
     from api.services.builder.regles_redaction import charger

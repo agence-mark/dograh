@@ -58,7 +58,6 @@ INTERDITES_A_UNE_CLE = [
     ("POST", f"{P}/agent-fichiers/{{workflow_id}}/import"),
     ("GET", f"{P}/agent-fichiers/{{workflow_id}}/export"),
     ("POST", f"{P}/s3/presigned-upload-url"),
-    ("POST", f"{P}/knowledge-base/process-document"),
     ("POST", f"{P}/folder/"),
     ("PUT", f"{P}/organizations/modeles-de-reglages/x"),  # un outil de l'équipe, au Labo
 ]

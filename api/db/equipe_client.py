@@ -18,6 +18,7 @@ from api.db.models_equipe import (
     MarkInvitationModel,
     MarkJournalModel,
     MarkMembreModel,
+    MarkReglageEquipeModel,
     MarkRoleModel,
     MarkRoleOrganisationModel,
     MarkRolePermissionModel,
@@ -100,6 +101,7 @@ class EquipeClient(BaseDBClient):
         action: str,
         organization_id: int | None = None,
         detail: dict | None = None,
+        origine: str | None = None,
     ) -> None:
         async with self.async_session() as session:
             session.add(
@@ -109,6 +111,7 @@ class EquipeClient(BaseDBClient):
                     action=action[:120],
                     organization_id=organization_id,
                     detail=detail,
+                    origine=origine,
                 )
             )
             await session.commit()
@@ -122,11 +125,20 @@ class EquipeClient(BaseDBClient):
         user_id: int | None = None,
         actions: list[str] | None = None,
         logiciel: str | None = None,
+        origine: str | None = None,
+        depuis: datetime | None = None,
+        jusqu_a: datetime | None = None,
     ) -> tuple[list[dict], int]:
         """Une page du journal, du plus récent au plus ancien, et le total. Filtres posés DANS la requête (espace, membre, actions,
-        logiciel d'un geste de connecteur)."""
+        logiciel d'un geste de connecteur, origine du geste, période)."""
         async with self.async_session() as session:
             filtre = []
+            if origine:
+                filtre.append(MarkJournalModel.origine == origine)
+            if depuis is not None:
+                filtre.append(MarkJournalModel.quand >= depuis)
+            if jusqu_a is not None:
+                filtre.append(MarkJournalModel.quand < jusqu_a)
             if actions:
                 filtre.append(MarkJournalModel.action.in_(actions))
             if logiciel:
@@ -168,11 +180,76 @@ class EquipeClient(BaseDBClient):
                         "action": j.action,
                         "organization_id": j.organization_id,
                         "detail": j.detail,
+                        "origine": j.origine,
                     }
                     for j, prenom, nom in lignes
                 ],
                 int(total),
             )
+
+    async def purger_journal(self, avant: datetime) -> int:
+        """Clôture, lot A (D23) : retire les lignes d'avant ``avant`` (durée de garde réglée à l'écran). Idempotent ; rend le nombre retiré."""
+        async with self.async_session() as session:
+            resultat = await session.execute(delete(MarkJournalModel).where(MarkJournalModel.quand < avant))
+            await session.commit()
+            return int(resultat.rowcount or 0)
+
+    async def types_de_gestes_du_journal(self) -> list[str]:
+        """Les types de gestes présents (pour le filtre de la page) : une seule lecture, sans doublon."""
+        async with self.async_session() as session:
+            return list(
+                (await session.execute(select(MarkJournalModel.action).distinct().order_by(MarkJournalModel.action))).scalars().all()
+            )
+
+    # ------------------------------------------------------------------ réglages de l'équipe (réglables à l'écran)
+    async def lire_reglage_equipe(self, cle: str):
+        async with self.async_session() as session:
+            ligne = await session.get(MarkReglageEquipeModel, cle)
+            return None if ligne is None else ligne.valeur
+
+    async def poser_reglage_equipe(self, cle: str, valeur, user_id: int | None = None) -> None:
+        async with self.async_session() as session:
+            ligne = await session.get(MarkReglageEquipeModel, cle)
+            if ligne is None:
+                session.add(MarkReglageEquipeModel(cle=cle, valeur=valeur, modifie_par=user_id))
+            else:
+                ligne.valeur = valeur
+                ligne.modifie_le = datetime.now(UTC)
+                ligne.modifie_par = user_id
+            await session.commit()
+
+    # ------------------------------------------------------------------ accès actif (D22)
+    async def acces_est_actif(self, user_id: int) -> bool:
+        """Faux seulement pour un membre de l'équipe dont l'accès est bloqué ; un compte sans ligne n'est jamais bloqué."""
+        async with self.async_session() as session:
+            actif = (
+                await session.execute(select(MarkMembreModel.acces_actif).where(MarkMembreModel.user_id == user_id))
+            ).scalar_one_or_none()
+            return True if actif is None else bool(actif)
+
+    async def changer_acces_protege(self, user_id: int, actif: bool) -> str:
+        """Bloque (``actif`` faux) ou rétablit un membre, SANS jamais bloquer le dernier administrateur actif (lignes verrouillées pendant la
+        vérification). Rend ``"ok"``, ``"dernier_administrateur"`` ou ``"inconnu"``."""
+        async with self.async_session() as session:
+            admin_id = (
+                await session.execute(select(MarkRoleModel.id).where(MarkRoleModel.fixe.is_(True)))
+            ).scalars().first()
+            admins_actifs = (
+                await session.execute(
+                    select(MarkMembreModel.user_id)
+                    .where(MarkMembreModel.role_id == admin_id, MarkMembreModel.acces_actif.is_(True))
+                    .with_for_update()
+                )
+            ).scalars().all()
+            membre = await session.get(MarkMembreModel, user_id)
+            if membre is None:
+                return "inconnu"
+            if not actif and membre.role_id == admin_id and membre.acces_actif and len(admins_actifs) <= 1:
+                return "dernier_administrateur"
+            membre.acces_actif = bool(actif)
+            membre.bloque_le = None if actif else datetime.now(UTC)
+            await session.commit()
+            return "ok"
 
     # ------------------------------------------------------------------ rôles
     async def lister_roles(self) -> list[dict]:
@@ -333,6 +410,7 @@ class EquipeClient(BaseDBClient):
                 "nom": m.nom,
                 "role_id": m.role_id,
                 "role_nom": role_nom,
+                "acces_actif": bool(m.acces_actif),
             }
 
     async def lister_membres(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
@@ -360,6 +438,7 @@ class EquipeClient(BaseDBClient):
                         "role_id": m.role_id,
                         "role_nom": role_nom,
                         "depuis": m.cree_le,
+                        "acces_actif": bool(m.acces_actif),
                     }
                     for m, email, role_nom in lignes
                 ],

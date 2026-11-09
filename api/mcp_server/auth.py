@@ -13,7 +13,7 @@ from api.services.auth.depends import _handle_api_key_auth
 from api.services.builder.identite import UTILISATEUR_DIRECT  # noqa: E402
 
 
-async def authenticate_mcp_request() -> UserModel:
+async def authenticate_mcp_request(outil: str | None = None) -> UserModel:
     """Resolve the authenticated Dograh user for an MCP tool invocation.
 
     Accepts either `X-API-Key: <key>` or `Authorization: Bearer <key>`,
@@ -48,6 +48,15 @@ async def authenticate_mcp_request() -> UserModel:
     # (``bibliotheque.droits.exiger_l_equipe_au_labo``), en attendant la décision d'Evan (18).
     user.par_cle_api = True
     user.par_porte_mcp = True
+    if outil is not None:
+        # [.mark] Clôture, lot A (D10, D21) : la lecture des agents, outils et du builder est fermée à une clé de client sans rôle.
+        from api.services.equipe_mark.droits_mcp import LECTURE_AGENTS, PERMISSION_DES_OUTILS_MCP
+
+        if PERMISSION_DES_OUTILS_MCP.get(outil) == LECTURE_AGENTS:
+            from api.services.equipe_mark.droits_effectifs import lecture_fermee_a_la_cle_de_client
+
+            if lecture_fermee_a_la_cle_de_client(user):
+                raise HTTPException(status_code=403, detail="Not available to an API key of a client")
 
     span = trace.get_current_span()
     if span.is_recording():
@@ -64,16 +73,26 @@ async def authenticate_mcp_request() -> UserModel:
     return user
 
 
-async def authenticate_mcp_write() -> UserModel:
-    """Comme ``authenticate_mcp_request`` pour un outil qui ÉCRIT (partie 3, 17a : liste fermée des clés).
+async def authenticate_mcp_write(outil: str) -> UserModel:
+    """Comme ``authenticate_mcp_request`` pour un outil qui ÉCRIT : la permission de l'outil vient de la table unique (``droits_mcp``).
 
-    Une clé d'API d'un client n'écrit jamais par la porte MCP : le portail et les scripts d'un client lisent. Seule la clé du Labo, créée
-    par un membre de l'équipe (Claude Code de .mark), écrit. Le moteur du builder (appel direct, sans clé) n'est pas concerné."""
+    Clôture, lot A (D21) : une clé PORTÉE PAR UN RÔLE écrit si ce rôle (borné par son créateur) porte la permission, exactement comme à l'écran.
+    Une clé sans rôle garde la règle de la liste fermée (17a) : une clé de client n'écrit jamais ; seule la clé du Labo, créée par un membre de
+    l'équipe (Claude Code de .mark), écrit. Le moteur du builder (appel direct, sans clé) n'est pas concerné."""
+    from api.services.equipe_mark.droits_mcp import PERMISSION_DES_OUTILS_MCP
+
+    permission = PERMISSION_DES_OUTILS_MCP[outil]
     user = await authenticate_mcp_request()
     if getattr(user, "par_porte_mcp", False):
-        from api.services.builder.bibliotheque import droits
-        from api.services.builder.constantes import organisation_bibliotheque
+        if getattr(user, "cle_api_role_id", None) is not None:
+            from api.services.equipe_mark.droits_effectifs import permissions_de
 
-        if not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque()):
-            raise HTTPException(status_code=403, detail="This API key cannot write through MCP: only the Labo key of the .mark team does")
+            if permission not in await permissions_de(user):
+                raise HTTPException(status_code=403, detail=f"Permission required: {permission} (not carried by the role of this API key)")
+        else:
+            from api.services.builder.bibliotheque import droits
+            from api.services.builder.constantes import organisation_bibliotheque
+
+            if not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque()):
+                raise HTTPException(status_code=403, detail="This API key cannot write through MCP: only the Labo key of the .mark team does")
     return user

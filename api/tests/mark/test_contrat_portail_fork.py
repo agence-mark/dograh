@@ -60,6 +60,7 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     # connaissances
     ("GET", f"{P}/knowledge-base/documents"),
     ("POST", f"{P}/knowledge-base/upload-url"),
+    ("POST", f"{P}/knowledge-base/process-document"),  # clôture, lot A (D9) : « Ajouter un document » rouvert
     ("POST", f"{P}/knowledge-base/documents/{{document_uuid}}/remplacer"),
     ("DELETE", f"{P}/knowledge-base/documents/{{document_uuid}}"),
     ("GET", f"{P}/knowledge-base/documents/{{document_uuid}}/utilisation"),

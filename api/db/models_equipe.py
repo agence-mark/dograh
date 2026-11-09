@@ -82,6 +82,9 @@ class MarkMembreModel(Base):
     prenom = Column(String(120), nullable=True)
     nom = Column(String(120), nullable=True)
     cree_le = Column(DateTime(timezone=True), nullable=False, default=_maintenant)
+    # Clôture, lot A (D22) : « Accès actif », sans date. Bloqué = sessions et clés du compte coupées à la requête suivante ; permissions gardées.
+    acces_actif = Column(Boolean, nullable=False, default=True, server_default="true")
+    bloque_le = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_mark_membres_role_id", "role_id"),)
 
@@ -117,8 +120,22 @@ class MarkJournalModel(Base):
     # L'espace touché : organisation sans clé étrangère, l'historique survit à sa suppression.
     organization_id = Column(Integer, nullable=True)
     detail = Column(JSON, nullable=True)
+    # Clôture, lot A (D23) : d'où vient le geste, ``ecran`` (session), ``api`` (clé d'API) ou ``mcp`` (porte MCP).
+    origine = Column(String(8), nullable=True)
 
     __table_args__ = (
+        Index("ix_mark_journal_action", "action"),
         Index("ix_mark_journal_quand", "quand"),
         Index("ix_mark_journal_organization_id", "organization_id"),
     )
+
+
+class MarkReglageEquipeModel(Base):
+    """Les réglages de l'équipe .mark réglables à l'écran (message d'accès bloqué, durée du journal) : une clé, une valeur JSON."""
+
+    __tablename__ = "mark_reglages_equipe"
+
+    cle = Column(String(64), primary_key=True)
+    valeur = Column(JSON, nullable=True)
+    modifie_le = Column(DateTime(timezone=True), nullable=False, default=_maintenant)
+    modifie_par = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

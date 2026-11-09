@@ -182,6 +182,8 @@ class APIKeyModel(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     archived_at = Column(DateTime(timezone=True), nullable=True)
+    # [.mark] Clôture, lot A (D21) : le rôle d'équipe que la clé porte (``mark_roles``) ; vide = clé d'avant ou du portail, liste fermée des clés.
+    role_id = Column(Integer, ForeignKey("mark_roles.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     organization = relationship("OrganizationModel", back_populates="api_keys")

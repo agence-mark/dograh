@@ -334,6 +334,7 @@ class TitreDuFil(BaseModel):
 @router.put("/fils/{fil_id}/titre", response_model=VueFil)
 async def renommer_un_fil(fil_id: int, demande: TitreDuFil, user: UserModel = Depends(get_user_with_selected_organization)):
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)  # clôture, lot A (D12) : seul l'auteur renomme (« Arrêter » reste ouvert à tous)
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="A sub-agent keeps its task as title.")
     titre = " ".join(demande.titre.split())
@@ -354,6 +355,7 @@ async def supprimer_un_fil(
     if x_api_key:
         raise HTTPException(status_code=403, detail="An API key cannot delete a conversation.")
     fil = await _fil_ou_404(user, fil_id)
+    _chat_de_l_auteur(fil, user)  # clôture, lot A (D12) : seul l'auteur supprime
     if fil.genre == "sous_agent":
         raise HTTPException(status_code=409, detail="A sub-agent is removed with its parent conversation.")
     org = user.selected_organization_id

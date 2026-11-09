@@ -124,12 +124,12 @@ def objet_de(nom: str, arguments: dict[str, Any] | None, contexte) -> str:
 
 
 async def permissions_de(user) -> frozenset[str]:
-    """Les permissions de rôle de la personne (jamais celles du créateur d'une clé : une clé n'a que sa liste fermée). Une lecture qui
-    échoue ferme (aucune permission) : on ne prête pas de droits sur une base lente."""
-    from api.services.equipe_mark.permissions import PERMISSIONS_DE_CLE
-
+    """Les permissions de la personne (rôle d'équipe) ou de la clé (table unique ``equipe_mark.droits_effectifs``, clôture lot A, D21). Une
+    lecture qui échoue ferme (aucune permission) : on ne prête pas de droits sur une base lente."""
     if getattr(user, "par_cle_api", False):
-        return PERMISSIONS_DE_CLE
+        from api.services.equipe_mark import droits_effectifs
+
+        return await droits_effectifs.permissions_de(user)
     try:
         acces = await db_client.acces_du_compte(user.id)
     except Exception as erreur:  # noqa: BLE001

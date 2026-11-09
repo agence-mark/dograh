@@ -142,7 +142,8 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/workflow-recordings/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/workflow-recordings/.*$", MEMBRE, par_defaut=True),
     # RV (point 3) : les trois écritures de connaissances que fait le portail ; le reste de ``/knowledge-base`` reste fermé aux clés.
-    _r({"POST"}, r"^/knowledge-base/(upload-url|documents/\{document_uuid\}/remplacer)$", PORTAIL),
+    # Clôture, lot A (D9) : « Ajouter un document » rouvert (le portail dépose le fichier puis déclenche le traitement : ``process-document``).
+    _r({"POST"}, r"^/knowledge-base/(upload-url|process-document|documents/\{document_uuid\}/remplacer)$", PORTAIL),
     _r({"DELETE"}, r"^/knowledge-base/documents/\{document_uuid\}$", PORTAIL),
     _r(ECRITURE, r"^/(tools|knowledge-base|folder|tts-cache)(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/(tools|knowledge-base|folder|tts-cache|node-types)(/.*)?$", MEMBRE, par_defaut=True),
@@ -175,6 +176,8 @@ REGLES: tuple[Regle, ...] = (
     # ------------------------------------------------------------------ équipe .mark
     _r(TOUTES, r"^/equipe-mark/moi(/.*)?$", MEMBRE),
     _r({"GET"}, r"^/equipe-mark/permissions$", MEMBRE),
+    # Clôture, lot A (D24) : lire le journal de l'équipe a sa permission propre, donnée par défaut aux rôles suprêmes.
+    _r({"GET"}, r"^/equipe-mark/journal(/types)?$", P("journal.lire")),
     _r(ECRITURE, r"^/equipe-mark/roles(/.*)?$", P("roles.gerer")),
     _r(ECRITURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
     _r(LECTURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),

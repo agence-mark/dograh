@@ -140,9 +140,9 @@ async def test_une_cle_d_api_reste_dans_son_organisation(db_session):
     )
     _, cle_en_clair = await db_session.create_api_key(org_cle, "test", user.id)
     async with client_http() as c:
-        ok = await c.get("/api/v1/workflow/count", headers={"X-API-Key": cle_en_clair})
+        ok = await c.get("/api/v1/organizations/lexique", headers={"X-API-Key": cle_en_clair})
         deplacee = await c.get(
-            "/api/v1/workflow/count",
+            "/api/v1/organizations/lexique",
             headers={"X-API-Key": cle_en_clair, "X-Mark-Organisation": str(autre)},
         )
     assert ok.status_code == 200

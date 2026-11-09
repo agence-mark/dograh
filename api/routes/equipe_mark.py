@@ -6,6 +6,7 @@ créer, modifier, supprimer un rôle = ``roles.gerer``. Chaque geste d'écriture
 """
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -14,7 +15,8 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.schemas.auth import AuthResponse, UserResponse
 from api.services.auth.depends import get_user, require_local_auth
-from api.services.equipe_mark import equipe
+from api.services.equipe_mark import blocage, equipe
+from api.services.equipe_mark import journal as journal_equipe
 from api.services.equipe_mark.acces import journaliser
 from api.services.equipe_mark.equipe import ErreurEquipe
 
@@ -162,6 +164,8 @@ class MembreResponse(BaseModel):
     role_nom: str
     # V4 : la date d'entrée dans l'équipe (``mark_membres.cree_le``), pour la colonne « Depuis ».
     depuis: datetime | None = None
+    # Clôture, lot A (D22) : l'interrupteur « Accès actif ».
+    acces_actif: bool = True
 
 
 class MembresResponse(BaseModel):
@@ -192,6 +196,20 @@ async def changer_le_role_d_un_membre(
     except ErreurEquipe as e:
         raise _erreur(e) from None
     await journaliser(user, "membre.role", None, {"membre": user_id, "role": corps.role_id})
+
+
+class AccesRequest(BaseModel):
+    actif: bool
+
+
+@router.put("/membres/{user_id}/acces", status_code=204)
+async def changer_l_acces_d_un_membre(user_id: int, corps: AccesRequest, user: UserModel = Depends(get_user)) -> None:
+    """D22 : bloquer (``actif`` faux) ou rétablir un membre en un clic. Bloqué : sessions et clés coupées à la requête suivante."""
+    try:
+        await equipe.changer_l_acces_du_membre(user, user_id, corps.actif)
+    except ErreurEquipe as e:
+        raise _erreur(e) from None
+    await journaliser(user, "membre.acces_actif" if corps.actif else "membre.acces_bloque", None, {"membre": user_id})
 
 
 @router.delete("/membres/{user_id}", status_code=204)
@@ -276,6 +294,8 @@ class JournalLigne(BaseModel):
     action: str
     organization_id: int | None
     detail: dict | None
+    # Clôture, lot A (D23) : d'où vient le geste (écran, API, MCP) ; vide pour une ligne d'avant.
+    origine: str | None = None
 
 
 def _ligne_du_journal(ligne: dict) -> JournalLigne:
@@ -298,14 +318,82 @@ class JournalResponse(BaseModel):
 async def lire_le_journal(
     organization_id: int | None = Query(None, description="Only this space."),
     membre: int | None = Query(None, description="Only this member (his user id)."),
+    action: list[str] | None = Query(None, description="Only these types of gestures (the journal's action names)."),
+    origine: Literal["ecran", "api", "mcp"] | None = Query(None, description="Only gestures from this door."),
+    depuis: datetime | None = Query(None, description="Not before this moment."),
+    jusqu_a: datetime | None = Query(None, description="Strictly before this moment."),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user: UserModel = Depends(get_user),
 ) -> JournalResponse:
+    """D23, D24 : le journal complet, paginé, filtrable (personne, client, type de geste, porte, période). Permission « Lire le journal »."""
     lignes, total = await db_client.lister_journal(
-        limit=limit, offset=offset, organization_id=organization_id, user_id=membre
+        limit=limit,
+        offset=offset,
+        organization_id=organization_id,
+        user_id=membre,
+        actions=action,
+        origine=origine,
+        depuis=depuis,
+        jusqu_a=jusqu_a,
     )
     return JournalResponse(lignes=[_ligne_du_journal(ligne) for ligne in lignes], total=total, limit=limit, offset=offset)
+
+
+@router.get("/journal/types", response_model=list[str])
+async def types_de_gestes(user: UserModel = Depends(get_user)) -> list[str]:
+    """Les types de gestes présents dans le journal, pour le filtre de la page."""
+    return await db_client.types_de_gestes_du_journal()
+
+
+# ---------------------------------------------------------------------- réglages de l'équipe (message d'accès bloqué, durée du journal)
+class MessageBloqueRequest(BaseModel):
+    fr: str = Field(default="", max_length=blocage.MESSAGE_MAX)
+    en: str = Field(default="", max_length=blocage.MESSAGE_MAX)
+
+
+class MessageBloqueResponse(BaseModel):
+    fr: str
+    en: str
+    defaut: dict[str, str]
+
+
+class DureeJournalRequest(BaseModel):
+    mois: int = Field(ge=journal_equipe.DUREE_MIN_MOIS, le=journal_equipe.DUREE_MAX_MOIS)
+
+
+class ReglagesEquipeResponse(BaseModel):
+    message_acces_bloque: MessageBloqueResponse
+    journal_mois: int
+    journal_mois_min: int = journal_equipe.DUREE_MIN_MOIS
+    journal_mois_max: int = journal_equipe.DUREE_MAX_MOIS
+
+
+async def _reglages() -> ReglagesEquipeResponse:
+    return ReglagesEquipeResponse(
+        message_acces_bloque=MessageBloqueResponse(**await blocage.reglages_du_message()),
+        journal_mois=await journal_equipe.duree_de_garde_en_mois(),
+    )
+
+
+@router.get("/reglages", response_model=ReglagesEquipeResponse)
+async def lire_les_reglages(user: UserModel = Depends(get_user)) -> ReglagesEquipeResponse:
+    return await _reglages()
+
+
+@router.put("/reglages/message-acces-bloque", response_model=ReglagesEquipeResponse)
+async def regler_le_message_d_acces_bloque(corps: MessageBloqueRequest, user: UserModel = Depends(get_user)) -> ReglagesEquipeResponse:
+    """Vide = le message par défaut. Le texte est montré à la connexion d'un membre bloqué."""
+    await blocage.regler_le_message(corps.fr, corps.en, user.id)
+    await journaliser(user, "reglage.message_acces_bloque", None)
+    return await _reglages()
+
+
+@router.put("/reglages/duree-journal", response_model=ReglagesEquipeResponse)
+async def regler_la_duree_du_journal(corps: DureeJournalRequest, user: UserModel = Depends(get_user)) -> ReglagesEquipeResponse:
+    await journal_equipe.regler_la_duree(corps.mois, user.id)
+    await journaliser(user, "reglage.duree_journal", None, {"mois": corps.mois})
+    return await _reglages()
 
 
 # ---------------------------------------------------------------------- page publique « Rejoindre l'équipe »

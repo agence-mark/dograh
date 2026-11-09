@@ -337,10 +337,25 @@ class APIKeyResponse(BaseModel):
     created_at: datetime
     last_used_at: Optional[datetime] = None
     archived_at: Optional[datetime] = None
+    # [.mark] Clôture, lot A (D21) : le rôle que la clé porte (vide : clé d'avant ou du portail, liste fermée des clés).
+    role_id: Optional[int] = None
+    role_nom: Optional[str] = None
+    # La clé est suspendue (rétablie en un clic) quand elle n'est ni active ni révoquée.
+    suspendue: bool = False
 
 
 class CreateAPIKeyRequest(BaseModel):
     name: str
+    # [.mark] Clôture, lot A (D21) : le rôle choisi à la création (jamais plus de droits que son créateur).
+    role_id: Optional[int] = None
+
+
+class ChangeAPIKeyRoleRequest(BaseModel):
+    role_id: Optional[int] = None
+
+
+class SuspendAPIKeyRequest(BaseModel):
+    suspendue: bool
 
 
 class CreateAPIKeyResponse(BaseModel):
@@ -363,6 +378,7 @@ async def get_api_keys(
     api_keys = await db_client.get_api_keys_by_organization(
         user.selected_organization_id, include_archived=include_archived
     )
+    noms_des_roles = {r["id"]: r["nom"] for r in await db_client.lister_roles()}
 
     return [
         APIKeyResponse(
@@ -373,6 +389,9 @@ async def get_api_keys(
             created_at=key.created_at,
             last_used_at=key.last_used_at,
             archived_at=key.archived_at,
+            role_id=key.role_id,
+            role_nom=noms_des_roles.get(key.role_id),
+            suspendue=not key.is_active and key.archived_at is None,
         )
         for key in api_keys
     ]
@@ -387,11 +406,24 @@ async def create_api_key(
     if not user.selected_organization_id:
         raise HTTPException(status_code=400, detail="No organization selected")
 
+    if request.role_id is not None:
+        from api.services.equipe_mark.cles_api import verifier_le_role_de_la_cle
+        from api.services.equipe_mark.equipe import ErreurEquipe
+
+        try:
+            await verifier_le_role_de_la_cle(user, request.role_id)
+        except ErreurEquipe as e:
+            raise HTTPException(status_code=e.statut, detail=e.message) from None
+
     api_key, raw_key = await db_client.create_api_key(
         organization_id=user.selected_organization_id,
         name=request.name,
         created_by=user.id,
+        role_id=request.role_id,
     )
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(user, "cle_api.creer", user.selected_organization_id, {"cle": api_key.id, "role": request.role_id})
 
     return CreateAPIKeyResponse(
         id=api_key.id,
@@ -421,6 +453,9 @@ async def archive_api_key(
     success = await db_client.archive_api_key(api_key_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to archive API key")
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(user, "cle_api.revoquer", user.selected_organization_id, {"cle": api_key_id})
 
     return {"success": True, "message": "API key archived successfully"}
 
@@ -444,8 +479,58 @@ async def reactivate_api_key(
     success = await db_client.reactivate_api_key(api_key_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to reactivate API key")
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(user, "cle_api.reactiver", user.selected_organization_id, {"cle": api_key_id})
 
     return {"success": True, "message": "API key reactivated successfully"}
+
+
+@router.put("/api-keys/{api_key_id}/role")
+async def change_api_key_role(
+    api_key_id: int,
+    request: ChangeAPIKeyRoleRequest,
+    user: UserModel = Depends(get_user),
+) -> dict:
+    """[.mark] Clôture, lot A (D21) : change le rôle que la clé porte (jamais plus de droits que le compte qui le change)."""
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
+    cle = await db_client.get_api_key_by_id(user.selected_organization_id, api_key_id)
+    if cle is None:
+        raise HTTPException(status_code=404, detail="API key not found")
+    if request.role_id is not None:
+        from api.services.equipe_mark.cles_api import verifier_le_role_de_la_cle
+        from api.services.equipe_mark.equipe import ErreurEquipe
+
+        try:
+            await verifier_le_role_de_la_cle(user, request.role_id)
+        except ErreurEquipe as e:
+            raise HTTPException(status_code=e.statut, detail=e.message) from None
+    if not await db_client.set_api_key_role(user.selected_organization_id, api_key_id, request.role_id):
+        raise HTTPException(status_code=404, detail="API key not found")
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(user, "cle_api.role", user.selected_organization_id, {"cle": api_key_id, "role": request.role_id})
+    return {"success": True}
+
+
+@router.put("/api-keys/{api_key_id}/suspension")
+async def suspend_api_key(
+    api_key_id: int,
+    request: SuspendAPIKeyRequest,
+    user: UserModel = Depends(get_user),
+) -> dict:
+    """[.mark] Clôture, lot A (D21) : suspend une clé (refusée tant qu'elle l'est) ou la rétablit en un clic. Une clé révoquée ne se rétablit pas ici."""
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
+    if not await db_client.set_api_key_active(user.selected_organization_id, api_key_id, not request.suspendue):
+        raise HTTPException(status_code=404, detail="API key not found")
+    from api.services.equipe_mark.acces import journaliser
+
+    await journaliser(
+        user, "cle_api.suspendre" if request.suspendue else "cle_api.retablir", user.selected_organization_id, {"cle": api_key_id}
+    )
+    return {"success": True}
 
 
 # Voice Configuration Endpoints

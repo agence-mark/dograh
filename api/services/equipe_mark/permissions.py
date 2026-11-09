@@ -1,4 +1,4 @@
-"""[.mark] Les 16 permissions de l'équipe .mark : une ligne chacune, vérifiées côté serveur à chaque route.
+"""[.mark] Les permissions de l'équipe .mark : une ligne chacune, vérifiées côté serveur à chaque route.
 
 Un rôle (table ``mark_roles``) porte un sous-ensemble de ces clés. Le code ne connaît que ces clés : une clé
 inconnue est refusée à l'écriture d'un rôle. Les libellés servent à l'écran (Réglages, Équipe et rôles).
@@ -39,6 +39,9 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     # route ``/builder`` qu'une clé garde (``/builder/miroir``), sous sa propre permission.
     "builder.miroir": ("Builder IA", "Ranger les conversations de Claude Code dans le miroir (clé MCP)"),
     "portail.ecrire": ("Clés", "Écrire dans l'espace d'un client depuis son portail (apparence, établissements, équipe, lexique, connaissances)"),
+    # Clôture, lot A (D24) : lire le journal complet de l'équipe (qui a fait quoi, où, depuis l'écran, l'API ou le MCP). Donnée par défaut aux rôles
+    # suprêmes (ceux qui gèrent l'équipe) par la migration ; réglable à l'écran comme toute permission.
+    "journal.lire": ("Équipe", "Lire le journal de l'équipe"),
 }
 
 # Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
@@ -59,6 +62,13 @@ PERMISSIONS_DE_CLE: frozenset[str] = frozenset(
 # N3b : un rôle qui joue déjà les tests (``tests.jouer``) peut aussi les lancer depuis une automatisation : aucune migration de rôles,
 # la permission est tenue pour accordée à ceux qui ont l'autre (un rôle peut aussi la recevoir seule, depuis l'écran des rôles).
 PERMISSIONS_IMPLIQUEES: dict[str, str] = {"tests.automatiser": "tests.jouer"}
+
+# Clôture, lot A (D21) : une clé d'API PORTÉE PAR UN RÔLE a les permissions de ce rôle, bornées par celles de son créateur au moment de l'appel,
+# SAUF les gestes de l'équipe elle-même (règle du serveur : une clé n'a jamais les droits, les rôles, ni la création d'un client, ni le journal
+# de l'équipe, ni le réglage de l'atelier). Une clé sans rôle garde la liste fermée ``PERMISSIONS_DE_CLE`` (clés du portail).
+PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE: frozenset[str] = frozenset(
+    {"equipe.gerer", "roles.gerer", "clients.creer", "journal.lire", "atelier.regler", "cles.gerer"}
+)
 
 NOM_ADMINISTRATEUR = "Administrateur"
 NOM_MEMBRE = "Membre"
