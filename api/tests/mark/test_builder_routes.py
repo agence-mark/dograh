@@ -179,6 +179,8 @@ def test_les_actions_des_deux_portes_se_listent_avec_leur_disponibilite(monde):
     actions = {a["nom"]: a for a in client_pour(AUTRE).get("/builder/actions").json()}
     assert actions["tests_rejouer"]["disponible"] is True and actions["fiche_lire"]["disponible"] is True
     assert actions["brouillon_operation"]["ecriture"] is True and actions["fiche_lire"]["ecriture"] is False
+    # Clôture D1 (É44) : la famille de permission de chaque action est dite, l'écran du Labo range ses outils par famille.
+    assert actions["fiche_lire"]["famille"] == "lecture" and actions["tests_rejouer"]["famille"] == "depense"
 
 
 async def test_les_preferences_sont_celles_de_la_personne(monde):

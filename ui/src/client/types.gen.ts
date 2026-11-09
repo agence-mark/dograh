@@ -21812,6 +21812,10 @@ export type VueAction = {
      */
     groupe: string;
     /**
+     * Famille
+     */
+    famille?: string | null;
+    /**
      * Ecriture
      */
     ecriture: boolean;
