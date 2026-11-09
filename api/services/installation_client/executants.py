@@ -215,7 +215,7 @@ async def logiciels(ctx: Contexte) -> Sortie:
     return Sortie({"proposes": proposes})
 
 
-# --- 6. L'agent, depuis une recette ---------------------------------------------------------------------------------------
+# --- 6. L'agent ---------------------------------------------------------------------------------------
 
 
 async def agent(ctx: Contexte) -> Sortie:

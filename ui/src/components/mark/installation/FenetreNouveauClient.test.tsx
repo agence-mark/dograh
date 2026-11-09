@@ -23,7 +23,7 @@ const TITRES: Array<[string, string]> = [
     ["Établissements et horaires", "Establishments and opening hours"],
     ["Équipe et sujets", "Team and subjects"],
     ["Logiciels proposés", "Proposed software"],
-    ["L'agent, depuis une recette", "The agent, from a recipe"],
+    ["L'agent", "The agent"],
     ["Clé d'API et fiche du portail", "API key and portal record"],
     ["Appels simulés", "Simulated calls"],
     ["Récapitulatif", "Summary"],
@@ -202,6 +202,11 @@ describe("Nouveau client : les étapes", () => {
         fireEvent.click(screen.getByRole("button", { name: "Create the agent" }));
         const fenetre = await screen.findByRole("dialog");
         expect(fenetre.getAttribute("data-modale")).toBe("creation-d-agent");
+        // Evan (09/11) : pas de recette à choisir ici, ce sont des éléments de la bibliothèque ; comme « Nouvel agent », builder ou vide.
+        expect(within(fenetre).queryByText("From a recipe")).toBeNull();
+        expect(within(fenetre).getByText("With the builder")).toBeTruthy();
+        expect(screen.queryByText(/recipe/i)).toBeNull();
+        fireEvent.click(within(fenetre).getByText("Empty"));
         fireEvent.change(within(fenetre).getByLabelText("Name"), { target: { value: "Accueil" } });
         fireEvent.click(within(fenetre).getByRole("button", { name: "Create the draft" }));
         await waitFor(() => expect(m.executer).toHaveBeenCalledTimes(1));

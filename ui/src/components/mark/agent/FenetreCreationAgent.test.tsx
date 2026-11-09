@@ -5,8 +5,7 @@
  * | Chemin | Route appelée | Ce qui s'ouvre |
  * |---|---|---|
  * | groupe, avec le builder | `POST /workflow/groupe` (nom, dossier, recette) | le principal, panneau du builder ouvert |
- * | groupe, depuis une recette | `POST /workflow/groupe` | le principal, sans le builder |
- * | un agent, avec le builder | `POST /workflow/create/template` (description) puis le nom | l'agent, panneau ouvert |
+ *  * | un agent, avec le builder | `POST /workflow/create/template` (description) puis le nom | l'agent, panneau ouvert |
  * | un agent, vide | `POST /workflow/create/template` sans description | l'agent |
  * | temps réel | le groupe est grisé ; l'agent reçoit `model_overrides.is_realtime` | l'agent |
  * | installation d'un client | chaque requête porte l'organisation du client | rien : l'appelant reçoit l'agent |
@@ -160,8 +159,13 @@ describe("fenêtre de création unique : chaque chemin", () => {
 
     it("installation d'un client : chaque requête va à ce client, rien ne s'ouvre, l'appelant reçoit l'agent", async () => {
         const surCree = vi.fn();
-        await ouvrir({ organisationId: 77, surCree, departParDefaut: "recette" });
-        expect(screen.getByText("From a recipe").closest("button")?.getAttribute("aria-pressed")).toBe("true");
+        await ouvrir({ organisationId: 77, surCree });
+        // Evan (09/11) : « Nouveau client » propose le builder ou vide, comme « Nouvel agent » ; jamais de recette à choisir.
+        expect(screen.queryByText("From a recipe")).toBeNull();
+        expect(screen.getByText("With the builder")).toBeTruthy();
+        expect(screen.getByText("Empty")).toBeTruthy();
+        expect(document.querySelectorAll("[data-depart]").length).toBe(2);
+        fireEvent.click(screen.getByText("Empty"));
         nommer("Accueil du client");
         fireEvent.click(screen.getByText("Create the draft"));
         await waitFor(() => expect(surCree).toHaveBeenCalledWith({ workflowId: 13, nom: "Accueil du client" }));

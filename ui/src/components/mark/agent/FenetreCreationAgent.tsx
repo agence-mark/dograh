@@ -11,7 +11,7 @@
  *   c'est le builder qui l'applique en posant ses questions ;
  * - Cerveau : en chaîne (défaut) ou temps réel (posé sur l'agent créé, `model_overrides.is_realtime`) ; en temps réel, la liste
  *   des fonctions qui ne jouent qu'en chaîne est montrée grisée ;
- * - Point de départ : avec le builder (panneau ouvert), depuis une recette (la recette posée, sans le builder), vide (gabarit neutre).
+ * - Point de départ : avec le builder (panneau ouvert) ou vide (gabarit neutre). Jamais de recette en dur : « Nouveau client » propose les mêmes deux départs.
  *
  * Centrée (règle d'Evan : « Nouvel agent » et les créations de ce type). Chaque chemin appelle la route de création qui existe
  * (`POST /workflow/groupe`, `POST /workflow/create/template`). Avec `organisationId`, toutes ses requêtes vont à ce client (en-tête
@@ -46,7 +46,7 @@ const T = {
         en: "Created as a draft. This is the only creation window: the agents list button and a client's setup open this one.",
         fr: "Créé en brouillon. C'est la seule fenêtre de création : le bouton de la liste des agents et l'installation d'un client ouvrent celle-ci.",
     },
-    resume: { en: "Structure, recipe, brain and starting point of the new agent.", fr: "Structure, recette, cerveau et point de départ du nouvel agent." },
+    resume: { en: "Structure, brain and starting point of the new agent.", fr: "Structure, cerveau et point de départ du nouvel agent." },
     nom: { en: "Name", fr: "Nom" },
     nomRequis: { en: "Give the agent a name.", fr: "Donnez un nom à l'agent." },
     structure: { en: "Structure", fr: "Structure" },
@@ -79,8 +79,6 @@ const T = {
     depart: { en: "Starting point", fr: "Point de départ" },
     builder: { en: "With the builder", fr: "Avec le builder" },
     builderPhrase: { en: "It reads the files, asks its questions, writes the design.", fr: "Il lit les dossiers, pose ses questions, rédige la conception." },
-    recette: { en: "From a recipe", fr: "Depuis une recette" },
-    recettePhrase: { en: "A structure from the library, to fill in.", fr: "Une structure de la bibliothèque, à remplir." },
     vide: { en: "Empty", fr: "Vide" },
     videPhrase: { en: "Empty graph, Start then End.", fr: "Graphe vierge, Départ puis Fin." },
     description: { en: "What the company does and what the agent must do, in a few lines.", fr: "Ce que fait l'entreprise et ce que l'agent doit faire, en quelques lignes." },
@@ -146,7 +144,7 @@ const CHAINE_SEULEMENT: { nom: Texte; info: Texte }[] = [
 ];
 
 export type Structure = "groupe" | "un";
-export type Depart = "builder" | "recette" | "vide";
+export type Depart = "builder" | "vide";
 export type Cerveau = "chaine" | "temps-reel";
 
 const carte = (actif: boolean, desactive = false) =>
@@ -160,7 +158,6 @@ export function FenetreCreationAgent({
     dossierId = null,
     organisationId = null,
     surCree,
-    departParDefaut = "builder",
 }: {
     ouvert: boolean;
     fermer: () => void;
@@ -169,12 +166,11 @@ export function FenetreCreationAgent({
     organisationId?: number | null;
     /** Absent : l'agent créé s'ouvre. Présent : rien ne s'ouvre, l'appelant reçoit l'agent. */
     surCree?: (agent: AgentCree) => void | Promise<void>;
-    departParDefaut?: Depart;
 }) {
     const { t } = useLangue();
     const router = useRouter();
     const [structure, setStructure] = useState<Structure>("groupe");
-    const [depart, setDepart] = useState<Depart>(departParDefaut);
+    const [depart, setDepart] = useState<Depart>("builder");
     const [cerveau, setCerveau] = useState<Cerveau>("chaine");
     const [nom, setNom] = useState("");
     const [nomTouche, setNomTouche] = useState(false);
@@ -187,8 +183,8 @@ export function FenetreCreationAgent({
     const entetes = organisationId ? { [ENTETE_ORGANISATION]: String(organisationId) } : undefined;
 
     useEffect(() => {
-        if (ouvert) setDepart(departParDefaut);
-    }, [ouvert, departParDefaut]);
+        if (ouvert) setDepart("builder");
+    }, [ouvert]);
 
     const poserLeTempsReel = async (workflowId: number, configurations: WorkflowConfigurationDefaults | null | undefined) => {
         const actuelles = (configurations ?? {}) as Record<string, unknown>;
@@ -353,12 +349,10 @@ export function FenetreCreationAgent({
                     </div>
                     <div className="space-y-2">
                         <p className="text-sm font-medium">{t(T.depart)}</p>
-                        <div className={`grid gap-3 ${departParDefaut === "recette" ? "grid-cols-3" : "grid-cols-2"}`}>
+                        <div className="grid grid-cols-2 gap-3">
                             {[
                                 { id: "builder" as const, icone: Sparkles, titre: T.builder, phrase: T.builderPhrase },
-                                // Evan (09/11) : aucun choix de recette à la création, c'est le builder qui l'applique. Seule l'installation d'un
-                                // client (« L'agent, depuis une recette ») ouvre la fenêtre sur ce départ et le garde.
-                                ...(departParDefaut === "recette" ? [{ id: "recette" as const, icone: FileText, titre: T.recette, phrase: T.recettePhrase }] : []),
+                                // Evan (09/11) : aucun choix de recette à la création, c'est le builder qui l'applique (la recette est une donnée de la bibliothèque).
                                 { id: "vide" as const, icone: Plus, titre: T.vide, phrase: T.videPhrase },
                             ].map((c) => (
                                 <button
