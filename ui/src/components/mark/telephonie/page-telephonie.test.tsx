@@ -123,6 +123,14 @@ describe("[.mark] la page Téléphonie", () => {
             expect(document.body.textContent).not.toMatch(/Phone numbers|Add phone number|Edit credentials/);
         });
 
+        it("le lien « Ouvrir la configuration » n'est jamais souligné : survol en gras, curseur main (règle de forme)", async () => {
+            await monter();
+            const lien = (await screen.findByRole("link", { name: "Ouvrir la configuration" })) as HTMLAnchorElement;
+            expect(lien.className).not.toMatch(/underline/);
+            expect(lien.className).toMatch(/cursor-pointer/);
+            expect(lien.className).toMatch(/hover:font-semibold/);
+        });
+
         it("« Numéro » ouvre le formulaire d'un numéro neuf, un clic sur une ligne celui de ce numéro", async () => {
             await monter();
             const section = await screen.findByRole("region", { name: "Numéros" });

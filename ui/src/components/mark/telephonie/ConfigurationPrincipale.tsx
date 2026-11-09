@@ -90,7 +90,7 @@ export function ConfigurationPrincipale({ item, apres }: { item: TelephonyConfig
                     <span className="font-medium">{item.name}</span>
                     <span className="text-muted-foreground">{item.provider}</span>
                     {item.is_default_outbound && <Marque ton="neutre">{t(T.parDefaut)}</Marque>}
-                    <Link href={`/telephony-configurations/${item.id}`} className="ml-auto cursor-pointer underline hover:font-semibold">
+                    <Link href={`/telephony-configurations/${item.id}`} className="ml-auto cursor-pointer hover:font-semibold">
                         {t(T.ouvrir)}
                     </Link>
                 </div>
