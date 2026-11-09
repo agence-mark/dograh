@@ -12,6 +12,7 @@ import { deposerUnFichierApiV1BuilderDepotWorkflowIdPost, lireLeCerveauApiV1Buil
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications/notifier";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { useAuth } from "@/lib/auth";
 
 /** « 0,42 $ sur 2 $ » (français) ou « $0.42 of $2 » (anglais) ; sans plafond : la dépense seule. */
 export const texteDepense = (cout: number, plafond: number, langue: "fr" | "en"): string => {
@@ -25,7 +26,10 @@ export function BarreDuModele({ cout, workflowId, rafraichir, desactive }: { cou
     const { t, langue } = useLangue();
     const [cerveau, setCerveau] = useState<{ modele: string; plafond: number } | null>(null);
     const entree = useRef<HTMLInputElement>(null);
+    const { user, loading: chargementSession } = useAuth();
     useEffect(() => {
+        // L'intercepteur d'authentification n'existe qu'une fois la session prête : avant, la requête part sans jeton.
+        if (chargementSession || !user) return;
         let annule = false;
         void (async () => {
             const r = await lireLeCerveauApiV1BuilderCerveauGet();
@@ -35,7 +39,7 @@ export function BarreDuModele({ cout, workflowId, rafraichir, desactive }: { cou
         return () => {
             annule = true;
         };
-    }, []);
+    }, [chargementSession, user]);
 
     const joindre = async (fichiers: File[]) => {
         if (!workflowId) return;

@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
     cerveau: vi.fn(async () => ({ data: { modele: "Claude Opus 5.5", plafond_depense: 2 }, error: undefined })),
     depot: vi.fn(async (_o?: unknown) => ({ data: {}, error: undefined as unknown })),
 }));
+vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { email: "e@x.fr" }, loading: false }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/client", async (importOriginal) => ({
     ...(await importOriginal<object>()),
