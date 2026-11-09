@@ -172,8 +172,9 @@ export function PageOutils() {
                             colonnes={[
                                 { titre: t({ en: "Tool", fr: "Outil" }) },
                                 { titre: t({ en: "Type", fr: "Type" }) },
-                                { titre: t({ en: "Connected to", fr: "Branché sur" }) },
+                                { titre: t({ en: "Connected to", fr: "Branché sur" }), secondaire: 2 },
                                 {
+                                    secondaire: 4,
                                     titre: (
                                         <span className="inline-flex items-center gap-1.5">
                                             {t({ en: "Access", fr: "Accès" })}
@@ -195,9 +196,9 @@ export function PageOutils() {
                                     ),
                                     droite: true,
                                 },
-                                { titre: t({ en: "Success", fr: "Réussite" }), droite: true },
+                                { titre: t({ en: "Success", fr: "Réussite" }), droite: true, secondaire: 3 },
                                 { titre: t({ en: "Agents", fr: "Agents" }), droite: true },
-                                { titre: t({ en: "Modified", fr: "Modifié" }), droite: true },
+                                { titre: t({ en: "Modified", fr: "Modifié" }), droite: true, secondaire: 1 },
                             ]}
                         >
                             {page.map((o) => {
