@@ -11,7 +11,7 @@ import { rangerUnElementApiV1BuilderBibliothequeFamilleSlugRangementPost } from 
 import type { Element as ElementBibliotheque, VueEtiquette } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { ChoixEtiquettes } from "./ChoixEtiquettes";
 
@@ -33,10 +33,11 @@ export function RangementDeLElement({ element, dossiers, etiquettes, onChange }:
             body: corps,
         });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeRanger));
+            notifier.echec(ECHECS.bibliothequeRanger, { erreur: reponse.error });
             return;
         }
         setErreur(null);
+        notifier.succes({ fr: "Élément rangé.", en: "Item filed." });
         onChange(reponse.data);
     };
 

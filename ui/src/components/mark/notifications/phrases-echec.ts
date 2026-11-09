@@ -135,8 +135,6 @@ export const ECHECS = {
     testSupprimer: { fr: "Test non supprimé. Réessayez.", en: "Test not deleted. Try again." },
     traducteursEnregistrer: { fr: "Choix des traducteurs non enregistré. Réessayez.", en: "Translator choice not saved. Try again." },
     traducteursListe: { fr: "La liste des traducteurs ne se charge pas. Réessayez.", en: "The list of translators did not load. Try again." },
-    triLire: { fr: "La file des signalements ne se charge pas. Réessayez.", en: "The queue of flags did not load. Try again." },
-    triStatut: { fr: "Statut du signalement non changé. Réessayez.", en: "Flag status not changed. Try again." },
     triTaux: { fr: "Les taux de sortie d'impasse ne se chargent pas. Réessayez.", en: "The dead-end exit rates did not load. Try again." },
     verificationEnregistrer: { fr: "Vérification de l'appelant non enregistrée. Vérifiez-la et réessayez.", en: "Caller verification not saved. Check it and try again." },
     verificationLogiciels: { fr: "Les logiciels de dossier ne se chargent pas. Réessayez.", en: "The record software did not load. Try again." },

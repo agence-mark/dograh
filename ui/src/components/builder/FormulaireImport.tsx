@@ -11,7 +11,7 @@ import type { VueFamille } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 const CHAMP = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -54,20 +54,22 @@ export function FormulaireImport({ familles, familleChoisie, onCree }: Props) {
                 body: { famille, slug, titre, contenu: objet, origine: { source: source.trim(), licence: licence.trim(), date } },
             });
             if (reponse.error || !reponse.data) {
-                setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeImporter));
+                notifier.echec(ECHECS.bibliothequeImporter, { erreur: reponse.error });
                 return;
             }
             setErreur(null);
+            notifier.succes({ fr: "Élément importé.", en: "Item imported." });
             if (reponse.data.comparatif) setComparatif(reponse.data.comparatif as never);
             onCree(famille, slug, Boolean(reponse.data.comparatif));
             return;
         }
         const reponse = await creerUnElementApiV1BuilderBibliothequeFamillePost({ path: { famille }, body: { slug, titre, contenu: objet } });
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeCreer));
+            notifier.echec(ECHECS.bibliothequeCreer, { erreur: reponse.error });
             return;
         }
         setErreur(null);
+        notifier.succes({ fr: "Élément créé.", en: "Item created." });
         onCree(famille, slug, false);
     };
 

@@ -17,7 +17,7 @@ import {
 import type { Element as ElementBibliotheque } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { Button } from "@/components/ui/button";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { dateCourte, type StatutDeLaBibliotheque,STATUTS } from "./libelles";
 import { AgentsDeLaRecette } from "./tests/AgentsDeLaRecette";
@@ -41,12 +41,14 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
     const statut = (courante.statut ?? "candidat") as StatutDeLaBibliotheque;
     const chemin = { famille: element.famille, slug: element.slug };
 
-    const apres = (reponse: { data?: ElementBibliotheque; error?: unknown }, secours: string) => {
+    // Clôture D2 : chaque écriture dit son résultat par une notification passagère (succès 4 s, échec qui reste), jamais le texte du serveur.
+    const apres = (reponse: { data?: ElementBibliotheque; error?: unknown }, succes: { fr: string; en: string }) => {
         if (reponse.error || !reponse.data) {
-            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeChanger));
+            notifier.echec(ECHECS.bibliothequeChanger, { erreur: reponse.error });
             return false;
         }
         setErreur(null);
+        notifier.succes(succes);
         onChange(reponse.data);
         return true;
     };
@@ -67,7 +69,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
             path: chemin,
             body: { contenu: contenu as Record<string, unknown>, notes },
         });
-        if (apres(reponse, "The version was not saved")) {
+        if (apres(reponse, { fr: "Version enregistrée.", en: "Version saved." })) {
             setNouveau(null);
             setNotes("");
         }
@@ -81,7 +83,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
                     ? { version: courante.numero, statut: "recette", banc: { description: banc.trim() } }
                     : { version: courante.numero, statut: "rejete", raison: raison.trim() },
         });
-        if (apres(reponse, "The status was not saved")) {
+        if (apres(reponse, { fr: "Statut enregistré.", en: "Status saved." })) {
             setBanc("");
             setRaison("");
         }
@@ -90,7 +92,7 @@ export function ElementDeLaBibliotheque({ element, utilisePar, onChange }: Props
     const revenir = async (numero: number) => {
         apres(
             await revenirEnArriereApiV1BuilderBibliothequeFamilleSlugRetourPost({ path: chemin, body: { version: numero } }),
-            "The rollback failed",
+            { fr: "Version rétablie.", en: "Version restored." },
         );
     };
 
