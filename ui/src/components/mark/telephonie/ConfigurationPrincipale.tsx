@@ -42,6 +42,7 @@ const T = {
     aucunAgent: { en: "no agent", fr: "aucun agent" },
     aucunNumero: { en: "No number yet", fr: "Aucun numéro encore" },
     sortants: { en: "Outbound calls", fr: "Appels sortants" },
+    lignesSip: { en: "Outbound lines (SIP)", fr: "Lignes sortantes (SIP)" },
     entrantsGroupe: { en: "Inbound calls", fr: "Appels entrants" },
     illisible: { en: "Could not load the main configuration.", fr: "Impossible de lire la configuration principale." },
 } satisfies Record<string, Texte>;
@@ -133,7 +134,7 @@ export function ConfigurationPrincipale({ item, apres }: { item: TelephonyConfig
                     {detail?.supports_trunks && numeros !== null && (
                         <>
                             <GroupePage titre={t(T.sortants)} />
-                            <section aria-label="Lignes sortantes (SIP)" className="pt-6">
+                            <section aria-label={t(T.lignesSip)} className="pt-6">
                                 <TrunkCard
                                     configuration={detail}
                                     phoneNumbers={numeros}
