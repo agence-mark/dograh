@@ -426,3 +426,38 @@ async def test_se6_la_garde_de_publication_exige_les_tests_rejoues_depuis_le_cha
     for slug in ("facultatif", "obligatoire"):
         await stockage.ajouter_un_resultat(ORG_CLIENT, AGENT, slug, {"le": stockage.maintenant(), "version": 3, "empreinte": "e", "statut": "ok", "reussis": 1, "total": 1})
     assert await garde_publication.problemes_des_tests_obligatoires(ORG_CLIENT, AGENT, 3, "e") == []
+
+
+# --- Clôture SA-5 (É68, Evan 09/11) : la graine d'un Prompt général neuf vient de la bibliothèque -----------------------------
+
+
+async def test_la_graine_du_prompt_general_vient_de_la_piece_de_la_recette_de_l_agent(monde):
+    await service.creer("prompt-general", "mon-prompt", "Mon prompt", {"texte": "Tu es Léa, la voix de l'entreprise."}, "t")
+    await service.creer("prompt-general", "autre-prompt", "Autre prompt", {"texte": "Un autre texte."}, "t")
+    await service.creer(
+        "recettes-agent", "ma-recette", "Ma recette",
+        fiche_de_recette("Ma recette", pieces=[{"famille": "prompt-general", "slug": "mon-prompt", "role": "le prompt général"}]), "t",
+    )
+    await recettes.definir(ORG_CLIENT, AGENT, "ma-recette")
+    reponse = client_pour(EQUIPE).get(f"/builder/agents/{AGENT}/prompt-general-de-depart")
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json() == {"texte": "Tu es Léa, la voix de l'entreprise.", "source": "recette", "slug": "mon-prompt"}
+
+
+async def test_sans_piece_de_recette_la_graine_est_le_premier_prompt_general_de_la_bibliotheque_hors_rejete(monde):
+    await service.creer("prompt-general", "a-rejete", "A rejeté", {"texte": "Rejeté."}, "t")
+    await service.marquer("prompt-general", "a-rejete", 1, Statut.REJETE, "evan", raison="non")
+    await service.creer("prompt-general", "b-garde", "B gardé", {"texte": "Texte gardé."}, "t")
+    reponse = client_pour(EQUIPE).get(f"/builder/agents/{AGENT}/prompt-general-de-depart")
+    assert reponse.json() == {"texte": "Texte gardé.", "source": "bibliotheque", "slug": "b-garde"}
+
+
+async def test_bibliotheque_vide_la_graine_est_absente_et_l_ecran_garde_le_texte_d_amont(monde):
+    reponse = client_pour(EQUIPE).get(f"/builder/agents/{AGENT}/prompt-general-de-depart")
+    assert reponse.status_code == 200
+    assert reponse.json() == {"texte": None, "source": "amont", "slug": None}
+
+
+async def test_la_graine_d_un_agent_d_une_autre_organisation_est_un_404(monde):
+    await service.creer("prompt-general", "a", "A", {"texte": "Texte."}, "t")
+    assert client_pour(AUTRE).get(f"/builder/agents/{AGENT}/prompt-general-de-depart").status_code == 404

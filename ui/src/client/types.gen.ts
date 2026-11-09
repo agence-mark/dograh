@@ -9061,6 +9061,24 @@ export type GradiumTtsConfiguration = {
 };
 
 /**
+ * GraineDuPromptGeneral
+ */
+export type GraineDuPromptGeneral = {
+    /**
+     * Texte
+     */
+    texte: string | null;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Slug
+     */
+    slug?: string | null;
+};
+
+/**
  * GraphConstraints
  *
  * Per-node-type graph rules. WorkflowGraph enforces these at validation.
@@ -30517,6 +30535,54 @@ export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutRespon
 };
 
 export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponse = ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses[keyof ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses];
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/prompt-general-de-depart';
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetError = LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors[keyof LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors];
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: GraineDuPromptGeneral;
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponse = LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses[keyof LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses];
 
 export type LireLesSourcesApiV1BuilderSourcesGetData = {
     body?: never;

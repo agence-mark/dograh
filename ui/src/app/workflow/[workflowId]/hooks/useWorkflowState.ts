@@ -15,6 +15,7 @@ import { useWorkflowStore } from "@/app/workflow/[workflowId]/stores/workflowSto
 import {
     createWorkflowRunApiV1WorkflowWorkflowIdRunsPost,
     getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet,
+    lireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGet,
     updateWorkflowApiV1WorkflowWorkflowIdPut,
     validateWorkflowApiV1WorkflowWorkflowIdValidatePost
 } from "@/client";
@@ -299,7 +300,7 @@ export const useWorkflowState = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo, canUndo, canRedo]);
 
-    const handleNodeSelect = useCallback((nodeType: string) => {
+    const handleNodeSelect = useCallback(async (nodeType: string) => {
         if (!rfInstance.current) return;
 
         const position = rfInstance.current.screenToFlowPosition({
@@ -316,6 +317,18 @@ export const useWorkflowState = ({
             ...buildNewNode(nodeType, position, nodes, spec),
             selected: true, // Mark the new node as selected
         };
+        // [.mark] É68 : un Prompt général NEUF part du texte de la bibliothèque (en français), pas du texte d'amont ; celui-ci ne reste
+        // que si la bibliothèque est vide ou illisible. Un prompt déjà écrit n'est jamais touché : seul l'ajout d'un nœud neuf lit la graine.
+        if (nodeType === NodeType.GLOBAL_NODE) {
+            try {
+                const graine = await lireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGet({ path: { workflow_id: workflowId } });
+                const texte = graine?.data?.texte;
+                if (texte) newNode.data = { ...newNode.data, prompt: texte } as FlowNode["data"];
+            } catch (erreur) {
+                logger.warn({ erreur }, "Prompt général : graine de la bibliothèque illisible, texte d'amont gardé");
+            }
+            if (!rfInstance.current) return; // le canevas a été quitté pendant la lecture
+        }
 
         // Deselect all existing nodes before adding the new one
         const currentNodes = rfInstance.current.getNodes();

@@ -4,6 +4,7 @@ et des recettes d'agent.
 - ``GET /builder/agents/{id}/versions/{n}/apercu``  ce qui sera perdu et retrouvé en revenant à cette version (aucun effet) ;
 - ``GET|PUT /builder/options``                      la sauvegarde avant modification (éteinte) et la recette par défaut (équipe .mark) ;
 - ``GET /builder/recettes``                         les recettes proposées à la création (hors Rejeté, Recette d'abord) et le défaut ;
+- ``GET /builder/agents/{id}/prompt-general-de-depart``  le texte de départ d'un Prompt général neuf (recette de l'agent, sinon bibliothèque) ;
 - ``GET|PUT /builder/agents/{id}/recette``          la recette d'un agent ; après une publication, elle ne change qu'avec `confirmer` (les tests sont alors à rejouer).
 
 Tout est lu et écrit AVEC l'organisation de l'utilisateur (R0).
@@ -107,6 +108,19 @@ async def _vue_de_l_agent(user: UserModel, workflow) -> VueRecetteDeLAgent:
 @router.get("/agents/{workflow_id}/recette", response_model=VueRecetteDeLAgent)
 async def lire_la_recette_de_l_agent(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     return await _vue_de_l_agent(user, await _agent_ou_404(user, workflow_id))
+
+
+class GraineDuPromptGeneral(BaseModel):
+    texte: str | None  # ``None`` : la bibliothèque n'a aucun prompt général, l'écran garde le texte d'amont
+    source: str  # "recette" | "bibliotheque" | "amont"
+    slug: str | None = None
+
+
+@router.get("/agents/{workflow_id}/prompt-general-de-depart", response_model=GraineDuPromptGeneral)
+async def lire_la_graine_du_prompt_general(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """É68 : le texte de départ d'un Prompt général neuf de cet agent (lecture seule, l'agent doit être de l'organisation)."""
+    workflow = await _agent_ou_404(user, workflow_id)
+    return GraineDuPromptGeneral(**await recettes.graine_du_prompt_general(user.selected_organization_id, workflow.id))
 
 
 class ChoixDeRecette(BaseModel):
