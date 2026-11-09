@@ -30,6 +30,8 @@ class EtapeDePreparation(BaseModel):
     theme: str
     source: str
     manquants: list[str] = []
+    # [.mark] Clôture, SA-3 : le code et les paramètres de chaque manquant (même ordre), que l'écran traduit par identifiant.
+    manquants_details: list[dict[str, Any]] = []
     # [.mark] Partie 3, SA-L3a : « Prêt à publier ». Où régler (étape, onglet), le contrôle qui garde la ligne et sa position, les
     # corrections en un clic, et le cas « sans effet » qu'elle dit.
     noeud_id: str | None = None

@@ -27,6 +27,7 @@ import { useRecalculDuPret } from "@/components/mark/agent/pret/recalcul";
 import { useCorrectionEnUnClic } from "@/components/mark/agent/pret/useCorrection";
 import { usePublierLeGroupe } from "@/components/mark/groupe/PublierLeGroupe";
 import { useLangue } from "@/components/mark/langue/langue";
+import { phraseDuServeur } from "@/components/mark/langue/messages-serveur";
 import { notifier } from "@/components/mark/notifications";
 import { TEXTES_ETAPES } from "@/components/mark/reglages-agent/PreparationAgent";
 import { DateRelative } from "@/components/mark/studio/date-relative";
@@ -69,7 +70,7 @@ export function FenetreDePublication({
     fermer: () => void;
     onPublie: () => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [vue, setVue] = useState<VueDePublication | null>(null);
     const [erreur, setErreur] = useState(false);
     const [onglet, setOnglet] = useState("controles");
@@ -442,9 +443,9 @@ export function FenetreDePublication({
                                                     {t(nom)}
                                                     <Info>{t(nom.info)}</Info>
                                                 </span>
-                                                {c.problemes.map((p) => (
-                                                    <span key={p} className="block text-xs text-muted-foreground">
-                                                        {p}
+                                                {c.problemes.map((p, i) => (
+                                                    <span key={`${i}-${p}`} className="block text-xs text-muted-foreground">
+                                                        {phraseDuServeur(p, c.details?.[i], langue)}
                                                     </span>
                                                 ))}
                                             </td>
@@ -627,7 +628,7 @@ export function FenetreDePublication({
                                 .filter((c) => c.statut === "echec")
                                 .map((c) => (
                                     <p key={c.cle} className="text-sm text-muted-foreground">
-                                        <span className="text-foreground">{NOMS[c.cle] ? t(NOMS[c.cle]) : c.libelle}</span> · {c.problemes.join(" ; ")}
+                                        <span className="text-foreground">{NOMS[c.cle] ? t(NOMS[c.cle]) : c.libelle}</span> · {c.problemes.map((p, i) => phraseDuServeur(p, c.details?.[i], langue)).join(" ; ")}
                                     </p>
                                 ))}
                         </div>

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { type Texte, useLangue } from "../../langue/langue";
+import { type DetailDeMessage, phraseDuServeur } from "../../langue/messages-serveur";
 import { Info } from "../../studio/marques";
 import { CorrectionsEtiquettes } from "./CorrectionsEtiquettes";
 import { useRecalculDuPret } from "./recalcul";
@@ -112,7 +113,7 @@ function Rangee({
     corriger?: (l: LigneDePret, c: CorrectionDeLigne) => void;
     enCours: boolean;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const constat = ligne.constat ? TEXTES_DES_CONSTATS[ligne.constat] : undefined;
     const textes = constat ? { titre: constat.titre, source: constat.info } : (textesDesEtapes[ligne.id] ?? TITRES_DES_LIGNES[ligne.id]);
     if (!textes) return null;
@@ -133,7 +134,7 @@ function Rangee({
             ? noms.join(", ") // les identifiants d'outils ne se montrent pas : leurs noms
             : ligne.id === "etiquettes" || ligne.id === "blocs_a_jour"
               ? "" // la liste des étiquettes en erreur suit, avec leurs corrections
-              : (ligne.manquants ?? []).join(", ");
+              : (ligne.manquants ?? []).map((m, i) => phraseDuServeur(m, ligne.manquants_details?.[i] as DetailDeMessage | undefined, langue)).join(", ");
     const corrections = (ligne.corrections ?? []) as unknown as CorrectionDeLigne[];
     return (
         <li data-etape={ligne.id} data-etat={ligne.etat} className="flex items-start gap-3 py-2.5">

@@ -57,19 +57,28 @@ async def problemes_des_tests_obligatoires(
         derniere = await stockage.derniere_execution(organization_id, workflow_id, test["slug"])
         if not obligatoire and (derniere is None or str(derniere.get("le") or "") >= depuis):
             continue  # hors recette changée : un test facultatif jamais joué n'est pas bloquant
+        # ``code`` et ``parametres`` : l'écran traduit la raison par identifiant ; ``raison`` reste la phrase anglaise (API, MCP).
+        parametres: dict[str, Any] = {}
         if depuis and derniere is not None and str(derniere.get("le") or "") < depuis:
             raison = "the recipe changed after the last publication: replay the suite"
+            code = "test_recette_changee"
         elif derniere is None:
             raison = "never replayed"
+            code = "test_jamais_rejoue"
         elif derniere.get("version") != version:
             raison = f"replayed on version {derniere.get('version')}, the draft is now version {version}: replay the suite"
+            code = "test_version_differente"
+            parametres = {"jouee": derniere.get("version"), "brouillon": version}
         elif empreinte is not None and derniere.get("empreinte") != empreinte:
             raison = "the draft changed since the last replay (graph or settings): replay the suite"
+            code = "test_brouillon_change"
         elif derniere.get("statut") != "ok":
             raison = f"failed ({derniere.get('reussis')}/{derniere.get('total')})"
+            code = "test_echoue"
+            parametres = {"reussis": derniere.get("reussis"), "total": derniere.get("total")}
         else:
             continue
-        problemes.append({"slug": test["slug"], "nom": test["nom"], "raison": raison})
+        problemes.append({"slug": test["slug"], "nom": test["nom"], "raison": raison, "code": code, "parametres": parametres})
     return problemes
 
 

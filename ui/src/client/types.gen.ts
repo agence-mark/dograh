@@ -7497,6 +7497,34 @@ export type Equipe = {
 };
 
 /**
+ * EspaceDeLAgentResponse
+ *
+ * L'espace où vit un agent : de quoi dire « cet agent est dans l'espace … » avec un lien, au lieu d'un « introuvable ».
+ */
+export type EspaceDeLAgentResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Espace
+     */
+    espace: string;
+    /**
+     * Selectionne
+     */
+    selectionne: boolean;
+};
+
+/**
  * EspaceResponse
  */
 export type EspaceResponse = {
@@ -7803,6 +7831,12 @@ export type EtapeDePreparation = {
      * Manquants
      */
     manquants?: Array<string>;
+    /**
+     * Manquants Details
+     */
+    manquants_details?: Array<{
+        [key: string]: unknown;
+    }>;
     /**
      * Noeud Id
      */
@@ -40187,6 +40221,54 @@ export type ListerLesEspacesApiV1EspacesGetResponses = {
 };
 
 export type ListerLesEspacesApiV1EspacesGetResponse = ListerLesEspacesApiV1EspacesGetResponses[keyof ListerLesEspacesApiV1EspacesGetResponses];
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/agent/{workflow_id}';
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetError = EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors[keyof EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors];
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EspaceDeLAgentResponse;
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponse = EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses[keyof EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses];
 
 export type ConversationsDeLEquipeApiV1EspacesConversationsGetData = {
     body?: never;
