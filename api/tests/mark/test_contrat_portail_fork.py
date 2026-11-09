@@ -61,6 +61,8 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("GET", f"{P}/knowledge-base/documents"),
     ("POST", f"{P}/knowledge-base/upload-url"),
     ("POST", f"{P}/knowledge-base/process-document"),  # clôture, lot A (D9) : « Ajouter un document » rouvert
+    ("GET", f"{P}/knowledge-base/documents/{{document_uuid}}/content"),  # tranché par Evan le 09/11 : lire et modifier le texte d'un document
+    ("PUT", f"{P}/knowledge-base/documents/{{document_uuid}}/content"),
     ("POST", f"{P}/knowledge-base/documents/{{document_uuid}}/remplacer"),
     ("DELETE", f"{P}/knowledge-base/documents/{{document_uuid}}"),
     ("GET", f"{P}/knowledge-base/documents/{{document_uuid}}/utilisation"),

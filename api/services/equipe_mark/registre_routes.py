@@ -145,6 +145,8 @@ REGLES: tuple[Regle, ...] = (
     # Clôture, lot A (D9) : « Ajouter un document » rouvert (le portail dépose le fichier puis déclenche le traitement : ``process-document``).
     _r({"POST"}, r"^/knowledge-base/(upload-url|process-document|documents/\{document_uuid\}/remplacer)$", PORTAIL),
     _r({"DELETE"}, r"^/knowledge-base/documents/\{document_uuid\}$", PORTAIL),
+    # Tranché par Evan le 09/11 : le portail lit (membre) et MODIFIE le texte d'un document (``modifierDocument``) avec la clé du client.
+    _r({"PUT"}, r"^/knowledge-base/documents/\{document_uuid\}/content$", PORTAIL),
     _r(ECRITURE, r"^/(tools|knowledge-base|folder|tts-cache)(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/(tools|knowledge-base|folder|tts-cache|node-types)(/.*)?$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ campagnes

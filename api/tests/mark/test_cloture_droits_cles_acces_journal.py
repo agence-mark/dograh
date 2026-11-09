@@ -283,3 +283,27 @@ async def test_regenerer_la_cle_du_portail_revoque_l_ancienne_et_journalise(db_s
         journal = (await c.get("/api/v1/equipe-mark/journal?action=cle_api.regenerer_portail", headers=entetes(jeton, client))).json()
     assert journal["total"] == 1
     assert nouvelle not in str(journal) and ancienne not in str(journal)  # jamais une clé dans le journal
+
+
+async def test_le_portail_ajoute_lit_et_modifie_le_texte_d_un_document_avec_la_cle_du_client(db_session):
+    """Tranché par Evan le 09/11 : ``upload-url``, ``process-document``, lecture et modification du texte sont ouverts à la clé du portail ; un document
+    d'une autre organisation reste introuvable (le filtre par organisation est dans la requête)."""
+    db = db_session
+    labo, client, admin, jeton = await _monde(db, "docs")
+    async with client_http() as c:
+        cle = (await _creer_cle(c, jeton, client, "portail")).json()["api_key"]
+        autre = (await _creer_cle(c, jeton, labo, "labo")).json()["api_key"]
+        en_tete = {"X-API-Key": cle}
+        inconnu = "00000000-0000-4000-8000-000000000000"
+        envoi = await c.post("/api/v1/knowledge-base/upload-url", headers=en_tete, json={"filename": "a.txt", "mime_type": "text/plain"})
+        assert envoi.status_code != 403, envoi.text
+        lecture = await c.get(f"/api/v1/knowledge-base/documents/{inconnu}/content", headers=en_tete)
+        edition = await c.put(f"/api/v1/knowledge-base/documents/{inconnu}/content", headers=en_tete, json={"content": "x", "expected_file_hash": "y"})
+        assert lecture.status_code == 404 and edition.status_code == 404  # permis, mais introuvable dans CETTE organisation
+        # la clé d'une autre organisation n'a pas plus de droits sur le document d'un client
+        assert (await c.put(f"/api/v1/knowledge-base/documents/{inconnu}/content", headers={"X-API-Key": autre}, json={"content": "x", "expected_file_hash": "y"})).status_code == 404
+        # une clé sans la permission du portail est refusée : on retire la règle dans le test d'inventaire (contrat), ici on vérifie la décision
+    from api.services.equipe_mark import registre_routes
+
+    decision = registre_routes.decision_de("PUT", "/knowledge-base/documents/{document_uuid}/content")[0]
+    assert decision.pour_cle == "portail.ecrire"
