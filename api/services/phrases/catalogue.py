@@ -104,7 +104,8 @@ IMPASSE = "impasse"
 IMPASSE_REPETEE = "impasse_repetee"
 # RA-B (R5) : la phrase de fin d'une conversation du widget à sa durée maximale (``site_mark/duree_max.py``).
 FIN_DE_DUREE_MAX = "fin_duree_max"
-# L3e : l'annonce « vous parlez à une IA » en tête de chaque appel (verrouillée) et la phrase du garde-fou urgence.
+# L3e : l'annonce « vous parlez à une IA » en tête de chaque appel et la phrase du garde-fou urgence. Clôture, lot B (D1) : l'annonce est une phrase comme
+# les autres : allumée par défaut avec son texte, activable et modifiable (plus de verrou).
 ANNONCE_IA = "annonce_ia"
 URGENCE_VITALE = "urgence_vitale"
 
@@ -129,16 +130,15 @@ MOTIFS: dict[str, Motif] = {
             famille=FAMILLE_ANNONCE,
             libelle_fr="Annonce : vous parlez à une IA",
             libelle_en="Announcement: you are talking to an AI",
-            quand_fr="Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Verrouillée : le texte se change, l'annonce ne s'éteint jamais.",
-            quand_en="At the start of every call (phone, widget, campaign), before the greeting. Locked: the text can change, the announcement never turns off.",
+            quand_fr="Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Allumée par défaut : le texte se change, et elle s'éteint si le client l'a décidé (la ligne « Annonce » de « Prêt à publier » le signale).",
+            quand_en="At the start of every call (phone, widget, campaign), before the greeting. On by default: the text can change, and it can be turned off if the client decided so (the « Announcement » line of « Ready to publish » flags it).",
             a_un_delai=False,
             variantes_defaut=("Vous êtes en communication avec un assistant virtuel, une intelligence artificielle.",),
             delai_defaut_s=None,
             actif_par_defaut=True,
-            eteinte_fr="Impossible à éteindre : une annonce vide ou éteinte est remplacée par le texte par défaut, et la publication est bloquée tant que le texte est vide.",
-            eteinte_en="Cannot be turned off: an empty or off announcement is replaced by the default text, and publishing is blocked while the text is empty.",
+            eteinte_fr="L'appelant n'entend plus l'annonce : la ligne « Annonce » de « Prêt à publier » le signale (réglable).",
+            eteinte_en="The caller no longer hears the announcement: the « Announcement » line of « Ready to publish » flags it (adjustable).",
             moment=MOMENT_ACTION,
-            verrouille=True,
         ),
         Motif(
             id=OUTIL_TARDE,

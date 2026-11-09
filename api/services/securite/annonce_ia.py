@@ -1,7 +1,8 @@
-"""[.mark] Partie 3, L3e sous-lot 2 : l'annonce « vous parlez à une IA », dite en tête de chaque appel et IMPOSSIBLE À ÉTEINDRE.
+"""[.mark] Partie 3, L3e sous-lot 2 : l'annonce « vous parlez à une IA », dite en tête de chaque appel.
 
-Une seule phrase, celle du motif verrouillé ``annonce_ia`` du catalogue des phrases (``phrases/catalogue.py``) : l'agent peut en changer
-le TEXTE (règle du thème Phrases), jamais l'éteindre ni la vider (``phrases/regles.resoudre`` rend le texte par défaut). Le moteur est le
+Clôture, lot B (D1) : une phrase comme les autres, celle du motif ``annonce_ia`` du catalogue des phrases (``phrases/catalogue.py``), ALLUMÉE PAR
+DÉFAUT avec son texte, activable et modifiable (règle du thème Phrases). Éteinte ou vidée par une règle, elle n'est pas dite ; la ligne « Annonce » de
+« Prêt à publier » le signale (réglable : éteint ou prévient, jamais un blocage fixe). Le moteur est le
 même au téléphone, dans le widget, en campagne et au clavier : le point d'entrée est ``PipecatEngine.queue_node_opening``, par où passe
 TOUTE ouverture d'appel (démarrage, répondeur supervisé, agent reçu par passation).
 
@@ -9,10 +10,10 @@ TOUTE ouverture d'appel (démarrage, répondeur supervisé, agent reçu par pass
 * un agent qui annonce déjà (son accueil en texte dit qu'il est un assistant virtuel, une IA…) ne l'entend pas deux fois ;
 * accueil en texte : la phrase le précède dans la même parole (une seule lecture, une seule réplique) ; accueil enregistré ou ouverture
   par le modèle : parole à part, jamais ajoutée à l'historique du modèle (une ouverture ne part jamais sur un message de l'assistant) ;
-* voix temps réel sans accueil en texte : l'ouverture est produite par le fournisseur, la phrase ne peut pas être imposée mot pour mot
-  (reste noté dans ``18-a-exposer.md``).
+* voix temps réel sans accueil en texte (D2) : l'ouverture est produite par le fournisseur, rien n'est injecté par le code ; .mark écrit la phrase
+  dans le prompt, et le contrôle avant publication prévient (réglable).
 
-⛔ Libellé PROVISOIRE : il doit être confirmé sur le texte officiel (AI Act art. 50) avant d'être figé. ⛔ Ne lève jamais.
+⛔ Libellé par défaut à confirmer sur le texte officiel (AI Act art. 50). ⛔ Ne lève jamais.
 """
 
 from __future__ import annotations
@@ -34,9 +35,11 @@ FAIT = "_annonce_ia_faite"
 
 
 def texte_de_l_annonce(reglages_agent: Any, reglages_principal: Any = None) -> str:
-    """Le texte en vigueur : celui de la règle de l'agent (ou du groupe), sinon le défaut du catalogue. Jamais vide."""
+    """Le texte en vigueur : celui de la règle de l'agent (ou du groupe), sinon le défaut du catalogue. Vide quand l'annonce est éteinte (D1)."""
     phrase = resoudre(ANNONCE_IA, reglages_agent=reglages_agent, reglages_principal=reglages_principal)
-    return phrase.variantes[0].strip() if phrase is not None and phrase.variantes else ""
+    if phrase is None or not phrase.active or not phrase.variantes:
+        return ""
+    return phrase.variantes[0].strip()
 
 
 def mentionne_deja(texte: str | None) -> bool:

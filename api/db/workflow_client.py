@@ -22,6 +22,17 @@ def _ou_est_le_brouillon(cible: "branche_ouverte.Cible") -> list:
     ]
 
 
+def avec_le_garde_fou_urgence_allume(configurations: dict | None) -> dict:
+    """Clôture, lot B (D3) : la configuration d'un NOUVEL agent, avec le garde-fou urgence allumé (numéro 112) quand elle ne le règle pas déjà.
+    Les agents existants ne changent pas ; un choix posé par la création (copie, import, recette) est gardé tel quel."""
+    configuration = dict(configurations or {})
+    securite = dict(configuration.get("securite_conversation") or {})
+    if "garde_urgence" not in securite:
+        securite["garde_urgence"] = {"actif": True, "numero": "112"}
+    configuration["securite_conversation"] = securite
+    return configuration
+
+
 class WorkflowClient(BaseDBClient):
     async def compter_remplacements_de_modeles(
         self, organization_id: int
@@ -124,8 +135,9 @@ class WorkflowClient(BaseDBClient):
                     organization_id=organization_id,
                 )
                 # [.mark] passages-fiables (C2) : la configuration écrite À LA CRÉATION (jamais la valeur lue par défaut).
-                if workflow_configurations:
-                    new_workflow.workflow_configurations = dict(workflow_configurations)
+                # Clôture, lot B (D3) : le garde-fou urgence est ALLUMÉ sur un nouvel agent (numéro 112), sauf si la création le règle déjà.
+                configuration_de_depart = avec_le_garde_fou_urgence_allume(workflow_configurations)
+                new_workflow.workflow_configurations = configuration_de_depart
                 session.add(new_workflow)
                 await session.flush()  # Flush to get the workflow ID
 

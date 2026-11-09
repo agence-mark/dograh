@@ -46,7 +46,8 @@ LIBELLES = {
 }
 
 # [.mark] L3e : contrôles dont la position est FIXE (ils ne sont pas dans ``reglages.CONTROLES`` : aucun réglage ne les éteint).
-CONTROLES_FIXES = {"annonce_ia": "bloque"}
+# Clôture, lot B (D1) : l'annonce « vous parlez à une IA » en est sortie, c'est un contrôle réglable comme les autres.
+CONTROLES_FIXES: dict[str, str] = {}
 # [.mark] Lot 8 (décision d'Evan du 04/11) : une étiquette cassée bloque TOUJOURS (aucun réglage ne l'assouplit). Lot 22 : un bloc
 # resté sur sa version alors qu'une Recette plus récente existe est un conseil, jamais un blocage.
 CONTROLES_FIXES["etiquettes"] = "bloque"
@@ -143,14 +144,30 @@ async def _attaques(workflow: Any, brouillon: Any, org: int) -> list[str]:
     return problemes
 
 
-def _annonce_ia(configurations: dict[str, Any]) -> list[str]:
-    """L'annonce « vous parlez à une IA » : bloquante si son texte est vide. Le texte par défaut est dit à l'appel quoi qu'il arrive
-    (``phrases/regles.resoudre``) ; ce qui bloque ici, c'est une règle de l'agent qui l'aurait vidée : on ne publie pas un texte vide."""
-    from api.services.phrases.catalogue import ANNONCE_IA
-    from api.services.phrases.regles import regles_de
+def _accueil_ecrit(graphe: Any) -> bool:
+    """Le départ de l'agent a-t-il un accueil écrit (en texte) ?"""
+    for noeud in (graphe.get("nodes") if isinstance(graphe, dict) else None) or []:
+        donnees = noeud.get("data") if isinstance(noeud, dict) else None
+        if isinstance(donnees, dict) and noeud.get("type") == "startCall":
+            return donnees.get("greeting_type", "text") == "text" and bool(str(donnees.get("greeting") or "").strip())
+    return False
 
-    vides = [r for r in regles_de(configurations) if r.motif == ANNONCE_IA and not any(v.strip() for v in r.variantes)]
-    return ["The announcement « you are talking to an AI » has an empty text: write it, or remove the rule to get the default text."] if vides else []
+
+def _annonce_ia(configurations: dict[str, Any], *, temps_reel: bool = False, graphe: Any = None) -> list[str]:
+    """L'annonce « vous parlez à une IA » (clôture, lot B, D1 et D2) : le contrôle prévient quand l'annonce est éteinte ou vidée, et quand une voix temps
+    réel n'a pas d'accueil écrit (l'ouverture vient alors du fournisseur : rien n'est injecté, la phrase s'écrit dans le prompt)."""
+    from api.services.phrases.catalogue import ANNONCE_IA
+    from api.services.phrases.regles import resoudre
+
+    phrase = resoudre(ANNONCE_IA, reglages_agent=configurations, reglages_principal=configurations)
+    if phrase is None or not phrase.active or not any(v.strip() for v in phrase.variantes):
+        return ["The announcement « you are talking to an AI » is off or empty: callers are not told they are talking to an AI."]
+    if temps_reel and not _accueil_ecrit(graphe):
+        return [
+            "Realtime voice without a written greeting: the announcement « you are talking to an AI » cannot be imposed word for word. "
+            "Write it in the prompt."
+        ]
+    return []
 
 
 def _garde_fous(configurations: dict[str, Any]) -> list[str]:
@@ -170,13 +187,15 @@ def _garde_fous(configurations: dict[str, Any]) -> list[str]:
     return ["No safety layer of the conversation is on."]
 
 
-async def _lectures_de_la_liste(workflow: Any, brouillon: Any, org: int, configurations: dict[str, Any]):
+async def _lectures_de_la_liste(workflow: Any, brouillon: Any, org: int, configurations: dict[str, Any], memo: dict[str, Any] | None = None):
     """Les étapes de la préparation et les constats « sans effet » du brouillon. Une lecture qui tombe en panne ne fait pas
-    tomber la fenêtre : elle rend une liste vide."""
+    tomber la fenêtre : elle rend une liste vide. ``memo`` reçoit ``temps_reel`` (une seule lecture alimente aussi le contrôle de l'annonce)."""
     from api.services import preparation
 
     try:
         etapes, contexte = await preparation.lire_avec_contexte(org, workflow.id)
+        if memo is not None:
+            memo["temps_reel"] = bool(contexte.temps_reel)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[publication] préparation en panne ({type(erreur).__name__})")
         return [], []
@@ -204,9 +223,9 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
     controles: list[dict[str, Any]] = []
     vocale: list[dict[str, Any]] = []
     # [.mark] Partie 3 (SA-L3a) : une seule lecture alimente la préparation, les lignes obligatoires et les réglages sans effet.
-    etapes, constats = await _lectures_de_la_liste(workflow, brouillon, organisation_id, configurations)
-    # [.mark] Lot « façon Tala par motif » : UNE lecture du prompt alimente le bilan et les cinq contrôles de rédaction.
     memo: dict[str, Any] = {}
+    etapes, constats = await _lectures_de_la_liste(workflow, brouillon, organisation_id, configurations, memo)
+    # [.mark] Lot « façon Tala par motif » : UNE lecture du prompt alimente le bilan et les cinq contrôles de rédaction.
 
     async def controle_de_l_agent() -> dict[str, Any]:
         if "controle" not in memo:
@@ -241,6 +260,8 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
                     problemes = await _attaques(workflow, brouillon, organisation_id)
                 elif cle == "garde_fous":
                     problemes = _garde_fous(configurations)
+                elif cle == "annonce_ia":
+                    problemes = _annonce_ia(configurations, temps_reel=bool(memo.get("temps_reel")), graphe=getattr(brouillon, "workflow_json", None))
             except Exception as erreur:  # noqa: BLE001 -- un contrôle qui tombe en panne ne se tait pas : il prévient
                 logger.warning(f"[publication] contrôle {cle} en panne ({type(erreur).__name__})")
                 problemes = [f"The check could not be played ({type(erreur).__name__})."]
@@ -249,7 +270,7 @@ async def evaluer(workflow: Any, brouillon: Any, organisation_id: int) -> dict[s
         )
     etiquettes, conseils_blocs = await problemes_des_etiquettes(organisation_id, brouillon)
     for cle, position in CONTROLES_FIXES.items():
-        problemes = _annonce_ia(configurations) if cle == "annonce_ia" else []
+        problemes = []
         if cle in ("etiquettes", "blocs_a_jour"):
             trouves = etiquettes if cle == "etiquettes" else conseils_blocs
             if trouves is None:  # sans objet (aucune étiquette, aucun bloc) : le contrôle n'est pas joué, aucune ligne
