@@ -10420,6 +10420,12 @@ export type JugeDesVraisAppels = {
      */
     repondeurs_exclus?: boolean | null;
     /**
+     * Vecu Eteints
+     *
+     * The caller-experience criteria this judge does NOT look at (none: all five are judged). Absent on write: unchanged.
+     */
+    vecu_eteints?: Array<'frustration' | 'blanc' | 'gene_machine' | 'ecoute' | 'boucle'> | null;
+    /**
      * Etat Du Juge
      */
     etat_du_juge?: string | null;
@@ -16090,6 +16096,18 @@ export type ReglageDuRejeu = {
      * Repetitions
      */
     repetitions?: number | null;
+    /**
+     * Quoi
+     *
+     * What is replayed: all the tests (default), the required tests only, or the tests and an attack pass (spends).
+     */
+    quoi?: 'toute_la_suite' | 'tests_obligatoires' | 'suite_et_attaques' | null;
+    /**
+     * Prevenir
+     *
+     * Who is told by mail when the suite does worse: the organization and .mark (default), one of them, nobody.
+     */
+    prevenir?: 'tous' | 'organisation' | 'mark' | 'personne' | null;
 };
 
 /**
@@ -23059,6 +23077,12 @@ export type WorkflowConfigurationDefaults = {
      * At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
      */
     generer_schema_parcours?: boolean;
+    /**
+     * Empecher Boucles
+     *
+     * [.mark] Forbid loops between the steps of the graph: linking two steps so that a cycle closes is refused, and the cycles already there are pointed out. Off by default. It guards the DRAWING of the graph; the call engine is unchanged.
+     */
+    empecher_boucles?: boolean;
     /**
      * Fiche Au Fil De Leau
      *

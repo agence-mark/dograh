@@ -2,7 +2,7 @@
 
 /**
  * [.mark] Partie 3, sous-lot 20 : deux petits crochets de l'éditeur du graphe.
- * - `usePreferenceLocale` : un choix d'affichage propre à la personne (aimant, carte, empêcher les boucles), gardé par son
+ * - `usePreferenceLocale` : un choix d'affichage propre à la personne (aimant, carte ; « empêcher les boucles » est un réglage de l'agent depuis la clôture), gardé par son
  *   navigateur. Le stockage peut manquer (fenêtre privée) : l'écran marche sans, le choix tient jusqu'au rechargement.
  * - `useStatistiquesDesEtapes` : lit les derniers appels de l'agent par la route EXISTANTE, puis les étapes traversées
  *   (`statistiques-etapes.ts`). Rien n'est lu tant que les statistiques sont éteintes.

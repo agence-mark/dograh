@@ -178,6 +178,20 @@
         }
       ]
     },
+    "empecher-boucles": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "empecher_boucles": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "trace-requetes-modele": {
       "carte": "ajout-mark",
       "theme": "agent",

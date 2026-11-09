@@ -27,6 +27,7 @@ export type EntreeInventaire =
 export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Agent
     generer_schema_parcours: { theme: "agent", cas: ["schema-parcours"] },
+    empecher_boucles: { theme: "agent", cas: ["empecher-boucles"] },
     text_chat_inactivity_timeout_seconds: {
         theme: "agent",
         via: "Add to Website dialog (EmbedDialog), reused as it is: set for a chat widget",

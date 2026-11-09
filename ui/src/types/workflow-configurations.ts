@@ -546,6 +546,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.
     generer_schema_parcours?: boolean;
+    // [.mark] Clôture, lot C: forbid loops between steps (the graph editor refuses a link that closes a cycle). Off by default.
+    empecher_boucles?: boolean;
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.

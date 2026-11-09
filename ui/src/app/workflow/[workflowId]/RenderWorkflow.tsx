@@ -561,7 +561,24 @@ function RenderWorkflow({
     // [.mark] Partie 3, sous-lot 20 : l'éditeur du graphe façon ElevenLabs (annuler, aimant, carte, recherche, statistiques, boucles).
     const [aimant, basculerAimant] = usePreferenceLocale("mark.graphe.aimant", false);
     const [carte, basculerCarte] = usePreferenceLocale("mark.graphe.carte", true);
-    const [boucles, basculerBoucles] = usePreferenceLocale(`mark.graphe.sans-boucle.${workflowId}`, false);
+    // Clôture, lot C : « Empêcher les boucles » est un réglage de l'agent (`empecher_boucles`), plus une préférence du navigateur.
+    const boucles = workflowConfigurations?.empecher_boucles === true;
+    const basculerBoucles = useCallback(async () => {
+        if (!workflowConfigurations) return;
+        try {
+            await saveWorkflowConfigurations({ ...workflowConfigurations, empecher_boucles: !boucles }, workflowName);
+            notifier.succes(
+                !boucles
+                    ? { fr: 'Boucles interdites entre les étapes.', en: 'Loops between steps are now forbidden.' }
+                    : { fr: 'Boucles de nouveau permises entre les étapes.', en: 'Loops between steps are allowed again.' },
+            );
+        } catch (erreur) {
+            notifier.echec(
+                { fr: "Réglage non enregistré. Si la version en ligne est protégée, passez par une branche.", en: 'Setting not saved. If the live version is protected, use a branch.' },
+                { erreur },
+            );
+        }
+    }, [workflowConfigurations, saveWorkflowConfigurations, boucles, workflowName]);
     const [statsAllumees, setStatsAllumees] = useState(false);
     const statistiques = useStatistiquesDesEtapes(workflowId, statsAllumees);
     // Les statistiques se posent à l'affichage seulement (jamais dans les étapes enregistrées).

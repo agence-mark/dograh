@@ -111,6 +111,7 @@ export const CAS_AGENT: CasAgent[] = [
     // ---- General (Dograh) -------------------------------------------------
     c("nom", "general", "agent", ["name"], [saisir("workflow_name", "Accueil modifié")]),
     c("schema-parcours", "ajout-mark", "agent", ["generer_schema_parcours"], [inter("generer_schema_parcours")]),
+    c("empecher-boucles", "ajout-mark", "agent", ["empecher_boucles"], [inter("empecher_boucles")]),
     // Chantier repliques-coupees, lot 6 bis (D16): the model request trace, frozen once.
     c("trace-requetes-modele", "ajout-mark", "agent", ["trace_requetes_modele"], [inter("trace_requetes_modele")]),
     // Chantier schema-parcours-unique (C2, C6): the retry reasoning, Agent theme, always shown.
