@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     versions: vi.fn(),
     save: vi.fn(),
     onConnect: vi.fn(),
+    saveConfig: vi.fn(),
     rf: {} as Record<string, unknown>,
     state: {
         rfInstance: { current: null },
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
         workflowName: 'Agent', isDirty: false, templateContextVariables: {},
         setNodes: vi.fn(), setEdges: vi.fn(), setIsDirty: vi.fn(),
         undo: vi.fn(), redo: vi.fn(), canUndo: true, canRedo: false,
+        workflowConfigurations: {} as Record<string, unknown>,
     },
 }));
 vi.mock('@xyflow/react/dist/style.css', () => ({}));
@@ -33,7 +35,7 @@ vi.mock('@/client', () => ({
     listToolsApiV1ToolsGet: async () => ({ data: [] }),
     listRecordingsApiV1WorkflowRecordingsGet: async () => ({ data: { recordings: [] } }),
 }));
-vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save, onConnect: mocks.onConnect }) }));
+vi.mock('./hooks/useWorkflowState', () => ({ useWorkflowState: () => ({ ...mocks.state, saveWorkflow: mocks.save, onConnect: mocks.onConnect, saveWorkflowConfigurations: mocks.saveConfig }) }));
 vi.mock('@/components/flow/renderer', () => ({ useNodeSpecs: () => ({ specs: [] }) }));
 vi.mock('@/context/OnboardingContext', () => ({ useOnboarding: () => ({ hasCompletedAction: () => true }) }));
 vi.mock('@/components/mark/graphe/GroupeSurCanevas', () => ({ GroupeSurCanevas: () => null, FilGroupe: () => null }));
@@ -152,19 +154,27 @@ it('the snap button drives the grid of the canvas', () => {
     expect(screen.getByTestId('canvas').getAttribute('data-snap')).toBe('true');
 });
 
-it('forbidding loops refuses a link that closes a cycle and lets the others through', async () => {
-    window.localStorage.clear();
+it('forbidding loops is a setting of the agent: it is written to its configuration, and a link that closes a cycle is then refused', async () => {
     const { useWorkflowStore } = await import('./stores/workflowStore');
     useWorkflowStore.setState({ edges: [{ id: 'a-b', source: 'a', target: 'b' }] as never });
-    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
-    const connecter = mocks.rf.onConnect as (c: { source: string; target: string }) => void;
-    connecter({ source: 'b', target: 'a' });
+    mocks.state.workflowConfigurations = {};
+    mocks.saveConfig.mockReset().mockResolvedValue(undefined);
+    mocks.onConnect.mockClear();
+    const { unmount } = render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
+    (mocks.rf.onConnect as (c: { source: string; target: string }) => void)({ source: 'b', target: 'a' });
     expect(mocks.onConnect).toHaveBeenCalledTimes(1); // loops allowed by default
     fireEvent.click(screen.getByLabelText('Forbid loops between steps'));
+    await waitFor(() => expect(mocks.saveConfig).toHaveBeenCalledWith({ empecher_boucles: true }, 'Agent'));
+    // Rien n'est gardé par le navigateur : le réglage vient de la configuration de l'agent.
+    expect(window.localStorage.getItem('mark.graphe.sans-boucle.12')).toBeNull();
+    mocks.state.workflowConfigurations = { empecher_boucles: true };
+    unmount();
+    render(<RenderWorkflow workflowId={12} initialWorkflowName="Agent" user={{ id: '1' }} />);
     (mocks.rf.onConnect as (c: { source: string; target: string }) => void)({ source: 'b', target: 'a' });
     expect(mocks.onConnect).toHaveBeenCalledTimes(1);
     (mocks.rf.onConnect as (c: { source: string; target: string }) => void)({ source: 'b', target: 'c' });
     expect(mocks.onConnect).toHaveBeenCalledTimes(2);
+    mocks.state.workflowConfigurations = {};
 });
 
 it('deleting steps from the keyboard asks first; refusing keeps them', async () => {
