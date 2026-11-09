@@ -131,7 +131,7 @@ export function ReglagesOrganisation() {
                             {...commun("developpeurs")}
                             avant={
                                 <Intertitre id="developpeurs-cles" titre={{ en: "Dograh API keys", fr: "Clés d'API de Dograh" }}>
-                                    <SectionClesApi />
+                                    <SectionClesApi sansTitre />
                                 </Intertitre>
                             }
                         />

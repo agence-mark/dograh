@@ -67,7 +67,8 @@ const T = {
 
 type Cle = ApiKeyResponse & { suspendue?: boolean; role_nom?: string | null; role_id?: number | null };
 
-export function SectionClesApi() {
+/** `sansTitre` : posée sous un intertitre qui porte déjà le nom (panneau Développeurs) : seulement les gestes, à droite, sur une rangée qui passe à la ligne. */
+export function SectionClesApi({ sansTitre = false }: { sansTitre?: boolean } = {}) {
     const { user, getAccessToken, loading } = useAuth();
     const { t, langue } = useLangue();
     const fuseau = useOrganizationTimezone();
@@ -174,7 +175,7 @@ export function SectionClesApi() {
     return (
         <div data-testid="section-cles-api" className="space-y-1">
             <TitreTableau
-                titre={t(T.titre)}
+                titre={sansTitre ? null : t(T.titre)}
                 action={
                     <span className="flex flex-wrap items-center gap-2">
                         <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => setArchivees((v) => !v)}>
