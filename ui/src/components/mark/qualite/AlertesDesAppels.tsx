@@ -144,7 +144,7 @@ export function AlertesDesAppels() {
                     <section>
                         <TitreTableau titre={t({ en: "Triggered", fr: "Déclenchées" })} />
                         {declenchees.length === 0 ? (
-                            <EtatVide cas="fait" titre={t({ en: "No alert triggered", fr: "Aucune alerte déclenchée" })} donnee={t({ en: "The thresholds are checked after each call", fr: "Les seuils sont surveillés après chaque appel" })} />
+                            <EtatVide cas="fait" compact titre={t({ en: "No alert triggered", fr: "Aucune alerte déclenchée" })} donnee={t({ en: "The thresholds are checked after each call", fr: "Les seuils sont surveillés après chaque appel" })} />
                         ) : (
                             <ul className="divide-y" data-testid="alertes-declenchees">
                                 {declenchees.map((a) => (

@@ -12,6 +12,7 @@ import { lireLesTauxDeSortieDImpasseApiV1TriTauxGet } from "@/client";
 import type { LigneDeTaux } from "@/client/types.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+import { useAuth } from "@/lib/auth";
 import { EtatVide } from "../studio/etat-vide";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import { useLangue } from "../langue/langue";
@@ -22,6 +23,7 @@ const pourcent = (part?: number | null) => (part === null || part === undefined 
 
 export function TauxDeSortieDImpasse() {
     const { t } = useLangue();
+    const { user, loading } = useAuth();
     const [jours, setJours] = useState<number>(7);
     const [lignes, setLignes] = useState<LigneDeTaux[] | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
@@ -30,6 +32,8 @@ export function TauxDeSortieDImpasse() {
     periodeCourante.current = jours;
 
     const charger = useCallback(async () => {
+        // L'intercepteur qui joint le jeton n'existe qu'une fois l'authentification chargée (ui/AGENTS.md) : sinon la lecture part sans session.
+        if (loading || !user) return;
         const demandee = jours;
         const reponse = await lireLesTauxDeSortieDImpasseApiV1TriTauxGet({ query: { jours: demandee } });
         if (demandee !== periodeCourante.current) return;
@@ -39,7 +43,7 @@ export function TauxDeSortieDImpasse() {
         }
         setErreur(null);
         setLignes(reponse.data.lignes);
-    }, [jours]);
+    }, [jours, loading, user]);
 
     useEffect(() => {
         void charger();
