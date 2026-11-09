@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FlecheRetour } from "@/components/mark/studio/titre-page";
 
 import { useAdressesDuBuilder } from "./adresses";
+import { BarreDuModele } from "./barre-du-modele";
 import { BandeauDuFil } from "./BandeauDuFil";
 import { CarteDuPlan, CarteQuestion, LigneAction } from "./cartes";
 import { CarteCorrection, CarteDepense, CartePropositionTest, CarteProposeArchivage, CarteRapport } from "./cartes-c2";
@@ -293,6 +294,7 @@ export function FilDuBuilder({
                         }}
                     />
                     <div className="flex items-center justify-end gap-2 px-3 pb-3">
+                        {!claudeCode && <BarreDuModele cout={fil?.cout ?? 0} workflowId={fil?.workflow_id ?? null} rafraichir={() => void rafraichir()} desactive={enCours || ferme} />}
                         <SelecteurMode
                             mode={mode}
                             choisir={(m) => void reglerLeMode(m)}
