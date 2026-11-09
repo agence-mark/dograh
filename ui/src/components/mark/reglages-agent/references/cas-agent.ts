@@ -243,7 +243,6 @@ export const CAS_AGENT: CasAgent[] = [
     // agent-facon-tala (C1): added after the reorganisation, frozen once.
     c("outil-ecrit-en-texte", "ajout-mark", "donnees", ["reconnaitre_un_outil_ecrit"], [inter("reconnaitre_un_outil_ecrit")]),
     // greffier-conversation, lot E (C4, D6).
-    c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Lot 11 de correctifs-apres-banc-commun (F-3).
     c("formulations-d-action", "ajout-mark", "donnees", ["verite_formulations_d_action"], [
         { type: "etiquette", id: "verite_formulations_d_action", valeur: "enregistré" },

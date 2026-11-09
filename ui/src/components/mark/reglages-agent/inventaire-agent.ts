@@ -162,7 +162,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     fiche_forme_courte: { theme: "donnees", cas: ["fiche-forme-courte"] },
     prechauffer_les_collegues: { theme: "donnees", cas: ["prechauffer-les-collegues"] },
     reconnaitre_un_outil_ecrit: { theme: "donnees", cas: ["outil-ecrit-en-texte"] },
-    transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
+    transfert_garanti: { theme: "donnees", via: "Fenêtre de l'outil de transfert d'appel (outils/TransfertGaranti.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans outils/transfert-garanti.test.tsx" },
     // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », read by the steps' « Truth of actions ».
     verite_formulations_d_action: { theme: "donnees", cas: ["formulations-d-action"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },

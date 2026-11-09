@@ -14,7 +14,7 @@
  * requête (onglet Paramètres), serveur MCP, action d'un logiciel et ses règles, fin d'appel, transferts
  * (``OngletsDeType.tsx``). Un enregistrement envoie la définition complète, la configuration fusionnée avec les modifications.
  */
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
     deleteToolApiV1ToolsToolUuidDelete,
@@ -40,6 +40,7 @@ import { OngletEssai } from "./OngletEssai";
 import { OngletParametres, OngletReponse, OngletRequete } from "./OngletsHttp";
 import { BlocCorpsEtValeursFixes, OngletActionLogiciel, OngletFinAppel, OngletServeurMcp, OngletTransfertAgent, OngletTransfertAppel, validerConfig } from "./OngletsDeType";
 import { OngletVersions } from "./versions/OngletVersions";
+import { type AnnexeDeLOutil, TransfertGaranti } from "./TransfertGaranti";
 import { notifier } from "@/components/mark/notifications";
 
 type IdOnglet = "general" | "requete" | "parametres" | "reponse" | "action" | "serveur" | "fin" | "destination" | "comportement" | "essai" | "versions" | "activite";
@@ -75,6 +76,9 @@ export function FenetreOutil({
     const [erreur, setErreur] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
     const [regleLogicielValide, setRegleLogicielValide] = useState(true);
+    // D14 (clôture) : « Transfert garanti » est un réglage des agents qui utilisent l'outil de transfert : il s'enregistre avec l'outil, par le même bouton.
+    const [annexe, setAnnexe] = useState<AnnexeDeLOutil | null>(null);
+    const inscrireAnnexe = useCallback((a: AnnexeDeLOutil | null) => setAnnexe(a), []);
 
     const ids = ONGLETS[courant.category] ?? PAR_DEFAUT;
     const libelles: Record<IdOnglet, string> = {
@@ -92,7 +96,8 @@ export function FenetreOutil({
         activite: t({ en: "Activity", fr: "Activité" }),
     };
     const config: Config = { ...configDe(courant), ...modifs };
-    const modifie = Object.keys(modifs).length > 0 || nom !== courant.name || description !== (courant.description ?? "");
+    const outilModifie = Object.keys(modifs).length > 0 || nom !== courant.name || description !== (courant.description ?? "");
+    const modifie = outilModifie || Boolean(annexe?.modifie);
     const pose = (m: Config) => setModifs((x) => ({ ...x, ...m }));
 
     let ecrit = false;
@@ -112,6 +117,13 @@ export function FenetreOutil({
             return setErreur(t({ en: "The client's rules are not valid JSON.", fr: "Les règles du client ne sont pas du JSON valide." }));
         }
         setEnCours(true);
+        if (!outilModifie) {
+            // Seul le réglage des agents a changé : le pied l'enregistre, avec une notification.
+            const ok = (await annexe?.enregistrer()) ?? true;
+            setEnCours(false);
+            if (ok) notifier.succes({ fr: "Transfert garanti enregistré.", en: "Guaranteed transfer saved." });
+            return;
+        }
         const corps: UpdateToolRequest = {
             name: nom.trim(),
             description: description.trim() || undefined,
@@ -124,7 +136,9 @@ export function FenetreOutil({
         setCourant(r.data);
         setModifs({});
         apresEcriture();
-        notifier.succes({ fr: "Outil enregistré.", en: "Tool saved." });
+        // Un seul geste, une seule notification : l'outil, puis les réglages des agents qui s'y attachent.
+        const reglagesOk = annexe?.modifie ? await annexe.enregistrer() : true;
+        if (reglagesOk) notifier.succes(annexe?.modifie ? { fr: "Outil et transfert garanti enregistrés.", en: "Tool and guaranteed transfer saved." } : { fr: "Outil enregistré.", en: "Tool saved." });
     };
 
     const archiver = async () => {
@@ -224,6 +238,12 @@ export function FenetreOutil({
             {onglet === "serveur" && <OngletServeurMcp config={config} pose={pose} />}
             {onglet === "fin" && <OngletFinAppel config={config} pose={pose} />}
             {onglet === "destination" && (courant.category === "transfer_agent" ? <OngletTransfertAgent config={config} pose={pose} /> : <OngletTransfertAppel config={config} pose={pose} />)}
+            {/* Monté tant que la fenêtre est ouverte (caché hors de l'onglet) : un changement non enregistré ne se perd pas en changeant d'onglet. */}
+            {courant.category === "transfer_call" && (
+                <div hidden={onglet !== "destination"}>
+                    <TransfertGaranti toolUuid={courant.tool_uuid} inscrire={inscrireAnnexe} />
+                </div>
+            )}
             {onglet === "reponse" && <OngletReponse config={config} pose={pose} />}
             {onglet === "comportement" && <OngletComportement categorie={courant.category} config={config} pose={pose} />}
             {onglet === "essai" && <OngletEssai outil={courant} config={config} ecrit={ecrit} modifie={modifie} apres={() => void relireApresEssai()} />}

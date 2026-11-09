@@ -149,7 +149,7 @@ export const ThemeInterventions = ({ resolue, workflowName, onSave, ouvert, onBa
                     {lien("donnees", { en: "Call data", fr: "Données de l'appel" })}
                     {t({
                         en: " (call record, note-taking mode, transitions in the reply, module hints, known and expected, record in the system instruction, guaranteed transfer, redundant question), ",
-                        fr: " (fiche, mode de prise de notes, portes dans la réponse, indices des modules, connu et attendu, fiche dans l'instruction système, transfert garanti, question redemandée), ",
+                        fr: " (fiche, mode de prise de notes, portes dans la réponse, indices des modules, connu et attendu, fiche dans l'instruction système, question redemandée), ",
                     })}
                     {lien("briques", { en: "Services", fr: "Briques" })}
                     {t({ en: " (background brain), ", fr: " (cerveau de fond), " })}
