@@ -29,7 +29,8 @@ import { BarreOutilsGraphe } from "@/components/mark/graphe/BarreOutilsGraphe";
 import { usePreferenceLocale, useStatistiquesDesEtapes } from "@/components/mark/graphe/hooks-graphe";
 import { fermeUnCycle, liensEnBoucle } from "@/components/mark/graphe/sans-boucle";
 import { latenceDeLEtape, partDesAppels } from "@/components/mark/graphe/statistiques-etapes";
-import { useDecalagePanneau } from "@/components/mark/studio/panneau-droit";
+import { OngletDuPanneau } from "@/components/mark/studio/onglet-panneau";
+import { useDecalagePanneau, usePanneau } from "@/components/mark/studio/panneau-droit";
 import { ConfirmerSuppression } from "@/components/mark/studio/suppression-confirmee";
 import { useOuvertureNoeud } from '@/components/mark/agent/ouverture-noeud';
 import { libelleDuType } from "@/components/flow/nodes/GenericNode";
@@ -117,9 +118,6 @@ function RenderWorkflow({
     const builderBascule = useBuilderEcran((s) => s.bascule);
     const [menuDuNoeud, setMenuDuNoeud] = useState<MenuOuvert | null>(null);
     // The panel and the tester rail share the right side: opening the builder leaves the room to it.
-    useEffect(() => {
-        if (builderOuvert) setIsTesterRailOpen(false);
-    }, [builderOuvert]);
     // A new editor starts with a clean builder state; `?builder=1` (« Start with the Builder AI ») opens the panel.
     useEffect(() => {
         useBuilderEcran.getState().reinitialiser();
@@ -549,6 +547,8 @@ function RenderWorkflow({
         if (courants.some((n) => n.selected)) useWorkflowStore.getState().setNodes(courants.map((n) => (n.selected ? { ...n, selected: false } : n)));
     }, []);
     const panneauOuvert = builderOuvert || isTesterRailOpen;
+    // Clôture D1 (É29/É30) : dans le cadre du studio, le builder et l'essai sont des ONGLETS du panneau unique de droite ; le repli flottant ne sert que sans cadre.
+    const panneauDeDroite = usePanneau();
     // [.mark] K2b : les panneaux de droite flottent sur tout le cadre du studio, barre d'agent comprise (maquette `superpose`) :
     // ils s'y posent par un portail ; sans cadre (test, autre page), ils restent dans la zone du canevas.
     const [cadreStudio, setCadreStudio] = useState<HTMLElement | null>(null);
@@ -660,10 +660,14 @@ function RenderWorkflow({
             const mesuree = instance.getInternalNode(choisie.id);
             const largeur = mesuree?.measured?.width ?? 250;
             const hauteur = mesuree?.measured?.height ?? 100;
-            instance.setCenter(choisie.position.x + largeur / 2, choisie.position.y + hauteur / 2, { zoom: instance.getZoom(), duration: 250 });
+            // Panneau PAR-DESSUS la page (écran étroit) : il ne pousse rien, on décale le centre de la moitié de sa largeur pour que l'étape reste visible.
+            const dessus = document.querySelector<HTMLElement>('[data-panneau-droit][data-dessus]');
+            const zoom = instance.getZoom();
+            const decalage = dessus ? dessus.getBoundingClientRect().width / 2 / zoom : 0;
+            instance.setCenter(choisie.position.x + largeur / 2 + decalage, choisie.position.y + hauteur / 2, { zoom, duration: 250 });
         }, 120);
         return () => clearTimeout(minuteur);
-    }, [decalagePanneau, rfInstance]);
+    }, [decalagePanneau, rfInstance, panneauDeDroite?.onglets.length, panneauDeDroite?.actif]);
 
     // The nodes appear one by one: keep the whole graph in view while the operations arrive.
     useEffect(() => {
@@ -831,24 +835,26 @@ function RenderWorkflow({
         reglagesDeLAgent,
     ]);
 
+    const contenuBuilder = builderOuvert ? <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} dansLePanneau={!!panneauDeDroite} /> : null;
+    const contenuEssai = isTesterRailOpen ? (
+        <aside className={panneauDeDroite ? "h-full w-full" : "hidden h-full w-[420px] shrink-0 xl:block"}>
+            <WorkflowTesterPanel
+                workflowId={workflowId}
+                initialContextVariables={templateContextVariables}
+                ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
+                disabled={testerDisabledReason !== null}
+                disabledReason={testerDisabledReason}
+                isVisible={isDesktopViewport}
+                onClose={() => setIsTesterRailOpen(false)}
+                onRuntimeNodeTransition={handleRuntimeNodeTransition}
+                modeDemande={modeEssai}
+            />
+        </aside>
+    ) : null;
     const panneauFlottant = (
         <div style={{ right: 8 + decalagePanneau }} className="absolute bottom-2 top-2 z-30 flex overflow-hidden rounded-xl border bg-card shadow-2xl">
-            {builderOuvert && <PanneauBuilder contexte={contexteDuBuilder} noeuds={nodes} />}
-            {isTesterRailOpen && (
-                <aside className="hidden h-full w-[420px] shrink-0 xl:block">
-                    <WorkflowTesterPanel
-                        workflowId={workflowId}
-                        initialContextVariables={templateContextVariables}
-                        ficheDeLagent={workflowConfigurations?.etablissement_id ?? null}
-                        disabled={testerDisabledReason !== null}
-                        disabledReason={testerDisabledReason}
-                        isVisible={isDesktopViewport}
-                        onClose={() => setIsTesterRailOpen(false)}
-                        onRuntimeNodeTransition={handleRuntimeNodeTransition}
-                        modeDemande={modeEssai}
-                    />
-                </aside>
-            )}
+            {contenuBuilder}
+            {contenuEssai}
         </div>
     );
     const panneauPose = cadreStudio ? createPortal(panneauFlottant, cadreStudio) : panneauFlottant;
@@ -892,7 +898,7 @@ function RenderWorkflow({
                 {/* Workflow Canvas */}
                 <div className="flex-1 min-h-0">
                     <div className="relative flex h-full min-w-0">
-                        <div className={`min-w-0 flex-1 bg-(--canevas) ${panneauOuvert ? "lg:pr-[436px]" : ""}`}>
+                        <div className={`min-w-0 flex-1 bg-(--canevas) ${panneauOuvert && !panneauDeDroite ? "lg:pr-[436px]" : ""}`}>
                         {/* [.mark] V1b : au clavier, Entrée sur un nœud (il prend le focus par Tab) ouvre sa fenêtre, comme le double-clic. */}
                         <div
                             className="relative h-full"
@@ -1009,7 +1015,22 @@ function RenderWorkflow({
                         </div>
 
                         {/* K2 : les panneaux de droite flottent au-dessus du canevas, comme la maquette (« superpose »). */}
-                        {panneauOuvert && panneauPose}
+                        {panneauDeDroite ? (
+                            <>
+                                {builderOuvert && (
+                                    <OngletDuPanneau id="builder-ia" titre={tBuilder({ en: "Builder AI", fr: "Builder IA" })} fermer={() => useBuilderEcran.getState().fermer()}>
+                                        {contenuBuilder}
+                                    </OngletDuPanneau>
+                                )}
+                                {isTesterRailOpen && (
+                                    <OngletDuPanneau id="essai-agent" titre={tBuilder({ en: "Test", fr: "Essai" })} fermer={() => setIsTesterRailOpen(false)}>
+                                        {contenuEssai}
+                                    </OngletDuPanneau>
+                                )}
+                            </>
+                        ) : (
+                            panneauOuvert && panneauPose
+                        )}
                     </div>
 
                     <Sheet open={isTesterSheetOpen} onOpenChange={setIsTesterSheetOpen}>
