@@ -98,17 +98,24 @@ describe("fenêtre de création unique : chaque chemin", () => {
     it("sans le builder : aucun dépôt", async () => {
         await ouvrir();
         nommer("Accueil");
-        fireEvent.click(screen.getByText("From a recipe"));
+        fireEvent.click(screen.getByText("Empty"));
         expect(document.querySelector("[data-depart-builder]")).toBeNull();
         fireEvent.click(screen.getByText("Create the draft"));
         await waitFor(() => expect(m.push).toHaveBeenCalled());
         expect(m.depot).not.toHaveBeenCalled();
     });
 
-    it("groupe depuis une recette : le principal s'ouvre sans le builder", async () => {
+    it("aucune option « Depuis une recette » au point de départ (constat d'Evan, 09/11) : seulement le builder et vide", async () => {
+        await ouvrir();
+        expect(screen.queryByText("From a recipe")).toBeNull();
+        expect(screen.getByText("With the builder")).toBeTruthy();
+        expect(screen.getByText("Empty")).toBeTruthy();
+    });
+
+    it("groupe vide : le principal s'ouvre sans le builder", async () => {
         await ouvrir();
         nommer("Accueil");
-        fireEvent.click(screen.getByText("From a recipe"));
+        fireEvent.click(screen.getByText("Empty"));
         fireEvent.click(screen.getByText("Create the draft"));
         await waitFor(() => expect(m.push).toHaveBeenCalledWith("/agents/13"));
     });

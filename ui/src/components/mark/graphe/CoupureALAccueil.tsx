@@ -11,6 +11,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 
+import { useAnnexeDeLEtape } from "@/components/flow/nodes/common/annexes-de-l-etape";
 import { useWorkflow } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { Button } from "@/components/ui/button";
 import { DEFAUTS_PIPECAT, type WorkflowConfigurations } from "@/types/workflow-configurations";
@@ -25,8 +26,6 @@ export const CLES_COUPURE_A_L_ACCUEIL = ["mute_until_first_bot_complete", "accue
 type Cle = (typeof CLES_COUPURE_A_L_ACCUEIL)[number];
 
 const T = {
-    enregistrer: { en: "Save", fr: "Enregistrer" },
-    aucune: { en: "No change", fr: "Aucune modification" },
     succes: { en: "Greeting protection saved.", fr: "Protection de l'accueil enregistrée." },
     echec: {
         en: "Greeting protection not saved. If the live version is protected, use a branch.",
@@ -44,27 +43,28 @@ export function CoupureALAccueil() {
     const configuration = reglagesDeLAgent?.configuration ?? null;
     const enregistrees = useMemo(() => Object.fromEntries(CLES_COUPURE_A_L_ACCUEIL.map((c) => [c, valeurDe(configuration, c)])) as Record<Cle, unknown>, [configuration]);
     const [brouillon, setBrouillon] = useState<Record<Cle, unknown>>(enregistrees);
-    const [enCours, setEnCours] = useState(false);
     const cle = JSON.stringify(enregistrees);
     useEffect(() => setBrouillon(JSON.parse(cle) as Record<Cle, unknown>), [cle]);
 
-    if (!reglagesDeLAgent) return null;
     const modifie = JSON.stringify(brouillon) !== cle;
     const erreurs = erreursDuCatalogue(CLES_COUPURE_A_L_ACCUEIL, brouillon);
     // « Ne jamais laisser l'appelant couper » reste dans « Tour de parole » : il l'emporte sur l'accueil, et la note le dit.
     const note = noteAccueil({ ...brouillon, mute_always: valeurDe(configuration, "mute_always" as Cle) } as { accueil_interruptible?: unknown; mute_always?: unknown; mute_first_speech?: unknown });
 
-    const enregistrer = async () => {
-        setEnCours(true);
+    const enregistrer = async (): Promise<boolean> => {
         try {
-            await reglagesDeLAgent.enregistrer(brouillon as Partial<WorkflowConfigurations>);
+            await reglagesDeLAgent!.enregistrer(brouillon as Partial<WorkflowConfigurations>);
             notifier.succes(T.succes);
+            return true;
         } catch (erreur) {
             notifier.echec(T.echec, { erreur });
-        } finally {
-            setEnCours(false);
+            return false;
         }
     };
+
+    // Un seul « Enregistrer » : celui du pied de la fenêtre de l'étape enregistre ce bloc avec l'étape (et « Annuler » prévient pour les deux).
+    useAnnexeDeLEtape("coupure-a-l-accueil", { modifie: modifie && !readOnly, invalide: erreurs.length > 0, enregistrer });
+    if (!reglagesDeLAgent) return null;
 
     return (
         <section className="space-y-3 pt-2" data-bloc="coupure-a-l-accueil" aria-label={t(TITRE_COUPER_A_L_ACCUEIL)}>
@@ -89,17 +89,11 @@ export function CoupureALAccueil() {
                     {t(note)}
                 </p>
             )}
-            <div className="flex items-center justify-end gap-3">
-                {erreurs.length > 0 && (
-                    <span role="alert" className="mr-auto text-xs text-destructive">
-                        {erreurs.map((e) => `${t(e.libelle)} : ${t(e.message)}`).join(" ; ")}
-                    </span>
-                )}
-                {erreurs.length === 0 && !modifie && <span className="mr-auto text-xs text-muted-foreground">{t(T.aucune)}</span>}
-                <Button size="sm" disabled={!modifie || erreurs.length > 0 || enCours || Boolean(readOnly)} onClick={() => void enregistrer()}>
-                    {t(T.enregistrer)}
-                </Button>
-            </div>
+            {erreurs.length > 0 && (
+                <p role="alert" className="text-xs text-destructive">
+                    {erreurs.map((e) => `${t(e.libelle)} : ${t(e.message)}`).join(" ; ")}
+                </p>
+            )}
         </section>
     );
 }

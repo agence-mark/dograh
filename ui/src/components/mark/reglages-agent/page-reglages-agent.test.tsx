@@ -235,7 +235,7 @@ describe("[.mark] the agent page in themes", () => {
             });
         }
         // Every key of the inventory, one after the other: slow under a full run.
-    }, 30000);
+    }, 90000);
 
     // Cloture-code, lot 5 (M11), then U4 (E44): the settings templates button sits in the page's toolbar, next to the
     // search, outside the themes, and opens the centred modal.

@@ -353,10 +353,12 @@ export function FenetreCreationAgent({
                     </div>
                     <div className="space-y-2">
                         <p className="text-sm font-medium">{t(T.depart)}</p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className={`grid gap-3 ${departParDefaut === "recette" ? "grid-cols-3" : "grid-cols-2"}`}>
                             {[
                                 { id: "builder" as const, icone: Sparkles, titre: T.builder, phrase: T.builderPhrase },
-                                { id: "recette" as const, icone: FileText, titre: T.recette, phrase: T.recettePhrase },
+                                // Evan (09/11) : aucun choix de recette à la création, c'est le builder qui l'applique. Seule l'installation d'un
+                                // client (« L'agent, depuis une recette ») ouvre la fenêtre sur ce départ et le garde.
+                                ...(departParDefaut === "recette" ? [{ id: "recette" as const, icone: FileText, titre: T.recette, phrase: T.recettePhrase }] : []),
                                 { id: "vide" as const, icone: Plus, titre: T.vide, phrase: T.videPhrase },
                             ].map((c) => (
                                 <button

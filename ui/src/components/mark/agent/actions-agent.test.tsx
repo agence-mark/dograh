@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push, refresh: v
 vi.mock("next/link", () => ({ default: ({ children, href, ...r }: { children: React.ReactNode; href: string }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { promise: vi.fn(), success: vi.fn(), error: vi.fn() }) }));
 vi.mock("@/client/sdk.gen", () => ({
+    lireLesTestsApiV1BuilderTestsWorkflowIdGet: vi.fn(async () => ({ data: { tests: [] } })),
     duplicateWorkflowEndpointApiV1WorkflowWorkflowIdDuplicatePost: vi.fn(async () => ({ data: { id: 9 } })),
     publishWorkflowApiV1WorkflowWorkflowIdPublishPost: vi.fn(),
     controlesDePublicationApiV1BuilderPublicationWorkflowIdGet: vi.fn(async () => ({ data: { version: 2, bloque: false, controles: [], liste_vocale: [], deploiement_actif: false, forcable: true } })),
