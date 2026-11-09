@@ -81,7 +81,7 @@ describe("[.mark] la page Téléphonie", () => {
         await screen.findByText("Twilio principal");
         fireEvent.click(screen.getByRole("button", { name: "Rendre par défaut pour les appels sortants" }));
         await waitFor(() => expect(m.defaut).toHaveBeenCalledWith({ path: { config_id: 2 } }));
-        fireEvent.click(screen.getByRole("button", { name: /Ajouter une configuration/ }));
+        fireEvent.click(screen.getByRole("button", { name: /Nouvelle configuration/ }));
         expect(screen.getByTestId("formulaire-config")).toBeTruthy();
     });
 

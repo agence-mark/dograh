@@ -59,7 +59,7 @@ const T = {
         fr: "Branchez un ou plusieurs comptes d'opérateur de téléphonie. Chaque campagne utilise une configuration ; les appels entrants sont dirigés vers la bonne par l'identifiant du compte.",
     },
     aide: { en: "Documentation", fr: "Documentation" },
-    ajouter: { en: "Add a configuration", fr: "Ajouter une configuration" },
+    ajouter: { en: "New configuration", fr: "Nouvelle configuration" },
     config: { en: "Configuration", fr: "Configuration" },
     operateur: { en: "Provider", fr: "Opérateur" },
     numeros: { en: "Numbers", fr: "Numéros" },
