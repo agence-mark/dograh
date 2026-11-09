@@ -119,7 +119,9 @@ class GardienPanne:
             self._phrase(VARIABLE_RAPPEL, DEFAUT_RAPPEL), reouverture
         ).strip()
         return consigne.rappel(
-            texte or rendre_annonce(DEFAUT_RAPPEL, reouverture).strip()
+            texte or rendre_annonce(DEFAUT_RAPPEL, reouverture).strip(),
+            self.contexte.reglages.voix_twilio,
+            self.contexte.reglages.langue_twilio,
         )
 
     async def _choisir(self) -> tuple[str, str | None, str | None, str | None]:
@@ -132,7 +134,11 @@ class GardienPanne:
         if not self.contexte.entrant:
             return (
                 "excuse",
-                consigne.rappel(self._phrase(VARIABLE_EXCUSE, DEFAUT_EXCUSE)),
+                consigne.rappel(
+                    self._phrase(VARIABLE_EXCUSE, DEFAUT_EXCUSE),
+                    self.contexte.reglages.voix_twilio,
+                    self.contexte.reglages.langue_twilio,
+                ),
                 None,
                 None,
             )
@@ -148,6 +154,8 @@ class GardienPanne:
                 numero,
                 self.contexte.reglages.sonnerie_s,
                 self.contexte.url_resultat,
+                self.contexte.reglages.voix_twilio,
+                self.contexte.reglages.langue_twilio,
             )
             return "renvoi", twiml, numero, etat
         return "rappel", self.consigne_de_rappel(), numero, etat

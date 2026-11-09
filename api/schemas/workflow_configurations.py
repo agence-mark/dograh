@@ -1009,6 +1009,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "nothing else changes."
         ),
     )
+    # [.mark] Clôture, lot C (partie 3, sous-lot 20) : « Empêcher les boucles » est un réglage de l'agent, plus une préférence du navigateur.
+    empecher_boucles: bool = Field(
+        default=False,
+        description=(
+            "[.mark] Forbid loops between the steps of the graph: linking two steps so that a cycle closes is refused, and the cycles "
+            "already there are pointed out. Off by default. It guards the DRAWING of the graph; the call engine is unchanged."
+        ),
+    )
     # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).
     fiche_au_fil_de_leau: bool = Field(
         default=False,

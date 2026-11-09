@@ -60,6 +60,17 @@ class PanneAgent(BaseModel):
     sonnerie_s: int = Field(
         default=20, ge=5, le=60, description="PN1: how long the second number rings."
     )
+    # Clôture, lot C (D18) : la voix et la langue de Twilio pour la phrase de secours, réglables (avancé) ; valeurs d'avant par défaut.
+    voix_twilio: str = Field(
+        default=VOIX_TWILIO,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,59}$",
+        description="[advanced] Twilio's own voice that says the fallback sentence (e.g. Polly.Lea-Neural, alice).",
+    )
+    langue_twilio: str = Field(
+        default=LANGUE_TWILIO,
+        pattern=r"^[a-z]{2,3}-[A-Z]{2}$",
+        description="[advanced] The language of the fallback sentence for Twilio (e.g. fr-FR).",
+    )
 
 
 class ReglagesPanne(BaseModel):
