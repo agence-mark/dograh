@@ -233,4 +233,4 @@ async def journaliser(user, action: str, organization_id: int | None, detail: di
             origine=origine_du_geste(user),
         )
     except Exception:
-        logger.exception("Journal write failed")
+        logger.warning("Journal write failed")

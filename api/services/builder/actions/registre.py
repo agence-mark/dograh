@@ -104,6 +104,12 @@ def enregistrer(action: Action) -> Action:
         from api.services.builder.actions.familles_actions import famille_de
 
         action.famille = famille_de(action.nom)
+    # Décision d'Evan du 09/11 : publier, rejouer les tests payants et lancer des appels réels passent aussi par MCP, derrière un interrupteur de la
+    # clé (éteint par défaut, ``droits_mcp``). Ces actions sont donc exposées au serveur MCP ; sans l'interrupteur, le refus dit quoi allumer.
+    from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+    if geste_de_l_action(action.nom, action.famille) is not None:
+        action.mcp = True
     REGISTRE[action.nom] = action
     return action
 
@@ -133,7 +139,9 @@ async def _refus_de_la_cle_mcp(action: Action, contexte: Contexte) -> dict[str, 
 
     user = contexte.user
     if getattr(user, "cle_api_role_id", None) is not None:
-        if not action.ecriture:
+        from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+        if not action.ecriture and geste_de_l_action(action.nom, action.famille) is None:
             return None
         permission = familles_actions.permission_de(action.nom, action.famille or "irreversible")
         if permission is not None and permission not in await droits_effectifs.permissions_de(user):
@@ -225,7 +233,22 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         contexte.journal = await journal.clore(entree, resultat, ok)  # l'écran le lit (carte « Annuler ») ; le résultat du builder ne change pas
     if action.ecriture and ok:
         await _publier_la_modification(action, arguments or {}, contexte, resultat)
+    if contexte.porte == PORTE_MCP and (action.ecriture or action.famille in ("publication", "depense", "appels_reels")):
+        await _journaliser_le_geste_mcp(action, contexte, ok)
     return resultat
+
+
+async def _journaliser_le_geste_mcp(action: Action, contexte: Contexte, ok: bool) -> None:
+    """Clôture, lot A (D23) : chaque geste passé par la porte MCP est écrit au journal de l'équipe (qui, quoi, quand, où, porte ``mcp``).
+    Les arguments n'y sont jamais écrits (ils peuvent citer un client). Ne lève jamais."""
+    try:
+        from api.services.equipe_mark.acces import journaliser
+
+        await journaliser(
+            contexte.user, f"mcp.{action.nom}", contexte.organisation_id, {"action": action.nom, "famille": action.famille, "ok": bool(ok), "agent": contexte.workflow_id}
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug(f"[builder] geste MCP {action.nom} non journalisé")
 
 
 async def _publier_la_modification(action: Action, arguments: dict[str, Any], contexte: Contexte, resultat: dict[str, Any]) -> None:

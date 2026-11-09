@@ -84,3 +84,19 @@ async def test_la_lecture_des_agents_est_fermee_a_une_cle_de_client_sans_role():
             await auth.authenticate_mcp_request("list_workflows")
         assert erreur.value.status_code == 403
         await auth.authenticate_mcp_request("list_node_types")  # documentation et types de nœuds restent ouverts
+
+
+def test_les_trois_interrupteurs_lisent_la_meme_table_de_permissions():
+    """Décision d'Evan du 09/11 : chaque geste qui coûte ou engage a UN interrupteur, et sa permission est celle de la table des familles."""
+    from api.services.equipe_mark.droits_mcp import ACTIONS_DE_TESTS_PAYANTS, GESTES_MCP, geste_de_l_action
+
+    assert set(GESTES_MCP) == {"publier", "tests_payants", "appels_reels"}
+    assert all(permission in PERMISSIONS for permissions in GESTES_MCP.values() for permission in permissions)
+    for action in REGISTRE.values():
+        geste = geste_de_l_action(action.nom, action.famille)
+        if geste is not None:  # la permission de chaque action est l'une de celles du geste : allumer l'interrupteur exige de les avoir toutes
+            assert familles_actions.permission_de(action.nom, action.famille or "irreversible") in GESTES_MCP[geste], action.nom
+    assert ACTIONS_DE_TESTS_PAYANTS <= set(REGISTRE)
+    publies = {a.nom for a in REGISTRE.values() if a.famille == "publication" and a.mcp}
+    assert publies and all(geste_de_l_action(n, "publication") == "publier" for n in publies)
+    assert geste_de_l_action("agent_archiver", "irreversible") is None  # supprimer reste fermé à la porte MCP

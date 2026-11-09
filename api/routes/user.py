@@ -342,6 +342,10 @@ class APIKeyResponse(BaseModel):
     role_nom: Optional[str] = None
     # La clé est suspendue (rétablie en un clic) quand elle n'est ni active ni révoquée.
     suspendue: bool = False
+    # Les trois interrupteurs des gestes qui coûtent ou engagent, par la porte MCP (éteints par défaut).
+    mcp_publier: bool = False
+    mcp_tests_payants: bool = False
+    mcp_appels_reels: bool = False
 
 
 class CreateAPIKeyRequest(BaseModel):
@@ -356,6 +360,14 @@ class ChangeAPIKeyRoleRequest(BaseModel):
 
 class SuspendAPIKeyRequest(BaseModel):
     suspendue: bool
+
+
+class ChangeAPIKeyMcpRequest(BaseModel):
+    """Les trois interrupteurs d'une clé (``None`` : inchangé)."""
+
+    publier: Optional[bool] = None
+    tests_payants: Optional[bool] = None
+    appels_reels: Optional[bool] = None
 
 
 class CreateAPIKeyResponse(BaseModel):
@@ -392,6 +404,9 @@ async def get_api_keys(
             role_id=key.role_id,
             role_nom=noms_des_roles.get(key.role_id),
             suspendue=not key.is_active and key.archived_at is None,
+            mcp_publier=bool(key.mcp_publier),
+            mcp_tests_payants=bool(key.mcp_tests_payants),
+            mcp_appels_reels=bool(key.mcp_appels_reels),
         )
         for key in api_keys
     ]
@@ -528,6 +543,42 @@ async def change_api_key_role(
     from api.services.equipe_mark.acces import journaliser
 
     await journaliser(user, "cle_api.role", user.selected_organization_id, {"cle": api_key_id, "role": request.role_id})
+    return {"success": True}
+
+
+@router.put("/api-keys/{api_key_id}/mcp")
+async def change_api_key_mcp(
+    api_key_id: int,
+    request: ChangeAPIKeyMcpRequest,
+    user: UserModel = Depends(get_user),
+) -> dict:
+    """[.mark] Allume ou éteint les trois interrupteurs MCP d'une clé (Publier, Tests payants, Appels réels). Seul un membre qui gère les clés le
+    peut (permission de la route) et il n'allume jamais un geste qu'il n'a pas lui-même. Chaque changement est journalisé."""
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
+    from api.services.equipe_mark.acces import est_par_cle_api, journaliser
+    from api.services.equipe_mark.droits_effectifs import permissions_de
+    from api.services.equipe_mark.droits_mcp import GESTES_MCP, LIBELLES_DES_GESTES
+
+    if est_par_cle_api(user):
+        raise HTTPException(status_code=403, detail="An API key cannot change the switches of a key")
+    cle = await db_client.get_api_key_by_id(user.selected_organization_id, api_key_id)
+    if cle is None or cle.archived_at is not None:
+        raise HTTPException(status_code=404, detail="API key not found")
+    demandes = {"publier": request.publier, "tests_payants": request.tests_payants, "appels_reels": request.appels_reels}
+    mes_droits = await permissions_de(user)
+    for geste, valeur in demandes.items():
+        manquantes = sorted(GESTES_MCP[geste] - mes_droits)
+        if valeur is True and manquantes:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You cannot turn on « {LIBELLES_DES_GESTES[geste][1]} »: you do not have the permission {', '.join(manquantes)} yourself",
+            )
+    if not await db_client.set_api_key_mcp_gestes(user.selected_organization_id, api_key_id, **{k: v for k, v in demandes.items()}):
+        raise HTTPException(status_code=404, detail="API key not found")
+    await journaliser(
+        user, "cle_api.interrupteurs_mcp", user.selected_organization_id, {"cle": api_key_id, **{k: v for k, v in demandes.items() if v is not None}}
+    )
     return {"success": True}
 
 

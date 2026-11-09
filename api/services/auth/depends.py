@@ -58,6 +58,7 @@ async def get_user(
     # chaque requête, dans les deux sens : un même objet de compte peut servir deux requêtes.
     user.par_cle_api = bool(x_api_key)
     if not x_api_key:
+        user.cle_api_mcp = frozenset()
         user.cle_api_role_id = None  # posé par ``_handle_api_key_auth`` pour une clé ; jamais hérité d'une requête précédente
         # Clôture, lot A (D22) : un membre bloqué est refusé tout de suite (une clé est contrôlée dans ``_handle_api_key_auth``).
         from api.services.equipe_mark.blocage import exiger_acces_actif
@@ -376,6 +377,16 @@ async def _handle_api_key_auth(api_key: str) -> UserModel:
     # [.mark] Clôture, lot A (D21) : le rôle que la clé porte (vide : clé d'avant ou du portail, liste fermée), lu par ``droits_effectifs``.
     user.cle_api_id = api_key_model.id
     user.cle_api_role_id = api_key_model.role_id
+    # Les interrupteurs des gestes qui coûtent ou engagent par la porte MCP (éteints par défaut) : voir ``equipe_mark/droits_mcp``.
+    user.cle_api_mcp = frozenset(
+        geste
+        for geste, allume in (
+            ("publier", api_key_model.mcp_publier),
+            ("tests_payants", api_key_model.mcp_tests_payants),
+            ("appels_reels", api_key_model.mcp_appels_reels),
+        )
+        if allume
+    )
 
     logger.debug(
         f"Authenticated via API key: {api_key_model.key_prefix}... "

@@ -255,6 +255,17 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
     contexte.autorisation = None
     contexte.accords_pris = []
     if contexte.porte == PORTE_MCP:
+        # Décision d'Evan du 09/11 : publier, rejouer les tests payants et lancer des appels réels passent par MCP si la clé a l'interrupteur allumé
+        # (ET le rôle qui porte la permission, vérifié avant, ET le créateur : ``registre._refus_de_la_cle_mcp``). Supprimer reste à l'écran.
+        from api.services.equipe_mark import droits_mcp
+
+        geste = droits_mcp.geste_de_l_action(action.nom, famille)
+        if geste is not None and getattr(contexte.user, "cle_api_role_id", None) is not None:
+            if geste not in getattr(contexte.user, "cle_api_mcp", frozenset()):
+                return droits_mcp.refus_interrupteur_eteint(geste)
+            if famille == "depense":
+                contexte.accord_donne = True  # l'interrupteur tient lieu de carte d'accord ; les plafonds de dépense de l'action jouent comme à l'écran
+            return None
         if famille in HORS_PORTE_MCP or action.nom in DEPENSES_HORS_PORTE_MCP:
             return {
                 "ok": False,

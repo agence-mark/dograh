@@ -158,6 +158,36 @@ class APIKeyClient(BaseDBClient):
             await session.commit()
             return result.rowcount > 0
 
+    async def set_api_key_mcp_gestes(
+        self,
+        organization_id: int,
+        api_key_id: int,
+        *,
+        publier: Optional[bool] = None,
+        tests_payants: Optional[bool] = None,
+        appels_reels: Optional[bool] = None,
+    ) -> bool:
+        """[.mark] Allume ou éteint les interrupteurs MCP d'une clé de CETTE organisation (``None`` : inchangé) ; faux si la clé n'existe pas ici."""
+        valeurs = {
+            colonne: valeur
+            for colonne, valeur in (("mcp_publier", publier), ("mcp_tests_payants", tests_payants), ("mcp_appels_reels", appels_reels))
+            if valeur is not None
+        }
+        if not valeurs:
+            return await self.get_api_key_by_id(organization_id, api_key_id) is not None
+        async with self.async_session() as session:
+            result = await session.execute(
+                APIKeyModel.__table__.update()
+                .where(
+                    APIKeyModel.id == api_key_id,
+                    APIKeyModel.organization_id == organization_id,
+                    APIKeyModel.archived_at.is_(None),
+                )
+                .values(**valeurs)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
     async def count_api_keys_with_role(self, role_id: int) -> int:
         """[.mark] Combien de clés (révoquées exclues) portent ce rôle : un rôle utilisé par une clé ne se supprime pas."""
         from sqlalchemy import func
