@@ -48,6 +48,12 @@ class ReglageDuRejeu(BaseModel):
     jour: int | None = Field(default=None, ge=0, le=6)
     heure: int | None = Field(default=None, ge=0, le=23)
     repetitions: int | None = Field(default=None, ge=1, le=planifie.REPETITIONS_MAX)
+    quoi: Literal["toute_la_suite", "tests_obligatoires", "suite_et_attaques"] | None = Field(
+        default=None, description="What is replayed: all the tests (default), the required tests only, or the tests and an attack pass (spends)."
+    )
+    prevenir: Literal["tous", "organisation", "mark", "personne"] | None = Field(
+        default=None, description="Who is told by mail when the suite does worse: the organization and .mark (default), one of them, nobody."
+    )
 
 
 def _vue_des_alertes(courant: dict[str, Any]) -> dict[str, Any]:
@@ -110,6 +116,8 @@ async def regler_le_rejeu_planifie(workflow_id: int, corps: ReglageDuRejeu, user
             jour=corps.jour,
             heure=corps.heure,
             repetitions=corps.repetitions,
+            quoi=corps.quoi,
+            prevenir=corps.prevenir,
         )
     except ValueError as erreur:
         raise HTTPException(status_code=422, detail=str(erreur)) from None
