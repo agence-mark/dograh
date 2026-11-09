@@ -20,6 +20,7 @@ import type {
     PhoneNumberResponse,
     TelephonyConfigurationListItem,
 } from '@/client/types.gen';
+import { useLangue, type Texte } from '@/components/mark/langue/langue';
 import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { etapeDite } from '@/components/mark/telephonie/PageTelephonie';
 import { useUserConfig } from "@/context/UserConfigContext";
 import { detailFromError } from "@/lib/apiError";
 
@@ -55,11 +57,34 @@ interface PhoneCallDialogProps {
 const isCallable = (config: TelephonyConfigurationListItem) =>
     config.is_ready_for_outbound !== false && !config.inactive;
 
-/** "Twilio, Plivo and Telnyx" — names come from the registry, never hardcoded. */
-const joinNames = (names: string[]) => {
-    if (names.length === 0) return "a telephony provider";
+// [.mark] É68 : le panneau « Connecter un service téléphonique » est dit dans la langue de l'écran (français et anglais).
+const T = {
+    titre: { en: "Connect a phone service", fr: "Connecter un service téléphonique" },
+    description: {
+        en: "We don't sell phone numbers or minutes. Choose how this agent should place and receive calls.",
+        fr: "Nous ne vendons ni numéros ni minutes. Choisissez comment cet agent passe et reçoit ses appels.",
+    },
+    fournisseur: { en: "Use a telephony provider", fr: "Utiliser un fournisseur de téléphonie" },
+    recommande: { en: "Recommended", fr: "Recommandé" },
+    ajouterFournisseur: { en: "Add a provider", fr: "Ajouter un fournisseur" },
+    sip: { en: "Bring your own SIP", fr: "Apporter sa propre ligne SIP" },
+    sipAide: {
+        en: "Already have a SIP trunk or a PBX? Point it at our platform and keep your existing carrier and numbers.",
+        fr: "Vous avez déjà une ligne SIP ou un standard ? Branchez-le sur notre plateforme et gardez votre opérateur et vos numéros.",
+    },
+    sipAttend: { en: "is provisioned and waiting for your carrier details.", fr: "est créée et attend les informations de votre opérateur." },
+    configurerSip: { en: "Set up SIP", fr: "Configurer le SIP" },
+    ajouterSip: { en: "Add a SIP connection", fr: "Ajouter une connexion SIP" },
+    plusTard: { en: "Later", fr: "Plus tard" },
+    unFournisseur: { en: "a telephony provider", fr: "un fournisseur de téléphonie" },
+    ou: { en: "or", fr: "ou" },
+} satisfies Record<string, Texte>;
+
+/** "Twilio, Plivo or Telnyx" — names come from the registry, never hardcoded. */
+const joinNames = (names: string[], t: (x: Texte) => string) => {
+    if (names.length === 0) return t(T.unFournisseur);
     if (names.length === 1) return names[0];
-    return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+    return `${names.slice(0, -1).join(", ")} ${t(T.ou)} ${names[names.length - 1]}`;
 };
 
 export const PhoneCallDialog = ({
@@ -69,6 +94,7 @@ export const PhoneCallDialog = ({
     user,
 }: PhoneCallDialogProps) => {
     const router = useRouter();
+    const { t } = useLangue();
     const { refreshConfig } = useUserConfig();
     const [preferences, setPreferences] = useState<OrganizationPreferences>({});
     const [phoneNumber, setPhoneNumber] = useState("");
@@ -358,18 +384,16 @@ export const PhoneCallDialog = ({
         const sipConfig = telephonyConfigs.find(
             (config) => config.connectivity === "sip" && !config.inactive,
         );
-        const blockedReason = telephonyConfigs.find(
+        const configBloquee = telephonyConfigs.find(
             (config) => !config.inactive && config.outbound_blocked_reason,
-        )?.outbound_blocked_reason;
+        );
+        const blockedReason = configBloquee ? etapeDite(configBloquee, t) : null;
 
         return (
             <>
                 <DialogHeader>
-                    <DialogTitle>Connect phone service</DialogTitle>
-                    <DialogDescription>
-                        Dograh doesn&apos;t sell phone numbers or minutes. Choose how
-                        this agent should place and receive calls.
-                    </DialogDescription>
+                    <DialogTitle>{t(T.titre)}</DialogTitle>
+                    <DialogDescription>{t(T.description)}</DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-3">
@@ -377,37 +401,37 @@ export const PhoneCallDialog = ({
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <h3 className="text-sm font-medium">
-                                    Use a telephony provider
+                                    {t(T.fournisseur)}
                                 </h3>
                                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground">
-                                    Recommended
+                                    {t(T.recommande)}
                                 </span>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                Open an account with {joinNames(apiProviderNames)}, paste
-                                the credentials here, and call using their numbers.
-                                Quickest way to get started.
+                                {t({
+                                    en: `Open an account with ${joinNames(apiProviderNames, t)}, paste the credentials here, and call using their numbers. Quickest way to get started.`,
+                                    fr: `Ouvrez un compte chez ${joinNames(apiProviderNames, t)}, collez les identifiants ici, puis appelez avec leurs numéros. Le plus rapide pour démarrer.`,
+                                })}
                             </p>
                         </div>
                         <Button
                             size="sm"
                             onClick={() => goToConfiguration({ add: true })}
                         >
-                            Add provider
+                            {t(T.ajouterFournisseur)}
                         </Button>
                     </div>
 
                     <div className="rounded-lg border p-4 space-y-3">
                         <div className="space-y-1">
-                            <h3 className="text-sm font-medium">Bring your own SIP</h3>
+                            <h3 className="text-sm font-medium">{t(T.sip)}</h3>
                             <p className="text-sm text-muted-foreground">
-                                Already have a SIP trunk or a PBX? Point it at Dograh and
-                                keep your existing carrier and numbers.
+                                {t(T.sipAide)}
                                 {sipConfig && (
                                     <>
                                         {" "}
                                         “{sipConfig.name}”{" "}
-                                        <span>is provisioned and waiting for your carrier details.</span>
+                                        <span>{t(T.sipAttend)}</span>
                                     </>
                                 )}
                             </p>
@@ -426,14 +450,14 @@ export const PhoneCallDialog = ({
                                 )
                             }
                         >
-                            {sipConfig ? "Set up SIP" : "Add SIP connection"}
+                            {sipConfig ? t(T.configurerSip) : t(T.ajouterSip)}
                         </Button>
                     </div>
                 </div>
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Do it Later
+                        {t(T.plusTard)}
                     </Button>
                 </DialogFooter>
             </>

@@ -28,6 +28,8 @@ import {
 } from "@/client/types.gen";
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, FlowNodeData, NodeType } from "@/components/flow/types";
+import { nomParDefautDuNoeudGlobal } from "@/components/flow/renderer/libelles-fr";
+import { langueActive } from "@/components/mark/langue/langue";
 import { avertissementApresEnregistrement } from "@/components/mark/graphe/avertir-premiere-replique";
 import { detailFromError } from "@/lib/apiError";
 import logger from '@/lib/logger';
@@ -320,6 +322,8 @@ export const useWorkflowState = ({
         // [.mark] É68 : un Prompt général NEUF part du texte de la bibliothèque (en français), pas du texte d'amont ; celui-ci ne reste
         // que si la bibliothèque est vide ou illisible. Un prompt déjà écrit n'est jamais touché : seul l'ajout d'un nœud neuf lit la graine.
         if (nodeType === NodeType.GLOBAL_NODE) {
+            // Son nom aussi se dit dans la langue de l'écran (le serveur ne donne que « Global Node »).
+            newNode.data = { ...newNode.data, name: nomParDefautDuNoeudGlobal(langueActive()) } as FlowNode["data"];
             try {
                 const graine = await lireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGet({ path: { workflow_id: workflowId } });
                 const texte = graine?.data?.texte;

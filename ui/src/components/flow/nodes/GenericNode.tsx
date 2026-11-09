@@ -11,6 +11,7 @@ import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
 import { evaluateDisplayOptions } from "@/components/flow/renderer/displayOptions";
+import { nomParDefautDuNoeudGlobal } from "@/components/flow/renderer/libelles-fr";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
@@ -184,7 +185,7 @@ function getBadgeForSpec(spec: NodeSpec | undefined, variant: NodeStyleVariant, 
         case "end":
             return { label: L("Fin", "End") };
         case "global":
-            return { label: "Global" };
+            return { label: L("Général", "Global") };
         case "trigger":
             return { label: L("Déclencheur", "Trigger") };
         case "webhook":
@@ -687,7 +688,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     const badge = getBadgeForSpec(spec, styleVariant, langue);
     const Icon = styleVariant === "start" ? Play : styleVariant === "agent" ? Square : styleVariant === "end" ? Flag : spec ? resolveIcon(spec.icon) : Circle;
 
-    const fallbackTitle = spec?.display_name ?? "Node";
+    const fallbackTitle = type === "globalNode" ? nomParDefautDuNoeudGlobal(langue) : (spec?.display_name ?? "Node");
 
     // ── [.mark] La fenêtre du nœud, à onglets par sujet (E15) ─────────────
     // Chaque onglet n'existe que si le type de nœud porte des champs ou des blocs de ce sujet.
