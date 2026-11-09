@@ -531,8 +531,9 @@ class BranchesClient(BaseDBClient):
             principale.part_trafic = defaire["part_de_la_principale"]
             branche.part_trafic = defaire["part_de_la_branche"]
             branche.statut = "active"
+            numero = creee.version_number  # lu avant le commit, qui expire l'objet
             await session.commit()
-            return creee.version_number
+            return numero
 
     async def ecrire_le_brouillon_de_branche(
         self,
