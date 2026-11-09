@@ -63,13 +63,11 @@ export const CLES_TOUR_MARK = [
     "user_turn_stop_timeout",
     "turn_wait_for_transcript",
     "turn_start_use_interim",
-    "mute_until_first_bot_complete",
     "mute_during_function_call",
     "mute_engine_callback",
-    "mute_first_speech",
     "mute_always",
-    "accueil_interruptible",
-    "accueil_mots_minimum",
+    // D14 (clôture, SA-3) : « mute_until_first_bot_complete », « accueil_interruptible », « accueil_mots_minimum » et « mute_first_speech »
+    // (couper l'agent à l'accueil) vivent sur la fenêtre de l'étape de départ (`graphe/CoupureALAccueil.tsx`) : un seul endroit.
     "vad_confidence",
     "vad_start_secs",
     "vad_stop_secs",
@@ -83,9 +81,6 @@ export const CLES_TOUR_MARK = [
     // (``relance_apres_outil`` est passée dans « Interventions du moteur », lot 8 de builder-agent-vocal.)
     "relance_tour_vide",
 ] as const satisfies readonly CleCatalogue[];
-
-/** Les protections de l'accueil, rangées dans leur propre bloc (05 § 15). */
-const CLES_ACCUEIL: readonly string[] = ["mute_until_first_bot_complete", "mute_first_speech"];
 
 export const TITRE_COUPER_A_L_ACCUEIL = { en: "Cutting the agent at the greeting", fr: "Couper l'agent à l'accueil" };
 export const DESCRIPTION_COUPER_A_L_ACCUEIL = {
@@ -109,13 +104,7 @@ export const noteAccueil = (b: { accueil_interruptible?: unknown; mute_always?: 
     return null;
 };
 
-const CLES_MUETTES = [
-    "mute_until_first_bot_complete",
-    "mute_during_function_call",
-    "mute_engine_callback",
-    "mute_first_speech",
-    "mute_always",
-] as const;
+const CLES_MUETTES = ["mute_during_function_call", "mute_engine_callback", "mute_always"] as const;
 
 /**
  * The two choices of the START of the turn (the interruption), in both languages. Cloture-code, lot 8
@@ -231,9 +220,6 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                 tourPiloteAilleurs
                     ? t({ en: "Turns driven by the transcription", fr: "Tours pilotés par la transcription" })
                     : `${t({ en: "Pause", fr: "Pause" })} ${brouillon.user_speech_timeout} s`,
-                brouillon.accueil_interruptible
-                    ? t({ en: "Greeting interruptible", fr: "Accueil coupable" })
-                    : t({ en: "Greeting protected", fr: "Accueil protégé" }),
             ]}
             ouvert={ouvert}
             onBasculer={onBasculer}
@@ -437,20 +423,7 @@ export const ThemeTourDeParole = ({ resolue, workflowName, onSave, ouvert, onBas
                     fr: "Quand le micro de l'appelant est ignoré, pour que l'agent finisse ce qu'il fait.",
                 }}
             >
-                {CLES_MUETTES.filter((cle) => !CLES_ACCUEIL.includes(cle)).map((cle) => r(cle))}
-            </Intertitre>
-
-            {/* 05 § 15 : la coupure de parole à l'accueil, regroupée en un bloc, dans l'ordre où l'engine la lit. */}
-            <Intertitre id="tour-accueil" titre={TITRE_COUPER_A_L_ACCUEIL} description={DESCRIPTION_COUPER_A_L_ACCUEIL}>
-                {r("mute_until_first_bot_complete")}
-                {r("accueil_interruptible")}
-                {r("accueil_mots_minimum", true, !brouillon.accueil_interruptible)}
-                {r("mute_first_speech")}
-                {noteAccueil(brouillon) && (
-                    <p className="text-xs font-medium text-foreground" data-note="accueil-annule">
-                        {t(noteAccueil(brouillon)!)}
-                    </p>
-                )}
+                {CLES_MUETTES.map((cle) => r(cle))}
             </Intertitre>
 
             {/* C9 (D-C9-1): the voice detector is built on every call, whoever decides the turns. */}

@@ -188,15 +188,18 @@ describe("[.mark] la fiche : la colonne « Origine » est « Rempli par » (05 �
 });
 
 describe("[.mark] la coupure de parole à l'accueil, regroupée en un bloc (05 § 15)", () => {
-    it("le bloc « Couper l'agent à l'accueil » porte les quatre réglages dans l'ordre, et la liste des protections ne les répète pas", () => {
-        const source = lire("components/mark/reglages-agent/ThemeTourDeParole.tsx");
-        const debut = source.indexOf('<Intertitre id="tour-accueil"');
-        expect(debut).toBeGreaterThan(-1);
-        const bloc = source.slice(debut, source.indexOf("</Intertitre>", debut));
+    it("D14 (clôture) : le bloc a quitté « Tour de parole » : un seul endroit, la fenêtre de l'étape de départ", () => {
+        const theme = lire("components/mark/reglages-agent/ThemeTourDeParole.tsx");
+        expect(theme).not.toContain('id="tour-accueil"');
+        for (const cle of ["mute_until_first_bot_complete", "accueil_interruptible", "accueil_mots_minimum", "mute_first_speech"]) {
+            expect(theme, cle).not.toMatch(new RegExp(`^    "${cle}",`, "m"));
+            expect(theme, cle).not.toContain(`r("${cle}"`);
+        }
+        const bloc = lire("components/mark/graphe/CoupureALAccueil.tsx");
         const ordre = ["mute_until_first_bot_complete", "accueil_interruptible", "accueil_mots_minimum", "mute_first_speech"].map((c) => bloc.indexOf(`"${c}"`));
         expect(ordre.every((i) => i > -1)).toBe(true);
         expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
-        expect(source).toMatch(/CLES_MUETTES\.filter\(\(cle\) => !CLES_ACCUEIL\.includes\(cle\)\)/);
+        expect(lire("components/flow/nodes/GenericNode.tsx")).toContain("<CoupureALAccueil");
     });
 
     it("quand un réglage annule « L'appelant peut couper l'accueil », le bloc le dit", async () => {

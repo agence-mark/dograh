@@ -49,43 +49,17 @@ afterEach(() => {
     vueAgent = { recette: { slug: "a", nom: "Recette A", prouvee: false }, indiquee: true, modifiable: true };
 });
 
-describe("fenêtre de création : choix de la recette", () => {
-    it("liste les recettes de la bibliothèque, marque le défaut et le non prouvé, et envoie le choix", async () => {
+describe("fenêtre de création : aucun choix de recette (Evan, 09/11)", () => {
+    it("ne liste aucune recette, n'en envoie aucune : le serveur pose celle de la bibliothèque, le builder l'applique", async () => {
         render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
-        const a = await screen.findByText("Recette A");
-        expect(a.textContent).toContain("default");
-        expect(a.textContent).toContain("not proven");
-        expect(screen.getByText("Recette B").textContent).not.toContain("not proven");
-        fireEvent.click(screen.getByText("Recette B"));
+        await screen.findByLabelText("Name");
+        expect(screen.queryByText("Recette A")).toBeNull();
+        expect(document.querySelector('[data-section="recette"]')).toBeNull();
         fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Mon agent" } });
         fireEvent.click(screen.getByText("One agent"));
         fireEvent.click(screen.getByText("Start the builder"));
-        await waitFor(() => expect(creerAgent).toHaveBeenCalled());
-        expect((creerAgent.mock.calls[0][0] as { body: { recette: string } }).body.recette).toBe("b");
-    });
-
-    it("décrit chaque recette dans la langue de l'écran, et garde le français quand l'anglais manque", async () => {
-        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
-        await screen.findByText("Recette A");
-        // L'écran de test est en anglais : B a sa phrase anglaise, A (sans) garde la sienne.
-        expect(screen.getByText("When B.")).toBeTruthy();
-        expect(screen.queryByText("Quand B.")).toBeNull();
-        expect(screen.getByText("Quand A.")).toBeTruthy();
-    });
-
-    it("par défaut, le choix est le défaut lu ; le groupe l'envoie aussi", async () => {
-        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
-        await screen.findByText("Recette A");
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Groupe" } });
-        fireEvent.click(screen.getByText("Start the builder"));
-        await waitFor(() => expect(creerGroupe).toHaveBeenCalled());
-        expect((creerGroupe.mock.calls[0][0] as { body: { recette: string } }).body.recette).toBe("a");
-    });
-
-    it("ne montre aucun nom de recette écrit dans le code (« Tala » n'est plus dans le texte du groupe)", async () => {
-        render(<FenetreCreationAgent ouvert fermer={vi.fn()} />);
-        await screen.findByText("Recette A");
-        expect(document.body.textContent).not.toMatch(/Tala|PolyAI/);
+        await waitFor(() => expect(creerAgent).toHaveBeenCalledTimes(1));
+        expect((creerAgent.mock.calls[0][0] as { body: { recette: unknown } }).body.recette).toBeNull();
     });
 });
 

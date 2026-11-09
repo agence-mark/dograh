@@ -786,6 +786,17 @@ function RenderWorkflow({
         }),
         [workflowConfigurations, nodes, estPrincipal, saveWorkflowConfigurations, workflowName],
     );
+    // [.mark] Clôture, SA-3 (D14) : ce que la fenêtre de l'étape de départ lit et écrit des réglages de l'agent.
+    const reglagesDeLAgent = useMemo(
+        () => ({
+            configuration: workflowConfigurations,
+            enregistrer: async (partie: Partial<WorkflowConfigurations>) => {
+                if (!workflowConfigurations) throw new Error('Workflow configurations not loaded');
+                await saveWorkflowConfigurations({ ...workflowConfigurations, ...partie }, workflowName);
+            },
+        }),
+        [workflowConfigurations, saveWorkflowConfigurations, workflowName],
+    );
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
         documents,
@@ -801,6 +812,7 @@ function RenderWorkflow({
         travailActif,
         ajouterOutil,
         phrasesDeLEtape,
+        reglagesDeLAgent,
     }), [
         outilsQuiEcrivent,
         guardedSaveWorkflow,
@@ -816,6 +828,7 @@ function RenderWorkflow({
         travailActif,
         ajouterOutil,
         phrasesDeLEtape,
+        reglagesDeLAgent,
     ]);
 
     const panneauFlottant = (

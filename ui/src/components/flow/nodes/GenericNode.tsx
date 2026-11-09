@@ -28,6 +28,7 @@ import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
 import { OngletsNoeud } from "@/components/mark/graphe/OngletsNoeud";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { CoupureALAccueil } from "@/components/mark/graphe/CoupureALAccueil";
 import { OrdreDInjection } from "@/components/mark/graphe/OrdreDInjection";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
@@ -821,6 +822,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         }
         if (type === "startCall") {
             poser("avant", <OrdreDInjection key="ordre-d-injection" />);
+            // D14 (clôture, SA-3) : la coupure à l'accueil vit ICI, sur l'étape de départ, et plus dans le thème « Tour de parole ».
+            poser("conversation", <CoupureALAccueil key="coupure-a-l-accueil" />);
         }
         if (type === "trigger") {
             poser("requete", <TriggerWebhookUrls key="urls" endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)} />);

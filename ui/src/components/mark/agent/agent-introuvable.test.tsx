@@ -12,7 +12,6 @@ import { espaceAffiche } from "@/components/mark/studio/base-espace";
 import { AgentIntrouvable } from "./AgentIntrouvable";
 
 const m = vi.hoisted(() => ({ espace: vi.fn(), retenir: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u" }, loading: false }) }));
 vi.mock("@/client/sdk.gen", () => ({ espaceDUnAgentApiV1EspacesAgentWorkflowIdGet: m.espace }));
 vi.mock("@/lib/espaceCourant", async (original) => ({ ...(await original<typeof import("@/lib/espaceCourant")>()), retenirEspace: m.retenir }));

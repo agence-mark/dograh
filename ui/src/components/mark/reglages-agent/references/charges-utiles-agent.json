@@ -855,20 +855,6 @@
         }
       ]
     },
-    "muet-accueil": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "mute_until_first_bot_complete": false
-          },
-          "retirees": []
-        }
-      ]
-    },
     "muet-outil": {
       "carte": "speech-tuning",
       "theme": "tour",
@@ -925,20 +911,6 @@
         }
       ]
     },
-    "muet-premiere": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "mute_first_speech": true
-          },
-          "retirees": []
-        }
-      ]
-    },
     "muet-toujours": {
       "carte": "speech-tuning",
       "theme": "tour",
@@ -948,34 +920,6 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "mute_always": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "accueil-coupable": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "accueil_interruptible": false
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "accueil-mots": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "accueil_mots_minimum": 3
           },
           "retirees": []
         }
