@@ -21,6 +21,8 @@ import { Theme } from "../ecran/Theme";
 import { useLangue } from "../langue/langue";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
+import { ID_THEME_DONNEES } from "./ThemeDonnees";
+import { VueIssuesAppel } from "./VueIssuesAppel";
 import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEtatTheme, useRevelation } from "./theme-commun";
 
 export const ID_THEME_INTERVENTIONS = "interventions";
@@ -50,7 +52,17 @@ export const CLES_INTERVENTIONS_MARK = [
 
 const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => extraire(resolue, CLES_INTERVENTIONS_MARK);
 
-export const ThemeInterventions = ({ resolue, workflowName, onSave, ouvert, onBasculer, ouvrir, versTheme }: ProprietesThemeAgent) => {
+export const ThemeInterventions = ({
+    resolue,
+    workflowName,
+    onSave,
+    ouvert,
+    onBasculer,
+    ouvrir,
+    versTheme,
+    versReglage,
+    issuesParDefaut = [],
+}: ProprietesThemeAgent & { issuesParDefaut?: Array<{ code: string; description: string }> }) => {
     const { t } = useLangue();
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extraireTout);
     const { afficher } = useRevelation(ouvrir);
@@ -98,6 +110,13 @@ export const ThemeInterventions = ({ resolue, workflowName, onSave, ouvert, onBa
             erreurs={nommerErreurs(erreurs, t, afficher)}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
+            {/* Clôture SA-5 : la vue des issues de l'appel (lecture seule) ; « Régler » mène à l'éditeur du thème Données. */}
+            <VueIssuesAppel
+                issues={resolue.call_dispositions ?? []}
+                issuesParDefaut={issuesParDefaut}
+                regler={() => (versReglage ? versReglage(ID_THEME_DONNEES, "call_dispositions") : versTheme?.(ID_THEME_DONNEES))}
+            />
+
             <Intertitre
                 id="interventions-parcours"
                 titre={{ en: "Steps and handovers", fr: "Étapes et passations" }}
