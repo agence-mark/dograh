@@ -52,11 +52,44 @@ export const MODELE_SYNTHESE_DEFAUT = "mistral-small-latest";
 const REGLAGES_VIDES: ReglagesApresAppel = {
     format: "apres-appel-mark",
     version: 1,
-    synthese: { modele: MODELE_SYNTHESE_DEFAUT, cle: null, nom_assistant: null, nom_entreprise: null, consigne: null },
-    smtp: { hote: null, port: 587, securite: "starttls", utilisateur: null, mot_de_passe: null, expediteur: null, nom_expediteur: null },
+    synthese: { modele: MODELE_SYNTHESE_DEFAUT, cle: null, nom_assistant: null, nom_entreprise: null, consigne: null, delai_s: 30, temperature: 0.2, longueur_max: 400 },
+    smtp: { hote: null, port: 587, securite: "starttls", utilisateur: null, mot_de_passe: null, expediteur: null, nom_expediteur: null, delai_s: 20 },
     recapitulatif: { actif: false, heures: [8] },
-    webhook: { url: null, secret: null },
+    webhook: { url: null, secret: null, delai_s: 10 },
+    reprises: { tentatives_max: 3, delai_1_s: 60, delai_2_s: 300 },
+    delai_sms_s: 15,
 };
+
+/** Clôture, lot C (D18) : les valeurs de l'après-appel qui étaient des constantes du code (niveau avancé). Mêmes bornes que le serveur. */
+type ChampAvance = { cle: string; id: string; libelle: Texte; aide: Texte; min: number; max: number; pas: number; defaut: number; unite: Texte };
+const S: Texte = { en: "s", fr: "s" };
+const CHAMPS_AVANCES: ChampAvance[] = [
+    { cle: "synthese_delai_s", id: "avance-synthese-delai", libelle: { en: "Summary: time to answer", fr: "Synthèse : délai de réponse" }, aide: { en: "Seconds the summary model has to answer before the step fails and is retried.", fr: "Secondes laissées au modèle de la synthèse pour répondre, avant que l'étape échoue et soit reprise." }, min: 5, max: 120, pas: 1, defaut: 30, unite: S },
+    { cle: "synthese_temperature", id: "avance-synthese-temperature", libelle: { en: "Summary: temperature", fr: "Synthèse : température" }, aide: { en: "0 is the most regular wording, 1 the most varied.", fr: "0 donne la rédaction la plus régulière, 1 la plus variée." }, min: 0, max: 1, pas: 0.1, defaut: 0.2, unite: { en: "", fr: "" } },
+    { cle: "synthese_longueur_max", id: "avance-synthese-longueur", libelle: { en: "Summary: longest answer", fr: "Synthèse : longueur maximale" }, aide: { en: "Tokens the summary may use at most (about three quarters of a word each).", fr: "Nombre de jetons au plus pour la synthèse (environ trois quarts de mot chacun)." }, min: 100, max: 2000, pas: 50, defaut: 400, unite: { en: "tokens", fr: "jetons" } },
+    { cle: "smtp_delai_s", id: "avance-mail-delai", libelle: { en: "Mail: time to answer", fr: "Mail : délai de réponse" }, aide: { en: "Seconds the mail server has to answer.", fr: "Secondes laissées au serveur de mail pour répondre." }, min: 5, max: 120, pas: 1, defaut: 20, unite: S },
+    { cle: "webhook_delai_s", id: "avance-webhook-delai", libelle: { en: "Webhook: time to answer", fr: "Webhook : délai de réponse" }, aide: { en: "Seconds the custom webhook has to answer.", fr: "Secondes laissées au webhook sur mesure pour répondre." }, min: 2, max: 60, pas: 1, defaut: 10, unite: S },
+    { cle: "delai_sms_s", id: "avance-sms-delai", libelle: { en: "SMS: time to answer", fr: "SMS : délai de réponse" }, aide: { en: "Seconds the client's Twilio has to answer when an SMS leaves.", fr: "Secondes laissées au Twilio du client pour répondre quand un SMS part." }, min: 2, max: 60, pas: 1, defaut: 15, unite: S },
+    { cle: "reprises_tentatives_max", id: "avance-reprises-tentatives", libelle: { en: "Steps: attempts before giving up", fr: "Étapes : tentatives avant d'abandonner" }, aide: { en: "A step that fails is played again alone, later, up to this many attempts, then reported to the notification addresses.", fr: "Une étape qui échoue est rejouée seule, plus tard, jusqu'à ce nombre de tentatives, puis signalée aux adresses de notification." }, min: 1, max: 6, pas: 1, defaut: 3, unite: { en: "attempts", fr: "tentatives" } },
+    { cle: "reprises_delai_1_s", id: "avance-reprises-delai-1", libelle: { en: "Steps: wait before the 2nd attempt", fr: "Étapes : attente avant la 2e tentative" }, aide: { en: "Seconds between the first failure and the second attempt.", fr: "Secondes entre le premier échec et la deuxième tentative." }, min: 10, max: 3600, pas: 10, defaut: 60, unite: S },
+    { cle: "reprises_delai_2_s", id: "avance-reprises-delai-2", libelle: { en: "Steps: wait before the next ones", fr: "Étapes : attente avant les suivantes" }, aide: { en: "Seconds between the second failure and each later attempt.", fr: "Secondes entre le deuxième échec et chaque tentative suivante." }, min: 10, max: 3600, pas: 10, defaut: 300, unite: S },
+];
+const decouperCle = (cle: string): [string, string] => {
+    const i = cle.indexOf("_");
+    return [cle.slice(0, i), cle.slice(i + 1)];
+};
+const lireAvance = (r: ReglagesApresAppel, cle: string): number | undefined => {
+    if (cle === "delai_sms_s") return r.delai_sms_s;
+    const [partie, champ] = decouperCle(cle);
+    return (r as Record<string, Record<string, number> | undefined>)[partie]?.[champ];
+};
+const poserAvance = (r: ReglagesApresAppel, cle: string, valeur: number): ReglagesApresAppel => {
+    if (cle === "delai_sms_s") return { ...r, delai_sms_s: valeur };
+    const [partie, champ] = decouperCle(cle);
+    const base = (REGLAGES_VIDES as Record<string, object | undefined>)[partie] ?? {};
+    return { ...r, [partie]: { ...base, ...((r as Record<string, object | undefined>)[partie] ?? {}), [champ]: valeur } };
+};
+const horsBornes = (c: ChampAvance, v: number) => !(Number.isFinite(v) && v >= c.min && v <= c.max);
 
 const ADRESSE = /^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/;
 
@@ -128,7 +161,7 @@ export const ThemeApresAppel = ({
     const envoye: ReglagesApresAppel = { ...brouillon, recapitulatif: { ...recap, heures: heuresLues ?? recap.heures } };
     const modifie = JSON.stringify(envoye) !== cle || heuresLues === null;
 
-    const poser = <K extends "synthese" | "smtp" | "recapitulatif" | "webhook">(partie: K, champ: string, valeur: unknown) =>
+    const poser = <K extends "synthese" | "smtp" | "recapitulatif" | "webhook" | "reprises">(partie: K, champ: string, valeur: unknown) =>
         setBrouillon((avant) => ({ ...avant, [partie]: { ...(REGLAGES_VIDES[partie] as object), ...(avant[partie] ?? {}), [champ]: valeur } }));
 
     const afficher = (cleReglage: string) => {
@@ -138,6 +171,10 @@ export const ThemeApresAppel = ({
     const erreurs: ErreurNommee[] = [];
     const nommer = (cleReglage: string, libelle: Texte, message: Texte) =>
         erreurs.push({ cle: cleReglage, libelle: t(libelle), message: t(message), afficher: () => afficher(cleReglage) });
+    for (const c of CHAMPS_AVANCES) {
+        if (horsBornes(c, lireAvance(brouillon, c.cle) ?? c.defaut))
+            nommer(c.cle, c.libelle, { en: `a number from ${c.min} to ${c.max}.`, fr: `un nombre de ${c.min} à ${c.max}.` });
+    }
     if (heuresLues === null)
         nommer("recapitulatif_heures", { en: "Recap hours", fr: "Heures du récapitulatif" }, { en: "hours from 0 to 23, separated by commas.", fr: "des heures de 0 à 23, séparées par des virgules." });
     if (!(Number.isInteger(smtp.port) && (smtp.port ?? 0) >= 1 && (smtp.port ?? 0) <= 65535))
@@ -300,6 +337,38 @@ export const ThemeApresAppel = ({
                 )}
         </>
     );
+    const champsAvances = (
+        <>
+            {CHAMPS_AVANCES.map((c) => {
+                const v = lireAvance(brouillon, c.cle) ?? c.defaut;
+                return (
+                    <ChampReglage
+                        key={c.cle}
+                        cle={c.cle}
+                        idControle={c.id}
+                        libelle={c.libelle}
+                        aides={[c.aide]}
+                        bornes={{ en: `${c.min} to ${c.max}, default ${c.defaut}`, fr: `${c.min} à ${c.max}, ${c.defaut} par défaut` }}
+                        erreur={horsBornes(c, v) ? { en: `a number from ${c.min} to ${c.max}.`, fr: `un nombre de ${c.min} à ${c.max}.` } : null}
+                    >
+                        <span className="inline-flex items-center gap-2">
+                            <Input
+                                id={c.id}
+                                type="number"
+                                min={c.min}
+                                max={c.max}
+                                step={c.pas}
+                                value={Number.isNaN(v) ? "" : v}
+                                className="w-28"
+                                onChange={(e) => setBrouillon((avant) => poserAvance(avant, c.cle, e.target.value === "" ? Number.NaN : Number(e.target.value)))}
+                            />
+                            {t(c.unite) && <span className="text-xs text-muted-foreground">{t(c.unite)}</span>}
+                        </span>
+                    </ChampReglage>
+                );
+            })}
+        </>
+    );
     const champsWebhook = (
         <>
                 <ChampReglage
@@ -410,6 +479,19 @@ export const ThemeApresAppel = ({
                             })}
                             lignes={[[t({ en: "Address", fr: "Adresse" }), unite(webhook.url) ?? aucun]]}
                             fenetre={fenetre({ en: "Custom webhook", fr: "Webhook sur mesure" }, champsWebhook)}
+                        />
+                        <BlocLu
+                            id="apres-appel-avance"
+                            titre={t({ en: "Advanced", fr: "Avancé" })}
+                            info={t({
+                                en: "Delays, summary settings and retries that were fixed in the code. Current values by default.",
+                                fr: "Délais, réglages de la synthèse et reprises qui étaient fixés dans le code. Valeurs d'avant par défaut.",
+                            })}
+                            lignes={[
+                                [t({ en: "Summary", fr: "Synthèse" }), `${lireAvance(brouillon, "synthese_delai_s") ?? 30} s · ${lireAvance(brouillon, "synthese_longueur_max") ?? 400} ${t({ en: "tokens", fr: "jetons" })}`],
+                                [t({ en: "Retries", fr: "Reprises" }), `${lireAvance(brouillon, "reprises_tentatives_max") ?? 3} ${t({ en: "attempts", fr: "tentatives" })}`],
+                            ]}
+                            fenetre={fenetre({ en: "Advanced", fr: "Avancé" }, champsAvances)}
                         />
                         <BlocLu
                             id="apres-appel-nuit"
@@ -570,6 +652,17 @@ export const ThemeApresAppel = ({
                 }}
             >
                 {champsWebhook}
+            </Intertitre>
+
+            <Intertitre
+                id="apres-appel-avance"
+                titre={{ en: "Advanced", fr: "Avancé" }}
+                description={{
+                    en: "Delays, summary settings and retries that were fixed in the code. Current values by default; change them only for a reason.",
+                    fr: "Délais, réglages de la synthèse et reprises qui étaient fixés dans le code. Valeurs d'avant par défaut ; à changer pour une raison précise.",
+                }}
+            >
+                {champsAvances}
             </Intertitre>
 
             <Intertitre
