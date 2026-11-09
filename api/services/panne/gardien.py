@@ -178,8 +178,14 @@ class GardienPanne:
             return "the fallback needs a Twilio account"
         raccroche.marquer_renvoye(self.contexte.call_sid)
         try:
+            from api.services.panne.routes import lire_reglages
+
+            delai = (await lire_reglages(self.contexte.organization_id)).delai_twilio_s
+        except Exception:  # noqa: BLE001 -- un réglage illisible ne retarde jamais le renvoi : la valeur d'avant
+            delai = None
+        try:
             await client_twilio.mettre_a_jour_appel(
-                sid, jeton, self.contexte.call_sid, twiml
+                sid, jeton, self.contexte.call_sid, twiml, delai
             )
             return None
         except client_twilio.TwilioIndisponible as erreur:

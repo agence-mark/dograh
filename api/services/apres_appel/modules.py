@@ -217,7 +217,7 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
     reglage = contexte.agent.sms
     if not (reglage.appelant.actif or reglage.equipe.actif):
         raise ModuleSansObjet("No SMS switched on for this agent.")
-    raison = sms.sans_objet(contexte.envoi)
+    raison = sms.sans_objet(contexte.envoi, contexte.reglages.issues_sans_sms)
     if raison:
         raise ModuleSansObjet(raison)
     fiche = sms.fiche_de_l_envoi(contexte.envoi)

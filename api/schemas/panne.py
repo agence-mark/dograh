@@ -76,6 +76,16 @@ class PanneAgent(BaseModel):
 class ReglagesPanne(BaseModel):
     format: str = "panne-mark"
     version: int = 1
+    # Clôture, SA-3 (D18) : ce qui était une constante du code, réglable (avancé), valeurs d'avant par défaut.
+    delai_twilio_s: float = Field(
+        default=6.0, ge=2, le=30, description="[advanced] Seconds Twilio has to answer one of our requests (hand-over, call log, address)."
+    )
+    rattrapage_fenetre_h: int = Field(
+        default=24, ge=1, le=72, description="[advanced] How many hours back the call log is read to catch up on lost calls."
+    )
+    rattrapage_attente_run_min: int = Field(
+        default=10, ge=1, le=120, description="[advanced] A call younger than this may still be finishing: it is not counted lost."
+    )
     url_secours: str | None = Field(
         default=None,
         max_length=500,

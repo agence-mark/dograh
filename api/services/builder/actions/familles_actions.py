@@ -66,7 +66,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         # N2 : lectures de l'écran qui passent par un POST
         "etablissements_reprise_essayer", "horaires_controler", "etablissements_de_l_agent_lire", "lexique_budget_lire",
         # N2 : lire les réglages de l'organisation (panne, après l'appel, vérification, planificateur, fenêtre du run, conservation)
-        "panne_organisation_lire", "apres_appel_organisation_lire", "verification_appelant_lire", "planificateur_lire",
+        "panne_organisation_lire", "apres_appel_organisation_lire", "verification_appelant_lire", "planificateur_lire", "planificateur_moteur_lire",
         "fenetre_du_run_lire", "conservation_appels_lire",
         # les cartes du dialogue : elles ne font rien d'autre que demander ou montrer (une personne clique ensuite)
         "plan_mettre_a_jour", "question_poser", "rapport_de_fin", "depense_annoncer", "correction_proposer",
@@ -95,7 +95,7 @@ _PAR_FAMILLE: dict[str, tuple[str, ...]] = {
         "annonce_regler", "lexique_ecrire", "listes_valeurs_cocher", "equipe_inviter", "campagne_creer", "campagne_modifier", "campagne_pause",
         # N2 : les restes de l'écran
         "etablissement_copier", "etablissements_reprise_ecrire", "etablissement_appliquer_a_tous", "lexique_importer", "equipe_annuler_invitation",
-        "panne_organisation_regler", "apres_appel_organisation_regler", "verification_appelant_regler", "planificateur_regler",
+        "panne_organisation_regler", "apres_appel_organisation_regler", "verification_appelant_regler", "planificateur_regler", "planificateur_moteur_regler",
         "fenetre_du_run_regler", "conservation_appels_regler",
     ),
     "autre_agent": (

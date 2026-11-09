@@ -43,6 +43,7 @@ from api.routes.objets_agent import router as objets_agent_router
 from api.routes.variables_agent import router as variables_agent_router
 from api.routes.etiquettes_prompt import router as etiquettes_prompt_router
 from api.routes.modules import router as modules_router
+from api.routes.planificateur_moteur import router as planificateur_moteur_router
 from api.routes.verification import router as verification_router
 from api.routes.agents_servis import router as agents_servis_router
 from api.routes.agents_site import router as agents_site_router
@@ -147,6 +148,8 @@ router.include_router(objets_agent_router)
 router.include_router(modules_router)
 # [.mark] l-agent-collegue, L6: the caller's verification.
 router.include_router(verification_router)
+# [.mark] Clôture, SA-3 (D18): the planner engine's limits, settable on screen (advanced).
+router.include_router(planificateur_moteur_router)
 # [.mark] builder partie 2, U2: the spaces (Labo, clients), mounted before the organization router.
 router.include_router(espaces_router)
 router.include_router(pilotage_client_router)  # [.mark] partie 3, L5b : la page de pilotage d'un client (lecture seule)

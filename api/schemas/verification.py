@@ -29,6 +29,7 @@ TYPES_LISIBLES: dict[str, tuple[str, ...]] = {
     "demandes": ("reference", "type", "statut", "creee_le", "resume"),
     "rendez_vous": ("debut", "fin", "libelle", "statut"),
 }
+# Clôture, SA-3 (D18) : ces trois valeurs sont réglables (avancé) ; les constantes sont les valeurs d'avant, par défaut.
 TENTATIVES_MAX = 2  # V6
 CODE_LONGUEUR = 6
 CODE_VALIDITE_S = 600
@@ -61,6 +62,14 @@ class ReglagesVerification(BaseModel):
     logiciel: str | None = Field(
         default=None,
         description="A translator of the domain « dossier » that holds the records. None: the client database.",
+    )
+    # Clôture, SA-3 (D18) : le niveau « avancé », valeurs d'avant par défaut, bornes contre la faute de frappe.
+    tentatives_max: int = Field(
+        default=TENTATIVES_MAX, ge=1, le=5, description="[advanced] Failed attempts (and codes sent) before the caller is blocked."
+    )
+    code_longueur: int = Field(default=CODE_LONGUEUR, ge=4, le=8, description="[advanced] Digits of the one-time code.")
+    code_validite_s: int = Field(
+        default=CODE_VALIDITE_S, ge=60, le=3600, description="[advanced] Seconds the one-time code stays valid."
     )
 
     @field_validator("champs_controle")

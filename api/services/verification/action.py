@@ -33,9 +33,6 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.verification import (
-    CODE_LONGUEUR,
-    CODE_VALIDITE_S,
-    TENTATIVES_MAX,
     TYPES_LISIBLES,
     ReglagesVerification,
 )
@@ -112,7 +109,7 @@ async def _garder(org: int, run_id: int, etat: etats.Etat) -> None:
     await garder(etats.enregistrer(org, run_id, etat))
 
 
-async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float) -> bool:
+async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float, reglages: ReglagesVerification) -> bool:
     """V5: the code by the client's Twilio, DURING the call. Wired, off, never tried for real:
     proven by stand-ins only. False when it cannot leave (no mobile, no account, timeout)."""
     from api.schemas.apres_appel import est_un_mobile, numero_e164
@@ -122,7 +119,7 @@ async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float)
     mobile = next(
         (n for n in (numero_e164(t) for t in dossier.get("telephones") or []) if est_un_mobile(n)), None
     )
-    if not mobile or etat.code_envois >= TENTATIVES_MAX:
+    if not mobile or etat.code_envois >= reglages.tentatives_max:
         return False
     fournisseur = await get_telephony_provider_for_run(run, ctx.organization_id)
     sid, jeton = getattr(fournisseur, "account_sid", None), getattr(fournisseur, "auth_token", None)
@@ -131,11 +128,11 @@ async def _envoyer_code(ctx, run, dossier: dict, etat: etats.Etat, delai: float)
     )
     if not (sid and jeton and expediteur):
         return False
-    code, sel, empreinte = etats.nouveau_code(CODE_LONGUEUR)
-    texte = f"Votre code de vérification : {code}. Il expire dans {CODE_VALIDITE_S // 60} minutes."
+    code, sel, empreinte = etats.nouveau_code(reglages.code_longueur)
+    texte = f"Votre code de vérification : {code}. Il expire dans {reglages.code_validite_s // 60} minutes."
     await asyncio.wait_for(sms.envoyer(sid, jeton, expediteur, mobile, texte), timeout=delai)
     etat.code_empreinte, etat.code_sel = empreinte, sel
-    etat.code_expire = time.time() + CODE_VALIDITE_S
+    etat.code_expire = time.time() + reglages.code_validite_s
     etat.code_envois += 1
     return True
 
@@ -228,7 +225,7 @@ async def _verifier(arguments: dict, ctx, delai_s: float, debut: float, reglages
 
     if rate:
         etat.tentatives_echouees += 1
-    if etat.tentatives_echouees >= TENTATIVES_MAX:
+    if etat.tentatives_echouees >= reglages.tentatives_max:
         etat.bloque = True
     # The attempt is kept BEFORE anything slow (the send): a deadline must not lose a failure.
     try:
@@ -241,7 +238,7 @@ async def _verifier(arguments: dict, ctx, delai_s: float, debut: float, reglages
         envoye = False
         if dossier is not None:
             try:
-                envoye = await _envoyer_code(ctx, run, dossier, etat, reste())
+                envoye = await _envoyer_code(ctx, run, dossier, etat, reste(), reglages)
             except Exception as erreur:  # noqa: BLE001 -- never raises during a call: logged
                 logger.warning(f"[.mark] Verification code not sent: {erreur!r}")
         resultat_code = (
@@ -275,7 +272,7 @@ async def _verifier(arguments: dict, ctx, delai_s: float, debut: float, reglages
     sortie: dict = {
         "status": "verified" if peut_lire else "not_verified",
         "readable": peut_lire,
-        "attempts_left": TENTATIVES_MAX - etat.tentatives_echouees,
+        "attempts_left": reglages.tentatives_max - etat.tentatives_echouees,
         **resultat_code,
     }
     if not peut_lire:

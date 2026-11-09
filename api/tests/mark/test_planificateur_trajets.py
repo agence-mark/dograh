@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import pytest
 
+from api.schemas.planificateur import ReglagesMoteurPlanificateur
 from api.enums import OrganizationConfigurationKey
 from api.services.planificateur import action as module_action
 from api.services.planificateur import trajets
@@ -202,7 +203,8 @@ async def test_une_adresse_non_placee_a_temps_ou_trop_nombreuse_est_dite_pas_inv
     assert raisons[3] == "no readable address on the appointment"
     assert bilan == {"agendas_lus": 1, "agendas_non_lus": 0, "evenements": 4, "adresses_placees": 0}
     # The cap: only the first addresses are placed.
-    monkeypatch.setattr(module_action, "MAX_LIEUX", 1)
+    # Clôture, SA-3 (D18) : le plafond est un réglage de l'organisation (lu par ``proposer``, posé ici pour l'appel direct).
+    trajets.MOTEUR.set(ReglagesMoteurPlanificateur(max_lieux=1))
 
     async def trouve(texte, code_insee=None):
         return {"latitude": 49.4, "longitude": 2.8, "label": texte, "score": 0.9, "code_insee": "60159"}

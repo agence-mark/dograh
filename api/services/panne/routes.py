@@ -185,7 +185,7 @@ async def post_adresse_de_secours(
         adresse = consigne.adresse_de_secours(url, second)
     try:
         ecrit = await client_twilio.ecrire_adresse_de_secours(
-            compte[0], compte[1], demande.numero, adresse
+            compte[0], compte[1], demande.numero, adresse, reglages.delai_twilio_s
         )
     except client_twilio.TwilioIndisponible as erreur:
         raise HTTPException(status_code=502, detail=str(erreur)) from None

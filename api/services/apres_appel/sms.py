@@ -20,7 +20,7 @@ import re
 import httpx
 from loguru import logger
 
-from api.schemas.apres_appel import LONGUEUR_SMS, est_un_mobile, numero_e164
+from api.schemas.apres_appel import ISSUES_SANS_SMS_PAR_DEFAUT, LONGUEUR_SMS, est_un_mobile, numero_e164
 from api.utils.template_renderer import render_template
 
 ETAPE = "module:sms"
@@ -28,19 +28,8 @@ DELAI_TWILIO_S = 15.0
 VARIABLE_API = "MARK_TWILIO_API_URL"  # a local stand-in for the demonstration; never set in production
 
 # D5: dispositions of a call where nobody asked anything (lower case, compared by inclusion).
-ISSUES_SANS_SMS = (
-    "voicemail",
-    "repondeur",
-    "répondeur",
-    "wrong_number",
-    "faux_numero",
-    "no_answer",
-    "busy",
-    "failed",
-    "canceled",
-    "cancelled",
-    "machine",
-)
+# Clôture, SA-3 (D18) : la liste est un réglage de l'organisation (avancé) ; celle-ci est la valeur d'avant, par défaut.
+ISSUES_SANS_SMS = tuple(ISSUES_SANS_SMS_PAR_DEFAUT)
 
 # The GSM 03.38 alphabet: a text outside it is sent in UCS-2 (70 characters a part).
 _GSM7 = set(
@@ -87,12 +76,12 @@ def fiche_de_l_envoi(envoi: dict) -> dict:
     return {c["nom"]: c["valeur"] for c in envoi.get("champs") or [] if c.get("nom")}
 
 
-def sans_objet(envoi: dict) -> str | None:
-    """D5: the reason no SMS goes out for this call, or None."""
+def sans_objet(envoi: dict, issues_sans_sms: tuple[str, ...] | list[str] | None = None) -> str | None:
+    """D5: the reason no SMS goes out for this call, or None. ``issues_sans_sms`` : le réglage de l'organisation."""
     if not (envoi.get("motif") or "").strip():
         return "No reason in the record: nobody asked anything, no SMS."
     issue = (envoi.get("issue") or "").lower()
-    if any(mot in issue for mot in ISSUES_SANS_SMS):
+    if any(mot in issue for mot in (ISSUES_SANS_SMS if issues_sans_sms is None else issues_sans_sms)):
         return f"Call classed « {envoi.get('issue')} »: no SMS."
     return None
 

@@ -152,8 +152,8 @@ ARGUMENTS = {
     "lexique_budget_lire": {"vocabulaire": {}}, "lexique_importer": {"modele": {}},
     "equipe_annuler_invitation": {"invitation_id": 1}, "campagne_rappeler": {"campagne_id": 1},
     # N2 : les réglages de l'organisation (lire, régler) et ceux d'un outil existant
-    **{f"{b}_lire": {} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
-    **{f"{b}_regler": {"valeurs": {}} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
+    **{f"{b}_lire": {} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "planificateur_moteur", "fenetre_du_run", "conservation_appels")},
+    **{f"{b}_regler": {"valeurs": {}} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "planificateur_moteur", "fenetre_du_run", "conservation_appels")},
     "outil_modifier": {"outil": "u1", "reglages": {"url": "https://x.test"}},
 }
 
