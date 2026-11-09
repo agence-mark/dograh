@@ -7,7 +7,7 @@
  *     « Tester la connexion » d'un serveur enregistré envoie son identifiant et relit la liste.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
 import { PageIntegrations } from "./PageIntegrations";
@@ -25,7 +25,7 @@ const CATALOGUE = [
     },
     { nom: "crm_essai", libelle: "CRM d'essai", integration: "crm-essai", etat: "a_essayer", categorie: "CRM", description: "Contacts du CRM.", description_en: "CRM contacts.", actions: [] },
 ];
-const ilYa = (heures: number) => new Date(Date.now() - heures * 3600_000).toISOString();
+const ilYa = (heures: number) => new Date(Date.parse("2026-06-15T15:00:00Z") - heures * 3600_000).toISOString();
 const CONNEXIONS = {
     nango_configure: true,
     connexions: [
@@ -69,7 +69,14 @@ vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false
 Element.prototype.scrollIntoView = vi.fn();
 Element.prototype.hasPointerCapture = vi.fn(() => false);
 
+// L'horloge est figée : « il y a quelques heures » reste « aujourd'hui » à toute heure du jour.
+beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T15:00:00Z"));
+});
+
 afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     vi.clearAllMocks();
     window.history.replaceState(null, "", "/");

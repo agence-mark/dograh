@@ -181,7 +181,7 @@ export function WorkflowRunsTable({
                                         </span>
                                     </Cellule>
                                     <Cellule>{(run.gathered_context?.mapped_call_disposition as string | undefined) ?? "–"}</Cellule>
-                                    <Cellule droite>
+                                    <Cellule droite className="whitespace-nowrap">
                                         {typeof run.cost_info?.call_duration_seconds === "number"
                                             ? dureeLisible(run.cost_info.call_duration_seconds)
                                             : "–"}

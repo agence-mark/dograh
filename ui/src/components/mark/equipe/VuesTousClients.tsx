@@ -166,7 +166,7 @@ export function ConversationsTousClients() {
                                     </span>
                                 </Cellule>
                                 <Cellule>{c.issue || "–"}</Cellule>
-                                <Cellule droite>{typeof c.duree === "number" ? dureeLisible(c.duree) : "–"}</Cellule>
+                                <Cellule droite className="whitespace-nowrap">{typeof c.duree === "number" ? dureeLisible(c.duree) : "–"}</Cellule>
                                 <Cellule>{c.juge_par || "–"}</Cellule>
                                 <Cellule droite>
                                     <NoteJuge note={c.note_juge ?? null} />

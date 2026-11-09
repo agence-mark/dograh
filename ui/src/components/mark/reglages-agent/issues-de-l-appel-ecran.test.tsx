@@ -25,7 +25,7 @@ const DEPART = [
     { code: "RDV_PRIS", description: "Un rendez-vous est pris." },
 ];
 
-const monter = (issues: Array<{ code: string; description: string }>, versReglage = vi.fn()) => {
+const monter = (issues: Array<{ code: string; description: string }>, versReglage = vi.fn(), depart = DEPART) => {
     render(
         <FournisseurLangue>
             <UnsavedChangesProvider>
@@ -37,7 +37,7 @@ const monter = (issues: Array<{ code: string; description: string }>, versReglag
                     onBasculer={() => undefined}
                     ouvrir={() => undefined}
                     versReglage={versReglage}
-                    issuesParDefaut={DEPART}
+                    issuesParDefaut={depart}
                 />
             </UnsavedChangesProvider>
         </FournisseurLangue>,
@@ -73,5 +73,16 @@ describe("[.mark] la vue Issues de l'appel", () => {
         expect(lignes[0]).toContain("XFER");
         expect(lignes[0]).toContain("Proposée, non enregistrée");
         expect(lignes[0]).not.toContain("De départ");
+    });
+
+    it("dit en français une description de départ telle que le serveur la propose, jamais une description écrite par quelqu'un", () => {
+        const serveur = [{ code: "qualified", description: "The call achieved the workflow's primary goal." }];
+        monter([], vi.fn(), serveur);
+        const proposee = document.querySelector("[data-vue='issues-de-l-appel'] li")?.textContent ?? "";
+        expect(proposee).toContain("objectif");
+        expect(proposee).not.toContain("primary goal");
+        cleanup();
+        monter([{ code: "qualified", description: "Texte écrit par Evan." }], vi.fn(), serveur);
+        expect(document.querySelector("[data-vue='issues-de-l-appel'] li")?.textContent).toContain("Texte écrit par Evan.");
     });
 });

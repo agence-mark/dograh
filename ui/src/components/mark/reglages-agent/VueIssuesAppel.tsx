@@ -29,6 +29,17 @@ const T = {
     },
 } satisfies Record<string, Texte>;
 
+// Les six issues de départ viennent du serveur en anglais, où elles servent de consigne au modèle qui range l'appel : elles se disent
+// en français à l'écran, sans changer ce que le modèle lit. Une description écrite par quelqu'un n'est jamais traduite (T4).
+const DESCRIPTIONS_DE_DEPART: Record<string, Texte> = {
+    qualified: { en: "The call achieved the workflow's primary goal.", fr: "L'appel a atteint l'objectif principal de l'agent." },
+    not_interested: { en: "The person clearly declined the offer or said they are not interested.", fr: "La personne a clairement refusé l'offre ou dit qu'elle n'était pas intéressée." },
+    wrong_number: { en: "The call reached the wrong person or an incorrect phone number.", fr: "L'appel a joint la mauvaise personne ou un numéro erroné." },
+    voicemail_detected: { en: "The call reached voicemail or an answering machine instead of a person.", fr: "L'appel est tombé sur une messagerie ou un répondeur, pas sur une personne." },
+    do_not_call: { en: "The person explicitly asked not to be contacted again.", fr: "La personne a explicitement demandé à ne plus être contactée." },
+    callback_requested: { en: "The person asked to be contacted again at a later time.", fr: "La personne a demandé à être recontactée plus tard." },
+};
+
 export function VueIssuesAppel({
     issues,
     issuesParDefaut,
@@ -44,6 +55,11 @@ export function VueIssuesAppel({
     // Rien d'enregistré : les issues de départ que le serveur propose se montrent (grisées), sans rien écrire.
     const enregistrees = issues.length > 0;
     const lignes = enregistrees ? issues : issuesParDefaut;
+    const descriptionDe = (issue: Issue) => {
+        const proposee = issuesParDefaut.find((i) => i.code === issue.code);
+        const texte = DESCRIPTIONS_DE_DEPART[issue.code];
+        return texte && proposee?.description === issue.description ? t(texte) : issue.description;
+    };
     return (
         <section className="space-y-2" data-vue="issues-de-l-appel">
             <p className="flex items-center gap-1.5 text-sm font-semibold">
@@ -58,7 +74,7 @@ export function VueIssuesAppel({
                             <span className="w-5 shrink-0 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                                 <p className="font-mono text-xs font-medium">{issue.code}</p>
-                                <p className="line-clamp-2 text-xs text-muted-foreground">{issue.description}</p>
+                                <p className="line-clamp-2 text-xs text-muted-foreground">{descriptionDe(issue)}</p>
                             </div>
                             <span className="shrink-0 text-xs text-muted-foreground">
                                 {!enregistrees ? t(T.proposee) : deDepart.has(issue.code.toLowerCase()) ? t(T.defaut) : t(T.propre)}
