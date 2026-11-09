@@ -34,7 +34,9 @@ class EpinglerLaPrincipale(BaseModel):
 class ProtectionDemandee(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    protegee: bool = Field(description="Protect the main branch (entered only by a reviewed merge) or lift the flag.")
+    protegee: bool | None = Field(
+        description="Protect the live version of this agent (the main branch is then entered only by a reviewed merge), lift it, or null to go back to the default rule."
+    )
 
 
 class VersionDeBranche(BaseModel):
@@ -55,6 +57,8 @@ class BrancheVue(BaseModel):
     principale: bool
     protegee: bool
     protegee_par_defaut: bool = False
+    # Clôture, lot B (D5) : le choix de l'équipe pour la principale (null : la règle par défaut joue).
+    protection_reglee: bool | None = None
     part: int
     version_en_ligne: int | None
     versions: list[VersionDeBranche]

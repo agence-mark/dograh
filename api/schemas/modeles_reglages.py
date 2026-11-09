@@ -131,6 +131,10 @@ class ResultatApplication(BaseModel):
     fournisseurs_sans_cle: list[str] = Field(
         description="Providers the template brings for which the agent and its organization have no key."
     )
+    branche: dict | None = Field(
+        default=None,
+        description="Set when the agent's live version is protected: the working branch the template was applied on (id and name).",
+    )
 
 
 class FichierDeModele(BaseModel):

@@ -99,8 +99,8 @@ async def test_la_vue_dit_la_protection_et_la_route_la_pose(org, autre_org, db_s
         assert vue["branches"][0]["protegee"] is False and vue["branches"][0]["protegee_par_defaut"] is False
         r = await client.put(f"/api/v1/builder/branches/{agent.id}/principale/protection", json={"protegee": True})
         assert r.status_code == 200 and r.json()["protegee"] is True and r.json()["protegee_par_defaut"] is False, r.text
-        # un client en ligne reste protégé par la règle, drapeau levé ou non ; « en ligne » = publié par une personne
-        # après la création (2bc67d71), d'où une version de la principale de plus
+        # clôture, lot B (D5) : chez un client en ligne la règle protège par défaut, mais l'équipe peut lever la protection de CET agent ;
+        # « en ligne » = publié par une personne après la création (2bc67d71), d'où une version de la principale de plus
         from api.db.models import WorkflowDefinitionModel
 
         async with db_session.async_session() as s:
@@ -108,9 +108,12 @@ async def test_la_vue_dit_la_protection_et_la_route_la_pose(org, autre_org, db_s
             await s.commit()
         monkeypatch.setattr("api.services.builder.constantes.organisation_bibliotheque", lambda: autre_org.organisation.id)
         r = await client.put(f"/api/v1/builder/branches/{agent.id}/principale/protection", json={"protegee": False})
-        assert r.json() == {"ok": True, "protegee": True, "protegee_par_defaut": True}
+        assert r.json() == {"ok": True, "protegee": False, "protegee_par_defaut": False, "reglee": False}
+        r = await client.put(f"/api/v1/builder/branches/{agent.id}/principale/protection", json={"protegee": None})  # retour à la règle
+        assert r.json() == {"ok": True, "protegee": True, "protegee_par_defaut": True, "reglee": None}
         vue = (await client.get(f"/api/v1/builder/branches/{agent.id}")).json()
         assert vue["branches"][0]["protegee"] is True and vue["branches"][0]["protegee_par_defaut"] is True
+        assert vue["branches"][0]["protection_reglee"] is None
 
 
 async def test_la_protection_d_un_autre_agent_ou_organisation_est_un_404(org, autre_org, db_session, async_session, test_client_factory):

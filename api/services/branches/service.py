@@ -52,6 +52,7 @@ async def vue(organization_id: int, agent: Any, user_id: int | None) -> dict[str
     numeros = {v["id"]: v["version_number"] for v in principales} | {v["id"]: v["version_number"] for v in autres}
     principale = next(b for b in branches if b.est_principale)
     protegee_en_fait, protegee_par_la_regle = await db_client.protection_de_la_principale(organization_id, agent.id)
+    protection_reglee = principale.protection_choisie
     en_ligne_principale = principale.head_definition_id or getattr(agent, "released_definition_id", None)
     resultat = []
     for b in branches:
@@ -77,6 +78,7 @@ async def vue(organization_id: int, agent: Any, user_id: int | None) -> dict[str
                 "principale": b.est_principale,
                 "protegee": protegee_en_fait if b.est_principale else b.protegee,
                 "protegee_par_defaut": bool(b.est_principale and protegee_par_la_regle),
+                "protection_reglee": protection_reglee if b.est_principale else None,
                 "part": b.part_trafic,
                 "version_en_ligne": numeros.get(tete),
                 "versions": versions,
@@ -127,7 +129,8 @@ async def epingler_la_principale(organization_id: int, agent: Any, version: int 
 
 
 async def proteger_la_principale(organization_id: int, agent: Any, protegee: bool) -> dict[str, Any]:
-    """Pose ou lève le drapeau. Un agent client en ligne reste protégé par la règle, drapeau levé ou non (la réponse le dit)."""
+    """Clôture, lot B (D5) : le réglage « Protéger la version en ligne » de CET agent. ``True`` / ``False`` : le choix de l'équipe (levable même chez un
+    client) ; ``None`` : retour à la règle par défaut (allumée chez un client à la première publication par une personne, éteinte au Labo)."""
     await db_client.regler_la_protection_de_la_principale(organization_id, agent.id, protegee)
     en_fait, par_la_regle = await db_client.protection_de_la_principale(organization_id, agent.id)
-    return {"protegee": en_fait, "protegee_par_defaut": par_la_regle}
+    return {"protegee": en_fait, "protegee_par_defaut": par_la_regle, "reglee": protegee}

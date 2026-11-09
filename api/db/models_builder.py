@@ -156,6 +156,9 @@ class WorkflowBranchModel(Base):
     head_definition_id = Column(Integer, ForeignKey("workflow_definitions.id", use_alter=True, name="fk_workflow_branches_head"), nullable=True)
     base_definition_id = Column(Integer, nullable=True)
     protegee = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Clôture, lot B (D5) : le RÉGLAGE par agent « Protéger la version en ligne » (ligne de la principale). ``None`` : la règle par défaut
+    # (allumée chez un client dès sa première publication par une personne, éteinte au Labo) ; sinon le choix de l'équipe, journalisé.
+    protection_choisie = Column(Boolean, nullable=True)
     cree_par = Column(Integer, nullable=True)
     cree_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=lambda: datetime.now(UTC))
     archivee_le = Column(DateTime(timezone=True), nullable=True)
