@@ -248,7 +248,6 @@ export function PageModelesEtCles() {
                                 </button>
                             ))}
                         </span>
-                        <Info>{t(mode === "chaine" ? T.infoChaine : T.infoTempsReel)}</Info>
                         {actif !== null &&
                             (actif === mode ? (
                                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium" data-mode-actif={mode}>
@@ -268,7 +267,10 @@ export function PageModelesEtCles() {
                                     {t(mode === "chaine" ? T.utiliserChaine : T.utiliserTempsReel)}
                                 </Button>
                             ))}
-                        <Info>{t(T.infoDeuxConfigs)}</Info>
+                        {/* Clôture D2 (É12) : une seule « ! », comme la maquette : ce que fait le mode choisi, puis les deux configurations gardées. */}
+                        <Info>
+                            {t(mode === "chaine" ? T.infoChaine : T.infoTempsReel)} {t(T.infoDeuxConfigs)}
+                        </Info>
                     </div>
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="briques">
                         {BRIQUES_DU_MODE[mode].map((service) => {

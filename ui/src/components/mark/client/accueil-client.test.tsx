@@ -44,6 +44,7 @@ vi.mock("@/client/sdk.gen", () => ({
     getConnexionsApiV1ConnecteursConnexionsGet: m.connexions,
     listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet: m.telephonie,
     listerLesClesApiV1ClesGet: m.cles,
+    ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: vi.fn(),
 }));
 
 const chiffre = (id: ChiffrePilotage["id"], valeur: number | null, tendance: number | null, plus: Partial<ChiffrePilotage> = {}): ChiffrePilotage => ({
@@ -243,11 +244,11 @@ describe("la page de pilotage d'un client", () => {
         expect(screen.queryByText(/Reserved to/)).toBeNull();
     });
 
-    it("« Ouvrir son portail » reste grisé avec sa raison", async () => {
+    it("« Ouvrir son portail » est le bouton de la Relation clients ; sans adresse de portail réglée, grisé avec son « ! » (É16)", async () => {
         await rendre();
         const bouton = screen.getByRole("button", { name: /Open its portal/ }) as HTMLButtonElement;
         expect(bouton.disabled).toBe(true);
-        expect(bouton.getAttribute("title")).toBe("The portal does not exist yet.");
+        expect(bouton.parentElement!.querySelector('[aria-label="More information"]')).not.toBeNull();
     });
 });
 

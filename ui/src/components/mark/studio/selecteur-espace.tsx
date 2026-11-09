@@ -24,13 +24,14 @@ import {
 import { useAuth } from "@/lib/auth";
 import { retenirEspace } from "@/lib/espaceCourant";
 import { adresseDe, type Espace, listerEspaces } from "@/lib/espaces";
+import { AvatarClient } from "../relation/commun";
 import { RELATION_CLIENTS } from "./nom-espace";
 import logger from "@/lib/logger";
 
 type Props = { espace: "labo" | "client" | "relation"; org: string | null; className?: string };
 
 /** La puce de l'espace : le Labo en bleu .mark, la Relation clients en rose, un client en gris (comme la maquette). */
-export function PuceEspace({ espace, petite = false }: { espace: "labo" | "client" | "relation"; petite?: boolean }) {
+export function PuceEspace({ espace, petite = false, client }: { espace: "labo" | "client" | "relation"; petite?: boolean; client?: { id: number; nom: string } | null }) {
     const taille = petite ? "size-5 rounded" : "size-7 rounded-md";
     const icone = petite ? "size-3 text-white" : "size-4";
     if (espace === "relation")
@@ -45,6 +46,8 @@ export function PuceEspace({ espace, petite = false }: { espace: "labo" | "clien
                 <FlaskConical className={icone} />
             </span>
         );
+    // Clôture D2 (É17) : un client a sa pastille à initiales colorées (comme la maquette), reconnaissable d'un coup d'œil ; sans son nom (encore lu), l'immeuble.
+    if (client?.nom) return <AvatarClient id={client.id} nom={client.nom} taille={petite ? 20 : 28} />;
     return (
         <span className={`flex shrink-0 items-center justify-center bg-accent text-xs font-semibold text-accent-foreground ${taille}`}>
             <Building2 className={icone} />
@@ -86,7 +89,9 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                     <PuceEspace espace="labo" petite />
                 </span>
             ) : (
-                <Building2 className="mr-2 size-4" />
+                <span className="mr-2">
+                    <PuceEspace espace="client" petite client={{ id: e.id, nom: e.nom }} />
+                </span>
             )}
             <span className="min-w-0 flex-1 truncate">{e.nom}</span>
             {espace !== "relation" && e.id === courant?.id && <Check className="ml-1 size-4" />}
@@ -104,7 +109,7 @@ export function SelecteurEspace({ espace, org, className }: Props) {
                         aria-label={`${t({ en: "Switch space", fr: "Changer d’espace" })} : ${libelle}`}
                         className="flex w-full cursor-pointer items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:bg-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
-                        <PuceEspace espace={espace} />
+                        <PuceEspace espace={espace} client={espace === "client" && courant ? { id: courant.id, nom: courant.nom } : null} />
                         <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                             {/* SE-1 (04/11) : plus de libellé « Espace » au-dessus du nom ; « Client » reste pour un client. */}
                             {espace === "client" && (

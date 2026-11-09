@@ -165,6 +165,16 @@ describe("barre latérale", () => {
         expect(document.querySelector("[data-espace='client']")).not.toBeNull();
     });
 
+    it("« Ouvrir son portail » est au bas de la barre d'un client, pas du Labo (É15)", () => {
+        chemin = "/clients/7/agents";
+        monter();
+        expect(screen.getByRole("button", { name: "Ouvrir son portail" })).toBeTruthy();
+        cleanup();
+        chemin = "/labo/agents";
+        monter();
+        expect(screen.queryByRole("button", { name: "Ouvrir son portail" })).toBeNull();
+    });
+
     it("aucun champ de recherche (E60)", () => {
         monter();
         expect(screen.queryByRole("searchbox")).toBeNull();

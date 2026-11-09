@@ -46,6 +46,7 @@ export const CENTREES: Record<string, string> = {
     "components/layout/SidebarOrganizationSwitcher.tsx": "choix court d'une organisation",
     "components/mark/studio/fenetre-profil.tsx": "Mon profil : saisie courte, ouverte depuis la barre latérale",
     "app/campaigns/[campaignId]/page.tsx": "confirmation ; relance de vrais appels",
+    "components/mark/telephonie/PageTelephonie.tsx": "confirmation de suppression d'une configuration de téléphonie",
     "app/files/page.tsx": "dépôt d'un fichier : saisie courte",
     "app/workflow/[workflowId]/run/[runId]/components/ApiKeyErrorDialog.tsx": "erreur bloquante qui interrompt",
     "app/workflow/[workflowId]/run/[runId]/components/WorkflowConfigErrorDialog.tsx": "erreur bloquante qui interrompt",
