@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { REDIRECTIONS } from "@/lib/redirections";
 import { FournisseurLangue } from "../langue/langue";
 import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
 import { EnteteStudio, ShellStudio } from "./shell-studio";
@@ -87,7 +88,9 @@ describe("menus (E3, E31)", () => {
     it("rien de mort : chaque entrée mène à un écran qui existe aujourd'hui", () => {
         const app = join(process.cwd(), "src", "app");
         for (const entree of [...toutesLesEntrees(MENU_LABO), ...toutesLesEntrees(MENU_CLIENT)]) {
-            expect(existsSync(join(app, entree.actuelle, "page.tsx")), `${entree.id} -> ${entree.actuelle}`).toBe(true);
+            // Une ancienne adresse retirée (« À trier », l'ancienne page des outils) mène à sa place par une redirection : elle ne meurt pas.
+            const redirigee = REDIRECTIONS.some((r) => r.source === entree.actuelle);
+            expect(existsSync(join(app, entree.actuelle, "page.tsx")) || redirigee, `${entree.id} -> ${entree.actuelle}`).toBe(true);
         }
     });
 

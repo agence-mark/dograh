@@ -28,6 +28,7 @@ import { espaceDe } from "@/components/mark/studio/navigation-studio";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { TYPES_D_ALERTE } from "@/components/mark/tri/libelles";
+import { TauxDeSortieDImpasse } from "@/components/mark/tri/TauxDeSortieDImpasse";
 import { useAuth } from "@/lib/auth";
 import { DateRelative } from "@/components/mark/studio/date-relative";
 
@@ -47,6 +48,7 @@ const T = {
         fr: "Problèmes relevés par le juge, le code, les tests et l'équipe ; les cas identiques sont regroupés et comptés.",
     },
     pannes: { en: "Failures and alerts", fr: "Pannes et alertes" },
+    impasses: { en: "Dead ends", fr: "Impasses" },
     aJuger: { en: "To judge", fr: "À juger" },
     gravite: { en: "Severity", fr: "Gravité" },
     probleme: { en: "Problem", fr: "Problème" },
@@ -83,7 +85,7 @@ export function PageAAmeliorer() {
     const { user, loading } = useAuth();
     // F-2 (SE-17) : les alertes restent aussi un onglet de Qualité (aucune fonction en moins) ; un lien y mène, dans le même espace.
     const lienAlertes = `${espaceDe(usePathname() ?? "/labo").base}/qualite?onglet=alertes`;
-    const ids = [...ETATS.map((e) => e.id), "pannes", "a_juger"];
+    const ids = [...ETATS.map((e) => e.id), "pannes", "impasses", "a_juger"];
     const { actif, choisir } = useOngletDeLAdresse(ids, "a_trier");
     const [liste, setListe] = useState<Charge<PageDAmeliorations>>({ etat: "chargement" });
     const [pannes, setPannes] = useState<Charge<LigneDAlerte[]>>({ etat: "chargement" });
@@ -141,7 +143,7 @@ export function PageAAmeliorer() {
     };
     // E104 : l'onglet existe quand le juge des vrais appels est sur Claude Code (même vide : « Rien à juger »), ou tant que des éléments attendent.
     const aDesAppelsAJuger = sources?.juge_appels === "claude_code" || (aJuger.etat === "pret" && aJuger.donnees.length > 0);
-    const onglets = [...ETATS.map((e) => ({ id: e.id as string, titre: t(e.libelle) })), { id: "pannes", titre: t(T.pannes) }, ...(aDesAppelsAJuger ? [{ id: "a_juger", titre: t(T.aJuger) }] : [])];
+    const onglets = [...ETATS.map((e) => ({ id: e.id as string, titre: t(e.libelle) })), { id: "pannes", titre: t(T.pannes) }, { id: "impasses", titre: t(T.impasses) }, ...(aDesAppelsAJuger ? [{ id: "a_juger", titre: t(T.aJuger) }] : [])];
     const courant = actif === "a_juger" && !aDesAppelsAJuger ? "a_trier" : actif;
 
     return (
@@ -166,6 +168,8 @@ export function PageAAmeliorer() {
             </div>
             {courant === "a_juger" ? (
                 <TableDesAppelsAJuger charge={aJuger} t={t} langue={langue} reessayer={() => void chargerLaFile()} />
+            ) : courant === "impasses" ? (
+                <TauxDeSortieDImpasse />
             ) : courant === "pannes" ? (
                 <>
                     <Link href={lienAlertes} className="inline-block cursor-pointer text-sm text-muted-foreground hover:font-semibold hover:text-foreground" data-lien-alertes>

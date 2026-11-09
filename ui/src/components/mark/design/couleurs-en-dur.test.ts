@@ -85,7 +85,6 @@ const HEX_ALIGNES_SUR_LA_PALETTE = new Set([
     // A tool's `iconColor` is saved as `icon_color` when the tool is created (Evan,
     // 27/09: grey for new tools, and the existing ones set to grey in the database).
     "app/tools/config.tsx",
-    "app/tools/page.tsx",
     "components/mark/outils/FenetreNouvelOutil.tsx",
     "components/flow/ToolSelector.tsx",
 ]);
