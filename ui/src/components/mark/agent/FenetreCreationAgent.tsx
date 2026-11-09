@@ -7,7 +7,8 @@
  *
  * - Structure : un groupe avec spécialistes, ou un agent (le groupe est grisé en temps réel : il change de modèle d'un agent à
  *   l'autre, ce qu'une session temps réel ne peut pas faire) ;
- * - Recette : lue dans la bibliothèque (aucun nom écrit ici), le défaut d'abord choisi ;
+ * - Recette : AUCUN choix à la création (Evan, 09/11) : elle vit dans la bibliothèque, le serveur pose celle par défaut (réglable) et
+ *   c'est le builder qui l'applique en posant ses questions ;
  * - Cerveau : en chaîne (défaut) ou temps réel (posé sur l'agent créé, `model_overrides.is_realtime`) ; en temps réel, la liste
  *   des fonctions qui ne jouent qu'en chaîne est montrée grisée ;
  * - Point de départ : avec le builder (panneau ouvert), depuis une recette (la recette posée, sans le builder), vide (gabarit neutre).
@@ -23,7 +24,6 @@ import { useEffect, useState } from "react";
 import {
     createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost,
     creerUnGroupeApiV1WorkflowGroupePost,
-    listerLesRecettesApiV1BuilderRecettesGet,
     updateWorkflowApiV1WorkflowWorkflowIdPut,
 } from "@/client/sdk.gen";
 import type { WorkflowConfigurationDefaults } from "@/client/types.gen";
@@ -61,13 +61,6 @@ const T = {
     },
     un: { en: "One agent", fr: "Un agent" },
     unPhrase: { en: "One prompt and a few steps. For a simple need or the site.", fr: "Un seul prompt et peu d'étapes. Pour un besoin simple ou le site." },
-    recetteTitre: { en: "Recipe", fr: "Recette" },
-    recetteInfo: {
-        en: "How the builder builds this agent: its pieces, its method. Read from the library; it can still change after a publication, with a warning (Settings › Recipe).",
-        fr: "La façon dont le builder construit cet agent : ses pièces, sa méthode. Lue dans la bibliothèque ; elle se change encore après une publication, avec un avertissement (Réglages › Recette).",
-    },
-    nonProuvee: { en: "not proven", fr: "non prouvée" },
-    parDefaut: { en: "default", fr: "par défaut" },
     cerveau: { en: "Brain", fr: "Cerveau" },
     cerveauInfo: {
         en: "Chain: transcription, model and voice are three services you set, and the whole agent engine plays. Real time: one model listens and speaks, faster to answer, but without the chain features below.",
@@ -148,7 +141,6 @@ const CHAINE_SEULEMENT: { nom: Texte; info: Texte }[] = [
     },
 ];
 
-type RecetteProposee = { slug: string; nom: string; quand: string; quand_en?: string; prouvee: boolean };
 export type Structure = "groupe" | "un";
 export type Depart = "builder" | "recette" | "vide";
 export type Cerveau = "chaine" | "temps-reel";
@@ -184,9 +176,6 @@ export function FenetreCreationAgent({
     const [nomTouche, setNomTouche] = useState(false);
     const [description, setDescription] = useState("");
     const [enCours, setEnCours] = useState(false);
-    const [recettes, setRecettes] = useState<RecetteProposee[]>([]);
-    const [defautRecette, setDefautRecette] = useState<string | null>(null);
-    const [recette, setRecette] = useState("");
     const tempsReel = cerveau === "temps-reel";
     const structureEffective: Structure = tempsReel ? "un" : structure;
     const entetes = organisationId ? { [ENTETE_ORGANISATION]: String(organisationId) } : undefined;
@@ -194,19 +183,6 @@ export function FenetreCreationAgent({
     useEffect(() => {
         if (ouvert) setDepart(departParDefaut);
     }, [ouvert, departParDefaut]);
-
-    // La liste des recettes vient de la bibliothèque (lot M) : aucune n'est écrite ici. Vide ou illisible : la section n'apparaît pas.
-    useEffect(() => {
-        if (!ouvert) return;
-        void listerLesRecettesApiV1BuilderRecettesGet({ headers: entetes }).then((r) => {
-            const vue = r.data as { defaut: string | null; recettes: RecetteProposee[] } | undefined;
-            if (!vue) return;
-            setRecettes(vue.recettes);
-            setDefautRecette(vue.defaut);
-            setRecette((actuelle) => actuelle || vue.defaut || "");
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- relue à chaque ouverture, pour ce client
-    }, [ouvert, organisationId]);
 
     const poserLeTempsReel = async (workflowId: number, configurations: WorkflowConfigurationDefaults | null | undefined) => {
         const actuelles = (configurations ?? {}) as Record<string, unknown>;
@@ -228,13 +204,13 @@ export function FenetreCreationAgent({
         try {
             let cree: AgentCree;
             if (structureEffective === "groupe") {
-                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ headers: entetes, body: { name: propre, folder_id: dossierId, recette: recette || null } });
+                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ headers: entetes, body: { name: propre, folder_id: dossierId, recette: null } });
                 if (reponse.error || !reponse.data) throw reponse.error ?? new Error("groupe");
                 cree = { workflowId: reponse.data.workflow_id, nom: propre };
             } else {
                 const reponse = await createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost({
                     headers: entetes,
-                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "", recette: recette || null },
+                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "", recette: null },
                 });
                 if (reponse.error || !reponse.data?.id) throw reponse.error ?? new Error("agent");
                 // Le serveur nomme l'agent d'après le cas d'usage ; le nom donné ici est celui qu'on garde.
@@ -316,33 +292,6 @@ export function FenetreCreationAgent({
                             })}
                         </div>
                     </div>
-                    {recettes.length > 0 && (
-                        <div className="space-y-2" data-section="recette">
-                            <p className="flex items-center gap-1.5 text-sm font-medium">
-                                {t(T.recetteTitre)}
-                                <Info>{t(T.recetteInfo)}</Info>
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                                {recettes.map((r) => (
-                                    <button
-                                        key={r.slug}
-                                        type="button"
-                                        data-recette={r.slug}
-                                        aria-pressed={recette === r.slug}
-                                        onClick={() => setRecette(r.slug)}
-                                        className={`${carte(recette === r.slug)} p-3`}
-                                    >
-                                        <p className="text-sm font-medium">
-                                            {r.nom}
-                                            {r.slug === defautRecette && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.parDefaut)}</span>}
-                                            {!r.prouvee && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.nonProuvee)}</span>}
-                                        </p>
-                                        {r.quand && <p className="text-[11px] leading-snug text-muted-foreground">{t({ en: r.quand_en || r.quand, fr: r.quand })}</p>}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                     <div className="space-y-2" data-section="cerveau">
                         <p className="flex items-center gap-1.5 text-sm font-medium">
                             {t(T.cerveau)}

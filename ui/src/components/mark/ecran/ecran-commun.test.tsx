@@ -14,7 +14,8 @@ import { FournisseurLangue } from "../langue/langue";
 import { ChampReglage, texteBornes } from "./ChampReglage";
 import { Intertitre } from "./Intertitre";
 import { NavigationThemes } from "./NavigationThemes";
-import { type ErreurNommee, Theme } from "./Theme";
+import { ContextePanneau, PanneauDroit, useEtatPanneau } from "../studio/panneau-droit";
+import { ContexteCartes, type ErreurNommee, Theme } from "./Theme";
 
 afterEach(() => {
     cleanup();
@@ -170,5 +171,62 @@ describe("[.mark] a setting", () => {
         expect(texteBornes("user_speech_timeout")).toEqual({ en: "> 0 · ≤ 10", fr: "> 0 · ≤ 10" });
         expect(texteBornes("stt_ttfs_p99_latency", true)?.fr).toBe("> 0 · ≤ 10 · facultatif");
         expect(texteBornes("inconnu")).toBeNull();
+    });
+});
+
+// Clôture, SA-3 : un thème de réglages n'est jamais une fenêtre centrée (règle d'Evan, 04/11) : dans le cadre commun, sa fenêtre
+// est un onglet du panneau de droite ; hors du cadre (un test, un thème seul), elle garde sa forme d'avant.
+function CadreAvecPanneau({ children }: { children: React.ReactNode }) {
+    const etat = useEtatPanneau();
+    return (
+        <ContextePanneau.Provider value={etat}>
+            <main>{children}</main>
+            <PanneauDroit etat={etat} dessus={false} largeurAffichee={etat.largeur} />
+        </ContextePanneau.Provider>
+    );
+}
+
+describe("[.mark] la fenêtre d'un thème", () => {
+    const enCartes = (cadre: boolean) => {
+        const theme = (
+            <ContexteCartes.Provider value={{ annuler: () => undefined }}>
+                <ThemeOuvert />
+            </ContexteCartes.Provider>
+        );
+        return enFrancais(cadre ? <CadreAvecPanneau>{theme}</CadreAvecPanneau> : theme);
+    };
+    function ThemeOuvert() {
+        const [ouvert, setOuvert] = useState(true);
+        return (
+            <Theme
+                id="tour"
+                icone={Settings}
+                titre={TITRE}
+                description={{ en: "When the agent decides the caller has finished.", fr: "Quand l'agent décide que l'appelant a fini." }}
+                resume={[]}
+                ouvert={ouvert}
+                onBasculer={() => setOuvert((o) => !o)}
+                modifie={false}
+                erreurs={[]}
+                enregistrement={{ onEnregistrer: () => undefined, enCours: false }}
+            >
+                <p>contenu du thème</p>
+            </Theme>
+        );
+    }
+
+    it("dans le cadre commun, s'ouvre comme onglet du panneau de droite, jamais au milieu de l'écran", () => {
+        enCartes(true);
+        expect(screen.getAllByRole("tab").map((o) => o.textContent)).toEqual([expect.stringContaining("Tour de parole")]);
+        expect(document.querySelector("[data-fond-fenetre]")).toBeNull();
+        expect(document.querySelector('[data-slot="dialog-content"][data-centree]')).toBeNull();
+        expect(document.querySelector("[data-corps-panneau] [data-fenetre-theme='tour']")).toBeTruthy();
+        expect(screen.getByText("contenu du thème")).toBeTruthy();
+    });
+
+    it("hors du cadre commun, garde sa forme d'avant (posée dans la carte)", () => {
+        enCartes(false);
+        expect(document.querySelector("[data-fond-fenetre] [data-fenetre-theme='tour']")).toBeTruthy();
+        expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 });

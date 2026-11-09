@@ -20,6 +20,7 @@ import { ChevronDown, type LucideIcon, Search, X } from "lucide-react";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ import { useFormeMaquette } from "./forme-maquette";
 import { THEMES_COMMUNS_EN_LECTURE, useGroupe, ZoneCommune } from "../groupe/contexte-groupe";
 import { type Texte, useLangue } from "../langue/langue";
 import { FenetreParente } from "../studio/fenetre-parente";
+import { usePanneau } from "../studio/panneau-droit";
 import { Info } from "../studio/marques";
 import { ContexteLigneMaquette } from "./ChampReglage";
 
@@ -142,21 +144,52 @@ export const Pastilles = ({ modifie, enErreur }: { modifie: boolean; enErreur: b
 };
 
 /**
- * [.mark] La fenêtre d'un thème : centrée, en-tête et pied fixes, corps blanc qui défile (E42, E55). Posée DANS la carte
- * (et non dans un portail) : le contenu du thème reste un descendant de son thème, comme avant (liens « afficher »,
- * tests, ancres). Echap ou un clic sur le fond la ferme ; une fenêtre ouverte depuis elle prend sa taille (E71).
+ * [.mark] La fenêtre d'un thème : un onglet du panneau de droite (règle d'Evan, 04/11 : un thème de réglages n'est jamais une
+ * fenêtre centrée), en-tête et pied fixes, corps blanc qui défile (E42, E55). Une fenêtre ouverte depuis elle s'empile dans le
+ * même onglet avec une flèche retour (E71). Clôture, SA-3 : posée par `Dialog`, qui range la fenêtre dans le panneau ; les
+ * liens « afficher » et les ancres se trouvent par leur identifiant dans la page, le contenu reste celui du thème (même arbre React).
+ *
+ * Hors du cadre commun (un thème rendu seul, un test : pas de panneau), l'ancienne forme reste : centrée, posée DANS la carte
+ * (et non dans un portail), Echap ou un clic sur le fond la ferme.
  */
 const TAILLE_FENETRE_THEME = "sm:max-w-3xl h-[86vh]";
+/** Le titre de la fenêtre : celui du Dialog dans le panneau (le nom de l'onglet le lit), un simple titre hors du cadre. */
+const TitreFenetre = ({ id, children }: { id: string; children: ReactNode }) =>
+    usePanneau() ? (
+        <DialogTitle id={id} className="flex items-center gap-2">
+            {children}
+        </DialogTitle>
+    ) : (
+        <h2 id={id} className="flex items-center gap-2 text-lg leading-none font-semibold">
+            {children}
+        </h2>
+    );
 const FenetreDuTheme = ({ id, onFermer, children }: { id: string; onFermer: () => void; children: ReactNode }) => {
     const { t } = useLangue();
+    const panneau = usePanneau();
     useEffect(() => {
+        if (panneau) return;
         const surTouche = (e: KeyboardEvent) => {
             // Une fenêtre ouverte depuis celle-ci (portail Radix) garde l'Echap pour elle-même.
             if (e.key === "Escape" && !e.defaultPrevented && !document.querySelector("[data-slot='dialog-content']")) onFermer();
         };
         document.addEventListener("keydown", surTouche);
         return () => document.removeEventListener("keydown", surTouche);
-    }, [onFermer]);
+    }, [onFermer, panneau]);
+    if (panneau) {
+        return (
+            <Dialog open onOpenChange={(ouvert) => !ouvert && onFermer()}>
+                <DialogContent
+                    aria-labelledby={`${id}-titre`}
+                    aria-describedby={undefined}
+                    data-fenetre-theme={id}
+                    className={cn("flex flex-col gap-0 overflow-hidden p-0", TAILLE_FENETRE_THEME)}
+                >
+                    {children}
+                </DialogContent>
+            </Dialog>
+        );
+    }
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -287,10 +320,10 @@ export const Theme = ({
                             <Icone className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
-                            <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
+                            <TitreFenetre id={`${id}-titre`}>
                                 {t(titre)}
                                 {pastillesTitre}
-                            </h2>
+                            </TitreFenetre>
                             <p className="mt-1 truncate text-sm text-muted-foreground">{t(description)}</p>
                         </div>
                     </div>
@@ -307,11 +340,11 @@ export const Theme = ({
                 </div>
             ) : (
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
-                    <h2 id={`${id}-titre`} className="flex items-center gap-2 text-lg leading-none font-semibold">
+                    <TitreFenetre id={`${id}-titre`}>
                         {t(titre)}
                         <Info>{t(description)}</Info>
                         {pastillesTitre}
-                    </h2>
+                    </TitreFenetre>
                 </div>
             )}
             <div ref={corps} className={cn("min-h-0 flex-1 overflow-y-auto bg-background px-6 py-5", dansAgent ? "space-y-8" : "space-y-6")}>

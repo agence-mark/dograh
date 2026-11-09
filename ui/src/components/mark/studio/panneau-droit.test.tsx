@@ -182,10 +182,19 @@ describe("largeur et adaptation", () => {
 
 describe("la règle des fenêtres à champs", () => {
     const champs = (n: number) => [{ champs: Array.from({ length: n }, (_, i) => ({ id: `c${i}`, t: "texte" as const, l: `Champ ${i}`, v: "" })) }];
-    it("une saisie de deux champs au plus reste centrée", () => {
+    it("une saisie de deux champs s'ouvre dans le panneau (clôture, SA-3 : seules les confirmations dangereuses et les exceptions listées restent centrées)", () => {
         render(
             <Cadre>
                 <FenetreChamps ouverte fermer={() => {}} titre="Renommer" sections={champs(2)} valider="OK" />
+            </Cadre>,
+        );
+        expect(document.querySelector('[data-slot="dialog-content"][data-centree]')).toBeNull();
+        expect(onglets().map((o) => o.textContent)).toEqual(["Renommer"]);
+    });
+    it("une fenêtre qui demande d'être centrée l'est, même à deux champs", () => {
+        render(
+            <Cadre>
+                <FenetreChamps ouverte centree fermer={() => {}} titre="Nouveau" sections={champs(2)} valider="OK" />
             </Cadre>,
         );
         expect(document.querySelector('[data-slot="dialog-content"][data-centree]')).toBeTruthy();
