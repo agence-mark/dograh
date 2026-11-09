@@ -92,6 +92,8 @@ export type LigneLue = { libelle: Texte; valeur: ReactNode };
 export interface ValeurCartes {
     /** « Annuler » : le thème oublie son brouillon et la fenêtre se ferme. */
     annuler: (id: string) => void;
+    /** Ouvre un AUTRE thème (« Changer » du service de voix ouvre « Briques »). */
+    ouvrir?: (id: string) => void;
     /** Le niveau du thème (Essentiel, Avancé, Moteur), dit sur la carte. */
     niveaux?: Record<string, Texte>;
     /** Le nombre de réglages propres à l'agent, par thème (E38). */

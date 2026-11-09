@@ -1324,6 +1324,16 @@ describe("[.mark] the sending mode of the text, as the call will use it", () => 
     const mode = () => document.querySelector("[data-mode-retenu]")?.getAttribute("data-mode-retenu");
     const SONIOX = (text_aggregation_mode: string) => ({ tts: { provider: "soniox", text_aggregation_mode } });
 
+    it("É42 : le thème Voix dit le service de voix et sa voix ; la note du mode est une ligne, l'explication un « ! »", async () => {
+        await ouvrir({ ...(CONFIG_DE_REFERENCE as Record<string, unknown>), model_overrides: { tts: { provider: "soniox", voice: "ada" } } }, SONIOX("token"));
+        ouvrirLeTheme("voix");
+        const bloc = document.querySelector("[data-service-de-voix]") as HTMLElement;
+        expect(bloc.textContent).toMatch(/soniox/);
+        expect(bloc.textContent).toMatch(/ada/);
+        // La note en dur est retirée : aucun paragraphe d'explication, la valeur et son origine en une ligne.
+        expect(document.querySelector("[data-mode-retenu]")?.textContent).not.toMatch(/cannot override|ne peut pas contredire/);
+    });
+
     it("says sentence by sentence by default, for any voice", async () => {
         await ouvrir(CONFIG_DE_REFERENCE as Record<string, unknown>, NOVA);
         ouvrirLeTheme("voix");

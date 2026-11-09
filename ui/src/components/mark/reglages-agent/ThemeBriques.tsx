@@ -34,6 +34,7 @@ import { Theme } from "../ecran/Theme";
 import { BandeauReglePrincipal, ZoneCommune } from "../groupe/contexte-groupe";
 import { estSpecialise } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 import { RAPPEL_PUBLICATION_TEXTE } from "./enregistrement";
 import { GardeDuModele } from "./GardeDuModele";
 import { type ProprietesThemeAgent, useEtatTheme } from "./theme-commun";
@@ -149,11 +150,13 @@ export const ThemeBriques = ({
             modifie={false}
             erreurs={[]}
         >
-            <p className="text-xs text-muted-foreground">
-                {t({
-                    en: "Override the full organization model configuration for this workflow.",
-                    fr: "Remplacer toute la configuration des modèles de l'organisation pour cet agent.",
-                })}{" "}
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Info>
+                    {t({
+                        en: "Override the full organization model configuration for this workflow.",
+                        fr: "Remplacer toute la configuration des modèles de l'organisation pour cet agent.",
+                    })}
+                </Info>
                 <a href={SETTINGS_DOCUMENTATION_URLS.modelOverrides} target="_blank" rel="noopener noreferrer" className="underline">
                     {t({ en: "Learn more", fr: "En savoir plus" })}
                 </a>

@@ -319,10 +319,11 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const valeurCartes = useMemo(
         () => ({
             annuler: annulerTheme,
+            ouvrir: themes.ouvrir,
             niveaux: NIVEAU_DU_THEME,
             propres: propresParTheme((cle) => heritage[cle]?.propre === true),
         }),
-        [annulerTheme, heritage],
+        [annulerTheme, themes.ouvrir, heritage],
     );
     const [recherche, setRecherche] = useState("");
     const resultats = useMemo(() => chercherReglages(recherche, themesVisibles), [recherche, themesVisibles]);

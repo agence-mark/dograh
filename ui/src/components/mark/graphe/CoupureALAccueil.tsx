@@ -17,6 +17,7 @@ import { DEFAUTS_PIPECAT, type WorkflowConfigurations } from "@/types/workflow-c
 
 import { type Texte, useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
+import { Info } from "../studio/marques";
 import { CATALOGUE, type CleCatalogue, erreursDuCatalogue, Reglage } from "../reglages-agent/catalogue";
 import { DESCRIPTION_COUPER_A_L_ACCUEIL, noteAccueil, TITRE_COUPER_A_L_ACCUEIL } from "../reglages-agent/ThemeTourDeParole";
 
@@ -67,11 +68,13 @@ export function CoupureALAccueil() {
 
     return (
         <section className="space-y-3 pt-2" data-bloc="coupure-a-l-accueil" aria-label={t(TITRE_COUPER_A_L_ACCUEIL)}>
-            <div>
-                <h3 className="text-sm font-semibold">{t(TITRE_COUPER_A_L_ACCUEIL)}</h3>
-                <p className="text-xs text-muted-foreground">{t(DESCRIPTION_COUPER_A_L_ACCUEIL)}</p>
-                <p className="text-xs text-muted-foreground">{t(T.agent)}</p>
-            </div>
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                {t(TITRE_COUPER_A_L_ACCUEIL)}
+                {/* E20 : aucune phrase d'explication dans la page, un « ! » au survol. */}
+                <Info>
+                    {t(DESCRIPTION_COUPER_A_L_ACCUEIL)} {t(T.agent)}
+                </Info>
+            </h3>
             {CLES_COUPURE_A_L_ACCUEIL.map((c) => (
                 <Reglage
                     key={c}
