@@ -403,9 +403,13 @@ export const PhoneCallDialog = ({
                             <p className="text-sm text-muted-foreground">
                                 Already have a SIP trunk or a PBX? Point it at Dograh and
                                 keep your existing carrier and numbers.
-                                {sipConfig
-                                    ? ` “${sipConfig.name}” is provisioned and waiting for your carrier details.`
-                                    : ""}
+                                {sipConfig && (
+                                    <>
+                                        {" "}
+                                        “{sipConfig.name}”{" "}
+                                        <span>is provisioned and waiting for your carrier details.</span>
+                                    </>
+                                )}
                             </p>
                             {sipConfig && blockedReason && (
                                 <p className="text-sm text-foreground">

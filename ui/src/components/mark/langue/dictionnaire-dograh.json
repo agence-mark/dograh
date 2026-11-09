@@ -1005,5 +1005,6 @@
   "Your code": "Votre code",
   "Your Documents": "Vos documents",
   "Your organization has no default yet.": "Votre organisation n'a pas encore de valeur par défaut.",
-  "Your Tools": "Vos outils"
+  "Your Tools": "Vos outils",
+  "is provisioned and waiting for your carrier details.": "est créé et attend les informations de votre opérateur."
 }
