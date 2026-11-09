@@ -925,11 +925,13 @@ class WorkflowClient(BaseDBClient):
                 workflow_configurations=workflow_configurations,
                 template_context_variables=template_context_variables,
             )
-            # Re-fetch with updated state
-            workflow = await self.get_workflow(
-                workflow_id, user_id=user_id, organization_id=organization_id
-            )
-
+        # [.mark] Clôture, SA-2 : toujours relu avec ses versions chargées. Sans cela, un renommage seul rendait un agent dont
+        # ``released_definition`` restait paresseux : la route le lisait hors session (``MissingGreenlet``, réponse 500).
+        workflow = await self.get_workflow(
+            workflow_id, user_id=user_id, organization_id=organization_id
+        )
+        if workflow is None:
+            raise ValueError(f"Workflow with ID {workflow_id} not found")
         return workflow
 
     async def get_workflows_by_ids(
@@ -1020,8 +1022,12 @@ class WorkflowClient(BaseDBClient):
             except Exception as e:
                 await session.rollback()
                 raise e
-            await session.refresh(workflow)
-        return workflow
+        # [.mark] Clôture, SA-2 : relu avec ses versions chargées (le commit les expire, ``refresh`` ne recharge pas une relation
+        # paresseuse : la route lisait ``released_definition`` hors session, ``MissingGreenlet``, réponse 500).
+        relu = await self.get_workflow(workflow_id, organization_id=organization_id)
+        if relu is None:
+            raise ValueError(f"Workflow with ID {workflow_id} not found")
+        return relu
 
     async def move_workflow_to_folder(
         self,
