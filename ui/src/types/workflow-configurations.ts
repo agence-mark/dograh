@@ -318,7 +318,14 @@ export type SmsAgent = {
 };
 
 /** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
-export type PanneAgent = { actif: boolean; delai_voix_s: number; sonnerie_s: number };
+export type PanneAgent = {
+    actif: boolean;
+    delai_voix_s: number;
+    sonnerie_s: number;
+    /** Clôture, lot C (D18): Twilio's own voice and language for the fallback sentence (advanced). */
+    voix_twilio?: string;
+    langue_twilio?: string;
+};
 
 export type ApresAppelAgent = {
     actif?: boolean;

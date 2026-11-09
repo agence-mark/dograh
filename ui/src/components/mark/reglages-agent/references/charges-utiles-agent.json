@@ -1698,7 +1698,9 @@
             "panne": {
               "actif": true,
               "delai_voix_s": 3,
-              "sonnerie_s": 20
+              "sonnerie_s": 20,
+              "voix_twilio": "Polly.Lea-Neural",
+              "langue_twilio": "fr-FR"
             }
           },
           "retirees": []
