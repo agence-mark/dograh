@@ -4,7 +4,8 @@
     "phrase": "au gabarit façon Tala",
     "demande": "Relis les prompts de {agent} au gabarit façon Tala et propose les écarts un par un.",
     "besoin": "agent",
-    "icone": "etincelle"
+    "icone": "etincelle",
+    "rang": 4
   },
   "notes": "Carte de départ de la maquette (É3, clôture D2). Versée en Candidat : le passage en Recette est un clic humain.",
   "etiquettes": [
