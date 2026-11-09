@@ -120,12 +120,12 @@ class EchecTwilio(RuntimeError):
 
 
 async def envoyer(
-    account_sid: str, auth_token: str, expediteur: str, destinataire: str, texte: str
+    account_sid: str, auth_token: str, expediteur: str, destinataire: str, texte: str, delai_s: float = DELAI_TWILIO_S
 ) -> str:
     """One SMS through the client's Twilio. Returns its id. The token never in an error."""
     url = f"{api_twilio()}/2010-04-01/Accounts/{account_sid}/Messages.json"
     try:
-        async with nouveau_client(timeout=DELAI_TWILIO_S) as client:
+        async with nouveau_client(timeout=delai_s) as client:
             reponse = await client.post(
                 url,
                 data={"To": destinataire, "From": expediteur, "Body": texte},
