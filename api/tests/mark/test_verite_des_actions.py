@@ -38,6 +38,19 @@ from api.services.workflow.verite_des_actions import (
     dates_dans,
 )
 
+
+@pytest.fixture(autouse=True)
+def _horloge_figee():
+    """Clôture D2 : ces tests disent « le 9 novembre » ; `dates_connues` ajoute la date du JOUR, donc ils échouaient ce jour-là.
+    L'instant est figé (un autre jour que ceux des tests) par l'horloge simulée de la plateforme, sans toucher au moteur."""
+    from datetime import datetime, timezone
+
+    from api.utils.template_renderer import HORLOGE_SIMULEE
+
+    jeton = HORLOGE_SIMULEE.set(datetime(2026, 10, 20, 10, 0, tzinfo=timezone.utc))
+    yield
+    HORLOGE_SIMULEE.reset(jeton)
+
 RESERVER = "reserver"
 CHERCHER = "chercher"
 ANNULER = "annuler"
