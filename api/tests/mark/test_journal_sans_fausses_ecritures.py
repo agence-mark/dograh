@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from fastapi import Request  # noqa: TC002 : FastAPI lit l’annotation à l’exécution
+
 from api.services.equipe_mark import journal_cibles
 from api.services.equipe_mark.registre_routes import SANS_ECRITURE, Permission, decision_de, ecrit_quelque_chose
 from api.tests.mark.test_apres_appel import _organisation, base_v4, smtp  # noqa: F401
@@ -47,12 +49,13 @@ def test_le_geste_se_lit_dans_la_route():
     assert journal_cibles.cible_de({"route": "PUT /x"}) is None  # ligne d'avant : lisible, sans cible
 
 
-async def _decider(methode: str, gabarit: str, params: dict):
+async def _decider(methode: str, gabarit: str, params: dict, statut: int = 200):
     """``appliquer_acces`` joué comme le serveur le joue (session d'équipe administratrice) ; rend les lignes que ``journaliser`` a reçues."""
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, patch
 
     from api.services.equipe_mark.acces import appliquer_acces
+    from api.services.equipe_mark.journal_apres_succes import ecrire_le_journal_differe
 
     connexion = SimpleNamespace(headers={}, path_params=params, scope={"route": SimpleNamespace(path_format=gabarit), "type": "http", "method": methode})
     utilisateur = SimpleNamespace(id=1, selected_organization_id=5)
@@ -65,6 +68,9 @@ async def _decider(methode: str, gabarit: str, params: dict):
         patch("api.services.equipe_mark.acces.journaliser", ecrites),
     ):
         await appliquer_acces(connexion, utilisateur, par_cle_api=False)
+        # Clôture, SA-2 : la ligne n'est écrite qu'après la réponse, si elle est réussie.
+        with patch("api.services.equipe_mark.journal_apres_succes.journaliser", ecrites):
+            await ecrire_le_journal_differe(connexion.scope, statut)
     return [c.args for c in ecrites.await_args_list]
 
 
@@ -108,3 +114,85 @@ async def test_la_route_du_journal_rend_le_geste_la_cible_nommee_et_garde_lisibl
     assert supprime["cible"]["nom"] is None  # objet disparu : repli propre côté écran
     ancienne = lignes[()]
     assert ancienne["cible"] is None and ancienne["geste"] == "modifier"
+
+
+# --- SA-2 : le journal s'écrit APRÈS une réponse réussie -------------------------------------------------------------------------
+
+
+async def test_un_geste_en_echec_n_ecrit_aucune_ligne_et_un_geste_reussi_en_ecrit_exactement_une():
+    gabarit = "/api/v1/workflow/{workflow_id}"
+    for statut in (400, 404, 422, 500):
+        assert await _decider("PUT", gabarit, {"workflow_id": 4}, statut=statut) == [], statut
+    assert await _decider("PUT", gabarit, {"workflow_id": 4}, statut=None) == []  # exception : pas de réponse du tout
+    for statut in (200, 201, 204):
+        assert len(await _decider("PUT", gabarit, {"workflow_id": 4}, statut=statut)) == 1, statut
+
+
+async def test_une_tentative_refusee_faute_de_droit_n_ecrit_rien():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from fastapi import HTTPException
+
+    from api.services.equipe_mark.acces import CLE_JOURNAL_DIFFERE, appliquer_acces
+
+    connexion = SimpleNamespace(headers={}, path_params={"workflow_id": 4}, scope={"route": SimpleNamespace(path_format="/api/v1/workflow/{workflow_id}"), "type": "http", "method": "PUT"})
+    acces = SimpleNamespace(permissions=frozenset({"conversations.voir"}), labo_ouvert=True, tous_les_clients=True, organisations=frozenset({5}))
+    with (
+        patch("api.services.equipe_mark.espaces.rafraichir_labo", AsyncMock()),
+        patch("api.services.equipe_mark.acces.acces_de", AsyncMock(return_value=acces)),
+        patch("api.services.equipe_mark.acces.detacher_de_sa_session", lambda u: None),
+    ):
+        with pytest.raises(HTTPException) as e:
+            await appliquer_acces(connexion, SimpleNamespace(id=1, selected_organization_id=5), par_cle_api=False)
+    assert e.value.status_code == 403 and CLE_JOURNAL_DIFFERE not in connexion.scope
+
+
+def _petit_serveur():
+    """Le vrai intergiciel sur un vrai serveur FastAPI ; la dépendance retient la ligne comme ``appliquer_acces``."""
+    from types import SimpleNamespace
+
+    from fastapi import Depends, FastAPI, HTTPException
+    from fastapi.testclient import TestClient
+
+    from api.services.equipe_mark.acces import differer_le_journal
+    from api.services.equipe_mark.journal_apres_succes import JournalApresSucces
+
+    app = FastAPI()
+    app.add_middleware(JournalApresSucces)
+
+    async def retient(request: Request):
+        differer_le_journal(request, SimpleNamespace(id=1, provider_id="p", par_cle_api=False), "agents.modifier", 5, {"route": "PUT /x"})
+
+    @app.put("/ok", dependencies=[Depends(retient)])
+    async def ok():
+        return {"ok": True}
+
+    @app.put("/refuse", dependencies=[Depends(retient)])
+    async def refuse():
+        raise HTTPException(status_code=409, detail="Conflict")
+
+    @app.put("/casse", dependencies=[Depends(retient)])
+    async def casse():
+        raise RuntimeError("boom")
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_sur_le_vrai_intergiciel_seul_le_geste_reussi_est_inscrit_et_une_panne_d_ecriture_ne_change_pas_la_reponse():
+    from unittest.mock import AsyncMock, patch
+
+    ecrire = AsyncMock()
+    with patch.object(__import__("api.services.equipe_mark.acces", fromlist=["x"]).db_client, "ecrire_journal", ecrire):
+        client = _petit_serveur()
+        assert client.put("/refuse").status_code == 409
+        assert client.put("/casse").status_code == 500
+        assert ecrire.await_count == 0  # le geste en échec n'est pas inscrit
+        assert client.put("/ok").status_code == 200
+        assert ecrire.await_count == 1  # exactement une
+        assert ecrire.await_args.kwargs["action"] == "agents.modifier" and ecrire.await_args.kwargs["organization_id"] == 5
+    panne = AsyncMock(side_effect=RuntimeError("base indisponible"))
+    with patch.object(__import__("api.services.equipe_mark.acces", fromlist=["x"]).db_client, "ecrire_journal", panne):
+        reponse = _petit_serveur().put("/ok")
+    assert reponse.status_code == 200 and reponse.json() == {"ok": True}  # la panne ne bloque pas le geste

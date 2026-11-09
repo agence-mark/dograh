@@ -8,7 +8,7 @@ Appelé par ``get_user`` à CHAQUE requête authentifiée (``services/auth/depen
    l'équipe, ouverte par son rôle (le Labo, tous les clients, ou des clients choisis) ;
 3. la route doit avoir une décision au registre (``registre_routes``) : permission, membre, ou exemption écrite ;
    une route sans décision est REFUSÉE (fermé par défaut) ;
-4. le geste d'écriture qui exige une permission est écrit au journal (qui, quoi, quel espace, quand).
+4. le geste d'écriture qui exige une permission est écrit au journal (qui, quoi, quel espace, quand) APRÈS une réponse réussie.
 
 Un compte sans rôle d'équipe n'a que les routes ``MEMBRE`` de ses propres organisations.
 
@@ -18,6 +18,8 @@ et ``est_membre_de_l_equipe`` le respectent ; les routes ``/espaces`` lui sont f
 """
 
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 from loguru import logger
@@ -34,6 +36,7 @@ from api.services.equipe_mark.registre_routes import (
     ecrit_quelque_chose,
 )
 
+CLE_JOURNAL_DIFFERE = "mark_journal_differe"
 ENTETE_ORGANISATION = "X-Mark-Organisation"
 # R3 M1 : l'écran dit « je suis dans le Labo » ; sans identifiant, le serveur lit le Labo lui-même, jamais un client.
 ENTETE_ESPACE = "X-Mark-Espace"
@@ -201,13 +204,14 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         ):
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
-        # D23 : une route déclarée sans effet (``SANS_ECRITURE``) n'écrit aucune ligne ; une vraie écriture en écrit exactement une, avec sa cible.
+        # Clôture, SA-2 : la ligne ne s'écrit qu'APRÈS une réponse réussie (``journal_apres_succes``), jamais avant la route : un geste
+        # en échec (4xx, 500) n'y figure pas. D23 : une route déclarée sans effet (``SANS_ECRITURE``) n'écrit aucune ligne ; une vraie écriture en écrit exactement une, avec sa cible.
         if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES) and ecrit_quelque_chose(methode, chemin):
             detail: dict = {"route": f"{methode} {chemin}"}
             cible = _cible_de_la_requete(connexion)
             if cible:
                 detail["cible"] = cible
-            await journaliser(user, journal_cle, user.selected_organization_id, detail)
+            differer_le_journal(connexion, user, journal_cle, user.selected_organization_id, detail)
 
 
 _PARAMETRES_SECRETS = ("token", "secret", "jeton", "password", "mot_de_passe")
@@ -234,6 +238,29 @@ def origine_du_geste(user) -> str:
     if getattr(user, "par_porte_mcp", False):
         return "mcp"
     return "api" if getattr(user, "par_cle_api", False) else "ecran"
+
+
+def differer_le_journal(connexion, user, action: str, organization_id: int | None, detail: dict | None) -> None:
+    """Retient la ligne du geste ; ``journal_apres_succes`` l'écrit une fois la réponse rendue, si elle est réussie.
+
+    On retient des VALEURS (identifiant, auteur, origine), jamais l'objet de compte : il peut être détaché ou réutilisé par la
+    requête suivante. Une connexion sans portée (appel direct, test) n'a rien à retenir : ``journal_apres_succes`` ne la voit pas.
+    """
+    scope = getattr(connexion, "scope", None)
+    if not isinstance(scope, dict):
+        return
+    scope[CLE_JOURNAL_DIFFERE] = (
+        SimpleNamespace(
+            id=getattr(user, "id", None),
+            mark_auteur=getattr(user, "mark_auteur", None),
+            provider_id=getattr(user, "provider_id", None),
+            par_porte_mcp=bool(getattr(user, "par_porte_mcp", False)),
+            par_cle_api=bool(getattr(user, "par_cle_api", False)),
+        ),
+        action,
+        organization_id,
+        detail,
+    )
 
 
 async def journaliser(user, action: str, organization_id: int | None, detail: dict | None = None) -> None:

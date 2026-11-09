@@ -125,6 +125,10 @@ async def test_m3_le_journal_d_une_cle_porte_portail_ecrire_et_celui_d_une_sessi
             patch("api.services.equipe_mark.acces.journaliser", journaliser),
         ):
             await appliquer_acces(connexion, utilisateur, par_cle_api=par_cle_api)
+        with patch("api.services.equipe_mark.journal_apres_succes.journaliser", journaliser):
+            from api.services.equipe_mark.journal_apres_succes import ecrire_le_journal_differe
+
+            await ecrire_le_journal_differe(connexion.scope, 200)  # la ligne s'écrit après la réponse réussie
         return journaliser.await_args.args[1]
 
     assert await appeler(True) == "portail.ecrire"

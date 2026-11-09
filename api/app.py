@@ -189,6 +189,16 @@ def _add_public_embed_cors_middleware() -> None:
 
 _add_public_embed_cors_middleware()
 
+
+def _add_journal_apres_succes_middleware() -> None:
+    # [.mark] Clôture, SA-2 : le journal de l'équipe s'écrit après une réponse réussie, jamais avant la route.
+    from api.services.equipe_mark.journal_apres_succes import JournalApresSucces
+
+    app.add_middleware(JournalApresSucces)
+
+
+_add_journal_apres_succes_middleware()
+
 api_router = APIRouter()
 
 # include subrouters here
