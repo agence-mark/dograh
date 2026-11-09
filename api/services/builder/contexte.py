@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -100,6 +101,13 @@ async def ecrire_preferences(user_id: int, texte: str) -> None:
 # --- la conversation ---------------------------------------------------------------------------------------------
 
 
+def noter_le_resume(conversation: dict[str, Any], coupes: list[dict[str, Any]]) -> None:
+    """[.mark] Clôture D2 (É69) : combien de tours (messages de la personne) sont passés au résumé, et quand, pour le dire en tête du chat."""
+    tours = sum(1 for m in coupes if m.get("role") == "user")
+    conversation["tours_resumes"] = int(conversation.get("tours_resumes") or 0) + tours
+    conversation["resume_le"] = datetime.now(UTC).isoformat()
+
+
 def conversation_vide() -> dict[str, Any]:
     return {"resume": "", "messages": [], "depense": {"jetons": 0, "cout": 0.0}, "revision": 0}
 
@@ -127,6 +135,7 @@ def borner(conversation: dict[str, Any]) -> None:
     if len(messages) > CONVERSATION_MESSAGES_MAX:
         # Au-delà du plafond de lignes : les plus vieux passent au résumé, à une frontière de message utilisateur.
         coupure = _coupure(messages, len(messages) - CONVERSATION_MESSAGES_MAX)
+        noter_le_resume(conversation, messages[:coupure])
         conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
         conversation["messages"] = messages[coupure:]
     limite = MESSAGE_OCTETS_MAX
@@ -142,6 +151,7 @@ def borner(conversation: dict[str, Any]) -> None:
                 _raccourcir(m, limite)
             limite //= 2
             continue
+        noter_le_resume(conversation, messages[:coupure])
         conversation["resume"] = _fusionner(conversation["resume"], _resume_sec(messages[:coupure]))
         conversation["messages"] = messages[coupure:]
 
@@ -261,6 +271,7 @@ async def compacter_si_besoin(
         resume = ""
     if not resume.strip():
         resume = _resume_sec(anciens)
+    noter_le_resume(conversation, anciens)
     conversation["resume"] = _fusionner(conversation["resume"], resume.strip())
     conversation["messages"] = messages[coupure:]
     return usage

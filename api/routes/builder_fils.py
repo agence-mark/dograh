@@ -80,6 +80,11 @@ class VueFil(BaseModel):
     # N1 : le mode du chat (« demander », « agent », « tout », « plan ») et ses autorisations « pour ce chat » (retirables).
     mode: str = "demander"
     autorisations_du_chat: list[dict[str, Any]] = Field(default_factory=list)
+    # Clôture D2 (É69) : « Tours 1 à N résumés » en tête du chat : le nombre de tours passés au résumé et quand ; le texte du résumé seulement
+    # à la lecture d'un chat (jamais dans la liste).
+    tours_resumes: int = 0
+    resume_le: Any = None
+    resume: str | None = None
 
 
 def _autorisations_du_chat(historique: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -91,7 +96,7 @@ def _autorisations_du_chat(historique: dict[str, Any] | None) -> list[dict[str, 
     ]
 
 
-def _vue(fil) -> VueFil:
+def _vue(fil, *, avec_resume: bool = False) -> VueFil:
     from api.services.builder import modes
 
     historique = fil.historique if isinstance(getattr(fil, "historique", None), dict) else {}
@@ -114,6 +119,9 @@ def _vue(fil) -> VueFil:
         auteur=fil.auteur,
         mode=modes.mode_de(historique),
         autorisations_du_chat=_autorisations_du_chat(historique),
+        tours_resumes=int(historique.get("tours_resumes") or 0),
+        resume_le=historique.get("resume_le"),
+        resume=(str(historique.get("resume") or "") or None) if avec_resume else None,
     )
 
 
@@ -231,7 +239,7 @@ async def ouvrir_un_fil(demande: NouveauFil, user: UserModel = Depends(get_user_
 
 @router.get("/fils/{fil_id}", response_model=VueFil)
 async def lire_un_fil(fil_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
-    return _vue(await _fil_ou_404(user, fil_id))
+    return _vue(await _fil_ou_404(user, fil_id), avec_resume=True)
 
 
 @router.get("/fils/{fil_id}/evenements")

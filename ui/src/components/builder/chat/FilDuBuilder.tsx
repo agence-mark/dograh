@@ -28,6 +28,7 @@ import type { EtapeDuPlan, LigneDuFil } from "./evenements";
 import { Markdown } from "./Markdown";
 import { RevueChampParChamp } from "./RevueChampParChamp";
 import { CarteSousAgents, libelleEtat, ListeDesSousAgents, type SousAgent, useSousAgents } from "./SousAgents";
+import { type DonneesResume, ToursResumes } from "./ToursResumes";
 import { useFil } from "./useFil";
 import { CopierLaReponse } from "./copier-la-reponse";
 import { useEntreesDeSaisie, useMenuSaisie } from "./menu-saisie";
@@ -170,6 +171,7 @@ export function FilDuBuilder({
             {/* Clôture, SA-3 (É47 à É49) : UN seul conteneur qui défile (le chat remplit le cadre, la page ne défile plus avec lui), sans barre
                 de défilement visible ; la saisie flotte dessus et sa hauteur devient la marge du bas. */}
             <div ref={zone} onScroll={surDefilement} className="min-h-0 flex-1 space-y-3 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: hautSaisie }}>
+                {fil && <ToursResumes fil={fil as DonneesResume} />}
                 {lignes.map((l, i) => (
                     <Ligne
                         key={i}
