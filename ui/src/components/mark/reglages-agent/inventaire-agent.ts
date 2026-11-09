@@ -112,13 +112,12 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
         via: "Safety theme (ThemeSecurite.tsx), drawn from the maquette; its own tests are in securite-ecran.test.tsx",
     },
     // Clôture, lot B (D17): reusable blocks follow live or freeze at publication, per agent and per block.
-    blocs_mode: {
-        theme: "securite",
-        via: "The « Reusable block » card of the library (BlocReutilisable.tsx, « Used in »): the agent's mode, one line per agent",
-    },
+    // SA-2: the agent's choice is a card of the « Safety » theme (own to each agent: a specialist can set it, which the read-only
+    // « Modules » theme would not allow); the block's own choice stays on the library card.
+    blocs_mode: { theme: "securite", cas: ["blocs-mode"] },
     blocs_modes: {
         theme: "securite",
-        via: "The « Reusable block » card of the library (BlocReutilisable.tsx, « Used in »): the block's mode on each agent",
+        via: "The « Reusable block » card of the library (UtiliseDans.tsx, « Used in »): the block's choice on each agent; the Safety theme holds the agent's own",
     },
     // U11: the checks before publishing and the progressive deployment are set in the « Publish » window itself.
     publication: {

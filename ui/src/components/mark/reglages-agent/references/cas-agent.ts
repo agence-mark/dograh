@@ -394,6 +394,8 @@ export const CAS_AGENT: CasAgent[] = [
         { type: "cliquer", nom: "Add" },
     ]),
     c("phrases-pause", "ajout-mark", "phrases", ["phrases_repos_s"], [saisir("phrases_repos_s", "5")]),
+    // Clôture, SA-2 (D17): the agent's choice for the reusable blocks (« Safety » theme, a card own to each agent).
+    c("blocs-mode", "ajout-mark", "securite", ["blocs_mode"], [choisir("blocs_mode", "fige")]),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------

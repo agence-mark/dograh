@@ -2062,6 +2062,20 @@
         }
       ]
     },
+    "blocs-mode": {
+      "carte": "ajout-mark",
+      "theme": "securite",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "blocs_mode": "fige"
+          },
+          "retirees": []
+        }
+      ]
+    },
     "cerveau-propre": {
       "carte": "ajout-mark",
       "theme": "briques",

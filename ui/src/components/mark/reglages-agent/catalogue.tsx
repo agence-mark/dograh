@@ -42,7 +42,14 @@ type Definition =
           /** Empty is a value: the field sends null (two settings have two defaults). */
           facultatif?: { indication: string };
       }
-    | { type: "choix"; libelle: Texte; aides?: Texte[]; options: Array<{ valeur: string; libelle: Texte }> }
+    | {
+          type: "choix";
+          libelle: Texte;
+          aides?: Texte[];
+          options: Array<{ valeur: string; libelle: Texte }>;
+          /** [.mark] The option that stands for « not set » (the key is sent as null): the value the setting inherits. */
+          nul?: string;
+      }
     | { type: "texte"; libelle: Texte; aides?: Texte[] }
     | { type: "zone"; libelle: Texte; aides?: Texte[] }
     | { type: "etiquettes"; libelle: Texte; aides?: Texte[]; indication: string };
@@ -237,6 +244,28 @@ export const CATALOGUE = {
         options: [
             { valeur: "none", libelle: { en: "No filter", fr: "Aucun filtre" } },
             { valeur: "rnnoise", libelle: { en: "RNNoise", fr: "RNNoise" } },
+        ],
+    }),
+
+    // ---- Modules : blocs réutilisables (clôture, lot B, D17) ----------------------------------------------
+    blocs_mode: d({
+        type: "choix",
+        libelle: { en: "Reusable blocks", fr: "Blocs réutilisables" },
+        aides: [
+            {
+                en: "How the blocks of the library ({{bloc:name}}) reach a call. Live: the call takes the latest Recipe version of each block. Frozen: publishing pins the version in Recipe at that moment, so a new Recipe changes nothing until the next publication.",
+                fr: "Comment les blocs de la bibliothèque ({{bloc:nom}}) arrivent dans un appel. En direct : l'appel prend la dernière version en Recette de chaque bloc. Figé : la publication épingle la version en Recette à ce moment, une nouvelle Recette ne change rien avant la publication suivante.",
+            },
+            {
+                en: "Not set: frozen on an agent whose live version is protected, live otherwise. A block can have its own choice on this agent (library, « Used in »), and a block written {{bloc:name@v3}} stays on that version. A change applies from the next publication.",
+                fr: "Non réglé : figé sur un agent dont la version en ligne est protégée, en direct sinon. Un bloc peut avoir son propre choix sur cet agent (bibliothèque, « Utilisé dans »), et un bloc écrit {{bloc:nom@v3}} reste sur cette version. Un changement vaut à la prochaine publication.",
+            },
+        ],
+        nul: "defaut",
+        options: [
+            { valeur: "defaut", libelle: { en: "Not set (follows protection)", fr: "Non réglé (selon la protection)" } },
+            { valeur: "direct", libelle: { en: "Live", fr: "En direct" } },
+            { valeur: "fige", libelle: { en: "Frozen at publication", fr: "Figé à la publication" } },
         ],
     }),
 
@@ -920,9 +949,20 @@ export const Reglage = ({
             return (
                 <ChampReglage {...commun} idControle={cle}>
                     {dansFenetre && definition.options.length <= 3 ? (
-                        <Segments cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} desactive={desactive} />
+                        <Segments
+                            cle={cle}
+                            valeur={((valeur as string | null | undefined) ?? definition.nul) as string}
+                            options={definition.options}
+                            onChange={(v) => onChange(v === definition.nul ? null : v)}
+                            desactive={desactive}
+                        />
                     ) : (
-                        <OptionsTraduites cle={cle} valeur={valeur as string} options={definition.options} onChange={onChange} />
+                        <OptionsTraduites
+                            cle={cle}
+                            valeur={((valeur as string | null | undefined) ?? definition.nul) as string}
+                            options={definition.options}
+                            onChange={(v) => onChange(v === definition.nul ? null : v)}
+                        />
                     )}
                 </ChampReglage>
             );
