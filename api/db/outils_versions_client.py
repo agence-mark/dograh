@@ -131,9 +131,10 @@ class OutilsVersionsClient(BaseDBClient):
                 if uuids
                 else []
             )
-            epingles = pins.copie(source.outils_epingles) or {}
+            epingles = pins.sans_blocs(source.outils_epingles)
             return {
                 "source": "brouillon" if source.status == "draft" else "en_ligne",
+                "blocs": pins.seulement_blocs(source.outils_epingles),  # D17 : version figée de chaque bloc réutilisable
                 "outils": [
                     {
                         "tool_uuid": o.tool_uuid,
@@ -220,7 +221,8 @@ class OutilsVersionsClient(BaseDBClient):
             )
             if ligne is None:
                 return
-            valides = pins.copie(epingles) or {}
+            blocs = {f"{pins.PREFIXE_BLOC}{s}": n for s, n in pins.seulement_blocs(epingles).items()}  # D17 : les blocs gardent leur version
+            valides = pins.sans_blocs(epingles)
             if valides:
                 connues = (
                     await session.execute(
@@ -231,5 +233,6 @@ class OutilsVersionsClient(BaseDBClient):
                 ).all()
                 existantes = {(u, v) for u, v in connues}
                 valides = {u: v for u, v in valides.items() if (u, v) in existantes}
+            valides.update(blocs)
             ligne.outils_epingles = valides or None
             await session.commit()

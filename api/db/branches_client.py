@@ -470,7 +470,7 @@ class BranchesClient(BaseDBClient):
                 draft_owner_id=None,
                 outils_epingles=pins.copie(outils_epingles),
             )
-            await pins.figer(session, version, organization_id, choix=outils_epingles)  # SA-L3d (décision 21)
+            await pins.figer(session, version, organization_id, choix=outils_epingles, garder_les_blocs=True)  # SA-L3d (décision 21)
             session.add(version)
             await session.flush()
             defaire = {

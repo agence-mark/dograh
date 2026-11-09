@@ -84,7 +84,7 @@ async def _epingles(organization_id: int, workflow: Any) -> dict[str, int] | Non
     """``{outil: version}`` de l'agent ouvert (brouillon sinon version en ligne), une version épinglée ou la courante. ``None`` : illisible."""
     try:
         vue = await db_client.outils_epingles_de_l_agent(organization_id, workflow.id)
-        return {o["tool_uuid"]: o["epinglee"] for o in vue["outils"]}
+        return {**{o["tool_uuid"]: o["epinglee"] for o in vue["outils"]}, **{f"bloc:{s}": n for s, n in (vue.get("blocs") or {}).items()}}
     except Exception as erreur:  # noqa: BLE001 -- un instantané sans épingles vaut mieux que pas d'instantané
         logger.info(f"[instantane] versions d'outils non gardées : {type(erreur).__name__}")
         return None
@@ -155,7 +155,7 @@ def comparer_les_familles(ligne: dict[str, Any], actuel: dict[str, Any]) -> list
         if famille == "schema" and famille in gardees:
             avant_o, maintenant_o = complement.get("outils_epingles"), actuel.get("outils_epingles")
             if isinstance(avant_o, dict) and isinstance(maintenant_o, dict):
-                vue["outils"] = sorted(u for u in set(avant_o) & set(maintenant_o) if avant_o[u] != maintenant_o[u])[:40]
+                vue["outils"] = sorted(u for u in set(avant_o) & set(maintenant_o) if avant_o[u] != maintenant_o[u] and not u.startswith("bloc:"))[:40]
         if famille in gardees and famille != "schema":
             avant, maintenant = complement.get(famille), actuel.get(famille)
             if maintenant is None and famille in PARTAGEES:

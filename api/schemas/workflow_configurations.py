@@ -889,6 +889,18 @@ class WorkflowConfigurationDefaults(BaseModel):
             "which are the guard that was already there."
         ),
     )
+    blocs_mode: Literal["direct", "fige"] | None = Field(
+        default=None,
+        description=(
+            "[.mark] Reusable blocks ({{bloc:x}} without @vN): follow the latest proven version live ('direct') or freeze it at "
+            "publication ('fige'). Empty: frozen on a protected agent, live otherwise. A change applies from the next publication."
+        ),
+    )
+    blocs_modes: dict[Annotated[str, StringConstraints(min_length=1, max_length=120)], Literal["direct", "fige"]] | None = Field(
+        default=None,
+        max_length=200,
+        description="[.mark] The same choice for one block of this agent (by slug); it overrides the agent's choice.",
+    )
     securite_conversation: SecuriteConversation | None = Field(
         default=None,
         description=(

@@ -562,6 +562,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     // [.mark] U3 quinquies (E68): the safety of the conversation, three layers, all off by default.
     securite_conversation?: SecuriteConversation | null;
+    /** [.mark] Clôture, lot B (D17): reusable blocks live ("direct") or frozen at publication ("fige"); empty = frozen on a protected agent. */
+    blocs_mode?: "direct" | "fige" | null;
+    /** [.mark] D17: the same choice per block (slug), stronger than the agent's. */
+    blocs_modes?: Record<string, "direct" | "fige"> | null;
     publication?: PublicationAgent | null;  // [.mark] U11: the checks before publishing, the progressive deployment
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
     moteur_sorties_de_l_etape?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false

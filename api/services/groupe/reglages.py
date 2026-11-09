@@ -274,6 +274,9 @@ CLES_PROPRES: tuple[str, ...] = (
     # builder partie 2 (G2, U11) : contrôles avant publication et déploiement progressif, propres à chaque
     # agent (chacun publie ses propres versions).
     "publication",
+    # Clôture, lot B (D17) : suivre en direct ou figer les blocs réutilisables, propre à chaque agent (chacun publie ses versions).
+    "blocs_mode",
+    "blocs_modes",
     "text_chat_inactivity_timeout_seconds",
     "etablissement_id",
     "horaires_ouverture",

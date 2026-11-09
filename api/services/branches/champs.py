@@ -66,7 +66,8 @@ class Etat:
         variables: dict[str, Any] | None,
         outils: dict[str, Any] | None = None,
     ):
-        self.outils = {str(u): n for u, n in outils.items()} if isinstance(outils, dict) else {}
+        # Clôture, lot B (D17) : les clés ``bloc:`` (blocs réutilisables) ne sont pas des outils ; elles ne se fusionnent pas ici.
+        self.outils = {str(u): n for u, n in outils.items() if not str(u).startswith("bloc:")} if isinstance(outils, dict) else {}
         self.graphe = copy.deepcopy(graphe) if isinstance(graphe, dict) else {"nodes": [], "edges": []}
         self.reglages = copy.deepcopy(reglages) if isinstance(reglages, dict) else {}
         self.variables = copy.deepcopy(variables) if isinstance(variables, dict) else {}

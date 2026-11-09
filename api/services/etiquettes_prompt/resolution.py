@@ -67,10 +67,13 @@ class Table:
     agents: dict[str, str] = field(default_factory=dict)  # identifiant -> nom
     documents: dict[str, str] = field(default_factory=dict)  # document_uuid -> nom
     blocs: dict[str, BlocLu] = field(default_factory=dict)  # slug -> versions
+    epingles_blocs: dict[str, int] = field(default_factory=dict)  # clôture, lot B (D17) : slug -> version figée à la publication
 
 
 def _texte_d_un_bloc(table: Table, cle: str) -> str | None:
     slug, epingle = f.bloc_et_version(cle)
+    if epingle is None:
+        epingle = table.epingles_blocs.get(slug)  # D17 : ``@vN`` l'emporte ; sinon l'épingle de la version jouée ; sinon la dernière Recette
     bloc = table.blocs.get(slug)
     version = bloc.choisie(epingle) if bloc is not None else None
     if version is None:

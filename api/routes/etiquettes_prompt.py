@@ -74,6 +74,9 @@ class Citation(BaseModel):
     champ: str
     cle: str
     version: int | None = None
+    # Clôture, lot B (D17) : le mode posé pour ce bloc sur cet agent, et celui de l'agent (``None`` : le défaut, figé si l'agent est protégé).
+    mode_du_bloc: Literal["direct", "fige"] | None = None
+    mode_de_l_agent: Literal["direct", "fige"] | None = None
 
 
 class UtiliseDans(BaseModel):
@@ -83,7 +86,7 @@ class UtiliseDans(BaseModel):
 
 class CorrigerEtiquette(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["retirer", "rattacher", "suivre", "passer_version"]
+    type: Literal["retirer", "rattacher", "suivre", "passer_version", "mode_direct", "mode_fige", "mode_defaut", "agent_direct", "agent_fige", "agent_defaut"]
     cle: str = Field(min_length=3, max_length=300)
     champ: str | None = Field(default=None, max_length=300)
     noeud_id: str | None = Field(default=None, max_length=200)

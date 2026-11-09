@@ -21,10 +21,45 @@ import { cn } from "@/lib/utils";
 import { useLangue } from "../langue/langue";
 import { relireLesEtiquettes } from "./useCatalogueEtiquettes";
 
+// Clôture, lot B (D17) : le mode d'un bloc (suivre en direct ou figer à la publication). Le client généré n'a pas encore ces champs.
+type Mode = "direct" | "fige";
+type CitationAvecMode = Citation & { mode_du_bloc?: Mode | null; mode_de_l_agent?: Mode | null };
+type TypeDeMode = "mode_direct" | "mode_fige" | "mode_defaut" | "agent_direct" | "agent_fige" | "agent_defaut";
+
+const CHOIX_DE_MODE: { valeur: Mode | null; fr: string; en: string }[] = [
+    { valeur: null, fr: "Défaut", en: "Default" },
+    { valeur: "direct", fr: "En direct", en: "Live" },
+    { valeur: "fige", fr: "Figé", en: "Frozen" },
+];
+
+function ChoixDeMode({ libelle, valeur, desactive, choisir }: { libelle: string; valeur: Mode | null; desactive: boolean; choisir: (v: Mode | null) => void }) {
+    const { t } = useLangue();
+    return (
+        <div role="radiogroup" aria-label={libelle} className="flex shrink-0 rounded-md bg-muted p-0.5 text-xs">
+            {CHOIX_DE_MODE.map((c) => {
+                const choisi = c.valeur === valeur;
+                return (
+                    <button
+                        key={c.valeur ?? "defaut"}
+                        type="button"
+                        role="radio"
+                        aria-checked={choisi}
+                        disabled={desactive || choisi}
+                        onClick={() => choisir(c.valeur)}
+                        className={cn("cursor-pointer rounded px-2 py-1 hover:font-semibold", choisi && "bg-background font-medium shadow-sm")}
+                    >
+                        {t({ en: c.en, fr: c.fr })}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 export function UtiliseDans({ cle, versionRecette }: { cle: string; /** Bloc : la dernière version en Recette (absent : pas un bloc). */ versionRecette?: number | null }) {
     const { t } = useLangue();
     const { user, loading } = useAuth();
-    const [citations, setCitations] = useState<Citation[] | null>(null);
+    const [citations, setCitations] = useState<CitationAvecMode[] | null>(null);
     const [echec, setEchec] = useState(false);
     const [enCours, setEnCours] = useState<string | null>(null);
     const bloc = cle.startsWith("bloc:");
@@ -35,7 +70,7 @@ export function UtiliseDans({ cle, versionRecette }: { cle: string; /** Bloc : l
             if (r.error || !r.data) setEchec(true);
             else {
                 setEchec(false);
-                setCitations(r.data.citations);
+                setCitations(r.data.citations as CitationAvecMode[]);
             }
         } catch {
             setEchec(true);
@@ -65,6 +100,25 @@ export function UtiliseDans({ cle, versionRecette }: { cle: string; /** Bloc : l
                 );
             }
             relireLesEtiquettes();
+            await lire();
+        } finally {
+            setEnCours(null);
+        }
+    };
+
+    const poserLeMode = async (c: CitationAvecMode, type: TypeDeMode) => {
+        const id = `${c.agent_id}-mode`;
+        setEnCours(id);
+        try {
+            const r = await corrigerUneEtiquetteApiV1MarkEtiquettesPromptWorkflowIdCorrigerPost({
+                path: { workflow_id: c.agent_id },
+                body: { type, cle: `bloc:${c.cle.split(":")[1].split("@")[0]}` } as never,
+            });
+            if (r.error) {
+                notifier.echec({ fr: "Mode non enregistré : l'agent a changé ou sa version en ligne est protégée.", en: "Mode not saved: the agent changed or its live version is protected." }, { erreur: r.error });
+            } else {
+                notifier.succes({ fr: "Mode enregistré dans le brouillon : il vaut à la prochaine publication.", en: "Mode saved in the draft: it applies from the next publication." });
+            }
             await lire();
         } finally {
             setEnCours(null);
@@ -111,9 +165,31 @@ export function UtiliseDans({ cle, versionRecette }: { cle: string; /** Bloc : l
                                 })}
                             </div>
                         )}
+                        {bloc && (
+                            <ChoixDeMode
+                                libelle={t({ en: "Block mode on this agent", fr: "Mode du bloc sur cet agent" })}
+                                valeur={c.mode_du_bloc ?? null}
+                                desactive={enCours === `${c.agent_id}-mode`}
+                                choisir={(v) => void poserLeMode(c, v === null ? "mode_defaut" : v === "direct" ? "mode_direct" : "mode_fige")}
+                            />
+                        )}
                     </li>
                 );
             })}
+            {bloc &&
+                [...new Map(citations.map((c) => [c.agent_id, c])).values()].map((c) => (
+                    <li key={`agent-${c.agent_id}`} className="flex items-center gap-3 py-2.5 text-sm" data-testid={`mode-agent-${c.agent_id}`}>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                            {t({ en: `Reusable blocks of ${c.agent}: frozen at publication on a protected agent, live otherwise`, fr: `Blocs de ${c.agent} : figés à la publication sur un agent protégé, en direct sinon` })}
+                        </span>
+                        <ChoixDeMode
+                            libelle={t({ en: "Mode of the agent's blocks", fr: "Mode des blocs de l'agent" })}
+                            valeur={c.mode_de_l_agent ?? null}
+                            desactive={enCours === `${c.agent_id}-mode`}
+                            choisir={(v) => void poserLeMode(c, v === null ? "agent_defaut" : v === "direct" ? "agent_direct" : "agent_fige")}
+                        />
+                    </li>
+                ))}
         </ul>
     );
 }
