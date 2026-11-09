@@ -14,7 +14,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionsAgent, type EditeurAgent } from "./ActionsAgent";
 import { OngletsAgent } from "./OngletsAgent";
 
-const m = vi.hoisted(() => ({ push: vi.fn() }));
+const m = vi.hoisted(() => ({ push: vi.fn(), sousBarre: null as HTMLElement | null }));
+// Clôture, SA-3 (D16) : l'emplacement « sous la barre du haut » du cadre ; absent hors du cadre commun.
+vi.mock("@/components/mark/studio/shell-studio", () => ({ useSousBarre: () => m.sousBarre }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push, refresh: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...r }: { children: React.ReactNode; href: string }) => <a href={href} {...r}>{children}</a> }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { promise: vi.fn(), success: vi.fn(), error: vi.fn() }) }));
@@ -109,6 +111,20 @@ describe("les actions de la barre avec l'éditeur", () => {
         const raison = document.querySelector("[data-raison-publier]");
         expect(raison?.className).toContain("sr-only");
         expect(raison?.className).toContain("2xl:not-sr-only");
+    });
+
+    it("D16 : dans le cadre, la raison est UNE ligne sous la barre du haut, visible à toute largeur (plus cachée sous 1536 px)", () => {
+        const sous = document.createElement("div");
+        document.body.appendChild(sous);
+        m.sousBarre = sous;
+        render(<ActionsAgent {...base} editeur={editeur({ estModifie: true })} />);
+        const raison = sous.querySelector("[data-raison-publier]") as HTMLElement;
+        expect(raison.textContent).toBe("Save the changes before publishing.");
+        expect(raison.className).not.toContain("sr-only");
+        expect(raison.className).toContain("truncate"); // une seule ligne
+        expect(document.querySelectorAll("[data-raison-publier]")).toHaveLength(1); // pas de double à côté du bouton
+        m.sousBarre = null;
+        sous.remove();
     });
 
     it("sans brouillon, pas de « Publier »", () => {

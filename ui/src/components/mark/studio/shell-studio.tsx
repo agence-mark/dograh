@@ -36,11 +36,15 @@ type Emplacements = {
     nom: HTMLElement | null;
     milieu: HTMLElement | null;
     actions: HTMLElement | null;
+    /** Clôture, SA-3 (D16) : une ligne SOUS la barre du haut (la raison d'un « Publier » grisé), à toute largeur. */
+    sous: HTMLElement | null;
     declarer: (personnalisee: boolean) => void;
     /** K7 : une page pose son fil d'Ariane (le titre d'un chat en dernier maillon) ; `null` rend celui du cadre. */
     poserMiettes: (miettes: Miette[] | null) => void;
 };
 const EnteteContexte = createContext<Emplacements | null>(null);
+/** L'emplacement « sous la barre » (null hors du cadre commun : un test, un composant seul). */
+export const useSousBarre = (): HTMLElement | null => useContext(EnteteContexte)?.sous ?? null;
 
 /**
  * Pose le contenu de la barre du haut du cadre : `nom` à la place du fil d'Ariane, `milieu` après lui, `actions` à droite.
@@ -50,11 +54,14 @@ export function EnteteStudio({
     nom,
     milieu,
     actions,
+    sous,
     miettes,
 }: {
     nom?: React.ReactNode;
     milieu?: React.ReactNode;
     actions?: React.ReactNode;
+    /** Une ligne sous la barre du haut, sur toute sa largeur (D16 : la raison d'un « Publier » grisé). */
+    sous?: React.ReactNode;
     miettes?: Miette[];
 }) {
     const ctx = useContext(EnteteContexte);
@@ -78,6 +85,7 @@ export function EnteteStudio({
             {nom && ctx.nom && createPortal(nom, ctx.nom)}
             {milieu && ctx.milieu && createPortal(milieu, ctx.milieu)}
             {actions && ctx.actions && createPortal(actions, ctx.actions)}
+            {sous && ctx.sous && createPortal(sous, ctx.sous)}
         </>
     );
 }
@@ -123,6 +131,7 @@ export function ShellStudio({
     const [elNom, setElNom] = useState<HTMLElement | null>(null);
     const [elMilieu, setElMilieu] = useState<HTMLElement | null>(null);
     const [elActions, setElActions] = useState<HTMLElement | null>(null);
+    const [elSous, setElSous] = useState<HTMLElement | null>(null);
     const [personnalisee, setPersonnalisee] = useState(false);
     const [miettesDeLaPage, setMiettesDeLaPage] = useState<Miette[] | null>(null);
 
@@ -166,7 +175,7 @@ export function ShellStudio({
         >
             <ContextePanneau.Provider value={panneau}>
             <DecalagePanneau.Provider value={panneau.onglets.length > 0 && !adaptation.dessus ? adaptation.largeurAffichee + 16 : 0}>
-            <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, declarer: setPersonnalisee, poserMiettes: setMiettesDeLaPage }}>
+            <EnteteContexte.Provider value={{ nom: elNom, milieu: elMilieu, actions: elActions, sous: elSous, declarer: setPersonnalisee, poserMiettes: setMiettesDeLaPage }}>
             <SidebarStudio compteurs={compteurs} />
             <div className="h-svh w-full overflow-hidden lg:py-2 lg:pr-2">
                 <div id="cadre-studio" className="relative flex h-full w-full flex-col overflow-hidden bg-background lg:rounded-xl lg:border">
@@ -202,6 +211,8 @@ export function ShellStudio({
                             </div>
                         </header>
                     )}
+                    {/* Une ligne sous la barre, à toute largeur : ce qu'une page y pose (portail), rien d'autre. */}
+                    {!sansEntete && <div ref={setElSous} className="contents" />}
                     {/* Sous la barre du haut (qui garde toute sa largeur) : la page, et le panneau de droite qui la pousse. */}
                     <div className="relative flex min-h-0 flex-1">
                         <main className="min-w-0 flex-1 overflow-auto">{children}</main>

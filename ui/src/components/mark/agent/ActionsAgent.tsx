@@ -11,6 +11,7 @@ import type { ReactFlowInstance } from "@xyflow/react";
 import { ChevronDown, Clipboard, Copy, Download, FolderInput, FolderOutput, FlaskConical, Globe, History, Keyboard, MoreHorizontal, Pencil, Percent, Phone, Play, Send, Sparkles, Tag, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -23,6 +24,7 @@ import type { FlowEdge, FlowNode } from "@/components/flow/types";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { FenetreChamps } from "@/components/mark/studio/fenetre-champs";
+import { useSousBarre } from "@/components/mark/studio/shell-studio";
 import { PointEtat } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import {
@@ -175,6 +177,7 @@ export function ActionsAgent({
     const versionsTriees = [...versions].sort((a, b) => (b.version_number ?? 0) - (a.version_number ?? 0));
     const libelleVersion = versionNumero != null ? `v${versionNumero}` : t(T.brouillon);
     const surLeParcours = (suite: string) => `${adresseOnglet(agentId, "parcours")}${suite}`;
+    const sousBarre = useSousBarre();
     const raison = editeur?.builder.raisonDeBlocage ?? null;
     const bloque = Boolean(editeur && (editeur.estModifie || editeur.erreursDuParcours > 0 || raison));
     // N2 (03 § 3) : la raison d'un « Publier » grisé est écrite à côté du bouton, plus seulement au survol.
@@ -363,12 +366,21 @@ export function ActionsAgent({
 
             {!editeur?.versionPassee && aUnBrouillon && (
                 <>
-                    {/* SA-V : en dessous de 1536 px, la raison reste lue (lecteur d’écran, survol de Publier) mais n’écrase plus les onglets de la barre. */}
-                    {raisonEnClair && (
-                        <span role="status" data-raison-publier className="sr-only max-w-64 text-xs text-muted-foreground 2xl:not-sr-only">
-                            {raisonEnClair}
-                        </span>
-                    )}
+                    {/* D16 (clôture, SA-3) : la raison d'un « Publier » grisé tient sur UNE ligne sous la barre du haut, à toute largeur
+                        (elle n'écrase plus les onglets, et n'est plus cachée en dessous de 1536 px). Hors du cadre commun : à côté du bouton. */}
+                    {raisonEnClair &&
+                        (sousBarre ? (
+                            createPortal(
+                                <p role="status" data-raison-publier className="shrink-0 truncate border-b px-4 py-1.5 text-xs text-muted-foreground sm:px-6">
+                                    {raisonEnClair}
+                                </p>,
+                                sousBarre,
+                            )
+                        ) : (
+                            <span role="status" data-raison-publier className="sr-only max-w-64 text-xs text-muted-foreground 2xl:not-sr-only">
+                                {raisonEnClair}
+                            </span>
+                        ))}
                     <Button size="sm" onClick={() => setFenetre("publier")} disabled={bloque} title={raisonEnClair ?? undefined} className="gap-1.5">
                         {t(T.publier)}
                     </Button>

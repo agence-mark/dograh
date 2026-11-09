@@ -95,10 +95,16 @@ export function FilDuBuilder({
     // devient la marge du bas du fil, sinon la dernière carte reste cachée derrière elle.
     const saisieFlottante = useRef<HTMLDivElement>(null);
     const [hautSaisie, setHautSaisie] = useState(160);
+    // La hauteur réelle du bloc de saisie (sans la marge de confort) : la carte « revenir en bas » se pose juste au-dessus.
+    const [hautReelle, setHautReelle] = useState(96);
     useEffect(() => {
         const bloc = saisieFlottante.current;
         if (!bloc || typeof ResizeObserver === "undefined") return;
-        const mesurer = () => setHautSaisie(Math.max(160, Math.ceil(bloc.getBoundingClientRect().height) + 16));
+        const mesurer = () => {
+            const h = Math.ceil(bloc.getBoundingClientRect().height);
+            setHautSaisie(Math.max(160, h + 16));
+            setHautReelle(h);
+        };
         mesurer();
         const observateur = new ResizeObserver(mesurer);
         observateur.observe(bloc);
@@ -129,7 +135,7 @@ export function FilDuBuilder({
     };
 
     const principal = (
-        <div className={`relative mx-auto flex h-[calc(100vh-8rem)] w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
+        <div className={`relative mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col pt-4 ${vu !== null ? "hidden" : ""}`}>
             {entete && fil && <div className="pb-2"><FlecheRetour href={adresses.liste} libelle={t({ en: "Back to the chats", fr: "Retour aux chats" })} /></div>}
             {entete && fil && <BandeauDuFil fil={fil} enCours={enCours} lectureSeule={lectureSeule} arreter={() => void arreter()} reprendre={() => void reprendre()} />}
             {entete ? (
@@ -160,7 +166,9 @@ export function FilDuBuilder({
                 </p>
             </div>
             )}
-            <div ref={zone} onScroll={surDefilement} className="flex-1 space-y-3 overflow-y-auto" style={{ paddingBottom: hautSaisie }}>
+            {/* Clôture, SA-3 (É47 à É49) : UN seul conteneur qui défile (le chat remplit le cadre, la page ne défile plus avec lui), sans barre
+                de défilement visible ; la saisie flotte dessus et sa hauteur devient la marge du bas. */}
+            <div ref={zone} onScroll={surDefilement} className="min-h-0 flex-1 space-y-3 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: hautSaisie }}>
                 {lignes.map((l, i) => (
                     <Ligne
                         key={i}
@@ -206,7 +214,18 @@ export function FilDuBuilder({
                 <div ref={fond} />
             </div>
             {!enBas && (
-                <Button size="sm" variant="outline" className="absolute right-4 bottom-32 cursor-pointer" onClick={() => setEnBas(true)}>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    data-revenir-en-bas
+                    className="absolute left-1/2 z-10 -translate-x-1/2 cursor-pointer rounded-full bg-card shadow-md"
+                    // Juste au-dessus de la saisie, dont la hauteur varie (plusieurs lignes, barre des changements) : jamais cachée dessous.
+                    style={{ bottom: hautReelle + 4 }}
+                    onClick={() => {
+                        setEnBas(true);
+                        fond.current?.scrollIntoView?.({ block: "end", behavior: "smooth" });
+                    }}
+                >
                     <ArrowDown className="size-4" /> {t(T.bas)}
                 </Button>
             )}
@@ -256,8 +275,9 @@ export function FilDuBuilder({
                         </div>
                     )}
                     <Textarea
-                        rows={2}
-                        className="resize-none rounded-none border-0 px-4 shadow-none focus-visible:ring-0"
+                        rows={1}
+                        // Une ligne qui grandit avec le texte (jusqu'à dix lignes), pas un cadre de deux lignes avec un grand vide.
+                        className="max-h-60 min-h-10 resize-none rounded-none border-0 px-4 py-2.5 shadow-none focus-visible:ring-0"
                         value={saisie}
                         placeholder={t(T.ecrire)}
                         aria-label={t(T.ecrireLibelle)}
