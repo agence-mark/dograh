@@ -28,6 +28,8 @@ vi.mock("@/client", () => ({
     // le menu de la saisie (« / ») lit les agents et les recettes au montage
     getWorkflowsSummaryApiV1WorkflowSummaryGet: async () => ({ data: [] }),
     listerLesRecettesApiV1BuilderRecettesGet: async () => ({ data: { recettes: [] } }),
+    // la barre du modèle (sous la saisie, hors Claude Code) lit le cerveau au montage
+    lireLeCerveauApiV1BuilderCerveauGet: async () => ({ data: { modele: "", plafond: null } }),
     lireLesSourcesApiV1BuilderSourcesGet: async () => ({ data: { sources: etat.sources } }),
     reglerUneSourceApiV1BuilderSourcesBriquePut: (o: never) => regler(o),
     lireLeMiroirApiV1BuilderMiroirReglageGet: async () => ({ data: { actif: etat.miroir } }),
