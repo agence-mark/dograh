@@ -102,7 +102,7 @@ export const NodeEditDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud">
+            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="shrink-0 px-6 pb-3 pr-12 pt-5">
                     <DialogTitle className="sr-only">{title}</DialogTitle>
                     <div className="flex items-center gap-2">

@@ -50,7 +50,7 @@ export function OngletsNoeud({
                 </div>
                 </Defileur>
             )}
-            <div className="min-h-0 max-h-[60vh] overflow-y-auto px-6 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 {sections.map((s) => (
                     <div key={s.id} role="tabpanel" className="grid gap-5" data-volet={s.id} hidden={s.id !== actif?.id}>
                         {s.contenu}
