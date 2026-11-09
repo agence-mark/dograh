@@ -9,11 +9,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import String, and_, cast, delete, func, literal, or_, select, text, union_all, update
 from sqlalchemy.orm import object_session
 
 from api.db.base_client import BaseDBClient
-from api.db.models import OrganizationModel, UserModel
+from api.db.models import (
+    CampaignModel,
+    FolderModel,
+    KnowledgeBaseDocumentModel,
+    OrganizationModel,
+    ToolModel,
+    UserModel,
+    WorkflowModel,
+)
 from api.db.models_equipe import (
     MarkInvitationModel,
     MarkJournalModel,
@@ -115,6 +123,40 @@ class EquipeClient(BaseDBClient):
                 )
             )
             await session.commit()
+
+    async def noms_des_cibles(self, cibles: list[tuple[int | None, str, str]]) -> dict[tuple[int | None, str, str], str]:
+        """Clôture, lot A (D23) : le NOM des objets que cite une page du journal, en UNE requête (aucune cascade), chaque objet lu avec l'organisation
+        de SA ligne (jamais celui d'une autre organisation). ``cibles`` : ``(organisation, type, identifiant)`` ; absent du résultat = l'objet n'existe plus."""
+        demandes: dict[str, list[tuple[int, str]]] = {}
+        for organisation, type_, identifiant in set(cibles):
+            if organisation is not None:
+                demandes.setdefault(type_, []).append((organisation, identifiant))
+        requetes = []
+
+        def entier(valeur: str) -> int | None:
+            return int(valeur) if valeur.isdigit() else None
+
+        sources = {
+            "agent": (WorkflowModel.id, WorkflowModel.organization_id, WorkflowModel.name, entier),
+            "campagne": (CampaignModel.id, CampaignModel.organization_id, CampaignModel.name, entier),
+            "dossier": (FolderModel.id, FolderModel.organization_id, FolderModel.name, entier),
+            "outil": (ToolModel.tool_uuid, ToolModel.organization_id, ToolModel.name, str),
+            "document": (KnowledgeBaseDocumentModel.document_uuid, KnowledgeBaseDocumentModel.organization_id, KnowledgeBaseDocumentModel.filename, str),
+        }
+        for type_, paires in demandes.items():
+            if type_ not in sources:
+                continue
+            colonne_id, colonne_org, colonne_nom, convertir = sources[type_]
+            conditions = [and_(colonne_org == org, colonne_id == convertir(ident)) for org, ident in paires if convertir(ident) is not None]
+            if conditions:
+                requetes.append(
+                    select(literal(type_).label("t"), colonne_org.label("o"), cast(colonne_id, String).label("i"), colonne_nom.label("n")).where(or_(*conditions))
+                )
+        if not requetes:
+            return {}
+        async with self.async_session() as session:
+            lignes = (await session.execute(union_all(*requetes))).all()
+        return {(o, t, i): n for t, o, i, n in lignes}
 
     async def lister_journal(
         self,

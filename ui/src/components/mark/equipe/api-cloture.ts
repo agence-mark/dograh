@@ -35,6 +35,9 @@ export interface LigneDuJournal {
     organization_id: number | null;
     detail: Record<string, unknown> | null;
     origine?: "ecran" | "api" | "mcp" | null;
+    /** D23, le « quoi » : le geste et l'objet touché (``nom`` vide : l'objet n'existe plus). Absents sur une ligne d'avant. */
+    geste?: string | null;
+    cible?: { type: string; id: string; nom: string | null } | null;
 }
 
 export interface ReglagesEquipe {

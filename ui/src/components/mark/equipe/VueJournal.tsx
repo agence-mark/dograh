@@ -16,6 +16,36 @@ import { type LigneDuJournal as JournalLigne, lireLeJournalFiltre, typesDeGestes
 import { ReglageDureeDuJournal } from "./ReglagesDeLEquipe";
 
 /** Les gestes écrits au journal, dits en clair ; une clé inconnue s'affiche telle quelle (jamais masquée). */
+// D23, le « quoi » : un verbe et l'objet nommé (« A modifié Standard des Tilleuls »). Sans nom (objet supprimé) : « A modifié un agent ».
+const VERBES: Record<string, { fr: string; en: string }> = {
+    modifier: { fr: "A modifié", en: "Changed" },
+    publier: { fr: "A publié", en: "Published" },
+    supprimer: { fr: "A supprimé", en: "Deleted" },
+    creer: { fr: "A créé", en: "Created" },
+    dupliquer: { fr: "A dupliqué", en: "Duplicated" },
+    restaurer: { fr: "A restauré", en: "Restored" },
+    archiver: { fr: "A archivé", en: "Archived" },
+    lancer: { fr: "A lancé", en: "Started" },
+    suspendre: { fr: "A suspendu", en: "Paused" },
+    tester: { fr: "A testé", en: "Tested" },
+    actualiser: { fr: "A actualisé", en: "Refreshed" },
+};
+const OBJETS: Record<string, { fr: string; en: string }> = {
+    agent: { fr: "un agent", en: "an agent" },
+    outil: { fr: "un outil", en: "a tool" },
+    document: { fr: "un document", en: "a document" },
+    campagne: { fr: "une campagne", en: "a campaign" },
+    dossier: { fr: "un dossier", en: "a folder" },
+};
+
+/** Le « quoi » d'une ligne : geste + objet nommé ; une ligne d'avant (sans cible) garde le libellé de son type de geste. */
+export const quoiDeLaLigne = (l: Pick<JournalLigne, "geste" | "cible">, langue: "fr" | "en"): string | null => {
+    const verbe = l.geste ? VERBES[l.geste] : undefined;
+    const objet = l.cible ? OBJETS[l.cible.type] : undefined;
+    if (!verbe || !objet || !l.cible) return null;
+    return `${verbe[langue]} ${l.cible.nom ? `« ${l.cible.nom} »` : objet[langue]}`;
+};
+
 const GESTES: Record<string, Texte> = {
     "invitation.creer": { en: "Invited a member", fr: "A invité un membre" },
     "invitation.accepter": { en: "Joined the team", fr: "A rejoint l'équipe" },
@@ -71,7 +101,7 @@ const quiEst = (l: JournalLigne, sansNom: string) => [l.prenom, l.nom].filter(Bo
 
 /** [.mark] Le journal (U2 ter) : qui, quoi, quel espace, quand. Paginé côté serveur, 25 par page. */
 export function VueJournal() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [page, setPage] = useState(0);
     const [donnees, setDonnees] = useState<{ lignes: JournalLigne[]; total: number } | null>(null);
     const [espaces, setEspaces] = useState<Record<number, string>>({});
@@ -200,7 +230,7 @@ export function VueJournal() {
                             <Ligne key={l.id}>
                                 <Cellule principale>{new Date(l.quand).toLocaleString()}</Cellule>
                                 <Cellule>{quiEst(l, t({ en: "Account without a name", fr: "Compte sans nom" }))}</Cellule>
-                                <Cellule>{GESTES[l.action] ? t(GESTES[l.action]) : l.action}</Cellule>
+                                <Cellule>{quoiDeLaLigne(l, langue) ?? (GESTES[l.action] ? t(GESTES[l.action]) : l.action)}</Cellule>
                                 <Cellule>{l.origine ? t(PORTES[l.origine]) : "—"}</Cellule>
                                 <Cellule droite>{l.organization_id != null ? (espaces[l.organization_id] ?? `#${l.organization_id}`) : "—"}</Cellule>
                             </Ligne>

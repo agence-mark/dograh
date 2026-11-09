@@ -296,15 +296,26 @@ class JournalLigne(BaseModel):
     detail: dict | None
     # Clôture, lot A (D23) : d'où vient le geste (écran, API, MCP) ; vide pour une ligne d'avant.
     origine: str | None = None
+    # D23, le « quoi » : le geste (``publier``, ``supprimer``, ``creer``, ``modifier``...) et l'objet touché (type, identifiant, nom ; ``nom`` vide = l'objet
+    # n'existe plus). Absents pour une ligne d'avant ou une route sans objet : l'écran retombe sur le libellé du type de geste.
+    geste: str | None = None
+    cible: dict | None = None
 
 
-def _ligne_du_journal(ligne: dict) -> JournalLigne:
+def _ligne_du_journal(ligne: dict, noms: dict | None = None) -> JournalLigne:
+    from api.services.equipe_mark import journal_cibles
+
+    extra: dict = {"geste": journal_cibles.verbe_de(ligne.get("detail"))}
+    trouvee = journal_cibles.cible_de(ligne.get("detail"))
+    if trouvee is not None:
+        type_, identifiant = trouvee
+        extra["cible"] = {"type": type_, "id": identifiant, "nom": (noms or {}).get((ligne.get("organization_id"), type_, identifiant))}
     nom = " ".join(p for p in (ligne.get("prenom"), ligne.get("nom")) if p)
     if nom:
-        return JournalLigne(**ligne, qui=nom)
+        return JournalLigne(**ligne, qui=nom, **extra)
     if ligne.get("user_id") is not None:
-        return JournalLigne(**ligne, qui=None, sans_nom=True)
-    return JournalLigne(**ligne, qui=ligne.get("auteur"))
+        return JournalLigne(**ligne, qui=None, sans_nom=True, **extra)
+    return JournalLigne(**ligne, qui=ligne.get("auteur"), **extra)
 
 
 class JournalResponse(BaseModel):
@@ -337,7 +348,15 @@ async def lire_le_journal(
         depuis=depuis,
         jusqu_a=jusqu_a,
     )
-    return JournalResponse(lignes=[_ligne_du_journal(ligne) for ligne in lignes], total=total, limit=limit, offset=offset)
+    from api.services.equipe_mark import journal_cibles
+
+    demandees = []
+    for ligne in lignes:
+        trouvee = journal_cibles.cible_de(ligne.get("detail"))
+        if trouvee is not None:
+            demandees.append((ligne.get("organization_id"), *trouvee))
+    noms = await db_client.noms_des_cibles(demandees) if demandees else {}  # une seule requête pour la page
+    return JournalResponse(lignes=[_ligne_du_journal(ligne, noms) for ligne in lignes], total=total, limit=limit, offset=offset)
 
 
 @router.get("/journal/types", response_model=list[str])

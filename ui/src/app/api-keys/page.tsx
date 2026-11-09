@@ -32,7 +32,7 @@ import logger from '@/lib/logger';
 
 export default function APIKeysPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const organizationTimezone = useOrganizationTimezone();
 
     logger.debug('[APIKeysPage] Component render', {
@@ -220,8 +220,8 @@ export default function APIKeysPage() {
     };
 
     const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'Never';
-        return formatDateTime(dateString, organizationTimezone);
+        if (!dateString) return t({ fr: 'Jamais', en: 'Never' });
+        return formatDateTime(dateString, organizationTimezone, langue);  // la date se dit dans la langue de l'écran
     };
 
     // Don't render content until auth is loaded
@@ -324,25 +324,25 @@ export default function APIKeysPage() {
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium">{key.name}</span>
-                                                    {(key as { suspendue?: boolean }).suspendue && <Badge variant="secondary">Suspended</Badge>}
+                                                    {(key as { suspendue?: boolean }).suspendue && <Badge variant="secondary">{t({ fr: 'Suspendue', en: 'Suspended' })}</Badge>}
                                                     {(key as { role_nom?: string | null }).role_nom && <Badge variant="outline">{(key as { role_nom?: string | null }).role_nom}</Badge>}
                                                     {key.archived_at ? (
-                                                        <Badge variant="secondary">Archived</Badge>
+                                                        <Badge variant="secondary">{t({ fr: 'Archivée', en: 'Archived' })}</Badge>
                                                     ) : key.is_active ? (
-                                                        <Badge variant="default">Active</Badge>
+                                                        <Badge variant="default">{t({ fr: 'Active', en: 'Active' })}</Badge>
                                                     ) : (
-                                                        <Badge variant="destructive">Inactive</Badge>
+                                                        <Badge variant="destructive">{t({ fr: 'Inactive', en: 'Inactive' })}</Badge>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                     <span className="font-mono bg-muted px-2 py-1 rounded">{key.key_prefix}...</span>
                                                     <span className="text-xs text-muted-foreground/70">
-                                                        (Full key hidden for security)
+                                                        {t({ fr: '(clé complète masquée par sécurité)', en: '(Full key hidden for security)' })}
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 text-xs text-muted-foreground">
-                                                    Created: {formatDate(key.created_at)} •
-                                                    Last used: {formatDate(key.last_used_at ?? null)}
+                                                    {t({ fr: 'Créée', en: 'Created' })} : {formatDate(key.created_at)} •{' '}
+                                                    {t({ fr: 'Dernière utilisation', en: 'Last used' })} : {formatDate(key.last_used_at ?? null)}
                                                 </div>
                                                 {!key.archived_at && <PanneauDroitsCle cle={key as never} recharger={fetchApiKeys} />}
                                             </div>

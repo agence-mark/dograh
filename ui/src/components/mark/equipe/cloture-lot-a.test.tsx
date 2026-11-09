@@ -5,6 +5,7 @@
  * |---|---|
  * | accès actif | l'interrupteur d'un membre appelle le serveur, dit son résultat par une notification, un échec reste dit ; un membre bloqué se lit « Bloqué » |
  * | journal | les filtres « Type de geste » et « Porte » partent au serveur ; la colonne « Porte » dit écran, API ou MCP ; les gestes nouveaux sont dits en clair |
+ * | quoi (D23) | « Quoi » dit le geste et l'objet nommé ; objet supprimé : le type seul ; ligne d'avant : le libellé du type de geste |
  * | durée | la durée du journal est bornée par le serveur (hors bornes : message sous le champ, pas d'envoi) |
  * | clé | le panneau de droits d'une clé : rôle, suspension et trois interrupteurs MCP éteints par défaut, désactivés sans rôle |
  */
@@ -148,5 +149,23 @@ describe("[.mark] clôture, lot A : l'écran", () => {
         expect(recharger).toHaveBeenCalled();
         fireEvent.click(screen.getByRole("switch", { name: "Clé active" }));
         await waitFor(() => expect(m.suspendre).toHaveBeenCalledWith(9, true));
+    });
+
+    it("D23 : le « quoi » dit le geste et l'objet nommé, un repli propre si l'objet a disparu, et garde lisible une ligne d'avant", async () => {
+        const base = { quand: "2026-11-09T10:00:00Z", user_id: 1, auteur: "x", prenom: "Evan", nom: "L", organization_id: 7, origine: "ecran" };
+        m.journal.mockResolvedValue({
+            data: {
+                lignes: [
+                    { ...base, id: 1, action: "agents.publier", detail: null, geste: "publier", cible: { type: "agent", id: "4", nom: "Standard des Tilleuls" } },
+                    { ...base, id: 2, action: "agents.modifier", detail: null, geste: "modifier", cible: { type: "agent", id: "9", nom: null } },
+                    { ...base, id: 3, action: "agents.modifier", detail: null },
+                ],
+                total: 3, limit: 25, offset: 0,
+            },
+        });
+        dans(<VueJournal />);
+        await screen.findByText("A publié « Standard des Tilleuls »");
+        expect(screen.getByText("A modifié un agent")).toBeTruthy();
+        expect(screen.getByText("A modifié un agent ou un réglage")).toBeTruthy();
     });
 });

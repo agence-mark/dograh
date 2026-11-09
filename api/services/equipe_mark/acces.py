@@ -31,6 +31,7 @@ from api.services.equipe_mark.registre_routes import (
     Exemption,
     Permission,
     decision_de,
+    ecrit_quelque_chose,
 )
 
 ENTETE_ORGANISATION = "X-Mark-Organisation"
@@ -200,13 +201,27 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         ):
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
-        if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES):
-            await journaliser(
-                user,
-                journal_cle,
-                user.selected_organization_id,
-                {"route": f"{methode} {chemin}"},
-            )
+        # D23 : une route déclarée sans effet (``SANS_ECRITURE``) n'écrit aucune ligne ; une vraie écriture en écrit exactement une, avec sa cible.
+        if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES) and ecrit_quelque_chose(methode, chemin):
+            detail: dict = {"route": f"{methode} {chemin}"}
+            cible = _cible_de_la_requete(connexion)
+            if cible:
+                detail["cible"] = cible
+            await journaliser(user, journal_cle, user.selected_organization_id, detail)
+
+
+_PARAMETRES_SECRETS = ("token", "secret", "jeton", "password", "mot_de_passe")
+
+
+def _cible_de_la_requete(connexion) -> dict | None:
+    """Les paramètres d'ADRESSE de la requête (``workflow_id``, ``tool_uuid``...), jamais le corps ni un paramètre qui ressemble à un secret."""
+    brut = getattr(connexion, "path_params", None) or {}
+    cible = {
+        str(cle): (valeur if isinstance(valeur, int) else str(valeur)[:80])
+        for cle, valeur in brut.items()
+        if isinstance(valeur, (int, str)) and not any(m in str(cle).lower() for m in _PARAMETRES_SECRETS)
+    }
+    return cible or None
 
 
 def auteur_du_journal(user) -> str:
