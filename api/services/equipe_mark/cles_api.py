@@ -28,3 +28,16 @@ async def verifier_le_role_de_la_cle(createur, role_id: int) -> dict:
     if en_trop:
         raise ErreurEquipe(403, f"A key never has more rights than its creator: {', '.join(en_trop)}")
     return role
+
+
+async def regenerer_la_cle_du_portail(user, nom: str):
+    """Clôture, lot A : « Régénérer la clé du portail ». La nouvelle clé est créée D'ABORD (sans rôle : la liste fermée du portail), puis les
+    anciennes clés de ce nom sont révoquées : jamais un instant sans clé valide si la création échoue. Rend (clé, valeur en clair, ids révoqués)."""
+    organisation = user.selected_organization_id
+    anciennes = [c for c in await db_client.get_api_keys_by_organization(organisation, include_archived=False) if c.name == nom]
+    nouvelle, valeur = await db_client.create_api_key(organisation, nom, user.id)
+    revoquees = []
+    for ancienne in anciennes:
+        if await db_client.archive_api_key(ancienne.id):
+            revoquees.append(ancienne.id)
+    return nouvelle, valeur, revoquees

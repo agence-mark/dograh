@@ -485,6 +485,23 @@ async def reactivate_api_key(
 
     return {"success": True, "message": "API key reactivated successfully"}
 
+@router.post("/api-keys/portail/regenerer")
+async def regenerate_portal_api_key(user: UserModel = Depends(get_user)) -> CreateAPIKeyResponse:
+    """[.mark] Clôture, lot A : régénère la clé du portail de cette organisation. L'ancienne est révoquée (journalisé), la nouvelle n'est montrée qu'une fois."""
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
+    from api.services.equipe_mark.acces import est_par_cle_api, journaliser
+    from api.services.equipe_mark.cles_api import regenerer_la_cle_du_portail
+    from api.services.installation_client.executants import NOM_CLE_PORTAIL
+
+    if est_par_cle_api(user):
+        raise HTTPException(status_code=403, detail="An API key cannot regenerate the portal key")
+    nouvelle, valeur, revoquees = await regenerer_la_cle_du_portail(user, NOM_CLE_PORTAIL)
+    await journaliser(user, "cle_api.regenerer_portail", user.selected_organization_id, {"cle": nouvelle.id, "revoquees": revoquees})
+    return CreateAPIKeyResponse(
+        id=nouvelle.id, name=nouvelle.name, key_prefix=nouvelle.key_prefix, api_key=valeur, created_at=nouvelle.created_at
+    )
+
 
 @router.put("/api-keys/{api_key_id}/role")
 async def change_api_key_role(

@@ -262,3 +262,24 @@ async def test_d9_d10_d11_les_cles_de_client_et_du_labo(db_session):
 
 def test_le_message_par_defaut_est_celui_d_evan():
     assert MESSAGE_PAR_DEFAUT["fr"] == "Votre accès est bloqué jusqu'à votre prochaine mission."
+
+
+# ---------------------------------------------------------------------- « Régénérer la clé du portail »
+async def test_regenerer_la_cle_du_portail_revoque_l_ancienne_et_journalise(db_session):
+    db = db_session
+    labo, client, admin, jeton = await _monde(db, "regen")
+    async with client_http() as c:
+        ancienne = (await _creer_cle(c, jeton, client, "Portail .mark")).json()["api_key"]
+        autre = (await _creer_cle(c, jeton, client, "Un script")).json()["api_key"]
+        r = await c.post("/api/v1/user/api-keys/portail/regenerer", headers=entetes(jeton, client))
+        assert r.status_code == 200
+        nouvelle = r.json()["api_key"]
+        assert nouvelle != ancienne
+        assert (await c.get("/api/v1/auth/me", headers={"X-API-Key": ancienne})).status_code == 401
+        assert (await c.get("/api/v1/auth/me", headers={"X-API-Key": nouvelle})).status_code == 200
+        assert (await c.get("/api/v1/auth/me", headers={"X-API-Key": autre})).status_code == 200  # une autre clé ne bouge pas
+        # une clé ne régénère pas la clé du portail
+        assert (await c.post("/api/v1/user/api-keys/portail/regenerer", headers={"X-API-Key": nouvelle})).status_code == 403
+        journal = (await c.get("/api/v1/equipe-mark/journal?action=cle_api.regenerer_portail", headers=entetes(jeton, client))).json()
+    assert journal["total"] == 1
+    assert nouvelle not in str(journal) and ancienne not in str(journal)  # jamais une clé dans le journal
