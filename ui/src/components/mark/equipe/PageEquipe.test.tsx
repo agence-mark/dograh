@@ -27,7 +27,6 @@ vi.mock("@/client/sdk.gen", () => ({
     listerLesInvitationsApiV1EquipeMarkInvitationsGet: sdk.invitations,
     listerLesRolesApiV1EquipeMarkRolesGet: sdk.roles,
     catalogueApiV1EquipeMarkPermissionsGet: sdk.catalogue,
-    lireLeJournalApiV1EquipeMarkJournalGet: sdk.journal,
     annulerUneInvitationApiV1EquipeMarkInvitationsInvitationIdDelete: vi.fn(),
     changerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePut: vi.fn(),
     inviterApiV1EquipeMarkInvitationsPost: vi.fn(),
@@ -35,6 +34,12 @@ vi.mock("@/client/sdk.gen", () => ({
     creerUnRoleApiV1EquipeMarkRolesPost: vi.fn(),
     modifierUnRoleApiV1EquipeMarkRolesRoleIdPut: vi.fn(),
     supprimerUnRoleApiV1EquipeMarkRolesRoleIdDelete: vi.fn(),
+}));
+vi.mock("./api-cloture", () => ({
+    lireLeJournalFiltre: sdk.journal,
+    typesDeGestes: vi.fn(async () => ({ data: [] })),
+    lireLesReglagesDeLEquipe: vi.fn(async () => ({ data: undefined })),
+    changerLAcces: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ loading: false, user: { email: "a@b.c" } }) }));
 vi.mock("@/lib/espaces", () => ({
@@ -120,7 +125,7 @@ describe("Équipe et rôles", () => {
     });
 
     it("les rôles : espaces ouverts et permissions réelles ; le journal : qui, quoi, quel espace", async () => {
-        sdk.monProfil.mockImplementation(() => ok({ permissions: ["equipe.gerer", "roles.gerer"] }));
+        sdk.monProfil.mockImplementation(() => ok({ permissions: ["equipe.gerer", "roles.gerer", "journal.lire"] }));
         monter();
         await waitFor(() => expect(screen.getByText("Evan L")).toBeTruthy());
         await waitFor(() => expect(screen.getByText("4 sur 15")).toBeTruthy());

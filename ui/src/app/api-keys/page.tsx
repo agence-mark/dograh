@@ -18,6 +18,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PanneauDroitsCle } from '@/components/mark/cles/PanneauDroitsCle';
+import { regenererLaClePortail } from '@/components/mark/equipe/api-cloture';
+import { Liste } from '@/components/mark/studio/liste';
+import { listerLesRolesApiV1EquipeMarkRolesGet } from '@/client/sdk.gen';
+import type { RoleResponse } from '@/client/types.gen';
 import { useOrganizationTimezone } from '@/hooks/useOrganizationTimezone';
 import { useAuth } from '@/lib/auth';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -40,6 +45,12 @@ export default function APIKeysPage() {
     const [showArchived, setShowArchived] = useState(false);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState('');
+    // [.mark] Clôture, lot A (D21) : le rôle que la clé porte, choisi à la création (jamais plus de droits que son créateur).
+    const [newKeyRole, setNewKeyRole] = useState('');
+    const [roles, setRoles] = useState<RoleResponse[]>([]);
+    useEffect(() => {
+        listerLesRolesApiV1EquipeMarkRolesGet().then((res) => setRoles(res.data ?? []));
+    }, []);
     const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
     const [showCreatedKeyDialog, setShowCreatedKeyDialog] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -110,8 +121,9 @@ export default function APIKeysPage() {
 
             const response = await createApiKeyApiV1UserApiKeysPost({
                 body: {
-                    name: newKeyName
-                },
+                    name: newKeyName,
+                    ...(newKeyRole ? { role_id: Number(newKeyRole) } : {}),
+                } as { name: string },
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                 }
@@ -122,12 +134,32 @@ export default function APIKeysPage() {
                 setIsCreateDialogOpen(false);
                 setShowCreatedKeyDialog(true);
                 setNewKeyName('');
+                setNewKeyRole('');
                 fetchApiKeys();
             }
         } catch (err) {
             setError('Failed to create API key');
             console.error('Error creating API key:', err);
         }
+    };
+
+    // [.mark] Clôture, lot A : « Régénérer la clé du portail ». Deux temps (geste qui coupe l'ancienne clé) ; la nouvelle n'est montrée qu'une fois.
+    const [confirmerRegeneration, setConfirmerRegeneration] = useState(false);
+    const regenererLaCleDuPortail = async () => {
+        if (!confirmerRegeneration) {
+            setConfirmerRegeneration(true);
+            return;
+        }
+        setConfirmerRegeneration(false);
+        const res = await regenererLaClePortail();
+        if (res.error || !res.data) {
+            notifier.echec({ fr: "Clé du portail non régénérée. Réessayez.", en: "Portal key not regenerated. Try again." }, { erreur: res.error });
+            return;
+        }
+        setCreatedKey(res.data as unknown as CreateApiKeyResponse);
+        setShowCreatedKeyDialog(true);
+        notifier.succes({ fr: "Clé du portail régénérée : l'ancienne est révoquée.", en: "Portal key regenerated: the old one is revoked." });
+        fetchApiKeys();
     };
 
     const handleArchiveKey = async (keyId: number) => {
@@ -236,6 +268,15 @@ export default function APIKeysPage() {
                                         {showArchived ? 'Hide' : 'Show'} Archived
                                     </Button>
                                     <Button
+                                        variant={confirmerRegeneration ? 'destructive' : 'outline'}
+                                        size="sm"
+                                        onClick={() => void regenererLaCleDuPortail()}
+                                        onBlur={() => setConfirmerRegeneration(false)}
+                                    >
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        {confirmerRegeneration ? 'Confirm: the old portal key is revoked' : 'Regenerate the portal key'}
+                                    </Button>
+                                    <Button
                                         onClick={() => setIsCreateDialogOpen(true)}
                                         size="sm"
                                     >
@@ -278,6 +319,8 @@ export default function APIKeysPage() {
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-medium">{key.name}</span>
+                                                    {(key as { suspendue?: boolean }).suspendue && <Badge variant="secondary">Suspended</Badge>}
+                                                    {(key as { role_nom?: string | null }).role_nom && <Badge variant="outline">{(key as { role_nom?: string | null }).role_nom}</Badge>}
                                                     {key.archived_at ? (
                                                         <Badge variant="secondary">Archived</Badge>
                                                     ) : key.is_active ? (
@@ -296,6 +339,7 @@ export default function APIKeysPage() {
                                                     Created: {formatDate(key.created_at)} •
                                                     Last used: {formatDate(key.last_used_at ?? null)}
                                                 </div>
+                                                {!key.archived_at && <PanneauDroitsCle cle={key as never} recharger={fetchApiKeys} />}
                                             </div>
                                             <div className="flex gap-2">
                                                 {key.archived_at ? (
@@ -338,6 +382,16 @@ export default function APIKeysPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Role of the key</Label>
+                            <Liste
+                                valeur={newKeyRole}
+                                changer={setNewKeyRole}
+                                vide="None (closed portal list)"
+                                options={roles.map((r) => ({ valeur: String(r.id), libelle: r.nom }))}
+                                libelle="Role of the key"
+                            />
+                        </div>
                         <div className="grid gap-2">
                             <Label htmlFor="name">Key Name</Label>
                             <Input

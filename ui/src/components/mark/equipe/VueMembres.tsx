@@ -23,7 +23,10 @@ import { Info, PointEtat } from "@/components/mark/studio/marques";
 import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau, TitreTableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { formatDate } from "@/lib/dateTime";
+import { changerLAcces } from "./api-cloture";
+import { ReglageMessageBloque } from "./ReglagesDeLEquipe";
 import { Input } from "@/components/ui/input";
 
 /** Rend les données d'une réponse, ou affiche l'erreur du serveur et rend `null`. */
@@ -67,6 +70,21 @@ export function VueMembres() {
         void charger();
     }, [charger]);
 
+    // Clôture, lot A (D22) : « Accès actif », sans date. Bloqué : sessions et clés coupées tout de suite ; rétabli en un clic, les droits reviennent.
+    const basculerAcces = async (m: MembreResponse, actif: boolean) => {
+        const res = await changerLAcces(m.user_id, actif);
+        if (res.error) {
+            notifier.echec({ fr: "Accès non modifié. Réessayez.", en: "Access not changed. Try again." }, { erreur: res.error });
+            return;
+        }
+        notifier.succes(
+            actif
+                ? { fr: "Accès rétabli.", en: "Access restored." }
+                : { fr: "Accès bloqué : sessions et clés coupées.", en: "Access blocked: sessions and keys cut." },
+        );
+        await charger();
+    };
+    const accesActif = (m: MembreResponse) => (m as { acces_actif?: boolean }).acces_actif !== false;
     const nomsDeRoles = roles.map((r) => r.nom);
     const roleParNom = (nom: string) => roles.find((r) => r.nom === nom);
 
@@ -110,7 +128,15 @@ export function VueMembres() {
                                     </Cellule>
                                     <Cellule>{m.role_nom}</Cellule>
                                     <Cellule>
-                                        <PointEtat etat="publie">{t({ en: "Active", fr: "Actif" })}</PointEtat>
+                                        <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <Switch
+                                                checked={accesActif(m)}
+                                                onCheckedChange={(v) => void basculerAcces(m, v)}
+                                                aria-label={t({ en: `Active access for ${identite(m)}`, fr: `Accès actif de ${identite(m)}` })}
+                                                className="cursor-pointer"
+                                            />
+                                            <span className="text-xs">{accesActif(m) ? t({ en: "Active", fr: "Actif" }) : t({ en: "Blocked", fr: "Bloqué" })}</span>
+                                        </span>
                                     </Cellule>
                                     <Cellule droite>{m.depuis ? formatDate(m.depuis, null, langue) : "—"}</Cellule>
                                 </Ligne>
@@ -129,6 +155,7 @@ export function VueMembres() {
                         </Tableau>
                     </Paginee>
                 )}
+                <ReglageMessageBloque />
             </section>
 
             {invitation && (

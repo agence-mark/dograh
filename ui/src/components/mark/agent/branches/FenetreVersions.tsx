@@ -1,5 +1,6 @@
 "use client";
 
+import { changerLaProtection } from "@/components/mark/equipe/api-cloture";
 import { GitMerge, History, Lock, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -64,16 +65,20 @@ export function FenetreVersions({
             setEnvoi(false);
         }
     };
-    const proteger = async (protegee: boolean) => {
+    // Clôture, lot B (D5) : « Protéger la version en ligne » est un réglage par agent. `null` : on revient à la règle par défaut (allumée chez un
+    // client à la première publication par une personne, éteinte au Labo). Chaque changement est journalisé par le serveur.
+    const proteger = async (protegee: boolean | null) => {
         setEnvoi(true);
         try {
-            const r = await protegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPut({ path: { workflow_id: agentId }, body: { protegee } });
+            const r = await changerLaProtection(agentId, protegee);
             if (r.error) return notifier.echec({ en: "The protection could not be changed. Try again.", fr: "La protection n'a pas pu être changée. Réessayez." }, { erreur: r.error });
-            if (!protegee && (r.data as { protegee?: boolean } | undefined)?.protegee) {
-                notifier.information({ en: "A live client agent stays protected: its main branch is entered only by a reviewed merge.", fr: "Un agent client en ligne reste protégé : on n'entre dans sa principale que par une fusion relue." });
-            } else {
-                notifier.succes(protegee ? { en: "Main branch protected.", fr: "Principale protégée." } : { en: "Protection lifted.", fr: "Protection levée." });
-            }
+            notifier.succes(
+                protegee === null
+                    ? { en: "Back to the default rule.", fr: "Retour à la règle par défaut." }
+                    : protegee
+                      ? { en: "Live version protected.", fr: "Version en ligne protégée." }
+                      : { en: "Protection lifted.", fr: "Protection levée." },
+            );
             apres();
         } finally {
             setEnvoi(false);
@@ -126,11 +131,16 @@ export function FenetreVersions({
                                 {b.principale && b.protegee && <Lock className="ml-1.5 inline size-3 text-muted-foreground" aria-hidden />}
                             </button>
                             {b.principale ? (
-                                !b.protegee || !b.protegee_par_defaut ? (
+                                <>
                                     <Button variant="ghost" size="sm" className="h-7 hover:font-semibold" disabled={envoi} onClick={() => void proteger(!b.protegee)}>
-                                        {b.protegee ? t({ en: "Lift protection", fr: "Lever la protection" }) : t({ en: "Protect", fr: "Protéger" })}
+                                        {b.protegee ? t({ en: "Lift protection", fr: "Lever la protection" }) : t({ en: "Protect the live version", fr: "Protéger la version en ligne" })}
                                     </Button>
-                                ) : null
+                                    {(b as { protection_reglee?: boolean | null }).protection_reglee != null && (
+                                        <Button variant="ghost" size="sm" className="h-7 hover:font-semibold" disabled={envoi} onClick={() => void proteger(null)}>
+                                            {t({ en: "Default rule", fr: "Règle par défaut" })}
+                                        </Button>
+                                    )}
+                                </>
                             ) : (
                                 <>
                                     <Button variant="ghost" size="sm" className="h-7 hover:font-semibold" onClick={() => mettreAJour(b.id)}>

@@ -35,6 +35,7 @@ const m = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { promise: vi.fn(), success: vi.fn(), error: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a> }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
+vi.mock("@/components/mark/equipe/api-cloture", () => ({ changerLaProtection: m.proteger }));
 vi.mock("@/client/sdk.gen", () => ({
     apercuDeLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionGet: m.apercuFusion,
     apercuDeLaMiseAJourApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourGet: m.apercuMaj,
@@ -42,7 +43,6 @@ vi.mock("@/client/sdk.gen", () => ({
     mettreAJourUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdMiseAJourPost: m.majPost,
     defaireLaFusionApiV1BuilderBranchesWorkflowIdBranchIdFusionDefairePost: m.defaire,
     epinglerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleVersionPut: m.epingler,
-    protegerLaPrincipaleApiV1BuilderBranchesWorkflowIdPrincipaleProtectionPut: m.proteger,
     comparerEnDuelApiV1BuilderBranchesWorkflowIdComparerGet: m.comparer,
     lireLesBranchesApiV1BuilderBranchesWorkflowIdGet: m.lire,
 }));
@@ -78,7 +78,7 @@ beforeEach(() => {
     m.majPost.mockResolvedValue({ data: { ok: true } });
     m.defaire.mockResolvedValue({ data: { ok: true } });
     m.epingler.mockResolvedValue({ data: { ok: true } });
-    m.proteger.mockResolvedValue({ data: { ok: true, protegee: true, protegee_par_defaut: false } });
+    m.proteger.mockResolvedValue({ data: { ok: true, protegee: true, protegee_par_defaut: false, reglee: true } });
 });
 afterEach(cleanup);
 
@@ -220,17 +220,25 @@ describe("les versions : gestes de L3c", () => {
 
     it("la protection se pose et se lève ; protégée par la règle, aucun bouton pour la lever", async () => {
         const p = rendre();
-        fireEvent.click(screen.getByRole("button", { name: "Protect" }));
-        await waitFor(() => expect(m.proteger).toHaveBeenCalledWith({ path: { workflow_id: 5 }, body: { protegee: true } }));
+        fireEvent.click(screen.getByRole("button", { name: "Protect the live version" }));
+        await waitFor(() => expect(m.proteger).toHaveBeenCalledWith(5, true));
         await waitFor(() => expect(p.apres).toHaveBeenCalled());
         cleanup();
         const defaut = structuredClone(VUE);
         defaut.branches[0].protegee = true;
         defaut.branches[0].protegee_par_defaut = true;
         render(<FenetreVersions agentId={5} ouverte fermer={vi.fn()} vue={defaut} ouverteId={null} ouvrir={vi.fn()} repartition={vi.fn()} fusionner={vi.fn()} mettreAJour={vi.fn()} apres={vi.fn()} />);
-        expect(screen.queryByRole("button", { name: "Lift protection" })).toBeNull();
-        expect(screen.queryByRole("button", { name: "Protect" })).toBeNull();
+        // clôture, lot B (D5) : protégée par la règle, l'équipe peut la lever (réglage par agent) ; « Règle par défaut » ne se montre qu'après un choix
+        expect(screen.getByRole("button", { name: "Lift protection" })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Default rule" })).toBeNull();
         expect(screen.getByText(/protected/)).toBeTruthy();
+        cleanup();
+        const choisie = structuredClone(VUE);
+        choisie.branches[0].protegee = false;
+        (choisie.branches[0] as { protection_reglee?: boolean | null }).protection_reglee = false;
+        render(<FenetreVersions agentId={5} ouverte fermer={vi.fn()} vue={choisie} ouverteId={null} ouvrir={vi.fn()} repartition={vi.fn()} fusionner={vi.fn()} mettreAJour={vi.fn()} apres={vi.fn()} />);
+        fireEvent.click(screen.getByRole("button", { name: "Default rule" }));
+        await waitFor(() => expect(m.proteger).toHaveBeenLastCalledWith(5, null));
     });
 });
 

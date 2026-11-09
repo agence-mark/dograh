@@ -39,6 +39,8 @@ export function EquipeEtRoles() {
         <div className="space-y-6">
             <VueMembres />
             <VueRoles peutGerer={droits.includes("roles.gerer")} />
+            {droits.includes("journal.lire") && (
+                <>
             <TitreTableau
                 titre={t({ en: "Journal", fr: "Journal" })}
                 info={
@@ -68,6 +70,8 @@ export function EquipeEtRoles() {
                 sections={[]}
                 corps={<VueJournal />}
             />
+                </>
+            )}
         </div>
     );
 }
