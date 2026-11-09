@@ -172,6 +172,19 @@ describe("After the call (organization)", () => {
         expect(corps.delai_sms_s).toBe(25);
     });
 
+    it("clôture SA-3 (D18) : les issues sans SMS se règlent (valeur d'avant par défaut) et partent en liste", async () => {
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.put.mockImplementation(async ({ body }) => ({ data: { ...ECRAN, reglages: body } }));
+        rendre(<Apres />);
+        const champ = (await screen.findByLabelText(/SMS: outcomes with no message|SMS : issues sans message/)) as HTMLInputElement;
+        expect(champ.value).toContain("voicemail");
+        expect(champ.value.split(",").length).toBe(11);
+        fireEvent.change(champ, { target: { value: "voicemail, Rendez-vous pris , busy" } });
+        fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+        await waitFor(() => expect(m.put).toHaveBeenCalledTimes(1));
+        expect(m.put.mock.calls[0][0].body.issues_sans_sms).toEqual(["voicemail", "rendez-vous pris", "busy"]);
+    });
+
     it("blocks the theme on hours that are not hours, and names the setting (E7)", async () => {
         m.get.mockResolvedValue({ data: { ...structuredClone(ECRAN), reglages: { ...ECRAN.reglages, recapitulatif: { actif: true, heures: [8] } } } });
         const signaler = vi.fn();

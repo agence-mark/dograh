@@ -58,7 +58,12 @@ const REGLAGES_VIDES: ReglagesApresAppel = {
     webhook: { url: null, secret: null, delai_s: 10 },
     reprises: { tentatives_max: 3, delai_1_s: 60, delai_2_s: 300 },
     delai_sms_s: 15,
+    issues_sans_sms: ["voicemail", "repondeur", "répondeur", "wrong_number", "faux_numero", "no_answer", "busy", "failed", "canceled", "cancelled", "machine"],
 };
+
+/** Clôture, SA-3 (D18) : les issues d'un appel après lesquelles aucun SMS ne part, écrites séparées par des virgules. */
+const listeIssues = (valeurs: string[] | undefined) => (valeurs ?? []).join(", ");
+const issuesDe = (texte: string): string[] => [...new Set(texte.split(",").map((m) => m.trim().toLowerCase()).filter(Boolean))];
 
 /** Clôture, lot C (D18) : les valeurs de l'après-appel qui étaient des constantes du code (niveau avancé). Mêmes bornes que le serveur. */
 type ChampAvance = { cle: string; id: string; libelle: Texte; aide: Texte; min: number; max: number; pas: number; defaut: number; unite: Texte };
@@ -146,11 +151,15 @@ export const ThemeApresAppel = ({
     const [heures, setHeures] = useState((enregistre.recapitulatif?.heures ?? [8]).join(", "));
     const [enCours, setEnCours] = useState(false);
     const [destinataireEssai, setDestinataireEssai] = useState("");
-    const cle = JSON.stringify(enregistre);
+    // Le texte des issues se garde tel qu'il est tapé (une virgule finale ne doit pas disparaître sous le doigt).
+    const [issuesTexte, setIssuesTexte] = useState<string | null>(null);
+    // Les issues sans SMS non posées par le serveur valent la liste d'avant : ni « modifié » au départ, ni liste vide envoyée.
+    const cle = JSON.stringify({ ...enregistre, issues_sans_sms: enregistre.issues_sans_sms ?? REGLAGES_VIDES.issues_sans_sms });
     useEffect(() => {
         const relu = JSON.parse(cle) as ReglagesApresAppel;
         setBrouillon(relu);
         setHeures((relu.recapitulatif?.heures ?? [8]).join(", "));
+        setIssuesTexte(null);
     }, [cle]);
 
     const synthese = { ...REGLAGES_VIDES.synthese!, ...(brouillon.synthese ?? {}) };
@@ -158,7 +167,8 @@ export const ThemeApresAppel = ({
     const recap = { ...REGLAGES_VIDES.recapitulatif!, ...(brouillon.recapitulatif ?? {}) };
     const webhook = { ...REGLAGES_VIDES.webhook!, ...(brouillon.webhook ?? {}) };
     const heuresLues = lireHeures(heures);
-    const envoye: ReglagesApresAppel = { ...brouillon, recapitulatif: { ...recap, heures: heuresLues ?? recap.heures } };
+    const issuesLues = brouillon.issues_sans_sms ?? REGLAGES_VIDES.issues_sans_sms ?? [];
+    const envoye: ReglagesApresAppel = { ...brouillon, issues_sans_sms: issuesLues, recapitulatif: { ...recap, heures: heuresLues ?? recap.heures } };
     const modifie = JSON.stringify(envoye) !== cle || heuresLues === null;
 
     const poser = <K extends "synthese" | "smtp" | "recapitulatif" | "webhook" | "reprises">(partie: K, champ: string, valeur: unknown) =>
@@ -339,6 +349,28 @@ export const ThemeApresAppel = ({
     );
     const champsAvances = (
         <>
+            <ChampReglage
+                cle="issues_sans_sms"
+                idControle="avance-issues-sans-sms"
+                libelle={{ en: "SMS: outcomes with no message", fr: "SMS : issues sans message" }}
+                aides={[
+                    {
+                        en: "Call outcomes after which no SMS goes out (nobody asked anything), separated by commas, lower case, matched by inclusion.",
+                        fr: "Issues d'appel après lesquelles aucun SMS ne part (personne n'a rien demandé), séparées par des virgules, en minuscules, comparées par inclusion.",
+                    },
+                ]}
+                bornes={{ en: "40 outcomes at most, 40 characters each", fr: "40 issues au plus, 40 caractères chacune" }}
+                erreur={issuesLues.length > 40 || issuesLues.some((m) => m.length > 40) ? { en: "too many or too long.", fr: "trop nombreuses ou trop longues." } : null}
+            >
+                <Input
+                    id="avance-issues-sans-sms"
+                    value={issuesTexte ?? listeIssues(issuesLues)}
+                    onChange={(e) => {
+                        setIssuesTexte(e.target.value);
+                        setBrouillon((avant) => ({ ...avant, issues_sans_sms: issuesDe(e.target.value) }));
+                    }}
+                />
+            </ChampReglage>
             {CHAMPS_AVANCES.map((c) => {
                 const v = lireAvance(brouillon, c.cle) ?? c.defaut;
                 return (

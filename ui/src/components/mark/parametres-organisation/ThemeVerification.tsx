@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth";
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { useFormeMaquette } from "../ecran/forme-maquette";
+import { ChampsNumeriques, type ChampNumerique, horsBornes, SECONDES, SANS_UNITE } from "../ecran/ChampsNumeriques";
 import { Intertitre } from "../ecran/Intertitre";
 import { type ErreurNommee, Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
@@ -90,6 +91,14 @@ export const TYPES_LISIBLES: Array<{ cle: "demandes" | "rendez_vous"; libelle: T
     },
 ];
 
+/** Clôture, SA-3 (D18) : ce qui était une constante du code, réglable (avancé). Mêmes bornes que le serveur, valeurs d'avant par défaut. */
+export const CHAMPS_AVANCES_VERIFICATION: ChampNumerique[] = [
+    { cle: "tentatives_max", id: "verif-avance-tentatives", libelle: { en: "Attempts before blocking", fr: "Essais avant blocage" }, aide: { en: "Failed attempts (and codes sent) before the caller is blocked: nothing is read, a colleague calls back.", fr: "Tentatives échouées (et codes envoyés) avant que l'appelant soit bloqué : rien n'est lu, un collègue rappelle." }, min: 1, max: 5, pas: 1, defaut: 2, unite: { en: "attempts", fr: "essais" } },
+    { cle: "code_longueur", id: "verif-avance-code-longueur", libelle: { en: "Digits of the SMS code", fr: "Chiffres du code SMS" }, aide: { en: "Length of the one-time code sent by SMS.", fr: "Longueur du code à usage unique envoyé par SMS." }, min: 4, max: 8, pas: 1, defaut: 6, unite: { en: "digits", fr: "chiffres" } },
+    { cle: "code_validite_s", id: "verif-avance-code-validite", libelle: { en: "Life of the SMS code", fr: "Durée de vie du code SMS" }, aide: { en: "Seconds the code stays valid after it is sent.", fr: "Secondes pendant lesquelles le code reste valable après son envoi." }, min: 60, max: 3600, pas: 30, defaut: 600, unite: SECONDES },
+];
+const DEFAUTS_AVANCES = { tentatives_max: 2, code_longueur: 6, code_validite_s: 600 };
+
 /** What « Save » sends: the whole settings, as the server holds them. */
 export const charge_utile_verification = (r: ReglagesVerification): ReglagesVerification => ({
     numero: r.numero ?? true,
@@ -98,6 +107,9 @@ export const charge_utile_verification = (r: ReglagesVerification): ReglagesVeri
     champs_controle: r.champs_controle ?? [],
     lisibles: r.lisibles ?? {},
     logiciel: r.logiciel || null,
+    tentatives_max: r.tentatives_max ?? DEFAUTS_AVANCES.tentatives_max,
+    code_longueur: r.code_longueur ?? DEFAUTS_AVANCES.code_longueur,
+    code_validite_s: r.code_validite_s ?? DEFAUTS_AVANCES.code_validite_s,
 });
 
 const basculer = (liste: string[], cle: string, present: boolean) =>
@@ -144,6 +156,11 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
         const niveau = brouillon?.lisibles?.[type.cle];
         if (brouillon && niveau && (niveau.champs ?? []).length && (niveau.facteurs_requis ?? 2) > actifs)
             erreurs.push({ cle: `lisibles.${type.cle}`, libelle: t(type.libelle), message: t({ en: "more factors required than switched on", fr: "plus de facteurs exigés qu'allumés" }), afficher: () => undefined });
+    }
+    for (const c of CHAMPS_AVANCES_VERIFICATION) {
+        const v = (brouillon as Record<string, unknown> | null)?.[c.cle] as number | undefined;
+        if (brouillon && horsBornes(c, v ?? c.defaut))
+            erreurs.push({ cle: c.cle, libelle: t(c.libelle), message: t({ en: `a number from ${c.min} to ${c.max}.`, fr: `un nombre de ${c.min} à ${c.max}.` }), afficher: () => undefined });
     }
     useSignaler("verification", modifie, erreurs.length > 0, signaler);
 
@@ -370,6 +387,20 @@ export const ThemeVerification = ({ ouvert, onBasculer, signaler, plat, sansTitr
                             </ListeDeroulante>
                             )}
                         </ChampReglage>
+                    </Intertitre>
+                    <Intertitre
+                        id="verif-groupe-avance"
+                        titre={{ en: "Advanced", fr: "Avancé" }}
+                        description={{
+                            en: "Attempts, code length and life that were fixed in the code. Current values by default; change them only for a reason.",
+                            fr: "Essais, longueur et durée de vie du code qui étaient fixés dans le code. Valeurs d'avant par défaut ; à changer pour une raison précise.",
+                        }}
+                    >
+                        <ChampsNumeriques
+                            champs={CHAMPS_AVANCES_VERIFICATION}
+                            valeur={(cle) => (brouillon as Record<string, unknown>)[cle] as number | undefined}
+                            poser={(cle, v) => poser({ [cle]: v } as Partial<ReglagesVerification>)}
+                        />
                     </Intertitre>
                     {erreur && (
                         <p className="text-sm text-destructive" role="alert">
