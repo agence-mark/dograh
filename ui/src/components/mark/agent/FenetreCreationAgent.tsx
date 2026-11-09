@@ -17,13 +17,14 @@
  * (`POST /workflow/groupe`, `POST /workflow/create/template`). Avec `organisationId`, toutes ses requêtes vont à ce client (en-tête
  * d'organisation, contrôlé par le serveur) ; avec `surCree`, rien n'est ouvert : l'appelant reçoit l'agent créé.
  */
-import { FileText, Plus, Sparkles, Users2, Workflow } from "lucide-react";
+import { FileText, Plus, Sparkles, Upload, Users2, Workflow, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost,
     creerUnGroupeApiV1WorkflowGroupePost,
+    deposerUnFichierApiV1BuilderDepotWorkflowIdPost,
     updateWorkflowApiV1WorkflowWorkflowIdPut,
 } from "@/client/sdk.gen";
 import type { WorkflowConfigurationDefaults } from "@/client/types.gen";
@@ -83,6 +84,9 @@ const T = {
     vide: { en: "Empty", fr: "Vide" },
     videPhrase: { en: "Empty graph, Start then End.", fr: "Graphe vierge, Départ puis Fin." },
     description: { en: "What the company does and what the agent must do, in a few lines.", fr: "Ce que fait l'entreprise et ce que l'agent doit faire, en quelques lignes." },
+    depot: { en: "Drop the audit files (PDF, Word, notes): the builder sorts out what is useful.", fr: "Déposer les dossiers d'audit (PDF, Word, notes) : le builder trie l'utile." },
+    depotRetirer: { en: "Remove this file", fr: "Retirer ce fichier" },
+    depotEchec: { en: "Some files were not added. Add them again from the builder.", fr: "Certains fichiers n'ont pas été ajoutés. Ajoutez-les de nouveau depuis le builder." },
     annuler: { en: "Cancel", fr: "Annuler" },
     lancer: { en: "Start the builder", fr: "Lancer le builder" },
     creer: { en: "Create the draft", fr: "Créer le brouillon" },
@@ -175,6 +179,8 @@ export function FenetreCreationAgent({
     const [nom, setNom] = useState("");
     const [nomTouche, setNomTouche] = useState(false);
     const [description, setDescription] = useState("");
+    const [fichiers, setFichiers] = useState<File[]>([]);
+    const entreeFichiers = useRef<HTMLInputElement>(null);
     const [enCours, setEnCours] = useState(false);
     const tempsReel = cerveau === "temps-reel";
     const structureEffective: Structure = tempsReel ? "un" : structure;
@@ -218,7 +224,20 @@ export function FenetreCreationAgent({
                 if (tempsReel) await poserLeTempsReel(reponse.data.id, reponse.data.workflow_configurations);
                 cree = { workflowId: reponse.data.id, nom: propre };
             }
+            if (depart === "builder") {
+                // Le builder lit les dépôts de l'agent : les dossiers d'audit, et pour un groupe (qui n'a pas de champ de description côté serveur) la description écrite ici.
+                const adeposer = [...fichiers];
+                if (structureEffective === "groupe" && description.trim()) adeposer.unshift(new File([description.trim()], "description-de-l-entreprise.txt", { type: "text/plain" }));
+                const echecs = await Promise.all(
+                    adeposer.map(async (fichier) => {
+                        const depot = await deposerUnFichierApiV1BuilderDepotWorkflowIdPost({ path: { workflow_id: cree.workflowId }, headers: entetes, body: { fichier } });
+                        return Boolean(depot.error);
+                    }),
+                );
+                if (echecs.some(Boolean)) notifier.avertissement(T.depotEchec);
+            }
             fermer();
+            setFichiers([]);
             setNom("");
             setNomTouche(false);
             setDescription("");
@@ -355,14 +374,54 @@ export function FenetreCreationAgent({
                             ))}
                         </div>
                     </div>
-                    {depart === "builder" && structureEffective === "un" && (
-                        <Textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            aria-label={t(T.description)}
-                            placeholder={t(T.description)}
-                            className="min-h-20"
-                        />
+                    {depart === "builder" && (
+                        <div className="space-y-3" data-depart-builder>
+                            <Textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                aria-label={t(T.description)}
+                                placeholder={t(T.description)}
+                                className="min-h-20"
+                            />
+                            <input
+                                ref={entreeFichiers}
+                                type="file"
+                                multiple
+                                hidden
+                                accept=".pdf,.docx,.md,.markdown,.txt"
+                                data-depot-creation
+                                onChange={(e) => {
+                                    const choisis = Array.from(e.target.files ?? []);
+                                    setFichiers((avant) => [...avant, ...choisis]);
+                                    e.target.value = "";
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => entreeFichiers.current?.click()}
+                                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-left text-sm text-muted-foreground hover:bg-muted/50 hover:font-medium"
+                            >
+                                <Upload className="size-5 shrink-0" aria-hidden /> {t(T.depot)}
+                            </button>
+                            {fichiers.length > 0 && (
+                                <ul className="space-y-1" data-fichiers-creation>
+                                    {fichiers.map((f, i) => (
+                                        <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
+                                            <FileText className="size-3.5 text-muted-foreground" aria-hidden />
+                                            <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                                            <button
+                                                type="button"
+                                                aria-label={`${t(T.depotRetirer)} : ${f.name}`}
+                                                className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                onClick={() => setFichiers((avant) => avant.filter((_, j) => j !== i))}
+                                            >
+                                                <X className="size-3.5" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     )}
                 </div>
                 <DialogFooter>

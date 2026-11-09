@@ -22,6 +22,7 @@ const m = vi.hoisted(() => ({
         error: undefined as unknown,
     })),
     maj: vi.fn(async (_o?: unknown) => ({ data: {}, error: undefined })),
+    depot: vi.fn(async (_o?: unknown) => ({ data: {}, error: undefined as unknown })),
     recettes: vi.fn(async (_o?: unknown) => ({
         data: { defaut: "a", recettes: [{ slug: "a", nom: "Recette A", quand: "Quand A.", prouvee: true }] },
         error: undefined,
@@ -37,6 +38,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
         creerUnGroupeApiV1WorkflowGroupePost: (o: unknown) => m.groupe(o),
         createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost: (o: unknown) => m.agent(o),
         updateWorkflowApiV1WorkflowWorkflowIdPut: (o: unknown) => m.maj(o),
+        deposerUnFichierApiV1BuilderDepotWorkflowIdPost: (o: unknown) => m.depot(o),
     });
 });
 
@@ -77,6 +79,30 @@ describe("fenêtre de création unique : chaque chemin", () => {
         await waitFor(() => expect(m.push).toHaveBeenCalledWith("/agents/13?builder=1"));
         expect(fermer).toHaveBeenCalled();
         expect(m.agent).not.toHaveBeenCalled();
+    });
+
+    it("avec le builder : description et dossiers d'audit sont déposés dans l'agent créé (É52)", async () => {
+        await ouvrir();
+        nommer("Accueil Garnier");
+        fireEvent.change(screen.getByLabelText("What the company does and what the agent must do, in a few lines."), { target: { value: "Chauffagiste." } });
+        const entree = document.querySelector("[data-depot-creation]") as HTMLInputElement;
+        fireEvent.change(entree, { target: { files: [new File(["x"], "audit.pdf", { type: "application/pdf" })] } });
+        expect(screen.getByText("audit.pdf")).toBeTruthy();
+        fireEvent.click(screen.getByText("Start the builder"));
+        await waitFor(() => expect(m.depot).toHaveBeenCalledTimes(2));
+        const noms = m.depot.mock.calls.map((c) => ((c[0] as { body: { fichier: File } }).body.fichier).name).sort();
+        expect(noms).toEqual(["audit.pdf", "description-de-l-entreprise.txt"]);
+        expect(corps(m.depot).path).toEqual({ workflow_id: 13 });
+    });
+
+    it("sans le builder : aucun dépôt", async () => {
+        await ouvrir();
+        nommer("Accueil");
+        fireEvent.click(screen.getByText("From a recipe"));
+        expect(document.querySelector("[data-depart-builder]")).toBeNull();
+        fireEvent.click(screen.getByText("Create the draft"));
+        await waitFor(() => expect(m.push).toHaveBeenCalled());
+        expect(m.depot).not.toHaveBeenCalled();
     });
 
     it("groupe depuis une recette : le principal s'ouvre sans le builder", async () => {
