@@ -69,6 +69,7 @@ import {
 
 import { AnswerSupervisorFields, isVoicemailMessageMissing, readAnswerSupervisorSettings } from "../components/AnswerSupervisorFields";
 import { EmbedDialog } from "../components/EmbedDialog";
+import { AgentIntrouvable } from "@/components/mark/agent/AgentIntrouvable";
 import { useWorkflowState } from "../hooks/useWorkflowState";
 import {
     CallDispositionEditor,
@@ -1641,7 +1642,7 @@ export default function WorkflowSettingsPage() {
     if (error || !workflow) {
         return (
             <div className="flex min-h-screen items-center justify-center">
-                <div className="text-lg text-destructive">{error || "Workflow not found"}</div>
+                <AgentIntrouvable agentId={Number(params.workflowId)}>{error || "Workflow not found"}</AgentIntrouvable>
             </div>
         );
     }

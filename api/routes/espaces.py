@@ -48,6 +48,16 @@ class ReglerEspaceResponse(BaseModel):
     espace: str
 
 
+class EspaceDeLAgentResponse(BaseModel):
+    """L'espace où vit un agent : de quoi dire « cet agent est dans l'espace … » avec un lien, au lieu d'un « introuvable »."""
+
+    workflow_id: int
+    id: int
+    nom: str
+    espace: str  # "labo" | "client"
+    selectionne: bool
+
+
 class ConversationEquipe(BaseModel):
     id: int
     name: str
@@ -70,6 +80,21 @@ class ConversationsEquipeResponse(BaseModel):
 @router.get("", response_model=EspacesResponse)
 async def lister_les_espaces(user: UserModel = Depends(get_user)) -> EspacesResponse:
     return EspacesResponse(espaces=[EspaceResponse(**e) for e in await espaces.lister_espaces(user)])
+
+
+@router.get("/agent/{workflow_id}", response_model=EspaceDeLAgentResponse)
+async def espace_d_un_agent(workflow_id: int, user: UserModel = Depends(get_user)) -> EspaceDeLAgentResponse:
+    """L'espace d'un agent, SEULEMENT s'il est dans un espace que le compte ouvre : un agent d'un espace fermé reste un 404,
+    comme un agent qui n'existe pas (le cloisonnement ne fuit pas par ce message)."""
+    organisation = await db_client.get_workflow_organization_id(workflow_id)
+    cible = None
+    if organisation is not None:
+        cible = next((e for e in await espaces.lister_espaces(user) if e["id"] == organisation), None)
+    if cible is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return EspaceDeLAgentResponse(
+        workflow_id=workflow_id, id=cible["id"], nom=cible["nom"], espace=cible["espace"], selectionne=cible["selectionne"]
+    )
 
 
 @router.get("/conversations", response_model=ConversationsEquipeResponse)

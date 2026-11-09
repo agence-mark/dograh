@@ -185,6 +185,8 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
     # ------------------------------------------------------------------ espaces
     _r({"GET"}, r"^/espaces$", MEMBRE),
+    # Clôture, SA-3 : dans quel espace vit un agent (n'est rendu que pour un espace que le compte ouvre).
+    _r({"GET"}, r"^/espaces/agent/\{workflow_id\}$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
     # Partie 3, sous-lot 10 : les vues tous clients (lecture seule ; la route refuse en plus toute cle et tout compte sans role d'equipe).

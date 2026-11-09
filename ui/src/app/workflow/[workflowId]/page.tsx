@@ -11,6 +11,7 @@ import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
 import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import SpinLoader from '@/components/SpinLoader';
 import { useAuth } from '@/lib/auth';
+import { AgentIntrouvable } from '@/components/mark/agent/AgentIntrouvable';
 import logger from '@/lib/logger';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
@@ -115,7 +116,7 @@ export default function WorkflowDetailPage() {
         return (
             <WorkflowLayout showFeaturesNav={false}>
                 <div className="flex items-center justify-center min-h-screen">
-                    <div className="text-lg text-destructive">{error || 'Workflow not found'}</div>
+                    <AgentIntrouvable agentId={workflowId}>{error || 'Workflow not found'}</AgentIntrouvable>
                 </div>
             </WorkflowLayout>
         );

@@ -50,7 +50,8 @@ import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
 import { useMoi } from "./moi";
 import { useNomEspace } from "./nom-espace";
-import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
+import { entreeActive, type EntreeMenu, lienDe, menuDe } from "./navigation-studio";
+import { useEspaceAffiche } from "./base-espace";
 import { PuceEspace, SelecteurEspace } from "./selecteur-espace";
 
 /** Un compteur de la barre : fourni par la page qui le sait (ordre 18), jamais inventé ici. */
@@ -76,7 +77,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
     const moi = useMoi();
     const profil = profilLu ?? moi;
 
-    const { espace, base, org } = espaceDe(pathname);
+    const { espace, base, org } = useEspaceAffiche(pathname);
     const compteursLus = useCompteursBarre(espace, pathname);
     const compteurs = { ...compteursLus, ...compteursFournis };
     // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).

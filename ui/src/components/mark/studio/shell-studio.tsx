@@ -19,7 +19,8 @@ import { createPortal } from "react-dom";
 import { useLangue } from "@/components/mark/langue/langue";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-import { entreeActive, espaceDe, menuDe } from "./navigation-studio";
+import { entreeActive, menuDe } from "./navigation-studio";
+import { useEspaceAffiche } from "./base-espace";
 import { useNomEspace } from "./nom-espace";
 import { ContextePanneau, DecalagePanneau, PanneauDroit, useAdaptationPanneau, useEtatPanneau } from "./panneau-droit";
 import { type CompteurMenu, SidebarStudio } from "./sidebar-studio";
@@ -139,7 +140,7 @@ export function ShellStudio({
         setForcee(replie ? false : null);
     }, [replie]);
 
-    const { espace, base, org } = espaceDe(pathname);
+    const { espace, base, org } = useEspaceAffiche(pathname);
     const nomEspace = useNomEspace(espace, org);
     const entree = entreeActive(menuDe(espace), pathname, base);
     const fil: Miette[] =
