@@ -715,8 +715,8 @@ export const ThemeDeveloppeurs = ({
     ouvert,
     onBasculer,
     plat,
-    suite,
-}: ProprietesThemeOrganisation & { suite?: ReactNode }) => {
+    avant,
+}: ProprietesThemeOrganisation & { avant?: ReactNode }) => {
     const { t } = useLangue();
     // L-1 : clés d'API, serveur MCP et traçage disent leur état, lu sur leur route.
     const etats = useEtatsDesLignes();
@@ -739,6 +739,8 @@ export const ThemeDeveloppeurs = ({
             modifie={false}
             erreurs={[]}
         >
+            {/* Même ordre que les lignes en lecture : Clés d'API, Serveur MCP, Traçage (clôture D2). */}
+            {avant}
             <Intertitre id="developpeurs-mcp" titre={{ en: "MCP Server", fr: "Serveur MCP" }}>
                 <p className="text-sm text-muted-foreground">
                     {t({
@@ -759,7 +761,6 @@ export const ThemeDeveloppeurs = ({
                 </p>
                 <TelemetrySection />
             </Intertitre>
-            {suite}
         </Theme>
     );
 };

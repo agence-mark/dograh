@@ -129,7 +129,7 @@ export function ReglagesOrganisation() {
                         <ThemeDeveloppeurs
                             key={cle}
                             {...commun("developpeurs")}
-                            suite={
+                            avant={
                                 <Intertitre id="developpeurs-cles" titre={{ en: "Dograh API keys", fr: "Clés d'API de Dograh" }}>
                                     <SectionClesApi />
                                 </Intertitre>
