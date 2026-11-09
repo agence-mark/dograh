@@ -16319,6 +16319,12 @@ export type ReglagesApresAppel = {
      * [advanced] Seconds the client's Twilio has to answer an SMS.
      */
     delai_sms_s?: number;
+    /**
+     * Issues Sans Sms
+     *
+     * [advanced] Call outcomes (lower case, matched by inclusion) after which no SMS goes out.
+     */
+    issues_sans_sms?: Array<string>;
 };
 
 /**
@@ -16538,6 +16544,57 @@ export type ReglagesMarkLus = {
 };
 
 /**
+ * ReglagesMoteurPlanificateur
+ *
+ * Clôture, SA-3 (D18) : les limites que le moteur du planificateur tenait du code, réglables (avancé) ; valeurs d'avant par défaut.
+ * Propres à l'organisation (clé ``PLANIFICATEUR_MOTEUR``, sans migration), lues à chaque appel.
+ */
+export type ReglagesMoteurPlanificateur = {
+    /**
+     * Max Lieux
+     *
+     * [advanced] Most distinct addresses placed for one call.
+     */
+    max_lieux?: number;
+    /**
+     * Parallele Lieux
+     *
+     * [advanced] Addresses placed at the same time.
+     */
+    parallele_lieux?: number;
+    /**
+     * Temps Max Lieux S
+     *
+     * [advanced] Seconds at most to place the addresses of the agendas.
+     */
+    temps_max_lieux_s?: number;
+    /**
+     * Geocodage Delai S
+     *
+     * [advanced] Seconds the address service has to answer one address.
+     */
+    geocodage_delai_s?: number;
+    /**
+     * Geocodage Score Min
+     *
+     * [advanced] Lowest confidence at which a placed address is believed.
+     */
+    geocodage_score_min?: number;
+    /**
+     * Geocodage Memoire S
+     *
+     * [advanced] Seconds an address already placed is remembered.
+     */
+    geocodage_memoire_s?: number;
+    /**
+     * Pose Duree S
+     *
+     * [advanced] Seconds the state of a booking in progress is kept.
+     */
+    pose_duree_s?: number;
+};
+
+/**
  * ReglagesObjets
  *
  * The organization's ceiling on one object's rendering (D112), adjusted at the bench.
@@ -16561,6 +16618,24 @@ export type ReglagesPanne = {
      * Version
      */
     version?: number;
+    /**
+     * Delai Twilio S
+     *
+     * [advanced] Seconds Twilio has to answer one of our requests (hand-over, call log, address).
+     */
+    delai_twilio_s?: number;
+    /**
+     * Rattrapage Fenetre H
+     *
+     * [advanced] How many hours back the call log is read to catch up on lost calls.
+     */
+    rattrapage_fenetre_h?: number;
+    /**
+     * Rattrapage Attente Run Min
+     *
+     * [advanced] A call younger than this may still be finishing: it is not counted lost.
+     */
+    rattrapage_attente_run_min?: number;
     /**
      * Url Secours
      *
@@ -16853,6 +16928,24 @@ export type ReglagesVerification = {
      * A translator of the domain « dossier » that holds the records. None: the client database.
      */
     logiciel?: string | null;
+    /**
+     * Tentatives Max
+     *
+     * [advanced] Failed attempts (and codes sent) before the caller is blocked.
+     */
+    tentatives_max?: number;
+    /**
+     * Code Longueur
+     *
+     * [advanced] Digits of the one-time code.
+     */
+    code_longueur?: number;
+    /**
+     * Code Validite S
+     *
+     * [advanced] Seconds the one-time code stays valid.
+     */
+    code_validite_s?: number;
 };
 
 /**
@@ -40178,6 +40271,92 @@ export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGe
 };
 
 export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponse = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses];
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur-moteur';
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetError = GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors[keyof GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors];
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesMoteurPlanificateur;
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponse = GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses[keyof GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses];
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutData = {
+    body: ReglagesMoteurPlanificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur-moteur';
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutError = PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors[keyof PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors];
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesMoteurPlanificateur;
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponse = PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses[keyof PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses];
 
 export type ListerLesEspacesApiV1EspacesGetData = {
     body?: never;
