@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PanneauDroitsCle } from '@/components/mark/cles/PanneauDroitsCle';
 import { regenererLaClePortail } from '@/components/mark/equipe/api-cloture';
+import { useLangue } from '@/components/mark/langue/langue';
 import { Liste } from '@/components/mark/studio/liste';
 import { listerLesRolesApiV1EquipeMarkRolesGet } from '@/client/sdk.gen';
 import type { RoleResponse } from '@/client/types.gen';
@@ -31,6 +32,7 @@ import logger from '@/lib/logger';
 
 export default function APIKeysPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { t } = useLangue();
     const organizationTimezone = useOrganizationTimezone();
 
     logger.debug('[APIKeysPage] Component render', {
@@ -272,9 +274,12 @@ export default function APIKeysPage() {
                                         size="sm"
                                         onClick={() => void regenererLaCleDuPortail()}
                                         onBlur={() => setConfirmerRegeneration(false)}
+                                        title={t({ fr: "L'ancienne clé du portail est révoquée dès la confirmation.", en: 'The old portal key is revoked as soon as you confirm.' })}
                                     >
                                         <RefreshCw className="w-4 h-4 mr-2" />
-                                        {confirmerRegeneration ? 'Confirm: the old portal key is revoked' : 'Regenerate the portal key'}
+                                        {confirmerRegeneration
+                                            ? t({ fr: 'Confirmer la révocation', en: 'Confirm revocation' })
+                                            : t({ fr: 'Régénérer la clé du portail', en: 'Regenerate the portal key' })}
                                     </Button>
                                     <Button
                                         onClick={() => setIsCreateDialogOpen(true)}
@@ -383,13 +388,13 @@ export default function APIKeysPage() {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label>Role of the key</Label>
+                            <Label>{t({ fr: 'Rôle de la clé', en: 'Role of the key' })}</Label>
                             <Liste
                                 valeur={newKeyRole}
                                 changer={setNewKeyRole}
-                                vide="None (closed portal list)"
+                                vide={t({ fr: 'Aucun (liste fermée du portail)', en: 'None (closed portal list)' })}
                                 options={roles.map((r) => ({ valeur: String(r.id), libelle: r.nom }))}
-                                libelle="Role of the key"
+                                libelle={t({ fr: 'Rôle de la clé', en: 'Role of the key' })}
                             />
                         </div>
                         <div className="grid gap-2">

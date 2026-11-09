@@ -179,7 +179,7 @@ export function UtiliseDans({ cle, versionRecette }: { cle: string; /** Bloc : l
             {bloc &&
                 [...new Map(citations.map((c) => [c.agent_id, c])).values()].map((c) => (
                     <li key={`agent-${c.agent_id}`} className="flex items-center gap-3 py-2.5 text-sm" data-testid={`mode-agent-${c.agent_id}`}>
-                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                        <span className="min-w-0 flex-1 text-xs text-muted-foreground">
                             {t({ en: `Reusable blocks of ${c.agent}: frozen at publication on a protected agent, live otherwise`, fr: `Blocs de ${c.agent} : figés à la publication sur un agent protégé, en direct sinon` })}
                         </span>
                         <ChoixDeMode
