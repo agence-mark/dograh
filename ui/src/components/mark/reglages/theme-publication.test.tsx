@@ -13,7 +13,7 @@ import { FournisseurLangue } from "../langue/langue";
 import { ThemePublication } from "./ThemePublication";
 
 const DEFAUTS = {
-    controles: { tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint", valeur_en_dur: "previent", verbe_ecran: "previent", action_sans_outil: "previent", sortie_non_citee: "previent", poids_agent: "previent" },
+    controles: { annonce_ia: "previent", tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint", valeur_en_dur: "previent", verbe_ecran: "previent", action_sans_outil: "previent", sortie_non_citee: "previent", poids_agent: "previent" },
     deploiement: { actif: false },
 };
 
@@ -45,7 +45,7 @@ describe("le thème « Publication »", () => {
         const { container } = rendre();
         await screen.findByRole("switch");
         expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(16); // 11 contrôles de la fenêtre + 5 contrôles de rédaction (lot « façon Tala par motif »)
+        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(17); // 12 contrôles de la fenêtre (l'annonce IA, D1, est réglable) + 5 contrôles de rédaction (lot « façon Tala par motif »)
         const ligne = container.querySelector("[data-reglage='publication.controles.tests_obligatoires']") as HTMLElement;
         expect(ligne.querySelector("button[aria-pressed='true']")?.textContent).toBe("Bloque");
         const eteinte = container.querySelector("[data-reglage='publication.controles.attaques']") as HTMLElement;
