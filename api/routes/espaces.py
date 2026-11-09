@@ -68,6 +68,14 @@ class ConversationEquipe(BaseModel):
     mode: str
     is_completed: bool
     created_at: datetime
+    # Clôture SA-5 (É8) : les colonnes de la maquette, lues du run (motif, résumé, issue, durée, qui a jugé, note).
+    motif: str | None = None
+    resume: str | None = None
+    resume_source: str | None = None
+    issue: str | None = None
+    duree: int | None = None
+    juge_par: str | None = None
+    note_juge: float | None = None
 
 
 class ConversationsEquipeResponse(BaseModel):
@@ -75,6 +83,8 @@ class ConversationsEquipeResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    # Les motifs des organisations ouvertes, proposés au filtre « Tous les motifs ».
+    motifs: list[str] = []
 
 
 @router.get("", response_model=EspacesResponse)
@@ -102,6 +112,8 @@ async def conversations_de_l_equipe(
     organization_id: int | None = Query(None, description="Une seule organisation (sinon toutes celles que le rôle ouvre)"),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    motif: str | None = Query(None, max_length=80, description="Motif exact"),
+    recherche: str | None = Query(None, max_length=80, description="Un mot du motif, de l'issue, du résumé, de l'agent ou du client"),
     user: UserModel = Depends(get_user),
 ) -> ConversationsEquipeResponse:
     """Les conversations de TOUTES les organisations que le rôle du compte ouvre (modèle de ``superuser/workflow-runs``)."""
@@ -113,9 +125,12 @@ async def conversations_de_l_equipe(
         cible = [organization_id]
     else:
         cible = list(par_id)
+    terme = (recherche or "").strip().casefold()
+    nommees = [i for i in cible if terme and terme in par_id.get(i, "").casefold()] if len(terme) >= 3 else None
     lignes, total = await db_client.lister_conversations_des_organisations(
-        organisations=cible, limit=limit, offset=offset
+        organisations=cible, limit=limit, offset=offset, motif=motif, recherche=recherche, organisations_nommees=nommees
     )
+    motifs = await db_client.lister_motifs_des_organisations(cible)
     return ConversationsEquipeResponse(
         conversations=[
             ConversationEquipe(**ligne, organization_nom=par_id.get(ligne["organization_id"], ""))
@@ -124,6 +139,7 @@ async def conversations_de_l_equipe(
         total=total,
         limit=limit,
         offset=offset,
+        motifs=motifs,
     )
 
 

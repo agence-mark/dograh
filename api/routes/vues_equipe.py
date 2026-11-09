@@ -253,9 +253,13 @@ async def conversations_de_tous_les_clients(
     organization_id: int | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    motif: str | None = Query(None, max_length=80),
+    recherche: str | None = Query(None, max_length=80),
     user: UserModel = Depends(equipe),
 ) -> ConversationsEquipeResponse:
-    return await conversations_de_l_equipe(organization_id=organization_id, limit=limit, offset=offset, user=user)
+    return await conversations_de_l_equipe(
+        organization_id=organization_id, limit=limit, offset=offset, motif=motif, recherche=recherche, user=user
+    )
 
 
 # ---------------------------------------------------------------------- Chat du Labo

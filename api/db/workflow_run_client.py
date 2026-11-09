@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 
+from api.db import appels_liste
 from api.db.base_client import BaseDBClient
 from api.db.filters import apply_workflow_run_filters, get_workflow_run_order_clause
 from api.db.models import (
@@ -16,6 +17,7 @@ from api.db.models import (
 )
 from api.enums import CallType, StorageBackend
 from api.schemas.workflow import WorkflowRunResponseSchema
+from api.services import resume_appel
 from api.services.workflow.run_usage_response import format_public_cost_info
 from api.utils.recording_artifacts import get_recording_storage_key
 
@@ -299,6 +301,8 @@ class WorkflowRunClient(BaseDBClient):
         filters: Optional[List[Dict[str, Any]]] = None,
         sort_by: Optional[str] = None,
         sort_order: Optional[str] = "desc",
+        motif: Optional[str] = None,
+        recherche: Optional[str] = None,
     ) -> tuple[list[WorkflowRunResponseSchema], int]:
         async with self.async_session() as session:
             # Build base query
@@ -319,6 +323,23 @@ class WorkflowRunClient(BaseDBClient):
 
             # Apply filters
             base_query = apply_workflow_run_filters(base_query, filters)
+
+            # [.mark] Clôture SA-5 (É35) : le motif (exact) et « Chercher un mot » (motif, issue, résumé) dans la requête. La recherche ne
+            # balaie jamais que les appels les plus récents de CET agent (même borne que la page Conversations).
+            terme_motif = " ".join((motif or "").split())[: appels_liste.RECHERCHE_MAX]
+            if terme_motif:
+                base_query = base_query.where(appels_liste.filtre_motif(terme_motif))
+            terme = appels_liste.terme_de_recherche(recherche)
+            if terme is not None:
+                recents = (
+                    select(WorkflowRunModel.id)
+                    .where(WorkflowRunModel.workflow_id == workflow_id)
+                    .order_by(WorkflowRunModel.created_at.desc())
+                    .limit(appels_liste.RECHERCHE_APPELS_MAX)
+                )
+                base_query = base_query.where(
+                    WorkflowRunModel.id.in_(recents.scalar_subquery()), appels_liste.filtre_recherche(terme)
+                )
 
             # Count total with filters
             count_query = base_query.with_only_columns(func.count(WorkflowRunModel.id))
@@ -354,6 +375,11 @@ class WorkflowRunClient(BaseDBClient):
                         "initial_context": run.initial_context,
                         "gathered_context": run.gathered_context,
                         "call_type": run.call_type,
+                        # [.mark] Clôture SA-5 (É35) : les colonnes de la liste, lues du run (aucune requête de plus).
+                        "motif": appels_liste.motif_de_la_fiche(run.gathered_context),
+                        "note_juge": run.note_juge,
+                        "juge_par": appels_liste.juge_par(run.annotations),
+                        **resume_appel.champs(run.annotations),
                         # [.mark] N3a : seule la latence par phase sort des annotations (les statistiques par étape du graphe la lisent).
                         "annotations": (
                             {"latence": run.annotations["latence"]}
@@ -566,3 +592,23 @@ class WorkflowRunClient(BaseDBClient):
                 .limit(1)
             )
             return result.scalars().first()
+
+    async def lister_motifs_de_l_agent(self, workflow_id: int, organization_id: int, limite: int = 100) -> list[str]:
+        """[.mark] Clôture SA-5 (É35) : les motifs de l'agent proposés au filtre « Tous les motifs » (un par motif, casse et espaces
+        réunis), de CET agent dans CETTE organisation seulement."""
+        async with self.async_session() as session:
+            replie = appels_liste.motif_replie()
+            lignes = await session.execute(
+                select(func.min(func.trim(appels_liste.motif())))
+                .select_from(WorkflowRunModel)
+                .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                .where(
+                    WorkflowRunModel.workflow_id == workflow_id,
+                    WorkflowModel.organization_id == organization_id,
+                    appels_liste.motif().is_not(None),
+                )
+                .group_by(replie)
+                .order_by(func.min(func.trim(appels_liste.motif())))
+                .limit(limite)
+            )
+            return [m for (m,) in lignes.all() if m]

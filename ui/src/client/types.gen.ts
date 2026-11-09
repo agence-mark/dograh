@@ -4309,6 +4309,34 @@ export type ConversationEquipe = {
      * Created At
      */
     created_at: string;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+    /**
+     * Resume
+     */
+    resume?: string | null;
+    /**
+     * Resume Source
+     */
+    resume_source?: string | null;
+    /**
+     * Issue
+     */
+    issue?: string | null;
+    /**
+     * Duree
+     */
+    duree?: number | null;
+    /**
+     * Juge Par
+     */
+    juge_par?: string | null;
+    /**
+     * Note Juge
+     */
+    note_juge?: number | null;
 };
 
 /**
@@ -4331,6 +4359,10 @@ export type ConversationsEquipeResponse = {
      * Offset
      */
     offset: number;
+    /**
+     * Motifs
+     */
+    motifs?: Array<string>;
 };
 
 /**
@@ -23900,6 +23932,14 @@ export type WorkflowRunResponseSchema = {
      * Resume Source
      */
     resume_source?: string | null;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+    /**
+     * Juge Par
+     */
+    juge_par?: string | null;
 };
 
 /**
@@ -24174,6 +24214,10 @@ export type WorkflowRunsResponse = {
     applied_filters?: Array<{
         [key: string]: unknown;
     }> | null;
+    /**
+     * Motifs
+     */
+    motifs?: Array<string>;
 };
 
 /**
@@ -26091,6 +26135,18 @@ export type GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetData = {
          * Sort order ('asc' or 'desc')
          */
         sort_order?: string | null;
+        /**
+         * Motif
+         *
+         * Exact call reason (the record's reason field)
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         *
+         * A word in the reason, outcome or summary (3 letters at least)
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/workflow/{workflow_id}/runs';
 };
@@ -40571,6 +40627,18 @@ export type ConversationsDeLEquipeApiV1EspacesConversationsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Motif
+         *
+         * Motif exact
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         *
+         * Un mot du motif, de l'issue, du résumé, de l'agent ou du client
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/espaces/conversations';
 };
@@ -40902,6 +40970,14 @@ export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Motif
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/vues-equipe/conversations';
 };

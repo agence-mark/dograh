@@ -37,3 +37,6 @@ class WorkflowRunResponseSchema(BaseModel):
     # [.mark] N3b : le résumé de l'appel (une ou deux phrases) et sa source (synthese ou modele), lus par la page d'une conversation.
     resume: str | None = None
     resume_source: str | None = None
+    # [.mark] Clôture SA-5 (É35) : le motif de la fiche et qui a jugé l'appel (modèle ou Claude Code), lus par la liste des appels d'un agent.
+    motif: str | None = None
+    juge_par: str | None = None

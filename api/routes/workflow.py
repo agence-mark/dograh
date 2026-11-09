@@ -1895,6 +1895,8 @@ class WorkflowRunsResponse(BaseModel):
     limit: int
     total_pages: int
     applied_filters: Optional[List[dict]] = None
+    # [.mark] Clôture SA-5 (É35) : les motifs de l'agent, proposés au filtre « Tous les motifs ».
+    motifs: List[str] = []
 
 
 @router.get("/{workflow_id}/phrases/carte")
@@ -1924,6 +1926,8 @@ async def get_workflow_runs(
     sort_order: Optional[str] = Query(
         "desc", description="Sort order ('asc' or 'desc')"
     ),
+    motif: Optional[str] = Query(None, max_length=80, description="Exact call reason (the record's reason field)"),
+    recherche: Optional[str] = Query(None, max_length=80, description="A word in the reason, outcome or summary (3 letters at least)"),
     user: UserModel = Depends(get_user),
 ) -> WorkflowRunsResponse:
     """
@@ -1965,6 +1969,13 @@ async def get_workflow_runs(
         filters=filter_criteria if filter_criteria else None,
         sort_by=sort_by,
         sort_order=sort_order,
+        motif=motif,
+        recherche=recherche,
+    )
+    motifs = (
+        await db_client.lister_motifs_de_l_agent(workflow_id, user.selected_organization_id)
+        if user.selected_organization_id
+        else []
     )
 
     total_pages = (total_count + limit - 1) // limit
@@ -1976,6 +1987,7 @@ async def get_workflow_runs(
         limit=limit,
         total_pages=total_pages,
         applied_filters=filter_criteria if filter_criteria else None,
+        motifs=motifs,
     )
 
 

@@ -37,6 +37,16 @@ def client():
     return func.nullif(func.trim(prenom + literal(" ") + nom), "")
 
 
+def motif_de_la_fiche(fiche) -> str | None:
+    """Le motif d'appel d'une fiche déjà lue (même règle que ``motif()``, en Python). Pur."""
+    fiche = fiche if isinstance(fiche, dict) else {}
+    for champ in CHAMPS_MOTIF:
+        valeur = str(fiche.get(champ) or "").strip()
+        if valeur:
+            return valeur
+    return None
+
+
 def juge_par(annotations) -> str | None:
     """Qui a jugé l'appel (RA-B R6, 05 § 9) : « Claude Code », ou le modèle du juge sur clé d'API, lu dans l'annotation
     ``juge`` du run ; ``None`` tant que rien ne l'a jugé (juge éteint, non réglé, budget atteint…). Pur."""
@@ -44,9 +54,42 @@ def juge_par(annotations) -> str | None:
     if not isinstance(juge, dict):
         return None
     if juge.get("source") == "claude_code":
-        return "Claude Code"
+        # Clôture SA-5 : la personne derrière la session, quand le portail ou la clé la dit (jamais une adresse).
+        par = juge.get("par")
+        return f"Claude Code · {par.strip()}" if isinstance(par, str) and par.strip() else "Claude Code"
     modele = juge.get("modele")
     return modele.strip() or None if isinstance(modele, str) else None
+
+
+def issue():
+    """L'issue de l'appel : le code rangé par le classement de fin d'appel (``mapped_call_disposition``)."""
+    return func.nullif(_texte(WorkflowRunModel.gathered_context, "mapped_call_disposition"), "")
+
+
+def _texte_imbrique(colonne, *chemin: str):
+    expression = cast(colonne, JSONB)
+    for cle in chemin[:-1]:
+        expression = expression.op("->")(literal(cle))
+    return cast(expression.op("->>")(literal(chemin[-1])), Text)
+
+
+def filtre_recherche(terme: str, *autres):
+    """Clôture SA-5 (É8, É35) : « Chercher un mot » de la liste : le motif, l'issue, le résumé de l'après-appel ou celui du modèle
+    contient le terme (casse ignorée, jokers = texte). ``autres`` : d'autres colonnes de la requête (nom de l'agent, du client)."""
+    modele = f"%{echapper_like(terme)}%"
+    colonnes = [
+        motif(),
+        issue(),
+        _texte_imbrique(WorkflowRunModel.annotations, "mark_apres_appel", "synthese"),
+        _texte_imbrique(WorkflowRunModel.annotations, "resume_appel", "texte"),
+        *autres,
+    ]
+    return or_(*[c.ilike(modele, escape="\\") for c in colonnes])
+
+
+def motif_replie():
+    """Le motif, espaces repliés et sans casse : la clé qui réunit « Devis » et « devis »."""
+    return func.lower(func.regexp_replace(func.trim(motif()), literal(r"\s+"), literal(" "), literal("g")))
 
 
 def version_jouee():

@@ -150,6 +150,33 @@ async def test_la_vue_conversations_de_l_equipe_suit_le_role(db_session):
     assert refuse.status_code == 403  # un compte sans rôle d'équipe n'a pas cette vue
 
 
+async def test_la_vue_conversations_filtre_par_motif_et_cherche_cote_serveur(db_session):
+    # Clôture SA-5 (É8) : motif exact, recherche (aussi le NOM du client), liste des motifs : tout dans la requête, cloisonné par le rôle.
+    ouvert = await creer_organisation(db_session, "esp-sa5-ouvert")
+    ferme = await creer_organisation(db_session, "esp-sa5-ferme")
+    role = await db_session.creer_role(
+        nom="Voit-un-client-sa5", labo_ouvert=False, tous_les_clients=False, permissions=["conversations.voir"], organisations=[ouvert]
+    )
+    user, jeton = await creer_compte(db_session, "sa5@example.com", organisations=[ouvert, ferme])
+    await db_session.poser_membre(user.id, role)
+    definition = {"nodes": [], "edges": []}
+    for org, motif in ((ouvert, "Devis"), (ouvert, "Dépannage"), (ferme, "Secret")):
+        wf = await db_session.create_workflow(f"agent {motif}", definition, user.id, org)
+        run = await db_session.create_workflow_run("run", wf.id, "chat", user.id, organization_id=org)
+        await db_session.update_workflow_run(run.id, gathered_context={"motif": motif})
+    async with client_http() as c:
+        tout = (await c.get("/api/v1/espaces/conversations", headers=entetes(jeton))).json()
+        un = (await c.get("/api/v1/espaces/conversations?motif=devis", headers=entetes(jeton))).json()
+        cherche = (await c.get("/api/v1/espaces/conversations?recherche=pannage", headers=entetes(jeton))).json()
+        secret = (await c.get("/api/v1/espaces/conversations?recherche=secret", headers=entetes(jeton))).json()
+        nom_client = (await c.get("/api/v1/espaces/conversations?recherche=esp-sa5-ouvert", headers=entetes(jeton))).json()
+    assert tout["total"] == 2 and set(tout["motifs"]) == {"Dépannage", "Devis"}  # jamais le motif d'un client fermé
+    assert un["total"] == 1 and un["conversations"][0]["motif"] == "Devis"
+    assert cherche["total"] == 1 and cherche["conversations"][0]["motif"] == "Dépannage"
+    assert secret["total"] == 0
+    assert nom_client["total"] == 2  # le nom du client se cherche aussi
+
+
 async def test_l_organisation_du_labo_s_affiche_labo(db_session):
     org = await creer_organisation(db_session, "esp-labo-nom")
     _, jeton = await creer_compte(db_session, "adm-labo-nom@example.com", role="Administrateur", organisations=[org])
