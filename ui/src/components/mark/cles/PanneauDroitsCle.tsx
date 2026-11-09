@@ -78,7 +78,7 @@ export function PanneauDroitsCle({ cle, recharger }: { cle: CleDroits; recharger
     };
 
     return (
-        <div className="mt-3 space-y-3 border-t pt-3" data-testid={`droits-cle-${cle.id}`}>
+        <div className="space-y-3" data-testid={`droits-cle-${cle.id}`}>
             <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium">{t({ fr: "Rôle de la clé", en: "Key role" })}</span>
                 <Liste

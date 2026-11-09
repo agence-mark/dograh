@@ -19,7 +19,7 @@ vi.mock("react-timezone-select", () => ({
         </select>
     ),
 }));
-vi.mock("@/app/api-keys/page", () => ({ default: () => <div data-testid="cles-api" /> }));
+vi.mock("@/components/mark/cles/SectionClesApi", () => ({ SectionClesApi: () => <div data-testid="cles-api" /> }));
 vi.mock("@/components/MCPSection", () => ({ MCPSection: () => <div data-testid="mcp" /> }));
 vi.mock("@/components/TelemetrySection", () => ({ TelemetrySection: () => <div data-testid="telemetrie" /> }));
 vi.mock("@/components/mark/parametres-organisation/ModaleFenetreDuRun", () => ({ ModaleFenetreDuRun: () => null }));
