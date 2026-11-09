@@ -32,6 +32,10 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
     });
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    // [.mark] Clôture SA-5 (É35) : « Chercher un mot » et « Tous les motifs » : envoyés au serveur, jamais filtrés ici.
+    const [recherche, setRecherche] = useState(() => searchParams.get('recherche') ?? '');
+    const [motif, setMotif] = useState(() => searchParams.get('motif') ?? '');
+    const [motifs, setMotifs] = useState<string[]>([]);
     const [isExecutingFilters, setIsExecutingFilters] = useState(false);
     // Sort state (initialized from URL)
     const [sortBy, setSortBy] = useState<string | null>(() => {
@@ -63,7 +67,9 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
         page: number,
         filters?: ActiveFilter[],
         sortByParam?: string | null,
-        sortOrderParam?: 'asc' | 'desc'
+        sortOrderParam?: 'asc' | 'desc',
+        rechercheParam: string = recherche,
+        motifParam: string = motif
     ) => {
         if (!isAuthenticated) return;
         try {
@@ -87,6 +93,8 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
                     ...(filterParam && { filters: filterParam }),
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
+                    ...(rechercheParam && { recherche: rechercheParam }),
+                    ...(motifParam && { motif: motifParam }),
                 },
             });
 
@@ -99,6 +107,7 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
                 setTotalPages(response.data.total_pages || 1);
                 setTotalCount(response.data.total_count || 0);
                 setCurrentPage(response.data.page || 1);
+                setMotifs(response.data.motifs || []);
             }
             setError(null);
         } catch (err) {
@@ -107,11 +116,13 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
         } finally {
             setLoading(false);
         }
-    }, [workflowId, isAuthenticated]);
+    }, [workflowId, isAuthenticated, recherche, motif]);
 
     const updatePageInUrl = useCallback((page: number, filters?: ActiveFilter[], sortByParam?: string | null, sortOrderParam?: 'asc' | 'desc') => {
         const params = new URLSearchParams();
         params.set('page', page.toString());
+        if (recherche) params.set('recherche', recherche);
+        if (motif) params.set('motif', motif);
 
         // Add filters to URL if present
         if (filters && filters.length > 0) {
@@ -129,11 +140,21 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
         }
 
         router.push(`/workflow/${workflowId}/runs?${params.toString()}`, { scroll: false });
-    }, [router, workflowId]);
+    }, [router, workflowId, recherche, motif]);
 
     useEffect(() => {
         fetchWorkflowRuns(currentPage, appliedFilters, sortBy, sortOrder);
     }, [currentPage, appliedFilters, fetchWorkflowRuns, sortBy, sortOrder]);
+
+    // La recherche ou le motif change : retour à la première page ; la requête repart d'elle-même (`fetchWorkflowRuns` change).
+    const handleRecherche = useCallback((valeur: string) => {
+        setCurrentPage(1);
+        setRecherche(valeur);
+    }, []);
+    const handleMotif = useCallback((valeur: string) => {
+        setCurrentPage(1);
+        setMotif(valeur);
+    }, []);
 
     const handleApplyFilters = useCallback(async () => {
         setIsExecutingFilters(true);
@@ -206,6 +227,11 @@ export function WorkflowExecutions({ workflowId, searchParams, forme }: Workflow
                 onSort={handleSort}
                 workflowId={workflowId}
                 onReload={handleReload}
+                recherche={recherche}
+                onRecherche={handleRecherche}
+                motif={motif}
+                onMotif={handleMotif}
+                motifs={motifs}
             />
         </div>
     );

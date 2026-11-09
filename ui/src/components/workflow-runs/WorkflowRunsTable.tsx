@@ -8,6 +8,8 @@ import { CallTypeCell } from "@/components/CallTypeCell";
 import { FilterBuilder } from "@/components/filters/FilterBuilder";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
+import { NoteJuge } from "@/components/mark/studio/marques";
+import { dureeLisible, RechercheAppels } from "@/components/mark/studio/recherche-appels";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { MediaPreviewButton, MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { Badge } from "@/components/ui/badge";
@@ -65,15 +67,12 @@ export interface WorkflowRunsTableProps {
     emptyMessage?: string;
     /** K3 : « agent » = la forme de l'onglet Appels de la maquette (tableau nu, sans titre ni cadre). */
     forme?: "agent";
-}
-
-/** [.mark] V1 : « 3m 12s » comme la page Conversations (jamais « 192.0 s »). */
-function dureeLisible(secondes: number) {
-    const total = Math.round(secondes);
-    const minutes = Math.floor(total / 60);
-    const reste = total % 60;
-    if (minutes === 0) return `${reste}s`;
-    return reste === 0 ? `${minutes}m` : `${minutes}m ${reste}s`;
+    /** Clôture SA-5 (É35) : « Chercher un mot » et « Tous les motifs » de la maquette, envoyés au serveur par le parent (forme « agent »). */
+    recherche?: string;
+    onRecherche?: (valeur: string) => void;
+    motif?: string;
+    onMotif?: (valeur: string) => void;
+    motifs?: string[];
 }
 
 export function WorkflowRunsTable({
@@ -101,6 +100,11 @@ export function WorkflowRunsTable({
     showAgentVersion = false,
     emptyMessage = "No workflow runs found",
     forme,
+    recherche = "",
+    onRecherche,
+    motif = "",
+    onMotif,
+    motifs = [],
 }: WorkflowRunsTableProps) {
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
     const organizationTimezone = useOrganizationTimezone();
@@ -117,6 +121,9 @@ export function WorkflowRunsTable({
         return (
             <div className="space-y-4" data-forme="appels-agent">
                 {/* Rien à filtrer tant qu'il n'y a aucun appel : la maquette montre alors l'état vide seul. */}
+                {onRecherche && onMotif && (runs.length > 0 || hasAppliedFilters || recherche !== "" || motif !== "") && (
+                    <RechercheAppels recherche={recherche} onRecherche={onRecherche} motif={motif} onMotif={onMotif} motifs={motifs} />
+                )}
                 {showFilters && (runs.length > 0 || hasAppliedFilters) && (
                     <FilterBuilder
                         availableAttributes={availableAttributes}
@@ -133,8 +140,16 @@ export function WorkflowRunsTable({
                 ) : error ? (
                     <EtatVide cas="erreur" reessayer={onReload} />
                 ) : runs.length === 0 ? (
-                    hasAppliedFilters ? (
-                        <EtatVide cas="filtre" recherche="" effacer={onClearFilters} />
+                    hasAppliedFilters || recherche !== "" || motif !== "" ? (
+                        <EtatVide
+                            cas="filtre"
+                            recherche={motif || recherche}
+                            effacer={() => {
+                                onClearFilters();
+                                onRecherche?.("");
+                                onMotif?.("");
+                            }}
+                        />
                     ) : (
                         <EtatVide cas="premier" icone={PhoneIncoming} titre={emptyMessage} />
                     )
@@ -144,9 +159,12 @@ export function WorkflowRunsTable({
                             colonnes={[
                                 { titre: t({ en: "When", fr: "Quand" }) },
                                 ...(showAgentVersion ? [{ titre: "Version" }] : []),
-                                { titre: t({ en: "Call type", fr: "Type d'appel" }) },
-                                { titre: t({ en: "Outcome", fr: "Issue" }) },
-                                { titre: t({ en: "Duration", fr: "Durée" }), droite: true },
+                                { titre: t({ en: "Reason", fr: "Motif" }) },
+                                { titre: t({ en: "Summary", fr: "Résumé" }), largeur: "w-[34%]", secondaire: 2 },
+                                { titre: t({ en: "Outcome", fr: "Issue" }), secondaire: 3 },
+                                { titre: t({ en: "Duration", fr: "Durée" }), droite: true, secondaire: 4 },
+                                { titre: t({ en: "Judged by", fr: "Jugé par" }), secondaire: 1 },
+                                { titre: t({ en: "Grade", fr: "Note" }), droite: true },
                             ]}
                         >
                             {runs.map((run) => (
@@ -155,14 +173,22 @@ export function WorkflowRunsTable({
                                     {showAgentVersion && (
                                         <Cellule>{run.version_number != null ? `v${run.version_number}` : "–"}</Cellule>
                                     )}
-                                    <Cellule>
-                                        <CallTypeCell mode={run.mode} callType={run.call_type} />
+                                    <Cellule>{run.motif || "–"}</Cellule>
+                                    <Cellule className="py-2.5 align-top">
+                                        {/* La synthèse de l'après-appel réduite à deux phrases, sinon le résumé du modèle ; jamais rien d'inventé. */}
+                                        <span data-resume-appel={run.resume_source ?? "aucun"} className="line-clamp-2 text-xs leading-snug">
+                                            {run.resume || "–"}
+                                        </span>
                                     </Cellule>
                                     <Cellule>{(run.gathered_context?.mapped_call_disposition as string | undefined) ?? "–"}</Cellule>
                                     <Cellule droite>
                                         {typeof run.cost_info?.call_duration_seconds === "number"
                                             ? dureeLisible(run.cost_info.call_duration_seconds)
                                             : "–"}
+                                    </Cellule>
+                                    <Cellule>{run.juge_par || "–"}</Cellule>
+                                    <Cellule droite>
+                                        <NoteJuge note={run.note_juge ?? null} />
                                     </Cellule>
                                 </Ligne>
                             ))}

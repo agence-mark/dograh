@@ -9,13 +9,14 @@
 import { ChevronRight, MessageSquare, Phone, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { chatDeTousLesClientsApiV1VuesEquipeChatGet, conversationsDeTousLesClientsApiV1VuesEquipeConversationsGet } from "@/client";
 import type { ConversationsEquipeResponse, FilsEquipe } from "@/client/types.gen";
 import { useLangue } from "@/components/mark/langue/langue";
 import { EnDirect, MarqueClaudeCode } from "@/components/mark/sources/marques";
-import { Pastille } from "@/components/mark/studio/marques";
+import { NoteJuge, Pastille } from "@/components/mark/studio/marques";
+import { dureeLisible, RechercheAppels } from "@/components/mark/studio/recherche-appels";
 import { Input } from "@/components/ui/input";
 import { DateRelative } from "@/components/mark/studio/date-relative";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
@@ -34,37 +35,54 @@ type Charge<T> = { etat: "chargement" } | { etat: "erreur" } | { etat: "acces" }
 const T = {
     client: { en: "Client", fr: "Client" },
     agent: { en: "Agent", fr: "Agent" },
-    conversation: { en: "Conversation", fr: "Conversation" },
-    mode: { en: "Mode", fr: "Mode" },
-    etat: { en: "State", fr: "État" },
+    motif: { en: "Reason", fr: "Motif" },
+    resume: { en: "Summary", fr: "Résumé" },
+    issue: { en: "Outcome", fr: "Issue" },
+    duree: { en: "Duration", fr: "Durée" },
+    jugePar: { en: "Judged by", fr: "Jugé par" },
+    note: { en: "Grade", fr: "Note" },
     quand: { en: "When", fr: "Quand" },
     titre: { en: "Title", fr: "Titre" },
     changements: { en: "Changes", fr: "Changements" },
     aucunAppel: { en: "No call yet", fr: "Aucun appel encore" },
     aucunChat: { en: "No chat yet", fr: "Aucun chat encore" },
     rechercher: { en: "Search a chat", fr: "Rechercher un chat" },
-    termine: { en: "Done", fr: "Terminée" },
-    enCours: { en: "Ongoing", fr: "En cours" },
     precedent: { en: "Previous", fr: "Précédent" },
     suivant: { en: "Next", fr: "Suivant" },
 };
 
 /** Charge une page d'une liste « tous clients ». Une lecture refusée (403) dit « accès », une panne « erreur ». */
-function usePage<T>(lire: (decalage: number) => Promise<{ data?: T; error?: unknown; response?: { status?: number } }>) {
+function usePage<T>(
+    lire: (decalage: number) => Promise<{ data?: T; error?: unknown; response?: { status?: number } }>,
+    /** Clôture SA-5 : ce qui change la requête (recherche, motif) : la liste revient à la première page. */
+    cle = "",
+) {
     const { user, loading } = useAuth();
     const [decalage, setDecalage] = useState(0);
     const [charge, setCharge] = useState<Charge<T>>({ etat: "chargement" });
+    const derniere = useRef(0);
+    const cleAvant = useRef(cle);
     const charger = useCallback(async () => {
-        setCharge({ etat: "chargement" });
+        const numero = ++derniere.current;
+        // Les données déjà là restent affichées pendant une nouvelle lecture (la barre de recherche garde son focus).
+        setCharge((c) => (c.etat === "pret" ? c : { etat: "chargement" }));
         const r = await lire(decalage);
+        if (numero !== derniere.current) return; // une lecture plus récente a pris la suite
         if (r.error || r.data === undefined) setCharge({ etat: r.response?.status === 403 ? "acces" : "erreur" });
         else setCharge({ etat: "pret", donnees: r.data });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [decalage]);
+    }, [decalage, cle]);
     useEffect(() => {
+        if (cleAvant.current !== cle) {
+            cleAvant.current = cle;
+            if (decalage !== 0) {
+                setDecalage(0); // la lecture repart d'elle-même avec le nouveau décalage
+                return;
+            }
+        }
         if (loading || !user) return;
         void charger();
-    }, [loading, user, charger]);
+    }, [loading, user, charger, cle, decalage]);
     return { charge, decalage, setDecalage, recharger: charger };
 }
 
@@ -86,34 +104,79 @@ function Pagination({ decalage, total, aller }: { decalage: number; total: numbe
     );
 }
 
-/** Les appels de tous les clients ouverts : la colonne « Client » de la maquette. */
+/**
+ * Les appels de tous les clients ouverts : la liste de la maquette (`ListeAppelsPlus`) : « Chercher un mot », « Tous les motifs », puis
+ * Quand, Agent, Client, Motif, Résumé, Issue, Durée, Jugé par, Note. Recherche et motif sont lus par le serveur (dans la requête,
+ * cloisonnée par le rôle), jamais filtrés ici. Clôture SA-5 (É8).
+ */
 export function ConversationsTousClients() {
     const { t } = useLangue();
-    const { charge, decalage, setDecalage, recharger } = usePage<ConversationsEquipeResponse>((d) =>
-        conversationsDeTousLesClientsApiV1VuesEquipeConversationsGet({ query: { limit: PAR_PAGE, offset: d } }),
+    const [recherche, setRecherche] = useState("");
+    const [motif, setMotif] = useState("");
+    const { charge, decalage, setDecalage, recharger } = usePage<ConversationsEquipeResponse>(
+        (d) =>
+            conversationsDeTousLesClientsApiV1VuesEquipeConversationsGet({
+                query: { limit: PAR_PAGE, offset: d, ...(recherche && { recherche }), ...(motif && { motif }) },
+            }),
+        `${recherche}|${motif}`,
     );
     if (charge.etat === "chargement") return <EtatVide cas="chargement" />;
     if (charge.etat === "acces") return <EtatVide cas="acces" />;
     if (charge.etat === "erreur") return <EtatVide cas="erreur" reessayer={() => void recharger()} />;
-    const { conversations, total } = charge.donnees;
-    if (conversations.length === 0) return <EtatVide cas="premier" icone={Phone} titre={t(T.aucunAppel)} />;
+    const { conversations, total, motifs = [] } = charge.donnees;
+    const filtre = recherche !== "" || motif !== "";
+    if (conversations.length === 0 && !filtre) return <EtatVide cas="premier" icone={Phone} titre={t(T.aucunAppel)} />;
+    const effacer = () => {
+        setRecherche("");
+        setMotif("");
+    };
     return (
         <>
-            <Tableau colonnes={[{ titre: t(T.client) }, { titre: t(T.agent) }, { titre: t(T.conversation) }, { titre: t(T.mode) }, { titre: t(T.etat) }, { titre: t(T.quand), droite: true }]}>
-                {conversations.map((c) => (
-                    <Ligne key={c.id} href={`/clients/${c.organization_id}/conversations`}>
-                        <Cellule principale>{c.organization_nom}</Cellule>
-                        <Cellule>{c.workflow_name ?? ""}</Cellule>
-                        <Cellule>{c.name}</Cellule>
-                        <Cellule>{c.mode}</Cellule>
-                        <Cellule>{c.is_completed ? t(T.termine) : t(T.enCours)}</Cellule>
-                        <Cellule droite>
-                            <DateRelative valeur={c.created_at} />
-                        </Cellule>
-                    </Ligne>
-                ))}
-            </Tableau>
-            <Pagination decalage={decalage} total={total} aller={setDecalage} />
+            <div className="mb-3">
+                <RechercheAppels recherche={recherche} onRecherche={setRecherche} motif={motif} onMotif={setMotif} motifs={motifs} />
+            </div>
+            {conversations.length === 0 ? (
+                <EtatVide cas="filtre" recherche={motif || recherche} effacer={effacer} />
+            ) : (
+                <>
+                    <Tableau
+                        colonnes={[
+                            { titre: t(T.quand) },
+                            { titre: t(T.agent), secondaire: 3 },
+                            { titre: t(T.client) },
+                            { titre: t(T.motif) },
+                            { titre: t(T.resume), largeur: "w-[30%]", secondaire: 2 },
+                            { titre: t(T.issue), secondaire: 4 },
+                            { titre: t(T.duree), droite: true, secondaire: 5 },
+                            { titre: t(T.jugePar), secondaire: 1 },
+                            { titre: t(T.note), droite: true },
+                        ]}
+                    >
+                        {conversations.map((c) => (
+                            <Ligne key={c.id} href={`/clients/${c.organization_id}/conversations`}>
+                                <Cellule principale>
+                                    <DateRelative valeur={c.created_at} />
+                                </Cellule>
+                                <Cellule>{c.workflow_name ?? ""}</Cellule>
+                                <Cellule>{c.organization_nom}</Cellule>
+                                <Cellule>{c.motif || "–"}</Cellule>
+                                <Cellule className="py-2.5 align-top">
+                                    <span data-resume-appel={c.resume_source ?? "aucun"} className="line-clamp-2 text-xs leading-snug">
+                                        {c.resume || "–"}
+                                    </span>
+                                </Cellule>
+                                <Cellule>{c.issue || "–"}</Cellule>
+                                <Cellule droite>{typeof c.duree === "number" ? dureeLisible(c.duree) : "–"}</Cellule>
+                                <Cellule>{c.juge_par || "–"}</Cellule>
+                                <Cellule droite>
+                                    <NoteJuge note={c.note_juge ?? null} />
+                                </Cellule>
+                            </Ligne>
+                        ))}
+                    </Tableau>
+                    <Pagination decalage={decalage} total={total} aller={setDecalage} />
+                </>
+            )}
         </>
     );
 }
