@@ -23,7 +23,6 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { Liste } from "@/components/mark/studio/liste";
 import { Switch } from "@/components/ui/switch";
-import { detailFromError } from "@/lib/apiError";
 
 const GESTES: { id: GesteMcp; champ: "mcp_publier" | "mcp_tests_payants" | "mcp_appels_reels"; libelle: Texte; aide: Texte }[] = [
     {
@@ -56,7 +55,7 @@ export function PanneauDroitsCle({ cle, recharger }: { cle: CleDroits; recharger
     }, []);
 
     const refus = (res: { error?: unknown }, repli: Texte) => {
-        notifier.echec(repli, { erreur: res.error ? detailFromError(res.error as never, "") : undefined });
+        notifier.echec(repli, { erreur: res.error });
     };
 
     const changerRole = async (v: string) => {
