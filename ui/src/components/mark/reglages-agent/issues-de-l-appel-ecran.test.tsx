@@ -65,9 +65,13 @@ describe("[.mark] la vue Issues de l'appel", () => {
         expect(versReglage).toHaveBeenCalledWith(ID_THEME_DONNEES, "call_dispositions");
     });
 
-    it("un agent sans issue enregistrée le dit", () => {
+    it("un agent sans issue enregistrée le dit et montre celles de départ comme seulement proposées", () => {
         monter([]);
         expect(screen.getByText(/Aucune issue enregistrée/)).toBeTruthy();
-        expect(document.querySelectorAll("[data-vue='issues-de-l-appel'] li")).toHaveLength(0);
+        const lignes = Array.from(document.querySelectorAll("[data-vue='issues-de-l-appel'] li")).map((l) => l.textContent ?? "");
+        expect(lignes).toHaveLength(2);
+        expect(lignes[0]).toContain("XFER");
+        expect(lignes[0]).toContain("Proposée, non enregistrée");
+        expect(lignes[0]).not.toContain("De départ");
     });
 });

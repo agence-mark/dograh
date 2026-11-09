@@ -21,10 +21,11 @@ const T = {
     },
     defaut: { en: "Default", fr: "De départ" },
     propre: { en: "Its own", fr: "Propre à l'agent" },
+    proposee: { en: "Proposed, not saved", fr: "Proposée, non enregistrée" },
     regler: { en: "Adjust", fr: "Régler" },
     aucune: {
-        en: "No outcome saved: calls are not filed. Add some in the Call data theme.",
-        fr: "Aucune issue enregistrée : les appels ne sont pas classés. Ajoutez-en dans le thème Données de l'appel.",
+        en: "No outcome saved: calls are not filed. The starting outcomes below are only proposed; save them in the Call data theme.",
+        fr: "Aucune issue enregistrée : les appels ne sont pas classés. Les issues de départ ci-dessous ne sont que proposées ; enregistrez-les dans le thème Données de l'appel.",
     },
 } satisfies Record<string, Texte>;
 
@@ -40,24 +41,28 @@ export function VueIssuesAppel({
 }) {
     const { t } = useLangue();
     const deDepart = new Set(issuesParDefaut.map((i) => i.code.toLowerCase()));
+    // Rien d'enregistré : les issues de départ que le serveur propose se montrent (grisées), sans rien écrire.
+    const enregistrees = issues.length > 0;
+    const lignes = enregistrees ? issues : issuesParDefaut;
     return (
         <section className="space-y-2" data-vue="issues-de-l-appel">
             <p className="flex items-center gap-1.5 text-sm font-semibold">
                 {t(T.titre)}
                 <Info>{t(T.info)}</Info>
             </p>
-            {issues.length === 0 ? (
-                <p className="border-y py-3 text-sm text-muted-foreground">{t(T.aucune)}</p>
-            ) : (
+            {issues.length === 0 && <p className="border-t py-3 text-sm text-muted-foreground">{t(T.aucune)}</p>}
+            {lignes.length > 0 && (
                 <ul className="divide-y border-y">
-                    {issues.map((issue, i) => (
-                        <li key={issue.code} className="flex items-center gap-3 py-2.5 text-sm">
+                    {lignes.map((issue, i) => (
+                        <li key={issue.code} className={`flex items-center gap-3 py-2.5 text-sm ${enregistrees ? "" : "opacity-70"}`}>
                             <span className="w-5 shrink-0 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                                 <p className="font-mono text-xs font-medium">{issue.code}</p>
                                 <p className="line-clamp-2 text-xs text-muted-foreground">{issue.description}</p>
                             </div>
-                            <span className="shrink-0 text-xs text-muted-foreground">{deDepart.has(issue.code.toLowerCase()) ? t(T.defaut) : t(T.propre)}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                                {!enregistrees ? t(T.proposee) : deDepart.has(issue.code.toLowerCase()) ? t(T.defaut) : t(T.propre)}
+                            </span>
                             <button
                                 type="button"
                                 onClick={regler}
