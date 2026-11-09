@@ -15466,6 +15466,10 @@ export type ProviderSetupChecklist = {
      * Docs Url
      */
     docs_url?: string | null;
+    /**
+     * Outbound Blocked Step
+     */
+    outbound_blocked_step?: string | null;
 };
 
 /**
@@ -19456,6 +19460,10 @@ export type TelephonyConfigurationListItem = {
      */
     outbound_blocked_reason?: string | null;
     /**
+     * Outbound Blocked Step
+     */
+    outbound_blocked_step?: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -22344,6 +22352,18 @@ export type VueFil = {
     autorisations_du_chat?: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * Tours Resumes
+     */
+    tours_resumes?: number;
+    /**
+     * Resume Le
+     */
+    resume_le?: unknown;
+    /**
+     * Resume
+     */
+    resume?: string | null;
 };
 
 /**
