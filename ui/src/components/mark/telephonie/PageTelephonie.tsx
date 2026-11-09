@@ -26,6 +26,7 @@ import { Info, Marque, PointEtat } from "@/components/mark/studio/marques";
 import { PageStudio, TitrePage } from "@/components/mark/studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { ConfigFormDialog } from "@/components/telephony/ConfigFormDialog";
+import { ConfigurationPrincipale, configurationPrincipale } from "./ConfigurationPrincipale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
@@ -276,6 +277,11 @@ export function PageTelephonie() {
                         );
                     })}
                 </Tableau>
+            )}
+
+            {/* Clôture SA-5 (É11) : tout sur une page : la configuration principale, ses numéros et ses lignes SIP. */}
+            {items !== null && items.length > 0 && !erreur && (
+                <ConfigurationPrincipale key={configurationPrincipale(items).id} item={configurationPrincipale(items)} apres={apresEnregistrement} />
             )}
 
             <ConfigFormDialog open={createOpen} onOpenChange={setCreateOpen} existing={null} suggestDefaultOutbound={!(items ?? []).some((i) => i.is_default_outbound)} onSaved={apresEnregistrement} />
