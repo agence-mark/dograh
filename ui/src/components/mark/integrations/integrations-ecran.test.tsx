@@ -173,7 +173,8 @@ describe("[.mark] Intégrations › Logiciels", () => {
         const recherche = await ouvrirLeCatalogue();
         const carte = (await screen.findAllByText("Agenda d'essai")).map((x) => x.closest("button")).find(Boolean)!;
         expect(carte.textContent).toContain("Branché");
-        expect(screen.getByText("CRM d'essai").closest("button")!.textContent).toContain("À essayer");
+        // Le pied d'une carte dit le mode de connexion (décision d'Evan, É57) : Autorisation, Clé d'API, Inclus, À activer.
+        expect(screen.getByText("CRM d'essai").closest("button")!.textContent).toContain("Autorisation");
         expect(screen.getByText("Immo d'essai").closest("button")!.textContent).toContain("À activer");
         fireEvent.change(recherche, { target: { value: "crm" } });
         expect(screen.queryByText("Immo d'essai")).toBeNull();

@@ -30,6 +30,7 @@ import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
 import { FenetreOutil } from "./FenetreOutil";
 import { configDe, ecritHttp, LIBELLES_TYPE, texte,type TypeOutil } from "./modele";
 import { useOutils } from "./useOutils";
+import { VisuelOutil } from "./visuel";
 
 type Statut = "active" | "draft" | "archived";
 const STATUTS: { id: Statut; en: string; fr: string }[] = [
@@ -74,6 +75,8 @@ export function PageOutils() {
         }
         return "–";
     };
+    const integrationDe = (o: ToolResponse) =>
+        o.category === "integration" ? (connecteurs.catalogue?.find((x) => x.nom === texte(configDe(o), "connecteur"))?.integration ?? null) : null;
     const acces = (o: ToolResponse): string => {
         const c = configDe(o);
         let ecrit: boolean | null = null;
@@ -203,7 +206,12 @@ export function PageOutils() {
                                     <Ligne key={o.tool_uuid} onClick={() => setOuvert(o.tool_uuid)}>
                                         <td className="py-3">
                                             <span className="flex items-center gap-3">
-                                                <Initiales nom={o.name.replace(/_/g, " ")} taille={32} />
+                                                <VisuelOutil
+                                                    categorie={o.category}
+                                                    integration={integrationDe(o)}
+                                                    connecteur={texte(configDe(o), "connecteur")}
+                                                    initiales={<Initiales nom={o.name.replace(/_/g, " ")} taille={32} />}
+                                                />
                                                 <span className="min-w-0">
                                                     <span className="block font-mono font-medium">{o.name}</span>
                                                     {o.description && <span className="block max-w-80 truncate text-xs text-muted-foreground">{o.description}</span>}

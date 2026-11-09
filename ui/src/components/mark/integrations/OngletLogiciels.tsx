@@ -39,6 +39,7 @@ import { Liste } from "../studio/liste";
 import { Info, Marque, PointEtat } from "../studio/marques";
 import { espaceDe } from "../studio/navigation-studio";
 import { Paginee } from "../studio/pagination";
+import { tuileConnecteur } from "../outils/visuel";
 import { logoDe } from "./logos";
 import { DateRelative } from "../studio/date-relative";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
@@ -47,19 +48,24 @@ import { type Propositions } from "./usePropositions";
 
 const initiales = (nom: string) =>
     nom
+        .replace(/\(.*?\)/g, "")
+        .trim()
         .split(/\s+/)
         .map((m) => m[0] ?? "")
         .join("")
         .slice(0, 2)
         .toUpperCase();
 
-export function Initiales({ nom, taille = 40, integration }: { nom: string; taille?: number; integration?: string | null }) {
+export function Initiales({ nom, taille = 40, integration, cle }: { nom: string; taille?: number; integration?: string | null; cle?: string | null }) {
     const logo = logoDe(integration);
+    // Un connecteur maison (équipe, planificateur, dossier) : sa tuile colorée (É56).
+    const maison = tuileConnecteur(cle, integration, taille);
+    if (maison) return maison;
     // Le logo officiel quand son fichier est versé (`logos.ts`), sinon les initiales.
     if (logo)
         return (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt="" style={{ width: taille, height: taille }} className="inline-block shrink-0 rounded-lg border bg-background object-contain p-1" aria-hidden />
+            <img src={logo} alt="" style={{ width: taille, height: taille }} className="inline-block shrink-0 rounded-lg border bg-white object-contain p-1" aria-hidden />
         );
     return (
         <span
@@ -83,6 +89,21 @@ function useEtatLogiciel() {
               : c.etat === "interne"
                 ? t({ en: "Internal", fr: "Interne" })
                 : t({ en: "To try", fr: "À essayer" });
+}
+
+/** Logiciels qui se branchent par une clé d'API du client (les autres : autorisation Nango). Comme la maquette (É57). */
+const PAR_CLE_D_API = new Set(["axonaut", "organilog"]);
+
+/** [.mark] Clôture D2 (É57, décision d'Evan) : le pied d'une carte du catalogue dit le MODE de connexion, plus « À activer » quand rien n'est codé. */
+function useModeDeConnexion() {
+    const { t } = useLangue();
+    return (c: ConnecteurVue) => {
+        if (c.etat === "a_activer") return t({ en: "To activate", fr: "À activer" });
+        if (c.interne || c.integration === "interne") return t({ en: "Included", fr: "Inclus" });
+        if (c.nom === "doctolib") return t({ en: "Link by text message", fr: "Lien par SMS" });
+        if (PAR_CLE_D_API.has(c.integration)) return t({ en: "API key", fr: "Clé d'API" });
+        return t({ en: "Authorization", fr: "Autorisation" });
+    };
 }
 
 const jour = (iso: string | null | undefined, langue: "fr" | "en") => (iso ? formatDate(iso, null, langue) : "–");
@@ -196,7 +217,7 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
                                 <Ligne key={l.cle} onClick={() => setOuvert(l.connecteur.nom)}>
                                     <td className="py-3">
                                         <span className="flex items-center gap-3">
-                                            <Initiales nom={l.connecteur.libelle} taille={32} integration={l.connecteur.integration} />
+                                            <Initiales nom={l.connecteur.libelle} taille={32} integration={l.connecteur.integration} cle={l.connecteur.nom} />
                                             <span>
                                                 <span className="block font-medium">{l.connecteur.libelle}</span>
                                                 <span className="block text-xs text-muted-foreground">{l.compte}</span>
@@ -259,7 +280,7 @@ function FenetreCatalogue({
     fermer: () => void;
 }) {
     const { t, langue } = useLangue();
-    const etatDe = useEtatLogiciel();
+    const modeDe = useModeDeConnexion();
     const [q, setQ] = useState("");
     const [filtre, setFiltre] = useState("");
     const [ouvert, setOuvert] = useState<string | null>(null);
@@ -274,7 +295,12 @@ function FenetreCatalogue({
     const dansLeFiltre = (c: ConnecteurVue) =>
         c.libelle.toLowerCase().includes(q.toLowerCase()) && (filtre === "" || (filtre === "branches" ? branche(c) : !branche(c) && !c.interne));
     const categories = CATEGORIES_DU_CATALOGUE.filter((x) => catalogue.some((c) => c.categorie === x.id));
-    const liste = catalogue.filter((c) => dansLeFiltre(c) && (categorie === "" || c.categorie === categorie));
+    // L'ordre de la maquette : par catégorie (CRM d'abord), dans l'ordre du serveur au sein d'une catégorie (É58).
+    const rang = (c: ConnecteurVue) => {
+        const i = CATEGORIES_DU_CATALOGUE.findIndex((x) => x.id === c.categorie);
+        return i < 0 ? CATEGORIES_DU_CATALOGUE.length : i;
+    };
+    const liste = catalogue.filter((c) => dansLeFiltre(c) && (categorie === "" || c.categorie === categorie)).sort((a, b) => rang(a) - rang(b));
     const ouvertConnecteur = catalogue.find((c) => c.nom === ouvert);
     return (
         <Dialog centree open onOpenChange={(o) => !o && fermer()}>
@@ -361,7 +387,7 @@ function FenetreCatalogue({
                                     className="flex cursor-pointer flex-col rounded-xl border bg-background p-4 text-left transition-colors hover:border-foreground/40"
                                 >
                                     <span className="flex items-start gap-3">
-                                        <Initiales nom={c.libelle} integration={c.integration} />
+                                        <Initiales nom={c.libelle} integration={c.integration} cle={c.nom} />
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm leading-tight font-medium">{c.libelle}</span>
                                             <span className="mt-0.5 block text-xs text-muted-foreground">{nomDeCategorie(c.categorie) || c.integration}</span>
@@ -372,7 +398,7 @@ function FenetreCatalogue({
                                         <span>
                                             {c.actions.length} {c.actions.length > 1 ? t({ en: "actions", fr: "actions" }) : t({ en: "action", fr: "action" })}
                                         </span>
-                                        {branche(c) ? <PointEtat etat="publie">{t({ en: "Connected", fr: "Branché" })}</PointEtat> : <span>{etatDe(c)}</span>}
+                                        {branche(c) ? <PointEtat etat="publie">{t({ en: "Connected", fr: "Branché" })}</PointEtat> : <span>{modeDe(c)}</span>}
                                     </span>
                                 </button>
                             ))}
@@ -508,7 +534,7 @@ function FenetreLogiciel({
             fermer={fermer}
             titre={connecteur.libelle}
             sous={`${connecteur.integration} · ${etatDe(connecteur)}`}
-            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
+            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} cle={connecteur.nom} />}
             onglets={Object.values(libelles)}
             onglet={libelles[onglet]}
             changerOnglet={(l) => setOnglet((Object.keys(libelles) as (keyof typeof libelles)[]).find((k) => libelles[k] === l) ?? "configurer")}
@@ -796,7 +822,7 @@ function FenetreBrancher({
     return (
         <FenetreOnglets centree
             fermer={fermer}
-            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} />}
+            visuel={<Initiales nom={connecteur.libelle} integration={connecteur.integration} cle={connecteur.nom} />}
             titre={labo ? t({ en: `Connect ${connecteur.libelle}`, fr: `Brancher ${connecteur.libelle}` }) : t({ en: `Propose ${connecteur.libelle} to the client`, fr: `Proposer ${connecteur.libelle} au client` })}
             info={
                 labo
