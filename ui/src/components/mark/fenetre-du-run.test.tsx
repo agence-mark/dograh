@@ -125,6 +125,18 @@ const ANALYSE: AnalyseDuRun = {
                 by_sound: null,
                 proposals: [],
             },
+            // Run 2472 (production, 10/11) : la commune retenue arrive en objet ; la page plantait (React #31).
+            {
+                module: "towns",
+                caller_turn: 6,
+                step: "coordonnees",
+                heard: "verneuil",
+                result: { nom: "Verneuil-en-Halatte", code_insee: "60670", departement: "Oise", codes_postaux: ["60550"] },
+                kind: null,
+                status: "a_confirmer",
+                by_sound: null,
+                proposals: [],
+            },
         ],
     },
     record: {
@@ -207,8 +219,12 @@ describe("Fenêtre du run", () => {
         enFrancais(<FenetreDuRun workflowId={34} runId={967} />);
         await screen.findByTestId("fenetre-du-run");
         ouvrir("bloc-reading-modules");
-        expect(texte(screen.getByTestId("element-de-module"))).toContain("vingt-trois quatre-vingts");
-        expect(texte(screen.getByTestId("element-de-module"))).toContain("23080");
+        const [nombre, ville] = screen.getAllByTestId("element-de-module");
+        expect(texte(nombre)).toContain("vingt-trois quatre-vingts");
+        expect(texte(nombre)).toContain("23080");
+        expect(texte(ville)).toContain("Verneuil-en-Halatte (60550)");
+        expect(texte(ville)).toContain("à confirmer");
+        expect(texte(ville)).not.toContain("a_confirmer");
         ouvrir("bloc-record");
         const [nom, commune] = screen.getAllByTestId("champ-de-fiche");
         expect(texte(nom)).toContain("Testeur");

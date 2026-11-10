@@ -1641,7 +1641,7 @@ export default function WorkflowSettingsPage() {
 
     if (error || !workflow) {
         return (
-            <div className="flex min-h-screen items-center justify-center">
+            <div className="flex h-full min-h-64 items-center justify-center">
                 <AgentIntrouvable agentId={Number(params.workflowId)}>{error || "Workflow not found"}</AgentIntrouvable>
             </div>
         );

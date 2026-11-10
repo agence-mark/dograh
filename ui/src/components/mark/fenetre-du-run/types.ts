@@ -171,7 +171,8 @@ export type ElementDeModule = {
     caller_turn: number | null;
     step: string | null;
     heard: string | null;
-    result: string | null;
+    // Texte, ou objet pour une commune ou une voie (`nom`, `codes_postaux`…) : jamais rendu tel quel.
+    result: unknown;
     kind: string | null;
     status: string | null;
     by_sound: boolean | null;

@@ -30,6 +30,7 @@ import { BlocChamp, Champs,FenetreOnglets } from "../studio/fenetre-onglets";
 import { espaceDe } from "../studio/navigation-studio";
 import { Liste } from "../studio/liste";
 import { LIBELLES_TYPE, type TypeOutil } from "./modele";
+import { LogosAction, VisuelOutil } from "./visuel";
 import { notifier } from "@/components/mark/notifications";
 
 const ORDRE: TypeOutil[] = ["integration", "http_api", "mcp", "transfer_call", "transfer_agent", "end_call", "native", "calculator"];
@@ -118,11 +119,15 @@ export function FenetreNouvelOutil({ fermer, cree }: { fermer: () => void; cree:
                                 type="button"
                                 disabled={!creable}
                                 onClick={() => choisir(x)}
-                                className="flex flex-col gap-0.5 rounded-xl border bg-background p-4 text-left transition-colors enabled:cursor-pointer enabled:hover:border-foreground/40 disabled:opacity-60"
+                                data-testid={`nouvel-outil-${x}`}
+                                className="flex gap-3 rounded-xl border bg-background p-4 text-left transition-colors enabled:cursor-pointer enabled:hover:border-foreground/40 disabled:opacity-60"
                             >
-                                <span className="text-sm font-medium">{t(LIBELLES_TYPE[x])}</span>
-                                <span className="text-xs text-muted-foreground">
-                                    {creable ? t(DESCRIPTIONS[x]) : t({ en: "Created from an agent's step.", fr: "Se crée depuis l'étape d'un agent." })}
+                                {x === "integration" ? <LogosAction taille={32} /> : <VisuelOutil categorie={x} initiales={null} taille={32} />}
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-medium">{t(LIBELLES_TYPE[x])}</span>
+                                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                                        {creable ? t(DESCRIPTIONS[x]) : t({ en: "Created from an agent's step.", fr: "Se crée depuis l'étape d'un agent." })}
+                                    </span>
                                 </span>
                             </button>
                         );

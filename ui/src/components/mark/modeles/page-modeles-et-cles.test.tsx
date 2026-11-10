@@ -50,9 +50,10 @@ const DEFAUTS = {
     },
 };
 const CLES = [
-    { uuid: "c-mistral", nom: "Mistral (Labo)", fournisseur: "mistral" },
-    { uuid: "c-cartesia", nom: "Cartesia (Labo)", fournisseur: "cartesia" },
+    { uuid: "c-mistral", nom: "Mistral (Labo)", fournisseur: "mistral", creee_le: "2026-10-07T10:00:00Z" },
+    { uuid: "c-cartesia", nom: "Cartesia (Labo)", fournisseur: "cartesia", creee_le: "2026-10-08T10:00:00Z", adresse: "https://api.cartesia.example" },
     { uuid: "c-vieille", nom: "ElevenLabs (essai)", fournisseur: "elevenlabs" },
+    { uuid: "c-sans", nom: "", fournisseur: "soniox", creee_le: "2026-10-09T10:00:00Z" },
 ];
 
 vi.mock("@/client", () => ({
@@ -64,7 +65,7 @@ vi.mock("@/client", () => ({
 }));
 vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
-        getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: async () => ({ data: DEFAUTS }),
+                getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: async () => ({ data: DEFAUTS }),
         getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: async () => ({
             data: { configuration: m.lue ?? CONFIGURATION, effective_configuration: {}, source: "organization" },
         }),
@@ -111,6 +112,7 @@ beforeEach(() => {
             "c-mistral": [{ ou: "modeles_organisation", nom: null }, { ou: "reglages_modele", nom: null }],
             "c-cartesia": [{ ou: "modeles_organisation", nom: null }],
             "c-vieille": [],
+            "c-sans": [{ ou: "agent", nom: "Accueil", agent_id: 7 }, { ou: "modeles_agent", nom: "Rappel", agent_id: 8 }, { ou: "agent", nom: "Doublon", agent_id: 9 }, { ou: "agent", nom: "Doublon", agent_id: 10 }, { ou: "modeles_agent", nom: "Doublon", agent_id: 10 }, { ou: "outil", nom: "Agenda" }],
         },
     });
     document.body.removeAttribute("data-erreur");
@@ -144,6 +146,23 @@ describe("les cartes", () => {
         expect(carte("tts")).toBeNull();
         expect(carte("llm")).not.toBeNull();
         expect(carte("realtime").textContent).toContain("Not set");
+    });
+});
+
+describe("la forme des cartes (point 13)", () => {
+    it("tuile bordée, même hauteur, 2 colonnes quand le conteneur est étroit, nom de la clé dit", async () => {
+        render(<PageModelesEtCles />);
+        await waitFor(() => expect(carte("llm")).not.toBeNull());
+        await waitFor(() => expect(carte("llm").textContent).toContain("Mistral (Labo)"));
+        const grille = screen.getByTestId("briques");
+        expect(grille.className).toContain("grid-cols-2");
+        expect(grille.className).toContain("@4xl:grid-cols-4");
+        expect(grille.parentElement!.className).toContain("@container");
+        for (const b of ["stt", "llm", "tts", "embeddings"]) {
+            expect(carte(b).className).toContain("h-full");
+            expect(carte(b).className).toContain("rounded-xl border bg-card");
+        }
+        expect(carte("llm").querySelector("[data-cle-de-la-brique]")!.textContent).toContain("Mistral (Labo)");
     });
 });
 
@@ -208,8 +227,59 @@ describe("le tableau des clés", () => {
         const tableau = await screen.findByTestId("page-cles");
         await waitFor(() => expect(within(tableau).getByText("Mistral (Labo)")).toBeTruthy());
         await waitFor(() => expect(tableau.textContent).toContain("Models of the organization · Simulated caller"));
-        expect(tableau.textContent).toContain("nowhere");
+        expect(tableau.textContent).toContain("None");
         expect(m.lireUsages).toHaveBeenCalledTimes(1);
+    });
+
+    it("une ligne par clé : nom et fournisseur dessous, « Sans nom », utilisée par en compte, créée le, menu", async () => {
+        render(<PageModelesEtCles />);
+        const tableau = await screen.findByTestId("page-cles");
+        await waitFor(() => expect(tableau.querySelectorAll("[data-cle-ligne]").length).toBe(4));
+        const sans = tableau.querySelector("[data-cle-ligne=c-sans]") as HTMLElement;
+        expect(sans.textContent).toContain("Unnamed");
+        expect(sans.textContent).toContain("Soniox");
+        const ligne = sans.closest("tr") as HTMLElement;
+        await waitFor(() => expect(ligne.textContent).toContain("4 agents · 1 tool"));
+        expect(ligne.textContent).toMatch(/Oct 9, 2026/);
+        expect(within(ligne).getByRole("button", { name: /Key actions/ })).toBeTruthy();
+        expect(within(tableau).getByText("Mistral (Labo)").closest("tr")!.textContent).toContain("Mistral");
+    });
+
+    it("le panneau d'une clé dit fournisseur, adresse, date, valeur jamais affichée, agents repliés puis en liens", async () => {
+        render(<PageModelesEtCles />);
+        const tableau = await screen.findByTestId("page-cles");
+        await waitFor(() => expect(tableau.querySelector("[data-cle-ligne=c-cartesia]")).not.toBeNull());
+        fireEvent.click(tableau.querySelector("[data-cle-ligne=c-cartesia]")!);
+        const fenetre = await screen.findByRole("dialog");
+        expect(fenetre.textContent).toContain("Provider");
+        expect(fenetre.textContent).toContain("https://api.cartesia.example");
+        expect(fenetre.textContent).toContain("Oct 8, 2026");
+        expect(fenetre.textContent).toContain("Saved, never shown");
+        cleanup();
+        render(<PageModelesEtCles />);
+        const t2 = await screen.findByTestId("page-cles");
+        await waitFor(() => expect(t2.querySelector("[data-cle-ligne=c-sans]")).not.toBeNull());
+        await waitFor(() => expect(t2.querySelector("[data-cle-ligne=c-sans]")!.closest("tr")!.textContent).toContain("4 agents"));
+        fireEvent.click(t2.querySelector("[data-cle-ligne=c-sans]")!);
+        const f2 = await screen.findByRole("dialog");
+        expect(f2.textContent).toContain("Unnamed");
+        expect(f2.querySelector("[data-lien-agent]")).toBeNull(); // repliés
+        fireEvent.click(f2.querySelector("[data-usage-agents]")!);
+        await waitFor(() => expect(f2.querySelector("[data-lien-agent='7']")).not.toBeNull());
+        expect(f2.querySelector("[data-lien-agent='7']")!.getAttribute("href")).toContain("7");
+        // Deux agents du même nom : un lien chacun, par l'identifiant ; un agent sorti pour deux raisons n'est listé qu'une fois.
+        expect([...f2.querySelectorAll("[data-lien-agent]")].map((a) => a.getAttribute("data-lien-agent"))).toEqual(["7", "8", "9", "10"]);
+    });
+
+    it("supprimer depuis le menu ouvre le panneau déjà en confirmation", async () => {
+        render(<PageModelesEtCles />);
+        const tableau = await screen.findByTestId("page-cles");
+        await waitFor(() => expect(tableau.querySelector("[data-cle-ligne=c-vieille]")).not.toBeNull());
+        const ligne = tableau.querySelector("[data-cle-ligne=c-vieille]")!.closest("tr") as HTMLElement;
+        fireEvent.pointerDown(within(ligne).getByRole("button", { name: /Key actions/ }), { button: 0, ctrlKey: false });
+        fireEvent.click(await screen.findByRole("menuitem", { name: /Delete the key/ }));
+        const fenetre = await screen.findByRole("dialog");
+        expect(fenetre.textContent).toContain("key deleted");
     });
 
     it("ne lit pas les usages avant que les clés soient lues (la session n'est pas prête)", async () => {

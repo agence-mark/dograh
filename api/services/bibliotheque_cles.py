@@ -43,6 +43,8 @@ class Usage(BaseModel):
         "apres_appel",
     ]
     nom: Optional[str] = None
+    # Correctifs d'écran, point 13 : l'identifiant de l'agent (``agent`` et ``modeles_agent``), pour que l'écran relie sans passer par le nom.
+    agent_id: Optional[int] = None
 
 
 # fiabilite-orchestration, lot 10 (F10) : « Protocole » est le menu d'avant (clé ``fournisseur`` des
@@ -118,6 +120,7 @@ async def _lire_les_endroits_ou_une_cle_sert(organization_id: int) -> dict:
         "agents": [
             (
                 agent.name,
+                agent.id,
                 str(
                     getattr(
                         getattr(agent, "current_definition", None), "workflow_json", None
@@ -160,11 +163,11 @@ def _usages_dans(uuid: str, donnees: dict) -> list[Usage]:
     modeles = donnees["modeles"]
     if modeles is not None and reference in modeles.model_dump_json():
         usages.append(Usage(ou="modeles_organisation"))
-    for nom, definition, configurations in donnees["agents"]:
+    for nom, identifiant, definition, configurations in donnees["agents"]:
         if uuid in definition:
-            usages.append(Usage(ou="agent", nom=nom))
+            usages.append(Usage(ou="agent", nom=nom, agent_id=identifiant))
         if any(reference in c for c in configurations):
-            usages.append(Usage(ou="modeles_agent", nom=nom))
+            usages.append(Usage(ou="modeles_agent", nom=nom, agent_id=identifiant))
     return usages
 
 

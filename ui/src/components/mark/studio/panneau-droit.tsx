@@ -218,11 +218,12 @@ export function PanneauDroit({ etat, dessus, largeurAffichee }: { etat: EtatPann
                                 if (e.key === "Enter") setActif(o.id);
                             }}
                             title={o.apercu ? t({ en: "Preview: double-click to pin", fr: "Aperçu : double-clic pour épingler" }) : libelle(o)}
-                            className={`group flex h-8 cursor-pointer items-center gap-1.5 rounded-lg pr-1 pl-2.5 text-sm transition-colors select-none ${
+                            data-testid="onglet-du-panneau"
+                            className={`group flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg pr-1 pl-2.5 text-sm transition-colors select-none ${
                                 o.id === actif ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:font-medium hover:text-foreground"
                             }`}
                         >
-                            <span className={`max-w-56 truncate ${o.apercu ? "italic" : ""}`}>{libelle(o)}</span>
+                            <span className={`max-w-56 truncate ${o.apercu ? "italic pr-0.5" : ""}`}>{libelle(o)}</span>
                             <button
                                 type="button"
                                 aria-label={t({ en: "Close tab", fr: "Fermer l'onglet" })}
@@ -249,7 +250,7 @@ export function PanneauDroit({ etat, dessus, largeurAffichee }: { etat: EtatPann
                         </DropdownMenuLabel>
                         {onglets.map((o) => (
                             <DropdownMenuItem key={o.id} onClick={() => setActif(o.id)} className="cursor-pointer gap-2">
-                                <span className={`truncate ${o.apercu ? "italic" : ""}`}>{libelle(o)}</span>
+                                <span className={`truncate ${o.apercu ? "italic pr-0.5" : ""}`}>{libelle(o)}</span>
                                 {!o.apercu && <Pin className="ml-auto size-3 text-muted-foreground" />}
                             </DropdownMenuItem>
                         ))}

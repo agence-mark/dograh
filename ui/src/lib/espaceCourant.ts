@@ -17,9 +17,31 @@ let laboId: number | null = null;
 
 let chargeurLabo: (() => Promise<unknown>) | null = null;
 let chargementLabo: Promise<unknown> | null = null;
+// Les espaces ont été lus avec succès et le compte n'a pas de Labo : inutile de les relire à chaque page.
+let aucunLabo = false;
+
+const ecouteursLabo = new Set<() => void>();
 
 export const definirLabo = (id: number | null) => {
+    const change = laboId !== id;
     laboId = id;
+    if (id !== null) aucunLabo = false;
+    if (change) chargementLabo = null; // l'identifiant a changé : la lecture gardée ne dit plus la vérité
+    if (change) ecouteursLabo.forEach((f) => f());
+};
+
+/** À appeler quand la session change de compte : la prochaine requête relit les espaces (le nouveau compte a peut-être un Labo). */
+export const relireLeLabo = () => {
+    aucunLabo = false;
+    chargementLabo = null;
+};
+
+/** Prévient quand l'identifiant du Labo vient d'être connu ou a changé (la première lecture des espaces peut arriver avant la session). */
+export const surChangementDuLabo = (f: () => void) => {
+    ecouteursLabo.add(f);
+    return () => {
+        ecouteursLabo.delete(f);
+    };
 };
 
 /** Enregistre la lecture des espaces : une requête faite depuis `/labo` attend de connaître l'identifiant du Labo. */
@@ -36,9 +58,25 @@ export const adresseClientInvalide = (pathname: string): boolean => /^\/clients\
 /** L'espace que dit l'adresse : un client (son identifiant), le Labo, ou rien (adresse neutre). */
 export function espaceDeAdresse(pathname: string): number | "labo" | null {
     const m = pathname.match(/^\/clients\/(\d+)(?:\/|$)/);
-    if (m) return Number(m[1]);
+    // Correctifs du 10/11 (point 5) : le Labo lu sous une adresse de client reste le Labo, jamais « un client ».
+    if (m) return laboId !== null && Number(m[1]) === laboId ? "labo" : Number(m[1]);
     if (pathname === "/labo" || pathname.startsWith("/labo/")) return "labo";
     return null;
+}
+
+/** L'adresse d'un espace par son identifiant : le Labo a la sienne (`/labo`), un client `/clients/<id>`. */
+export const adresseDeOrganisation = (id: number): string => (laboId !== null && id === laboId ? "/labo" : `/clients/${id}`);
+
+/**
+ * `/clients/<id du Labo>/conversations?x=1` → `/labo/conversations?x=1` ; `null` pour toute autre adresse. Attend, une seule
+ * fois, de connaître le Labo (même chargeur que les requêtes).
+ */
+export async function adresseDuLaboSousClient(pathname: string, recherche = ""): Promise<string | null> {
+    const m = pathname.match(/^\/clients\/(\d+)(\/.*)?$/);
+    if (!m) return null;
+    const labo = await organisationPourRequeteAttendue("/labo");
+    if (labo === null || Number(m[1]) !== labo) return null;
+    return `/labo${m[2] ?? ""}${recherche}`;
 }
 
 const lireMemoire = (): number | "labo" | null => {
@@ -76,10 +114,16 @@ export function organisationPourRequete(pathname: string): number | null {
 export async function organisationPourRequeteAttendue(pathname: string): Promise<number | null> {
     const espace = espaceDeAdresse(pathname) ?? lireMemoire();
     if (espace !== "labo") return espace;
-    if (laboId === null && chargeurLabo) {
-        chargementLabo ??= chargeurLabo().catch(() => null);
+    if (laboId === null && chargeurLabo && !aucunLabo) {
+        // Lecture réussie sans Labo : on le retient (un compte sans Labo ne relit pas les espaces à chaque page).
+        chargementLabo ??= chargeurLabo().then(
+            () => {
+                aucunLabo = laboId === null;
+            },
+            () => null,
+        );
         await chargementLabo;
-        if (laboId === null) chargementLabo = null; // un échec ne se garde pas : la requête suivante relit les espaces
+        if (laboId === null && !aucunLabo) chargementLabo = null; // un échec ne se garde pas : la requête suivante relit les espaces
     }
     return laboId;
 }

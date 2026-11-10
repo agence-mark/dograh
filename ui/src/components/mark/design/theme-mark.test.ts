@@ -47,8 +47,17 @@ describe("[.mark] the .mark look is loaded (D10, D12)", () => {
         const css = sansCommentaires(theme());
         expect(css).toMatch(/--brand-imprint:\s*none/);
         expect(css).toMatch(/\.card-weave[^{]*\{[^}]*background-image:\s*none/);
-        expect(css).toMatch(/\[data-slot="sidebar-content"\][^{]*\{[^}]*scrollbar-width:\s*none/);
-        expect(css).toMatch(/\[data-slot="sidebar-content"\]::-webkit-scrollbar[^{]*\{[^}]*display:\s*none/);
+        // Depuis le 10/11 (Evan) : plus aucune barre dans l'écran, la règle de la seule barre latérale est devenue `*`.
+        expect(css).toMatch(/\*\s*\{[^}]*scrollbar-width:\s*none/);
+        expect(css).toMatch(/\*::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
+    });
+
+    it("les barres sont masquées partout sauf sur les zones de saisie longues, en barre fine aux jetons (revue, 10/11)", () => {
+        const css = sansCommentaires(theme());
+        expect(css).toMatch(/\*::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
+        expect(css).toMatch(/textarea::-webkit-scrollbar,\s*\[contenteditable="true"\]::-webkit-scrollbar\s*\{[^}]*display:\s*block[^}]*width:\s*6px/);
+        expect(css).toMatch(/textarea::-webkit-scrollbar-thumb[^{]*\{[^}]*var\(--muted-foreground\)/);
+        expect(css).toMatch(/textarea,\s*\[contenteditable="true"\]\s*\{[^}]*scrollbar-width:\s*auto/);
     });
 
     it("aucune surcharge de titres, de champs ni de traits d'icônes : ceux de la maquette (K1, 04/11)", () => {

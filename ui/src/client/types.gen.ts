@@ -1918,6 +1918,16 @@ export type BodyDeposerUnFichierApiV1BuilderDepotWorkflowIdPost = {
 };
 
 /**
+ * Body_remplacer_le_logo_api_v1_espaces__organization_id__logo_put
+ */
+export type BodyRemplacerLeLogoApiV1EspacesOrganizationIdLogoPut = {
+    /**
+     * Fichier
+     */
+    fichier: Blob | File;
+};
+
+/**
  * Body_transcribe_audio_api_v1_workflow_recordings_transcribe_post
  */
 export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
@@ -7580,6 +7590,10 @@ export type EspaceResponse = {
      * Selectionne
      */
     selectionne: boolean;
+    /**
+     * Logo Version
+     */
+    logo_version?: string | null;
 };
 
 /**
@@ -11442,6 +11456,20 @@ export type LoginRequest = {
      * Password
      */
     password: string;
+};
+
+/**
+ * LogoResponse
+ */
+export type LogoResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Logo Version
+     */
+    logo_version: string | null;
 };
 
 /**
@@ -21049,6 +21077,10 @@ export type Usage = {
      * Nom
      */
     nom?: string | null;
+    /**
+     * Agent Id
+     */
+    agent_id?: number | null;
 };
 
 /**
@@ -40750,6 +40782,148 @@ export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses = {
 };
 
 export type ReglerUnEspaceApiV1EspacesOrganizationIdPutResponse = ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses[keyof ReglerUnEspaceApiV1EspacesOrganizationIdPutResponses];
+
+export type RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/{organization_id}/logo';
+};
+
+export type RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteError = RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteErrors[keyof RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteErrors];
+
+export type RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: LogoResponse;
+};
+
+export type RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteResponse = RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteResponses[keyof RetirerLeLogoApiV1EspacesOrganizationIdLogoDeleteResponses];
+
+export type LireLeLogoApiV1EspacesOrganizationIdLogoGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/{organization_id}/logo';
+};
+
+export type LireLeLogoApiV1EspacesOrganizationIdLogoGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeLogoApiV1EspacesOrganizationIdLogoGetError = LireLeLogoApiV1EspacesOrganizationIdLogoGetErrors[keyof LireLeLogoApiV1EspacesOrganizationIdLogoGetErrors];
+
+export type LireLeLogoApiV1EspacesOrganizationIdLogoGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutData = {
+    body: BodyRemplacerLeLogoApiV1EspacesOrganizationIdLogoPut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Organization Id
+         */
+        organization_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/{organization_id}/logo';
+};
+
+export type RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutError = RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutErrors[keyof RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutErrors];
+
+export type RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: LogoResponse;
+};
+
+export type RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutResponse = RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutResponses[keyof RemplacerLeLogoApiV1EspacesOrganizationIdLogoPutResponses];
 
 export type PilotageDUnClientApiV1VuesEquipePilotageOrganizationIdGetData = {
     body?: never;

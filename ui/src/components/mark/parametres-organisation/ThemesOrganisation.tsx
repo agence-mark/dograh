@@ -46,7 +46,7 @@ import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { useFormeMaquette } from "../ecran/forme-maquette";
 import { Intertitre } from "../ecran/Intertitre";
-import { type ErreurNommee, Theme } from "../ecran/Theme";
+import { type ErreurNommee, type LigneLue, Theme } from "../ecran/Theme";
 import { allerAuReglage } from "../ecran/useThemesOuverts";
 import { type Texte, useLangue } from "../langue/langue";
 import { texteAdresse } from "../SectionAdresseEtablissement";
@@ -179,7 +179,8 @@ export const ThemeOrganisationGenerale = ({
     adressesMark = [],
     plat,
     titre: titreAffiche,
-}: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[] }) => {
+    lignesEnTete = [],
+}: ProprietesThemeOrganisation & { preferences: EtatPreferences; adressesMark?: string[]; lignesEnTete?: LigneLue[] }) => {
     const { t } = useLangue();
     const idFuseau = useId();
     const { enregistre, brouillon, setBrouillon } = useBrouillonPreferences(preferences, CLES_ORGANISATION);
@@ -200,6 +201,7 @@ export const ThemeOrganisationGenerale = ({
             }}
             resume={[brouillon.timezone, brouillon.test_phone_number || t({ en: "no test number", fr: "pas de numéro de test" })]}
             lignes={[
+                ...lignesEnTete,
                 {
                     libelle: { en: "Test phone number", fr: "Numéro de test" },
                     valeur: enregistre.test_phone_number || t({ en: "None", fr: "Aucun" }),

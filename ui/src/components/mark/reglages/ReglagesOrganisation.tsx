@@ -8,6 +8,7 @@
  * aucune fonction en moins. « Enregistrer » ferme la fenêtre ; « Annuler » la ferme et oublie le brouillon. La section
  * se lit et s'écrit dans l'adresse (`?section=`).
  */
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SectionClesApi } from "@/components/mark/cles/SectionClesApi";
@@ -22,7 +23,11 @@ import {
     ThemeIntegrations,
     ThemeOrganisationGenerale,
 } from "@/components/mark/parametres-organisation/ThemesOrganisation";
+import { LigneLogoOrganisation } from "@/components/mark/reglages/LigneLogoOrganisation";
+import { LigneNomOrganisation } from "@/components/mark/reglages/LigneNomOrganisation";
 import { ThemePublication } from "@/components/mark/reglages/ThemePublication";
+import { useEspaceAffiche } from "@/components/mark/studio/base-espace";
+import { useNomEspace } from "@/components/mark/studio/nom-espace";
 import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 
@@ -42,6 +47,10 @@ export function ReglagesOrganisation() {
     const { t } = useLangue();
     const preferences = usePreferencesOrganisation();
     const apresAppel = useApresAppel();
+    // Point 14 : dans un client, la ligne « Nom » renomme l'organisation (le Labo garde son nom d'équipe).
+    const espaceAffiche = useEspaceAffiche(usePathname() ?? "");
+    const idClient = espaceAffiche.espace === "client" && /^[0-9]+$/.test(espaceAffiche.org ?? "") ? Number(espaceAffiche.org) : null;
+    const nomClient = useNomEspace("client", idClient === null ? null : String(idClient));
     const [section, setSection] = useState<Section>("organisation");
     // La fenêtre ouverte (une seule à la fois) ; `cle` remonte le thème pour oublier son brouillon (« Annuler »).
     const [ouverte, setOuverte] = useState<Section | null>(null);
@@ -121,6 +130,14 @@ export function ReglagesOrganisation() {
                             titre={{ en: "General", fr: "Général" }}
                             preferences={preferences}
                             adressesMark={apresAppel.ecran?.adresses.installation ?? []}
+                            lignesEnTete={
+                                idClient === null
+                                    ? []
+                                    : [
+                                          { libelle: { en: "Name", fr: "Nom" }, valeur: <LigneNomOrganisation id={idClient} nom={nomClient} /> },
+                                          { libelle: { en: "Logo", fr: "Logo" }, valeur: <LigneLogoOrganisation id={idClient} nom={nomClient} /> },
+                                      ]
+                            }
                         />
                     )}
                     {section === "integrations" && <ThemeIntegrations key={cle} {...commun("integrations")} preferences={preferences} />}

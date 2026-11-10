@@ -265,6 +265,7 @@ def test_une_suppression_dit_ou_la_cle_servait(ecran, base):
     ]
     base.db.get_all_workflows.return_value = [
         SimpleNamespace(
+            id=41,
             name="essai_ndf",
             current_definition=SimpleNamespace(
                 workflow_json={
@@ -274,17 +275,17 @@ def test_une_suppression_dit_ou_la_cle_servait(ecran, base):
                 }
             ),
         ),
-        SimpleNamespace(name="sans version", current_definition=None),
+        SimpleNamespace(id=42, name="sans version", current_definition=None),
     ]
     assert ecran.get("/cles/cle-mistral/usages").json() == [
-        {"ou": "reglages_modele", "nom": None},
-        {"ou": "agent", "nom": "essai_ndf"},
+        {"ou": "reglages_modele", "nom": None, "agent_id": None},
+        {"ou": "agent", "nom": "essai_ndf", "agent_id": 41},
     ]
     reponse = ecran.delete("/cles/cle-eleven")
     assert reponse.status_code == 200
     assert reponse.json()["usages"] == [
-        {"ou": "reglages_voix", "nom": None},
-        {"ou": "outil", "nom": "Envoyer le SMS"},
+        {"ou": "reglages_voix", "nom": None, "agent_id": None},
+        {"ou": "outil", "nom": "Envoyer le SMS", "agent_id": None},
     ]
     assert not base.coffre.lignes["cle-eleven"].is_active
     assert [c["uuid"] for c in ecran.get("/cles").json()] == ["cle-mistral"]
@@ -511,6 +512,7 @@ def test_les_usages_comptent_models_et_les_reglages_de_modele_des_agents(ecran, 
     )
     base.db.get_all_workflows.return_value = [
         SimpleNamespace(
+            id=41,
             name="essai_ndf",
             current_definition=SimpleNamespace(
                 workflow_json={},
@@ -522,10 +524,10 @@ def test_les_usages_comptent_models_et_les_reglages_de_modele_des_agents(ecran, 
         )
     ]
     assert ecran.get("/cles/cle-mistral/usages").json() == [
-        {"ou": "modeles_organisation", "nom": None}
+        {"ou": "modeles_organisation", "nom": None, "agent_id": None}
     ]
     assert ecran.get("/cles/cle-eleven/usages").json() == [
-        {"ou": "modeles_agent", "nom": "essai_ndf"}
+        {"ou": "modeles_agent", "nom": "essai_ndf", "agent_id": 41}
     ]
 
 
@@ -536,6 +538,7 @@ def test_les_usages_de_toutes_les_cles_se_lisent_en_une_fois(ecran, base):
     )
     base.db.get_all_workflows.return_value = [
         SimpleNamespace(
+            id=41,
             name="essai_ndf",
             current_definition=SimpleNamespace(
                 workflow_json={},
@@ -547,8 +550,8 @@ def test_les_usages_de_toutes_les_cles_se_lisent_en_une_fois(ecran, base):
         )
     ]
     tous = ecran.get("/cles/usages").json()
-    assert tous["cle-mistral"] == [{"ou": "modeles_organisation", "nom": None}]
-    assert tous["cle-eleven"] == [{"ou": "modeles_agent", "nom": "essai_ndf"}]
+    assert tous["cle-mistral"] == [{"ou": "modeles_organisation", "nom": None, "agent_id": None}]
+    assert tous["cle-eleven"] == [{"ou": "modeles_agent", "nom": "essai_ndf", "agent_id": 41}]
     # Une seule lecture de l'organisation, quel que soit le nombre de clés.
     assert base.db.get_all_workflows.call_count == 1
 

@@ -47,3 +47,27 @@ export const BadgeGroupe = ({ role }: { role: RoleAffiche | undefined }) => {
         </>
     );
 };
+
+// [.mark] Correctifs d'écran, point 3 : dans la liste des Agents, le rôle se lit en ligne grise SOUS le nom (le badge
+// ci-dessus reste celui de la vue d'un groupe et du tableau des dossiers). « cerveau propre » n'apparaît qu'au survol.
+export const SousLigneGroupe = ({ role }: { role: RoleAffiche | undefined }) => {
+    const { t } = useLangue();
+    if (!role) return null;
+    const n = role.specialises.length;
+    const texte =
+        role.role === "principal"
+            ? n === 0
+                ? t({ en: "no specialist", fr: "aucun spécialisé" })
+                : t({ en: `${n} specialised agent${n > 1 ? "s" : ""}`, fr: `${n} spécialisé${n > 1 ? "s" : ""}` })
+            : `${t(TEXTES.specialiseDe)} ${role.principalNom ?? t(TEXTES.sansNom)}`;
+    return (
+        <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground" data-sous-ligne-groupe={role.role}>
+            <span className="truncate">{texte}</span>
+            {role.role === "specialise" && role.cerveauPropre && (
+                <Badge variant="outline" className="font-normal opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100" data-badge-groupe="cerveau-propre">
+                    {t(TEXTES.cerveauPropre)}
+                </Badge>
+            )}
+        </span>
+    );
+};

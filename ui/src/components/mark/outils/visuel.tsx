@@ -81,3 +81,18 @@ export function VisuelOutil({
     const I = ICONES_TYPE[categorie];
     return I ? <TuileMaison couleur={COULEURS_TYPE[categorie] ?? "var(--outil-calcul)"} icone={I} taille={taille} /> : <>{initiales}</>;
 }
+
+/** Trois logos de logiciels qui se chevauchent : l'en-tête de la tuile « Action d'un logiciel » (comme la maquette). */
+export function LogosAction({ taille = 32 }: { taille?: number }) {
+    return (
+        <span className="flex shrink-0 -space-x-2" aria-hidden data-testid="logos-action">
+            {["hubspot", "google-calendar", "twilio"].map((l) => {
+                const src = logoDe(l);
+                return src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={l} src={src} alt="" style={{ width: taille, height: taille }} className="inline-block rounded-lg border bg-white object-contain p-1" />
+                ) : null;
+            })}
+        </span>
+    );
+}

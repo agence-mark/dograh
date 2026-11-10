@@ -51,7 +51,7 @@ const ADRESSE_EXPLIQUEE = {
 };
 
 // How a provider is written on screen; any other one shows as the server names it.
-const NOMS: Record<string, string> = {
+export const NOMS: Record<string, string> = {
     mistral: "Mistral",
     elevenlabs: "ElevenLabs",
     deepgram: "Deepgram",

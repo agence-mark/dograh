@@ -86,6 +86,21 @@ class EspacesClient(BaseDBClient):
                 if isinstance(ligne.value, dict) and ligne.value.get("nom")
             }
 
+    async def valeurs_de_configuration(self, cle: str, organisations: list[int]) -> dict[int, dict]:
+        """[.mark] Point 15 : la valeur (objet) d'une clé pour chaque organisation demandée qui la porte ; filtrée par la base."""
+        if not organisations:
+            return {}
+        async with self.async_session() as session:
+            lignes = (
+                await session.execute(
+                    select(OrganizationConfigurationModel).where(
+                        OrganizationConfigurationModel.key == cle,
+                        OrganizationConfigurationModel.organization_id.in_(organisations),
+                    )
+                )
+            ).scalars().all()
+            return {ligne.organization_id: ligne.value for ligne in lignes if isinstance(ligne.value, dict)}
+
     async def organisations_du_compte(self, user_id: int) -> list[int]:
         async with self.async_session() as session:
             return list(

@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { retenirEspace } from "@/lib/espaceCourant";
 import { adresseDe, type Espace, listerEspaces } from "@/lib/espaces";
+import { surChangementDEspaces } from "@/lib/espaces-changes";
 import { AvatarClient } from "../relation/commun";
 import { RELATION_CLIENTS } from "./nom-espace";
 import logger from "@/lib/logger";
@@ -47,7 +48,7 @@ export function PuceEspace({ espace, petite = false, client }: { espace: "labo" 
             </span>
         );
     // Clôture D2 (É17) : un client a sa pastille à initiales colorées (comme la maquette), reconnaissable d'un coup d'œil ; sans son nom (encore lu), l'immeuble.
-    if (client?.nom) return <AvatarClient id={client.id} nom={client.nom} taille={petite ? 20 : 28} />;
+    if (client?.nom) return <AvatarClient id={client.id} nom={client.nom} taille={petite ? 20 : 28} logo />;
     return (
         <span className={`flex shrink-0 items-center justify-center bg-accent text-xs font-semibold text-accent-foreground ${taille}`}>
             <Building2 className={icone} />
@@ -71,6 +72,17 @@ export function SelecteurEspace({ espace, org, className }: Props) {
             .then(setEspaces)
             .catch((e) => logger.error("Failed to list the spaces", e));
     }, [loading, user]);
+
+    // Un client renommé (Réglages › Général) : le nom change ici sans recharger la page.
+    useEffect(
+        () =>
+            surChangementDEspaces(() => {
+                listerEspaces()
+                    .then(setEspaces)
+                    .catch((e) => logger.error("Failed to list the spaces", e));
+            }),
+        [],
+    );
 
     const courant = espaces.find((e) => (espace === "labo" ? e.espace === "labo" : espace === "client" && String(e.id) === org));
     const libelle = espace === "relation" ? t(RELATION_CLIENTS) : (courant?.nom ?? (espace === "labo" ? "Labo" : ""));

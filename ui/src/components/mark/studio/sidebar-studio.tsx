@@ -12,8 +12,8 @@ import "@/lib/espaces";
 
 import { AlertTriangle, ChevronsUpDown, DoorOpen, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
 import { useLangue } from "@/components/mark/langue/langue";
@@ -44,7 +44,7 @@ import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 
 import { useCompteursBarre } from "./compteurs-barre";
-import { retenirEspace } from "@/lib/espaceCourant";
+import { adresseDuLaboSousClient, relireLeLabo, retenirEspace, surChangementDuLabo } from "@/lib/espaceCourant";
 
 import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
@@ -109,6 +109,30 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
     const compteurs = { ...compteursLus, ...compteursFournis };
     // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).
     useEffect(() => retenirEspace(pathname), [pathname]);
+    // Point 5 (10/11) : le Labo ouvert sous une adresse de client se lit à sa place, `/labo/...`.
+    const routeur = useRouter();
+    // Relu quand le Labo devient connu : la première lecture des espaces, faite avant la session, est refusée (401).
+    const [laboLu, setLaboLu] = useState(0);
+    useEffect(() => surChangementDuLabo(() => setLaboLu((n) => n + 1)), []);
+    useEffect(() => {
+        let actif = true;
+        void adresseDuLaboSousClient(pathname, typeof window === "undefined" ? "" : window.location.search).then((cible) => {
+            if (actif && cible) routeur.replace(cible);
+        });
+        return () => {
+            actif = false;
+        };
+    }, [pathname, routeur, laboLu]);
+    // Revue, point 5 : « aucun Labo » est gardé tant que la session ne change pas de compte (une seule lecture des espaces).
+    const compteDeLaSession = (user as { primaryEmail?: string; email?: string } | undefined)?.primaryEmail ?? (user as LocalUser | undefined)?.email ?? null;
+    const compteVu = useRef(compteDeLaSession);
+    useEffect(() => {
+        const avant = compteVu.current;
+        compteVu.current = compteDeLaSession;
+        if (avant === null || avant === compteDeLaSession) return; // la session arrive : rien n'avait été gardé avec elle
+        relireLeLabo();
+        setLaboLu((n) => n + 1);
+    }, [compteDeLaSession]);
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 

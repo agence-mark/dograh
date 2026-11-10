@@ -4,6 +4,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+    adresseDeOrganisation,
+    adresseDuLaboSousClient,
     definirLabo,
     adresseClientInvalide,
     entetesDeRequete,
@@ -11,6 +13,7 @@ import {
     organisationPourRequete,
     organisationPourRequeteAttendue,
     preparerLabo,
+    relireLeLabo,
     retenirEspace,
     sansOrganisation,
 } from "./espaceCourant";
@@ -18,6 +21,7 @@ import {
 beforeEach(() => {
     window.sessionStorage.clear();
     definirLabo(null);
+    relireLeLabo();
 });
 
 describe("espace d'une adresse", () => {
@@ -94,5 +98,78 @@ describe("R3 M1 : le Labo inconnu ne retombe jamais sur un client", () => {
         expect(adresseClientInvalide("/clients/12/agents")).toBe(false);
         await expect(entetesDeRequete("/clients/acme/agents")).rejects.toThrow();
         expect(await entetesDeRequete("/clients/12")).toEqual({ "X-Mark-Organisation": "12" });
+    });
+});
+
+describe("le Labo sous une adresse de client (correctifs du 10/11, point 5)", () => {
+    it("se lit comme le Labo, et l'onglet retient « labo »", () => {
+        definirLabo(1);
+        expect(espaceDeAdresse("/clients/1/agents")).toBe("labo");
+        expect(espaceDeAdresse("/clients/2/agents")).toBe(2);
+        retenirEspace("/clients/1/agents");
+        expect(window.sessionStorage.getItem("mark:espace-courant")).toBe("labo");
+    });
+
+    it("redirige vers /labo avec le reste de l'adresse, jamais un vrai client", async () => {
+        definirLabo(1);
+        expect(await adresseDuLaboSousClient("/clients/1/conversations", "?x=1")).toBe("/labo/conversations?x=1");
+        expect(await adresseDuLaboSousClient("/clients/1")).toBe("/labo");
+        expect(await adresseDuLaboSousClient("/clients/2/agents")).toBeNull();
+        expect(await adresseDuLaboSousClient("/labo/agents")).toBeNull();
+    });
+
+    it("donne l'adresse d'une organisation : /labo pour le Labo", () => {
+        definirLabo(1);
+        expect(adresseDeOrganisation(1)).toBe("/labo");
+        expect(adresseDeOrganisation(4)).toBe("/clients/4");
+    });
+});
+
+describe("un compte sans Labo ne relit pas les espaces à chaque page (revue, point 5)", () => {
+    it("trois navigations sous /clients/*, une seule lecture", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1; // les espaces répondent, aucun n'est le Labo : rien à définir
+        });
+        expect(await adresseDuLaboSousClient("/clients/2/agents")).toBeNull();
+        expect(await adresseDuLaboSousClient("/clients/2/conversations")).toBeNull();
+        expect(await adresseDuLaboSousClient("/clients/3/modeles")).toBeNull();
+        expect(lectures).toBe(1);
+    });
+
+    it("une lecture en échec n'est pas gardée : la page suivante relit", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+            if (lectures === 1) throw new Error("401 avant la session");
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        await adresseDuLaboSousClient("/clients/2/agents");
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
+    });
+
+    it("relit au changement de session", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        relireLeLabo();
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
+    });
+
+    it("quand l'identifiant du Labo change, le résultat « aucun Labo » est oublié", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+            if (lectures === 2) definirLabo(9);
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        definirLabo(7);
+        definirLabo(null); // le Labo apparaît puis disparaît : la mémoire « aucun » est vidée
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
     });
 });

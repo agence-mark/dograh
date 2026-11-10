@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { definirLabo } from "@/lib/espaceCourant";
 import { REDIRECTIONS } from "@/lib/redirections";
 import { FournisseurLangue } from "../langue/langue";
 import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
@@ -15,9 +16,16 @@ import { EnteteStudio, ShellStudio } from "./shell-studio";
 
 let chemin = "/workflow";
 let alerteTelephonie = 0;
-vi.mock("next/navigation", () => ({ usePathname: () => chemin, useRouter: () => ({ push: vi.fn() }) }));
+let laboConnu = true;
+const routeurFactice = { push: vi.fn(), replace: vi.fn() };
+vi.mock("next/navigation", () => ({ usePathname: () => chemin, useRouter: () => routeurFactice }));
 vi.mock("@/lib/auth", () => ({
     useAuth: () => ({ provider: "local", logout: vi.fn(), user: { email: "evan@exemple.fr" } }),
+}));
+// Comme en vrai : tant que la lecture des espaces n'a pas abouti, le Labo reste inconnu et rien ne redirige.
+vi.mock("@/lib/espaceCourant", async (original) => ({
+    ...(await original<typeof import("@/lib/espaceCourant")>()),
+    adresseDuLaboSousClient: async (pathname: string) => (laboConnu && pathname === "/clients/1/agents" ? "/labo/agents" : null),
 }));
 vi.mock("@/context/TelephonyConfigWarningsContext", () => ({
     useTelephonyConfigWarnings: () => ({
@@ -40,8 +48,12 @@ beforeAll(() => {
 afterEach(() => {
     cleanup();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     chemin = "/workflow";
     alerteTelephonie = 0;
+    laboConnu = true;
+    definirLabo(null);
+    routeurFactice.replace.mockClear();
 });
 
 const monter = (props: Partial<React.ComponentProps<typeof ShellStudio>> = {}) =>
@@ -132,6 +144,22 @@ describe("menus (E3, E31)", () => {
         expect(entreeActive(MENU_LABO, "/conversations/5", "/labo")?.id).toBe("conversations");
         expect(entreeActive(MENU_CLIENT, "/clients/acme/campagnes/new", "/clients/acme")?.id).toBe("campagnes");
         expect(entreeActive(MENU_LABO, "/inconnu", "/labo")).toBeNull();
+    });
+});
+
+describe("le Labo ouvert sous une adresse de client (correctifs du 10/11, point 5)", () => {
+    it("redirige vers /labo même quand le Labo n'est connu qu'après le premier rendu (première lecture des espaces refusée)", async () => {
+        chemin = "/clients/1/agents";
+        laboConnu = false;
+        monter();
+        await act(async () => {});
+        expect(routeurFactice.replace).not.toHaveBeenCalled();
+        laboConnu = true;
+        await act(async () => {
+            definirLabo(1);
+        });
+        await act(async () => {});
+        expect(routeurFactice.replace).toHaveBeenCalledWith("/labo/agents");
     });
 });
 

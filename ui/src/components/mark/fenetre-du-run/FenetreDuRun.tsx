@@ -619,6 +619,26 @@ function BlocFournisseurs({ fournisseurs }: { fournisseurs: Fournisseurs }) {
     );
 }
 
+const STATUTS_DE_LECTURE: Record<string, { en: string; fr: string }> = {
+    sure: { en: "sure", fr: "sûr" },
+    a_confirmer: { en: "to confirm", fr: "à confirmer" },
+    introuvable: { en: "not found", fr: "introuvable" },
+};
+
+/** Ce que le module a retenu, en clair : « Verneuil-en-Halatte (60550) » pour une commune, le nom pour une voie. */
+export function texteDeLecture(valeur: unknown): string | null {
+    if (valeur == null || valeur === "") return null;
+    if (typeof valeur === "string" || typeof valeur === "number") return String(valeur);
+    if (typeof valeur === "object" && !Array.isArray(valeur)) {
+        const o = valeur as Record<string, unknown>;
+        const nom = typeof o.nom === "string" ? o.nom : typeof o.libelle === "string" ? o.libelle : null;
+        const cps = Array.isArray(o.codes_postaux) ? o.codes_postaux.filter((c) => typeof c === "string") : [];
+        const cp = cps.length ? cps.join(", ") : typeof o.code_postal === "string" ? o.code_postal : null;
+        if (nom) return cp ? `${nom} (${cp})` : nom;
+    }
+    return JSON.stringify(valeur);
+}
+
 function BlocModules({ modules }: { modules: Modules }) {
     const { t } = useLangue();
     const elements = modules.items ?? [];
@@ -646,10 +666,10 @@ function BlocModules({ modules }: { modules: Modules }) {
                         <td className="py-1 pr-3">{e.caller_turn ?? "–"}</td>
                         <td className="py-1 pr-3">{e.heard ?? "–"}</td>
                         <td className="py-1 pr-3">
-                            {e.result ?? (e.proposals.length ? e.proposals.join(" / ") : "–")}
+                            {texteDeLecture(e.result) ?? (e.proposals?.length ? e.proposals.join(" / ") : "–")}
                         </td>
                         <td className="py-1">
-                            <code>{e.status ?? e.kind ?? "–"}</code>
+                            {e.status ? t(STATUTS_DE_LECTURE[e.status] ?? { en: e.status, fr: e.status }) : (e.kind ?? "–")}
                         </td>
                     </tr>
                 ))}

@@ -6,6 +6,7 @@ import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Marque, PointEtat, type TonMarque } from "@/components/mark/studio/marques";
 import { useAuth } from "@/lib/auth";
+import { useLogoEspace } from "@/lib/logos-espaces";
 
 /**
  * [.mark] Hub « Relation clients » (U3 septies, E78) : libellés et petits outils communs aux écrans.
@@ -86,7 +87,28 @@ const initiales = (nom: string) =>
         .join("")
         .toUpperCase();
 
-export function AvatarClient({ id, nom, taille = 36 }: { id: number; nom: string; taille?: number }) {
+/**
+ * La pastille d'un client : son logo quand il en a un (point 15, `logo`), sinon ses initiales colorées. Le logo ne sert que là où
+ * `id` est l'organisation du client lui-même (pas pour l'auteur d'un message) ; une image qui ne charge pas retombe sur l'initiale.
+ */
+export function AvatarClient({ id, nom, taille = 36, logo = false }: { id: number; nom: string; taille?: number; logo?: boolean }) {
+    const adresse = useLogoEspace(logo ? id : null);
+    const [casse, setCasse] = useState<string | null>(null);
+    if (adresse && casse !== adresse)
+        return (
+            // eslint-disable-next-line @next/next/no-img-element -- adresse locale (blob) du logo lu avec la session
+            <img
+                src={adresse}
+                alt=""
+                aria-hidden
+                data-logo-client
+                width={taille}
+                height={taille}
+                onError={() => setCasse(adresse)}
+                className="shrink-0 rounded-md border bg-card object-contain"
+                style={{ width: taille, height: taille }}
+            />
+        );
     return (
         <span
             aria-hidden

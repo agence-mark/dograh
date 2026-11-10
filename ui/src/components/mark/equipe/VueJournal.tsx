@@ -58,6 +58,7 @@ const GESTES: Record<string, Texte> = {
     "profil.mot_de_passe": { en: "Changed their password", fr: "A changé son mot de passe" },
     "espace.labo": { en: "Marked the Lab", fr: "A marqué le Labo" },
     "espace.nom": { en: "Renamed a space", fr: "A renommé un espace" },
+    "espace.logo": { en: "Changed the logo of a space", fr: "A changé le logo d'un espace" },
     "membre.acces_bloque": { en: "Blocked a member's access", fr: "A bloqué l'accès d'un membre" },
     "membre.acces_actif": { en: "Restored a member's access", fr: "A rétabli l'accès d'un membre" },
     "cle_api.creer": { en: "Created an API key", fr: "A créé une clé d'API" },
