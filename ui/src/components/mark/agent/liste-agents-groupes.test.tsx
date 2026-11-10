@@ -91,3 +91,23 @@ describe("la liste des Agents : groupes (point 3)", () => {
         expect(ordre()).toEqual(["10", "12", "13", "11"]);
     });
 });
+
+describe("le menu « ⋯ » d'un agent (point 4)", () => {
+    it("« Ouvrir » et « Déplacer » ont une icône ; chaque dossier a la sienne, le sous-dossier est décalé", async () => {
+        monter();
+        const ligne = document.querySelector('tr[data-agent="10"]') as HTMLElement;
+        const declencheur = within(ligne).getByRole("button", { name: /Agent actions/ });
+        fireEvent.pointerDown(declencheur, { button: 0, ctrlKey: false });
+        const menu = await screen.findByRole("menu");
+        expect(within(menu).getByText("Open").closest("a")?.querySelector("svg")).not.toBeNull();
+        const deplacer = within(menu).getByText("Move to a folder").closest("[role=menuitem]") as HTMLElement;
+        expect(deplacer.querySelector("svg")).not.toBeNull();
+        fireEvent.keyDown(deplacer, { key: "ArrowRight" });
+        await waitFor(() => expect(document.querySelectorAll("[data-dossier-menu]")).toHaveLength(2));
+        const [parent, enfant] = [...document.querySelectorAll<HTMLElement>("[data-dossier-menu]")];
+        const item = (el: HTMLElement) => el;
+        expect(item(parent).querySelector("svg")).not.toBeNull();
+        expect(item(enfant).querySelector("svg")).not.toBeNull();
+        expect(parseInt(item(enfant).style.paddingLeft)).toBeGreaterThan(parseInt(item(parent).style.paddingLeft));
+    });
+});

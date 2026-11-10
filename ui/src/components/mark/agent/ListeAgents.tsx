@@ -7,7 +7,7 @@
  * le serveur sait faire (déplacer, dupliquer, archiver, dossiers et sous-dossiers) vit dans le menu « ⋯ » de la ligne
  * et celui du dossier.
  */
-import { Archive, ChevronDown, ChevronRight, Copy, Folder, FolderPlus, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Tag, Trash2, Workflow } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, Copy, ExternalLink, Folder, FolderInput, FolderPlus, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Tag, Trash2, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -183,6 +183,18 @@ export function ListeAgents({
     const tous = useMemo(() => [...actifs, ...archives], [actifs, archives]);
     const roles = useMemo(() => rolesDesAgents(liens, new Map(tous.map((w) => [w.id, w.name]))), [liens, tous]);
     const arbre = useMemo(() => arbreDesDossiers(dossiers), [dossiers]);
+    // Le sous-menu « Déplacer » : chaque dossier avec sa profondeur, les sous-dossiers sous leur parent (point 4).
+    const dossiersEnArbre = useMemo(() => {
+        const aplati: { dossier: FolderResponse; profondeur: number }[] = [];
+        const parcourir = (noeuds: NoeudDeDossier[], profondeur: number) => {
+            for (const n of noeuds) {
+                aplati.push({ dossier: n.dossier, profondeur });
+                parcourir(n.enfants, profondeur + 1);
+            }
+        };
+        parcourir(arbre, 0);
+        return aplati;
+    }, [arbre]);
     const dansDossier = useMemo(() => {
         if (typeof dossier !== "number") return null;
         return new Set([dossier, ...descendants(dossiers, dossier)]);
@@ -391,19 +403,23 @@ export function ListeAgents({
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem asChild>
-                                                                <Link href={adresseOnglet(w.id, "parcours")}>{t(T.ouvrir)}</Link>
+                                                                <Link href={adresseOnglet(w.id, "parcours")}>
+<ExternalLink className="mr-2 size-4" /> {t(T.ouvrir)}
+</Link>
                                                             </DropdownMenuItem>
                                                             {w.status === "active" && (
                                                                 <>
                                                                     <DropdownMenuSub>
-                                                                        <DropdownMenuSubTrigger>{t(T.deplacer)}</DropdownMenuSubTrigger>
+                                                                        <DropdownMenuSubTrigger>
+<FolderInput className="mr-2 size-4" /> {t(T.deplacer)}
+</DropdownMenuSubTrigger>
                                                                         <DropdownMenuSubContent>
                                                                             <DropdownMenuItem disabled={w.folder_id == null} onClick={() => void deplacer(w, null)}>
-                                                                                {t(T.sansDossier)}
+                                                                                <Workflow className="mr-2 size-4" /> {t(T.sansDossier)}
                                                                             </DropdownMenuItem>
-                                                                            {dossiers.map((d) => (
-<DropdownMenuItem key={d.id} disabled={d.id === w.folder_id} onClick={() => void deplacer(w, d.id)}>
-{d.name}
+                                                                            {dossiersEnArbre.map(({ dossier: d, profondeur }) => (
+<DropdownMenuItem key={d.id} disabled={d.id === w.folder_id} onClick={() => void deplacer(w, d.id)} style={{ paddingLeft: 8 + profondeur * 14 }} data-dossier-menu={d.id}>
+<Folder className="mr-2 size-4" /> {d.name}
 </DropdownMenuItem>
 ))}
                                                                         </DropdownMenuSubContent>
