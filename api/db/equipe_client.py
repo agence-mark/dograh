@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from sqlalchemy import String, and_, cast, delete, func, literal, or_, select, text, union_all, update
+from sqlalchemy import String, and_, cast, delete, false, func, literal, or_, select, text, union_all, update
 from sqlalchemy.orm import object_session
 
 from api.db.base_client import BaseDBClient
@@ -51,6 +51,35 @@ class AccesCompte:
     tous_les_clients: bool
     permissions: frozenset = field(default_factory=frozenset)
     organisations: frozenset = field(default_factory=frozenset)
+
+
+@dataclass(frozen=True)
+class PorteeJournal:
+    """Ce qu'un rôle a le droit de lire du journal de l'équipe : les lignes des organisations qu'il ouvre (le Labo, tous les clients ou des clients
+    choisis), et, seulement avec ``equipe.gerer``, les lignes sans organisation (gestes de l'équipe elle-même)."""
+
+    labo_id: int | None
+    labo_ouvert: bool
+    tous_les_clients: bool
+    organisations: frozenset = field(default_factory=frozenset)
+    lignes_equipe: bool = False
+
+    def condition(self):
+        """La condition SQL, posée DANS la requête."""
+        if self.tous_les_clients:
+            ouvertes = MarkJournalModel.organization_id.is_not(None)
+            if not self.labo_ouvert and self.labo_id is not None:
+                ouvertes = and_(ouvertes, MarkJournalModel.organization_id != self.labo_id)
+        else:
+            ids = set(self.organisations)
+            if self.labo_ouvert and self.labo_id is not None:
+                ids.add(self.labo_id)
+            if self.labo_id is not None and not self.labo_ouvert:
+                ids.discard(self.labo_id)
+            ouvertes = MarkJournalModel.organization_id.in_(ids) if ids else false()
+        if self.lignes_equipe:
+            return or_(ouvertes, MarkJournalModel.organization_id.is_(None))
+        return ouvertes
 
 
 class EquipeClient(BaseDBClient):
@@ -170,11 +199,14 @@ class EquipeClient(BaseDBClient):
         origine: str | None = None,
         depuis: datetime | None = None,
         jusqu_a: datetime | None = None,
+        portee: PorteeJournal | None = None,
     ) -> tuple[list[dict], int]:
         """Une page du journal, du plus récent au plus ancien, et le total. Filtres posés DANS la requête (espace, membre, actions,
         logiciel d'un geste de connecteur, origine du geste, période)."""
         async with self.async_session() as session:
             filtre = []
+            if portee is not None:
+                filtre.append(portee.condition())
             if origine:
                 filtre.append(MarkJournalModel.origine == origine)
             if depuis is not None:
@@ -236,12 +268,13 @@ class EquipeClient(BaseDBClient):
             await session.commit()
             return int(resultat.rowcount or 0)
 
-    async def types_de_gestes_du_journal(self) -> list[str]:
-        """Les types de gestes présents (pour le filtre de la page) : une seule lecture, sans doublon."""
+    async def types_de_gestes_du_journal(self, portee: PorteeJournal | None = None) -> list[str]:
+        """Les types de gestes présents (pour le filtre de la page) : une seule lecture, sans doublon, dans la portée du rôle."""
+        requete = select(MarkJournalModel.action).distinct().order_by(MarkJournalModel.action)
+        if portee is not None:
+            requete = requete.where(portee.condition())
         async with self.async_session() as session:
-            return list(
-                (await session.execute(select(MarkJournalModel.action).distinct().order_by(MarkJournalModel.action))).scalars().all()
-            )
+            return list((await session.execute(requete)).scalars().all())
 
     # ------------------------------------------------------------------ réglages de l'équipe (réglables à l'écran)
     async def lire_reglage_equipe(self, cle: str):

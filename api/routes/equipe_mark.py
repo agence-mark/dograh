@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.db import db_client
+from api.db.equipe_client import PorteeJournal
 from api.db.models import UserModel
 from api.schemas.auth import AuthResponse, UserResponse
 from api.services.auth.depends import get_user, require_local_auth
@@ -325,6 +326,21 @@ class JournalResponse(BaseModel):
     offset: int
 
 
+async def _portee_du_journal(user: UserModel) -> PorteeJournal:
+    from api.services.builder.constantes import organisation_bibliotheque
+
+    acces = await db_client.acces_du_compte(user.id)
+    if acces is None:  # la route exige déjà un rôle ; sans rôle, rien n'est ouvert (ferme)
+        return PorteeJournal(labo_id=None, labo_ouvert=False, tous_les_clients=False)
+    return PorteeJournal(
+        labo_id=organisation_bibliotheque(),
+        labo_ouvert=acces.labo_ouvert,
+        tous_les_clients=acces.tous_les_clients,
+        organisations=frozenset(acces.organisations),
+        lignes_equipe="equipe.gerer" in acces.permissions,
+    )
+
+
 @router.get("/journal", response_model=JournalResponse)
 async def lire_le_journal(
     organization_id: int | None = Query(None, description="Only this space."),
@@ -337,8 +353,13 @@ async def lire_le_journal(
     offset: int = Query(0, ge=0),
     user: UserModel = Depends(get_user),
 ) -> JournalResponse:
-    """D23, D24 : le journal complet, paginé, filtrable (personne, client, type de geste, porte, période). Permission « Lire le journal »."""
+    """D23, D24 : le journal, paginé, filtrable (personne, client, type de geste, porte, période). Permission « Lire le journal ».
+
+    Revue SA-9 : le journal ne rend QUE les lignes des organisations que le rôle ouvre (filtre dans la requête) ; une organisation demandée mais
+    non ouverte rend une réponse vide. Les lignes sans organisation (gestes de l'équipe) sont réservées à ``equipe.gerer``."""
+    portee = await _portee_du_journal(user)
     lignes, total = await db_client.lister_journal(
+        portee=portee,
         limit=limit,
         offset=offset,
         organization_id=organization_id,
@@ -361,8 +382,8 @@ async def lire_le_journal(
 
 @router.get("/journal/types", response_model=list[str])
 async def types_de_gestes(user: UserModel = Depends(get_user)) -> list[str]:
-    """Les types de gestes présents dans le journal, pour le filtre de la page."""
-    return await db_client.types_de_gestes_du_journal()
+    """Les types de gestes présents dans le journal, pour le filtre de la page (dans la portée du rôle)."""
+    return await db_client.types_de_gestes_du_journal(await _portee_du_journal(user))
 
 
 # ---------------------------------------------------------------------- réglages de l'équipe (message d'accès bloqué, durée du journal)
