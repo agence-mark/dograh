@@ -62,6 +62,8 @@ class ContextePanne:
     url_resultat: str | None = None  # where Twilio posts the result of the hand-over
     reglages_annonce: Any = None  # the organization's forced state, if any
     workflow_configurations: dict = field(default_factory=dict)
+    # SA-9 (4) : le délai donné à Twilio, lu UNE fois au début de l'appel (jamais en base au moment de la panne). None : la valeur d'avant.
+    delai_twilio_s: float | None = None
 
 
 class GardienPanne:
@@ -178,14 +180,8 @@ class GardienPanne:
             return "the fallback needs a Twilio account"
         raccroche.marquer_renvoye(self.contexte.call_sid)
         try:
-            from api.services.panne.routes import lire_reglages
-
-            delai = (await lire_reglages(self.contexte.organization_id)).delai_twilio_s
-        except Exception:  # noqa: BLE001 -- un réglage illisible ne retarde jamais le renvoi : la valeur d'avant
-            delai = None
-        try:
             await client_twilio.mettre_a_jour_appel(
-                sid, jeton, self.contexte.call_sid, twiml, delai
+                sid, jeton, self.contexte.call_sid, twiml, self.contexte.delai_twilio_s
             )
             return None
         except client_twilio.TwilioIndisponible as erreur:
