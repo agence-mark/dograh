@@ -528,7 +528,7 @@ describe("[.mark] Rythme renvoie vers la règle « l'appelant se tait » (décis
 });
 
 describe("[.mark] la fenêtre de l'appel liste les phrases dites par le code", () => {
-    it("lists each sentence, and draws nothing without one", () => {
+    it("lists each sentence, and says so without one", () => {
         const contexte = {
             phrases_du_code: [
                 { motif: "travail_dure", agent: 4, etape: "Créneaux", niveau: "defaut", texte: "C'est presque bon.", moment_s: 12.5 },
@@ -541,8 +541,9 @@ describe("[.mark] la fenêtre de l'appel liste les phrases dites par le code", (
         expect(ligne?.textContent).toContain("C'est presque bon.");
         expect(ligne?.textContent).toContain("Créneaux");
         cleanup();
-        const { container } = render(<PhrasesDuCode contexte={{}} />);
-        expect(container.innerHTML).toBe("");
+        // Point 8 : sans phrase, un état vide (plus de page blanche), jamais la liste.
+        render(<PhrasesDuCode contexte={{}} />);
+        expect(screen.getByTestId("phrases-du-code-vide")).toBeTruthy();
         expect(screen.queryByText("Sentences said by the code")).toBeNull();
     });
 });
