@@ -24304,6 +24304,36 @@ export type WorkflowVersionResponse = {
     template_context_variables?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Auteur Type
+     */
+    auteur_type?: string | null;
+    /**
+     * Auteur Nom
+     */
+    auteur_nom?: string | null;
+    /**
+     * Accepte Par
+     */
+    accepte_par?: boolean;
+    /**
+     * Accepte Par Nom
+     */
+    accepte_par_nom?: string | null;
+    /**
+     * Resume Changements
+     */
+    resume_changements?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Tests Reussis
+     */
+    tests_reussis?: number | null;
+    /**
+     * Tests Total
+     */
+    tests_total?: number | null;
 };
 
 /**
@@ -25700,6 +25730,10 @@ export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData = {
          * Status
          */
         status?: 'draft' | 'published' | 'archived' | null;
+        /**
+         * Avec Details
+         */
+        avec_details?: boolean;
     };
     url: '/api/v1/workflow/{workflow_id}/versions';
 };

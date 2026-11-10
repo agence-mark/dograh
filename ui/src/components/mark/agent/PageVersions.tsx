@@ -27,12 +27,16 @@ import { type EtatPoint, PointEtat } from "../studio/marques";
 import { DateRelative } from "../studio/date-relative";
 import { BarrePagination, fenetrePage, PAR_PAGE } from "../studio/pagination";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
+import { libelleDeLAuteur, libelleDesTests, phraseDesChangements } from "./details-version";
 import { adresseOnglet } from "./onglets-agent";
 
 const T = {
     version: { en: "Version", fr: "Version" },
     etat: { en: "State", fr: "État" },
     date: { en: "Date", fr: "Date" },
+    quiChange: { en: "What changes", fr: "Ce qui change" },
+    par: { en: "By", fr: "Par" },
+    tests: { en: "Tests", fr: "Tests" },
     brouillon: { en: "Draft", fr: "Brouillon" },
     publiee: { en: "Published", fr: "Publiée" },
     archivee: { en: "Archived", fr: "Archivée" },
@@ -57,7 +61,7 @@ export function adresseDeLaVersion(agentId: number, version: Pick<WorkflowVersio
 }
 
 export function PageVersions({ agentId }: { agentId: number }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const fuseau = useOrganizationTimezone();
     const { user, loading: authLoading } = useAuth();
     const [page, setPage] = useState(0);
@@ -76,7 +80,7 @@ export function PageVersions({ agentId }: { agentId: number }) {
                 getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
                     path: { workflow_id: agentId },
                     // Une ligne de plus que la page : « il y a une suite » est exact sans compter tout l'historique.
-                    query: { limit: limit + 1, offset },
+                    query: { limit: limit + 1, offset, avec_details: true },
                 }),
                 getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet({
                     path: { workflow_id: agentId },
@@ -142,7 +146,17 @@ export function PageVersions({ agentId }: { agentId: number }) {
 
     return (
         <div className="mx-auto w-full max-w-5xl px-6 py-6" data-page-versions>
-            <Tableau colonnes={[{ titre: t(T.version) }, { titre: t(T.date), droite: true }, { titre: "" }]}>
+            <Tableau
+                colonnes={[
+                    { titre: t(T.version) },
+                    // Les moins utiles se masquent d'abord quand la place manque (le tableau ne défile jamais la page de côté).
+                    { titre: t(T.quiChange), secondaire: 2 },
+                    { titre: t(T.par), secondaire: 1 },
+                    { titre: t(T.tests), secondaire: 3 },
+                    { titre: t(T.date), droite: true },
+                    { titre: "" },
+                ]}
+            >
                 {lignes.map((v, i) => {
                     const courante = enCours(v);
                     return (
@@ -153,6 +167,9 @@ export function PageVersions({ agentId }: { agentId: number }) {
                                 </PointEtat>
                                 {courante && <span className="ml-2 text-xs text-muted-foreground">{t(T.enCours)}</span>}
                             </td>
+                            <Cellule className="max-w-[22rem]">{phraseDesChangements(v.resume_changements, langue)}</Cellule>
+                            <Cellule>{libelleDeLAuteur(v, langue)}</Cellule>
+                            <Cellule className="whitespace-nowrap tabular-nums">{libelleDesTests(v)}</Cellule>
                             <Cellule droite><DateRelative valeur={v.published_at || v.created_at} fuseau={fuseau} /></Cellule>
                             <td className="w-10 text-right" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenu>

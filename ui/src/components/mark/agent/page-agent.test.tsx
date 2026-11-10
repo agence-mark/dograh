@@ -130,7 +130,32 @@ describe("l'onglet Versions", () => {
         expect(within(menu0).getByText("Open").closest("a")?.getAttribute("href")).toBe("/agents/12");
         // Une page de 25 : une ligne de plus est demandée pour savoir s'il y a une suite, jamais tout l'historique.
         const liste = m.versions.mock.calls.map((c) => c[0].query).find((q: { status?: string }) => !q.status);
-        expect(liste).toEqual({ limit: 26, offset: 0 });
+        expect(liste).toEqual({ limit: 26, offset: 0, avec_details: true });
+    });
+
+    it("montre Ce qui change, Par et Tests de chaque version, « – » pour une version d'avant", async () => {
+        const complete: WorkflowVersionResponse = {
+            ...v(20, "published"),
+            auteur_type: "builder",
+            auteur_nom: null,
+            accepte_par: true,
+            accepte_par_nom: "Pierre",
+            resume_changements: { total: 2, etapes_modifiees: 2, noms_modifiees: ["Accueil", "Fin"], etapes_ajoutees: 0, etapes_retirees: 0, liaisons: 0, reglages: 0 },
+            tests_reussis: 21,
+            tests_total: 24,
+        };
+        m.versions.mockImplementation(async ({ query }: { query: { status?: string } }) =>
+            query.status === "draft" ? { data: [] } : { data: [complete, v(19, "archived")] },
+        );
+        render(<PageVersions agentId={12} />);
+        await screen.findByText("v20 published");
+        const titres = Array.from(document.querySelectorAll("thead th")).map((th) => th.textContent);
+        expect(titres).toEqual(expect.arrayContaining(["What changes", "By", "Tests"]));
+        const lignes = document.querySelectorAll("tbody tr");
+        expect(lignes[0].textContent).toContain("2 steps changed (Accueil, Fin)");
+        expect(lignes[0].textContent).toContain("Builder, accepted by Pierre");
+        expect(lignes[0].textContent).toContain("21/24");
+        expect(Array.from(lignes[1].querySelectorAll("td")).map((td) => td.textContent).filter((t) => t === "–")).toHaveLength(3);
     });
 
     it("sans brouillon, la publiée la plus récente est la version en cours (lien modifiable)", async () => {
