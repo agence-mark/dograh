@@ -35,14 +35,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { EnteteStudio } from "@/components/mark/studio/shell-studio";
 import { FlecheRetour } from "@/components/mark/studio/titre-page";
+import { RELATION_CLIENTS } from "@/components/mark/studio/nom-espace";
 
 import { BoiteMessages } from "./BoiteMessages";
 import { lireClientsRelation } from "./lecture-clients";
 import { BoutonPortail } from "./BoutonPortail";
 import { AvatarClient, EtatClient, MarqueEtat, Pret, quand, useCharge } from "./commun";
 
-const CONTENEUR = "mx-auto w-full max-w-6xl space-y-6 p-6";
+const CONTENEUR = "mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-8";
 
 // ---------------------------------------------------------------------- Accueil « Ma file » (E94)
 export function AccueilRelation() {
@@ -209,7 +211,7 @@ export function EcranMessages({ fil }: { fil?: number | null }) {
     return (
         <Pret>
             {/* Pleine zone : la boîte porte son propre titre dans la colonne des fils (E92). */}
-            <div className="h-[calc(100vh-4.5rem)] min-h-[480px]">
+            <div className="h-full min-h-[480px]">
                 <BoiteMessages filInitial={fil} />
             </div>
         </Pret>
@@ -349,8 +351,10 @@ function FicheInterne({ id }: { id: number }) {
     const signalements = client.signalements ?? 0;
     const pannes = client.pannes ?? 0;
     return (
-        <div className={CONTENEUR}>
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-8">
+            {/* Le fil d'Ariane dit « Relation clients › Clients › <client> » comme la maquette ; la flèche retour reste (convention des pages ouvertes depuis une autre porte, test T6). */}
             <FlecheRetour href="/relation/clients" libelle={t({ en: "Back to the clients", fr: "Retour aux clients" })} />
+            <EnteteStudio miettes={[{ libelle: t(RELATION_CLIENTS), href: "/relation" }, { libelle: t({ en: "Clients", fr: "Clients" }), href: "/relation/clients" }, { libelle: client.nom }]} />
             <div className="flex flex-wrap items-center gap-4">
                 <AvatarClient id={client.id} nom={client.nom} taille={56} logo />
                 <div className="min-w-0 flex-1">
@@ -370,6 +374,8 @@ function FicheInterne({ id }: { id: number }) {
                 </div>
             </div>
             <OngletsPage
+                remplir
+                espacement="space-y-6"
                 onglets={[
                     { id: "messages", titre: t({ en: "Messages", fr: "Messages" }), contenu: <BoiteMessages client={id} /> },
                     { id: "notes", titre: t({ en: "Notes", fr: "Notes" }), contenu: <NotesClient organisation={id} /> },

@@ -29,8 +29,12 @@ type Onglet = "a_traiter" | "moi" | "tous";
 const ONGLETS: Onglet[] = ["a_traiter", "moi", "tous"];
 type Dire = (x: { en: string; fr: string }) => string;
 
-/** Le contact d'un fil : celui qui a écrit en premier côté client (fil lu en entier), sinon le dernier message du client, sinon le client. */
-const contact = (f: FilOut) => f.messages?.find((m) => m.cote === "client")?.auteur ?? (f.dernier?.cote === "client" ? f.dernier.auteur : f.client);
+/** Le contact d'un fil : celui qui a écrit en premier côté client (fil lu en entier), sinon le dernier message du client, sinon celui qui a ouvert le fil (une note interne ou notre réponse peut être le dernier mot), sinon le client. */
+const contact = (f: FilOut) =>
+    f.messages?.find((m) => m.cote === "client")?.auteur ??
+    (f.dernier?.cote === "client" ? f.dernier.auteur : undefined) ??
+    (f.ouvert_par?.replace(/^portail\s*:\s*/, "").trim() || undefined) ??
+    f.client;
 
 /**
  * [.mark] Messages (E92, E93) : la boîte à trois colonnes comme Intercom, Front ou Crisp. Les fils à gauche (À traiter, À moi,
@@ -90,7 +94,7 @@ export function BoiteMessages({ client, filInitial }: { client?: number; filInit
     const filtreActif = Boolean(q.trim() || type || (qui && !client));
 
     return (
-        <div className={`grid min-h-[460px] overflow-hidden ${client ? "h-[calc(100vh-17rem)] grid-cols-[300px_minmax(0,1fr)]" : "h-full grid-cols-[300px_minmax(0,1fr)_250px]"}`}>
+        <div className={`grid h-full min-h-[360px] overflow-hidden ${client ? "grid-cols-[300px_minmax(0,1fr)]" : "grid-cols-[300px_minmax(0,1fr)_250px]"}`}>
             <div className="flex min-h-0 flex-col border-r">
                 <div className="shrink-0 space-y-2 p-3">
                     {!client && (

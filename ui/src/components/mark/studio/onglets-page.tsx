@@ -60,12 +60,15 @@ export function OngletsPage({
     defaut,
     espacement = "space-y-6",
     controle,
+    remplir = false,
 }: {
     onglets: OngletPage[];
     defaut?: string;
     espacement?: string;
     /** K7 : la page qui a besoin de l'onglet actif (une action dans sa rangée de titre) le lit elle-même et le prête ici. */
     controle?: { actif: string; choisir: (id: string) => void };
+    /** La page remplit la hauteur de sa zone (colonne flex) : le volet actif prend le reste, sans faire défiler la page. */
+    remplir?: boolean;
 }) {
     const interne = useOngletDeLAdresse(
         onglets.map((o) => o.id),
@@ -73,8 +76,8 @@ export function OngletsPage({
     );
     const { actif, choisir } = controle ?? interne;
     return (
-        <div className={espacement}>
-            <div role="tablist" className="flex flex-wrap items-center gap-1 border-b">
+        <div className={remplir ? `flex min-h-0 flex-1 flex-col ${espacement.replace("space-y-", "gap-")}` : espacement}>
+            <div role="tablist" className="flex shrink-0 flex-wrap items-center gap-1 border-b">
                 {onglets.map((o) => (
                     <button
                         key={o.id}
@@ -97,7 +100,7 @@ export function OngletsPage({
                 ))}
             </div>
             {onglets.map((o) => (
-                <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id} className="space-y-10">
+                <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id} className={remplir ? "min-h-0 flex-1 overflow-auto" : "space-y-10"}>
                     {o.contenu}
                 </div>
             ))}

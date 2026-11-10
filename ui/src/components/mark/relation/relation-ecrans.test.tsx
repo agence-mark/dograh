@@ -168,6 +168,16 @@ describe("Messages : les trois états vides de la colonne des fils (J, E102)", (
     });
 });
 
+describe("Messages : le contact d'une ligne de la colonne des fils", () => {
+    it("quand le dernier mot est une note interne, la ligne nomme celui qui a ouvert le fil, jamais le client", async () => {
+        sdk.fils.mockImplementation(() =>
+            ok([fil({ ouvert_par: "portail : Karim Benali", dernier: { id: 5, cote: "interne", auteur: "Evan", texte: "Écouter les appels", cree_le: maintenant } })]),
+        );
+        avec(<EcranMessages />);
+        expect(await screen.findByText("Karim Benali")).toBeTruthy();
+    });
+});
+
 describe("Messages", () => {
     const complet = (sur: object = {}) =>
         fil({
