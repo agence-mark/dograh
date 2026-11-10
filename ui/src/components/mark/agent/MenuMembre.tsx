@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import { creerUnSpecialiseApiV1WorkflowWorkflowIdGroupeSpecialisePost, lireUnGroupeApiV1WorkflowWorkflowIdGroupeGet } from "@/client/sdk.gen";
 import { DialogueNom } from "@/components/mark/groupe/DialogueNom";
+import { IconeAgent } from "@/components/mark/groupe/IconeAgent";
 import { useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import {
@@ -27,7 +28,12 @@ import { useAuth } from "@/lib/auth";
 import { type MembreMenu, membresDuGroupe } from "./membres-groupe";
 import { adresseOnglet, type OngletAgent } from "./onglets-agent";
 
-export function MenuMembre({ agentId, onglet }: { agentId: number; onglet: OngletAgent }) {
+/**
+ * `nom` : le menu PORTE le nom de l'agent (point 16, correctifs d'écran) : un seul nom dans la barre, qui ouvre le menu du
+ * groupe ; un agent seul, ou le temps de la lecture du groupe, garde le nom simple. Sans `nom`, le menu est le sélecteur
+ * du début des onglets (mode `fil`) et un agent seul n'affiche rien.
+ */
+export function MenuMembre({ agentId, onglet, nom }: { agentId: number; onglet: OngletAgent; nom?: string }) {
     const { t } = useLangue();
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
@@ -51,7 +57,13 @@ export function MenuMembre({ agentId, onglet }: { agentId: number; onglet: Ongle
     }, [agentId, authLoading, user]);
 
     const courant = membres.find((m) => m.id === agentId);
-    if (!courant) return null;
+    if (!courant) {
+        return nom === undefined ? null : (
+            <span className="min-w-0 truncate text-sm font-medium" data-nom-agent>
+                {nom}
+            </span>
+        );
+    }
     const principal = membres.find((m) => m.principal);
     // Le principal se lit par son nom ; le mot « principal » n'est dit que dans la liste (maquette).
     const libelle = (m: MembreMenu) => (m.principal ? `${m.nom} (${t({ en: "main", fr: "principal" })})` : m.nom);
@@ -76,10 +88,12 @@ export function MenuMembre({ agentId, onglet }: { agentId: number; onglet: Ongle
                 <DropdownMenuTrigger asChild>
                     <button
                         data-menu-membre
-                        className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-muted"
+                        {...(nom !== undefined ? { "data-nom-agent": true } : {})}
+                        className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-muted"
                     >
-                        {courant.nom}
-                        <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
+                        {nom !== undefined && <IconeAgent role={courant.principal ? "principal" : "specialise"} />}
+                        <span className="truncate">{nom ?? courant.nom}</span>
+                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
@@ -98,7 +112,7 @@ export function MenuMembre({ agentId, onglet }: { agentId: number; onglet: Ongle
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <span className="mx-2 h-5 w-px shrink-0 bg-border" />
+            {nom === undefined && <span className="mx-2 h-5 w-px shrink-0 bg-border" />}
             <DialogueNom
                 ouvert={creation}
                 onOuvertChange={setCreation}

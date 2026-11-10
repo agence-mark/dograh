@@ -48,16 +48,15 @@ export function EnteteAgent({ agentId, onglet, nom, actions, fil }: { agentId: n
                         <span className="truncate font-medium">{fil}</span>
                     </nav>
                 ) : (
-                    <span className="min-w-0 truncate text-sm font-medium" data-nom-agent>
-                        {nom}
-                    </span>
+                    // Point 16 : un seul nom ; dans un groupe il ouvre le menu du groupe, un agent seul garde le nom simple.
+                    <MenuMembre agentId={agentId} onglet={onglet} nom={nom} />
                 )}
                 </>
             }
             milieu={
                 <>
                     <span className="mx-3 h-5 w-px shrink-0 bg-border" />
-                    <MenuMembre agentId={agentId} onglet={onglet} />
+                    {fil && <MenuMembre agentId={agentId} onglet={onglet} />}
                     <OngletsAgent agentId={agentId} actif={onglet} />
                 </>
             }

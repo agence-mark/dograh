@@ -95,6 +95,42 @@ describe("le menu du membre du groupe", () => {
     });
 });
 
+describe("la barre d'un agent : un seul nom (point 16)", () => {
+    it("un agent seul garde le nom simple, sans menu", async () => {
+        m.groupe.mockResolvedValue({ data: { principal: null, specialises: [] } });
+        render(<MenuMembre agentId={1} onglet="tests" nom="Seul" />);
+        await waitFor(() => expect(m.groupe).toHaveBeenCalled());
+        expect(document.querySelector("[data-menu-membre]")).toBeNull();
+        expect(document.querySelectorAll("[data-nom-agent]")).toHaveLength(1);
+        expect(document.querySelector("[data-nom-agent]")?.textContent).toBe("Seul");
+    });
+
+    it("dans un groupe, le nom lui-même ouvre le menu, avec l'icône de son rôle", async () => {
+        m.groupe.mockResolvedValue({ data: { principal: { id: 1, name: "Accueil" }, specialises: [{ id: 2, name: "Entretien" }] } });
+        render(<MenuMembre agentId={1} onglet="tests" nom="Accueil" />);
+        const declencheur = await waitFor(() => {
+            const d = document.querySelector("[data-menu-membre]");
+            if (!d) throw new Error("menu absent");
+            return d as HTMLElement;
+        });
+        expect(declencheur.hasAttribute("data-nom-agent")).toBe(true);
+        expect(document.querySelectorAll("[data-nom-agent]")).toHaveLength(1);
+        expect(declencheur.textContent).toBe("Accueil");
+        expect(declencheur.querySelector("[data-icone-agent]")?.getAttribute("data-icone-agent")).toBe("principal");
+    });
+
+    it("un spécialisé porte l'icône de spécialisé", async () => {
+        m.groupe.mockResolvedValue({ data: { principal: { id: 1, name: "Accueil" }, specialises: [{ id: 2, name: "Entretien" }] } });
+        render(<MenuMembre agentId={2} onglet="tests" nom="Entretien" />);
+        const declencheur = await waitFor(() => {
+            const d = document.querySelector("[data-menu-membre]");
+            if (!d) throw new Error("menu absent");
+            return d as HTMLElement;
+        });
+        expect(declencheur.querySelector("[data-icone-agent]")?.getAttribute("data-icone-agent")).toBe("specialise");
+    });
+});
+
 describe("l'onglet Versions", () => {
     beforeEach(() => {
         m.versions.mockReset();
